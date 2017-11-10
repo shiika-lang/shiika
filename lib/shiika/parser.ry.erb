@@ -1,0 +1,320 @@
+# vim: set ft=ruby
+<%
+  def camel_case(name)
+    name.split('_').map(&:capitalize).join
+  end
+
+  def repeat1(name, sep: [], suffix: nil)
+    <<-EOD
+    #{name}s: 
+        #{name}
+        { [val[0]] }
+      | #{name}s #{sep.join ' '} #{name}
+        { val[0].push(val[#{sep.length + 1}]) }
+    EOD
+  end
+
+  # sep: token needed in between the sequence
+  # suffix: token needed at the end of the sequence
+  def repeat0(name, sep: [], suffix: nil)
+    <<-EOD
+    opt_#{name}s:
+        /* NONE */ 
+      { [] }
+      | #{name}s #{suffix}
+      { val[0] }
+
+    #{repeat1(name, sep: sep)}
+    EOD
+  end
+%>
+class Shiika::Parser
+  options no_result_var
+  token IDENT IDENT_M CONST IVAR FLOAT INTEGER
+
+  prechigh
+    right UMINUS
+    left '*' '/' '%'
+    left '+' '-'
+    left '>' '>=' '<' '<='
+    nonassoc '==' '!='
+    left '&&'
+    left '||'
+  preclow
+
+rule
+    program:
+        opt_sep definitions sep top_statements opt_sep
+        { Ast::Program.new(val[1], Ast::Main.new(val[3])) }
+      | opt_sep definitions opt_sep
+        { Ast::Program.new(val[1], Ast::Main.new([])) }
+      | opt_sep top_statements opt_sep
+        { Ast::Program.new([],     Ast::Main.new(val[1])) }
+      | opt_sep
+        { Ast::Program.new([],     Ast::Main.new([])) }
+
+    definition:
+        defclass
+      | defun
+      | extern
+      | assign_const
+    <%= repeat1 'definition', sep: ['sep'] %>
+
+    # Almost same as statement but last `sep` is optional
+    # (i.e. `sep` is optional at the end of the source file)
+    top_statement:
+        statement
+      | assign_const
+    <%= repeat0 'top_statement', sep: ['sep'] %>
+
+    defclass:
+        'class' class_name sep
+          opt_defmethods
+        'end'
+        { Ast::DefClass.new(val[1], val[3]) }
+
+    defmethod:
+        definitialize
+      | 'def' method_name opt_paramlist _nl '->' _nl type sep
+           opt_statements
+        'end'
+        { Ast::DefMethod.new(val[1], val[2], val[6], val[8]) }
+    <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
+
+    definitialize:
+        'def' 'initialize' opt_iparamlist sep
+          opt_statements
+        'end'
+        { Ast::DefInitialize.new(val[2], val[4]) }
+
+    opt_iparamlist:
+        /* NONE */
+        { [] }
+      | '(' opt_iparams ')'
+        { val[1] }
+
+    iparam: 
+        param
+      | IVAR ':' type
+        { Ast::Param.new(val[0], val[2]) }
+    <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
+
+    defun:
+        'def' method_name opt_paramlist _nl '->' _nl type sep
+           opt_statements
+        'end'
+        { Ast::Defun.new(val[1], val[2], val[6], val[8]) }
+    <%= repeat0 'defun', sep: ['sep'] %>
+
+    opt_paramlist:
+        /* NONE */
+        { [] }
+      | '(' opt_params ')'
+        { val[1] }
+
+    param: 
+        IDENT ':' type
+        { Ast::Param.new(val[0], val[2]) }
+    <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
+
+    extern:
+        'extern' type IDENT '(' opt_param_types ')'
+        { Ast::Extern.new(val[1], val[2], val[4]) }
+
+    param_type:
+        type
+        { Ast::Param.new(nil, val[0]) }
+    <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
+
+    statement:
+        for_stmt
+      | return_stmt
+      | expression
+    <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
+
+    for_stmt:
+        'for' '(' IDENT ':' type ';' expression '...' expression ';' expression ')' sep
+          opt_statements
+        'end'
+        { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
+
+    return_stmt:
+        'return' expression
+        { Ast::Return.new(val[1]) }
+
+    expression:
+        if_expr
+      | method_call
+      | fcall
+      | deflvar
+      | assign_lvar
+      | assign_ivar
+      | varref
+      | literal
+
+      <% ops = %w(+ - * / % > < >= <= == != && ||) %>
+      <% ops.each do |op| %>
+      | expression '<%= op %>' expression
+        { Ast::BinExpr.new("<%= op %>", val[0], val[2]) }
+      <% end %>
+
+      | '-' expression =UMINUS
+        { Ast::UnaryExpr.new("-", val[1]) }
+
+      | '(' expression ')'
+        { val[1] }
+    <%= repeat0 'expression' %>
+
+    if_expr:
+        'if' expression sep opt_statements 'end'
+        { Ast::If.new(val[1], val[3], []) }
+      | 'if' expression sep opt_statements elsif_clause
+        { Ast::If.new(val[1], val[3], val[4]) }
+
+    elsif_clause:
+        'elsif' expression sep opt_statements elsif_clause
+        { [Ast::If.new(val[1], val[3], val[4])] }
+      | 'elsif' expression sep opt_statements 'end'
+        { [Ast::If.new(val[1], val[3], [])] }
+      | 'else' opt_sep opt_statements 'end'
+        { val[2] }
+
+    method_call:
+        expression '.' method_name opt_arglist
+        { Ast::MethodCall.new(val[0], val[2], val[3]) }
+      | expression '.' IDENT '=' expression
+        { Ast::MethodCall.new(val[0], val[2] + '=', [val[4]]) }
+
+    fcall:
+        method_name opt_arglist
+        { Ast::FunCall.new(val[0], val[1]) }
+
+    opt_arglist:
+        /* NONE */
+        { [] }
+      | '(' opt_args ')'
+        { val[1] }
+
+    arg:
+        expression
+    <%= repeat0 'arg', sep: ["_nl", "','", "_nl"] %>
+
+    deflvar:
+        'var' IDENT '=' expression
+        { Ast::AssignLvar.new(val[1], val[3], true) }
+
+    assign_lvar:
+        IDENT '=' expression
+        { Ast::AssignLvar.new(val[0], val[2], false) }
+
+    assign_ivar:
+        IVAR '=' expression
+        { Ast::AssignIvar.new(val[0], val[2]) }
+
+    assign_const:
+        CONST '=' expression
+        { Ast::AssignConst.new(val[0], val[2]) }
+
+    varref:
+        IDENT
+        { Ast::VarRef.new(val[0]) }
+      | IVAR
+        { Ast::VarRef.new(val[0]) }
+      | CONST
+        { Ast::VarRef.new(val[0]) }
+
+    literal:
+        FLOAT
+        { Ast::Literal.new(val[0]) }
+      | INTEGER
+        { Ast::Literal.new(val[0]) }
+      | 'true'
+        { Ast::Literal.new(true) }
+      | 'false'
+        { Ast::Literal.new(false) }
+
+    type:
+        IDENT
+      | CONST
+
+    class_name:
+        IDENT
+      | CONST
+
+    method_name:
+        IDENT
+      | IDENT_M
+
+    nl:
+        '\n'
+
+    _nl:
+        /* NONE */
+      | nl
+
+    opt_sep:
+        /* NONE */
+      | sep
+
+    sep:
+        separator
+      | sep separator
+
+    separator:
+        nl
+      | ';'
+end
+
+---- header
+require 'strscan'
+
+---- inner
+KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|var|true|false/
+
+SYMBOLS = Regexp.union(*"
+... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
+".split.map{|x| Regexp.new(Regexp.quote(x))})
+
+def parse(str)
+  @yydebug = true
+
+  @q = []
+  s = StringScanner.new(str)
+  until s.empty?
+    case
+    when s.scan(/\n/)
+      @q << ['\n', :NL]
+    when s.scan(/[ \t]+/)
+      # skip whitespace
+    when s.scan(%r{#[^\n]*})
+      # skip comment
+    when m = s.scan(SYMBOLS)
+      @q << [m, :SYMBOL]
+    when m = s.scan(/\d+\.\d+/)
+      @q << [:FLOAT, m.to_f]
+    when m = s.scan(/\d+/)
+      @q << [:INTEGER, m.to_i]
+    when m = s.scan(/#{KEYWORDS}\b/)
+      @q << [m, :KEYWORD]
+    when m = s.scan(/@[\w_]+/)
+      @q << [:IVAR, m]
+    when m = s.scan(/[A-Z_][A-Z_\d]*\b/)
+      @q << [:CONST, m]
+    when m = s.scan(/[\w_]+[!?]/)  # names allowed for methods only
+      @q << [:IDENT_M, m]
+    when m = s.scan(/[\w_]+/)
+      @q << [:IDENT, m]
+    else
+      raise "no match: #{s.inspect}"
+    end
+  end
+
+  do_parse
+rescue 
+  #p q: @q
+  raise
+end
+
+def next_token
+  @q.shift
+end

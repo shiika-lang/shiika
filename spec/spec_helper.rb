@@ -1,0 +1,2 @@
+require 'pp'
+require 'shiika'
