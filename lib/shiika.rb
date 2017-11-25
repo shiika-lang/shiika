@@ -1,2 +1,2 @@
-require 'shiika/ast'
 require 'shiika/parser'
+require 'shiika/program'

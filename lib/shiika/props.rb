@@ -1,3 +1,6 @@
+require 'json'
+require 'hashie/mash'
+
 module Shiika
   # Helps you to create value object class.
   #
@@ -15,6 +18,8 @@ module Shiika
   # to do something on initializaiton.
   module Props
     def props(*names)
+      define_singleton_method "prop_names" do names end
+
       define_method "initialize" do |*args|
         if names.length != args.length
           raise ArgumentError,
@@ -27,8 +32,18 @@ module Shiika
       end
       attr_reader *names
 
-      define_method "init", proc{}
+      define_method "init" do end
       private "init"
+
+      define_method "to_json" do |*args|
+        elems = names.map{|x| [x, instance_variable_get("@#{x}")]}
+        elems.push(["class", self.class.name.split(/::/).last])
+        return elems.to_h.to_json(*args)
+      end
+
+      define_method "serialize" do
+        JSON.parse(self.to_json, symbolize_names: true)
+      end
     end
   end
 end

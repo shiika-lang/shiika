@@ -1,10 +1,25 @@
 require 'set'
 require 'shiika/props'
+require 'shiika/program'
 
 module Shiika
   module Ast
+    ProgramError = Shiika::Program::ProgramError
+
     class Node
       extend Props
+
+      def self.short_name
+        self.name.split(/::/).last
+      end
+
+      # Return corresponding instance of Shiika::Program::*
+      def to_program
+        # Get Program::Literal, etc.
+        pclass = Shiika::Program.const_get(self.class.short_name)
+        values = self.class.prop_names.map{|x| __send__(x)}
+        return pclass.new(*values)
+      end
     end
 
     # The whole program
@@ -20,6 +35,26 @@ module Shiika
 
     class DefClass < Node
       props :name, :defmethods
+
+      def to_program
+        def_inits = defmethods.grep(DefInitialize)
+        raise ProgramError, "duplicated `initialize`" if def_inits.size > 1
+        if def_inits.empty?
+          sk_initializer = Shiika::Program::SkInitializer.new(name, [], [])
+        else
+          sk_initializer = def_inits.first.to_program
+        end
+        sk_methods = (defmethods - def_inits).map(&:to_program)
+
+        return Shiika::Program::SkClass.new(name, "Object", sk_initializer,
+                                            sk_initializer.ivars, sk_methods)
+      end
+
+      def sk_initializer
+        @sk_initializer ||= begin
+          def_initialize = defmethods
+        end
+      end
     end
 
     class Defun < Node
