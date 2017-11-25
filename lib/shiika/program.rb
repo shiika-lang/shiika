@@ -20,9 +20,9 @@ module Shiika
         @sk_classes[x.name] = x.to_program
       end
       # TODO: Ast::Defun
-      @main = ast.main.to_program
+      @sk_main = ast.main.to_program
     end
-    attr_reader :sk_classes, :main
+    attr_reader :sk_classes, :sk_main
 
     class Element
       extend Props

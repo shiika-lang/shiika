@@ -25,7 +25,7 @@ describe "Program" do
       sk_methods: [],
     })
 
-    expect(prog.main.serialize).to eq({
+    expect(prog.sk_main.serialize).to eq({
       class: "Main",
       stmts: [{
         class: "BinExpr",
