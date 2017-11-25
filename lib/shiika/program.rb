@@ -7,7 +7,7 @@ module Shiika
 
     # Convert Ast into Program
     def initialize(ast)
-      raise TypeError unless ast.is_a?(Shiika::Ast::Program)
+      raise TypeError unless ast.is_a?(Ast::Source)
 
       # Initial environment
       obj_init = SkInitializer.new("Object", [], [])

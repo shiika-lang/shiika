@@ -43,15 +43,15 @@ class Shiika::Parser
   preclow
 
 rule
-    program:
+    source:
         opt_sep definitions sep top_statements opt_sep
-        { Ast::Program.new(val[1], Ast::Main.new(val[3])) }
+        { Ast::Source.new(val[1], Ast::Main.new(val[3])) }
       | opt_sep definitions opt_sep
-        { Ast::Program.new(val[1], Ast::Main.new([])) }
+        { Ast::Source.new(val[1], Ast::Main.new([])) }
       | opt_sep top_statements opt_sep
-        { Ast::Program.new([],     Ast::Main.new(val[1])) }
+        { Ast::Source.new([],     Ast::Main.new(val[1])) }
       | opt_sep
-        { Ast::Program.new([],     Ast::Main.new([])) }
+        { Ast::Source.new([],     Ast::Main.new([])) }
 
     definition:
         defclass
