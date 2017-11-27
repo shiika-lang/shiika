@@ -28,6 +28,9 @@ module Shiika
     attr_reader :sk_classes, :sk_main
 
     def add_type!
+      # Do nothing if already typed
+      return if @sk_main.type
+
       env = Shiika::Program::Env.new({
         sk_classes: @sk_classes
       })
