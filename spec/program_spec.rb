@@ -28,17 +28,23 @@ describe "Program" do
     expect(prog.sk_main.serialize).to eq({
       class: "Main",
       stmts: [{
-        class: "BinExpr",
-        op: "+",
-        left_expr: {
+        class: "MethodCall",
+        receiver_expr: {
           class: "Literal",
-          value: 1,
+          value: 1
         },
-        right_expr: {
+        method_name: "+",
+        args: [{
           class: "Literal",
-          value: 1,
-        },
+          value: 1
+        }]
       }]
     })
+  end
+
+  it 'can calculate type' do
+    prog = parse("class A; end; 1")
+    prog.add_type!
+    expect(prog.sk_main.type).to eq(Shiika::Type::TyRaw["Int"])
   end
 end

@@ -217,11 +217,11 @@ rule
 
     varref:
         IDENT
-        { Ast::VarRef.new(val[0]) }
+        { Ast::LvarRef.new(val[0]) }
       | IVAR
-        { Ast::VarRef.new(val[0]) }
+        { Ast::IvarRef.new(val[0]) }
       | CONST
-        { Ast::VarRef.new(val[0]) }
+        { Ast::ConstRef.new(val[0]) }
 
     literal:
         FLOAT

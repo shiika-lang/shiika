@@ -1,6 +1,8 @@
 module Shiika
-  class Type
-    class TyRaw < Type
+  module Type
+    class Base; end
+
+    class TyRaw < Base
       @@types = {}
       def self.[](name)
         @@types[name] ||= new(name)
@@ -18,7 +20,7 @@ module Shiika
       alias to_s inspect
     end
 
-    class TyMethod < Type
+    class TyMethod < Base
       def initialize(name, param_tys, ret_ty)
         @name, @param_tys, @ret_ty = name, param_tys, ret_ty
       end
@@ -26,7 +28,7 @@ module Shiika
     end
 
     # Indicates this node has no type (eg. return statement)
-    class NoType < Type
+    class NoType < Base
     end
   end
 end

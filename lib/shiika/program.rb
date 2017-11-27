@@ -1,9 +1,12 @@
 require 'shiika/props'
 require 'shiika/type'
+require 'shiika/program/env'
 
 module Shiika
   class Program
     class ProgramError < StandardError; end
+    class SkTypeError < StandardError; end
+    class SkNameError < StandardError; end
 
     # Convert Ast into Program
     def initialize(ast)
@@ -24,8 +27,27 @@ module Shiika
     end
     attr_reader :sk_classes, :sk_main
 
+    def add_type!
+      env = Shiika::Program::Env.new({
+        sk_classes: @sk_classes
+      })
+      @sk_classes.each_value{|x| x.add_type!(env)}
+      @sk_main.add_type!(env)
+    end
+
     class Element
+      include Type
       extend Props
+
+      def add_type!(env)
+        newenv, @type = calc_type!(env)
+        return newenv
+      end
+      attr_reader :type
+
+      def calc_type!(env)
+        raise "override me"
+      end
     end
 
     class SkClass < Element
@@ -34,6 +56,12 @@ module Shiika
             :sk_initializer, # SkInitializer
             :sk_ivars,   # {String => SkIvar},
             :sk_methods  # {String => SkMethod}
+
+      def calc_type!(env)
+        @sk_initializer.add_type!(env)
+        @sk_methods.each{|x| x.add_type!(env)}
+        return env, TyRaw[name]
+      end
     end
 
     class SkIvar < Element
@@ -55,6 +83,12 @@ module Shiika
           SkIvar.new(x.name, x.type)
         }
       end
+
+      def calc_type!(env)
+        body_stmts.each{|x| x.add_type!(env)}
+        param_tys = iparams.map(&:type)
+        return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
+      end
     end
 
     class SkMethod < Element
@@ -66,10 +100,19 @@ module Shiika
       def arity
         @params.length
       end
+
+      def calc_type!(env)
+        TODO
+      end
     end
 
     class Main < Element
       props :stmts
+
+      def calc_type!(env)
+        stmts.each{|x| x.add_type!(env)}
+        return env, (stmts.last ? stmts.last.type : TyRaw["Void"])
+      end
     end
 
     class Param < Element
@@ -78,59 +121,150 @@ module Shiika
 
     class IParam < Element
       props :name, :type_name
-    end
 
-    class Extern < Element
-      props :ret_type_name, :name, :params
-    end
-
-    class For < Element
-      props :varname, :var_type_name,
-        :begin_expr, :end_expr, :step_expr, :body_stmts
+      def calc_type!(env)
+        return env, env.find_type(type_name)
+      end
     end
 
     class Return < Element
       props :expr
+
+      def calc_type!(env)
+        return env, TyRaw["Void"]
+      end
     end
 
     class If < Element
       props :cond_expr, :then_stmts, :else_stmts
+
+      def calc_type!(env)
+        cond_expr.add_type!(env)
+        if cond_expr.type != TyRaw["Bool"]
+          raise SkTypeError, "`if` condition must be Bool"
+        end
+        then_stmts.each{|x| x.add_type!(env)}
+        else_stmts.each{|x| x.add_type!(env)}
+
+        then_type = then_stmts.last&.type
+        else_type = else_stmts.last&.type
+        if_type = case
+                  when then_type && else_type
+                    if then_type != else_type
+                      raise SkTypeError, "`if` type mismatch (then-clause: #{then_type},"
+                      " else-clause: #{else_type})"
+                    end
+                    then_type
+                  when then_type
+                    then_type
+                  when else_type
+                    else_type
+                  else
+                    TyRaw["Void"]
+                  end
+        return env, if_type
+      end
     end
 
-    class BinExpr < Element
-      props :op, :left_expr, :right_expr
-    end
-
-    class UnaryExpr < Element
-      props :op, :expr
-    end
-
-    class FunCall < Element
-      props :name, :args
-    end
-
-    class MethodCall < FunCall
+    class MethodCall < Element
       props :receiver_expr, :method_name, :args
+
+      def calc_type!(env)
+        TODO
+        return ty, env
+      end
     end
 
-    class AssignLvar < Element
+    class AssignmentExpr < Element
+      def calc_type!(env)
+        expr.add_type!(env)
+        raise ProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
+      end
+    end
+
+    class AssignLvar < AssignmentExpr
       props :varname, :expr, :isvar
+
+      def calc_type!(env)
+        super
+        lvar = Lvar.new(varname, expr.type, (isvar ? :var : :let))
+        newenv = env.merge(:local_vars, {varname => lvar})
+        return newenv, expr.type
+      end
     end
 
-    class AssignIvar < Element
+    class AssignIvar < AssignmentExpr
       props :varname, :expr
+
+      def calc_type!(env)
+        super
+        ivar = env.find_ivar(name)
+        if ivar.type == expr.type
+          raise SkTypeError, "ivar #{name} is #{ivar.type} but expr is #{expr.type}"
+        end
+        return env, expr.type
+      end
     end
 
-    class AssignConst < Element
+    class AssignConst < AssignmentExpr
       props :varname, :expr
+      
+      def calc_type!(env)
+        TODO
+      end
     end
 
-    class VarRef < Element
+    class LvarRef < Element
       props :name
+
+      def calc_type!(env)
+        lvar = env.find_lvar(name)
+        return env, lvar.type
+      end
+    end
+
+    class IvarRef < Element
+      props :name
+
+      def calc_type!(env)
+        ivar = env.find_ivar(name)
+        return env, ivar.type
+      end
+    end
+
+    class ConstRef < Element
+      props :name
+
+      def calc_type!(env)
+        const = env.find_const(name)
+        return env, const.type
+      end
     end
 
     class Literal < Element
       props :value
+
+      def calc_type!(env)
+        type = case value
+               when true, false
+                 TyRaw["Bool"]
+               when Integer
+                 TyRaw["Int"]
+               when Integer
+                 TyRaw["Float"]
+               else
+                 raise "unknown value: #{value.inspect}"
+               end
+        return env, type
+      end
+    end
+
+    class Lvar
+      # kind : :let, :var, :param, :special
+      def initialize(name, ty, kind)
+        @name, @ty, @kind = name, ty, kind
+      end
+      attr_reader :name, :ty, :kind
     end
   end
 end

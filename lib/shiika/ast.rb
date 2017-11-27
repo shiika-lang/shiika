@@ -31,6 +31,10 @@ module Shiika
     # Statements written in the toplevel
     class Main < Node
       props :stmts
+
+      def to_program
+        Program::Main.new(stmts.map(&:to_program))
+      end
     end
 
     class DefClass < Node
@@ -91,10 +95,19 @@ module Shiika
 
     class BinExpr < Node
       props :op, :left_expr, :right_expr
+
+      def to_program
+        Program::MethodCall.new(left_expr.to_program, op,
+                                [right_expr.to_program])
+      end
     end
 
     class UnaryExpr < Node
       props :op, :expr
+
+      def to_program
+        Program::MethodCall.new(expr.to_program, op, [])
+      end
     end
 
     class FunCall < Node
@@ -117,7 +130,15 @@ module Shiika
       props :varname, :expr
     end
 
-    class VarRef < Node
+    class LvarRef < Node
+      props :name
+    end
+
+    class IvarRef < Node
+      props :name
+    end
+
+    class ConstRef < Node
       props :name
     end
 
