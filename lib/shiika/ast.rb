@@ -91,6 +91,13 @@ module Shiika
 
     class If < Node
       props :cond_expr, :then_stmts, :else_stmts
+
+      def to_program
+        Program::If.new(
+          cond_expr.to_program,
+          then_stmts.map(&:to_program),
+          else_stmts.map(&:to_program))
+      end
     end
 
     class BinExpr < Node

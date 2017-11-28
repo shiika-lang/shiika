@@ -9,22 +9,31 @@ module Shiika
     def run(program)
       program.add_type!
       @sk_classes = program.sk_classes
-
-      last_value = nil
-      program.sk_main.stmts.each{|x| last_value = eval_stmt(x)}
-      return last_value
+      return eval_stmts(program.sk_main.stmts)
     end
 
     private
 
-    def eval_stmt(stmt)
-      eval_expr(stmt)
+    def eval_stmts(stmts)
+      last_value = nil
+      stmts.each{|x| last_value = eval_stmt(x)}
+      return last_value
     end
 
-    def eval_expr(expr)
-      case expr
+    def eval_stmt(x)
+      eval_expr(x)
+    end
+
+    def eval_expr(x)
+      case x
+      when Program::If
+        cond = eval_expr(x.cond_expr)
+        if cond != true && cond != false
+          raise "if condition did not evaluated to bool: #{cond.inspect}"
+        end
+        return eval_stmts(cond ? x.then_stmts : x.else_stmts)
       when Program::Literal
-        expr.value
+        return x.value
       else
         TODO
       end
