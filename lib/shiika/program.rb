@@ -88,7 +88,7 @@ module Shiika
       end
 
       def calc_type!(env)
-        body_stmts.each{|x| x.add_type!(env)}
+        body_stmts.each{|x| env = x.add_type!(env)}
         param_tys = iparams.map(&:type)
         return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
       end
@@ -113,7 +113,7 @@ module Shiika
       props :stmts
 
       def calc_type!(env)
-        stmts.each{|x| x.add_type!(env)}
+        stmts.each{|x| env = x.add_type!(env)}
         return env, (stmts.last ? stmts.last.type : TyRaw["Void"])
       end
     end
@@ -146,8 +146,8 @@ module Shiika
         if cond_expr.type != TyRaw["Bool"]
           raise SkTypeError, "`if` condition must be Bool"
         end
-        then_stmts.each{|x| x.add_type!(env)}
-        else_stmts.each{|x| x.add_type!(env)}
+        then_stmts.each{|x| env = x.add_type!(env)}
+        else_stmts.each{|x| env = x.add_type!(env)}
 
         then_type = then_stmts.last&.type
         else_type = else_stmts.last&.type
@@ -205,6 +205,7 @@ module Shiika
         if ivar.type == expr.type
           raise SkTypeError, "ivar #{name} is #{ivar.type} but expr is #{expr.type}"
         end
+        # TODO: raise error for assignment to let
         return env, expr.type
       end
     end
@@ -264,10 +265,14 @@ module Shiika
 
     class Lvar
       # kind : :let, :var, :param, :special
-      def initialize(name, ty, kind)
-        @name, @ty, @kind = name, ty, kind
+      def initialize(name, type, kind)
+        @name, @type, @kind = name, type, kind
       end
-      attr_reader :name, :ty, :kind
+      attr_reader :name, :type, :kind
+
+      def inspect
+        "#<P::Lvar #{kind} #{name.inspect} #{type}>"
+      end
     end
   end
 end

@@ -2,16 +2,25 @@ module Shiika
   class Program
     class Env
       # data: {
-      #     sk_classes: [Program::SkClass],
-      #     local_vars: [Program::Lvar],
+      #     sk_classes: {String => Program::SkClass},
+      #     local_vars: {String => Program::Lvar},
       #     sk_self: Program::SkClass,
       #   }
       def initialize(data)
-        @data = {}
+        @data = {
+          sk_classes: {},
+          local_vars: {},
+          sk_self: :notset,
+        }.merge(data)
+      end
+
+      def inspect
+        "#<Env:#{@data.inspect}>"
       end
 
       def merge(key, hash)
-        Env.new(@data.fetch(key).merge(hash))
+        newdata = @data.merge({key => @data[key].merge(hash)})
+        Env.new(newdata)
       end
 
       def find_type(name)

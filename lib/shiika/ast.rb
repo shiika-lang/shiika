@@ -127,14 +127,26 @@ module Shiika
 
     class AssignLvar < Node
       props :varname, :expr, :isvar
+
+      def to_program
+        Program::AssignLvar.new(varname, expr.to_program, isvar)
+      end
     end
 
     class AssignIvar < Node
       props :varname, :expr
+
+      def to_program
+        Program::AssignIvar.new(varname, expr.to_program)
+      end
     end
 
     class AssignConst < Node
       props :varname, :expr
+
+      def to_program
+        Program::AssignConst.new(varname, expr.to_program)
+      end
     end
 
     class LvarRef < Node
