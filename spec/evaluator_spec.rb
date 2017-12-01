@@ -12,6 +12,10 @@ describe "Evaluator" do
 #  it 'constant'
 #
 #  it 'instance variable'
+#
+#  it 'method invocation' do
+#    expect(run("1 + 1")).to eq(2)
+#  end
 
   it 'local variable' do
     expect(run("a = 1; a")).to eq(1)
