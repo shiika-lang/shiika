@@ -11,14 +11,7 @@ module Shiika
     # Convert Ast into Program
     def initialize(ast)
       raise TypeError unless ast.is_a?(Ast::Source)
-
-      # Initial environment
-      obj_init = SkInitializer.new("Object", [], [])
-      obj_class = SkClass.new("Object", :noparent, obj_init, {}, {})
-      @sk_classes = {
-        "Object" => obj_class
-      }
-
+      @sk_classes = Shiika::Stdlib::CLASSES
       ast.defs.grep(Ast::DefClass).each do |x|
         @sk_classes[x.name] = x.to_program
       end
@@ -88,7 +81,9 @@ module Shiika
       end
 
       def calc_type!(env)
-        body_stmts.each{|x| env = x.add_type!(env)}
+        unless body_stmts.is_a?(Proc)
+          body_stmts.each{|x| env = x.add_type!(env)}
+        end
         param_tys = iparams.map(&:type)
         return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
       end
