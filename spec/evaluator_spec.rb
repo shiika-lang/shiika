@@ -13,6 +13,18 @@ describe "Evaluator" do
 #
 #  it 'instance variable'
 #
+#  it 'instance generation' do
+#    src = ~EOD
+#      class A
+#        def foo
+#          2
+#        end
+#      end
+#      A.new.foo
+#    EOD
+#    expect(run(src)).to eq(2)
+#  end
+#
 #  it 'method invocation' do
 #    expect(run("1 + 1")).to eq(2)
 #  end
