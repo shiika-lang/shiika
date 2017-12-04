@@ -38,14 +38,33 @@ module Shiika
         return env, lvar.value
       when Program::If
         env, cond = eval_expr(env, x.cond_expr)
-        if cond != true && cond != false
+        if cond.sk_class_name != 'Bool'
           raise "if condition did not evaluated to bool: #{cond.inspect}"
         end
-        return eval_stmts(env, cond ? x.then_stmts : x.else_stmts)
+        cond_value = cond.ivar_values[0]
+        return eval_stmts(env, cond_value ? x.then_stmts : x.else_stmts)
+      when Program::MethodCall
+        arg_values = x.args.map do |arg_expr|
+          env, value = eval_expr(env, arg_expr)
+          value
+        end
+        env, receiver = eval_expr(env, x.receiver_expr)
+        sk_method = receiver.find_method(env, x.method_name)
+        if sk_method.body_stmts.is_a?(Proc)
+          return env, sk_method.body_stmts.call(receiver, *arg_values)
+        else
+          return eval_stmts(sk_method.body_stmts)
+        end
       when Program::Literal
-        return env, x.value
+        v = case x.value
+            when Float then SkObj.new('Float', [x.value])
+            when Integer then SkObj.new('Int', [x.value])
+            when true, false then SkObj.new('Bool', [x.value])
+            else raise
+            end
+        return env, v
       else
-        raise "TODO: #{x.inspect}"
+        raise "TODO: #{x.class}"
       end
     end
 
@@ -58,6 +77,25 @@ module Shiika
 
       def inspect
         "#<E::Lvar #{kind} #{name.inspect} #{type} #{value.inspect}>"
+      end
+    end
+
+    class SkObj
+      def initialize(sk_class_name, ivar_values)
+        raise TypeError unless ivar_values.is_a?(Array)
+        @sk_class_name, @ivar_values = sk_class_name, ivar_values
+      end
+      attr_reader :sk_class_name, :ivar_values
+
+      def ==(other)
+        other.is_a?(SkObj) &&
+        other.sk_class_name == @sk_class_name and
+          other.ivar_values == @ivar_values
+      end
+
+      def find_method(env, method_name)
+        sk_class = env.find_class(@sk_class_name)
+        return sk_class.find_method(method_name)
       end
     end
   end

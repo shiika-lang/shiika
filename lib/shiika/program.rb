@@ -55,8 +55,12 @@ module Shiika
 
       def calc_type!(env)
         @sk_initializer.add_type!(env)
-        @sk_methods.each{|x| x.add_type!(env)}
+        @sk_methods.each_value{|x| x.add_type!(env)}
         return env, TyRaw[name]
+      end
+
+      def find_method(name)
+        return @sk_methods.fetch(name)
       end
     end
 
@@ -100,7 +104,10 @@ module Shiika
       end
 
       def calc_type!(env)
-        TODO
+        param_tys = params.map{|param|
+          env.find_type(param.type_name)
+        }
+        TyMethod.new(name, param_tys, ret_type)
       end
     end
 
@@ -168,8 +175,10 @@ module Shiika
       props :receiver_expr, :method_name, :args
 
       def calc_type!(env)
-        TODO
-        return ty, env
+        args.each{|x| env = x.add_type!(env)}
+        env = receiver_expr.add_type!(env)
+        sk_method = env.find_method(receiver_expr.type, method_name)
+        return env, sk_method.ret_type
       end
     end
 

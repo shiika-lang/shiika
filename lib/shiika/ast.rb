@@ -48,7 +48,9 @@ module Shiika
         else
           sk_initializer = def_inits.first.to_program
         end
-        sk_methods = (defmethods - def_inits).map(&:to_program)
+        sk_methods = (defmethods - def_inits).map{|x|
+          [ x.name, x.to_program]
+        }.to_h
 
         return Program::SkClass.new(name, "Object", sk_initializer,
                                     sk_initializer.ivars, sk_methods)

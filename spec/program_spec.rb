@@ -8,7 +8,7 @@ describe "Program" do
 
   it 'can be created' do
     prog = parse("class A; end; 1+1")
-    expect(prog.sk_classes.keys.sort).to eq(["A", "Object"])
+    expect(prog.sk_classes.keys.sort).to eq(["A", "Int", "Object"])
 
     sk_a = prog.sk_classes["A"]
     expect(sk_a.serialize).to eq({
@@ -22,7 +22,7 @@ describe "Program" do
         body_stmts: [],
       },
       sk_ivars: [],
-      sk_methods: [],
+      sk_methods: {},
     })
 
     expect(prog.sk_main.serialize).to eq({
