@@ -37,22 +37,27 @@ module Shiika
           }
         ]
       }
-    ].map{|spec|
-      init = Program::SkInitializer.new(
-        spec[:name], spec[:initializer][:params], spec[:initializer][:body]
-      )
-      sk_methods = spec[:methods].map{|x|
-        params = x[:param_type_names].map{|ty_name|
-          Program::Param.new("(no name)", ty_name)
-        }
-        sk_method = Program::SkMethod.new(
-          x[:name], x[:ret_type], params, x[:body]
+    ]
+
+    # Build Program::XX from CLASSES
+    def self.sk_classes
+      CLASSES.map{|spec|
+        init = Program::SkInitializer.new(
+          spec[:name], spec[:initializer][:params], spec[:initializer][:body]
         )
-        [x[:name], sk_method]
+        sk_methods = spec[:methods].map{|x|
+          params = x[:param_type_names].map{|ty_name|
+            Program::Param.new("(no name)", ty_name)
+          }
+          sk_method = Program::SkMethod.new(
+            x[:name], params, x[:ret_type_name], x[:body]
+          )
+          [x[:name], sk_method]
+        }.to_h
+        sk_class = Program::SkClass.new(spec[:name], spec[:parent], init,
+                                        spec[:ivars], sk_methods)
+        [spec[:name], sk_class]
       }.to_h
-      sk_class = Program::SkClass.new(spec[:name], spec[:parent], init,
-                                      spec[:ivars], sk_methods)
-      [spec[:name], sk_class]
-    }.to_h
+    end
   end
 end

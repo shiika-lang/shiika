@@ -11,7 +11,7 @@ module Shiika
     # Convert Ast into Program
     def initialize(ast)
       raise TypeError unless ast.is_a?(Ast::Source)
-      @sk_classes = Shiika::Stdlib::CLASSES
+      @sk_classes = Shiika::Stdlib.sk_classes
       ast.defs.grep(Ast::DefClass).each do |x|
         @sk_classes[x.name] = x.to_program
       end
