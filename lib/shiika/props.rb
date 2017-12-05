@@ -23,7 +23,7 @@ module Shiika
       define_method "initialize" do |*args|
         if names.length != args.length
           raise ArgumentError,
-            "wrong number of arguments (given #{args.length}, expected #{names.length})"
+            "wrong number of arguments for #{self.class}.new (given #{args.length}, expected #{names.length})"
         end
         names.zip(args).each do |name, arg|
           instance_variable_set("@#{name}", arg)
