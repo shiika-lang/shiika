@@ -37,6 +37,7 @@ module Shiika
 
       def add_type!(env)
         newenv, @type = calc_type!(env)
+        raise TypeError unless newenv.is_a?(Shiika::Program::Env)
         return newenv
       end
       attr_reader :type
