@@ -45,6 +45,34 @@ module Shiika
       def calc_type!(env)
         raise "override me"
       end
+
+      def inspect
+        cls_name = self.class.name.split('::').last
+        ivars = self.instance_variables.map{|name|
+          val = self.instance_variable_get(name)
+          "#{name}=#{val.inspect}"
+        }
+        "#<P::#{cls_name}##{self.object_id} #{ivars.join ' '}>"
+      end
+
+      #
+      # Debug print for add_type!
+      #
+      module DebugAddType
+        @@lv = 0
+        def add_type!(env, *rest)
+          raise self.inspect if @type
+          print " "*@@lv; p self
+          @@lv += 2
+          env = super(env, *rest)
+          @@lv -= 2
+          #print " "*@@lv; p self
+          env
+        end
+      end
+      def self.inherited(cls)
+        #cls.prepend DebugAddType
+      end
     end
 
     class SkClass < Element
@@ -96,8 +124,8 @@ module Shiika
 
     class SkMethod < Element
       props :name,
-            :ret_type, # Shiika::Type
             :params,
+            :ret_type_name,
             :body_stmts
 
       def arity
@@ -108,9 +136,12 @@ module Shiika
         param_tys = params.map{|param|
           env.find_type(param.type_name)
         }
-        TyMethod.new(name, param_tys, ret_type)
+        return env, TyMethod.new(name, param_tys, env.find_type(ret_type_name))
       end
     end
+
+    class SkClassMethod < SkMethod; end
+    class SkInstanceMethod < SkMethod; end
 
     class Main < Element
       props :stmts
@@ -179,7 +210,7 @@ module Shiika
         args.each{|x| env = x.add_type!(env)}
         env = receiver_expr.add_type!(env)
         sk_method = env.find_method(receiver_expr.type, method_name)
-        return env, sk_method.ret_type
+        return env, sk_method.type.ret_type
       end
     end
 
