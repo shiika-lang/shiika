@@ -28,7 +28,7 @@ module Shiika
         methods: [
           {
             name: "+",
-            ret_type: TyRaw["Int"],
+            ret_type_name: "Int",
             param_type_names: ["Int"],
             body: ->(this, other){
               n = this.ivar_values[0] + other.ivar_values[0]
