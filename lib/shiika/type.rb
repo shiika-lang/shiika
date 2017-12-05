@@ -21,10 +21,10 @@ module Shiika
     end
 
     class TyMethod < Base
-      def initialize(name, param_tys, ret_ty)
-        @name, @param_tys, @ret_ty = name, param_tys, ret_ty
+      def initialize(name, param_types, ret_type)
+        @name, @param_types, @ret_type = name, param_types, ret_type
       end
-      attr_reader :name, :param_tys, :ret_ty
+      attr_reader :name, :param_types, :ret_type
     end
 
     # Indicates this node has no type (eg. return statement)
