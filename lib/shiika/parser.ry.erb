@@ -75,10 +75,16 @@ rule
 
     defmethod:
         definitialize
-      | 'def' method_name opt_paramlist _nl '->' _nl type sep
+      | 'def' opt_self_dot method_name opt_paramlist _nl '->' _nl type sep
            opt_statements
         'end'
-        { Ast::DefMethod.new(val[1], val[2], val[6], val[8]) }
+        { 
+          if val[1] 
+            Ast::DefClassMethod.new(val[2], val[3], val[7], val[9])
+          else
+            Ast::DefMethod.new(val[2], val[3], val[7], val[9])
+          end
+        }
     <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
 
     definitialize:
@@ -98,6 +104,12 @@ rule
       | IVAR ':' type
         { Ast::Param.new(val[0], val[2]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
+
+    opt_self_dot:
+        /* NONE */
+        { false }
+      | 'self' '.'
+        { true }
 
     defun:
         'def' method_name opt_paramlist _nl '->' _nl type sep
@@ -270,7 +282,7 @@ require 'strscan'
 require 'shiika/ast'
 
 ---- inner
-KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|var|true|false/
+KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|var|self|true|false/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :

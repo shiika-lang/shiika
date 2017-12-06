@@ -13,7 +13,9 @@ module Shiika
       raise TypeError unless ast.is_a?(Ast::Source)
       @sk_classes = Shiika::Stdlib.sk_classes
       ast.defs.grep(Ast::DefClass).each do |x|
-        @sk_classes[x.name] = x.to_program
+        sk_class, meta_class = x.to_program
+        @sk_classes[sk_class.name] = sk_class
+        @sk_classes[meta_class.name] = meta_class
       end
       # TODO: Ast::Defun
       @sk_main = ast.main.to_program
@@ -24,8 +26,14 @@ module Shiika
       # Do nothing if already typed
       return if @sk_main.type
 
+      constants = @sk_classes.keys.map{|name|
+        const = SkConst.new(name)
+        const.instance_variable_set(:@type, Type::TyRaw["Meta:#{name}"])
+        [name, const]
+      }.to_h
       env = Shiika::Program::Env.new({
-        sk_classes: @sk_classes
+        sk_classes: @sk_classes,
+        constants: constants,
       })
       @sk_classes.each_value{|x| x.add_type!(env)}
       @sk_main.add_type!(env)
@@ -80,7 +88,28 @@ module Shiika
             :parent_name, # String or :noparent
             :sk_initializer, # SkInitializer
             :sk_ivars,   # {String => SkIvar},
+            :class_methods,  # {String => SkClassMethod}
             :sk_methods  # {String => SkMethod}
+
+      def self.build(*args)
+        sk_class = SkClass.new(*args)
+        meta_name = "Meta:#{sk_class.name}"
+        meta_parent = if sk_class.parent_name == :noparent 
+                        :noparent 
+                      else
+                        "Meta:#{sk_class.parent_name}"
+                      end
+        meta_class = SkMetaClass.new(
+          meta_name,
+          meta_parent,
+          SkInitializer.new(meta_name, [], ->(){}),
+          {},
+          {},
+          sk_class.class_methods
+        )
+        meta_class.sk_class = sk_class
+        return sk_class, meta_class
+      end
 
       def calc_type!(env)
         @sk_initializer.add_type!(env)
@@ -91,6 +120,11 @@ module Shiika
       def find_method(name)
         return @sk_methods.fetch(name)
       end
+    end
+
+    # Holds class methods of a class
+    class SkMetaClass < SkClass
+      attr_accessor :sk_class
     end
 
     class SkIvar < Element
@@ -141,7 +175,10 @@ module Shiika
     end
 
     class SkClassMethod < SkMethod; end
-    class SkInstanceMethod < SkMethod; end
+
+    class SkConst < Element
+      props :name
+    end
 
     class Main < Element
       props :stmts

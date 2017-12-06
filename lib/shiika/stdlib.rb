@@ -41,7 +41,7 @@ module Shiika
 
     # Build Program::XX from CLASSES
     def self.sk_classes
-      CLASSES.map{|spec|
+      CLASSES.flat_map{|spec|
         init = Program::SkInitializer.new(
           spec[:name], spec[:initializer][:params], spec[:initializer][:body]
         )
@@ -54,9 +54,12 @@ module Shiika
           )
           [x[:name], sk_method]
         }.to_h
-        sk_class = Program::SkClass.new(spec[:name], spec[:parent], init,
-                                        spec[:ivars], sk_methods)
-        [spec[:name], sk_class]
+        sk_class, meta_class = Program::SkClass.build(
+          spec[:name], spec[:parent], init,
+          spec[:ivars], {}, sk_methods
+        )
+        [[sk_class.name, sk_class],
+         [meta_class.name, meta_class]]
       }.to_h
     end
   end

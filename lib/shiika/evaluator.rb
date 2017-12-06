@@ -8,13 +8,24 @@ module Shiika
     # program: Shiika::Program
     def run(program)
       program.add_type!
-      @sk_classes = program.sk_classes
-      env = Shiika::Program::Env.new({sk_classes: @sk_classes})
+      env = initial_env(program)
       env, last_value = eval_stmts(env, program.sk_main.stmts)
       return last_value
     end
 
     private
+
+    def initial_env(program)
+      constants = program.sk_classes.keys.reject{|x| x =~ /\AMeta:[^:]/}
+        .map{|name|
+          cls_obj = SkObj.new("Meta:#{name}", [])
+          [name, cls_obj]
+        }.to_h
+      env = Shiika::Program::Env.new({
+        sk_classes: program.sk_classes,
+        constants: constants
+      })
+    end
 
     def eval_stmts(env, stmts)
       last_value = nil
@@ -53,8 +64,12 @@ module Shiika
         if sk_method.body_stmts.is_a?(Proc)
           return env, sk_method.body_stmts.call(receiver, *arg_values)
         else
-          return eval_stmts(sk_method.body_stmts)
+          return eval_stmts(env, sk_method.body_stmts)
         end
+      when Program::ConstRef
+        value = env.find_const(x.name)
+        raise TypeError unless value.is_a?(SkObj)
+        return env, value
       when Program::Literal
         v = case x.value
             when Float then SkObj.new('Float', [x.value])

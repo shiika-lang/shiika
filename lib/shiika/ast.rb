@@ -20,6 +20,13 @@ module Shiika
         values = self.class.prop_names.map{|x| __send__(x)}
         return pclass.new(*values)
       end
+
+      private
+
+      # Convert [Ast::Node] into [Program::XX]
+      def ary_to_program(ary)
+        ary.map(&:to_program)
+      end
     end
 
     # The whole program
@@ -40,6 +47,7 @@ module Shiika
     class DefClass < Node
       props :name, :defmethods
 
+      # return [sk_class, meta_class]
       def to_program
         def_inits = defmethods.grep(DefInitialize)
         raise ProgramError, "duplicated `initialize`" if def_inits.size > 1
@@ -52,8 +60,12 @@ module Shiika
           [ x.name, x.to_program]
         }.to_h
 
-        return Program::SkClass.new(name, "Object", sk_initializer,
-                                    sk_initializer.ivars, sk_methods)
+        return Program::SkClass.build(
+          name, "Object", sk_initializer,
+          sk_initializer.ivars,
+          defmethods.grep(Ast::DefClassMethod).map{|x| [x.name, x.to_program]}.to_h,
+          defmethods.grep(Ast::DefMethod).map{|x| [x.name, x.to_program]}.to_h
+        )
       end
 
       def sk_initializer
@@ -67,11 +79,26 @@ module Shiika
       props :name, :params, :ret_type_name, :body_stmts
     end
 
+    class DefClassMethod < Defun
+      def to_program
+        Program::SkClassMethod.new(name, params, ret_type_name,
+                                   ary_to_program(body_stmts))
+      end
+    end
+
     class DefMethod < Defun
+      def to_program
+        Program::SkMethod.new(name, params, ret_type_name,
+                              ary_to_program(body_stmts))
+      end
     end
 
     class DefInitialize < DefMethod
       props :params, :body_stmts
+
+      def to_program
+        Program::SkInitializer.new(params, ary_to_program(body_stmts))
+      end
     end
 
     class Param < Node
@@ -95,10 +122,9 @@ module Shiika
       props :cond_expr, :then_stmts, :else_stmts
 
       def to_program
-        Program::If.new(
-          cond_expr.to_program,
-          then_stmts.map(&:to_program),
-          else_stmts.map(&:to_program))
+        Program::If.new(cond_expr.to_program,
+                        ary_to_program(then_stmts),
+                        ary_to_program(else_stmts))
       end
     end
 
@@ -125,6 +151,12 @@ module Shiika
 
     class MethodCall < FunCall
       props :receiver_expr, :method_name, :args
+
+      def to_program
+        Program::MethodCall.new(receiver_expr.to_program,
+                                method_name,
+                                ary_to_program(args))
+      end
     end
 
     class AssignLvar < Node
