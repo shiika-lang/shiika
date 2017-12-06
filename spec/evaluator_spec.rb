@@ -1,8 +1,6 @@
 require 'spec_helper'
 
 describe "Evaluator" do
-  SkObj = Shiika::Evaluator::SkObj
-
   def run(src)
     ast = Shiika::Parser.new.parse(src)
     program = Shiika::Program.new(ast)
@@ -10,7 +8,7 @@ describe "Evaluator" do
   end
 
   def sk_int(n)
-    SkObj.new('Int', [n])
+    Shiika::Evaluator::SkObj.new('Int', [n])
   end
 
 #  it 'class'

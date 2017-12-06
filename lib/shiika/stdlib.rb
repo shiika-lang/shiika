@@ -5,6 +5,7 @@ require 'shiika/type'
 module Shiika
   module Stdlib
     include Shiika::Type
+    SkObj = Shiika::Evaluator::SkObj
 
     CLASSES = [
       {
