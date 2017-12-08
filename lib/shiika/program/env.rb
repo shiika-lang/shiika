@@ -2,6 +2,8 @@ require 'shiika/type'
 
 module Shiika
   class Program
+    # Environment
+    # Used both by Shiika::Program and Shiika::Evaluator
     class Env
       include Type
 
