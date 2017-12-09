@@ -4,9 +4,12 @@ require 'shiika/program/env'
 
 module Shiika
   class Program
-    class ProgramError < StandardError; end
+    # Shiika-level type error
     class SkTypeError < StandardError; end
+    # Shiika-level name error
     class SkNameError < StandardError; end
+    # Other Shiika-level errors
+    class ProgramError < StandardError; end
 
     # Convert Ast into Program
     def initialize(ast)
