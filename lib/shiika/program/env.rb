@@ -25,6 +25,7 @@ module Shiika
         "#<Env:#{@data.inspect}>"
       end
 
+      # Create new instance of `Env` by merging `hash` into the one at the key
       def merge(key, hash)
         newdata = @data.merge({key => @data[key].merge(hash)})
         Env.new(newdata)
