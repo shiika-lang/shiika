@@ -173,6 +173,15 @@ module Shiika
         param_tys = params.map{|param|
           env.find_type(param.type_name)
         }
+
+        if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
+          lvars = params.map{|x|
+            [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let)]
+          }.to_h
+          bodyenv = env.merge(:local_vars, lvars)
+          body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
+        end
+
         return env, TyMethod.new(name, param_tys, env.find_type(ret_type_name))
       end
     end

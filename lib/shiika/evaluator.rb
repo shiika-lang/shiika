@@ -64,7 +64,12 @@ module Shiika
         if sk_method.body_stmts.is_a?(Proc)
           return env, sk_method.body_stmts.call(receiver, *arg_values)
         else
-          return eval_stmts(env, sk_method.body_stmts)
+          lvars = sk_method.params.zip(arg_values).map{|x, val|
+            [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let, val)]
+          }.to_h
+          bodyenv = env.merge(:local_vars, lvars)
+          _, value = eval_stmts(bodyenv, sk_method.body_stmts)
+          return env, value 
         end
       when Program::ConstRef
         value = env.find_const(x.name)

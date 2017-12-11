@@ -28,20 +28,20 @@ describe "Evaluator" do
 #    EOD
 #    expect(run(src)).to eq(2)
 #  end
-#
+
   it 'class method invocation' do
     src = <<~EOD
       class A
-        def self.foo -> Int
-          1
+        def self.foo(x: Int) -> Int
+          x
         end
       end
-      A.foo
+      A.foo(1)
     EOD
     expect(run(src)).to eq(sk_int(1))
   end
 
-  it 'method invocation' do
+  it 'stdlib method invocation' do
     expect(run("1 + 1")).to eq(sk_int(2))
   end
 
