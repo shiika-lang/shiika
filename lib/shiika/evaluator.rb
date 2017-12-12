@@ -1,6 +1,9 @@
 require 'shiika/program'
 
 module Shiika
+  # Evaluates Shiika::Program.
+  # Note: this is just a prototype and will be discarded once compilation 
+  # into LLVM IR is implemented.
   class Evaluator
     def initialize
     end
