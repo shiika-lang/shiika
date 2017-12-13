@@ -36,6 +36,17 @@ module Shiika
     # Consists of definitions(defs) and the rest(main)
     class Source < Node
       props :defs, :main
+
+      def to_program
+        sk_classes = Shiika::Stdlib.sk_classes
+        self.defs.grep(Ast::DefClass).each do |x|
+          sk_class, meta_class = x.to_program
+          sk_classes[sk_class.name] = sk_class
+          sk_classes[meta_class.name] = meta_class
+        end
+        sk_main = self.main.to_program
+        return Program.new(sk_classes, sk_main)
+      end
     end
 
     # Statements written in the toplevel

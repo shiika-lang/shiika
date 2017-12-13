@@ -3,7 +3,7 @@ require 'spec_helper'
 describe "Program" do
   def parse(src)
     ast = Shiika::Parser.new.parse(src)
-    return Shiika::Program.new(ast)
+    return ast.to_program
   end
 
   it 'can be created' do

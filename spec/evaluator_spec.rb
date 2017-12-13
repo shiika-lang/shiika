@@ -3,7 +3,7 @@ require 'spec_helper'
 describe "Evaluator" do
   def run(src)
     ast = Shiika::Parser.new.parse(src)
-    program = Shiika::Program.new(ast)
+    program = ast.to_program
     return Shiika::Evaluator.new.run(program)
   end
 

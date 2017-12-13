@@ -11,17 +11,8 @@ module Shiika
     # Other Shiika-level errors
     class ProgramError < StandardError; end
 
-    # Convert Ast into Program
-    def initialize(ast)
-      raise TypeError unless ast.is_a?(Ast::Source)
-      @sk_classes = Shiika::Stdlib.sk_classes
-      ast.defs.grep(Ast::DefClass).each do |x|
-        sk_class, meta_class = x.to_program
-        @sk_classes[sk_class.name] = sk_class
-        @sk_classes[meta_class.name] = meta_class
-      end
-      # TODO: Ast::Defun
-      @sk_main = ast.main.to_program
+    def initialize(sk_classes, sk_main)
+      @sk_classes, @sk_main = sk_classes, sk_main
     end
     attr_reader :sk_classes, :sk_main
 
