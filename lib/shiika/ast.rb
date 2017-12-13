@@ -3,6 +3,9 @@ require 'shiika/props'
 require 'shiika/program'
 
 module Shiika
+  # Ast (Abstract Syntax Tree)
+  # - Shiika::Parser generates Ast
+  # - Ast can be converted into Shiika::Program with #to_program
   module Ast
     ProgramError = Program::ProgramError
 
