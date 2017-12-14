@@ -18,6 +18,7 @@ module Shiika
 
     private
 
+    # Create Program::Env which includes initial sk_classes and constants
     def initial_env(program)
       constants = program.sk_classes.keys.reject{|x| x =~ /\AMeta:[^:]/}
         .map{|name|
