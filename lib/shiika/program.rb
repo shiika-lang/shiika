@@ -34,6 +34,14 @@ module Shiika
       @sk_main.add_type!(env)
     end
 
+    def serialize
+      {
+        class: 'Program',
+        sk_classes: @sk_classes.transform_values(&:serialize),
+        sk_main: @sk_main.serialize,
+      }
+    end
+
     class Element
       include Type
       extend Props
