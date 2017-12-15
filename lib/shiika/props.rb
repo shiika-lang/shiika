@@ -36,8 +36,8 @@ module Shiika
       private "init"
 
       define_method "to_json" do |*args|
-        elems = names.map{|x| [x, instance_variable_get("@#{x}")]}
-        elems.push(["class", self.class.name.split(/::/).last])
+        elems = [["class", self.class.name.split(/::/).last]]
+        elems.concat(names.map{|x| [x, instance_variable_get("@#{x}")]})
         return elems.to_h.to_json(*args)
       end
 
