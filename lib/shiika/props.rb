@@ -30,7 +30,7 @@ module Shiika
         end
         init
       end
-      attr_reader *names
+      attr_accessor *names
 
       define_method "init" do end
       private "init"
