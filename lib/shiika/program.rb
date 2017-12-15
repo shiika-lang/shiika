@@ -3,6 +3,7 @@ require 'shiika/type'
 require 'shiika/program/env'
 
 module Shiika
+  # Represents a Shiika program
   class Program
     # Shiika-level type error
     class SkTypeError < StandardError; end
