@@ -41,6 +41,10 @@ describe "Evaluator" do
     expect(run(src)).to eq(sk_int(1))
   end
 
+  it 'calling Shiika method from stdlib function' do
+    expect(run("1.tmp")).to eq(sk_int(1))
+  end
+
   it 'stdlib method invocation' do
     expect(run("1 + 1")).to eq(sk_int(2))
   end

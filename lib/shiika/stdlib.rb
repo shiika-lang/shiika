@@ -39,6 +39,26 @@ module Shiika
               n = this.ivar_values[0] + other.ivar_values[0]
               SkObj.new('Int', [n])
             }
+          },
+          {
+            name: "abs",
+            ret_type_name: "Int",
+            param_type_names: [],
+            body: ->(this){
+              n = this.ivar_values[0].abs
+              SkObj.new('Int', [n])
+            }
+          },
+          {
+            name: "tmp",
+            ret_type_name: "Int",
+            param_type_names: [],
+            body: ->(this){
+              Evaluator::Call.new(this, "abs", []) do |result|
+                n = result.ivar_values[0]
+                SkObj.new('Int', [n])
+              end
+            }
           }
         ]
       }

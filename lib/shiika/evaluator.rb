@@ -66,8 +66,17 @@ module Shiika
         end
         env, receiver = eval_expr(env, x.receiver_expr)
         sk_method = receiver.find_method(env, x.method_name)
-        if sk_method.body_stmts.is_a?(Proc)
-          return env, sk_method.body_stmts.call(receiver, *arg_values)
+        if sk_method.body_stmts.is_a?(Proc)  # stdlib
+          value = sk_method.body_stmts.call(receiver, *arg_values)
+          if value.is_a?(Evaluator::Call)
+            invocation = Program::MethodCall.new(value.receiver_obj,
+                                                 value.method_name,
+                                                 value.arg_objs)
+            _, result = eval_stmt(env, invocation)
+            return env, value.after.call(result)
+          else
+            return env, value
+          end
         else
           lvars = sk_method.params.zip(arg_values).map{|x, val|
             [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let, val)]
@@ -88,6 +97,8 @@ module Shiika
             else raise
             end
         return env, v
+      when SkObj
+        return env, x
       else
         raise "TODO: #{x.class}"
       end
@@ -122,6 +133,13 @@ module Shiika
         sk_class = env.find_class(@sk_class_name)
         return sk_class.find_method(method_name)
       end
+    end
+
+    class Call
+      def initialize(receiver_obj, method_name, arg_objs, &after)
+        @receiver_obj, @method_name, @arg_objs, @after = receiver_obj, method_name, arg_objs, after
+      end
+      attr_reader :receiver_obj, :method_name, :arg_objs, :after
     end
   end
 end
