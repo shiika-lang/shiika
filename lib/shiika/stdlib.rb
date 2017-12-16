@@ -3,6 +3,10 @@ require 'shiika/evaluator'
 require 'shiika/type'
 
 module Shiika
+  # Built-in library
+  # Used by Shiika::Evaluator
+  # Also used by Shiika::Program (because shiika programs implicitly
+  # rely on Object class, etc.)
   module Stdlib
     include Shiika::Type
     SkObj = Shiika::Evaluator::SkObj
