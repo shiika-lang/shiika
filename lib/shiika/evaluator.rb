@@ -1,5 +1,4 @@
 require 'shiika/program'
-require 'shiika/evaluator/k_normalization'
 
 module Shiika
   # Evaluates Shiika::Program.
