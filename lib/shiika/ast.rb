@@ -63,29 +63,18 @@ module Shiika
 
       # return [sk_class, meta_class]
       def to_program
-        def_inits = defmethods.grep(DefInitialize)
-        raise ProgramError, "duplicated `initialize`" if def_inits.size > 1
-        if def_inits.empty?
-          sk_initializer = Program::SkInitializer.new([], [])
-        else
-          sk_initializer = def_inits.first.to_program
-        end
-        sk_methods = (defmethods - def_inits).map{|x|
-          [ x.name, x.to_program]
+        sk_class_methods = defmethods.grep(Ast::DefClassMethod).map{|x|
+          [x.name, x.to_program]
         }.to_h
-
+        sk_methods = defmethods.grep(Ast::DefMethod).map{|x|
+          [x.name, x.to_program]
+        }.to_h
+        sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
         return Program::SkClass.build(
-          name, "Object", sk_initializer,
-          sk_initializer.ivars,
-          defmethods.grep(Ast::DefClassMethod).map{|x| [x.name, x.to_program]}.to_h,
-          defmethods.grep(Ast::DefMethod).map{|x| [x.name, x.to_program]}.to_h
+          name, "Object", sk_methods["initialize"].ivars,
+          sk_class_methods,
+          sk_methods
         )
-      end
-
-      def sk_initializer
-        @sk_initializer ||= begin
-          def_initialize = defmethods
-        end
       end
     end
 

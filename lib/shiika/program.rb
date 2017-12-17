@@ -89,7 +89,6 @@ module Shiika
     class SkClass < Element
       props :name, # String
             :parent_name, # String or :noparent
-            :sk_initializer, # SkInitializer
             :sk_ivars,   # {String => SkIvar},
             :class_methods,  # {String => SkClassMethod}
             :sk_methods  # {String => SkMethod}
@@ -106,7 +105,6 @@ module Shiika
         meta_class = SkMetaClass.new(
           meta_name,
           meta_parent,
-          SkInitializer.new([], ->(){}),
           {},
           {},
           {"new" => sk_new}.merge(sk_class.class_methods),
@@ -125,7 +123,7 @@ module Shiika
         
         sk_new = Program::SkMethod.new(
           "new",
-          sk_class.sk_initializer.params,
+          sk_class.sk_methods["initialize"].params,
           sk_class.name,
           @@object_new.body_stmts
         )
@@ -133,13 +131,11 @@ module Shiika
       end
 
       def calc_type!(env)
-        @sk_initializer.add_type!(env)
         @sk_methods.each_value{|x| x.add_type!(env)}
         return env, TyRaw[name]
       end
 
       def find_method(name)
-        return @sk_initializer if name == "initialize"
         return @sk_methods.fetch(name)
       end
     end

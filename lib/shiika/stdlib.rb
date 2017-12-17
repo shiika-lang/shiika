@@ -15,10 +15,6 @@ module Shiika
       {
         name: "Object",
         parent: :noparent,
-        initializer: {
-          params: [],
-          body: ->(){}
-        },
         ivars: [],
         class_methods: [
           {
@@ -35,18 +31,25 @@ module Shiika
             }
           }
         ],
-        methods: []
+        methods: [
+          {
+            name: "initialize",
+            param_type_names: [],
+            body: ->(){}
+          }
+        ]
       },
       {
         name: "Int",
         parent: "Object",
-        initializer: {
-          params: [],
-          body: ->(){}
-        },
         ivars: {},
         class_methods: [],
         methods: [
+          {
+            name: "initialize",
+            param_type_names: [],
+            body: ->(){}
+          },
           {
             name: "+",
             ret_type_name: "Int",
@@ -83,17 +86,19 @@ module Shiika
     # Build Program::XX from CLASSES
     def self.sk_classes
       CLASSES.flat_map{|spec|
-        init = Program::SkInitializer.new(
-          spec[:initializer][:params],
-          spec[:initializer][:body],
-        )
         sk_methods = spec[:methods].map{|x|
           params = x[:param_type_names].map{|ty_name|
             Program::Param.new("(no name)", ty_name)
           }
-          sk_method = Program::SkMethod.new(
-            x[:name], params, x[:ret_type_name], x[:body]
-          )
+          if x[:name] == "initialize"
+            sk_method = Program::SkInitializer.new(
+              params, x[:body]
+            )
+          else
+            sk_method = Program::SkMethod.new(
+              x[:name], params, x[:ret_type_name], x[:body]
+            )
+          end
           [x[:name], sk_method]
         }.to_h
         sk_class_methods = spec[:class_methods].map{|x|
@@ -106,7 +111,7 @@ module Shiika
           [x[:name], sk_method]
         }.to_h
         sk_class, meta_class = Program::SkClass.build(
-          spec[:name], spec[:parent], init,
+          spec[:name], spec[:parent],
           spec[:ivars], sk_class_methods, sk_methods
         )
         [[sk_class.name, sk_class],

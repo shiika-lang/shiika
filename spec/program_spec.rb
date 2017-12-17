@@ -13,16 +13,17 @@ describe "Program" do
       class: "SkClass",
       name: "A",
       parent_name: "Object",
-      sk_initializer: {
-        class: "SkInitializer",
-        name: "initialize",
-        params: [],
-        ret_type_name: "Void",
-        body_stmts: [],
-      },
       sk_ivars: [],
       class_methods: {},
-      sk_methods: {},
+      sk_methods: {
+        :initialize => {
+          class: "SkInitializer",
+          name: "initialize",
+          params: [],
+          ret_type_name: "Void",
+          body_stmts: [],
+        }
+      },
     })
 
     expect(prog.sk_main.serialize).to eq({
