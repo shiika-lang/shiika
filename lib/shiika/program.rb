@@ -154,32 +154,6 @@ module Shiika
             :type # Shiika::Type
     end
 
-    class SkInitializer < Element
-      props :name, # String (class name it belongs to)
-            :iparams, # [Param or IParam]
-            :body_stmts
-
-      alias params iparams
-
-      def arity
-        @params.length
-      end
-
-      def ivars
-        iparams.grep(IParam).map{|x|
-          SkIvar.new(x.name, x.type)
-        }
-      end
-
-      def calc_type!(env)
-        unless body_stmts.is_a?(Proc)
-          body_stmts.each{|x| env = x.add_type!(env)}
-        end
-        param_tys = iparams.map(&:type)
-        return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
-      end
-    end
-
     class SkMethod < Element
       props :name,
             :params,
@@ -204,6 +178,32 @@ module Shiika
         end
 
         return env, TyMethod.new(name, param_tys, env.find_type(ret_type_name))
+      end
+    end
+
+    class SkInitializer < Element
+      props :name, # String (class name it belongs to)
+            :iparams, # [Param or IParam]
+            :body_stmts
+
+      alias params iparams
+
+      def arity
+        @params.length
+      end
+
+      def ivars
+        iparams.grep(IParam).map{|x|
+          SkIvar.new(x.name, x.type)
+        }
+      end
+
+      def calc_type!(env)
+        unless body_stmts.is_a?(Proc)
+          body_stmts.each{|x| env = x.add_type!(env)}
+        end
+        param_tys = iparams.map(&:type)
+        return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
       end
     end
 
