@@ -17,17 +17,17 @@ describe "Evaluator" do
 #
 #  it 'instance variable'
 #
-#  it 'instance generation' do
-#    src = ~EOD
-#      class A
-#        def foo
-#          2
-#        end
-#      end
-#      A.new.foo
-#    EOD
-#    expect(run(src)).to eq(2)
-#  end
+  it 'instance generation' do
+    src = <<~EOD
+      class A
+        def foo -> Int
+          2
+        end
+      end
+      A.new.foo
+    EOD
+    expect(run(src)).to eq(sk_int(2))
+  end
 
   it 'class method invocation' do
     src = <<~EOD

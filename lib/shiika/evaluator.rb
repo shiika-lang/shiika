@@ -118,6 +118,7 @@ module Shiika
 
     class SkObj
       def initialize(sk_class_name, ivar_values)
+        raise TypeError, sk_class_name.inspect unless sk_class_name.is_a?(String)
         raise TypeError unless ivar_values.is_a?(Array)
         @sk_class_name, @ivar_values = sk_class_name, ivar_values
       end

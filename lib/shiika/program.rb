@@ -102,16 +102,34 @@ module Shiika
                       else
                         "Meta:#{sk_class.parent_name}"
                       end
+        sk_new = make_sk_new(sk_class)
         meta_class = SkMetaClass.new(
           meta_name,
           meta_parent,
           SkInitializer.new(meta_name, [], ->(){}),
           {},
           {},
-          sk_class.class_methods
+          {"new" => sk_new}.merge(sk_class.class_methods),
         )
         meta_class.sk_class = sk_class
         return sk_class, meta_class
+      end
+
+      @@object_new = nil
+      def self.make_sk_new(sk_class)
+        if sk_class.name == "Object"
+          @@object_new = sk_class.class_methods["new"]
+          return @@object_new
+        end
+        raise "class Object must be built first" unless @@object_new
+        
+        sk_new = Program::SkMethod.new(
+          "new",
+          sk_class.sk_initializer.iparams,
+          sk_class.name,
+          @@object_new.body_stmts
+        )
+        return sk_new
       end
 
       def calc_type!(env)
@@ -121,6 +139,7 @@ module Shiika
       end
 
       def find_method(name)
+        return @sk_initializer if name == "initialize"
         return @sk_methods.fetch(name)
       end
     end
@@ -139,6 +158,8 @@ module Shiika
       props :name, # String (class name it belongs to)
             :iparams, # [Param or IParam]
             :body_stmts
+
+      alias params iparams
 
       def arity
         @params.length
@@ -186,6 +207,8 @@ module Shiika
       end
     end
 
+    # TODO: Should we remove this? (This might be confusing because a class
+    # method is a method of the meta-class)
     class SkClassMethod < SkMethod; end
 
     class SkConst < Element
