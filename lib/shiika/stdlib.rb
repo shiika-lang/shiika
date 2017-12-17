@@ -84,7 +84,9 @@ module Shiika
     def self.sk_classes
       CLASSES.flat_map{|spec|
         init = Program::SkInitializer.new(
-          spec[:name], spec[:initializer][:params], spec[:initializer][:body]
+          spec[:name],
+          spec[:initializer][:params],
+          spec[:initializer][:body],
         )
         sk_methods = spec[:methods].map{|x|
           params = x[:param_type_names].map{|ty_name|

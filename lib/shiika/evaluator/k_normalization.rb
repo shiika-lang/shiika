@@ -29,7 +29,7 @@ module Shiika
 
       def convert_initializer(x)
         Program::SkInitializer.new(x.name,
-                                   x.iparams,
+                                   x.params,
                                    convert_stmts(x.body_stmts))
       end
 

@@ -16,7 +16,8 @@ describe "Program" do
       sk_initializer: {
         class: "SkInitializer",
         name: "A",
-        iparams: [],
+        params: [],
+        ret_type_name: "Void",
         body_stmts: [],
       },
       sk_ivars: [],

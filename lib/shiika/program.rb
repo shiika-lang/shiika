@@ -125,7 +125,7 @@ module Shiika
         
         sk_new = Program::SkMethod.new(
           "new",
-          sk_class.sk_initializer.iparams,
+          sk_class.sk_initializer.params,
           sk_class.name,
           @@object_new.body_stmts
         )
@@ -181,19 +181,17 @@ module Shiika
       end
     end
 
-    class SkInitializer < Element
-      props :name, # String (class name it belongs to)
-            :iparams, # [Param or IParam]
-            :body_stmts
-
-      alias params iparams
+    class SkInitializer < SkMethod
+      def initialize(name, iparams, body_stmts)
+        super(name, iparams, "Void", body_stmts)
+      end
 
       def arity
         @params.length
       end
 
       def ivars
-        iparams.grep(IParam).map{|x|
+        params.grep(IParam).map{|x|
           SkIvar.new(x.name, x.type)
         }
       end
@@ -202,7 +200,7 @@ module Shiika
         unless body_stmts.is_a?(Proc)
           body_stmts.each{|x| env = x.add_type!(env)}
         end
-        param_tys = iparams.map(&:type)
+        param_tys = params.map(&:type)
         return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
       end
     end
