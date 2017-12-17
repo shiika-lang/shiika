@@ -15,7 +15,7 @@ describe "Program" do
       parent_name: "Object",
       sk_initializer: {
         class: "SkInitializer",
-        name: "A",
+        name: "initialize",
         params: [],
         ret_type_name: "Void",
         body_stmts: [],

@@ -66,7 +66,7 @@ module Shiika
         def_inits = defmethods.grep(DefInitialize)
         raise ProgramError, "duplicated `initialize`" if def_inits.size > 1
         if def_inits.empty?
-          sk_initializer = Program::SkInitializer.new(name, [], [])
+          sk_initializer = Program::SkInitializer.new([], [])
         else
           sk_initializer = def_inits.first.to_program
         end

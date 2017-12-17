@@ -106,7 +106,7 @@ module Shiika
         meta_class = SkMetaClass.new(
           meta_name,
           meta_parent,
-          SkInitializer.new(meta_name, [], ->(){}),
+          SkInitializer.new([], ->(){}),
           {},
           {},
           {"new" => sk_new}.merge(sk_class.class_methods),
@@ -182,8 +182,8 @@ module Shiika
     end
 
     class SkInitializer < SkMethod
-      def initialize(name, iparams, body_stmts)
-        super(name, iparams, "Void", body_stmts)
+      def initialize(iparams, body_stmts)
+        super("initialize", iparams, "Void", body_stmts)
       end
 
       def arity
