@@ -311,7 +311,7 @@ def parse(str)
       @q << [m, :KEYWORD]
     when m = s.scan(/@[\w_]+/)
       @q << [:IVAR, m]
-    when m = s.scan(/[A-Z_][A-Z_\d]*\b/)
+    when m = s.scan(/[A-Z_][\w_]*\b/)
       @q << [:CONST, m]
     when m = s.scan(/[\w_]+[!?]/)  # names allowed for methods only
       @q << [:IDENT_M, m]
