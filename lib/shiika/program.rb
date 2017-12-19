@@ -77,12 +77,12 @@ module Shiika
           @@lv += 2
           env = super(env, *rest)
           @@lv -= 2
-          #print " "*@@lv; p self
+          print " "*@@lv; puts "=> #{self.type.inspect}"
           env
         end
       end
       def self.inherited(cls)
-        #cls.prepend DebugAddType
+        cls.prepend DebugAddType if ENV['DEBUG']
       end
     end
 
