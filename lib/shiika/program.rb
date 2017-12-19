@@ -54,7 +54,7 @@ module Shiika
       attr_reader :type
 
       def calc_type!(env)
-        raise "override me"
+        raise "override me (#{self.class})"
       end
 
       def inspect
