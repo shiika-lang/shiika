@@ -102,7 +102,7 @@ rule
     iparam: 
         param
       | IVAR ':' type
-        { Ast::Param.new(val[0], val[2]) }
+        { Ast::IParam.new(val[0], val[2]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     opt_self_dot:

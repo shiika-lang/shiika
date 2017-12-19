@@ -85,14 +85,16 @@ module Shiika
 
     class DefClassMethod < Defun
       def to_program
-        Program::SkClassMethod.new(name, params, ret_type_name,
+        Program::SkClassMethod.new(name, params.map(&:to_program),
+                                   ret_type_name,
                                    ary_to_program(body_stmts))
       end
     end
 
     class DefMethod < Defun
       def to_program
-        Program::SkMethod.new(name, params, ret_type_name,
+        Program::SkMethod.new(name, params.map(&:to_program),
+                              ret_type_name,
                               ary_to_program(body_stmts))
       end
     end
@@ -100,12 +102,21 @@ module Shiika
     class DefInitialize < DefMethod
       props :params, :body_stmts
 
+      def name
+        "initialize"
+      end
+
       def to_program
-        Program::SkInitializer.new(params, ary_to_program(body_stmts))
+        Program::SkInitializer.new(params.map(&:to_program),
+                                   ary_to_program(body_stmts))
       end
     end
 
     class Param < Node
+      props :name, :type_name
+    end
+
+    class IParam < Node
       props :name, :type_name
     end
 

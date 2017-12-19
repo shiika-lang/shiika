@@ -22,13 +22,18 @@ module Shiika
       end
 
       # Create new instance of `Env` by merging `hash` into the one at the key
-      def merge(key, hash)
-        newdata = @data.merge({key => @data[key].merge(hash)})
-        Env.new(newdata)
+      def merge(key, x)
+        if x.is_a?(Hash)
+          self.class.new(@data.merge({key => @data[key].merge(x)}))
+        else
+          self.class.new(@data.merge({key => x}))
+        end
       end
 
       def find_type(name)
-        raise ProgramError, "unknown type: #{name}" unless @data[:sk_classes].key?(name)
+        if !@data[:sk_classes].key?(name) && name != "Void"
+          raise ProgramError, "unknown type: #{name}"
+        end
         return TyRaw[name]
       end
 

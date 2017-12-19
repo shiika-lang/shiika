@@ -1,4 +1,5 @@
 require 'shiika/program'
+require 'shiika/evaluator/env'
 
 module Shiika
   # Evaluates Shiika::Program.
@@ -25,7 +26,7 @@ module Shiika
           cls_obj = SkObj.new("Meta:#{name}", {})
           [name, cls_obj]
         }.to_h
-      env = Shiika::Program::Env.new({
+      return Shiika::Evaluator::Env.new({
         sk_classes: program.sk_classes,
         constants: constants
       })
@@ -66,7 +67,7 @@ module Shiika
         env, receiver = eval_expr(env, x.receiver_expr)
         sk_method = receiver.find_method(env, x.method_name)
         if sk_method.body_stmts.is_a?(Proc)  # stdlib
-          value = sk_method.body_stmts.call(receiver, *arg_values)
+          value = sk_method.body_stmts.call(env, receiver, *arg_values)
           if value.is_a?(Evaluator::Call)
             invocation = Program::MethodCall.new(value.receiver_obj,
                                                  value.method_name,
@@ -80,10 +81,16 @@ module Shiika
           lvars = sk_method.params.zip(arg_values).map{|x, val|
             [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let, val)]
           }.to_h
-          bodyenv = env.merge(:local_vars, lvars)
+          bodyenv = env.merge(:local_vars, lvars).merge(:sk_self, receiver)
           _, value = eval_stmts(bodyenv, sk_method.body_stmts)
           return env, value 
         end
+      when Program::LvarRef
+        TODO
+      when Program::IvarRef
+        value = env.find_ivar_value(x.name)
+        raise TypeError unless value.is_a?(SkObj)
+        return env, value
       when Program::ConstRef
         value = env.find_const(x.name)
         raise TypeError unless value.is_a?(SkObj)

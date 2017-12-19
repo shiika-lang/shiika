@@ -21,10 +21,15 @@ module Shiika
             name: "new",
             ret_type_name: "Object",
             param_type_names: [],
-            body: ->(class_obj, *args){
+            body: ->(env, class_obj, *args){
               sk_class_name = class_obj.sk_class_name[/Meta:(.*)/, 1] or
                 raise class_obj.inspect
-              obj = SkObj.new(sk_class_name, {})
+              sk_class = env.find_class(sk_class_name)
+              sk_initializer = sk_class.sk_methods.fetch("initialize")
+              ivar_values = sk_initializer.params.zip(args).map{|param, arg|
+                [param.name, arg] if param.is_a?(Program::IParam)
+              }.compact.to_h
+              obj = SkObj.new(sk_class_name, ivar_values)
               Evaluator::Call.new(obj, "initialize", args) do |result|
                 obj
               end
@@ -56,7 +61,7 @@ module Shiika
             name: "+",
             ret_type_name: "Int",
             param_type_names: ["Int"],
-            body: ->(this, other){
+            body: ->(env, this, other){
               n = this.ivar_values['@rb_val'] + other.ivar_values['@rb_val']
               SkObj.new('Int', {'@rb_val' => n})
             }
@@ -65,7 +70,7 @@ module Shiika
             name: "abs",
             ret_type_name: "Int",
             param_type_names: [],
-            body: ->(this){
+            body: ->(env, this){
               n = this.ivar_values['@rb_val'].abs
               SkObj.new('Int', {'@rb_val' => n})
             }
@@ -74,7 +79,7 @@ module Shiika
             name: "tmp",
             ret_type_name: "Int",
             param_type_names: [],
-            body: ->(this){
+            body: ->(env, this){
               Evaluator::Call.new(this, "abs", []) do |result|
                 n = result.ivar_values['@rb_val']
                 SkObj.new('Int', {'@rb_val' => n})
@@ -112,9 +117,12 @@ module Shiika
           )
           [x[:name], sk_method]
         }.to_h
+        sk_ivars = spec[:ivars].map{|name, type_name|
+          [name, Program::SkIvar.new(name, type_name)]
+        }.to_h
         sk_class, meta_class = Program::SkClass.build(
           spec[:name], spec[:parent],
-          spec[:ivars], sk_class_methods, sk_methods
+          sk_ivars, sk_class_methods, sk_methods
         )
         [[sk_class.name, sk_class],
          [meta_class.name, meta_class]]

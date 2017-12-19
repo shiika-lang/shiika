@@ -123,7 +123,7 @@ module Shiika
         
         sk_new = Program::SkMethod.new(
           "new",
-          sk_class.sk_methods["initialize"].params,
+          sk_class.sk_methods["initialize"].params.map(&:dup),
           sk_class.name,
           @@object_new.body_stmts
         )
@@ -131,7 +131,9 @@ module Shiika
       end
 
       def calc_type!(env)
-        @sk_methods.each_value{|x| x.add_type!(env)}
+        @sk_ivars.each_value{|x| x.add_type!(env)}
+        menv = env.merge(:sk_self, self)
+        @sk_methods.each_value{|x| x.add_type!(menv)}
         return env, TyRaw[name]
       end
 
@@ -146,8 +148,11 @@ module Shiika
     end
 
     class SkIvar < Element
-      props :name, # String
-            :type # Shiika::Type
+      props :name, :type_name
+
+      def calc_type!(env)
+        return env, env.find_type(type_name)
+      end
     end
 
     class SkMethod < Element
@@ -161,9 +166,7 @@ module Shiika
       end
 
       def calc_type!(env)
-        param_tys = params.map{|param|
-          env.find_type(param.type_name)
-        }
+        params.each{|x| x.add_type!(env)}
 
         if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
           lvars = params.map{|x|
@@ -173,7 +176,8 @@ module Shiika
           body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
         end
 
-        return env, TyMethod.new(name, param_tys, env.find_type(ret_type_name))
+        return env, TyMethod.new(name, params.map(&:type),
+                                 env.find_type(ret_type_name))
       end
     end
 
@@ -188,16 +192,8 @@ module Shiika
 
       def ivars
         params.grep(IParam).map{|x|
-          [x.name, SkIvar.new(x.name, x.type)]
+          [x.name, SkIvar.new(x.name, x.type_name)]
         }.to_h
-      end
-
-      def calc_type!(env)
-        unless body_stmts.is_a?(Proc)
-          body_stmts.each{|x| env = x.add_type!(env)}
-        end
-        param_tys = params.map(&:type)
-        return env, TyMethod.new("initialize", param_tys, TyRaw["Void"])
       end
     end
 
@@ -220,14 +216,14 @@ module Shiika
 
     class Param < Element
       props :name, :type_name
-    end
-
-    class IParam < Element
-      props :name, :type_name
 
       def calc_type!(env)
         return env, env.find_type(type_name)
       end
+    end
+
+    class IParam < Param
+      props :name, :type_name
     end
 
     class Return < Element
