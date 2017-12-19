@@ -25,6 +25,11 @@ module Shiika
         @name, @param_types, @ret_type = name, param_types, ret_type
       end
       attr_reader :name, :param_types, :ret_type
+
+      def inspect
+        param_types = @param_types.map(&:inspect).join(', ')
+        "#<TyMethod (#{param_types})->#{@ret_type.inspect}>"
+      end
     end
 
     # Indicates this node has no type (eg. return statement)
