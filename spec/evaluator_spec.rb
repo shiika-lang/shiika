@@ -8,15 +8,28 @@ describe "Evaluator" do
   end
 
   def sk_int(n)
-    Shiika::Evaluator::SkObj.new('Int', [n])
+    Shiika::Evaluator::SkObj.new('Int', {'@rb_val' => n})
   end
 
 #  it 'class'
 #
 #  it 'constant'
 #
-#  it 'instance variable'
-#
+  it 'instance variable' do
+    src = <<~EOD
+      class Adder
+        def initialize(@x: Int, @y: Int)
+        end
+
+        def sum() -> Int
+          @x + @y
+        end
+      end
+      Adder.new(1, 2).sum
+    EOD
+    expect(run(src)).to eq(sk_int(3))
+  end
+
   it 'instance generation' do
     src = <<~EOD
       class A

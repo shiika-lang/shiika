@@ -13,7 +13,7 @@ describe "Program" do
       class: "SkClass",
       name: "A",
       parent_name: "Object",
-      sk_ivars: [],
+      sk_ivars: {},
       class_methods: {},
       sk_methods: {
         :initialize => {
