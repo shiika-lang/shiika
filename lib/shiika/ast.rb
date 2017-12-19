@@ -63,10 +63,11 @@ module Shiika
 
       # return [sk_class, meta_class]
       def to_program
-        sk_class_methods = defmethods.grep(Ast::DefClassMethod).map{|x|
+        defclassmethods = defmethods.grep(Ast::DefClassMethod)
+        sk_class_methods = defclassmethods.map{|x|
           [x.name, x.to_program]
         }.to_h
-        sk_methods = defmethods.grep(Ast::DefMethod).map{|x|
+        sk_methods = (defmethods - defclassmethods).map{|x|
           [x.name, x.to_program]
         }.to_h
         sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
