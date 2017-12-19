@@ -188,8 +188,8 @@ module Shiika
 
       def ivars
         params.grep(IParam).map{|x|
-          SkIvar.new(x.name, x.type)
-        }
+          [x.name, SkIvar.new(x.name, x.type)]
+        }.to_h
       end
 
       def calc_type!(env)

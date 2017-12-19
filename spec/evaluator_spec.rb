@@ -8,7 +8,7 @@ describe "Evaluator" do
   end
 
   def sk_int(n)
-    Shiika::Evaluator::SkObj.new('Int', [n])
+    Shiika::Evaluator::SkObj.new('Int', {'@rb_val' => n})
   end
 
 #  it 'class'

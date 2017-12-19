@@ -15,7 +15,7 @@ module Shiika
       {
         name: "Object",
         parent: :noparent,
-        ivars: [],
+        ivars: {},
         class_methods: [
           {
             name: "new",
@@ -24,7 +24,7 @@ module Shiika
             body: ->(class_obj, *args){
               sk_class_name = class_obj.sk_class_name[/Meta:(.*)/, 1] or
                 raise class_obj.inspect
-              obj = SkObj.new(sk_class_name, [])
+              obj = SkObj.new(sk_class_name, {})
               Evaluator::Call.new(obj, "initialize", args) do |result|
                 obj
               end
@@ -42,7 +42,9 @@ module Shiika
       {
         name: "Int",
         parent: "Object",
-        ivars: {},
+        ivars: {
+          '@rb_val' => 'Int'
+        },
         class_methods: [],
         methods: [
           {
@@ -55,8 +57,8 @@ module Shiika
             ret_type_name: "Int",
             param_type_names: ["Int"],
             body: ->(this, other){
-              n = this.ivar_values[0] + other.ivar_values[0]
-              SkObj.new('Int', [n])
+              n = this.ivar_values['@rb_val'] + other.ivar_values['@rb_val']
+              SkObj.new('Int', {'@rb_val' => n})
             }
           },
           {
@@ -64,8 +66,8 @@ module Shiika
             ret_type_name: "Int",
             param_type_names: [],
             body: ->(this){
-              n = this.ivar_values[0].abs
-              SkObj.new('Int', [n])
+              n = this.ivar_values['@rb_val'].abs
+              SkObj.new('Int', {'@rb_val' => n})
             }
           },
           {
@@ -74,8 +76,8 @@ module Shiika
             param_type_names: [],
             body: ->(this){
               Evaluator::Call.new(this, "abs", []) do |result|
-                n = result.ivar_values[0]
-                SkObj.new('Int', [n])
+                n = result.ivar_values['@rb_val']
+                SkObj.new('Int', {'@rb_val' => n})
               end
             }
           }
