@@ -1,4 +1,5 @@
 module Shiika
+  # Represents types in Shiika
   module Type
     class Base; end
 
