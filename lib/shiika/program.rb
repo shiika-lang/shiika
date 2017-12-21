@@ -42,6 +42,7 @@ module Shiika
       }
     end
 
+    # Base class of each program element.
     class Element
       include Type
       extend Props
