@@ -1,3 +1,4 @@
+require 'simplecov'; SimpleCov.start
 require 'pp'
 require 'shiika'
 
