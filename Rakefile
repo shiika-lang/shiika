@@ -21,4 +21,8 @@ end
 
 task :parser => 'lib/shiika/parser.rb'
 
+task :doc do
+  sh "gitbook build book doc"
+end
+
 task :default => [:parser, :test]
