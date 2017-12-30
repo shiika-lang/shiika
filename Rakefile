@@ -5,8 +5,8 @@ file 'lib/shiika/parser.ry' => 'lib/shiika/parser.ry.erb' do
 end
 
 file 'lib/shiika/parser.rb' => 'lib/shiika/parser.ry' do
-  cmd = "racc -o lib/shiika/parser.rb lib/shiika/parser.ry"
-  cmd.sub!("racc", "racc --debug") if ENV["DEBUG"] == "1"
+  debug = (ENV["DEBUG"] == "1")
+  cmd = "racc #{'--verbose --debug' if debug} -o lib/shiika/parser.rb lib/shiika/parser.ry"
   sh cmd
 end
 
