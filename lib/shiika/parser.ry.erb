@@ -65,7 +65,7 @@ rule
     top_statement:
         statement
       | assign_const
-    <%= repeat0 'top_statement', sep: ['sep'] %>
+    <%= repeat1 'top_statement', sep: ['sep'] %>
 
     defclass:
         'class' class_name sep
@@ -175,7 +175,6 @@ rule
 
       | '(' expression ')'
         { val[1] }
-    <%= repeat0 'expression' %>
 
     if_expr:
         'if' expression sep opt_statements 'end'
