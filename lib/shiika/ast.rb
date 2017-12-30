@@ -24,6 +24,15 @@ module Shiika
         return pclass.new(*values)
       end
 
+      def inspect
+        cls_name = self.class.name.split('::').last
+        ivars = self.instance_variables.map{|name|
+          val = self.instance_variable_get(name)
+          "#{name}=#{val.inspect}"
+        }
+        "#<A::#{cls_name}##{self.object_id} #{ivars.join ' '}>"
+      end
+
       private
 
       # Convert [Ast::Node] into [Program::XX]
