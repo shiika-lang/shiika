@@ -109,8 +109,8 @@ module Shiika
           {},
           {},
           {"new" => sk_new}.merge(sk_class.class_methods),
+          sk_class
         )
-        meta_class.sk_class = sk_class
         return sk_class, meta_class
       end
 
@@ -145,7 +145,7 @@ module Shiika
 
     # Holds class methods of a class
     class SkMetaClass < SkClass
-      attr_accessor :sk_class
+      more_props :sk_class
     end
 
     class SkIvar < Element
