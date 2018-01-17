@@ -45,5 +45,10 @@ module Shiika
         JSON.parse(self.to_json, symbolize_names: true)
       end
     end
+
+    # Add more props (eg. adding some props in a child class)
+    def more_props(*names)
+      props(*prop_names, *names)
+    end
   end
 end
