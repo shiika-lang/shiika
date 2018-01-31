@@ -12,6 +12,7 @@ module Shiika
     class Node
       extend Props
 
+      # Return class name without `Shiika::Ast::`
       def self.short_name
         self.name.split(/::/).last
       end
