@@ -142,6 +142,8 @@ module Shiika
       end
     end
 
+    # A special value returned by "native" methods (i.e. Shiika methods
+    # that are implemented in Ruby)
     class Call
       def initialize(receiver_obj, method_name, arg_objs, &after)
         @receiver_obj, @method_name, @arg_objs, @after = receiver_obj, method_name, arg_objs, after
