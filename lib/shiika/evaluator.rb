@@ -122,6 +122,7 @@ module Shiika
       end
     end
 
+    # Runtime representation of Shiika objects
     class SkObj
       def initialize(sk_class_name, ivar_values)
         raise TypeError, sk_class_name.inspect unless sk_class_name.is_a?(String)
