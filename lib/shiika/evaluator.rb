@@ -146,6 +146,10 @@ module Shiika
 
     # A special value returned by "native" methods (i.e. Shiika methods
     # that are implemented in Ruby)
+    #
+    # If Call is returned by Shiika method, Evaluator will invoke
+    # the specified method on `receiver_obj` with `arg_objs` and
+    # call `after` with the resulting Shiika object.
     class Call
       def initialize(receiver_obj, method_name, arg_objs, &after)
         @receiver_obj, @method_name, @arg_objs, @after = receiver_obj, method_name, arg_objs, after
