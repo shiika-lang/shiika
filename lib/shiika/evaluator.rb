@@ -110,6 +110,7 @@ module Shiika
       end
     end
 
+    # Runtime representation of Shiika local variables
     class Lvar
       # kind : :let, :var, :param, :special
       def initialize(name, type, kind, value)
