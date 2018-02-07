@@ -34,6 +34,7 @@ module Shiika
       @sk_main.add_type!(env)
     end
 
+    # Return a PORO that represents this program (for unit tests)
     def serialize
       {
         class: 'Program',
