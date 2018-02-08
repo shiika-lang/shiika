@@ -50,5 +50,17 @@ module Shiika
     def more_props(*names)
       props(*prop_names, *names)
     end
+
+    # hash: {Symbol => Object}
+    def new_from_hash(hash)
+      if (unknown = hash.keys - prop_names).any?
+        raise "unknown key(s): #{unknown.inspect}"
+      end
+      args = prop_names.map{|k|
+        raise "#{k} must be supplied" unless hash.key?(k)
+        hash[k]
+      }
+      new(*args)
+    end
   end
 end

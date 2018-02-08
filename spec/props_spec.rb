@@ -18,6 +18,14 @@ describe Shiika::Props do
   #   to_json
   #   serialize
 
+  describe ".new_from_hash" do
+    it "should create an instance" do
+      obj = Example1.new_from_hash(a: 1, b: 2)
+      expect(obj.a).to be(1)
+      expect(obj.b).to be(2)
+    end
+  end
+
   describe "readers" do
     it 'should de defined' do
       obj = Example1.new(1, 2)
