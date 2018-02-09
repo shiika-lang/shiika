@@ -26,6 +26,13 @@ describe Shiika::Props do
     end
   end
 
+  describe "#serialize" do
+    it "should return a PORO" do
+      obj = Example1.new(1, 2)
+      expect(obj.serialize).to eq({class: 'Example1', a: 1, b: 2})
+    end
+  end
+
   describe "readers" do
     it 'should de defined' do
       obj = Example1.new(1, 2)
