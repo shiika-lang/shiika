@@ -26,6 +26,15 @@ describe Shiika::Props do
     end
   end
 
+  describe "#to_json" do
+    it "should return a JSON str" do
+      obj = Example1.new(1, 2)
+      expect(obj.to_json).to eq(
+        {"class" => 'Example1', "a" => 1, "b" => 2}.to_json
+      )
+    end
+  end
+
   describe "#serialize" do
     it "should return a PORO" do
       obj = Example1.new(1, 2)
