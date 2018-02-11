@@ -11,12 +11,15 @@ describe Shiika::Props do
   end
 
   # TODO:
-  #   .prop_names
   #   #initialize
   #   attr_accessor
   #   init
-  #   to_json
-  #   serialize
+
+  describe ".prop_names" do
+    it "should return a list of prop names" do
+      expect(Example1.prop_names).to eq([:a, :b])
+    end
+  end
 
   describe ".new_from_hash" do
     it "should create an instance" do
