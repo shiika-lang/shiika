@@ -21,6 +21,13 @@ describe Shiika::Props do
     end
   end
 
+  describe "#initialize" do
+    it "should raise arity error" do
+      expect{ Example1.new }.to raise_error(ArgumentError)
+      expect{ Example1.new(1,2,3) }.to raise_error(ArgumentError)
+    end
+  end
+
   describe ".new_from_hash" do
     it "should create an instance" do
       obj = Example1.new_from_hash(a: 1, b: 2)
