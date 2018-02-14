@@ -10,10 +10,13 @@ describe Shiika::Props do
     more_props :c
   end
 
-  # TODO:
-  #   #initialize
-  #   attr_accessor
-  #   init
+  class Example3
+    extend Shiika::Props
+    props :a
+    def init
+      @init_called = true
+    end
+  end
 
   describe ".prop_names" do
     it "should return a list of prop names" do
@@ -25,6 +28,13 @@ describe Shiika::Props do
     it "should raise arity error" do
       expect{ Example1.new }.to raise_error(ArgumentError)
       expect{ Example1.new(1,2,3) }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "#init" do
+    it "should be called on initialization" do
+      obj = Example3.new(1)
+      expect(obj.instance_variable_get(:@init_called)).to be(true)
     end
   end
 
