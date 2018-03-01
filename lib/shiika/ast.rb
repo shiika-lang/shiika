@@ -69,7 +69,7 @@ module Shiika
     end
 
     class DefClass < Node
-      props :name, :defmethods
+      props :name, :typarams, :defmethods
 
       # return [sk_class, meta_class]
       def to_program

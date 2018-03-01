@@ -68,10 +68,22 @@ rule
     <%= repeat1 'top_statement', sep: ['sep'] %>
 
     defclass:
-        'class' class_name sep
+        'class' CONST opt_type_parameters sep
           opt_defmethods
         'end'
-        { Ast::DefClass.new(val[1], val[3]) }
+        { Ast::DefClass.new(val[1], val[2], val[4]) }
+
+    opt_type_parameters:
+        /* NONE */
+        { [] }
+      |
+        '[' type_parameters ']'
+        { val[1] }
+
+    type_parameter:
+      CONST
+      { Ast::TypeParameter.new(val[0]) }
+    <%= repeat1 'type_parameter', sep: ["_nl", "','", "_nl"] %>
 
     defmethod:
         definitialize
@@ -195,6 +207,8 @@ rule
         { Ast::MethodCall.new(val[0], val[2], val[3]) }
       | expression '.' IDENT '=' expression
         { Ast::MethodCall.new(val[0], val[2] + '=', [val[4]]) }
+      | expression '[' opt_args ']'
+        { Ast::MethodCall.new(val[0], '[]', val[2]) }
 
     fcall:
         method_name opt_arglist
@@ -248,10 +262,6 @@ rule
         IDENT
       | CONST
 
-    class_name:
-        IDENT
-      | CONST
-
     method_name:
         IDENT
       | IDENT_M
@@ -284,7 +294,7 @@ require 'shiika/ast'
 KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|var|self|true|false/
 
 SYMBOLS = Regexp.union(*"
-... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
+... >= <= == != && || -> < > ( ) [ ] { } . + - * / % = , ; :
 ".split.map{|x| Regexp.new(Regexp.quote(x))})
 
 def parse(str)
