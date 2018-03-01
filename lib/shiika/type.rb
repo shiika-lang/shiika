@@ -32,9 +32,5 @@ module Shiika
         "#<TyMethod (#{param_types})->#{@ret_type.inspect}>"
       end
     end
-
-    # Indicates this node has no type (eg. return statement)
-    class NoType < Base
-    end
   end
 end
