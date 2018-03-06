@@ -21,6 +21,17 @@ module Shiika
       alias to_s inspect
     end
 
+    class TyParam < Base
+      def initialize(name)
+        @name = name
+      end
+      attr_reader :name
+
+      def inspect
+        "#<TyParam #{name}>"
+      end
+    end
+
     class TyMethod < Base
       def initialize(name, param_types, ret_type)
         @name, @param_types, @ret_type = name, param_types, ret_type
