@@ -142,7 +142,11 @@ module Shiika
       end
 
       def find_method(name)
-        return @sk_methods.fetch(name)
+        if (ret = @sk_methods[name])
+          ret
+        else
+          raise SkTypeError, "class `#{@name}' does not have a method `#{name}'"
+        end
       end
     end
 
