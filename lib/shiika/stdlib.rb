@@ -15,6 +15,7 @@ module Shiika
       {
         name: "Object",
         parent: :noparent,
+        typarams: [],
         ivars: {},
         class_methods: [
           {
@@ -45,8 +46,23 @@ module Shiika
         ]
       },
       {
+        name: "Bool",
+        parent: "Object",
+        typarams: [],
+        ivars: {},
+        class_methods: [],
+        methods: [
+          {
+            name: "initialize",
+            param_type_names: [],
+            body: ->(){}
+          },
+        ]
+      },
+      {
         name: "Int",
         parent: "Object",
+        typarams: [],
         ivars: {
           '@rb_val' => 'Int'
         },
