@@ -65,7 +65,9 @@ module Shiika
           val = self.instance_variable_get(name)
           "#{name}=#{val.inspect}"
         }
-        "#<P::#{cls_name}##{self.object_id} #{ivars.join ' '}>"
+        ivars_desc = ivars.join(' ')
+        ivars_desc = ivars_desc[0, 90] + "..." if ivars_desc.length > 100
+        "#<P::#{cls_name}##{self.object_id} #{ivars_desc}>"
       end
 
       #
