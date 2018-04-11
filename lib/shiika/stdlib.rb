@@ -20,8 +20,8 @@ module Shiika
         class_methods: [
           {
             name: "new",
-            ret_type_name: "Object",
-            param_type_names: [],
+            ret_type_spec: TyRaw["Object"],
+            param_type_specs: [],
             body: ->(env, class_obj, *args){
               sk_class_name = class_obj.sk_class_name[/Meta:(.*)/, 1] or
                 raise class_obj.inspect
@@ -40,7 +40,7 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            param_type_names: [],
+            param_type_specs: [],
             body: ->(){}
           }
         ]
@@ -54,7 +54,7 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            param_type_names: [],
+            param_type_specs: [],
             body: ->(){}
           },
         ]
@@ -64,19 +64,19 @@ module Shiika
         parent: "Object",
         typarams: [],
         ivars: {
-          '@rb_val' => 'Int'
+          '@rb_val' => TyRaw['Int']
         },
         class_methods: [],
         methods: [
           {
             name: "initialize",
-            param_type_names: [],
+            param_type_specs: [],
             body: ->(){}
           },
           {
             name: "+",
-            ret_type_name: "Int",
-            param_type_names: ["Int"],
+            ret_type_spec: TyRaw["Int"],
+            param_type_specs: [TyRaw["Int"]],
             body: ->(env, this, other){
               n = this.ivar_values['@rb_val'] + other.ivar_values['@rb_val']
               SkObj.new('Int', {'@rb_val' => n})
@@ -84,8 +84,8 @@ module Shiika
           },
           {
             name: "abs",
-            ret_type_name: "Int",
-            param_type_names: [],
+            ret_type_spec: TyRaw["Int"],
+            param_type_specs: [],
             body: ->(env, this){
               n = this.ivar_values['@rb_val'].abs
               SkObj.new('Int', {'@rb_val' => n})
@@ -93,8 +93,8 @@ module Shiika
           },
           {
             name: "tmp",
-            ret_type_name: "Int",
-            param_type_names: [],
+            ret_type_spec: TyRaw["Int"],
+            param_type_specs: [],
             body: ->(env, this){
               Evaluator::Call.new(this, "abs", []) do |result|
                 n = result.ivar_values['@rb_val']
@@ -110,8 +110,8 @@ module Shiika
     def self.sk_classes
       CLASSES.flat_map{|spec|
         sk_methods = spec[:methods].map{|x|
-          params = x[:param_type_names].map{|ty_name|
-            Program::Param.new("(no name)", ty_name)
+          params = x[:param_type_specs].map{|ty|
+            Program::Param.new("(no name)", ty)
           }
           if x[:name] == "initialize"
             sk_method = Program::SkInitializer.new(
@@ -119,22 +119,22 @@ module Shiika
             )
           else
             sk_method = Program::SkMethod.new(
-              x[:name], params, x[:ret_type_name], x[:body]
+              x[:name], params, x[:ret_type_spec], x[:body]
             )
           end
           [x[:name], sk_method]
         }.to_h
         sk_class_methods = spec[:class_methods].map{|x|
-          params = x[:param_type_names].map{|ty_name|
-            Program::Param.new("(no name)", ty_name)
+          params = x[:param_type_specs].map{|type|
+            Program::Param.new("(no name)", type)
           }
           sk_method = Program::SkMethod.new(
-            x[:name], params, x[:ret_type_name], x[:body]
+            x[:name], params, x[:ret_type_spec], x[:body]
           )
           [x[:name], sk_method]
         }.to_h
-        sk_ivars = spec[:ivars].map{|name, type_name|
-          [name, Program::SkIvar.new(name, type_name)]
+        sk_ivars = spec[:ivars].map{|name, type|
+          [name, Program::SkIvar.new(name, type)]
         }.to_h
         sk_class, meta_class = Program::SkClass.build(
           spec[:name], spec[:parent],

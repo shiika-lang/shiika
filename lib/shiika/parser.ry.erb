@@ -259,8 +259,8 @@ rule
         { Ast::Literal.new(false) }
 
     type:
-        IDENT
-      | CONST
+        CONST
+        { Type::TyRaw[val[0]] }
 
     method_name:
         IDENT

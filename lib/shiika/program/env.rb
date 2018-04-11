@@ -30,11 +30,12 @@ module Shiika
         end
       end
 
-      def find_type(name)
-        if !@data[:sk_classes].key?(name) && name != "Void"
+      def find_type(type)
+        raise "bug: #{type.inspect}" unless type.is_a?(TyRaw)
+        if !@data[:sk_classes].key?(type.name) && type.name != "Void"
           raise ProgramError, "unknown type: #{name}"
         end
-        return TyRaw[name]
+        return type
       end
 
       def find_class(name)

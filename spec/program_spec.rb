@@ -20,7 +20,7 @@ describe "Program" do
           class: "SkInitializer",
           name: "initialize",
           params: [],
-          ret_type_name: "Void",
+          ret_type_spec: Shiika::Type::TyRaw["Void"].to_s,
           body_stmts: [],
         }
       },

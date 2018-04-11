@@ -79,7 +79,7 @@ module Shiika
           end
         else
           lvars = sk_method.params.zip(arg_values).map{|x, val|
-            [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let, val)]
+            [x.name, Lvar.new(x.name, x.type, :let, val)]
           }.to_h
           bodyenv = env.merge(:local_vars, lvars).merge(:sk_self, receiver)
           _, value = eval_stmts(bodyenv, sk_method.body_stmts)

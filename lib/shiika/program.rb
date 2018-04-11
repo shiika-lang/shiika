@@ -128,7 +128,7 @@ module Shiika
         sk_new = Program::SkMethod.new(
           "new",
           sk_class.sk_methods["initialize"].params.map(&:dup),
-          sk_class.name,
+          TyRaw[sk_class.name],
           @@object_new.body_stmts
         )
         return sk_new
@@ -156,17 +156,17 @@ module Shiika
     end
 
     class SkIvar < Element
-      props :name, :type_name
+      props :name, :type_spec
 
       def calc_type!(env)
-        return env, env.find_type(type_name)
+        return env, env.find_type(type_spec)
       end
     end
 
     class SkMethod < Element
       props :name,
             :params,
-            :ret_type_name,
+            :ret_type_spec,
             :body_stmts
 
       def arity
@@ -178,29 +178,31 @@ module Shiika
 
         if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
           lvars = params.map{|x|
-            [x.name, Lvar.new(x.name, env.find_type(x.type_name), :let)]
+            [x.name, Lvar.new(x.name, x.type, :let)]
           }.to_h
           bodyenv = env.merge(:local_vars, lvars)
           body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
         end
 
         return env, TyMethod.new(name, params.map(&:type),
-                                 env.find_type(ret_type_name))
+                                 env.find_type(ret_type_spec))
       end
     end
 
     class SkInitializer < SkMethod
       def initialize(iparams, body_stmts)
-        super("initialize", iparams, "Void", body_stmts)
+        super("initialize", iparams, TyRaw["Void"], body_stmts)
       end
 
       def arity
         @params.length
       end
 
+      # Called from Ast::DefClass#to_program
+      # (Note: type is not detected at this time)
       def ivars
         params.grep(IParam).map{|x|
-          [x.name, SkIvar.new(x.name, x.type_name)]
+          [x.name, SkIvar.new(x.name, x.type_spec)]
         }.to_h
       end
     end
@@ -223,15 +225,15 @@ module Shiika
     end
 
     class Param < Element
-      props :name, :type_name
+      props :name, :type_spec
 
       def calc_type!(env)
-        return env, env.find_type(type_name)
+        return env, env.find_type(type_spec)
       end
     end
 
     class IParam < Param
-      props :name, :type_name
+      props :name, :type_spec
     end
 
     class Return < Element
