@@ -95,9 +95,9 @@ module Shiika
 
     class DefClassMethod < Defun
       def to_program
-        Program::SkClassMethod.new(name, params.map(&:to_program),
-                                   ret_type_name,
-                                   ary_to_program(body_stmts))
+        Program::SkMethod.new(name, params.map(&:to_program),
+                              ret_type_name,
+                              ary_to_program(body_stmts))
       end
     end
 

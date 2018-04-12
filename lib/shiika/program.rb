@@ -90,12 +90,76 @@ module Shiika
       end
     end
 
+    class SkIvar < Element
+      props name: String, type_spec: Type::Base
+
+      def calc_type!(env)
+        return env, env.find_type(type_spec)
+      end
+    end
+
+    class Param < Element
+      props name: String, type_spec: Type::Base
+
+      def calc_type!(env)
+        return env, env.find_type(type_spec)
+      end
+    end
+
+    class IParam < Param
+      props name: String, type_spec: Type::Base
+    end
+
+    class SkMethod < Element
+      props name: String,
+            params: [Param],
+            ret_type_spec: Type::Base,
+            body_stmts: nil #TODO: [Element or Proc]
+
+      def arity
+        @params.length
+      end
+
+      def calc_type!(env)
+        params.each{|x| x.add_type!(env)}
+
+        if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
+          lvars = params.map{|x|
+            [x.name, Lvar.new(x.name, x.type, :let)]
+          }.to_h
+          bodyenv = env.merge(:local_vars, lvars)
+          body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
+        end
+
+        return env, TyMethod.new(name, params.map(&:type),
+                                 env.find_type(ret_type_spec))
+      end
+    end
+
+    class SkInitializer < SkMethod
+      def initialize(iparams, body_stmts)
+        super("initialize", iparams, TyRaw["Void"], body_stmts)
+      end
+
+      def arity
+        @params.length
+      end
+
+      # Called from Ast::DefClass#to_program
+      # (Note: type is not detected at this time)
+      def ivars
+        params.grep(IParam).map{|x|
+          [x.name, SkIvar.new(x.name, x.type_spec)]
+        }.to_h
+      end
+    end
+
     class SkClass < Element
       props name: String,
             parent_name: String, # or '__noparent__'
-            sk_ivars: nil, #TODO: {String => :SkIvar},
-            class_methods: nil, #TODO: {String => :SkClassMethod},
-            sk_methods: nil #TODO: {String => :SkMethod}
+            sk_ivars: {String => SkIvar},
+            class_methods: {String => SkMethod},
+            sk_methods: {String => SkMethod}
 
       def self.build(*args)
         sk_class = SkClass.new(*args)
@@ -155,62 +219,6 @@ module Shiika
       more_props sk_class: SkClass
     end
 
-    class SkIvar < Element
-      props name: String, type_spec: Type::Base
-
-      def calc_type!(env)
-        return env, env.find_type(type_spec)
-      end
-    end
-
-    class SkMethod < Element
-      props name: String,
-            params: nil, #TODO[:Param],
-            ret_type_spec: Type::Base,
-            body_stmts: nil #TODO: [Element or Proc]
-
-      def arity
-        @params.length
-      end
-
-      def calc_type!(env)
-        params.each{|x| x.add_type!(env)}
-
-        if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
-          lvars = params.map{|x|
-            [x.name, Lvar.new(x.name, x.type, :let)]
-          }.to_h
-          bodyenv = env.merge(:local_vars, lvars)
-          body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
-        end
-
-        return env, TyMethod.new(name, params.map(&:type),
-                                 env.find_type(ret_type_spec))
-      end
-    end
-
-    class SkInitializer < SkMethod
-      def initialize(iparams, body_stmts)
-        super("initialize", iparams, TyRaw["Void"], body_stmts)
-      end
-
-      def arity
-        @params.length
-      end
-
-      # Called from Ast::DefClass#to_program
-      # (Note: type is not detected at this time)
-      def ivars
-        params.grep(IParam).map{|x|
-          [x.name, SkIvar.new(x.name, x.type_spec)]
-        }.to_h
-      end
-    end
-
-    # TODO: Should we remove this? (This might be confusing because a class
-    # method is a method of the meta-class)
-    class SkClassMethod < SkMethod; end
-
     class SkConst < Element
       props name: String
     end
@@ -222,18 +230,6 @@ module Shiika
         stmts.each{|x| env = x.add_type!(env)}
         return env, (stmts.last ? stmts.last.type : TyRaw["Void"])
       end
-    end
-
-    class Param < Element
-      props name: String, type_spec: Type::Base
-
-      def calc_type!(env)
-        return env, env.find_type(type_spec)
-      end
-    end
-
-    class IParam < Param
-      props name: String, type_spec: Type::Base
     end
 
     class Return < Element
