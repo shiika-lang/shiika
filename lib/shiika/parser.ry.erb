@@ -93,10 +93,10 @@ rule
         { 
           if val[1] 
             Ast::DefClassMethod.new(name: val[2], params: val[3],
-                                    ret_type_name: val[7], body_stmts: val[9])
+                                    ret_type_spec: val[7], body_stmts: val[9])
           else
             Ast::DefMethod.new(name: val[2], params: val[3],
-                               ret_type_name: val[7], body_stmts: val[9])
+                               ret_type_spec: val[7], body_stmts: val[9])
           end
         }
     <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
@@ -116,7 +116,7 @@ rule
     iparam: 
         param
       | IVAR ':' type
-        { Ast::IParam.new(name: val[0], type_name: val[2]) }
+        { Ast::IParam.new(name: val[0], type_spec: val[2]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     opt_self_dot:
@@ -130,7 +130,7 @@ rule
            opt_statements
         'end'
         { Ast::Defun.new(name: val[1], params: val[2],
-                         ret_type_name: val[6], body_stmts: val[8]) }
+                         ret_type_spec: val[6], body_stmts: val[8]) }
     <%= repeat0 'defun', sep: ['sep'] %>
 
     opt_paramlist:
@@ -141,16 +141,16 @@ rule
 
     param: 
         IDENT ':' type
-        { Ast::Param.new(name: val[0], type_name: val[2]) }
+        { Ast::Param.new(name: val[0], type_spec: val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
 
     extern:
         'extern' type IDENT '(' opt_param_types ')'
-        { Ast::Extern.new(ret_type_name: val[1], name: val[2], params: val[4]) }
+        { Ast::Extern.new(ret_type_spec: val[1], name: val[2], params: val[4]) }
 
     param_type:
         type
-        { Ast::Param.new(name: nil, type_name: val[0]) }
+        { Ast::Param.new(name: nil, type_spec: val[0]) }
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
@@ -163,7 +163,7 @@ rule
         'for' '(' IDENT ':' type ';' expression '...' expression ';' expression ')' sep
           opt_statements
         'end'
-        { Ast::For.new(varname: val[2], var_type_name: val[4], begin_expr: val[6], end_expr: val[8], step_expr: val[10], body_stmts: val[13]) }
+        { Ast::For.new(varname: val[2], var_type_spec: val[4], begin_expr: val[6], end_expr: val[8], step_expr: val[10], body_stmts: val[13]) }
 
     return_stmt:
         'return' expression

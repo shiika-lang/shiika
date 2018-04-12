@@ -89,13 +89,13 @@ module Shiika
     end
 
     class Defun < Node
-      props :name, :params, :ret_type_name, :body_stmts
+      props :name, :params, :ret_type_spec, :body_stmts
     end
 
     class DefClassMethod < Defun
       def to_program
         Program::SkMethod.new(name: name, params: params.map(&:to_program),
-                              ret_type_spec: ret_type_name,
+                              ret_type_spec: ret_type_spec,
                               body_stmts: ary_to_program(body_stmts))
       end
     end
@@ -103,7 +103,7 @@ module Shiika
     class DefMethod < Defun
       def to_program
         Program::SkMethod.new(name: name, params: params.map(&:to_program),
-                              ret_type_spec: ret_type_name,
+                              ret_type_spec: ret_type_spec,
                               body_stmts: ary_to_program(body_stmts))
       end
     end
@@ -122,27 +122,19 @@ module Shiika
     end
 
     class Param < Node
-      props :name, :type_name
-
-      def to_program
-        Program::Param.new(name: name, type_spec: type_name)
-      end
+      props :name, :type_spec
     end
 
     class IParam < Node
-      props :name, :type_name
-
-      def to_program
-        Program::IParam.new(name: name, type_spec: type_name)
-      end
+      props :name, :type_spec
     end
 
     class Extern < Node
-      props :ret_type_name, :name, :params
+      props :ret_type_spec, :name, :params
     end
 
     class For < Node
-      props :varname, :var_type_name,
+      props :varname, :var_type_spec,
         :begin_expr, :end_expr, :step_expr, :body_stmts
     end
 
