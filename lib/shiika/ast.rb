@@ -129,15 +129,6 @@ module Shiika
       props :name, :type_spec
     end
 
-    class Extern < Node
-      props :ret_type_spec, :name, :params
-    end
-
-    class For < Node
-      props :varname, :var_type_spec,
-        :begin_expr, :end_expr, :step_expr, :body_stmts
-    end
-
     class Return < Node
       props :expr
     end

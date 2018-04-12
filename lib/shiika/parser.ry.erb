@@ -56,7 +56,6 @@ rule
     definition:
         defclass
       | defun
-      | extern
       | assign_const
     <%= repeat1 'definition', sep: ['sep'] %>
 
@@ -144,26 +143,15 @@ rule
         { Ast::Param.new(name: val[0], type_spec: val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
 
-    extern:
-        'extern' type IDENT '(' opt_param_types ')'
-        { Ast::Extern.new(ret_type_spec: val[1], name: val[2], params: val[4]) }
-
     param_type:
         type
         { Ast::Param.new(name: nil, type_spec: val[0]) }
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
-        for_stmt
-      | return_stmt
+        return_stmt
       | expression
     <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
-
-    for_stmt:
-        'for' '(' IDENT ':' type ';' expression '...' expression ';' expression ')' sep
-          opt_statements
-        'end'
-        { Ast::For.new(varname: val[2], var_type_spec: val[4], begin_expr: val[6], end_expr: val[8], step_expr: val[10], body_stmts: val[13]) }
 
     return_stmt:
         'return' expression
@@ -294,7 +282,7 @@ require 'strscan'
 require 'shiika/ast'
 
 ---- inner
-KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|var|self|true|false/
+KEYWORDS = /class|def|initialize|do|end|if|elsif|else|return|var|self|true|false/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) [ ] { } . + - * / % = , ; :
