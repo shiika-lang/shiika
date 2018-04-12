@@ -14,7 +14,7 @@ module Shiika
     CLASSES = [
       {
         name: "Object",
-        parent: :noparent,
+        parent: '__noparent__',
         typarams: [],
         ivars: {},
         class_methods: [

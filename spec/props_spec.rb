@@ -3,24 +3,24 @@ require 'spec_helper'
 describe Shiika::Props do
   class Example1
     extend Shiika::Props
-    props :a, :b
+    props a: Integer, b: Integer
   end
 
   class Example2 < Example1
-    more_props :c
+    more_props c: Integer
   end
 
   class Example3
     extend Shiika::Props
-    props :a
+    props a: Integer
     def init
       @init_called = true
     end
   end
 
-  describe ".prop_names" do
-    it "should return a list of prop names" do
-      expect(Example1.prop_names).to eq([:a, :b])
+  describe ".props_spec" do
+    it "should return a hash of prop names and types" do
+      expect(Example1.props_spec).to eq({a: Integer, b: Integer})
     end
   end
 
@@ -29,6 +29,8 @@ describe Shiika::Props do
       expect{ Example1.new }.to raise_error(ArgumentError)
       expect{ Example1.new(1,2,3) }.to raise_error(ArgumentError)
     end
+
+    describe 'type check' 
   end
 
   describe "#init" do

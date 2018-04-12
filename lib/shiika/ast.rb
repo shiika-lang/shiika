@@ -21,7 +21,7 @@ module Shiika
       def to_program
         # Get Program::Literal, etc.
         pclass = Program.const_get(self.class.short_name)
-        values = self.class.prop_names.map{|x| __send__(x)}
+        values = self.class.props_spec.keys.map{|x| __send__(x)}
         return pclass.new(*values)
       end
 

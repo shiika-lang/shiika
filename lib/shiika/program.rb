@@ -91,17 +91,17 @@ module Shiika
     end
 
     class SkClass < Element
-      props :name, # String
-            :parent_name, # String or :noparent
-            :sk_ivars,   # {String => SkIvar},
-            :class_methods,  # {String => SkClassMethod}
-            :sk_methods  # {String => SkMethod}
+      props name: String,
+            parent_name: String, # or '__noparent__'
+            sk_ivars: nil, #TODO: {String => :SkIvar},
+            class_methods: nil, #TODO: {String => :SkClassMethod},
+            sk_methods: nil #TODO: {String => :SkMethod}
 
       def self.build(*args)
         sk_class = SkClass.new(*args)
         meta_name = "Meta:#{sk_class.name}"
-        meta_parent = if sk_class.parent_name == :noparent 
-                        :noparent 
+        meta_parent = if sk_class.parent_name == '__noparent__'
+                        '__noparent__'
                       else
                         "Meta:#{sk_class.parent_name}"
                       end
@@ -152,11 +152,11 @@ module Shiika
 
     # Holds class methods of a class
     class SkMetaClass < SkClass
-      more_props :sk_class
+      more_props sk_class: SkClass
     end
 
     class SkIvar < Element
-      props :name, :type_spec
+      props name: String, type_spec: Type::Base
 
       def calc_type!(env)
         return env, env.find_type(type_spec)
@@ -164,10 +164,10 @@ module Shiika
     end
 
     class SkMethod < Element
-      props :name,
-            :params,
-            :ret_type_spec,
-            :body_stmts
+      props name: String,
+            params: nil, #TODO[:Param],
+            ret_type_spec: Type::Base,
+            body_stmts: nil #TODO: [Element or Proc]
 
       def arity
         @params.length
@@ -212,11 +212,11 @@ module Shiika
     class SkClassMethod < SkMethod; end
 
     class SkConst < Element
-      props :name
+      props name: String
     end
 
     class Main < Element
-      props :stmts
+      props stmts: [Element]
 
       def calc_type!(env)
         stmts.each{|x| env = x.add_type!(env)}
@@ -225,7 +225,7 @@ module Shiika
     end
 
     class Param < Element
-      props :name, :type_spec
+      props name: String, type_spec: Type::Base
 
       def calc_type!(env)
         return env, env.find_type(type_spec)
@@ -233,11 +233,11 @@ module Shiika
     end
 
     class IParam < Param
-      props :name, :type_spec
+      props name: String, type_spec: Type::Base
     end
 
     class Return < Element
-      props :expr
+      props expr: Element
 
       def calc_type!(env)
         return env, TyRaw["Void"]
@@ -245,7 +245,7 @@ module Shiika
     end
 
     class If < Element
-      props :cond_expr, :then_stmts, :else_stmts
+      props cond_expr: Element, then_stmts: [Element], else_stmts: [Element]
 
       def calc_type!(env)
         cond_expr.add_type!(env)
@@ -276,7 +276,9 @@ module Shiika
     end
 
     class MethodCall < Element
-      props :receiver_expr, :method_name, :args
+      props receiver_expr: nil, #TODO Element or Evaluator::SkObj
+            method_name: String,
+            args: nil #TODO [Element or Evaluator::SkObj]
 
       def calc_type!(env)
         args.each{|x| env = x.add_type!(env)}
@@ -294,7 +296,7 @@ module Shiika
     end
 
     class AssignLvar < AssignmentExpr
-      props :varname, :expr, :isvar
+      props varname: String, expr: Element, isvar: :boolean
 
       def calc_type!(env)
         super
@@ -305,7 +307,7 @@ module Shiika
     end
 
     class AssignIvar < AssignmentExpr
-      props :varname, :expr
+      props varname: String, expr: Element
 
       def calc_type!(env)
         super
@@ -319,7 +321,7 @@ module Shiika
     end
 
     class AssignConst < AssignmentExpr
-      props :varname, :expr
+      props varname: String, expr: Element
       
       def calc_type!(env)
         TODO
@@ -327,7 +329,7 @@ module Shiika
     end
 
     class LvarRef < Element
-      props :name
+      props name: String
 
       def calc_type!(env)
         lvar = env.find_lvar(name)
@@ -336,7 +338,7 @@ module Shiika
     end
 
     class IvarRef < Element
-      props :name
+      props name: String
 
       def calc_type!(env)
         ivar = env.find_ivar(name)
@@ -345,7 +347,7 @@ module Shiika
     end
 
     class ConstRef < Element
-      props :name
+      props name: String
 
       def calc_type!(env)
         const = env.find_const(name)
@@ -354,7 +356,7 @@ module Shiika
     end
 
     class Literal < Element
-      props :value
+      props value: Object
 
       def calc_type!(env)
         type = case value
