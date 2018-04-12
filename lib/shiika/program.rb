@@ -94,7 +94,8 @@ module Shiika
       props name: String, type_spec: Type::Base
 
       def calc_type!(env)
-        return env, env.find_type(type_spec)
+        env.check_type_exists(type_spec)
+        return env, type_spec
       end
     end
 
@@ -102,7 +103,8 @@ module Shiika
       props name: String, type_spec: Type::Base
 
       def calc_type!(env)
-        return env, env.find_type(type_spec)
+        env.check_type_exists(type_spec)
+        return env, type_spec
       end
     end
 
@@ -122,6 +124,7 @@ module Shiika
 
       def calc_type!(env)
         params.each{|x| x.add_type!(env)}
+        env.check_type_exists(ret_type_spec)
 
         if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
           lvars = params.map{|x|
@@ -132,7 +135,7 @@ module Shiika
         end
 
         return env, TyMethod.new(name, params.map(&:type),
-                                 env.find_type(ret_type_spec))
+                                 ret_type_spec)
       end
     end
 
