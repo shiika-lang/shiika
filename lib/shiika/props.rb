@@ -32,17 +32,17 @@ module Shiika
       when :boolean
         arg == true || arg == false
       when Array
-        raise "unkown type spec: #{type.inspect}" unless type.length == 1
+        raise "unknown type spec: #{type.inspect}" unless type.length == 1
         arg.is_a?(Array) && arg.all?{|x| conforms?(type[0], x)}
       when Hash
-        raise "unkown type spec: #{type.inspect}" unless type.size == 1
+        raise "unknown type spec: #{type.inspect}" unless type.size == 1
         arg.is_a?(Hash) &&
           arg.keys.all?{|x| conforms?(type.keys.first, x)} &&
           arg.values.all?{|x| conforms?(type.values.first, x)}
       when Module
         arg.is_a?(type)
       else
-        raise "unkown type spec: #{type.inspect}"
+        raise "unknown type spec: #{type.inspect}"
       end
     end
 
