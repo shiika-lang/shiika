@@ -21,8 +21,7 @@ module Shiika
       def to_program
         # Get Program::Literal, etc.
         pclass = Program.const_get(self.class.short_name)
-        values = self.class.props_spec.keys.map{|x| __send__(x)}
-        return pclass.new(*values)
+        return pclass.new(self.props_values)
       end
 
       def inspect
@@ -64,7 +63,7 @@ module Shiika
       props :stmts
 
       def to_program
-        Program::Main.new(stmts.map(&:to_program))
+        Program::Main.new(stmts: stmts.map(&:to_program))
       end
     end
 
@@ -82,9 +81,9 @@ module Shiika
         }.to_h
         sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
         return Program::SkClass.build(
-          name, "Object", sk_methods["initialize"].ivars,
-          sk_class_methods,
-          sk_methods
+          name: name, parent_name: "Object", sk_ivars: sk_methods["initialize"].ivars,
+          class_methods: sk_class_methods,
+          sk_methods: sk_methods
         )
       end
     end
@@ -95,17 +94,17 @@ module Shiika
 
     class DefClassMethod < Defun
       def to_program
-        Program::SkMethod.new(name, params.map(&:to_program),
-                              ret_type_name,
-                              ary_to_program(body_stmts))
+        Program::SkMethod.new(name: name, params: params.map(&:to_program),
+                              ret_type_spec: ret_type_name,
+                              body_stmts: ary_to_program(body_stmts))
       end
     end
 
     class DefMethod < Defun
       def to_program
-        Program::SkMethod.new(name, params.map(&:to_program),
-                              ret_type_name,
-                              ary_to_program(body_stmts))
+        Program::SkMethod.new(name: name, params: params.map(&:to_program),
+                              ret_type_spec: ret_type_name,
+                              body_stmts: ary_to_program(body_stmts))
       end
     end
 
@@ -124,10 +123,18 @@ module Shiika
 
     class Param < Node
       props :name, :type_name
+
+      def to_program
+        Program::Param.new(name: name, type_spec: type_name)
+      end
     end
 
     class IParam < Node
       props :name, :type_name
+
+      def to_program
+        Program::IParam.new(name: name, type_spec: type_name)
+      end
     end
 
     class Extern < Node
@@ -147,9 +154,9 @@ module Shiika
       props :cond_expr, :then_stmts, :else_stmts
 
       def to_program
-        Program::If.new(cond_expr.to_program,
-                        ary_to_program(then_stmts),
-                        ary_to_program(else_stmts))
+        Program::If.new(cond_expr: cond_expr.to_program,
+                        then_stmts: ary_to_program(then_stmts),
+                        else_stmts: ary_to_program(else_stmts))
       end
     end
 
@@ -157,8 +164,9 @@ module Shiika
       props :op, :left_expr, :right_expr
 
       def to_program
-        Program::MethodCall.new(left_expr.to_program, op,
-                                [right_expr.to_program])
+        Program::MethodCall.new(receiver_expr: left_expr.to_program,
+                                method_name: op,
+                                args: [right_expr.to_program])
       end
     end
 
@@ -166,7 +174,9 @@ module Shiika
       props :op, :expr
 
       def to_program
-        Program::MethodCall.new(expr.to_program, op, [])
+        Program::MethodCall.new(receiver_expr: expr.to_program,
+                                method_name: op,
+                                args: [])
       end
     end
 
@@ -178,9 +188,9 @@ module Shiika
       props :receiver_expr, :method_name, :args
 
       def to_program
-        Program::MethodCall.new(receiver_expr.to_program,
-                                method_name,
-                                ary_to_program(args))
+        Program::MethodCall.new(receiver_expr: receiver_expr.to_program,
+                                method_name: method_name,
+                                args: ary_to_program(args))
       end
     end
 
@@ -188,7 +198,7 @@ module Shiika
       props :varname, :expr, :isvar
 
       def to_program
-        Program::AssignLvar.new(varname, expr.to_program, isvar)
+        Program::AssignLvar.new(varname: varname, expr: expr.to_program, isvar: isvar)
       end
     end
 
@@ -196,7 +206,7 @@ module Shiika
       props :varname, :expr
 
       def to_program
-        Program::AssignIvar.new(varname, expr.to_program)
+        Program::AssignIvar.new(varname: varname, expr: expr.to_program)
       end
     end
 
@@ -204,7 +214,7 @@ module Shiika
       props :varname, :expr
 
       def to_program
-        Program::AssignConst.new(varname, expr.to_program)
+        Program::AssignConst.new(varname: varname, expr: expr.to_program)
       end
     end
 

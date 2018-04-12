@@ -69,9 +69,9 @@ module Shiika
         if sk_method.body_stmts.is_a?(Proc)  # stdlib
           value = sk_method.body_stmts.call(env, receiver, *arg_values)
           if value.is_a?(Evaluator::Call)
-            invocation = Program::MethodCall.new(value.receiver_obj,
-                                                 value.method_name,
-                                                 value.arg_objs)
+            invocation = Program::MethodCall.new(receiver_expr: value.receiver_obj,
+                                                 method_name: value.method_name,
+                                                 args: value.arg_objs)
             _, result = eval_stmt(env, invocation)
             return env, value.after.call(result)
           else

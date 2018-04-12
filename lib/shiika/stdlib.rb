@@ -111,7 +111,7 @@ module Shiika
       CLASSES.flat_map{|spec|
         sk_methods = spec[:methods].map{|x|
           params = x[:param_type_specs].map{|ty|
-            Program::Param.new("(no name)", ty)
+            Program::Param.new(name: "(no name)", type_spec: ty)
           }
           if x[:name] == "initialize"
             sk_method = Program::SkInitializer.new(
@@ -119,26 +119,26 @@ module Shiika
             )
           else
             sk_method = Program::SkMethod.new(
-              x[:name], params, x[:ret_type_spec], x[:body]
+              name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]
             )
           end
           [x[:name], sk_method]
         }.to_h
         sk_class_methods = spec[:class_methods].map{|x|
           params = x[:param_type_specs].map{|type|
-            Program::Param.new("(no name)", type)
+            Program::Param.new(name: "(no name)", type_spec: type)
           }
           sk_method = Program::SkMethod.new(
-            x[:name], params, x[:ret_type_spec], x[:body]
+            name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]
           )
           [x[:name], sk_method]
         }.to_h
         sk_ivars = spec[:ivars].map{|name, type|
-          [name, Program::SkIvar.new(name, type)]
+          [name, Program::SkIvar.new(name: name, type_spec: type)]
         }.to_h
         sk_class, meta_class = Program::SkClass.build(
-          spec[:name], spec[:parent],
-          sk_ivars, sk_class_methods, sk_methods
+          name: spec[:name], parent_name: spec[:parent],
+          sk_ivars: sk_ivars, class_methods: sk_class_methods, sk_methods: sk_methods
         )
         [[sk_class.name, sk_class],
          [meta_class.name, meta_class]]

@@ -22,7 +22,7 @@ module Shiika
       return if @sk_main.type
 
       constants = @sk_classes.keys.map{|name|
-        const = SkConst.new(name)
+        const = SkConst.new(name: name)
         const.instance_variable_set(:@type, Type::TyRaw["Meta:#{name}"])
         [name, const]
       }.to_h
@@ -138,7 +138,7 @@ module Shiika
 
     class SkInitializer < SkMethod
       def initialize(iparams, body_stmts)
-        super("initialize", iparams, TyRaw["Void"], body_stmts)
+        super(name: "initialize", params: iparams, ret_type_spec: TyRaw["Void"], body_stmts: body_stmts)
       end
 
       def arity
@@ -149,7 +149,7 @@ module Shiika
       # (Note: type is not detected at this time)
       def ivars
         params.grep(IParam).map{|x|
-          [x.name, SkIvar.new(x.name, x.type_spec)]
+          [x.name, SkIvar.new(name: x.name, type_spec: x.type_spec)]
         }.to_h
       end
     end
@@ -161,8 +161,8 @@ module Shiika
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
 
-      def self.build(*args)
-        sk_class = SkClass.new(*args)
+      def self.build(hash)
+        sk_class = SkClass.new(hash)
         meta_name = "Meta:#{sk_class.name}"
         meta_parent = if sk_class.parent_name == '__noparent__'
                         '__noparent__'
@@ -171,12 +171,12 @@ module Shiika
                       end
         sk_new = make_sk_new(sk_class)
         meta_class = SkMetaClass.new(
-          meta_name,
-          meta_parent,
-          {},
-          {},
-          {"new" => sk_new}.merge(sk_class.class_methods),
-          sk_class
+          name: meta_name,
+          parent_name: meta_parent,
+          sk_ivars: {},
+          class_methods: {},
+          sk_methods: {"new" => sk_new}.merge(sk_class.class_methods),
+          sk_class: sk_class
         )
         return sk_class, meta_class
       end
@@ -190,10 +190,10 @@ module Shiika
         raise "class Object must be built first" unless @@object_new
         
         sk_new = Program::SkMethod.new(
-          "new",
-          sk_class.sk_methods["initialize"].params.map(&:dup),
-          TyRaw[sk_class.name],
-          @@object_new.body_stmts
+          name: "new",
+          params: sk_class.sk_methods["initialize"].params.map(&:dup),
+          ret_type_spec: TyRaw[sk_class.name],
+          body_stmts: @@object_new.body_stmts
         )
         return sk_new
       end

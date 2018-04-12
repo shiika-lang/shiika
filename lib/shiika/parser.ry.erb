@@ -45,13 +45,13 @@ class Shiika::Parser
 rule
     source:
         opt_sep definitions sep top_statements opt_sep
-        { Ast::Source.new(val[1], Ast::Main.new(val[3])) }
+        { Ast::Source.new(defs: val[1], main: Ast::Main.new(stmts: val[3])) }
       | opt_sep definitions opt_sep
-        { Ast::Source.new(val[1], Ast::Main.new([])) }
+        { Ast::Source.new(defs: val[1], main: Ast::Main.new(stmts: [])) }
       | opt_sep top_statements opt_sep
-        { Ast::Source.new([],     Ast::Main.new(val[1])) }
+        { Ast::Source.new(defs: [],     main: Ast::Main.new(stmts: val[1])) }
       | opt_sep
-        { Ast::Source.new([],     Ast::Main.new([])) }
+        { Ast::Source.new(defs: [],     main: Ast::Main.new(stmts: [])) }
 
     definition:
         defclass
@@ -71,7 +71,7 @@ rule
         'class' CONST opt_type_parameters sep
           opt_defmethods
         'end'
-        { Ast::DefClass.new(val[1], val[2], val[4]) }
+        { Ast::DefClass.new(name: val[1], typarams: val[2], defmethods: val[4]) }
 
     opt_type_parameters:
         /* NONE */
@@ -82,7 +82,7 @@ rule
 
     type_parameter:
       CONST
-      { Ast::TypeParameter.new(val[0]) }
+      { Ast::TypeParameter.new(name: val[0]) }
     <%= repeat1 'type_parameter', sep: ["_nl", "','", "_nl"] %>
 
     defmethod:
@@ -92,9 +92,11 @@ rule
         'end'
         { 
           if val[1] 
-            Ast::DefClassMethod.new(val[2], val[3], val[7], val[9])
+            Ast::DefClassMethod.new(name: val[2], params: val[3],
+                                    ret_type_name: val[7], body_stmts: val[9])
           else
-            Ast::DefMethod.new(val[2], val[3], val[7], val[9])
+            Ast::DefMethod.new(name: val[2], params: val[3],
+                               ret_type_name: val[7], body_stmts: val[9])
           end
         }
     <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
@@ -103,7 +105,7 @@ rule
         'def' 'initialize' opt_iparamlist sep
           opt_statements
         'end'
-        { Ast::DefInitialize.new(val[2], val[4]) }
+        { Ast::DefInitialize.new(params: val[2], body_stmts: val[4]) }
 
     opt_iparamlist:
         /* NONE */
@@ -114,7 +116,7 @@ rule
     iparam: 
         param
       | IVAR ':' type
-        { Ast::IParam.new(val[0], val[2]) }
+        { Ast::IParam.new(name: val[0], type_name: val[2]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     opt_self_dot:
@@ -127,7 +129,8 @@ rule
         'def' method_name opt_paramlist _nl '->' _nl type sep
            opt_statements
         'end'
-        { Ast::Defun.new(val[1], val[2], val[6], val[8]) }
+        { Ast::Defun.new(name: val[1], params: val[2],
+                         ret_type_name: val[6], body_stmts: val[8]) }
     <%= repeat0 'defun', sep: ['sep'] %>
 
     opt_paramlist:
@@ -138,16 +141,16 @@ rule
 
     param: 
         IDENT ':' type
-        { Ast::Param.new(val[0], val[2]) }
+        { Ast::Param.new(name: val[0], type_name: val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
 
     extern:
         'extern' type IDENT '(' opt_param_types ')'
-        { Ast::Extern.new(val[1], val[2], val[4]) }
+        { Ast::Extern.new(ret_type_name: val[1], name: val[2], params: val[4]) }
 
     param_type:
         type
-        { Ast::Param.new(nil, val[0]) }
+        { Ast::Param.new(name: nil, type_name: val[0]) }
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
@@ -160,11 +163,11 @@ rule
         'for' '(' IDENT ':' type ';' expression '...' expression ';' expression ')' sep
           opt_statements
         'end'
-        { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
+        { Ast::For.new(varname: val[2], var_type_name: val[4], begin_expr: val[6], end_expr: val[8], step_expr: val[10], body_stmts: val[13]) }
 
     return_stmt:
         'return' expression
-        { Ast::Return.new(val[1]) }
+        { Ast::Return.new(expr: val[1]) }
 
     expression:
         if_expr
@@ -179,40 +182,40 @@ rule
       <% ops = %w(+ - * / % > < >= <= == != && ||) %>
       <% ops.each do |op| %>
       | expression '<%= op %>' expression
-        { Ast::BinExpr.new("<%= op %>", val[0], val[2]) }
+        { Ast::BinExpr.new(op: "<%= op %>", left_expr: val[0], right_expr: val[2]) }
       <% end %>
 
       | '-' expression =UMINUS
-        { Ast::UnaryExpr.new("-", val[1]) }
+        { Ast::UnaryExpr.new(op: "-", expr: val[1]) }
 
       | '(' expression ')'
         { val[1] }
 
     if_expr:
         'if' expression sep opt_statements 'end'
-        { Ast::If.new(val[1], val[3], []) }
+        { Ast::If.new(cond_expr: val[1], then_stmts: val[3], else_stmts: []) }
       | 'if' expression sep opt_statements elsif_clause
-        { Ast::If.new(val[1], val[3], val[4]) }
+        { Ast::If.new(cond_expr: val[1], then_stmts: val[3], else_stmts: val[4]) }
 
     elsif_clause:
         'elsif' expression sep opt_statements elsif_clause
-        { [Ast::If.new(val[1], val[3], val[4])] }
+        { [Ast::If.new(cond_expr: val[1], then_stmts: val[3], else_stmts: val[4])] }
       | 'elsif' expression sep opt_statements 'end'
-        { [Ast::If.new(val[1], val[3], [])] }
+        { [Ast::If.new(cond_expr: val[1], then_stmts: val[3], else_stmts: [])] }
       | 'else' opt_sep opt_statements 'end'
         { val[2] }
 
     method_call:
         expression '.' method_name opt_arglist
-        { Ast::MethodCall.new(val[0], val[2], val[3]) }
+        { Ast::MethodCall.new(receiver_expr: val[0], method_name: val[2], args: val[3]) }
       | expression '.' IDENT '=' expression
-        { Ast::MethodCall.new(val[0], val[2] + '=', [val[4]]) }
+        { Ast::MethodCall.new(receiver_expr: val[0], method_name: val[2] + '=', args: [val[4]]) }
       | expression '[' opt_args ']'
-        { Ast::MethodCall.new(val[0], '[]', val[2]) }
+        { Ast::MethodCall.new(receiver_expr: val[0], method_name: '[]', args: val[2]) }
 
     fcall:
         method_name opt_arglist
-        { Ast::FunCall.new(val[0], val[1]) }
+        { Ast::FunCall.new(name: val[0], args: val[1]) }
 
     opt_arglist:
         /* NONE */
@@ -226,37 +229,37 @@ rule
 
     deflvar:
         'var' IDENT '=' expression
-        { Ast::AssignLvar.new(val[1], val[3], true) }
+        { Ast::AssignLvar.new(varname: val[1], expr: val[3], isvar: true) }
 
     assign_lvar:
         IDENT '=' expression
-        { Ast::AssignLvar.new(val[0], val[2], false) }
+        { Ast::AssignLvar.new(varname: val[0], expr: val[2], isvar: false) }
 
     assign_ivar:
         IVAR '=' expression
-        { Ast::AssignIvar.new(val[0], val[2]) }
+        { Ast::AssignIvar.new(varname: val[0], expr: val[2]) }
 
     assign_const:
         CONST '=' expression
-        { Ast::AssignConst.new(val[0], val[2]) }
+        { Ast::AssignConst.new(varname: val[0], expr: val[2]) }
 
     varref:
         IDENT
-        { Ast::LvarRef.new(val[0]) }
+        { Ast::LvarRef.new(name: val[0]) }
       | IVAR
-        { Ast::IvarRef.new(val[0]) }
+        { Ast::IvarRef.new(name: val[0]) }
       | CONST
-        { Ast::ConstRef.new(val[0]) }
+        { Ast::ConstRef.new(name: val[0]) }
 
     literal:
         FLOAT
-        { Ast::Literal.new(val[0]) }
+        { Ast::Literal.new(value: val[0]) }
       | INTEGER
-        { Ast::Literal.new(val[0]) }
+        { Ast::Literal.new(value: val[0]) }
       | 'true'
-        { Ast::Literal.new(true) }
+        { Ast::Literal.new(value: true) }
       | 'false'
-        { Ast::Literal.new(false) }
+        { Ast::Literal.new(value: false) }
 
     type:
         CONST

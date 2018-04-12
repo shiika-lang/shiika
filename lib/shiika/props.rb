@@ -51,15 +51,21 @@ module Shiika
       define_singleton_method "props_spec" do spec end
 
       define_method "initialize" do |*args|
-        if spec.size != args.length
-          raise ArgumentError,
-            "wrong number of arguments for #{self.class}.new (given #{args.length}, expected #{spec.size})"
+        if args.size != 1 || !args[0].is_a?(Hash)
+          raise ArgumentError, "#{self.class}.new takes a Hash (got #{args[0].inspect})"
         end
-        spec.zip(args).each do |(name, type), arg|
-          unless Props.conforms?(type, arg)
+        hash = args[0]
+        if (unknown = hash.keys - spec.keys).any?
+          raise ArgumentError, "unknown key(s) for #{self.class}.new: #{unknown.inspect}"
+        end
+        spec.each do |name, type|
+          raise "#{name} must be supplied for #{self.class}.new" unless hash.key?(name)
+          value = hash[name]
+          if Props.conforms?(type, value)
+            instance_variable_set("@#{name}", value)
+          else
             raise TypeError, "#{self.class}##{name} expects #{type} but given #{arg.inspect}"
           end
-          instance_variable_set("@#{name}", arg)
         end
         init
       end
@@ -67,6 +73,10 @@ module Shiika
 
       define_method "init" do end
       private "init"
+
+      define_method "props_values" do
+        spec.keys.map{|k| [k, instance_variable_get("@#{k}")]}.to_h
+      end
 
       define_method "to_json" do |*args|
         elems = [["class", self.class.name.split(/::/).last]]
@@ -83,18 +93,6 @@ module Shiika
     def more_props(*more_spec)
       spec = Props.parse_spec(*more_spec)
       props(props_spec.merge(spec))
-    end
-
-    # hash: {Symbol => Object}
-    def new_from_hash(hash)
-      if (unknown = hash.keys - props_spec.keys).any?
-        raise "unknown key(s): #{unknown.inspect}"
-      end
-      args = props_spec.keys.map{|k|
-        raise "#{k} must be supplied" unless hash.key?(k)
-        hash[k]
-      }
-      new(*args)
     end
   end
 end
