@@ -15,10 +15,31 @@ module Shiika
       end
       attr_reader :name
 
+      alias to_key name
+
       def inspect
         "#<TyRaw #{name}>"
       end
       alias to_s inspect
+    end
+
+    # Specialized generic type (eg. Pair[Int, Bool])
+    class TyGen < Base
+      @@types = {}
+      def self.[](*args)
+        @@types[args] ||= new(*args)
+      end
+
+      # type_args: [TyRaw or TyGen]
+      def initialize(base_name, type_args)
+        @base_name, @type_args = base_name, type_args
+      end
+      attr_reader :base_name, :type_args
+
+      def to_key
+        @base_name + "[" + @type_args.map(&:to_key).join(', ') + "]"
+      end
+      alias name to_key
     end
 
     class TyParam < Base
