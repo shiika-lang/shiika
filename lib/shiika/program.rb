@@ -18,9 +18,6 @@ module Shiika
     attr_reader :sk_classes, :sk_main
 
     def add_type!
-      # Do nothing if already typed
-      return if @sk_main.type
-
       constants = @sk_classes.keys.map{|name|
         const = SkConst.new(name: name)
         const.instance_variable_set(:@type, Type::TyRaw["Meta:#{name}"])
@@ -53,7 +50,10 @@ module Shiika
         raise TypeError unless newenv.is_a?(Shiika::Program::Env)
         return newenv
       end
-      attr_reader :type
+
+      def type
+        @type or raise "type not yet calculated on #{self.inspect}"
+      end
 
       def calc_type!(env)
         raise "override me (#{self.class})"
