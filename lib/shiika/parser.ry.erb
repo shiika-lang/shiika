@@ -252,6 +252,12 @@ rule
     type:
         CONST
         { Type::TyRaw[val[0]] }
+      | CONST '[' opt_type_args ']'
+        { Type::TyGen[val[0], val[2]] }
+
+    type_arg:
+      CONST
+    <%= repeat0 'type_arg', sep: ["_nl", "','", "_nl"] %>
 
     method_name:
         IDENT
