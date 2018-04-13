@@ -56,15 +56,15 @@ module Shiika
         end
         hash = args[0]
         if (unknown = hash.keys - spec.keys).any?
-          raise ArgumentError, "unknown key(s) for #{self.class}.new: #{unknown.inspect}"
+          raise ArgumentError, "#{self.class}.new got unknown key(s): #{unknown.map(&:inspect).join ', '}"
         end
         spec.each do |name, type|
-          raise "#{name} must be supplied for #{self.class}.new" unless hash.key?(name)
+          raise "#{self.class}.new requires :#{name}" unless hash.key?(name)
           value = hash[name]
           if Props.conforms?(type, value)
             instance_variable_set("@#{name}", value)
           else
-            raise TypeError, "#{self.class}##{name} expects #{type} but given #{arg.inspect}"
+            raise TypeError, "#{self.class}##{name} expects #{type} but given #{value.inspect}"
           end
         end
         init
