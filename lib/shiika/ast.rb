@@ -88,6 +88,10 @@ module Shiika
       end
     end
 
+    class TypeParameter < Node
+      props :name
+    end
+
     class Defun < Node
       props :name, :params, :ret_type_spec, :body_stmts
     end
@@ -211,6 +215,15 @@ module Shiika
 
     class ConstRef < Node
       props :name
+    end
+
+    class ClassSpecialization < Node
+      props :class_expr, :type_arg_exprs
+
+      def to_program
+        Program::ClassSpecialization.new(class_expr: class_expr.to_program,
+                                         type_arg_exprs: type_arg_exprs.map(&:to_program))
+      end
     end
 
     class Literal < Node

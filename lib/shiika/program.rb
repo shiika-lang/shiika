@@ -112,6 +112,10 @@ module Shiika
       props name: String, type_spec: Type::Base
     end
 
+    class TypeParameter < Element
+      props :name
+    end
+
     class SkMethod < Element
       props name: String,
             params: [Param],

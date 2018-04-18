@@ -13,14 +13,14 @@ describe "Evaluator" do
 
 #  it 'type parameter' do
 #    src = <<~EOD
-#      class Pair[S, T]
+#      class Pair<S, T>
 #        def initialize(@a: S, @b: T)
 #        end
 #
 #        def fst -> S; @a; end
 #        def snd -> T; @b; end
 #      end
-#      Pair[Int, Bool].new(1, true).fst
+#      Pair<Int, Bool>.new(1, true).fst
 #    EOD
 #    expect(run(src)).to eq(sk_int(1))
 #  end

@@ -33,6 +33,7 @@ class Shiika::Parser
   token IDENT IDENT_M CONST IVAR FLOAT INTEGER
 
   prechigh
+    left TYAPP
     right UMINUS
     left '*' '/' '%'
     left '+' '-'
@@ -76,7 +77,7 @@ rule
         /* NONE */
         { [] }
       |
-        '[' type_parameters ']'
+        '<' type_parameters '>'
         { val[1] }
 
     type_parameter:
@@ -159,6 +160,7 @@ rule
       | assign_lvar
       | assign_ivar
       | varref
+      | class_specialization
       | literal
 
       <% ops = %w(+ - * / % > < >= <= == != && ||) %>
@@ -230,8 +232,20 @@ rule
         { Ast::LvarRef.new(name: val[0]) }
       | IVAR
         { Ast::IvarRef.new(name: val[0]) }
-      | CONST
+      | constref
+
+    constref:
+        CONST
         { Ast::ConstRef.new(name: val[0]) }
+
+    class_specialization:
+        constref '<' type_arg_exprs '>' =TYAPP
+        { Ast::ClassSpecialization.new(class_expr: val[0], type_arg_exprs: val[2]) }
+
+    type_arg_expr:
+        constref
+    <%= repeat1 'type_arg_expr', sep: ["_nl", "','", "_nl"] %>
+      
 
     literal:
         FLOAT
@@ -246,7 +260,7 @@ rule
     type:
         CONST
         { Type::TyRaw[val[0]] }
-      | CONST '[' opt_type_args ']'
+      | CONST '<' type_args '>'
         { Type::TyGen[val[0], val[2]] }
 
     type_arg:
