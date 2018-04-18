@@ -130,7 +130,6 @@ rule
         'end'
         { Ast::Defun.new(name: val[1], params: val[2],
                          ret_type_spec: val[6], body_stmts: val[8]) }
-    <%= repeat0 'defun', sep: ['sep'] %>
 
     opt_paramlist:
         /* NONE */
@@ -142,11 +141,6 @@ rule
         IDENT ':' type
         { Ast::Param.new(name: val[0], type_spec: val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
-
-    param_type:
-        type
-        { Ast::Param.new(name: nil, type_spec: val[0]) }
-    <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
         return_stmt
@@ -257,7 +251,7 @@ rule
 
     type_arg:
       CONST
-    <%= repeat0 'type_arg', sep: ["_nl", "','", "_nl"] %>
+    <%= repeat1 'type_arg', sep: ["_nl", "','", "_nl"] %>
 
     method_name:
         IDENT
