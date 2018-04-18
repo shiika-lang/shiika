@@ -20,7 +20,7 @@ module Shiika
     def add_type!
       constants = @sk_classes.keys.map{|name|
         const = SkConst.new(name: name)
-        const.instance_variable_set(:@type, Type::TyRaw["Meta:#{name}"])
+        const.instance_variable_set(:@type, Type::TyMeta[name])
         [name, const]
       }.to_h
       env = Shiika::Program::Env.new({
@@ -209,7 +209,11 @@ module Shiika
         @sk_ivars.each_value{|x| x.add_type!(env)}
         menv = env.merge(:sk_self, self)
         @sk_methods.each_value{|x| x.add_type!(menv)}
-        return env, TyRaw[name]
+        return env, to_type
+      end
+
+      def to_type
+        TyRaw[name]
       end
 
       def find_method(name)
@@ -224,6 +228,10 @@ module Shiika
     # Holds class methods of a class
     class SkMetaClass < SkClass
       more_props sk_class: SkClass
+
+      def to_type
+        TyMeta[name]
+      end
     end
 
     class SkConst < Element

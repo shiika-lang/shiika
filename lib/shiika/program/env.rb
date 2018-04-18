@@ -65,7 +65,7 @@ module Shiika
       end
 
       def find_method(receiver_type, name)
-        raise receiver_type.inspect unless receiver_type.is_a?(TyRaw)
+        raise receiver_type.inspect unless receiver_type.is_a?(TyRaw) || receiver_type.is_a?(TyMeta)
         sk_class = @data[:sk_classes].fetch(receiver_type.name)
         return sk_class.find_method(name)
       end

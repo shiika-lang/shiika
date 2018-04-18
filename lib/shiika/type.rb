@@ -10,6 +10,7 @@ module Shiika
       end
 
       def initialize(name)
+        raise "Use TyMeta for #{name}" if name =~ /Meta:/
         @name = name
         @@types[name] = self
       end
@@ -21,6 +22,28 @@ module Shiika
         "#<TyRaw #{name}>"
       end
       alias to_s inspect
+    end
+
+    class TyMeta < Base
+      @@types = {}
+      def self.[](*args)
+        @@types[args] ||= new(*args)
+      end
+
+      # eg. TyMeta.new('Array') represents Meta:Array
+      def initialize(base_name)
+        @base_name = base_name
+      end
+      attr_reader :base_name
+
+      def base_type
+        TyRaw[@base_name]
+      end
+
+      def to_key
+        "Meta:#{@base_name}"
+      end
+      alias name to_key
     end
 
     # Specialized generic type (eg. Pair[Int, Bool])
