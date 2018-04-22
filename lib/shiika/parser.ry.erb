@@ -261,7 +261,7 @@ rule
         CONST
         { Type::TyRaw[val[0]] }
       | CONST '<' type_args '>'
-        { Type::TyGen[val[0], val[2]] }
+        { Type::TySpe[val[0], val[2]] }
 
     type_arg:
       CONST

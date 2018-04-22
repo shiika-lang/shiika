@@ -47,13 +47,13 @@ module Shiika
     end
 
     # Specialized generic type (eg. Pair[Int, Bool])
-    class TyGen < Base
+    class TySpe < Base
       @@types = {}
       def self.[](*args)
         @@types[args] ||= new(*args)
       end
 
-      # type_args: [TyRaw or TyGen]
+      # type_args: [TyRaw or TySpe]
       def initialize(base_name, type_args)
         @base_name, @type_args = base_name, type_args
       end
