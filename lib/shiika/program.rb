@@ -289,8 +289,8 @@ module Shiika
     end
 
     class MethodCall < Element
-      props receiver_expr: nil, #TODO Element or Evaluator::SkObj
-            method_name: String,
+      props method_name: String,
+            receiver_expr: nil, #TODO Element or Evaluator::SkObj
             args: nil #TODO [Element or Evaluator::SkObj]
 
       def calc_type!(env)
