@@ -76,7 +76,7 @@ module Shiika
       module DebugAddType
         @@lv = 0
         def add_type!(env, *rest)
-          raise self.inspect if @type
+          raise "already has type: #{self.inspect}" if @type
           print " "*@@lv; p self
           @@lv += 2
           env = super(env, *rest)
