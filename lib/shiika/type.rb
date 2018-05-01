@@ -3,6 +3,7 @@ module Shiika
   module Type
     class Base; end
 
+    # Type for normal (i.e. non-generic, non-meta) class
     class TyRaw < Base
       @@types = {}
       def self.[](name)
@@ -24,6 +25,7 @@ module Shiika
       alias to_s inspect
     end
 
+    # Type for (non-generic) metaclass
     class TyMeta < Base
       @@types = {}
       def self.[](*args)
@@ -46,7 +48,25 @@ module Shiika
       alias name to_key
     end
 
-    # Specialized generic type (eg. Pair[Int, Bool])
+    # Type for generic metaclass
+    class TyGenMeta < Base
+      @@types = {}
+      def self.[](*args)
+        @@types[args] ||= new(*args)
+      end
+
+      # eg. TyGenMeta.new('Pair', ['S','T']) represents Meta:Pair<S,T>
+      def initialize(base_name, typaram_names)
+        @base_name, @typaram_names = base_name, typaram_names
+      end
+      attr_reader :base_name
+
+      def base_type
+        TyRaw[@base_name]
+      end
+    end
+
+    # Type for specialized generic class (eg. Pair[Int, Bool])
     class TySpe < Base
       @@types = {}
       def self.[](*args)
@@ -55,6 +75,7 @@ module Shiika
 
       # type_args: [TyRaw or TySpe]
       def initialize(base_name, type_args)
+        raise unless String === base_name
         @base_name, @type_args = base_name, type_args
       end
       attr_reader :base_name, :type_args
@@ -63,6 +84,24 @@ module Shiika
         @base_name + "[" + @type_args.map(&:to_key).join(', ') + "]"
       end
       alias name to_key
+    end
+
+    # Type for metaclass of specialized class
+    class TySpeMeta < Base
+      @@types = {}
+      def self.[](*args)
+        @@types[args] ||= new(*args)
+      end
+
+      # type_args: [TyRaw or TySpe]
+      def initialize(base_class_name, type_args)
+        @base_class_name, @type_args = base_class_name, type_args
+      end
+      attr_reader :base_class_name, :type_args
+
+      def base_name
+        "Meta:#{base_class_name}"
+      end
     end
 
     class TyParam < Base
