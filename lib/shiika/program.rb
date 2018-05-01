@@ -227,12 +227,103 @@ module Shiika
       end
     end
 
+    class SkGenericClass < SkClass
+      more_props typarams: [TypeParameter]
+
+      def init
+        @specialized_classes = {}
+      end
+
+      def specialized_class(type_arguments)
+        key = type_arguments.map(&:to_key).join(', ')
+        return (@specialized_classes[key] ||=
+                 SkSpecializedClass.new(sk_generic_class: self, type_arguments: type_arguments))
+      end
+
+      def meta_type
+        TyGenMeta[name, typarams.map(&:name)]
+      end
+
+      private
+
+      def methods_env(env)
+        env.merge(:sk_self, self)
+           .merge(:typarams, typarams.map{|x| [x.name, x.type]}.to_h)
+      end
+    end
+
+    class SkSpecializedClass < Element
+      props :sk_generic_class, :type_arguments
+
+      def init
+        @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
+        @type = TySpe[sk_generic_class.name, type_arguments]
+      end
+      attr_reader :name, :type
+
+      def find_method(name)
+        if (ret = sk_generic_class.sk_methods[name])
+          ret
+        else
+          raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
+        end
+      end
+    end
+
+    class TypeParameter < Element
+      props :name
+
+      def type
+        @type ||= Type::TyParam.new(name)
+      end
+    end
+
     # Holds class methods of a class
     class SkMetaClass < SkClass
       more_props sk_class: SkClass
 
       def to_type
         TyMeta[name]
+      end
+    end
+
+    class SkGenericMetaClass < SkGenericClass
+      more_props typarams: [TypeParameter], sk_generic_class: SkGenericClass
+
+      def init
+        @specialized_classes = {}
+      end
+
+      def specialized_class(type_arguments)
+        key = type_arguments.map(&:to_key).join(', ')
+        return (@specialized_classes[key] ||=
+                 SkSpecializedMetaClass.new(sk_generic_meta_class: self, type_arguments: type_arguments))
+      end
+
+      def to_type
+        TyGenMeta[name, typarams.map(&:name)]
+      end
+    end
+
+    class SkSpecializedMetaClass < Element
+      props :sk_generic_meta_class, :type_arguments
+
+      def init
+        sk_generic_class = sk_generic_meta_class.sk_generic_class
+        @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
+        #@type = TySpe[sk_generic_class.name, type_arguments]
+        @sk_new = Program::SkMethod.new(
+          name: "new",
+          params: sk_generic_class.sk_methods["initialize"].params.map(&:dup),
+          ret_type_spec: TySpe[sk_generic_class.name, type_arguments],
+          body_stmts: Stdlib.object_new_body_stmts,
+          typarams: []
+        )
+        @sk_new.add_type!(Env.new({}))
+      end
+
+      def find_method(name)
+        TODO
       end
     end
 
@@ -365,6 +456,24 @@ module Shiika
       def calc_type!(env)
         const = env.find_const(name)
         return env, const.type
+      end
+    end
+
+    class ClassSpecialization < Element
+      props class_expr: Element, type_arg_exprs: [Element]
+
+      def calc_type!(env)
+        class_expr.add_type!(env)
+        type_arg_exprs.each{|x| x.add_type!(env)}
+
+        unless TyGenMeta === class_expr.type
+          raise SkTypeError, "not a generic class: #{class_expr.type}"
+        end
+        type_args = type_arg_exprs.map{|expr|
+          raise SkTypeError, "not a class: #{expr.inspect}" unless expr.type.is_a?(TyMeta)
+          expr.type.base_type
+        }
+        return env, TySpeMeta[class_expr.type.base_name, type_args]
       end
     end
 
