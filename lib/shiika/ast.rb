@@ -83,7 +83,8 @@ module Shiika
         return Program::SkClass.build(
           name: name, parent_name: "Object", sk_ivars: sk_methods["initialize"].ivars,
           class_methods: sk_class_methods,
-          sk_methods: sk_methods
+          sk_methods: sk_methods,
+          typarams: typarams.map(&:to_program),
         )
       end
     end

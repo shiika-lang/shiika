@@ -11,6 +11,10 @@ module Shiika
     include Shiika::Type
     SkObj = Shiika::Evaluator::SkObj
 
+    def self.object_new_body_stmts
+      CLASSES.first[:class_methods].first[:body]
+    end
+
     CLASSES = [
       {
         name: "Object",
@@ -138,7 +142,8 @@ module Shiika
         }.to_h
         sk_class, meta_class = Program::SkClass.build(
           name: spec[:name], parent_name: spec[:parent],
-          sk_ivars: sk_ivars, class_methods: sk_class_methods, sk_methods: sk_methods
+          sk_ivars: sk_ivars, class_methods: sk_class_methods, sk_methods: sk_methods,
+          typarams: spec[:typarams]
         )
         [[sk_class.name, sk_class],
          [meta_class.name, meta_class]]

@@ -1,3 +1,4 @@
+require 'active_support/core_ext/hash/except'
 require 'shiika/props'
 require 'shiika/type'
 require 'shiika/program/env'
@@ -18,9 +19,9 @@ module Shiika
     attr_reader :sk_classes, :sk_main
 
     def add_type!
-      constants = @sk_classes.keys.map{|name|
+      constants = @sk_classes.map{|name, sk_class|
         const = SkConst.new(name: name)
-        const.instance_variable_set(:@type, Type::TyMeta[name])
+        const.instance_variable_set(:@type, sk_class.meta_type)
         [name, const]
       }.to_h
       env = Shiika::Program::Env.new({
@@ -169,47 +170,57 @@ module Shiika
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
 
+      attr_accessor :meta_class
+
       def self.build(hash)
-        sk_class = SkClass.new(hash)
+        typarams = hash[:typarams]
+        if typarams.any?
+          sk_class = SkGenericClass.new(hash)
+        else
+          sk_class = SkClass.new(hash.except(:typarams))
+        end
+
         meta_name = "Meta:#{sk_class.name}"
         meta_parent = if sk_class.parent_name == '__noparent__'
                         '__noparent__'
                       else
                         "Meta:#{sk_class.parent_name}"
                       end
-        sk_new = make_sk_new(sk_class)
-        meta_class = SkMetaClass.new(
+        sk_new = typarams.empty? && make_sk_new(sk_class)
+
+        meta_attrs = {
           name: meta_name,
           parent_name: meta_parent,
           sk_ivars: {},
           class_methods: {},
-          sk_methods: {"new" => sk_new}.merge(sk_class.class_methods),
-          sk_class: sk_class
-        )
+          sk_methods: (typarams.empty? ? {"new" => sk_new} : {}).merge(sk_class.class_methods)
+        }
+        if typarams.any?
+          meta_class = SkGenericMetaClass.new(meta_attrs.merge(
+            typarams: typarams,
+            sk_generic_class: sk_class
+          ))
+        else
+          meta_class = SkMetaClass.new(meta_attrs)
+        end
+        sk_class.meta_class = meta_class
         return sk_class, meta_class
       end
 
-      @@object_new = nil
       def self.make_sk_new(sk_class)
-        if sk_class.name == "Object"
-          @@object_new = sk_class.class_methods["new"]
-          return @@object_new
-        end
-        raise "class Object must be built first" unless @@object_new
-        
         sk_new = Program::SkMethod.new(
           name: "new",
           params: sk_class.sk_methods["initialize"].params.map(&:dup),
-          ret_type_spec: TyRaw[sk_class.name],
-          body_stmts: @@object_new.body_stmts,
+          ret_type_spec: sk_class.to_type,
+          body_stmts: Stdlib.object_new_body_stmts,
           typarams: []
         )
         return sk_new
       end
 
       def calc_type!(env)
-        @sk_ivars.each_value{|x| x.add_type!(env)}
-        menv = env.merge(:sk_self, self)
+        menv = methods_env(env)
+        @sk_ivars.each_value{|x| x.add_type!(menv)}
         @sk_methods.each_value{|x| x.add_type!(menv)}
         return env, to_type
       end
@@ -218,12 +229,22 @@ module Shiika
         TyRaw[name]
       end
 
+      def meta_type
+        TyMeta[name]
+      end
+
       def find_method(name)
         if (ret = @sk_methods[name])
           ret
         else
           raise SkTypeError, "class `#{@name}' does not have an instance method `#{name}'"
         end
+      end
+
+      private
+
+      def methods_env(env)
+        env.merge(:sk_self, self)
       end
     end
 
@@ -280,8 +301,6 @@ module Shiika
 
     # Holds class methods of a class
     class SkMetaClass < SkClass
-      more_props sk_class: SkClass
-
       def to_type
         TyMeta[name]
       end
