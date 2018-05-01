@@ -222,7 +222,7 @@ module Shiika
         if (ret = @sk_methods[name])
           ret
         else
-          raise SkTypeError, "class `#{@name}' does not have a method `#{name}'"
+          raise SkTypeError, "class `#{@name}' does not have an instance method `#{name}'"
         end
       end
     end
