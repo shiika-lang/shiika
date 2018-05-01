@@ -9,12 +9,14 @@ module Shiika
 
       # data: {
       #     sk_classes: {String => Program::SkClass},
+      #     typarams: {String => Type::TyParam},
       #     local_vars: {String => Program::Lvar},
       #     sk_self: Program::SkClass,
       #   }
       def initialize(data)
         @data = {
           sk_classes: {},
+          typarams: {},
           local_vars: {},
           constants: {},
           sk_self: :notset,
