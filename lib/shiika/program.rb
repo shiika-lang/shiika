@@ -120,7 +120,8 @@ module Shiika
       props name: String,
             params: [Param],
             ret_type_spec: Type::Base,
-            body_stmts: nil #TODO: [Element or Proc]
+            body_stmts: nil, #TODO: [Element or Proc]
+            typarams: [TypeParameter]
 
       def arity
         @params.length
@@ -144,8 +145,8 @@ module Shiika
     end
 
     class SkInitializer < SkMethod
-      def initialize(iparams, body_stmts)
-        super(name: "initialize", params: iparams, ret_type_spec: TyRaw["Void"], body_stmts: body_stmts)
+      def initialize(iparams, body_stmts, typarams)
+        super(name: "initialize", params: iparams, ret_type_spec: TyRaw["Void"], body_stmts: body_stmts, typarams: typarams)
       end
 
       def arity
@@ -200,7 +201,8 @@ module Shiika
           name: "new",
           params: sk_class.sk_methods["initialize"].params.map(&:dup),
           ret_type_spec: TyRaw[sk_class.name],
-          body_stmts: @@object_new.body_stmts
+          body_stmts: @@object_new.body_stmts,
+          typarams: []
         )
         return sk_new
       end
