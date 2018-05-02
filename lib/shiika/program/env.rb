@@ -33,9 +33,16 @@ module Shiika
       end
 
       def check_type_exists(type)
-        raise "bug: #{type.inspect}" unless type.is_a?(TyRaw)
-        if !@data[:sk_classes].key?(type.name) && type.name != "Void"
-          raise ProgramError, "unknown type: #{name}"
+        case type
+        when TyRaw
+          if !@data[:sk_classes].key?(type.name) && type.name != "Void" &&
+             !@data[:typarams].key?(type.name)
+            raise ProgramError, "unknown type: #{type.inspect}"
+          end
+        when TySpe
+          TODO
+        else
+          raise "bug: #{type.inspect}"
         end
       end
 
@@ -67,9 +74,17 @@ module Shiika
       end
 
       def find_method(receiver_type, name)
-        raise receiver_type.inspect unless receiver_type.is_a?(TyRaw) || receiver_type.is_a?(TyMeta)
-        sk_class = @data[:sk_classes].fetch(receiver_type.name)
-        return sk_class.find_method(name)
+        case receiver_type
+        when TyRaw, TyMeta
+          sk_class = @data[:sk_classes].fetch(receiver_type.name)
+          return sk_class.find_method(name)
+        when TySpe, TySpeMeta
+          sk_class = @data[:sk_classes].fetch(receiver_type.base_name)
+          sp_class = sk_class.specialized_class(receiver_type.type_args)
+          return sp_class.find_method(name)
+        else
+          raise
+        end
       end
     end
   end
