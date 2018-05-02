@@ -119,11 +119,11 @@ module Shiika
           }
           if x[:name] == "initialize"
             sk_method = Program::SkInitializer.new(
-              params, x[:body], []
+              params, x[:body]
             )
           else
             sk_method = Program::SkMethod.new(
-              name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body], typarams: []
+              name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]
             )
           end
           [x[:name], sk_method]
@@ -133,7 +133,7 @@ module Shiika
             Program::Param.new(name: "(no name)", type_spec: type)
           }
           sk_method = Program::SkMethod.new(
-            name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body], typarams: []
+            name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]
           )
           [x[:name], sk_method]
         }.to_h

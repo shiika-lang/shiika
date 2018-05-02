@@ -79,7 +79,7 @@ module Shiika
         sk_methods = (defmethods - defclassmethods).map{|x|
           [x.name, x.to_program]
         }.to_h
-        sk_methods["initialize"] ||= Program::SkInitializer.new([], [], [])
+        sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
         return Program::SkClass.build(
           name: name, parent_name: "Object", sk_ivars: sk_methods["initialize"].ivars,
           class_methods: sk_class_methods,
@@ -101,8 +101,7 @@ module Shiika
       def to_program
         Program::SkMethod.new(name: name, params: params.map(&:to_program),
                               ret_type_spec: ret_type_spec,
-                              body_stmts: ary_to_program(body_stmts),
-                              typarams: [])
+                              body_stmts: ary_to_program(body_stmts))
       end
     end
 
@@ -110,8 +109,7 @@ module Shiika
       def to_program
         Program::SkMethod.new(name: name, params: params.map(&:to_program),
                               ret_type_spec: ret_type_spec,
-                              body_stmts: ary_to_program(body_stmts),
-                              typarams: [])
+                              body_stmts: ary_to_program(body_stmts))
       end
     end
 
@@ -124,8 +122,7 @@ module Shiika
 
       def to_program
         Program::SkInitializer.new(params.map(&:to_program),
-                                   ary_to_program(body_stmts),
-                                   [])
+                                   ary_to_program(body_stmts))
       end
     end
 

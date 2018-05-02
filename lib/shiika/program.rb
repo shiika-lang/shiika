@@ -121,8 +121,11 @@ module Shiika
       props name: String,
             params: [Param],
             ret_type_spec: Type::Base,
-            body_stmts: nil, #TODO: [Element or Proc]
-            typarams: [TypeParameter]
+            body_stmts: nil #TODO: [Element or Proc]
+      
+      def init
+        @class_typarams = []  # [TypeParameter]
+      end
 
       def arity
         @params.length
@@ -146,8 +149,8 @@ module Shiika
     end
 
     class SkInitializer < SkMethod
-      def initialize(iparams, body_stmts, typarams)
-        super(name: "initialize", params: iparams, ret_type_spec: TyRaw["Void"], body_stmts: body_stmts, typarams: typarams)
+      def initialize(iparams, body_stmts)
+        super(name: "initialize", params: iparams, ret_type_spec: TyRaw["Void"], body_stmts: body_stmts)
       end
 
       def arity
@@ -212,8 +215,7 @@ module Shiika
           name: "new",
           params: sk_class.sk_methods["initialize"].params.map(&:dup),
           ret_type_spec: sk_class.to_type,
-          body_stmts: Stdlib.object_new_body_stmts,
-          typarams: []
+          body_stmts: Stdlib.object_new_body_stmts
         )
         return sk_new
       end
@@ -336,7 +338,6 @@ module Shiika
           params: sk_generic_class.sk_methods["initialize"].params.map(&:dup),
           ret_type_spec: TySpe[sk_generic_class.name, type_arguments],
           body_stmts: Stdlib.object_new_body_stmts,
-          typarams: []
         )
         @sk_new.add_type!(Env.new({}))
       end
