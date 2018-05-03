@@ -257,7 +257,7 @@ module Shiika
       def specialized_class(type_arguments)
         key = type_arguments.map(&:to_key).join(', ')
         return (@specialized_classes[key] ||=
-                 SkSpecializedClass.new(sk_generic_class: self, type_arguments: type_arguments))
+                 SkSpecializedClass.new(generic_class: self, type_arguments: type_arguments))
       end
 
       def meta_type
@@ -273,10 +273,12 @@ module Shiika
     end
 
     class SkSpecializedClass < Element
-      props :sk_generic_class, :type_arguments
+      props :generic_class, :type_arguments
+      alias sk_generic_class generic_class
 
       def init
         @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
+        @methods = {}  # String => SkMethod
       end
       attr_reader :name
       
@@ -318,7 +320,7 @@ module Shiika
       def specialized_class(type_arguments)
         key = type_arguments.map(&:to_key).join(', ')
         return (@specialized_classes[key] ||=
-                 SkSpecializedMetaClass.new(sk_generic_meta_class: self,
+                 SkSpecializedMetaClass.new(generic_class: self,
                                             type_arguments: type_arguments))
       end
 
@@ -327,10 +329,11 @@ module Shiika
       end
     end
 
-    class SkSpecializedMetaClass < Element
-      props :sk_generic_meta_class, :type_arguments
+    class SkSpecializedMetaClass < SkSpecializedClass
+      alias sk_generic_meta_class generic_class
 
       def init
+        super
         sk_generic_class = sk_generic_meta_class.sk_generic_class
         @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
         @sk_new = Program::SkMethod.new(
@@ -347,7 +350,11 @@ module Shiika
       end
 
       def find_method(name)
-        TODO
+        if name == "new"
+          return @sk_new
+        else
+          super
+        end
       end
     end
 
@@ -409,6 +416,7 @@ module Shiika
             args: nil #TODO [Element or Evaluator::SkObj]
 
       def calc_type!(env)
+        # TODO: typecheck args
         args.each{|x| env = x.add_type!(env)}
         if class_specialization?(env)
           return env, specialized_class(env).type
