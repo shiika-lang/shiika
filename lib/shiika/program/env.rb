@@ -50,6 +50,10 @@ module Shiika
         return @data[:sk_classes].fetch(name)
       end
 
+      def find_meta_class(base_name)
+        return @data[:sk_classes].fetch("Meta:#{base_name}")
+      end
+
       def find_const(name)
         return @data[:constants].fetch(name)
       end

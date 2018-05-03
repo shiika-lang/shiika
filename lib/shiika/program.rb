@@ -173,8 +173,6 @@ module Shiika
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
 
-      attr_accessor :meta_class
-
       def self.build(hash)
         typarams = hash[:typarams]
         if typarams.any?
@@ -206,7 +204,6 @@ module Shiika
         else
           meta_class = SkMetaClass.new(meta_attrs)
         end
-        sk_class.meta_class = meta_class
         return sk_class, meta_class
       end
 
@@ -435,7 +432,8 @@ module Shiika
           # TODO: add case for TySpe
           TyRaw[arg.type.name.sub('Meta:', '')]
         }
-        return cls.meta_class.specialized_class(tyargs)
+        meta = env.find_meta_class(cls.name)
+        return meta.specialized_class(tyargs)
       end
     end
 
