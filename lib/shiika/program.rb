@@ -416,11 +416,24 @@ module Shiika
             args: nil #TODO [Element or Evaluator::SkObj]
 
       def calc_type!(env)
-        # TODO: typecheck args
         args.each{|x| env = x.add_type!(env)}
         env = receiver_expr.add_type!(env)
         sk_method = env.find_method(receiver_expr.type, method_name)
+        check_type(sk_method, args)
         return env, sk_method.type.ret_type
+      end
+
+      def check_type(sk_method, args)
+        n_params, n_args = sk_method.params.length, args.length
+        if n_params != n_args
+          raise SkTypeError, "method #{sk_method.name} takes #{n_params} parameters but got #{n_args}"
+        end
+
+        sk_method.params.zip(args) do |param, arg|
+          if param.type != arg.type
+            raise SkTypeError, "parameter #{param.name} is #{param.type} but got #{arg.type}"
+          end
+        end
       end
     end
 
