@@ -418,37 +418,9 @@ module Shiika
       def calc_type!(env)
         # TODO: typecheck args
         args.each{|x| env = x.add_type!(env)}
-        if class_specialization?(env)
-          return env, specialized_class(env).type
-        else
-          env = receiver_expr.add_type!(env)
-          sk_method = env.find_method(receiver_expr.type, method_name)
-          return env, sk_method.type.ret_type
-        end
-      end
-
-      private
-
-      def class_specialization?(env)
-        return false unless receiver_expr.is_a?(ConstRef)
-        return false unless (cls = env.find_class(receiver_expr.name))
-        return cls.is_a?(SkGenericClass)
-      end
-
-      def specialized_class(env)
-        cls = env.find_class(receiver_expr.name)
-        if cls.typarams.length != args.length
-          raise SkTypeError, "Generic class #{cls.name} has #{cls.type_parameters.length} type parameters but given #{args.length}"
-        end
-        tyargs = args.map{|arg|
-          unless arg.type.name.start_with?('Meta')
-            raise SkTypeError, "Invalid type argument: #{arg.inspect}"
-          end
-          # TODO: add case for TySpe
-          TyRaw[arg.type.name.sub('Meta:', '')]
-        }
-        meta = env.find_meta_class(cls.name)
-        return meta.specialized_class(tyargs)
+        env = receiver_expr.add_type!(env)
+        sk_method = env.find_method(receiver_expr.type, method_name)
+        return env, sk_method.type.ret_type
       end
     end
 
