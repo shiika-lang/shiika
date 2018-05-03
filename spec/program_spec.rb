@@ -22,7 +22,6 @@ describe "Program" do
           params: [],
           ret_type_spec: Shiika::Type::TyRaw["Void"].to_s,
           body_stmts: [],
-          typarams: [],
         }
       },
     })
