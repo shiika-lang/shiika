@@ -277,9 +277,12 @@ module Shiika
 
       def init
         @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
-        @type = TySpe[sk_generic_class.name, type_arguments]
       end
-      attr_reader :name, :type
+      attr_reader :name
+      
+      def calc_type!(env)
+        return env, TySpe[sk_generic_class.name, type_arguments]
+      end
 
       def find_method(name)
         if (ret = sk_generic_class.sk_methods[name])
@@ -315,7 +318,8 @@ module Shiika
       def specialized_class(type_arguments)
         key = type_arguments.map(&:to_key).join(', ')
         return (@specialized_classes[key] ||=
-                 SkSpecializedMetaClass.new(sk_generic_meta_class: self, type_arguments: type_arguments))
+                 SkSpecializedMetaClass.new(sk_generic_meta_class: self,
+                                            type_arguments: type_arguments))
       end
 
       def to_type
@@ -329,14 +333,17 @@ module Shiika
       def init
         sk_generic_class = sk_generic_meta_class.sk_generic_class
         @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
-        #@type = TySpe[sk_generic_class.name, type_arguments]
         @sk_new = Program::SkMethod.new(
           name: "new",
           params: sk_generic_class.sk_methods["initialize"].params.map(&:dup),
           ret_type_spec: TySpe[sk_generic_class.name, type_arguments],
           body_stmts: Stdlib.object_new_body_stmts,
         )
-        @sk_new.add_type!(Env.new({}))
+      end
+
+      def calc_type!(env)
+        @sk_new.add_type!(env)
+        return env, TySpe[sk_generic_meta_class.sk_generic_class.name, type_arguments]
       end
 
       def find_method(name)
@@ -514,11 +521,27 @@ module Shiika
         unless TyGenMeta === class_expr.type
           raise SkTypeError, "not a generic class: #{class_expr.type}"
         end
+        base_class_name = class_expr.type.base_name
         type_args = type_arg_exprs.map{|expr|
           raise SkTypeError, "not a class: #{expr.inspect}" unless expr.type.is_a?(TyMeta)
           expr.type.base_type
         }
-        return env, TySpeMeta[class_expr.type.base_name, type_args]
+        create_specialized_class(env, base_class_name, type_args)
+        return env, TySpeMeta[base_class_name, type_args]
+      end
+
+      private
+
+      def create_specialized_class(env, base_class_name, type_args)
+        gen_cls = env.find_class(base_class_name)
+        raise if !(SkGenericClass === gen_cls) &&
+                 !(SkGenericMetaClass === gen_cls)
+        sp_cls = gen_cls.specialized_class(type_args)
+        sp_cls.add_type!(env)
+
+        gen_meta = env.find_meta_class(base_class_name)
+        sp_meta = gen_meta.specialized_class(type_args)
+        sp_meta.add_type!(env)
       end
     end
 

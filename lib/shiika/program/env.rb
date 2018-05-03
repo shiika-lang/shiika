@@ -40,7 +40,8 @@ module Shiika
             raise ProgramError, "unknown type: #{type.inspect}"
           end
         when TySpe
-          TODO
+          check_type_exists(type.base_type)
+          type.type_args.each{|t| check_type_exists(t)}
         else
           raise "bug: #{type.inspect}"
         end
@@ -82,10 +83,12 @@ module Shiika
         when TyRaw, TyMeta
           sk_class = @data[:sk_classes].fetch(receiver_type.name)
           return sk_class.find_method(name)
-        when TySpe, TySpeMeta
-          sk_class = @data[:sk_classes].fetch(receiver_type.base_name)
-          sp_class = sk_class.specialized_class(receiver_type.type_args)
-          return sp_class.find_method(name)
+        when TySpeMeta
+          gen_meta = @data[:sk_classes].fetch(receiver_type.base_name)
+          sp_meta = gen_meta.specialized_class(receiver_type.type_args)
+          return sp_meta.find_method(name)
+        when TySpe
+          TODO
         else
           raise
         end

@@ -80,6 +80,10 @@ module Shiika
       end
       attr_reader :base_name, :type_args
 
+      def base_type
+        TyRaw[base_name]
+      end
+
       def to_key
         @base_name + "[" + @type_args.map(&:to_key).join(', ') + "]"
       end
@@ -101,6 +105,10 @@ module Shiika
 
       def base_name
         "Meta:#{base_class_name}"
+      end
+
+      def name
+        "Meta:#{base_class_name}<#{type_args.map(&:name).join(', ')}>"
       end
     end
 
