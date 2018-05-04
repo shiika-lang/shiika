@@ -34,4 +34,15 @@ describe "Type check" do
   end
 
   context 'variable assignment'
+
+  context 'generics' do
+    it 'number of type arguments' do
+      src = <<~EOD
+         class A<S, T>
+         end
+         A<Int>
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+  end
 end

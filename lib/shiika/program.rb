@@ -254,10 +254,10 @@ module Shiika
         @specialized_classes = {}
       end
 
-      def specialized_class(type_arguments)
+      def specialized_class(type_arguments, cls=SkSpecializedClass)
         key = type_arguments.map(&:to_key).join(', ')
         return (@specialized_classes[key] ||=
-                 SkSpecializedClass.new(generic_class: self, type_arguments: type_arguments))
+                 cls.new(generic_class: self, type_arguments: type_arguments))
       end
 
       def meta_type
@@ -277,6 +277,11 @@ module Shiika
       alias sk_generic_class generic_class
 
       def init
+        n_typarams, n_tyargs = generic_class.typarams.length, type_arguments.length
+        if n_typarams != n_tyargs
+          raise SkTypeError, "#{generic_class} takes #{n_typarams} type parameters "+
+            "but got #{n_tyargs}"
+        end
         @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
         @methods = {}  # String => SkMethod
       end
@@ -318,10 +323,7 @@ module Shiika
       end
 
       def specialized_class(type_arguments)
-        key = type_arguments.map(&:to_key).join(', ')
-        return (@specialized_classes[key] ||=
-                 SkSpecializedMetaClass.new(generic_class: self,
-                                            type_arguments: type_arguments))
+        super(type_arguments, SkSpecializedMetaClass)
       end
 
       def to_type
