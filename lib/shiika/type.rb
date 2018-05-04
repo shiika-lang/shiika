@@ -110,6 +110,11 @@ module Shiika
       def name
         "Meta:#{base_class_name}<#{type_args.map(&:name).join(', ')}>"
       end
+
+      # For SkMethod#full_name
+      def spclass_name
+        "#{base_class_name}<#{type_args.map(&:name).join(', ')}>"
+      end
     end
 
     class TyParam < Base

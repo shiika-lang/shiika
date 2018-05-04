@@ -146,6 +146,27 @@ module Shiika
         return env, TyMethod.new(name, params.map(&:type),
                                  ret_type_spec)
       end
+
+      def full_name(sk_class_or_type)
+        case sk_class_or_type
+        when SkMetaClass
+          "#{sk_class_or_type.name}.#{self.name}"
+        when SkClass
+          "#{sk_class_or_type.name}##{self.name}"
+        when TyRaw
+          "#{sk_class_or_type.name}##{self.name}"
+        when TyMeta
+          "#{sk_class_or_type.base_name}.#{self.name}"
+        when TyGenMeta
+          TODO
+        when TySpe
+          "#{sk_class_or_type.name}##{self.name}"
+        when TySpeMeta
+          "#{sk_class_or_type.spclass_name}.#{self.name}"
+        else
+          raise sk_class_or_type.inspect
+        end
+      end
     end
 
     class SkInitializer < SkMethod
@@ -433,7 +454,7 @@ module Shiika
 
         sk_method.params.zip(args) do |param, arg|
           if param.type != arg.type
-            raise SkTypeError, "parameter #{param.name} is #{param.type} but got #{arg.type}"
+            raise SkTypeError, "parameter #{param.name} of `#{sk_method.full_name(receiver_expr.type)}` is #{param.type} but got #{arg.type}"
           end
         end
       end
