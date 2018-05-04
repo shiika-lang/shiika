@@ -294,7 +294,8 @@ module Shiika
     end
 
     class SkSpecializedClass < Element
-      props :generic_class, :type_arguments
+      props generic_class: SkGenericClass,
+            type_arguments: [Type::ConcreteType]
       alias sk_generic_class generic_class
 
       def init

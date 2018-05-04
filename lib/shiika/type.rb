@@ -3,8 +3,12 @@ module Shiika
   module Type
     class Base; end
 
+    # Type for classes which can have an instance
+    # eg. Array<Array<Int>> is OK but Array<Array> is NG
+    class ConcreteType < Base; end
+
     # Type for normal (i.e. non-generic, non-meta) class
-    class TyRaw < Base
+    class TyRaw < ConcreteType
       @@types = {}
       def self.[](name)
         @@types[name] ||= new(name)
@@ -26,7 +30,7 @@ module Shiika
     end
 
     # Type for (non-generic) metaclass
-    class TyMeta < Base
+    class TyMeta < ConcreteType
       @@types = {}
       def self.[](*args)
         @@types[args] ||= new(*args)
@@ -49,7 +53,7 @@ module Shiika
     end
 
     # Type for generic metaclass
-    class TyGenMeta < Base
+    class TyGenMeta < ConcreteType
       @@types = {}
       def self.[](*args)
         @@types[args] ||= new(*args)
@@ -67,7 +71,7 @@ module Shiika
     end
 
     # Type for specialized generic class (eg. Pair[Int, Bool])
-    class TySpe < Base
+    class TySpe < ConcreteType
       @@types = {}
       def self.[](*args)
         @@types[args] ||= new(*args)
@@ -91,7 +95,7 @@ module Shiika
     end
 
     # Type for metaclass of specialized class
-    class TySpeMeta < Base
+    class TySpeMeta < ConcreteType
       @@types = {}
       def self.[](*args)
         @@types[args] ||= new(*args)
