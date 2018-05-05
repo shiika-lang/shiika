@@ -35,8 +35,11 @@ module Shiika
       def check_type_exists(type)
         case type
         when TyRaw
-          if !@data[:sk_classes].key?(type.name) && type.name != "Void" &&
-             !@data[:typarams].key?(type.name)
+          if type.name == "Void" ||
+             @data[:sk_classes].key?(type.name) ||
+             @data[:typarams].key?(type.name)
+            # OK
+          else
             raise ProgramError, "unknown type: #{type.inspect}"
           end
         when TySpe
