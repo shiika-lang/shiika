@@ -23,6 +23,13 @@ module Shiika
 
       alias to_key name
 
+      # Apply mapping (String => ConcreteType) to this type
+      def substitute(mapping)
+        # If name is included in the mapping, this TyRaw refers to a type parameter
+        # and needs to be substituted with type argument
+        mapping[name] || self
+      end
+
       def inspect
         "#<TyRaw #{name}>"
       end
@@ -44,6 +51,10 @@ module Shiika
 
       def base_type
         TyRaw[@base_name]
+      end
+
+      def substitute(mapping)
+        self
       end
 
       def to_key
@@ -68,6 +79,10 @@ module Shiika
       def base_type
         TyRaw[@base_name]
       end
+
+      def substitute(mapping)
+        self
+      end
     end
 
     # Type for specialized generic class (eg. Pair[Int, Bool])
@@ -86,6 +101,11 @@ module Shiika
 
       def base_type
         TyRaw[base_name]
+      end
+
+      def substitute(mapping)
+        # Find type parameters recursively
+        TySpe[base_name, type_args.map{|x| x.substitute(mapping)}]
       end
 
       def to_key
@@ -118,6 +138,11 @@ module Shiika
       # For SkMethod#full_name
       def spclass_name
         "#{base_class_name}<#{type_args.map(&:name).join(', ')}>"
+      end
+
+      def substitute(mapping)
+        # Find type parameters recursively
+        TySpeMeta[base_class_name, type_args.map{|x| x.substitute(mapping)}]
       end
     end
 

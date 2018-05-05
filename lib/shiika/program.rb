@@ -52,6 +52,10 @@ module Shiika
         return newenv
       end
 
+      def set_type(ty)
+        @type = ty
+      end
+
       def type
         @type or raise "type not yet calculated on #{self.inspect}"
       end
@@ -167,6 +171,24 @@ module Shiika
           raise sk_class_or_type.inspect
         end
       end
+
+      def inject_type_arguments(type_mapping)
+        new_params = params.map{|x|
+          Param.new(name: x.name, type_spec: x.type_spec.substitute(type_mapping)).tap{|param|
+            param.set_type(param.type_spec)
+          }
+        }
+        SkMethod.new(
+          name: name,
+          params: new_params,
+          ret_type_spec: ret_type_spec.substitute(type_mapping),
+          body_stmts: body_stmts
+        ).tap{|sk_method|
+          sk_method.set_type(TyMethod.new(name,
+                                          new_params.map(&:type),
+                                          sk_method.ret_type_spec))
+        }
+      end
     end
 
     class SkInitializer < SkMethod
@@ -275,10 +297,13 @@ module Shiika
         @specialized_classes = {}
       end
 
-      def specialized_class(type_arguments, cls=SkSpecializedClass)
+      def specialized_class(type_arguments, env, cls=SkSpecializedClass)
         key = type_arguments.map(&:to_key).join(', ')
-        return (@specialized_classes[key] ||=
-                 cls.new(generic_class: self, type_arguments: type_arguments))
+        @specialized_classes[key] ||= begin
+          sp_cls = cls.new(generic_class: self, type_arguments: type_arguments)
+          sp_cls.add_type!(env)
+          sp_cls
+        end
       end
 
       def meta_type
@@ -314,11 +339,21 @@ module Shiika
       end
 
       def find_method(name)
-        if (ret = sk_generic_class.sk_methods[name])
-          ret
-        else
-          raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
+        @methods[name] ||= begin
+          if (ret = sk_generic_class.sk_methods[name])
+            ret.inject_type_arguments(type_mapping)
+          else
+            raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
+          end
         end
+      end
+
+      private
+
+      def type_mapping
+        generic_class.typarams.zip(type_arguments).map{|typaram, tyarg|
+          [typaram.name, tyarg]
+        }.to_h
       end
     end
 
@@ -344,8 +379,8 @@ module Shiika
         @specialized_classes = {}
       end
 
-      def specialized_class(type_arguments)
-        super(type_arguments, SkSpecializedMetaClass)
+      def specialized_class(type_arguments, env)
+        super(type_arguments, env, SkSpecializedMetaClass)
       end
 
       def to_type
@@ -369,13 +404,18 @@ module Shiika
       end
 
       def calc_type!(env)
-        @sk_new.add_type!(env)
+        typarams = sk_generic_meta_class.typarams.zip(type_arguments).map{|tparam, targ|
+          [tparam.name, targ]
+        }.to_h
+        menv = env.merge(:sk_self, self)
+                  .merge(:typarams, typarams)
+        @sk_new.add_type!(menv)
         return env, TySpe[sk_generic_meta_class.sk_generic_class.name, type_arguments]
       end
 
       def find_method(name)
         if name == "new"
-          return @sk_new
+          return @sk_new.inject_type_arguments(type_mapping)
         else
           super
         end
@@ -553,12 +593,10 @@ module Shiika
         gen_cls = env.find_class(base_class_name)
         raise if !(SkGenericClass === gen_cls) &&
                  !(SkGenericMetaClass === gen_cls)
-        sp_cls = gen_cls.specialized_class(type_args)
-        sp_cls.add_type!(env)
+        sp_cls = gen_cls.specialized_class(type_args, env)
 
         gen_meta = env.find_meta_class(base_class_name)
-        sp_meta = gen_meta.specialized_class(type_args)
-        sp_meta.add_type!(env)
+        sp_meta = gen_meta.specialized_class(type_args, env)
       end
     end
 

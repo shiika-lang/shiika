@@ -88,7 +88,7 @@ module Shiika
           return sk_class.find_method(name)
         when TySpeMeta
           gen_meta = @data[:sk_classes].fetch(receiver_type.base_name)
-          sp_meta = gen_meta.specialized_class(receiver_type.type_args)
+          sp_meta = gen_meta.specialized_class(receiver_type.type_args, self)
           return sp_meta.find_method(name)
         when TySpe
           TODO
