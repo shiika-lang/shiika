@@ -329,7 +329,7 @@ module Shiika
           raise SkTypeError, "#{generic_class} takes #{n_typarams} type parameters "+
             "but got #{n_tyargs}"
         end
-        @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
+        @name = "#{sk_generic_class.name}<" + type_arguments.map(&:name).join(', ') + ">"
         @methods = {}  # String => SkMethod
       end
       attr_reader :name
@@ -394,7 +394,7 @@ module Shiika
       def init
         super
         sk_generic_class = sk_generic_meta_class.sk_generic_class
-        @name = "#{sk_generic_class.name}[" + type_arguments.map(&:name).join(', ') + "]"
+        @name = "Meta:#{sk_generic_class.name}<" + type_arguments.map(&:name).join(', ') + ">"
         @sk_new = Program::SkMethod.new(
           name: "new",
           params: sk_generic_class.sk_methods["initialize"].params.map(&:dup),

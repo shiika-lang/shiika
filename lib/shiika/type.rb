@@ -109,7 +109,7 @@ module Shiika
       end
 
       def to_key
-        @base_name + "[" + @type_args.map(&:to_key).join(', ') + "]"
+        @base_name + "<" + @type_args.map(&:to_key).join(', ') + ">"
       end
       alias name to_key
     end
