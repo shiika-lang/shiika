@@ -9,12 +9,14 @@ module Shiika
 
       # data: {
       #     sk_classes: {String => Program::SkClass},
+      #     typarams: {String => Type::TyParam},
       #     local_vars: {String => Program::Lvar},
       #     sk_self: Program::SkClass,
       #   }
       def initialize(data)
         @data = {
           sk_classes: {},
+          typarams: {},
           local_vars: {},
           constants: {},
           sk_self: :notset,
@@ -30,15 +32,30 @@ module Shiika
         end
       end
 
-      def find_type(name)
-        if !@data[:sk_classes].key?(name) && name != "Void"
-          raise ProgramError, "unknown type: #{name}"
+      def check_type_exists(type)
+        case type
+        when TyRaw
+          if type.name == "Void" ||
+             @data[:sk_classes].key?(type.name) ||
+             @data[:typarams].key?(type.name)
+            # OK
+          else
+            raise ProgramError, "unknown type: #{type.inspect}"
+          end
+        when TySpe
+          check_type_exists(type.base_type)
+          type.type_args.each{|t| check_type_exists(t)}
+        else
+          raise "bug: #{type.inspect}"
         end
-        return TyRaw[name]
       end
 
       def find_class(name)
         return @data[:sk_classes].fetch(name)
+      end
+
+      def find_meta_class(base_name)
+        return @data[:sk_classes].fetch("Meta:#{base_name}")
       end
 
       def find_const(name)
@@ -65,9 +82,21 @@ module Shiika
       end
 
       def find_method(receiver_type, name)
-        raise receiver_type.inspect unless receiver_type.is_a?(TyRaw)
-        sk_class = @data[:sk_classes].fetch(receiver_type.name)
-        return sk_class.find_method(name)
+        case receiver_type
+        when TyRaw, TyMeta
+          sk_class = @data[:sk_classes].fetch(receiver_type.name)
+          return sk_class.find_method(name)
+        when TySpeMeta
+          gen_meta = @data[:sk_classes].fetch(receiver_type.base_name)
+          sp_meta = gen_meta.specialized_class(receiver_type.type_args, self)
+          return sp_meta.find_method(name)
+        when TySpe
+          gen_cls = @data[:sk_classes].fetch(receiver_type.base_name)
+          sp_cls = gen_cls.specialized_class(receiver_type.type_args, self)
+          return sp_cls.find_method(name)
+        else
+          raise
+        end
       end
     end
   end
