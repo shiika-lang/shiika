@@ -30,6 +30,13 @@ module Shiika
       })
       @sk_classes.each_value{|x| x.add_type!(env)}
       @sk_main.add_type!(env)
+
+      specific_classes = @sk_classes.values.grep(SkGenericClass).map{|x|
+        x.specialized_classes.values.map{|sp_cls|
+          [sp_cls.name, sp_cls]
+        }.to_h
+      }.inject({}, :merge)
+      @sk_classes.merge!(specific_classes)
     end
 
     # Return a PORO that represents this program (for unit tests)
@@ -296,6 +303,7 @@ module Shiika
       def init
         @specialized_classes = {}
       end
+      attr_reader :specialized_classes
 
       def specialized_class(type_arguments, env, cls=SkSpecializedClass)
         key = type_arguments.map(&:to_key).join(', ')
