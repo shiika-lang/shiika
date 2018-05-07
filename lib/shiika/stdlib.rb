@@ -27,14 +27,13 @@ module Shiika
             ret_type_spec: TyRaw["Object"],
             param_type_specs: [],
             body: ->(env, class_obj, *args){
-              sk_class_name = class_obj.sk_class_name[/Meta:(.*)/, 1] or
-                raise class_obj.inspect
-              sk_class = env.find_class(sk_class_name)
-              sk_initializer = sk_class.sk_methods.fetch("initialize")
+              instance_type = class_obj.type.instance_type
+              sk_class = env.find_class_from_type(instance_type)
+              sk_initializer = sk_class.find_method("initialize")
               ivar_values = sk_initializer.params.zip(args).map{|param, arg|
                 [param.name, arg] if param.is_a?(Program::IParam)
               }.compact.to_h
-              obj = SkObj.new(sk_class_name, ivar_values)
+              obj = SkObj.new(instance_type, ivar_values)
               Evaluator::Call.new(obj, "initialize", args) do |result|
                 obj
               end
@@ -83,7 +82,7 @@ module Shiika
             param_type_specs: [TyRaw["Int"]],
             body: ->(env, this, other){
               n = this.ivar_values['@rb_val'] + other.ivar_values['@rb_val']
-              SkObj.new('Int', {'@rb_val' => n})
+              SkObj.new(TyRaw['Int'], {'@rb_val' => n})
             }
           },
           {
@@ -92,7 +91,7 @@ module Shiika
             param_type_specs: [],
             body: ->(env, this){
               n = this.ivar_values['@rb_val'].abs
-              SkObj.new('Int', {'@rb_val' => n})
+              SkObj.new(TyRaw['Int'], {'@rb_val' => n})
             }
           },
           {
@@ -102,7 +101,7 @@ module Shiika
             body: ->(env, this){
               Evaluator::Call.new(this, "abs", []) do |result|
                 n = result.ivar_values['@rb_val']
-                SkObj.new('Int', {'@rb_val' => n})
+                SkObj.new(TyRaw['Int'], {'@rb_val' => n})
               end
             }
           }

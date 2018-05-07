@@ -49,7 +49,8 @@ module Shiika
       end
       attr_reader :base_name
 
-      def base_type
+      # Type for the non-meta class (i.e. the instance of this metaclass)
+      def instance_type
         TyRaw[@base_name]
       end
 
@@ -75,10 +76,6 @@ module Shiika
         @base_name, @typaram_names = base_name, typaram_names
       end
       attr_reader :base_name
-
-      def base_type
-        TyRaw[@base_name]
-      end
 
       def substitute(mapping)
         self
@@ -138,6 +135,10 @@ module Shiika
       # For SkMethod#full_name
       def spclass_name
         "#{base_class_name}<#{type_args.map(&:name).join(', ')}>"
+      end
+
+      def instance_type
+        TySpe[base_class_name, type_args]
       end
 
       def substitute(mapping)

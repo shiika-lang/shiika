@@ -8,22 +8,24 @@ describe "Evaluator" do
   end
 
   def sk_int(n)
-    Shiika::Evaluator::SkObj.new('Int', {'@rb_val' => n})
+    Shiika::Evaluator::SkObj.new(Shiika::Type::TyRaw['Int'], {'@rb_val' => n})
   end
 
-#  it 'type parameter' do
-#    src = <<~EOD
-#      class Pair<S, T>
-#        def initialize(@a: S, @b: T)
-#        end
-#
-#        def fst -> S; @a; end
-#        def snd -> T; @b; end
-#      end
-#      Pair<Int, Bool>.new(1, true).fst
-#    EOD
-#    expect(run(src)).to eq(sk_int(1))
-#  end
+  describe 'generic class' do
+    it 'Pair example' do
+      src = <<~EOD
+        class Pair<S, T>
+          def initialize(@a: S, @b: T)
+          end
+
+          def fst -> S; @a; end
+          def snd -> T; @b; end
+        end
+        Pair<Int, Bool>.new(1, true).fst
+      EOD
+      expect(run(src)).to eq(sk_int(1))
+    end
+  end
 
 #  it 'class'
 #

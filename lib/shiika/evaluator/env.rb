@@ -11,6 +11,10 @@ module Shiika
         end
         return sk_self.ivar_values.fetch(name)
       end
+
+      def find_class_from_type(ty)
+        find_class(ty.name)
+      end
     end
   end
 end

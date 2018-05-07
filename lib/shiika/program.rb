@@ -590,7 +590,7 @@ module Shiika
         base_class_name = class_expr.type.base_name
         type_args = type_arg_exprs.map{|expr|
           raise SkTypeError, "not a class: #{expr.inspect}" unless expr.type.is_a?(TyMeta)
-          expr.type.base_type
+          expr.type.instance_type
         }
         create_specialized_class(env, base_class_name, type_args)
         return env, TySpeMeta[base_class_name, type_args]
