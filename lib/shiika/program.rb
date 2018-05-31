@@ -533,9 +533,9 @@ module Shiika
 
       def calc_type!(env)
         super
-        ivar = env.find_ivar(name)
+        ivar = env.find_ivar(varname)
         if ivar.type == expr.type
-          raise SkTypeError, "ivar #{name} is #{ivar.type} but expr is #{expr.type}"
+          raise SkTypeError, "ivar #{varname} is #{ivar.type} but expr is #{expr.type}"
         end
         # TODO: raise error for assignment to let
         return env, expr.type

@@ -64,5 +64,17 @@ describe "Type check" do
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
+
+    it 'type of instance variable' do
+      src = <<~EOD
+         class A<T>
+           def initialize(@a: T)
+             @a = 1
+           end
+         end
+         A<Bool>.new
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
   end
 end
