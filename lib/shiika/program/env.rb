@@ -62,8 +62,9 @@ module Shiika
         return @data[:constants].fetch(name)
       end
 
-      def find_lvar(name)
-        unless (lvar = @data[:local_vars][name])
+      def find_lvar(name, allow_missing: false)
+        lvar = @data[:local_vars][name]
+        if !allow_missing && !lvar
           raise SkNameError, "undefined local variable: #{name}"
         end
         return lvar

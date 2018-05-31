@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe "Type check" do
+  ProgramError = Shiika::Program::ProgramError
   SkTypeError = Shiika::Program::SkTypeError
 
   def type!(src)
@@ -33,7 +34,31 @@ describe "Type check" do
     end
   end
 
-  context 'variable assignment'
+  context 'variable assignment' do
+    it 'reassign to read-only local variable' do
+      src = <<~EOD
+         a = 1
+         a = 2
+      EOD
+      expect{ type!(src) }.to raise_error(ProgramError)
+    end
+
+    it 'reassign to writable local variable (ok)' do
+      src = <<~EOD
+         var a = 1
+         a = 2
+      EOD
+      expect{ type!(src) }.not_to raise_error
+    end
+
+    it 'reassign to writable local variable (ng)' do
+      src = <<~EOD
+         var a = 1
+         a = true
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+  end
 
   context 'generics' do
     it 'number of type arguments' do

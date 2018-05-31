@@ -522,7 +522,17 @@ module Shiika
 
       def calc_type!(env)
         super
-        lvar = Lvar.new(varname, expr.type, (isvar ? :var : :let))
+        lvar = env.find_lvar(varname, allow_missing: true)
+        if lvar
+          if lvar.kind == :let
+            raise ProgramError, "lvar #{varname} is read-only (missing `var`)"
+          end
+          if lvar.type != expr.type
+            raise SkTypeError, "lvar #{varname} is #{lvar.type} but expr is #{expr.type}"
+          end
+        else
+          lvar = Lvar.new(varname, expr.type, (isvar ? :var : :let))
+        end
         newenv = env.merge(:local_vars, {varname => lvar})
         return newenv, expr.type
       end
