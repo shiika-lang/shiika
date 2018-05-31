@@ -44,5 +44,25 @@ describe "Type check" do
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
+
+    it 'type of initializer' do
+      src = <<~EOD
+         class A<T>
+           def initialize(x: T); end
+         end
+         A<Int>.new(true)
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+
+    it 'type of instance method' do
+      src = <<~EOD
+         class A<T>
+           def foo(x: T) -> Void; end
+         end
+         A<Int>.new.foo(true)
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
   end
 end
