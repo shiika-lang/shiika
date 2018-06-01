@@ -350,6 +350,7 @@ module Shiika
         return env, TySpe[sk_generic_class.name, type_arguments]
       end
 
+      # Lazy method creation (create when first called)
       def find_method(name)
         @methods[name] ||= begin
           if (ret = sk_generic_class.sk_methods[name])

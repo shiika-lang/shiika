@@ -10,6 +10,12 @@ describe "Type check" do
     prog.add_type!
   end
 
+  context 'definitions' do
+    context 'method definition' do
+      it 'type of return value'
+    end
+  end
+
   context 'method call' do
     it 'arity' do
       src = <<~EOD
@@ -80,7 +86,7 @@ describe "Type check" do
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
 
-    it 'type of instance method' do
+    it 'type of instance method parameter' do
       src = <<~EOD
          class A<T>
            def foo(x: T) -> Void; end
