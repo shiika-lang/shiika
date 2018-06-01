@@ -5,7 +5,17 @@ module Shiika
 
     # Type for classes which can have an instance
     # eg. Array<Array<Int>> is OK but Array<Array> is NG
-    class ConcreteType < Base; end
+    class ConcreteType < Base
+      # Return true if this type conforms to `other` type
+      def conforms?(other)
+        # TODO: subtypes
+        if other.is_a?(TyParam)
+          self == TyRaw["Object"]
+        else
+          self == other
+        end
+      end
+    end
 
     # Type for normal (i.e. non-generic, non-meta) class
     class TyRaw < ConcreteType
@@ -153,9 +163,19 @@ module Shiika
       end
       attr_reader :name
 
+      def upper_bound
+        TyRaw["Object"]
+      end
+
+      def conforms?(other)
+        # TODO: subtypes
+        TyRaw["Object"].conforms?(other)
+      end
+
       def inspect
         "#<TyParam #{name}>"
       end
+      alias to_s inspect
     end
 
     class TyMethod < Base

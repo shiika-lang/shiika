@@ -106,8 +106,7 @@ module Shiika
       props name: String, type_spec: Type::Base
 
       def calc_type!(env)
-        env.check_type_exists(type_spec)
-        return env, type_spec
+        return env, env.find_type(type_spec)
       end
     end
 
@@ -115,8 +114,7 @@ module Shiika
       props name: String, type_spec: Type::Base
 
       def calc_type!(env)
-        env.check_type_exists(type_spec)
-        return env, type_spec
+        return env, env.find_type(type_spec)
       end
     end
 
@@ -144,7 +142,7 @@ module Shiika
 
       def calc_type!(env)
         params.each{|x| x.add_type!(env)}
-        env.check_type_exists(ret_type_spec)
+        ret_type = env.find_type(ret_type_spec)
 
         if !body_stmts.is_a?(Proc) && body_stmts[0] != :runtime_create_object
           lvars = params.map{|x|
@@ -155,7 +153,7 @@ module Shiika
         end
 
         return env, TyMethod.new(name, params.map(&:type),
-                                 ret_type_spec)
+                                 ret_type)
       end
 
       def full_name(sk_class_or_type)
@@ -527,7 +525,7 @@ module Shiika
           if lvar.kind == :let
             raise ProgramError, "lvar #{varname} is read-only (missing `var`)"
           end
-          if lvar.type != expr.type
+          unless lvar.type.conforms?(expr.type)
             raise SkTypeError, "lvar #{varname} is #{lvar.type} but expr is #{expr.type}"
           end
         else
@@ -544,10 +542,9 @@ module Shiika
       def calc_type!(env)
         super
         ivar = env.find_ivar(varname)
-        if ivar.type == expr.type
-          raise SkTypeError, "ivar #{varname} is #{ivar.type} but expr is #{expr.type}"
+        if ivar.type != expr.type  # TODO: subtypes
+          raise SkTypeError, "ivar #{varname} of class #{env.sk_self} is #{ivar.type} but expr is #{expr.type}"
         end
-        # TODO: raise error for assignment to let
         return env, expr.type
       end
     end

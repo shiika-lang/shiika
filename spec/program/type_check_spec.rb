@@ -90,14 +90,39 @@ describe "Type check" do
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
 
-    it 'type of instance variable' do
+    it 'calling method of instance method parameter' do
+      src = <<~EOD
+         class A<T>
+           def foo(x: T) -> Int
+             x.abs
+           end
+         end
+         A<Int>.new.foo(1)
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+
+    it 'type of instance variable (ok)' do
       src = <<~EOD
          class A<T>
            def initialize(@a: T)
-             @a = 1
+             var a = Object.new
+             a = @a
            end
          end
-         A<Bool>.new
+         A<Int>.new(1)
+      EOD
+      expect{ type!(src) }.not_to raise_error
+    end
+
+    it 'type of instance variable (ng)' do
+      src = <<~EOD
+         class A<T>
+           def initialize(@a: T)
+             @a = 2
+           end
+         end
+         A<Int>.new(1)
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
     end

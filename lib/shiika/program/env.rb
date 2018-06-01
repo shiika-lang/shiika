@@ -49,6 +49,19 @@ module Shiika
           raise "bug: #{type.inspect}"
         end
       end
+      private :check_type_exists
+
+      # eg. return TyParam["T"] if T is a typaram
+      #     return TyRaw["T"] if there is class T
+      #     otherwise, raise error 
+      def find_type(type_spec)
+        if type_spec.is_a?(TyRaw) && (typaram = @data[:typarams][type_spec.name])
+          typaram
+        else
+          check_type_exists(type_spec)
+          type_spec
+        end
+      end
 
       def find_class(name)
         return @data[:sk_classes].fetch(name)
@@ -95,9 +108,16 @@ module Shiika
           gen_cls = @data[:sk_classes].fetch(receiver_type.base_name)
           sp_cls = gen_cls.specialized_class(receiver_type.type_args, self)
           return sp_cls.find_method(name)
+        when TyParam
+          typaram = receiver_type
+          return find_method(typaram.upper_bound, name)
         else
           raise
         end
+      end
+
+      def sk_self
+        @data[:sk_self]
       end
     end
   end
