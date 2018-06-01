@@ -289,6 +289,11 @@ module Shiika
         end
       end
 
+      def inspect
+        "#<#{self.class.name.sub('Shiika::Program::', '')}:#{name}>"
+      end
+      alias to_s inspect
+
       private
 
       def methods_env(env)
