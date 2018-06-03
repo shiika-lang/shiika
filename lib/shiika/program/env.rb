@@ -108,7 +108,7 @@ module Shiika
           typaram = receiver_type
           return find_method(typaram.upper_bound, name)
         else
-          raise
+          raise "env.find_method(#{receiver_type}) is not implemented yet"
         end
       end
 
