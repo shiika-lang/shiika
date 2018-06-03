@@ -100,11 +100,7 @@ module Shiika
         when TyRaw, TyMeta
           sk_class = @data[:sk_classes].fetch(receiver_type.name)
           return sk_class.find_method(name)
-        when TySpeMeta
-          gen_meta = @data[:sk_classes].fetch(receiver_type.base_name)
-          sp_meta = gen_meta.specialized_class(receiver_type.type_args, self)
-          return sp_meta.find_method(name)
-        when TySpe
+        when TySpe, TySpeMeta
           gen_cls = @data[:sk_classes].fetch(receiver_type.base_name)
           sp_cls = gen_cls.specialized_class(receiver_type.type_args, self)
           return sp_cls.find_method(name)
