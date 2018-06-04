@@ -31,6 +31,7 @@ module Shiika
       @sk_classes.each_value{|x| x.add_type!(env)}
       @sk_main.add_type!(env)
 
+      # Add specific classes to @sk_classes (for Shiika::Evaluator)
       specific_classes = @sk_classes.values.grep(SkGenericClass).map{|x|
         x.specialized_classes.values.map{|sp_cls|
           [sp_cls.name, sp_cls]
@@ -164,10 +165,8 @@ module Shiika
           "#{sk_class_or_type.name}##{self.name}"
         when TyRaw
           "#{sk_class_or_type.name}##{self.name}"
-        when TyMeta
+        when TyMeta, TyGenMeta
           "#{sk_class_or_type.base_name}.#{self.name}"
-        when TyGenMeta
-          TODO
         when TySpe
           "#{sk_class_or_type.name}##{self.name}"
         when TySpeMeta
@@ -611,14 +610,14 @@ module Shiika
 
       private
 
+      # Create specialized class and its metaclass (if they have not been created yet)
       def create_specialized_class(env, base_class_name, type_args)
         gen_cls = env.find_class(base_class_name)
         raise if !(SkGenericClass === gen_cls) &&
                  !(SkGenericMetaClass === gen_cls)
-        sp_cls = gen_cls.specialized_class(type_args, env)
-
+        gen_cls.specialized_class(type_args, env)
         gen_meta = env.find_meta_class(base_class_name)
-        sp_meta = gen_meta.specialized_class(type_args, env)
+        gen_meta.specialized_class(type_args, env)
       end
     end
 

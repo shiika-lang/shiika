@@ -38,6 +38,17 @@ describe "Type check" do
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
+
+    it 'class method of generic class' do
+      src = <<~EOD
+         class A<T>
+           def self.foo(x: Int) -> Void
+           end
+         end
+         A.foo(true)
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
   end
 
   context 'variable assignment' do

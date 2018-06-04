@@ -87,6 +87,10 @@ module Shiika
       end
       attr_reader :base_name
 
+      def base_meta_name
+        "Meta:#{@base_name}"
+      end
+
       def substitute(mapping)
         self
       end

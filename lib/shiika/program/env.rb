@@ -104,6 +104,9 @@ module Shiika
           gen_cls = @data[:sk_classes].fetch(receiver_type.base_name)
           sp_cls = gen_cls.specialized_class(receiver_type.type_args, self)
           return sp_cls.find_method(name)
+        when TyGenMeta  # Class method of a generic class
+          gen_meta_cls = @data[:sk_classes].fetch(receiver_type.base_meta_name)
+          return gen_meta_cls.find_method(name)
         when TyParam
           typaram = receiver_type
           return find_method(typaram.upper_bound, name)
