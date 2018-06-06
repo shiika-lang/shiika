@@ -12,9 +12,54 @@ describe "Type check" do
 
   context 'definitions' do
     context 'method definition' do
-      it 'type of return value'
+      it 'type of return value (last expr)' do
+        src = <<~EOD
+           class A
+             def self.foo -> Int
+               1
+               true
+             end
+           end
+           A.foo
+        EOD
+        expect{ type!(src) }.to raise_error(SkTypeError)
+      end
+
+      context 'return expr' do
+        it 'ok' do
+          src = <<~EOD
+             class A
+               def self.foo -> Int
+                 return 1
+               end
+             end
+             A.foo
+          EOD
+          expect{ type!(src) }.not_to raise_error
+        end
+
+        it 'ng' do
+          src = <<~EOD
+             class A
+               def self.foo -> Int
+                 if true
+                   if true
+                     return 1
+                   else
+                     return true
+                   end
+                 end
+               end
+             end
+             A.foo
+          EOD
+          expect{ type!(src) }.to raise_error(SkTypeError)
+        end
+      end
     end
   end
+
+  context 'conditional expr'
 
   context 'method call' do
     it 'arity' do

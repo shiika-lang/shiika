@@ -151,6 +151,8 @@ module Shiika
           }.to_h
           bodyenv = env.merge(:local_vars, lvars)
           body_stmts.each{|x| bodyenv = x.add_type!(bodyenv)}
+          check_body_stmts_type(body_stmts, ret_type)
+          check_wrong_return_stmt(body_stmts, ret_type)
         end
 
         return env, TyMethod.new(name, params.map(&:type),
@@ -193,6 +195,38 @@ module Shiika
                                           new_params.map(&:type),
                                           sk_method.ret_type_spec))
         }
+      end
+
+      private
+
+      def check_body_stmts_type(body_stmts, ret_type)
+        return if ret_type == TyRaw['Void']
+        body_type = if body_stmts.empty?
+                      TyRaw['Void']
+                    else
+                      last_stmt = body_stmts.last
+                      return if last_stmt.is_a?(Program::Return)
+                      last_stmt.type
+                    end
+        if body_type != ret_type
+          raise SkTypeError, "method `#{name}' is declared to return #{ret_type}"+
+            " but returns #{body_type}"
+        end
+      end
+
+      def check_wrong_return_stmt(body_stmts, ret_type)
+        body_stmts.each do |x|
+          case x
+          when Program::Return
+            if x.expr_type != ret_type
+              raise SkTypeError, "method `#{name}' is declared to return #{ret_type}"+
+                " but tried to return #{x.expr_type}"
+            end
+          when Program::If
+            check_wrong_return_stmt(ret_type, x.then_stmts)
+            check_wrong_return_stmt(ret_type, x.else_stmts)
+          end
+        end
       end
     end
 
@@ -449,8 +483,11 @@ module Shiika
 
     class Return < Element
       props expr: Element
+      attr_reader :expr_type
 
       def calc_type!(env)
+        expr.add_type!(env)
+        @expr_type = expr.type
         return env, TyRaw["Void"]
       end
     end

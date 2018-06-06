@@ -136,6 +136,10 @@ module Shiika
 
     class Return < Node
       props :expr
+
+      def to_program
+        Program::Return.new(expr: expr.to_program)
+      end
     end
 
     class If < Node
