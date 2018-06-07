@@ -106,6 +106,33 @@ module Shiika
             }
           }
         ]
+      },
+      {
+        name: 'Array',
+        parent: 'Object',
+        typarams: ['ELEM'],
+        ivars: {
+          '@items' => TyRaw['Void']
+        },
+        class_methods: [],
+        methods: [
+          {
+            name: "initialize",
+            # Takes 3 args until we impl. vararg
+            param_type_specs: [TyRaw['ELEM'], TyRaw['ELEM'], TyRaw['ELEM']],
+            body: ->(env, this, a, b, c){
+              this.ivar_values['@items'] = [a, b, c]
+            }
+          },
+          {
+            name: 'first',
+            ret_type_spec: TyRaw["ELEM"],
+            param_type_specs: [],
+            body: ->(env, this){
+              this.ivar_values['@items'].first
+            }
+          }
+        ]
       }
     ]
 
@@ -142,7 +169,9 @@ module Shiika
         sk_class, meta_class = Program::SkClass.build(
           name: spec[:name], parent_name: spec[:parent],
           sk_ivars: sk_ivars, class_methods: sk_class_methods, sk_methods: sk_methods,
-          typarams: spec[:typarams]
+          typarams: spec[:typarams].map{|x|
+            Program::TypeParameter.new(name: x)
+          }
         )
         [[sk_class.name, sk_class],
          [meta_class.name, meta_class]]
