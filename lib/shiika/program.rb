@@ -112,7 +112,7 @@ module Shiika
     end
 
     class Param < Element
-      props name: String, type_spec: Type::Base
+      props name: String, type_spec: Type::Base, is_vararg: :boolean
 
       def calc_type!(env)
         return env, env.find_type(type_spec)
@@ -120,7 +120,7 @@ module Shiika
     end
 
     class IParam < Param
-      props name: String, type_spec: Type::Base
+      props name: String, type_spec: Type::Base, is_vararg: :boolean
     end
 
     class TypeParameter < Element
@@ -181,7 +181,9 @@ module Shiika
       def inject_type_arguments(type_mapping)
         new_params = params.map{|x|
           param_cls = x.class  # Param or IParam
-          param_cls.new(name: x.name, type_spec: x.type_spec.substitute(type_mapping)).tap{|param|
+          param_cls.new(name: x.name,
+                        type_spec: x.type_spec.substitute(type_mapping),
+                        is_vararg: x.is_vararg).tap{|param|
             param.set_type(param.type_spec)
           }
         }

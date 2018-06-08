@@ -115,8 +115,8 @@ rule
 
     iparam: 
         param
-      | IVAR ':' type
-        { Ast::IParam.new(name: val[0], type_spec: val[2]) }
+      | opt_aster IVAR ':' type
+        { Ast::IParam.new(name: val[1], type_spec: val[3], is_vararg: val[0]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     opt_self_dot:
@@ -139,9 +139,15 @@ rule
         { val[1] }
 
     param: 
-        IDENT ':' type
-        { Ast::Param.new(name: val[0], type_spec: val[2]) }
+        opt_aster IDENT ':' type
+        { Ast::Param.new(name: val[1], type_spec: val[3], is_vararg: val[0]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
+
+    opt_aster:
+        /* NONE */
+        { false }
+      | '*'
+        { true }
 
     statement:
         return_stmt

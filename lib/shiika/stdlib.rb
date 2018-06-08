@@ -141,7 +141,7 @@ module Shiika
       CLASSES.flat_map{|spec|
         sk_methods = spec[:methods].map{|x|
           params = x[:param_type_specs].map{|ty|
-            Program::Param.new(name: "(no name)", type_spec: ty)
+            Program::Param.new(name: "(no name)", type_spec: ty, is_vararg: false)
           }
           if x[:name] == "initialize"
             sk_method = Program::SkInitializer.new(
@@ -156,7 +156,7 @@ module Shiika
         }.to_h
         sk_class_methods = spec[:class_methods].map{|x|
           params = x[:param_type_specs].map{|type|
-            Program::Param.new(name: "(no name)", type_spec: type)
+            Program::Param.new(name: "(no name)", type_spec: type, is_vararg: false)
           }
           sk_method = Program::SkMethod.new(
             name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]

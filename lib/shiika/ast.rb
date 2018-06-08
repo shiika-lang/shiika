@@ -127,11 +127,11 @@ module Shiika
     end
 
     class Param < Node
-      props :name, :type_spec
+      props :name, :type_spec, :is_vararg
     end
 
     class IParam < Node
-      props :name, :type_spec
+      props :name, :type_spec, :is_vararg
     end
 
     class Return < Node
