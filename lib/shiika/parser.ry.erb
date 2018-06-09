@@ -266,12 +266,9 @@ rule
     type:
         CONST
         { Type::TyRaw[val[0]] }
-      | CONST '<' type_args '>'
+      | CONST '<' types '>'
         { Type::TySpe[val[0], val[2]] }
-
-    type_arg:
-      CONST
-    <%= repeat1 'type_arg', sep: ["_nl", "','", "_nl"] %>
+    <%= repeat1 'type', sep: ["_nl", "','", "_nl"] %>
 
     method_name:
         IDENT
