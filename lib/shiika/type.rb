@@ -106,6 +106,7 @@ module Shiika
       # type_args: [TyRaw or TySpe]
       def initialize(base_name, type_args)
         raise unless String === base_name
+        raise unless type_args.grep(String).empty?
         @base_name, @type_args = base_name, type_args
       end
       attr_reader :base_name, :type_args
