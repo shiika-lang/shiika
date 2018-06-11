@@ -268,6 +268,8 @@ rule
         { Type::TyRaw[val[0]] }
       | CONST '<' types '>'
         { Type::TySpe[val[0], val[2]] }
+      | '[' type ']'
+        { Type::TySpe["Array", [val[1]]] }
     <%= repeat1 'type', sep: ["_nl", "','", "_nl"] %>
 
     method_name:
