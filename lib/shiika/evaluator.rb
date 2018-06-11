@@ -69,25 +69,7 @@ module Shiika
         end
         env, receiver = eval_expr(env, x.receiver_expr)
         sk_method = receiver.find_method(env, x.method_name)
-        if sk_method.body_stmts.is_a?(Proc)  # stdlib
-          value = sk_method.body_stmts.call(env, receiver, *arg_values)
-          if value.is_a?(Evaluator::Call)
-            invocation = Program::MethodCall.new(receiver_expr: value.receiver_obj,
-                                                 method_name: value.method_name,
-                                                 args: value.arg_objs)
-            _, result = eval_stmt(env, invocation)
-            return env, value.after.call(result)
-          else
-            return env, value
-          end
-        else
-          lvars = sk_method.params.zip(arg_values).map{|x, val|
-            [x.name, Lvar.new(x.name, x.type, :let, val)]
-          }.to_h
-          bodyenv = env.merge(:local_vars, lvars).merge(:sk_self, receiver)
-          _, value = eval_stmts(bodyenv, sk_method.body_stmts)
-          return env, value 
-        end
+        return env, invoke_sk_method(env, receiver, sk_method, arg_values)
       when Program::LvarRef
         TODO
       when Program::IvarRef
@@ -113,6 +95,28 @@ module Shiika
         return env, x
       else
         raise "TODO: #{x.class}"
+      end
+    end
+
+    def invoke_sk_method(env, receiver, sk_method, arg_values)
+      if sk_method.body_stmts.is_a?(Proc)  # stdlib
+        value = sk_method.body_stmts.call(env, receiver, *arg_values)
+        if value.is_a?(Evaluator::Call)
+          invocation = Program::MethodCall.new(receiver_expr: value.receiver_obj,
+                                               method_name: value.method_name,
+                                               args: value.arg_objs)
+          _, result = eval_stmt(env, invocation)
+          return value.after.call(result)
+        else
+          return value
+        end
+      else
+        lvars = sk_method.params.zip(arg_values).map{|x, val|
+          [x.name, Lvar.new(x.name, x.type, :let, val)]
+        }.to_h
+        bodyenv = env.merge(:local_vars, lvars).merge(:sk_self, receiver)
+        _, value = eval_stmts(bodyenv, sk_method.body_stmts)
+        return value 
       end
     end
 
