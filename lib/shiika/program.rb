@@ -458,7 +458,7 @@ module Shiika
         menv = env.merge(:sk_self, self)
                   .merge(:typarams, typarams)
         @sk_new.add_type!(menv)
-        return env, TySpe[sk_generic_meta_class.sk_generic_class.name, type_arguments]
+        return env, TySpeMeta[sk_generic_meta_class.sk_generic_class.name, type_arguments]
       end
 
       def find_method(name)
