@@ -2,14 +2,40 @@
 
 A statically-typed programming language.
 
-## Overview
+## Example
 
-TBA
+        class Pair<S, T>
+          def initialize(@a: S, @b: T)
+          end
 
-## TODO
+          def fst -> S; @a; end
+          def snd -> T; @b; end
+        end
+        Pair<Int, Bool>.new(1, true).fst
 
-- Automatic type coersion for numbers
-  - eg. `var x:Float = 1` is equivalent to `var x:Float = 1.to_f`
+## Status
+
+### Done
+
+- [x] Class method, instance method
+- [x] Basic generics
+- [x] Variable-length arguments
+
+### Todo (short-term)
+
+- [ ] Array literal
+
+### Todo (middle term)
+
+- Subtyping
+- lambda/function(block)
+- Module (like Ruby's `Module`)
+- Constants
+- ...
+
+### Todo (long term)
+
+- Generate LLVM IR
 
 ## License
 
