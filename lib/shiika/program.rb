@@ -503,8 +503,12 @@ module Shiika
       end
     end
 
+    # Base class for those that has a value
+    class Expression < Element
+    end
+
     class Return < Element
-      props expr: Element
+      props expr: Expression
       attr_reader :expr_type
 
       def calc_type!(env)
@@ -514,8 +518,8 @@ module Shiika
       end
     end
 
-    class If < Element
-      props cond_expr: Element, then_stmts: [Element], else_stmts: [Element]
+    class If < Expression
+      props cond_expr: Expression, then_stmts: [Element], else_stmts: [Element]
 
       def calc_type!(env)
         cond_expr.add_type!(env)
@@ -545,10 +549,10 @@ module Shiika
       end
     end
 
-    class MethodCall < Element
+    class MethodCall < Expression
       props method_name: String,
-            receiver_expr: nil, #TODO Element or Evaluator::SkObj
-            args: nil #TODO [Element or Evaluator::SkObj]
+            receiver_expr: nil, #TODO Expression or Evaluator::SkObj
+            args: nil #TODO [Expression or Evaluator::SkObj]
 
       def calc_type!(env)
         args.each{|x| env = x.add_type!(env)}
@@ -604,7 +608,7 @@ module Shiika
       end
     end
 
-    class AssignmentExpr < Element
+    class AssignmentExpr < Expression
       def calc_type!(env)
         expr.add_type!(env)
         raise ProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
@@ -612,7 +616,7 @@ module Shiika
     end
 
     class AssignLvar < AssignmentExpr
-      props varname: String, expr: Element, isvar: :boolean
+      props varname: String, expr: Expression, isvar: :boolean
 
       def calc_type!(env)
         super
@@ -633,7 +637,7 @@ module Shiika
     end
 
     class AssignIvar < AssignmentExpr
-      props varname: String, expr: Element
+      props varname: String, expr: Expression
 
       def calc_type!(env)
         super
@@ -646,14 +650,14 @@ module Shiika
     end
 
     class AssignConst < AssignmentExpr
-      props varname: String, expr: Element
+      props varname: String, expr: Expression
       
       def calc_type!(env)
         TODO
       end
     end
 
-    class LvarRef < Element
+    class LvarRef < Expression
       props name: String
 
       def calc_type!(env)
@@ -662,7 +666,7 @@ module Shiika
       end
     end
 
-    class IvarRef < Element
+    class IvarRef < Expression
       props name: String
 
       def calc_type!(env)
@@ -671,7 +675,7 @@ module Shiika
       end
     end
 
-    class ConstRef < Element
+    class ConstRef < Expression
       props name: String
 
       def calc_type!(env)
@@ -680,8 +684,8 @@ module Shiika
       end
     end
 
-    class ClassSpecialization < Element
-      props class_expr: Element, type_arg_exprs: [Element]
+    class ClassSpecialization < Expression
+      props class_expr: Expression, type_arg_exprs: [Expression]
 
       def calc_type!(env)
         class_expr.add_type!(env)
@@ -712,8 +716,8 @@ module Shiika
       end
     end
 
-    class Literal < Element
-      props value: Object
+    class Literal < Expression
+      props value: Object  # A Ruby object that describes the value
 
       def calc_type!(env)
         type = case value
