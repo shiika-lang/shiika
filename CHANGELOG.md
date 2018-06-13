@@ -1,5 +1,10 @@
 # CHANGELOG
 
+### v0.1.1 2018-06-13
+
+- varargs
+- Array class
+
 ### v0.1.0 2018-06-07
 
 - Basic generics
