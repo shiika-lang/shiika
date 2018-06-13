@@ -96,7 +96,13 @@ describe "Evaluator" do
     expect(run("if true; 1; else 2; end")).to eq(sk_int(1))
   end
 
-  it 'literal' do
-    expect(run("123")).to eq(sk_int(123))
+  describe 'literal' do
+    it 'array' do
+      expect(run("[1, 2, 3].first")).to eq(sk_int(1))
+    end
+
+    it 'number' do
+      expect(run("123")).to eq(sk_int(123))
+    end
   end
 end

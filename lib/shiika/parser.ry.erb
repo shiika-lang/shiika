@@ -180,6 +180,7 @@ rule
 
       | '(' expression ')'
         { val[1] }
+    <%= repeat0 'expression', sep: ["_nl", "','", "_nl"] %>
 
     if_expr:
         'if' expression sep opt_statements 'end'
@@ -251,10 +252,11 @@ rule
     type_arg_expr:
         constref
     <%= repeat1 'type_arg_expr', sep: ["_nl", "','", "_nl"] %>
-      
 
     literal:
-        FLOAT
+        '[' opt_expressions ']'
+        { Ast::ArrayExpr.new(exprs: val[1]) }
+      | FLOAT
         { Ast::Literal.new(value: val[0]) }
       | INTEGER
         { Ast::Literal.new(value: val[0]) }

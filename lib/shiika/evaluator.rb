@@ -83,6 +83,14 @@ module Shiika
       when Program::ClassSpecialization
         sp_cls = env.find_class_from_type(x.type)
         return env, SkObj.new(x.type, {}) # TODO: cache?
+      when Program::ArrayExpr
+        elem_objs = x.exprs.map{|expr|
+          env, value = eval_expr(env, expr)
+          value
+        }
+        sp_cls = env.find_class_from_type(x.type.meta_type)
+        sk_method = sp_cls.find_method('new')
+        return env, invoke_sk_method(env, sp_cls, sk_method, elem_objs)
       when Program::Literal
         v = case x.value
             when Float then SkObj.new(TyRaw['Float'], {'@rb_val' => x.value})

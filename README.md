@@ -20,10 +20,11 @@ A statically-typed programming language.
 - [x] Class method, instance method
 - [x] Basic generics
 - [x] Variable-length arguments
+- [x] Array literal
 
 ### Todo (short-term)
 
-- [ ] Array literal
+- Hash class
 
 ### Todo (middle term)
 

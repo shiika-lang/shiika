@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### (not yet)
+
+- Array literal
+
 ### v0.1.1 2018-06-13
 
 - varargs

@@ -229,6 +229,14 @@ module Shiika
       end
     end
 
+    class ArrayExpr < Node
+      props :exprs
+
+      def to_program
+        Program::ArrayExpr.new(exprs: exprs.map(&:to_program))
+      end
+    end
+
     class Literal < Node
       props :value
     end
