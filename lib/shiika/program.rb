@@ -11,7 +11,7 @@ module Shiika
     # Shiika-level name error
     class SkNameError < StandardError; end
     # Other Shiika-level errors
-    class ProgramError < StandardError; end
+    class SkProgramError < StandardError; end
 
     def initialize(sk_classes, sk_main)
       @sk_classes, @sk_main = sk_classes, sk_main
@@ -611,7 +611,7 @@ module Shiika
     class AssignmentExpr < Expression
       def calc_type!(env)
         expr.add_type!(env)
-        raise ProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
+        raise SkProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
       end
     end
 
@@ -623,7 +623,7 @@ module Shiika
         lvar = env.find_lvar(varname, allow_missing: true)
         if lvar
           if lvar.kind == :let
-            raise ProgramError, "lvar #{varname} is read-only (missing `var`)"
+            raise SkProgramError, "lvar #{varname} is read-only (missing `var`)"
           end
           unless lvar.type.conforms?(expr.type)
             raise SkTypeError, "lvar #{varname} is #{lvar.type} but expr is #{expr.type}"

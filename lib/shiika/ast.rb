@@ -7,8 +7,6 @@ module Shiika
   # - Shiika::Parser generates Ast
   # - Ast can be converted into Shiika::Program with #to_program
   module Ast
-    ProgramError = Program::ProgramError
-
     class Node
       extend Props
 

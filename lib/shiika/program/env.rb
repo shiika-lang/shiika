@@ -40,7 +40,7 @@ module Shiika
              @data[:typarams].key?(type.name)
             # OK
           else
-            raise ProgramError, "unknown type: #{type.inspect}"
+            raise SkProgramError, "unknown type: #{type.inspect}"
           end
         when TySpe
           check_type_exists(type.base_type)
@@ -86,7 +86,7 @@ module Shiika
       # Find Program::SkIvar
       def find_ivar(name)
         unless (sk_self = @data[:sk_self])
-          raise ProgramError, "ivar reference out of a class: #{name}" 
+          raise SkProgramError, "ivar reference out of a class: #{name}" 
         end
         unless (ivar = sk_self.sk_ivars[name])
           raise SkNameError, "class #{sk_self.name} does not have "+

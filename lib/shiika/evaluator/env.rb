@@ -7,7 +7,7 @@ module Shiika
     class Env < Program::Env
       def find_ivar_value(name)
         unless (sk_self = @data[:sk_self])
-          raise ProgramError, "ivar reference out of a class: #{name}" 
+          raise SkProgramError, "ivar reference out of a class: #{name}" 
         end
         return sk_self.ivar_values.fetch(name)
       end

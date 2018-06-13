@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe "Type check" do
-  ProgramError = Shiika::Program::ProgramError
+  SkProgramError = Shiika::Program::SkProgramError
   SkTypeError = Shiika::Program::SkTypeError
 
   def type!(src)
@@ -115,7 +115,7 @@ describe "Type check" do
          a = 1
          a = 2
       EOD
-      expect{ type!(src) }.to raise_error(ProgramError)
+      expect{ type!(src) }.to raise_error(SkProgramError)
     end
 
     it 'reassign to writable local variable (ok)' do
