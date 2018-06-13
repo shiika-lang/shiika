@@ -25,16 +25,20 @@ module Shiika
           {
             name: "new",
             ret_type_spec: TyRaw["Object"],
-            param_type_specs: [],
-            body: ->(env, class_obj, *args){
+            params: [],
+            # args: [SkObj] (varargs are packed with Shiika Array)
+            # raw_arg_values: [SkObj] (varargs are not packed)
+            body: ->(env, class_obj, *args, raw_arg_values:){
               instance_type = class_obj.type.instance_type
               sk_class = env.find_class_from_type(instance_type)
               sk_initializer = sk_class.find_method("initialize")
-              ivar_values = sk_initializer.params.zip(args).map{|param, arg|
-                [param.name, arg] if param.is_a?(Program::IParam)
-              }.compact.to_h
+              ivar_values = sk_initializer.params.zip(args).select{|param, arg|
+                param.is_a?(Program::IParam)
+              }.map{|param, arg|
+                [param.name, arg]
+              }.to_h
               obj = SkObj.new(instance_type, ivar_values)
-              Evaluator::Call.new(obj, "initialize", args) do |result|
+              Evaluator::Call.new(obj, "initialize", raw_arg_values) do |result|
                 obj
               end
             }
@@ -43,7 +47,7 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            param_type_specs: [],
+            params: [],
             body: ->(){}
           }
         ]
@@ -57,7 +61,7 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            param_type_specs: [],
+            params: [],
             body: ->(){}
           },
         ]
@@ -73,13 +77,15 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            param_type_specs: [],
+            params: [],
             body: ->(){}
           },
           {
             name: "+",
             ret_type_spec: TyRaw["Int"],
-            param_type_specs: [TyRaw["Int"]],
+            params: [
+              {name: "other", type_spec: TyRaw["Int"], is_vararg: false}
+            ],
             body: ->(env, this, other){
               n = this.ivar_values['@rb_val'] + other.ivar_values['@rb_val']
               SkObj.new(TyRaw['Int'], {'@rb_val' => n})
@@ -88,7 +94,7 @@ module Shiika
           {
             name: "abs",
             ret_type_spec: TyRaw["Int"],
-            param_type_specs: [],
+            params: [],
             body: ->(env, this){
               n = this.ivar_values['@rb_val'].abs
               SkObj.new(TyRaw['Int'], {'@rb_val' => n})
@@ -97,7 +103,7 @@ module Shiika
           {
             name: "tmp",
             ret_type_spec: TyRaw["Int"],
-            param_type_specs: [],
+            params: [],
             body: ->(env, this){
               Evaluator::Call.new(this, "abs", []) do |result|
                 n = result.ivar_values['@rb_val']
@@ -118,16 +124,17 @@ module Shiika
         methods: [
           {
             name: "initialize",
-            # Takes 3 args until we impl. vararg
-            param_type_specs: [TyRaw['ELEM'], TyRaw['ELEM'], TyRaw['ELEM']],
-            body: ->(env, this, a, b, c){
-              this.ivar_values['@items'] = [a, b, c]
+            params: [
+              {name: "items", type_spec: TySpe['Array', [TyRaw['ELEM']]], is_vararg: true}
+            ],
+            body: ->(env, this, sk_ary){
+              this.ivar_values['@items'] = sk_ary.ivar_values['@items']
             }
           },
           {
             name: 'first',
             ret_type_spec: TyRaw["ELEM"],
-            param_type_specs: [],
+            params: [],
             body: ->(env, this){
               this.ivar_values['@items'].first
             }
@@ -140,8 +147,8 @@ module Shiika
     def self.sk_classes
       CLASSES.flat_map{|spec|
         sk_methods = spec[:methods].map{|x|
-          params = x[:param_type_specs].map{|ty|
-            Program::Param.new(name: "(no name)", type_spec: ty, is_vararg: false)
+          params = x[:params].map{|param_spec|
+            Program::Param.new(param_spec)
           }
           if x[:name] == "initialize"
             sk_method = Program::SkInitializer.new(
@@ -155,8 +162,8 @@ module Shiika
           [x[:name], sk_method]
         }.to_h
         sk_class_methods = spec[:class_methods].map{|x|
-          params = x[:param_type_specs].map{|type|
-            Program::Param.new(name: "(no name)", type_spec: type, is_vararg: false)
+          params = x[:params].map{|param_spec|
+            Program::Param.new(param_spec)
           }
           sk_method = Program::SkMethod.new(
             name: x[:name], params: params, ret_type_spec: x[:ret_type_spec], body_stmts: x[:body]

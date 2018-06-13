@@ -137,11 +137,31 @@ module Shiika
         @class_typarams = []  # [TypeParameter]
       end
 
-      def arity
-        @params.length
+      def n_head_params
+        has_varparam? ? varparam_idx : params.length
       end
 
+      def n_tail_params
+        has_varparam? ? params.length - (varparam_idx + 1) : 0
+      end
+
+      def vararg_range
+        (n_head_params..-(n_tail_params+1))
+      end
+
+      def varparam
+        params.find(&:is_vararg)
+      end
+      alias has_varparam? varparam
+
+      def varparam_idx
+        params.index(&:is_vararg)
+      end
+      private :varparam_idx
+
       def calc_type!(env)
+        # TODO: raise error if there is more than one varargs
+        # TODO: raise error if the type of vararg is not Array
         params.each{|x| x.add_type!(env)}
         ret_type = env.find_type(ret_type_spec)
 
@@ -534,17 +554,49 @@ module Shiika
         args.each{|x| env = x.add_type!(env)}
         env = receiver_expr.add_type!(env)
         sk_method = env.find_method(receiver_expr.type, method_name)
-        check_type(sk_method, args)
+        check_arg_types(sk_method, env)
         return env, sk_method.type.ret_type
       end
 
-      def check_type(sk_method, args)
-        n_params, n_args = sk_method.params.length, args.length
-        if n_params != n_args
-          raise SkTypeError, "method #{sk_method.name} takes #{n_params} parameters but got #{n_args}"
+      private
+
+      def check_arg_types(sk_method, env)
+        n_args = args.length
+        params = sk_method.params
+        varparam = params.find(&:is_vararg)
+
+        # Assert that sufficient number of args are given
+        least_arity = varparam ? params.length - 1 : params.length
+        if n_args < least_arity
+          raise SkTypeError, "method #{sk_method.name} takes " +
+            "#{'at least ' if varparam}#{least_arity} parameters but got #{n_args}"
         end
 
-        sk_method.params.zip(args) do |param, arg|
+        check_nonvar_arg_types(sk_method)
+
+        if varparam
+          # Check type of varargs
+          elem_type = varparam.type.type_args.first
+          varargs = args[sk_method.vararg_range]
+          varargs.each do |arg|
+            if arg.type != elem_type
+              raise SkTypeError, "variable-length parameter #{varparam.name} of `#{sk_method.full_name(receiver_expr.type)}` is #{varparam.type} but got #{arg.type} for its element"
+            end
+          end
+          # Make sure Meta:Array<T> is created (to call .new on it)
+          sp_cls = env.find_class('Meta:Array').specialized_class([elem_type], env)
+          sp_cls.find_method('new')
+        end
+      end
+
+      def check_nonvar_arg_types(sk_method)
+        params = sk_method.params
+        n_head = sk_method.n_head_params
+        n_tail = sk_method.n_tail_params
+
+        matches = params.first(n_head).zip(args.first(n_head)) +
+                  params.last(n_tail).zip(args.last(n_tail))
+        matches.each do |param, arg|
           if param.type != arg.type
             raise SkTypeError, "parameter #{param.name} of `#{sk_method.full_name(receiver_expr.type)}` is #{param.type} but got #{arg.type}"
           end

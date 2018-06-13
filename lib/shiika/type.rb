@@ -120,6 +120,10 @@ module Shiika
         TySpe[base_name, type_args.map{|x| x.substitute(mapping)}]
       end
 
+      def meta_type
+        TySpeMeta[base_name, type_args]
+      end
+
       def to_key
         @base_name + "<" + @type_args.map(&:to_key).join(', ') + ">"
       end

@@ -98,9 +98,16 @@ module Shiika
       end
     end
 
-    def invoke_sk_method(env, receiver, sk_method, arg_values)
+    def invoke_sk_method(env, receiver, sk_method, raw_arg_values)
+      arg_values = process_varargs(env, sk_method, raw_arg_values)
       if sk_method.body_stmts.is_a?(Proc)  # stdlib
-        value = sk_method.body_stmts.call(env, receiver, *arg_values)
+        if sk_method.body_stmts.parameters.include?([:keyreq, :raw_arg_values])
+          # Some stdlib methods (e.g. Object.new) needs raw_arg_values
+          value = sk_method.body_stmts.call(env, receiver, *arg_values,
+                                            raw_arg_values: raw_arg_values)
+        else
+          value = sk_method.body_stmts.call(env, receiver, *arg_values)
+        end
         if value.is_a?(Evaluator::Call)
           invocation = Program::MethodCall.new(receiver_expr: value.receiver_obj,
                                                method_name: value.method_name,
@@ -117,6 +124,18 @@ module Shiika
         bodyenv = env.merge(:local_vars, lvars).merge(:sk_self, receiver)
         _, value = eval_stmts(bodyenv, sk_method.body_stmts)
         return value 
+      end
+    end
+
+    def process_varargs(env, sk_method, raw_arg_values)
+      if sk_method.has_varparam?
+        varargs = raw_arg_values[sk_method.vararg_range]
+        vararg_ary = SkObj.new(sk_method.varparam.type, {'@items' => varargs})
+        return raw_arg_values.first(sk_method.n_head_params) +
+               [vararg_ary] +
+               raw_arg_values.last(sk_method.n_tail_params)
+      else
+        return raw_arg_values
       end
     end
 

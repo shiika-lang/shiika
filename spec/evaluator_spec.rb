@@ -27,10 +27,6 @@ describe "Evaluator" do
     end
   end
 
-#  it 'class'
-#
-#  it 'constant'
-#
   it 'instance variable' do
     src = <<~EOD
       class Adder
@@ -44,6 +40,20 @@ describe "Evaluator" do
       Adder.new(1, 2).sum
     EOD
     expect(run(src)).to eq(sk_int(3))
+  end
+
+  describe 'method' do
+    it 'vararg' do
+      src = <<~EOD
+        class A
+          def self.first(*b: [Int]) -> Int
+            b.first
+          end
+        end
+        A.first(1,2,3)
+      EOD
+      expect(run(src)).to eq(sk_int(1))
+    end
   end
 
   it 'instance generation' do

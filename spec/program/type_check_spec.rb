@@ -94,6 +94,19 @@ describe "Type check" do
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
+
+    describe 'vararg' do
+      it 'ok' do
+        src = <<~EOD
+           class A
+             def self.foo(a: Int, *b: [Int], c: Int) -> Void
+             end
+           end
+           A.foo(1, 2, 3, 4, 5)
+        EOD
+        expect{ type!(src) }.not_to raise_error
+      end
+    end
   end
 
   context 'variable assignment' do
