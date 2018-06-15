@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### (not yet)
+### v0.1.2 2018-06-16
 
 - Array literal
 
