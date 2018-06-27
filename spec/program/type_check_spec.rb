@@ -65,7 +65,7 @@ describe "Type check" do
     it 'arity' do
       src = <<~EOD
          class A
-           def self.foo(x: Int, y: Int) -> Void
+           def self.foo(x: Int, y: Int)
            end
          end
          A.foo(1)
@@ -76,7 +76,7 @@ describe "Type check" do
     it 'argument type' do
       src = <<~EOD
          class A
-           def self.foo(x: Int) -> Void
+           def self.foo(x: Int)
            end
          end
          A.foo(true)
@@ -87,7 +87,7 @@ describe "Type check" do
     it 'class method of generic class' do
       src = <<~EOD
          class A<T>
-           def self.foo(x: Int) -> Void
+           def self.foo(x: Int)
            end
          end
          A.foo(true)
@@ -99,7 +99,7 @@ describe "Type check" do
       it 'ok' do
         src = <<~EOD
            class A
-             def self.foo(a: Int, *b: [Int], c: Int) -> Void
+             def self.foo(a: Int, *b: [Int], c: Int)
              end
            end
            A.foo(1, 2, 3, 4, 5)
@@ -158,7 +158,7 @@ describe "Type check" do
     it 'type of instance method parameter' do
       src = <<~EOD
          class A<T>
-           def foo(x: T) -> Void; end
+           def foo(x: T); end
          end
          A<Int>.new.foo(true)
       EOD

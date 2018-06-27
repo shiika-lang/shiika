@@ -21,9 +21,11 @@ A statically-typed programming language.
 - [x] Basic generics
 - [x] Variable-length arguments
 - [x] Array literal
+- [x] Allow omitting `-> Void`
 
 ### Todo (short-term)
 
+- String class
 - Hash class
 
 ### Todo (middle term)

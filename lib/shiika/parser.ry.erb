@@ -87,19 +87,25 @@ rule
 
     defmethod:
         definitialize
-      | 'def' opt_self_dot method_name opt_paramlist _nl '->' _nl type sep
+      | 'def' opt_self_dot method_name opt_paramlist opt_ret_type sep
            opt_statements
         'end'
         { 
-          if val[1] 
+          if val[1]
             Ast::DefClassMethod.new(name: val[2], params: val[3],
-                                    ret_type_spec: val[7], body_stmts: val[9])
+                                    ret_type_spec: val[4], body_stmts: val[6])
           else
             Ast::DefMethod.new(name: val[2], params: val[3],
-                               ret_type_spec: val[7], body_stmts: val[9])
+                               ret_type_spec: val[4], body_stmts: val[6])
           end
         }
     <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
+
+    opt_ret_type:
+        /* NONE */
+        { Type::TyRaw['Void'] }
+      | '->' _nl type
+        { val[2] }
 
     definitialize:
         'def' 'initialize' opt_iparamlist sep
