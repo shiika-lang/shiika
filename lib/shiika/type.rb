@@ -7,7 +7,7 @@ module Shiika
     # eg. Array<Array<Int>> is OK but Array<Array> is NG
     class ConcreteType < Base
       # Return true if this type conforms to `other` type
-      def conforms?(other, env)
+      def conforms_to?(other, env)
         if other.is_a?(TyParam)
           self == TyRaw["Object"]
         else
