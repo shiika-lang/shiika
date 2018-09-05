@@ -35,7 +35,7 @@ describe "Type check" do
              end
              A.foo
           EOD
-          expect{ type!(src) }.not_to raise_error
+          type!(src)
         end
 
         it 'ng' do
@@ -104,7 +104,7 @@ describe "Type check" do
            end
            A.foo(1, 2, 3, 4, 5)
         EOD
-        expect{ type!(src) }.not_to raise_error
+        type!(src)
       end
     end
   end
@@ -123,7 +123,7 @@ describe "Type check" do
          var a = 1
          a = 2
       EOD
-      expect{ type!(src) }.not_to raise_error
+      type!(src)
     end
 
     it 'reassign to writable local variable (ng)' do
@@ -187,7 +187,7 @@ describe "Type check" do
          end
          A<Int>.new(1)
       EOD
-      expect{ type!(src) }.not_to raise_error
+      type!(src)
     end
 
     it 'type of instance variable (ng)' do
