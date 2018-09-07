@@ -66,7 +66,12 @@ module Shiika
     end
 
     class DefClass < Node
-      props :name, :typarams, :defmethods
+      props :name, :typarams, :superclass_template, :defmethods
+      # Example of superclass_template:
+      #   # class B extends A
+      #   ["A", []]
+      #   # class C extends Array<Array<Int>>
+      #   ["Array", ["Array", ["Int"]]] 
 
       # return [sk_class, meta_class]
       def to_program
@@ -80,7 +85,7 @@ module Shiika
         sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
         return Program::SkClass.build(
           name: name,
-          parent_name: "Object",
+          superclass_template: superclass_template || ['Object', []],
           sk_ivars: sk_methods["initialize"].ivars,
           class_methods: sk_class_methods,
           sk_methods: sk_methods,

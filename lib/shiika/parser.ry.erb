@@ -68,10 +68,11 @@ rule
     <%= repeat1 'top_statement', sep: ['sep'] %>
 
     defclass:
-        'class' CONST opt_type_parameters sep
+        'class' CONST opt_type_parameters opt_superclass_template sep
           opt_defmethods
         'end'
-        { Ast::DefClass.new(name: val[1], typarams: val[2], defmethods: val[4]) }
+        { Ast::DefClass.new(name: val[1], typarams: val[2], superclass_template: val[3],
+                            defmethods: val[5]) }
 
     opt_type_parameters:
         /* NONE */
@@ -84,6 +85,13 @@ rule
       CONST
       { Ast::TypeParameter.new(name: val[0]) }
     <%= repeat1 'type_parameter', sep: ["_nl", "','", "_nl"] %>
+
+    opt_superclass_template:
+        /* NONE */
+        { nil }
+      |
+        'extends' CONST opt_type_parameters
+        { [val[1], val[2]] }
 
     defmethod:
         definitialize
@@ -309,7 +317,7 @@ require 'strscan'
 require 'shiika/ast'
 
 ---- inner
-KEYWORDS = /class|def|initialize|do|end|if|elsif|else|return|var|self|true|false/
+KEYWORDS = /class|extends|def|initialize|do|end|if|elsif|else|return|var|self|true|false/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) [ ] { } . + - * / % = , ; :

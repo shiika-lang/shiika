@@ -12,7 +12,7 @@ describe "Program" do
     expect(sk_a.serialize).to eq({
       class: "SkClass",
       name: "A",
-      parent_name: "Object",
+      superclass_template: ["Object", []],
       sk_ivars: {},
       class_methods: {},
       sk_methods: {
