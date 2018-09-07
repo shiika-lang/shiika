@@ -686,7 +686,7 @@ module Shiika
           if lvar.kind == :let
             raise SkProgramError, "lvar #{varname} is read-only (missing `var`)"
           end
-          unless lvar.type.conforms?(expr.type, env)
+          unless env.conforms_to?(expr.type, lvar.type)
             raise SkTypeError, "the type of expr (#{expr.type}) does not conform to the type of lvar #{varname} (#{lvar.type})"
           end
         else

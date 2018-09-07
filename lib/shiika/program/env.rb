@@ -118,6 +118,19 @@ module Shiika
       def sk_self
         @data[:sk_self]
       end
+
+      # Return true if type1 conforms to type2 (eg. TyRaw['Int'] conforms to TyRaw['Object'])
+      def conforms_to?(type1, type2)
+        get_cls = ->(type){
+          if type.is_a?(TyParam)
+            find_class('Object')
+          else
+            find_class(type.name)
+          end
+        }
+        cls1, cls2 = get_cls[type1], get_cls[type2]
+        return cls1 == cls2 || cls1.subclass_of?(cls2, self)
+      end
     end
   end
 end
