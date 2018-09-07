@@ -272,7 +272,7 @@ module Shiika
 
     class SkClass < Element
       props name: String,
-            parent_name: String, # or '__noparent__'
+            superclass_template: Array, # or ['__noparent__']
             sk_ivars: {String => SkIvar},
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
@@ -286,16 +286,17 @@ module Shiika
         end
 
         meta_name = "Meta:#{sk_class.name}"
-        meta_parent = if sk_class.parent_name == '__noparent__'
-                        '__noparent__'
-                      else
-                        "Meta:#{sk_class.parent_name}"
-                      end
+        meta_super = if sk_class.name == 'Object'
+                       ['__noparent__']
+                     else
+                       ["Meta:#{sk_class.superclass_template[0]}",
+                        sk_class.superclass_template[1]]
+                     end
         sk_new = typarams.empty? && make_sk_new(sk_class)
 
         meta_attrs = {
           name: meta_name,
-          parent_name: meta_parent,
+          superclass_template: meta_super,
           sk_ivars: {},
           class_methods: {},
           sk_methods: (typarams.empty? ? {"new" => sk_new} : {}).merge(sk_class.class_methods)
@@ -336,6 +337,32 @@ module Shiika
         TyMeta[name]
       end
 
+      def superclass_name
+        if superclass_template[0] == '__noparent__'
+          '__noparent__'
+        elsif !superclass_template[1].empty?
+          raise "must not happen"
+        else
+          superclass_template[0]
+        end
+      end
+
+      # Return true if this class is a (maybe indirect) subclass of `other`
+      def subclass_of?(other, env)
+        if self == other
+          false
+        elsif self.superclass_name == '__noparent__'
+          false
+        else
+          parent = env.find_class(self.superclass_name)
+          if parent == other
+            true
+          else
+            parent.subclass_of?(other, env)
+          end
+        end
+      end
+
       def find_method(name)
         if (ret = @sk_methods[name])
           ret
@@ -364,6 +391,7 @@ module Shiika
       end
       attr_reader :specialized_classes
 
+      # type_arguments: [Type]
       def specialized_class(type_arguments, env, cls=SkSpecializedClass)
         key = type_arguments.map(&:to_key).join(', ')
         @specialized_classes[key] ||= begin
@@ -375,6 +403,10 @@ module Shiika
 
       def meta_type
         TyGenMeta[name, typarams.map(&:name)]
+      end
+
+      def superclass_name
+        raise "SkGenericClass does not have a `superclass'"
       end
 
       private
@@ -405,6 +437,20 @@ module Shiika
         return env, TySpe[sk_generic_class.name, type_arguments]
       end
 
+      # Return true if this class is a (maybe indirect) subclass of `other`
+      def subclass_of?(other, env)
+        if self == other
+          false
+        else
+          parent = env.find_class(self.superclass_name)
+          if parent == other
+            true
+          else
+            parent.subclass_of?(other, env)
+          end
+        end
+      end
+
       # Lazy method creation (create when first called)
       def find_method(name)
         @methods[name] ||= begin
@@ -414,6 +460,17 @@ module Shiika
             raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
           end
         end
+      end
+
+      def superclass_name
+        process_item = ->((base_name, tyargs)){
+          if tyargs.empty?
+            base_name
+          else
+            base_name + "<" + tyargs.map(&process_item).join(', ') + ">"
+          end
+        }
+        return process_item.call(self.generic_class.superclass_template)
       end
 
       private
@@ -449,6 +506,10 @@ module Shiika
 
       def specialized_class(type_arguments, env)
         super(type_arguments, env, SkSpecializedMetaClass)
+      end
+
+      def superclass_name
+        raise "SkGenericMetaClass does not have a `superclass'"
       end
 
       def to_type

@@ -18,7 +18,7 @@ module Shiika
     CLASSES = [
       {
         name: "Object",
-        parent: '__noparent__',
+        superclass_template: ['__noparent__'],
         typarams: [],
         ivars: {},
         class_methods: [
@@ -54,7 +54,7 @@ module Shiika
       },
       {
         name: "Bool",
-        parent: "Object",
+        superclass_template: ["Object", []],
         typarams: [],
         ivars: {},
         class_methods: [],
@@ -68,7 +68,7 @@ module Shiika
       },
       {
         name: "Int",
-        parent: "Object",
+        superclass_template: ["Object", []],
         typarams: [],
         ivars: {
           '@rb_val' => TyRaw['Int']
@@ -115,7 +115,7 @@ module Shiika
       },
       {
         name: 'Array',
-        parent: 'Object',
+        superclass_template: ["Object", []],
         typarams: ['ELEM'],
         ivars: {
           '@items' => TyRaw['Void']
@@ -174,7 +174,7 @@ module Shiika
           [name, Program::SkIvar.new(name: name, type_spec: type)]
         }.to_h
         sk_class, meta_class = Program::SkClass.build(
-          name: spec[:name], parent_name: spec[:parent],
+          name: spec[:name], superclass_template: spec[:superclass_template],
           sk_ivars: sk_ivars, class_methods: sk_class_methods, sk_methods: sk_methods,
           typarams: spec[:typarams].map{|x|
             Program::TypeParameter.new(name: x)
