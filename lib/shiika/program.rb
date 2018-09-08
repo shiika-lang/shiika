@@ -746,7 +746,7 @@ module Shiika
     end
 
     class ClassSpecialization < Expression
-      props class_expr: Expression, type_arg_exprs: [Expression]
+      props class_expr: ConstRef, type_arg_exprs: [ConstRef]
 
       def calc_type!(env)
         class_expr.add_type!(env)
