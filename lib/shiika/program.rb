@@ -272,7 +272,7 @@ module Shiika
 
     class SkClass < Element
       props name: String,
-            parent_name: String, # or '__noparent__'
+            superclass_template: Type::ConcreteType, # or TyRaw['__noparent__']
             sk_ivars: {String => SkIvar},
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
@@ -286,16 +286,16 @@ module Shiika
         end
 
         meta_name = "Meta:#{sk_class.name}"
-        meta_parent = if sk_class.parent_name == '__noparent__'
-                        '__noparent__'
-                      else
-                        "Meta:#{sk_class.parent_name}"
-                      end
+        meta_super = if sk_class.name == 'Object'
+                       TyRaw['__noparent__']
+                     else
+                       sk_class.superclass_template.meta_type
+                     end
         sk_new = typarams.empty? && make_sk_new(sk_class)
 
         meta_attrs = {
           name: meta_name,
-          parent_name: meta_parent,
+          superclass_template: meta_super,
           sk_ivars: {},
           class_methods: {},
           sk_methods: (typarams.empty? ? {"new" => sk_new} : {}).merge(sk_class.class_methods)
@@ -336,6 +336,26 @@ module Shiika
         TyMeta[name]
       end
 
+      def superclass_name
+        superclass_template.name
+      end
+
+      # Return true if this class is a (maybe indirect) subclass of `other`
+      def subclass_of?(other, env)
+        if self == other
+          false
+        elsif self.superclass_template == TyRaw['__noparent__']
+          false
+        else
+          parent = env.find_class(self.superclass_name)
+          if parent == other
+            true
+          else
+            parent.subclass_of?(other, env)
+          end
+        end
+      end
+
       def find_method(name)
         if (ret = @sk_methods[name])
           ret
@@ -364,6 +384,7 @@ module Shiika
       end
       attr_reader :specialized_classes
 
+      # type_arguments: [Type]
       def specialized_class(type_arguments, env, cls=SkSpecializedClass)
         key = type_arguments.map(&:to_key).join(', ')
         @specialized_classes[key] ||= begin
@@ -375,6 +396,10 @@ module Shiika
 
       def meta_type
         TyGenMeta[name, typarams.map(&:name)]
+      end
+
+      def superclass_name
+        raise "SkGenericClass does not have a `superclass'"
       end
 
       private
@@ -405,6 +430,20 @@ module Shiika
         return env, TySpe[sk_generic_class.name, type_arguments]
       end
 
+      # Return true if this class is a (maybe indirect) subclass of `other`
+      def subclass_of?(other, env)
+        if self == other
+          false
+        else
+          parent = env.find_class(self.superclass_name)
+          if parent == other
+            true
+          else
+            parent.subclass_of?(other, env)
+          end
+        end
+      end
+
       # Lazy method creation (create when first called)
       def find_method(name)
         @methods[name] ||= begin
@@ -414,6 +453,11 @@ module Shiika
             raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
           end
         end
+      end
+
+      # eg. `"A<Int>"` for `B<Int>`, where `class B<T> extends A<T>`
+      def superclass_name
+        generic_class.superclass_template.substitute(type_mapping).name
       end
 
       private
@@ -449,6 +493,10 @@ module Shiika
 
       def specialized_class(type_arguments, env)
         super(type_arguments, env, SkSpecializedMetaClass)
+      end
+
+      def superclass_name
+        raise "SkGenericMetaClass does not have a `superclass'"
       end
 
       def to_type
@@ -610,8 +658,9 @@ module Shiika
 
     class AssignmentExpr < Expression
       def calc_type!(env)
-        expr.add_type!(env)
+        newenv = expr.add_type!(env)
         raise SkProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
+        return newenv
       end
     end
 
@@ -619,20 +668,20 @@ module Shiika
       props varname: String, expr: Expression, isvar: :boolean
 
       def calc_type!(env)
-        super
+        newenv = super
         lvar = env.find_lvar(varname, allow_missing: true)
         if lvar
           if lvar.kind == :let
             raise SkProgramError, "lvar #{varname} is read-only (missing `var`)"
           end
-          unless lvar.type.conforms?(expr.type, env)
+          unless newenv.conforms_to?(expr.type, lvar.type)
             raise SkTypeError, "the type of expr (#{expr.type}) does not conform to the type of lvar #{varname} (#{lvar.type})"
           end
         else
           lvar = Lvar.new(varname, expr.type, (isvar ? :var : :let))
         end
-        newenv = env.merge(:local_vars, {varname => lvar})
-        return newenv, expr.type
+        retenv = newenv.merge(:local_vars, {varname => lvar})
+        return retenv, expr.type
       end
     end
 
@@ -640,12 +689,12 @@ module Shiika
       props varname: String, expr: Expression
 
       def calc_type!(env)
-        super
+        newenv = super
         ivar = env.find_ivar(varname)
         if ivar.type != expr.type  # TODO: subtypes
           raise SkTypeError, "ivar #{varname} of class #{env.sk_self} is #{ivar.type} but expr is #{expr.type}"
         end
-        return env, expr.type
+        return newenv, expr.type
       end
     end
 
@@ -685,7 +734,7 @@ module Shiika
     end
 
     class ClassSpecialization < Expression
-      props class_expr: Expression, type_arg_exprs: [Expression]
+      props class_expr: ConstRef, type_arg_exprs: [ConstRef]
 
       def calc_type!(env)
         class_expr.add_type!(env)
@@ -699,8 +748,12 @@ module Shiika
           raise SkTypeError, "not a class: #{expr.inspect}" unless expr.type.is_a?(TyMeta)
           expr.type.instance_type
         }
-        create_specialized_class(env, base_class_name, type_args)
-        return env, TySpeMeta[base_class_name, type_args]
+        sp_cls, sp_meta = create_specialized_class(env, base_class_name, type_args)
+        newenv = env.merge(:sk_classes, {
+          sp_cls.name => sp_cls,
+          sp_meta.name => sp_meta.name,
+        })
+        return newenv, TySpeMeta[base_class_name, type_args]
       end
 
       private
@@ -710,9 +763,10 @@ module Shiika
         gen_cls = env.find_class(base_class_name)
         raise if !(SkGenericClass === gen_cls) &&
                  !(SkGenericMetaClass === gen_cls)
-        gen_cls.specialized_class(type_args, env)
+        sp_cls = gen_cls.specialized_class(type_args, env)
         gen_meta = env.find_meta_class(base_class_name)
-        gen_meta.specialized_class(type_args, env)
+        sp_meta = gen_meta.specialized_class(type_args, env)
+        return sp_cls, sp_meta
       end
     end
 

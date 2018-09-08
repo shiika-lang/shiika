@@ -6,14 +6,6 @@ module Shiika
     # Type for classes which can have an instance
     # eg. Array<Array<Int>> is OK but Array<Array> is NG
     class ConcreteType < Base
-      # Return true if this type conforms to `other` type
-      def conforms_to?(other, env)
-        if other.is_a?(TyParam)
-          self == TyRaw["Object"]
-        else
-          self == other
-        end
-      end
     end
 
     # Type for normal (i.e. non-generic, non-meta) class
@@ -37,6 +29,10 @@ module Shiika
         # If name is included in the mapping, this TyRaw refers to a type parameter
         # and needs to be substituted with type argument
         mapping[name] || self
+      end
+
+      def meta_type
+        TyMeta[name]
       end
 
       def inspect
@@ -173,11 +169,6 @@ module Shiika
 
       def upper_bound
         TyRaw["Object"]
-      end
-
-      def conforms?(other)
-        # TODO: subtypes
-        TyRaw["Object"].conforms?(other)
       end
 
       def inspect

@@ -202,4 +202,55 @@ describe "Type check" do
       expect{ type!(src) }.to raise_error(SkTypeError)
     end
   end
+
+  context 'subtyping' do
+    it 'direct subclass' do
+      src = <<~EOD
+        class A; end
+        class B extends A; end
+        var x = A.new
+        x = B.new
+      EOD
+      type!(src)
+    end
+
+    it 'indirect subclass' do
+      src = <<~EOD
+        class A; end
+        class B extends A; end
+        class C extends B; end
+        var x = A.new
+        x = C.new
+      EOD
+      type!(src)
+    end
+
+    it 'generic subclass of a non-generic class' do
+      src = <<~EOD
+        class A; end
+        class B<T> extends A; end
+        var x = A.new
+        x = B<Int>.new
+      EOD
+      type!(src)
+    end
+
+    it 'generic subclass of a generic class' do
+      src = <<~EOD
+        class A<T>; end
+        class B<T> extends A<T>; end
+        var x = A<Int>.new
+        x = B<Int>.new
+      EOD
+      type!(src)
+    end
+
+    it 'variance' do
+      src = <<~EOD
+        var x = Array<Object>.new
+        x = Array<Int>.new
+      EOD
+      expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+  end
 end

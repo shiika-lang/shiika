@@ -12,7 +12,7 @@ describe "Program" do
     expect(sk_a.serialize).to eq({
       class: "SkClass",
       name: "A",
-      parent_name: "Object",
+      superclass_template: Shiika::Type::TyRaw["Object"].to_s,
       sk_ivars: {},
       class_methods: {},
       sk_methods: {
