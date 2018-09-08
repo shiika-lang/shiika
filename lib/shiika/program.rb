@@ -658,8 +658,9 @@ module Shiika
 
     class AssignmentExpr < Expression
       def calc_type!(env)
-        expr.add_type!(env)
+        newenv = expr.add_type!(env)
         raise SkProgramError, "cannot assign Void value" if expr.type == TyRaw["Void"]
+        return newenv
       end
     end
 
@@ -667,20 +668,20 @@ module Shiika
       props varname: String, expr: Expression, isvar: :boolean
 
       def calc_type!(env)
-        super
+        newenv = super
         lvar = env.find_lvar(varname, allow_missing: true)
         if lvar
           if lvar.kind == :let
             raise SkProgramError, "lvar #{varname} is read-only (missing `var`)"
           end
-          unless env.conforms_to?(expr.type, lvar.type)
+          unless newenv.conforms_to?(expr.type, lvar.type)
             raise SkTypeError, "the type of expr (#{expr.type}) does not conform to the type of lvar #{varname} (#{lvar.type})"
           end
         else
           lvar = Lvar.new(varname, expr.type, (isvar ? :var : :let))
         end
-        newenv = env.merge(:local_vars, {varname => lvar})
-        return newenv, expr.type
+        retenv = newenv.merge(:local_vars, {varname => lvar})
+        return retenv, expr.type
       end
     end
 
@@ -688,12 +689,12 @@ module Shiika
       props varname: String, expr: Expression
 
       def calc_type!(env)
-        super
+        newenv = super
         ivar = env.find_ivar(varname)
         if ivar.type != expr.type  # TODO: subtypes
           raise SkTypeError, "ivar #{varname} of class #{env.sk_self} is #{ivar.type} but expr is #{expr.type}"
         end
-        return env, expr.type
+        return newenv, expr.type
       end
     end
 
@@ -747,8 +748,12 @@ module Shiika
           raise SkTypeError, "not a class: #{expr.inspect}" unless expr.type.is_a?(TyMeta)
           expr.type.instance_type
         }
-        create_specialized_class(env, base_class_name, type_args)
-        return env, TySpeMeta[base_class_name, type_args]
+        sp_cls, sp_meta = create_specialized_class(env, base_class_name, type_args)
+        newenv = env.merge(:sk_classes, {
+          sp_cls.name => sp_cls,
+          sp_meta.name => sp_meta.name,
+        })
+        return newenv, TySpeMeta[base_class_name, type_args]
       end
 
       private
@@ -758,9 +763,10 @@ module Shiika
         gen_cls = env.find_class(base_class_name)
         raise if !(SkGenericClass === gen_cls) &&
                  !(SkGenericMetaClass === gen_cls)
-        gen_cls.specialized_class(type_args, env)
+        sp_cls = gen_cls.specialized_class(type_args, env)
         gen_meta = env.find_meta_class(base_class_name)
-        gen_meta.specialized_class(type_args, env)
+        sp_meta = gen_meta.specialized_class(type_args, env)
+        return sp_cls, sp_meta
       end
     end
 
