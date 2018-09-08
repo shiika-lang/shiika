@@ -3,6 +3,8 @@
 ## HEAD
 
 - `-> Void` is now optional
+- (WIP) Inheritance
+  - Parse `extends`
 
 ## v0.1.2 (2018-06-16)
 
