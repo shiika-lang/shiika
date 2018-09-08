@@ -203,7 +203,7 @@ describe "Type check" do
     end
   end
 
-  context 'subtyping' do
+  context 'subtyping (class types)' do
     it 'direct subclass' do
       src = <<~EOD
         class A; end
@@ -251,6 +251,36 @@ describe "Type check" do
         x = Array<Int>.new
       EOD
       expect{ type!(src) }.to raise_error(SkTypeError)
+    end
+  end
+
+  context 'subtyping (places)' do
+    it 'on lvar assignment' do
+      src = <<~EOD
+        var x = Object.new
+        x = 1
+      EOD
+      type!(src)
+    end
+
+    it 'on ivar assignment ' do
+      src = <<~EOD
+        class A
+          def initialize(@a: Object); end
+        end
+        A.new(1)
+      EOD
+      type!(src)
+    end
+
+    it 'on method call ' do
+      src = <<~EOD
+        class A
+          def self.foo(a: Object); end
+        end
+        A.foo(1)
+      EOD
+      type!(src)
     end
   end
 end

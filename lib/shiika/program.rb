@@ -624,7 +624,7 @@ module Shiika
             "#{'at least ' if varparam}#{least_arity} parameters but got #{n_args}"
         end
 
-        check_nonvar_arg_types(sk_method)
+        check_nonvar_arg_types(sk_method, env)
 
         if varparam
           # Check type of varargs
@@ -641,7 +641,7 @@ module Shiika
         end
       end
 
-      def check_nonvar_arg_types(sk_method)
+      def check_nonvar_arg_types(sk_method, env)
         params = sk_method.params
         n_head = sk_method.n_head_params
         n_tail = sk_method.n_tail_params
@@ -649,8 +649,8 @@ module Shiika
         matches = params.first(n_head).zip(args.first(n_head)) +
                   params.last(n_tail).zip(args.last(n_tail))
         matches.each do |param, arg|
-          if param.type != arg.type
-            raise SkTypeError, "parameter #{param.name} of `#{sk_method.full_name(receiver_expr.type)}` is #{param.type} but got #{arg.type}"
+          if !env.conforms_to?(arg.type, param.type)
+            raise SkTypeError, "parameter `#{param.name}' of `#{sk_method.full_name(receiver_expr.type)}' is #{param.type} but got #{arg.type}"
           end
         end
       end

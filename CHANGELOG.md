@@ -5,6 +5,7 @@
 - `-> Void` is now optional
 - (WIP) Inheritance
   - Parse `extends`
+  - Treat subclasses as compatible to its superclasses
 
 ## v0.1.2 (2018-06-16)
 
