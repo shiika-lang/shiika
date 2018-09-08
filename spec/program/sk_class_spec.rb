@@ -17,7 +17,7 @@ class Shiika::Program
       it "indirect subclass" do
         my_int = SkClass.new(
           name: "MyInt",
-          superclass_template: ["Int", []],
+          superclass_template: Shiika::Type::TyRaw["Int"],
           sk_ivars: {},
           class_methods: {},
           sk_methods: {}

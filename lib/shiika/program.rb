@@ -272,7 +272,7 @@ module Shiika
 
     class SkClass < Element
       props name: String,
-            superclass_template: Array, # or ['__noparent__']
+            superclass_template: Type::ConcreteType, # or TyRaw['__noparent__']
             sk_ivars: {String => SkIvar},
             class_methods: {String => SkMethod},
             sk_methods: {String => SkMethod}
@@ -287,10 +287,9 @@ module Shiika
 
         meta_name = "Meta:#{sk_class.name}"
         meta_super = if sk_class.name == 'Object'
-                       ['__noparent__']
+                       TyRaw['__noparent__']
                      else
-                       ["Meta:#{sk_class.superclass_template[0]}",
-                        sk_class.superclass_template[1]]
+                       sk_class.superclass_template.meta_type
                      end
         sk_new = typarams.empty? && make_sk_new(sk_class)
 
@@ -338,20 +337,14 @@ module Shiika
       end
 
       def superclass_name
-        if superclass_template[0] == '__noparent__'
-          '__noparent__'
-        elsif !superclass_template[1].empty?
-          raise "must not happen"
-        else
-          superclass_template[0]
-        end
+        superclass_template.name
       end
 
       # Return true if this class is a (maybe indirect) subclass of `other`
       def subclass_of?(other, env)
         if self == other
           false
-        elsif self.superclass_name == '__noparent__'
+        elsif self.superclass_template == TyRaw['__noparent__']
           false
         else
           parent = env.find_class(self.superclass_name)
@@ -462,15 +455,9 @@ module Shiika
         end
       end
 
+      # eg. `"A<Int>"` for `B<Int>`, where `class B<T> extends A<T>`
       def superclass_name
-        process_item = ->((base_name, tyargs)){
-          if tyargs.empty?
-            base_name
-          else
-            base_name + "<" + tyargs.map(&process_item).join(', ') + ">"
-          end
-        }
-        return process_item.call(self.generic_class.superclass_template)
+        generic_class.superclass_template.substitute(type_mapping).name
       end
 
       private

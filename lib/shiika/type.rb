@@ -31,6 +31,10 @@ module Shiika
         mapping[name] || self
       end
 
+      def meta_type
+        TyMeta[name]
+      end
+
       def inspect
         "#<TyRaw #{name}>"
       end

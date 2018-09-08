@@ -85,7 +85,7 @@ module Shiika
         sk_methods["initialize"] ||= Program::SkInitializer.new([], [])
         return Program::SkClass.build(
           name: name,
-          superclass_template: superclass_template || ['Object', []],
+          superclass_template: superclass_template,
           sk_ivars: sk_methods["initialize"].ivars,
           class_methods: sk_class_methods,
           sk_methods: sk_methods,

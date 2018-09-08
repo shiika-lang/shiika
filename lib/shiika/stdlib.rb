@@ -18,7 +18,7 @@ module Shiika
     CLASSES = [
       {
         name: "Object",
-        superclass_template: ['__noparent__'],
+        superclass_template: TyRaw['__noparent__'],
         typarams: [],
         ivars: {},
         class_methods: [
@@ -54,7 +54,7 @@ module Shiika
       },
       {
         name: "Bool",
-        superclass_template: ["Object", []],
+        superclass_template: TyRaw["Object"],
         typarams: [],
         ivars: {},
         class_methods: [],
@@ -68,7 +68,7 @@ module Shiika
       },
       {
         name: "Int",
-        superclass_template: ["Object", []],
+        superclass_template: TyRaw["Object"],
         typarams: [],
         ivars: {
           '@rb_val' => TyRaw['Int']
@@ -115,7 +115,7 @@ module Shiika
       },
       {
         name: 'Array',
-        superclass_template: ["Object", []],
+        superclass_template: TyRaw["Object"],
         typarams: ['ELEM'],
         ivars: {
           '@items' => TyRaw['Void']

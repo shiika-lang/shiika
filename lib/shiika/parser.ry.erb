@@ -87,11 +87,11 @@ rule
     <%= repeat1 'type_parameter', sep: ["_nl", "','", "_nl"] %>
 
     opt_superclass_template:
-        /* NONE */
-        { nil }
+        /* NONE (set default superclass) */
+        { Shiika::Type::TyRaw['Object'] }
       |
-        'extends' CONST opt_type_parameters
-        { [val[1], val[2]] }
+        'extends' type
+        { val[1] }
 
     defmethod:
         definitialize
