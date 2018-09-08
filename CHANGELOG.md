@@ -4,8 +4,10 @@
 
 - `-> Void` is now optional
 - (WIP) Inheritance
-  - Parse `extends`
-  - Treat subclasses as compatible to its superclasses
+  - [x] Parse `extends`
+  - [x] Treat subclasses as compatible to its superclasses
+  - [ ] Update method lookup to traverse superclasses
+  - [ ] Check all ivars will be initialized
 
 ## v0.1.2 (2018-06-16)
 
