@@ -49,7 +49,9 @@ module Shiika
     attr_reader :sk_classes, :sk_main
 
     def add_type!
-      constants = @sk_classes.map{|name, sk_class|
+      constants = @sk_classes.reject{|name, sk_class|
+        name.start_with?('Meta:')
+      }.map{|name, sk_class|
         const = SkConst.new(name: name)
         const.instance_variable_set(:@type, sk_class.meta_type)
         [name, const]
