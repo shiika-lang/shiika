@@ -283,4 +283,36 @@ describe "Type check" do
       type!(src)
     end
   end
+
+  context 'subtyping (method lookup)' do
+    it 'instance method on SkClass' do
+      src = <<~EOD
+        class A; def foo; end; end
+        class B extends A; end
+        B.new.foo
+      EOD
+      type!(src)
+    end
+
+    it 'instance method on SkSpecializedClass' do
+      src = <<~EOD
+        class A; def foo; end; end
+        class B<T> extends A; end
+        B<Int>.new.foo
+      EOD
+      type!(src)
+    end
+
+    it 'initialize' do
+      src = <<~EOD
+        class A
+          def initialize(@a: Int); end
+          def a; @a; end
+        end
+        class B extends A; end
+        B.new(1).a
+      EOD
+      type!(src)
+    end
+  end
 end

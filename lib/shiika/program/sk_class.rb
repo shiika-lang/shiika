@@ -86,12 +86,10 @@ module Shiika
         end
       end
 
+      # Return SkMethod if this class have a method named `name`.
+      # Return nil otherwise
       def find_method(name)
-        if (ret = @sk_methods[name])
-          ret
-        else
-          raise SkTypeError, "class `#{@name}' does not have an instance method `#{name}'"
-        end
+        @sk_methods[name]
       end
 
       def inspect

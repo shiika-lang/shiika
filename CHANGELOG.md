@@ -6,8 +6,7 @@
 - (WIP) Inheritance
   - [x] Parse `extends`
   - [x] Treat subclasses as compatible to its superclasses
-  - [ ] Update method lookup to traverse superclasses
-  - [ ] Check all ivars will be initialized
+  - [x] Update method lookup to traverse superclasses
 
 ## v0.1.2 (2018-06-16)
 

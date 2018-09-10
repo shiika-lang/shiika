@@ -27,6 +27,7 @@ module Shiika
 
       def find_method(name)
         if name == "new"
+          # Special treatment for `new` becuase SkGenericMetaClass does not have `new`
           return @sk_new.inject_type_arguments(type_mapping)
         else
           super

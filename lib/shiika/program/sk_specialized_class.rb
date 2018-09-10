@@ -35,13 +35,17 @@ module Shiika
       end
 
       # Lazy method creation (create when first called)
+      # Return SkMethod if this class have a method named `name`.
+      # Return nil otherwise
       def find_method(name)
-        @methods[name] ||= begin
-          if (ret = sk_generic_class.sk_methods[name])
-            ret.inject_type_arguments(type_mapping)
-          else
-            raise SkTypeError, "specialized class `#{@name}' does not have an instance method `#{name}'"
-          end
+        if @methods.key?(name)
+          @methods[name]
+        elsif (gen_method = sk_generic_class.sk_methods[name])
+          ret = gen_method.inject_type_arguments(type_mapping)
+          @methods[name] = ret
+          ret
+        else
+          nil
         end
       end
 
