@@ -3,7 +3,7 @@ module Shiika
     # Holds class methods of a class
     class SkMetaClass < SkClass
       def to_type
-        TyMeta[name]
+        TyMeta[name.sub(/^Meta:/, '')]
       end
     end
   end
