@@ -18,7 +18,7 @@ module Shiika
         sp_cls, sp_meta = create_specialized_class(env, base_class_name, type_args)
         newenv = env.merge(:sk_classes, {
           sp_cls.name => sp_cls,
-          sp_meta.name => sp_meta.name,
+          sp_meta.name => sp_meta,
         })
         return newenv, TySpeMeta[base_class_name, type_args]
       end
