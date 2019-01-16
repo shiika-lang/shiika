@@ -3,7 +3,24 @@ use std::str::Chars;
 use std::iter::Peekable;
 
 pub struct Parser {
-    pub src: String
+    pub src: String,
+    pub loc: Location
+}
+
+pub struct Location {
+    pub file: String,
+    pub line: usize,
+    pub col: usize
+}
+
+impl Location {
+    fn new() -> Location {
+        Location {
+            file: "".to_string(),
+            line: 0,
+            col: 0
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -63,6 +80,7 @@ fn parseerror(msg: &str) -> ParseError {
 pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
     let parser = Parser {
         src: src.to_string(),
+        loc: Location::new(),
     };
     parser.parse()
 }
