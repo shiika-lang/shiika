@@ -16,27 +16,24 @@ impl Parser {
     }
 
     fn parse_expr(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
-        ast::Expression::BinOp{
-            left: Box::new(self.parse_decimal_literal(chars)),
-            right: Box::new(self.parse_decimal_literal(chars)),
-        }
+        self.parse_bin_op(chars)
+    }
+
+    fn parse_bin_op(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
+        let left = Box::new(self.parse_decimal_literal(chars));
+        chars.next();
+        let right = Box::new(self.parse_decimal_literal(chars));
+        ast::Expression::BinOp{ left: left, right: right }
     }
 
     fn parse_decimal_literal(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
         let mut num_str = String::new();
         loop {
-            if let Some(c) = chars.peek() {
-                match *c {
-                    '0'...'9' => {
-                        let tmp = *c;
-                        chars.next();
-                        num_str.push(tmp)
-                    }
-                    _ => break
-                }
-            }
-            else {
-                break
+            let item = chars.peek();
+            if item == None { break }
+            match item.unwrap() {
+                '0'...'9' => num_str.push(chars.next().unwrap()),
+                _ => break
             }
         }
         ast::Expression::DecimalLiteral{
@@ -54,18 +51,18 @@ pub fn parse(src: &str) -> ast::Program {
 
 #[test]
 fn test_parser() {
-    let result = parse("1+2");
+    let result = parse("12+3");
     match result.expr {
         ast::Expression::BinOp {left, right} => {
             match *left {
                 ast::Expression::DecimalLiteral {value} => {
-                    assert_eq!(value, 1);
+                    assert_eq!(value, 12);
                 },
                 _ => panic!()
             }
             match *right {
                 ast::Expression::DecimalLiteral {value} => {
-                    assert_eq!(value, 2);
+                    assert_eq!(value, 3);
                 },
                 _ => panic!()
             }
