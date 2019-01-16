@@ -1,0 +1,7 @@
+cargo-features = ["edition"]
+
+[package]
+edition = '2018'
+name = "shiika"
+version = "0.0.1"
+authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]

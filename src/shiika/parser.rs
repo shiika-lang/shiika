@@ -1,4 +1,4 @@
-use shiika::ast;
+use crate::shiika::ast;
 use std::str::Chars;
 use std::iter::Peekable;
 //use std::borrow::Cow;
@@ -26,7 +26,7 @@ impl Parser {
         let mut num_str = String::new();
         loop {
             if let Some(c) = chars.peek() {
-                match c {
+                match *c {
                     '0'...'9' => {
                         let tmp = *c;
                         chars.next();

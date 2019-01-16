@@ -17,7 +17,7 @@
 //mod hlt;
 mod shiika;
 
-use shiika::parser;
+use crate::shiika::parser;
 
 fn main() {
     let str = "1+1";
