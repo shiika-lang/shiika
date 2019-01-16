@@ -1,32 +1,41 @@
 use crate::shiika::ast;
 use std::str::Chars;
 use std::iter::Peekable;
-//use std::borrow::Cow;
 
 pub struct Parser {
     pub src: String
 }
 
+#[derive(Debug)]
+pub struct ParseError {
+    pub msg: String
+}
+
 impl Parser {
-    fn parse(&self) -> ast::Program {
+    fn parse(&self) -> Result<ast::Program, ParseError> {
         let mut chars = self.src.chars().peekable();
-        ast::Program {
-            expr: self.parse_expr(&mut chars)
-        }
+        Ok(ast::Program {
+            expr: self.parse_expr(&mut chars)?
+        })
     }
 
-    fn parse_expr(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
+    fn parse_expr(&self, chars: &mut Peekable<Chars>) -> Result<ast::Expression, ParseError> {
         self.parse_bin_op(chars)
     }
 
-    fn parse_bin_op(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
-        let left = Box::new(self.parse_decimal_literal(chars));
-        chars.next();
-        let right = Box::new(self.parse_decimal_literal(chars));
-        ast::Expression::BinOp{ left: left, right: right }
+    fn parse_bin_op(&self, chars: &mut Peekable<Chars>) -> Result<ast::Expression, ParseError> {
+        let left = Box::new(self.parse_decimal_literal(chars)?);
+
+        let item = chars.next();
+        if item == None || item.unwrap() != '+' {
+            return Err(parseerror("expected +"))
+        }
+
+        let right = Box::new(self.parse_decimal_literal(chars)?);
+        Ok(ast::Expression::BinOp{ left: left, right: right })
     }
 
-    fn parse_decimal_literal(&self, chars: &mut Peekable<Chars>) -> ast::Expression {
+    fn parse_decimal_literal(&self, chars: &mut Peekable<Chars>) -> Result<ast::Expression, ParseError> {
         let mut num_str = String::new();
         loop {
             let item = chars.peek();
@@ -36,13 +45,22 @@ impl Parser {
                 _ => break
             }
         }
-        ast::Expression::DecimalLiteral{
-            value: num_str.parse().unwrap()
+        if num_str.is_empty() {
+            Err(parseerror("expected decimal literal"))
+        }
+        else {
+            Ok(ast::Expression::DecimalLiteral{
+                value: num_str.parse().unwrap()
+            })
         }
     }
 }
 
-pub fn parse(src: &str) -> ast::Program {
+fn parseerror(msg: &str) -> ParseError {
+    ParseError{ msg: msg.to_string() }
+}
+
+pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
     let parser = Parser {
         src: src.to_string(),
     };
@@ -52,7 +70,7 @@ pub fn parse(src: &str) -> ast::Program {
 #[test]
 fn test_parser() {
     let result = parse("12+3");
-    match result.expr {
+    match result.unwrap().expr {
         ast::Expression::BinOp {left, right} => {
             match *left {
                 ast::Expression::DecimalLiteral {value} => {
