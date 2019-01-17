@@ -2,8 +2,7 @@ mod location;
 mod source;
 use super::ast;
 use super::parser::source::Source;
-//use std::str::Chars;
-//use std::iter::Peekable;
+use super::parser::location::Location;
 
 pub struct Parser {
     pub source: Source
@@ -11,7 +10,8 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub struct ParseError {
-    pub msg: String
+    pub msg: String,
+    pub location: Location
 }
 
 impl Parser {
@@ -30,7 +30,7 @@ impl Parser {
 
         let item = self.source.next();
         if item == None || item.unwrap() != '+' {
-            return Err(parseerror("expected +"))
+            return Err(self.parseerror("expected +"))
         }
 
         let right = Box::new(self.parse_decimal_literal()?);
@@ -48,7 +48,7 @@ impl Parser {
             }
         }
         if num_str.is_empty() {
-            Err(parseerror("expected decimal literal"))
+            Err(self.parseerror("expected decimal literal"))
         }
         else {
             Ok(ast::Expression::DecimalLiteral{
@@ -56,10 +56,13 @@ impl Parser {
             })
         }
     }
-}
 
-fn parseerror(msg: &str) -> ParseError {
-    ParseError{ msg: msg.to_string() }
+    fn parseerror(&self, msg: &str) -> ParseError {
+        ParseError{
+            msg: msg.to_string(),
+            location: self.source.location.clone()
+        }
+    }
 }
 
 pub fn parse(src: &str) -> Result<ast::Program, ParseError> {

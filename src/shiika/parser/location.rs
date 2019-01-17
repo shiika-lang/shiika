@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Location {
     pub file: String,
     pub line: usize,
