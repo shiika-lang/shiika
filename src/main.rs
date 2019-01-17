@@ -21,7 +21,7 @@ use crate::shiika::parser;
 
 fn main() {
     let str = "1+1";
-    shiika::parser::parse(str);
+    println!("{:?}", shiika::parser::parse(str));
 
 //    let args: Vec<String> = env::args().collect();
 //    let rng_seed: u64 = if args.len() > 1 {

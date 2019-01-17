@@ -18,6 +18,28 @@ impl Source {
         }
     }
 
+    // Skip whitespace and comments
+    pub fn skip_ws(&mut self) {
+        loop {
+            match self.peek() {
+                Some(' ') => {self.next();},
+                Some('#') => self.skip_comment(),
+                _ => break
+            }
+        }
+    }
+
+    // Skip comments (must be called at the '#')
+    pub fn skip_comment(&mut self) {
+        assert_eq!(Some('#'), self.next());
+        loop {
+            match self.next() {
+                Some('\n') | None => break,
+                _ => ()
+            }
+        }
+    }
+
     pub fn peek(&mut self) -> Option<char> {
         self.src[self.pos..].chars().next()
     }
@@ -48,4 +70,29 @@ fn test_source() {
     assert_eq!(source.location.col, 1);
     assert_eq!(source.next(), Some('+'));
     assert_eq!(source.location.col, 2);
+}
+
+#[test]
+fn test_newline() {
+    let mut source = Source::dummy("1\n2");
+    source.next();
+    source.next();
+    assert_eq!(source.peek(), Some('2'));
+    assert_eq!(source.location.line, 1);
+    assert_eq!(source.location.col, 0);
+}
+
+#[test]
+fn test_skip_ws() {
+    let mut source = Source::dummy("a  b");
+    source.next();
+    source.skip_ws();
+    assert_eq!(source.peek(), Some('b'));
+}
+
+#[test]
+fn test_skip_comment() {
+    let mut source = Source::dummy("#a  \nb");
+    source.skip_comment();
+    assert_eq!(source.peek(), Some('b'));
 }

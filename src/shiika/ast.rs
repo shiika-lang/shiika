@@ -1,7 +1,9 @@
+#[derive(Debug)]
 pub struct Program {
     pub expr: Expression
 }
 
+#[derive(Debug)]
 pub enum Expression {
     BinOp {
         left: Box<Expression>,

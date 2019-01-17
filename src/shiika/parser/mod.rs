@@ -27,11 +27,13 @@ impl Parser {
 
     fn parse_bin_op(&mut self) -> Result<ast::Expression, ParseError> {
         let left = Box::new(self.parse_decimal_literal()?);
+        self.source.skip_ws();
 
         let item = self.source.next();
         if item == None || item.unwrap() != '+' {
             return Err(self.parseerror("expected +"))
         }
+        self.source.skip_ws();
 
         let right = Box::new(self.parse_decimal_literal()?);
         Ok(ast::Expression::BinOp{ left: left, right: right })
