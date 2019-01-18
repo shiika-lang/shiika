@@ -40,6 +40,16 @@ impl Source {
         }
     }
 
+    pub fn peek_char(&mut self) -> Result<char, super::ParseError> {
+        match self.peek() {
+            Some(c) => Ok(c),
+            None => Err(super::ParseError {
+                msg: "unexpected EOF".to_string(),
+                location: self.location.clone()
+            })
+        }
+    }
+
     pub fn peek(&mut self) -> Option<char> {
         self.src[self.pos..].chars().next()
     }

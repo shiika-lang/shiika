@@ -22,17 +22,21 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        self.parse_bin_op()
+        match self.source.peek_char()? { 
+            '0'...'9' => self.parse_bin_op(),
+            _ => Err(self.parseerror("TODO"))
+        }
     }
 
     fn parse_bin_op(&mut self) -> Result<ast::Expression, ParseError> {
         let left = Box::new(self.parse_decimal_literal()?);
         self.source.skip_ws();
 
-        let item = self.source.next();
-        if item == None || item.unwrap() != '+' {
+        let c = self.source.peek_char()?;
+        if c != '+' {
             return Err(self.parseerror("expected +"))
         }
+        self.source.next();
         self.source.skip_ws();
 
         let right = Box::new(self.parse_decimal_literal()?);
