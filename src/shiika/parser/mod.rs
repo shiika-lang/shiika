@@ -1,5 +1,8 @@
 mod location;
 mod source;
+
+extern crate backtrace;
+use backtrace::Backtrace;
 use super::ast;
 use super::parser::source::Source;
 use super::parser::location::Location;
@@ -11,7 +14,8 @@ pub struct Parser {
 #[derive(Debug)]
 pub struct ParseError {
     pub msg: String,
-    pub location: Location
+    pub location: Location,
+    pub backtrace: Backtrace
 }
 
 impl Parser {
@@ -23,9 +27,19 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
         match self.source.peek_char()? { 
+            '(' => self.parse_parenthesized_expr(),
             '0'...'9' => self.parse_bin_op(),
             _ => Err(self.parseerror("TODO"))
         }
+    }
+
+    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        assert_eq!('(', self.source.next_char()?);
+        let expr = self.parse_expr()?;
+        if self.source.next_char()? != ')' {
+            return Err(self.parseerror("missing `)'"))
+        }
+        Ok(expr)
     }
 
     fn parse_bin_op(&mut self) -> Result<ast::Expression, ParseError> {
@@ -66,7 +80,8 @@ impl Parser {
     fn parseerror(&self, msg: &str) -> ParseError {
         ParseError{
             msg: msg.to_string(),
-            location: self.source.location.clone()
+            location: self.source.location.clone(),
+            backtrace: Backtrace::new()
         }
     }
 }
@@ -80,7 +95,7 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
 
 #[test]
 fn test_parser() {
-    let result = parse("12+3");
+    let result = parse("(12)+3");
     match result.unwrap().expr {
         ast::Expression::BinOp {left, right} => {
             match *left {

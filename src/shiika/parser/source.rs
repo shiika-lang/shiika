@@ -1,3 +1,4 @@
+use backtrace::Backtrace;
 use super::location::Location;
 
 // Represents a source file and a cursor in it
@@ -45,7 +46,19 @@ impl Source {
             Some(c) => Ok(c),
             None => Err(super::ParseError {
                 msg: "unexpected EOF".to_string(),
-                location: self.location.clone()
+                location: self.location.clone(),
+                backtrace: Backtrace::new()
+            })
+        }
+    }
+
+    pub fn next_char(&mut self) -> Result<char, super::ParseError> {
+        match self.next() {
+            Some(c) => Ok(c),
+            None => Err(super::ParseError {
+                msg: "unexpected EOF".to_string(),
+                location: self.location.clone(),
+                backtrace: Backtrace::new()
             })
         }
     }
