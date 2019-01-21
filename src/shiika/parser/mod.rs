@@ -26,35 +26,57 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        match self.source.peek_char()? { 
-            '(' => self.parse_parenthesized_expr(),
-            '0'...'9' => self.parse_bin_op(),
-            _ => Err(self.parseerror("TODO"))
+        self.parse_additive_expr()
+    }
+
+    fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        let left = self.parse_multiplicative_expr()?;
+        self.source.skip_ws();
+
+        let c = self.source.peek();
+        match c {
+            Some('+') | Some('-') => {
+                let op = if c == Some('+') { ast::BinOp::Add }
+                         else { ast::BinOp::Sub };
+                self.source.next();
+                self.source.skip_ws();
+                let right = self.parse_expr()?;
+                Ok(ast::Expression::bin_op_expr(left, op, right))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        let left = self.parse_parenthesized_expr()?;
+        self.source.skip_ws();
+
+        let c = self.source.peek();
+        match c {
+            Some('*') | Some('/') | Some('%') => {
+                let op = if c == Some('*') { ast::BinOp::Mul }
+                         else if c == Some('/') { ast::BinOp::Div }
+                         else { ast::BinOp::Mod };
+                self.source.next();
+                self.source.skip_ws();
+                let right = self.parse_multiplicative_expr()?;
+                Ok(ast::Expression::bin_op_expr(left, op, right))
+            },
+            _ => Ok(left)
         }
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        assert_eq!('(', self.source.next_char()?);
+        if self.source.peek_char()? != '(' {
+            return self.parse_decimal_literal();
+        }
+        self.source.next();
+        self.source.skip_ws();
         let expr = self.parse_expr()?;
         if self.source.next_char()? != ')' {
             return Err(self.parseerror("missing `)'"))
         }
         Ok(expr)
-    }
-
-    fn parse_bin_op(&mut self) -> Result<ast::Expression, ParseError> {
-        let left = Box::new(self.parse_decimal_literal()?);
-        self.source.skip_ws();
-
-        let c = self.source.peek_char()?;
-        if c != '+' {
-            return Err(self.parseerror("expected +"))
-        }
-        self.source.next();
-        self.source.skip_ws();
-
-        let right = Box::new(self.parse_decimal_literal()?);
-        Ok(ast::Expression::BinOp{ left: left, right: right })
     }
 
     fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
@@ -95,9 +117,11 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
 
 #[test]
 fn test_parser() {
-    let result = parse("(12)+3");
+    let result = parse("1+2*3");
+    println!("{:#?}", result);
     match result.unwrap().expr {
-        ast::Expression::BinOp {left, right} => {
+        ast::Expression::BinOp {left, op, right} => {
+            assert_eq!(op, ast::BinOp::Add);
             match *left {
                 ast::Expression::DecimalLiteral {value} => {
                     assert_eq!(value, 12);
@@ -111,6 +135,8 @@ fn test_parser() {
                 _ => panic!()
             }
         },
-        _ => panic!()
+        x @ _ => {
+            panic!("{:?}", x)
+        }
     }
 }
