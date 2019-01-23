@@ -1,9 +1,9 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Program {
     pub expr: Expression
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     BinOp {
         left: Box<Expression>,
@@ -31,7 +31,3 @@ pub enum BinOp {
     Div,
     Mod,
 }
-
-//pub struct DecimalLiteral {
-//    pub value: i32
-//}

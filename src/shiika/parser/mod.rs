@@ -119,24 +119,17 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
 fn test_parser() {
     let result = parse("1+2*3");
     println!("{:#?}", result);
-    match result.unwrap().expr {
-        ast::Expression::BinOp {left, op, right} => {
-            assert_eq!(op, ast::BinOp::Add);
-            match *left {
-                ast::Expression::DecimalLiteral {value} => {
-                    assert_eq!(value, 12);
-                },
-                _ => panic!()
-            }
-            match *right {
-                ast::Expression::DecimalLiteral {value} => {
-                    assert_eq!(value, 3);
-                },
-                _ => panic!()
-            }
-        },
-        x @ _ => {
-            panic!("{:?}", x)
+    assert_eq!(result.unwrap(), 
+      ast::Program {
+        expr: ast::Expression::BinOp {
+                left: Box::new(ast::Expression::DecimalLiteral {value: 1}),
+                op: ast::BinOp::Add,
+                right: Box::new(ast::Expression::BinOp {
+                    left: Box::new(ast::Expression::DecimalLiteral {value: 2}),
+                    op: ast::BinOp::Mul,
+                    right: Box::new(ast::Expression::DecimalLiteral {value: 3}),
+                })
         }
-    }
+      }
+    )
 }
