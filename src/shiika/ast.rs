@@ -5,6 +5,11 @@ pub struct Program {
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
+    If {
+        cond_expr: Box<Expression>,
+        then_expr: Box<Expression>,
+        else_expr: Option<Box<Expression>>
+    },
     BinOp {
         left: Box<Expression>,
         op: BinOp,

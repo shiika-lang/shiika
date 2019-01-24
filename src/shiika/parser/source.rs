@@ -19,11 +19,44 @@ impl Source {
         }
     }
 
-    // Skip whitespace and comments
+    pub fn require_ascii(&mut self, word: &str) -> Result<(), super::ParseError> {
+        if self.starts_with(word) {
+            self.read_ascii(word);
+            Ok(())
+        }
+        else {
+            Err(self.parseerror("expected #{word}"))
+        }
+    }
+
+    // Skip a separator (`;' or newline). Return error if none
+    pub fn require_sep(&mut self) -> Result<(), super::ParseError> {
+        loop {
+            match self.next() {
+                Some(';') | Some('\n') => break,
+                Some(' ') => (),
+                Some('#') => {self.skip_comment(); break},
+                _ => return Err(self.parseerror("missing separator")),
+            }
+        }
+        Ok(())
+    }
+
+    // Skip whitespace and tab
     pub fn skip_ws(&mut self) {
         loop {
             match self.peek() {
-                Some(' ') => {self.next();},
+                Some(' ') | Some('\t') => self.next(),
+                _ => break
+            };
+        }
+    }
+
+    // Skip whitespace, tab, newline and comments
+    pub fn skip_wsn(&mut self) {
+        loop {
+            match self.peek() {
+                Some(' ') | Some('\t') | Some('\n') => {self.next();},
                 Some('#') => self.skip_comment(),
                 _ => break
             }
@@ -41,25 +74,32 @@ impl Source {
         }
     }
 
+    pub fn skip_n(&mut self, n_chars: usize) {
+        for _ in 1..n_chars {
+            self.next().unwrap();
+        }
+    }
+
+    pub fn starts_with(&self, s: &str) -> bool {
+        self.src[self.pos..].starts_with(s)
+    }
+
+    pub fn read_ascii(&mut self, s: &str) {
+        assert!(self.starts_with(s));
+        self.skip_n(s.len())
+    }
+
     pub fn peek_char(&mut self) -> Result<char, super::ParseError> {
         match self.peek() {
             Some(c) => Ok(c),
-            None => Err(super::ParseError {
-                msg: "unexpected EOF".to_string(),
-                location: self.location.clone(),
-                backtrace: Backtrace::new()
-            })
+            None => Err(self.parseerror("unexpected EOF"))
         }
     }
 
     pub fn next_char(&mut self) -> Result<char, super::ParseError> {
         match self.next() {
             Some(c) => Ok(c),
-            None => Err(super::ParseError {
-                msg: "unexpected EOF".to_string(),
-                location: self.location.clone(),
-                backtrace: Backtrace::new()
-            })
+            None => Err(self.parseerror("unexpected EOF"))
         }
     }
 
@@ -80,6 +120,14 @@ impl Source {
             }
         }
         ret
+    }
+
+    fn parseerror(&self, msg: &str) -> super::ParseError {
+        super::ParseError{
+            msg: msg.to_string(),
+            location: self.location.clone(),
+            backtrace: Backtrace::new()
+        }
     }
 }
 

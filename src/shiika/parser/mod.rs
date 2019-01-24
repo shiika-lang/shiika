@@ -29,6 +29,31 @@ impl Parser {
         self.parse_additive_expr()
     }
 
+    fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        if !self.source.starts_with("if") {
+            return self.parse_additive_expr()
+        }
+
+        self.source.read_ascii("if");
+        self.source.skip_ws();
+        let cond_expr = Box::new(self.parse_expr()?);
+        self.source.require_sep()?;
+        self.source.skip_wsn();
+        let then_expr = Box::new(self.parse_expr()?);
+        self.source.skip_wsn();
+        if self.source.starts_with("else") {
+            self.source.read_ascii("else");
+            self.source.skip_wsn();
+            let else_expr = Some(Box::new(self.parse_expr()?));
+            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
+        }
+        else {
+            self.source.require_ascii("end")?;
+            let else_expr = None;
+            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
+        }
+    }
+
     fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
         let left = self.parse_multiplicative_expr()?;
         self.source.skip_ws();
@@ -39,7 +64,7 @@ impl Parser {
                 let op = if c == Some('+') { ast::BinOp::Add }
                          else { ast::BinOp::Sub };
                 self.source.next();
-                self.source.skip_ws();
+                self.source.skip_wsn();
                 let right = self.parse_expr()?;
                 Ok(ast::Expression::bin_op_expr(left, op, right))
             },
@@ -58,7 +83,7 @@ impl Parser {
                          else if c == Some('/') { ast::BinOp::Div }
                          else { ast::BinOp::Mod };
                 self.source.next();
-                self.source.skip_ws();
+                self.source.skip_wsn();
                 let right = self.parse_multiplicative_expr()?;
                 Ok(ast::Expression::bin_op_expr(left, op, right))
             },
@@ -71,11 +96,10 @@ impl Parser {
             return self.parse_decimal_literal();
         }
         self.source.next();
-        self.source.skip_ws();
+        self.source.skip_wsn();
         let expr = self.parse_expr()?;
-        if self.source.next_char()? != ')' {
-            return Err(self.parseerror("missing `)'"))
-        }
+        self.source.skip_wsn();
+        self.source.require_ascii(")")?;
         Ok(expr)
     }
 
