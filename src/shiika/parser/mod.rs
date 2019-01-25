@@ -1,5 +1,6 @@
 mod location;
 mod source;
+mod source_test;
 
 extern crate backtrace;
 use backtrace::Backtrace;
@@ -26,7 +27,7 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        self.parse_additive_expr()
+        self.parse_if_expr()
     }
 
     fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
@@ -141,7 +142,12 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
 
 #[test]
 fn test_parser() {
-    let result = parse("1+2*3");
+    //let result = parse("1+2*3");
+    let result = parse("if 1
+                          2
+                        else
+                          3
+                        end");
     println!("{:#?}", result);
     assert_eq!(result.unwrap(), 
       ast::Program {

@@ -74,12 +74,6 @@ impl Source {
         }
     }
 
-    pub fn skip_n(&mut self, n_chars: usize) {
-        for _ in 1..n_chars {
-            self.next().unwrap();
-        }
-    }
-
     pub fn starts_with(&self, s: &str) -> bool {
         self.src[self.pos..].starts_with(s)
     }
@@ -87,6 +81,12 @@ impl Source {
     pub fn read_ascii(&mut self, s: &str) {
         assert!(self.starts_with(s));
         self.skip_n(s.len())
+    }
+
+    fn skip_n(&mut self, n_chars: usize) {
+        for _ in 0..n_chars {
+            self.next().unwrap();
+        }
     }
 
     pub fn peek_char(&mut self) -> Result<char, super::ParseError> {
@@ -129,41 +129,4 @@ impl Source {
             backtrace: Backtrace::new()
         }
     }
-}
-
-#[test]
-fn test_source() {
-    let mut source = Source::dummy("1+2");
-    assert_eq!(source.peek(), Some('1'));
-    assert_eq!(source.peek(), Some('1'));
-    assert_eq!(source.location.col, 0);
-    assert_eq!(source.next(), Some('1'));
-    assert_eq!(source.location.col, 1);
-    assert_eq!(source.next(), Some('+'));
-    assert_eq!(source.location.col, 2);
-}
-
-#[test]
-fn test_newline() {
-    let mut source = Source::dummy("1\n2");
-    source.next();
-    source.next();
-    assert_eq!(source.peek(), Some('2'));
-    assert_eq!(source.location.line, 1);
-    assert_eq!(source.location.col, 0);
-}
-
-#[test]
-fn test_skip_ws() {
-    let mut source = Source::dummy("a  b");
-    source.next();
-    source.skip_ws();
-    assert_eq!(source.peek(), Some('b'));
-}
-
-#[test]
-fn test_skip_comment() {
-    let mut source = Source::dummy("#a  \nb");
-    source.skip_comment();
-    assert_eq!(source.peek(), Some('b'));
 }
