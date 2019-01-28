@@ -1,4 +1,5 @@
 mod location;
+mod token;
 mod source;
 mod source_test;
 
@@ -8,18 +9,18 @@ use super::ast;
 use super::parser::source::Source;
 use super::parser::location::Location;
 
-pub struct Parser {
-    pub source: Source
+pub struct Parser<'a> {
+    pub source: Source<'a>
 }
 
 #[derive(Debug)]
 pub struct ParseError {
     pub msg: String,
-    pub location: Location,
+    pub loc: Location,
     pub backtrace: Backtrace
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     fn parse(&mut self) -> Result<ast::Program, ParseError> {
         Ok(ast::Program {
             expr: self.parse_expr()?
@@ -27,7 +28,14 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        self.parse_if_expr()
+        if self.source.starts_with("if ") ||
+           self.source.starts_with("if\t") ||
+           self.source.starts_with("if\n") {
+            self.parse_if_expr()
+        }
+        else {
+            return self.parse_additive_expr()
+        }
     }
 
     fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
@@ -52,6 +60,34 @@ impl Parser {
             self.source.require_ascii("end")?;
             let else_expr = None;
             Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
+        }
+    }
+
+    fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
+        let receiver_expr = self.parse_additive_expr()?;
+        if self.source.peek() == Some('.') {
+            self.source.next();
+            let method_name = self.source.require_ident()?;
+            self.source.require_ascii("(")?;
+            self.source.skip_wsn();
+            let arg_expr = 
+                if self.source.peek() == Some(')') {
+                    None
+                }
+                else {
+                    let tmp = self.parse_expr()?;
+                    self.source.skip_wsn();
+                    self.source.require_ascii(")")?;
+                    Some(Box::new(tmp))
+                };
+            Ok(ast::Expression::MethodCall {
+                receiver_expr: Box::new(receiver_expr),
+                method_name: method_name,
+                arg_expr: arg_expr,
+            })
+        }
+        else {
+            Ok(receiver_expr)
         }
     }
 
@@ -127,7 +163,7 @@ impl Parser {
     fn parseerror(&self, msg: &str) -> ParseError {
         ParseError{
             msg: msg.to_string(),
-            location: self.source.location.clone(),
+            loc: self.source.loc.clone(),
             backtrace: Backtrace::new()
         }
     }
@@ -143,11 +179,7 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
 #[test]
 fn test_parser() {
     //let result = parse("1+2*3");
-    let result = parse("if 1
-                          2
-                        else
-                          3
-                        end");
+    let result = parse("hello.world(1)");
     println!("{:#?}", result);
     assert_eq!(result.unwrap(), 
       ast::Program {

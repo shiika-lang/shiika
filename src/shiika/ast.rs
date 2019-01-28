@@ -10,6 +10,11 @@ pub enum Expression {
         then_expr: Box<Expression>,
         else_expr: Option<Box<Expression>>
     },
+    MethodCall {
+        receiver_expr: Box<Expression>,
+        method_name: String,
+        arg_expr: Option<Box<Expression>>
+    },
     BinOp {
         left: Box<Expression>,
         op: BinOp,
