@@ -1,22 +1,6 @@
-//#[macro_use]
-//extern crate lazy_static;
-//extern crate rand;
-
-//use hlt::command::Command;
-//use hlt::direction::Direction;
-//use hlt::game::Game;
-//use hlt::log::Log;
-//use hlt::navi::Navi;
-//use rand::Rng;
-//use rand::SeedableRng;
-//use rand::XorShiftRng;
-//use std::env;
-//use std::time::SystemTime;
-//use std::time::UNIX_EPOCH;
-
-//mod hlt;
+#![feature(range_contains)]
+#![feature(nll)]
 mod shiika;
-
 use crate::shiika::parser;
 
 fn main() {

@@ -1,31 +1,24 @@
 //use std::collections::HashSet;
+use std::mem;
 use backtrace::Backtrace;
 use super::location::Location;
-use super::token::Token;
 
 // Represents a source file and a cursor in it
-pub struct Source<'a> {
+pub struct Source<'s> {
     pub filepath: String,
-    pub src: String,
+    pub src: &'s str,
     pub loc: Location,
     pos: usize,
-    current_token: Option<Token<'a>>,
     next_loc: Option<Location>,
 }
 
-const SYMBOLS: [char;13] = [
-    '+', '-', '*', '/', '%',
-    '(', ')', '[', ']', '<', '>', '{', '}', 
-];
-
-impl<'a> Source<'a> {
-    pub fn dummy(src: &str) -> Source {
+impl<'s> Source<'s> {
+    pub fn new(src: &str) -> Source {
         Source {
             filepath: "(dummy)".to_string(),
-            src: src.to_string(),
+            src: src,
             loc: Location::new(),
             pos: 0,
-            current_token: None,
             next_loc: None,
         }
     }
@@ -125,35 +118,34 @@ impl<'a> Source<'a> {
 
     // Returns a token from current position. Does not consume input
     // Returns None if EOF
-    pub fn peek_token(&mut self) -> Option<Token> {
-       let ret;
-       match self.peek() {
-           None => None,
-           Some(c) => {
-               let mut loc = self.loc.clone();
-               ret = if SYMBOLS.contains(&c) {
-                         self.proceed(&mut loc);
-                         Token::Symbol(c)
-                     }
-                     else {
-                         match c {
-                             '0'...'9' => self.read_number(&mut loc),
-                             _ => Token::Symbol('_') // self.read_word(&mut loc),
-                         }
-                     };
-               self.current_token = Some(ret);
-               self.next_loc = Some(loc);
-               self.current_token
-           }
+    pub fn peek_token(&mut self) {
+       if self.current_token != None { return }
+       if self.eof() { return }
+       let c = self.peek().unwrap();
+
+       let mut next_loc = self.loc.clone();
+       if SYMBOLS.contains(&c) {
+           self.proceed(&mut next_loc);
+           self.next_loc = Some(next_loc);
+           self.current_token = Some(Token::Symbol(c));
        }
+       else {
+           match c {
+               '0'...'9' => {
+                   let (tok, newloc) = self.read_number(&mut next_loc);
+                   self.current_token = Some(tok);
+                   self.next_loc = Some(*newloc);
+               }
+               _ => {
+                   // TODO
+                   self.current_token = Some(Token::Symbol('_')); // self.read_word(&mut next_loc),
+                   self.next_loc = Some(next_loc);
+               }
+           }
+       };
     }
 
-//    fn read_word(&mut self, _loc: &mut Location) -> Token {
-//        Token::Word("asdf")
-//    }
-
-    // Read a number at the given location
-    fn read_number(&mut self, mut loc: &mut Location) -> Token {
+    fn read_word(&mut self, mut loc: &mut Location) -> Token {
         let mut end = loc.pos;
         loop {
             let item = self.peek_at(loc.pos);
@@ -164,6 +156,20 @@ impl<'a> Source<'a> {
             end += c.len_utf8();
         }
         Token::Number(&self.src[loc.pos..end])
+    }
+
+    // Read a number at the given location
+    fn read_number(&mut self, mut loc: &mut Location) -> (Token, &Location) {
+        let mut end = loc.pos;
+        loop {
+            let item = self.peek_at(loc.pos);
+            if item == None || !('0'..='9').contains(&item.unwrap()) {
+                break
+            }
+            let c = self.proceed(&mut loc);
+            end += c.len_utf8();
+        }
+        (Token::Number(&self.src[loc.pos..end]), loc)
     }
 
     fn proceed(&self, loc: &mut Location) -> char {
@@ -186,12 +192,20 @@ impl<'a> Source<'a> {
     // Consume a token
     pub fn next_token(&mut self) -> Result<Token, super::ParseError> {
         if self.current_token == None {
-            if self.peek_token() == None {
+            self.peek_token();
+            if self.current_token == None {
                 return Err(self.parseerror("unexpected EOF"))
             }
         }
-        self.loc = self.next_loc.unwrap();
-        Ok(self.current_token.unwrap())
+
+        // Set next_loc to self.loc (using swap for coaxing the borrow-checker)
+        let mut tmp = None;
+        std::mem::swap(&mut tmp, &mut self.next_loc);
+        self.loc = tmp.unwrap();
+
+        let mut tmp = None;
+        std::mem::swap(&mut tmp, &mut self.current_token);
+        Ok(tmp.unwrap())
     }
 
     pub fn peek_char(&mut self) -> Result<char, super::ParseError> {
@@ -206,6 +220,10 @@ impl<'a> Source<'a> {
             Some(c) => Ok(c),
             None => Err(self.parseerror("unexpected EOF"))
         }
+    }
+
+    fn eof(&mut self) -> bool {
+        self.peek_at(self.pos) == None
     }
 
     pub fn peek(&mut self) -> Option<char> {
