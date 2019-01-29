@@ -25,12 +25,11 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        self.lexer.peek_token();
-        match self.lexer.current_token {
-            Some(Token::Eof) => Err(self.parseerror("unexpected EOF")),
-            _ => Err(self.parseerror("unexpected EOF")),
+        match self.lexer.current_token() {
+            Token::Eof => Err(self.parseerror("unexpected EOF")),
             //Token::Word("if") => self.parse_if_expr(),
-            //_ => self.parse_additive_expr(),
+            //Some(Token::Number(s)) => self.parse_decimal_literal(s),
+            _ => self.parse_additive_expr(),
         }
     }
 
@@ -84,75 +83,94 @@ impl<'a, 'b> Parser<'a, 'b> {
 //            Ok(receiver_expr)
 //        }
 //    }
-//
-//    fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
-//        let left = self.parse_multiplicative_expr()?;
-//        self.source.skip_ws();
-//
-//        let c = self.source.peek();
-//        match c {
-//            Some('+') | Some('-') => {
-//                let op = if c == Some('+') { ast::BinOp::Add }
-//                         else { ast::BinOp::Sub };
-//                self.source.next();
-//                self.source.skip_wsn();
-//                let right = self.parse_expr()?;
-//                Ok(ast::Expression::bin_op_expr(left, op, right))
-//            },
-//            _ => Ok(left)
-//        }
-//    }
-//
-//    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, ParseError> {
-//        let left = self.parse_parenthesized_expr()?;
-//        self.source.skip_ws();
-//
-//        let c = self.source.peek();
-//        match c {
-//            Some('*') | Some('/') | Some('%') => {
-//                let op = if c == Some('*') { ast::BinOp::Mul }
-//                         else if c == Some('/') { ast::BinOp::Div }
-//                         else { ast::BinOp::Mod };
-//                self.source.next();
-//                self.source.skip_wsn();
-//                let right = self.parse_multiplicative_expr()?;
-//                Ok(ast::Expression::bin_op_expr(left, op, right))
-//            },
-//            _ => Ok(left)
-//        }
-//    }
-//
-//    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
-//        if self.source.peek_char()? != '(' {
-//            return self.parse_decimal_literal();
-//        }
-//        self.source.next();
-//        self.source.skip_wsn();
-//        let expr = self.parse_expr()?;
-//        self.source.skip_wsn();
-//        self.source.require_ascii(")")?;
-//        Ok(expr)
-//    }
-//
-//    fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
-//        let mut num_str = String::new();
-//        loop {
-//            let item = self.source.peek();
-//            if item == None { break }
-//            match item.unwrap() {
-//                '0'...'9' => num_str.push(self.source.next().unwrap()),
-//                _ => break
-//            }
-//        }
-//        if num_str.is_empty() {
-//            Err(self.parseerror("expected decimal literal"))
-//        }
-//        else {
-//            Ok(ast::Expression::DecimalLiteral{
-//                value: num_str.parse().unwrap()
-//            })
-//        }
-//    }
+
+    fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        let left = self.parse_decimal_literal()?;  // self.parse_multiplicative_expr()?;
+        self.skip_ws();
+
+        match self.lexer.current_token() {
+            Token::Symbol(c @ '+') | Token::Symbol(c @ '-') => {
+                let op = if *c == '+' { ast::BinOp::Add }
+                         else { ast::BinOp::Sub };
+                self.lexer.consume();
+                self.skip_wsn();
+                let right = self.parse_expr()?;
+                Ok(ast::Expression::bin_op_expr(left, op, right))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        let left = self.parse_parenthesized_expr()?;
+        self.skip_ws();
+
+        match self.lexer.current_token() {
+            Token::Symbol(c @ '*') | Token::Symbol(c @ '/') | Token::Symbol(c @ '%') => {
+                let op = if *c == '*' { ast::BinOp::Mul }
+                         else if *c == '/' { ast::BinOp::Div }
+                         else { ast::BinOp::Mod };
+                self.lexer.consume();
+                self.skip_wsn();
+                let right = self.parse_multiplicative_expr()?;
+                Ok(ast::Expression::bin_op_expr(left, op, right))
+            },
+            _ => Ok(left)
+        }
+    }
+
+    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        if *self.lexer.current_token() != Token::Symbol('(') {
+            return self.parse_decimal_literal();
+        }
+        self.lexer.consume();
+        self.skip_wsn();
+        let expr = self.parse_expr()?;
+        self.skip_wsn();
+        self.expect(Token::Symbol(')'))?;
+        Ok(expr)
+    }
+
+    fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
+        match self.lexer.current_token() {
+            Token::Number(s) => {
+                let value = s.parse().unwrap();
+                self.lexer.consume();
+                Ok(ast::Expression::DecimalLiteral{ value })
+            },
+            _ => {
+                Err(self.parseerror("expected decimal literal"))
+            }
+        }
+    }
+
+    fn expect(&mut self, token: Token) -> Result<(), ParseError> {
+        if *self.lexer.current_token() == token {
+            Ok(())
+        }
+        else {
+            let msg = format!("expected {:?} but got {:?}", token, self.lexer.current_token());
+            Err(self.parseerror(&msg))
+        }
+    }
+
+    fn skip_wsn(&mut self) {
+        loop {
+            match self.lexer.current_token() {
+                Token::Space | Token::Separator => self.lexer.consume(),
+                _ => return
+            };
+        }
+    }
+
+    fn skip_ws(&mut self) {
+        loop {
+            match self.lexer.current_token() {
+                Token::Space => self.lexer.consume(),
+                _ => return
+            };
+        }
+    }
 
     fn parseerror(&self, msg: &str) -> ParseError {
         ParseError{

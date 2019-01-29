@@ -1,12 +1,14 @@
 pub struct Lexer<'a: 'b, 'b: 'a> {
     pub src: &'a str,
     pub cur: Cursor,
-    pub current_token: Option<Token<'b>>,
+    current_token: Option<Token<'b>>,
     next_cur: Option<Cursor>,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
+    Space,
+    Separator,
     Word(&'a str),
     Symbol(char),
     Number(&'a str),
@@ -66,10 +68,18 @@ impl<'a, 'b> Lexer<'a, 'b> {
         }
     }
 
-    pub fn peek_token(&mut self) {
+    // Must be called after peek_token
+    pub fn current_token(&mut self) -> &Token {
         if self.current_token == None {
             self.read_token();
         }
+        self.current_token.as_ref().unwrap()
+    }
+
+    pub fn consume(&mut self) -> Token {
+        assert!(self.current_token.is_some());
+        self.cur = self.next_cur.take().unwrap();
+        self.current_token.take().unwrap()
     }
 
     fn read_token(&mut self) {
