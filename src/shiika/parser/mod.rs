@@ -89,8 +89,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.skip_ws();
 
         match self.lexer.current_token() {
-            Token::Symbol(c @ '+') | Token::Symbol(c @ '-') => {
-                let op = if *c == '+' { ast::BinOp::Add }
+            Token::Symbol(s @ "+") | Token::Symbol(s @ "-") => {
+                let op = if *s == "+" { ast::BinOp::Add }
                          else { ast::BinOp::Sub };
                 self.lexer.consume();
                 self.skip_wsn();
@@ -106,9 +106,9 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.skip_ws();
 
         match self.lexer.current_token() {
-            Token::Symbol(c @ '*') | Token::Symbol(c @ '/') | Token::Symbol(c @ '%') => {
-                let op = if *c == '*' { ast::BinOp::Mul }
-                         else if *c == '/' { ast::BinOp::Div }
+            Token::Symbol(s @ "*") | Token::Symbol(s @ "/") | Token::Symbol(s @ "%") => {
+                let op = if *s == "*" { ast::BinOp::Mul }
+                         else if *s == "/" { ast::BinOp::Div }
                          else { ast::BinOp::Mod };
                 self.lexer.consume();
                 self.skip_wsn();
@@ -120,14 +120,14 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        if *self.lexer.current_token() != Token::Symbol('(') {
+        if *self.lexer.current_token() != Token::Symbol("(") {
             return self.parse_decimal_literal();
         }
         self.lexer.consume();
         self.skip_wsn();
         let expr = self.parse_expr()?;
         self.skip_wsn();
-        self.expect(Token::Symbol(')'))?;
+        self.expect(Token::Symbol(")"))?;
         Ok(expr)
     }
 

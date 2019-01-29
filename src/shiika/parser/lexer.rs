@@ -10,7 +10,7 @@ pub enum Token<'a> {
     Space,
     Separator,
     Word(&'a str),
-    Symbol(char),
+    Symbol(&'a str),
     Number(&'a str),
     Eof,
 }
@@ -84,28 +84,84 @@ impl<'a, 'b> Lexer<'a, 'b> {
 
     fn read_token(&mut self) {
         let cc = self.cur.peek(self.src);
+        let mut next_cur = self.cur.clone();
         match self.char_type(cc) {
-//            CharType::Space => read_space
-//            CharType::Newline =>
-//            CharType::Word =>
-//            CharType::Symbol =>
-            CharType::Number => self.read_number(),
-            CharType::Eof => {Token::Eof;},
-            _ => {Token::Eof;},
+            CharType::Space     => self.read_space(&mut next_cur),
+            CharType::Separator => self.read_separator(&mut next_cur),
+            CharType::Word      => self.read_word(&mut next_cur),
+            CharType::Symbol    => self.read_symbol(&mut next_cur),
+            CharType::Number    => self.read_number(&mut next_cur),
+            CharType::Eof       => self.read_eof(),
+            //_ => {Token::Eof;},
+            _ => self.read_number(&mut next_cur),
         }
+        self.next_cur = Some(next_cur)
     }
 
-    fn read_number(&mut self) {
-        let mut next_cur = self.cur.clone();
+    fn read_space(&mut self, next_cur: &mut Cursor) {
         loop {
-            let item = next_cur.peek(self.src);
-            if item == None || !('0'..='9').contains(&item.unwrap()) {
-                break
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::Space => next_cur.proceed(self.src),
+                _ => break
+            };
+        }
+        self.current_token = Some(Token::Space);
+    }
+
+    fn read_separator(&mut self, next_cur: &mut Cursor) {
+        loop {
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::Space | CharType::Separator => {
+                    next_cur.proceed(self.src);
+                },
+                _ => break
+            };
+        }
+        self.current_token = Some(Token::Separator);
+    }
+
+    fn read_word(&mut self, next_cur: &mut Cursor) {
+        loop {
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::Word | CharType::Number => {
+                    next_cur.proceed(self.src);
+                },
+                _ => break
             }
-            next_cur.proceed(self.src);
+        }
+        self.current_token = Some(Token::Word(&self.src[self.cur.pos..next_cur.pos]));
+    }
+
+    fn read_symbol(&mut self, next_cur: &mut Cursor) {
+        loop {
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::Symbol => {
+                    next_cur.proceed(self.src);
+                },
+                _ => break
+            }
+        }
+        self.current_token = Some(Token::Symbol(&self.src[self.cur.pos..next_cur.pos]));
+    }
+
+    fn read_number(&mut self, next_cur: &mut Cursor) {
+        loop {
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::Number => {
+                    next_cur.proceed(self.src);
+                },
+                CharType::Word => {
+                    // TODO: this should be lexing error
+                    break
+                },
+                _ => break
+            }
         }
         self.current_token = Some(Token::Number(&self.src[self.cur.pos..next_cur.pos]));
-        self.next_cur = Some(next_cur);
+    }
+
+    fn read_eof(&mut self) {
+        self.current_token = Some(Token::Eof)
     }
 
     fn char_type(&self, cc: Option<char>) -> CharType {
