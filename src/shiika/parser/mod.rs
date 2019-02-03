@@ -1,4 +1,5 @@
 mod lexer;
+mod parser_test;
 
 extern crate backtrace;
 use backtrace::Backtrace;
@@ -19,6 +20,7 @@ pub struct ParseError {
 
 impl<'a, 'b> Parser<'a, 'b> {
     fn parse(&mut self) -> Result<ast::Program, ParseError> {
+        self.skip_wsn();
         Ok(ast::Program {
             expr: self.parse_expr()?
         })
@@ -27,65 +29,42 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
         match self.lexer.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
-            //Token::Word("if") => self.parse_if_expr(),
-            //Some(Token::Number(s)) => self.parse_decimal_literal(s),
+            Token::Word("if") => self.parse_if_expr(),
             _ => self.parse_additive_expr(),
         }
     }
 
-//    fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
-//        assert_eq!(self.lexer.peek_token(), Token::Word("if"));
-//
-//        self.lexer.read_ascii("if");
-//        self.source.skip_ws();
-//        let cond_expr = Box::new(self.parse_expr()?);
-//        self.source.require_sep()?;
-//        self.source.skip_wsn();
-//        let then_expr = Box::new(self.parse_expr()?);
-//        self.source.skip_wsn();
-//        if self.source.starts_with("else") {
-//            self.source.read_ascii("else");
-//            self.source.skip_wsn();
-//            let else_expr = Some(Box::new(self.parse_expr()?));
-//            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
-//        }
-//        else {
-//            self.source.require_ascii("end")?;
-//            let else_expr = None;
-//            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
-//        }
-//    }
-//
-//    fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
-//        let receiver_expr = self.parse_additive_expr()?;
-//        if self.source.peek() == Some('.') {
-//            self.source.next();
-//            let method_name = self.source.require_ident()?;
-//            self.source.require_ascii("(")?;
-//            self.source.skip_wsn();
-//            let arg_expr = 
-//                if self.source.peek() == Some(')') {
-//                    None
-//                }
-//                else {
-//                    let tmp = self.parse_expr()?;
-//                    self.source.skip_wsn();
-//                    self.source.require_ascii(")")?;
-//                    Some(Box::new(tmp))
-//                };
-//            Ok(ast::Expression::MethodCall {
-//                receiver_expr: Box::new(receiver_expr),
-//                method_name: method_name,
-//                arg_expr: arg_expr,
-//            })
-//        }
-//        else {
-//            Ok(receiver_expr)
-//        }
-//    }
+    fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
+        assert_eq!(*self.lexer.current_token(), Token::Word("if"));
+
+        self.lexer.consume();
+        self.skip_ws();
+        let cond_expr = Box::new(self.parse_expr()?);
+        self.skip_ws();
+        if self.lexer.current_token_is(&Token::Word("then")) {
+            self.lexer.consume();
+            self.skip_wsn();
+        }
+        else {
+            self.expect(Token::Separator)?;
+        }
+        let then_expr = Box::new(self.parse_expr()?);
+        self.skip_wsn();
+        if self.lexer.current_token_is(&Token::Word("else")) {
+            self.lexer.consume();
+            self.skip_wsn();
+            let else_expr = Some(Box::new(self.parse_expr()?));
+            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
+        }
+        else {
+            self.expect(Token::Word("end"))?;
+            let else_expr = None;
+            Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
+        }
+    }
 
     fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        let left = self.parse_decimal_literal()?;  // self.parse_multiplicative_expr()?;
+        let left = self.parse_multiplicative_expr()?;
         self.skip_ws();
 
         match self.lexer.current_token() {
@@ -95,14 +74,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.lexer.consume();
                 self.skip_wsn();
                 let right = self.parse_expr()?;
-                Ok(ast::Expression::bin_op_expr(left, op, right))
+                Ok(ast::bin_op_expr(left, op, right))
             },
             _ => Ok(left)
         }
     }
 
     fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        let left = self.parse_parenthesized_expr()?;
+        let left = self.parse_method_call()?;
         self.skip_ws();
 
         match self.lexer.current_token() {
@@ -113,10 +92,178 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.lexer.consume();
                 self.skip_wsn();
                 let right = self.parse_multiplicative_expr()?;
-                Ok(ast::Expression::bin_op_expr(left, op, right))
+                Ok(ast::bin_op_expr(left, op, right))
             },
             _ => Ok(left)
         }
+    }
+
+//    // Method call with no space
+//    // ok: 1.foo(2)
+//    // ok: 1.foo
+//    // ok: foo(2)
+//    // ok: foo
+//    fn parse_dense_method_call(&mut self) -> Result<ast::Expression, ParseError> {
+//    }
+
+    fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut receiver_expr;
+        let receiver_has_paren;
+        match self.lexer.current_token() {
+            Token::Word(s) => {
+                receiver_expr = ast::Expression::Name(s.to_string());
+                self.lexer.consume();
+                receiver_has_paren = false;
+            },
+            Token::Symbol("(") => {
+                receiver_expr = self.parse_parenthesized_expr()?;
+                receiver_has_paren = true;
+            },
+            _ => {
+                receiver_expr = self.parse_parenthesized_expr()?;
+                receiver_has_paren = false;
+            }
+        }
+
+        match self.lexer.current_token() {
+            Token::Space => {
+                if receiver_has_paren {
+                    // (foo) ...
+                    return Ok(receiver_expr);
+                }
+                else {
+                    // foo ...
+                    match self.parse_method_call_args()? {
+                        None => Ok(receiver_expr),
+                        Some(arg_exprs) => {
+                            let method_name = if let ast::Expression::Name(s) = receiver_expr {
+                                                s
+                                              } else { panic!() };
+                            Ok(ast::Expression::MethodCall{
+                                receiver_expr: None,
+                                method_name: method_name.to_string(),
+                                arg_exprs: arg_exprs
+                            })
+                        }
+                    }
+                }
+            },
+            Token::Symbol(".") => {
+                self.lexer.consume();
+                let mut method_name;
+                match self.lexer.current_token() {
+                    Token::Word(s) => {
+                        method_name = s.to_string();
+                        self.lexer.consume();
+                    },
+                    token => {
+                        let msg = format!("expected ident but got {:?}", token);
+                        return Err(self.parseerror(&msg))
+                    }
+                };
+                // foo.bar
+                let arg_exprs = match self.parse_method_call_args()? {
+                                    None => Vec::new(),
+                                    Some(v) => v
+                                };
+                Ok(ast::Expression::MethodCall{ 
+                    receiver_expr: Some(Box::new(receiver_expr)),
+                    method_name: method_name,
+                    arg_exprs: arg_exprs
+                })
+            },
+            Token::Symbol("(") => {
+                // foo(
+                match self.parse_method_call_args()? {
+                    None => Ok(receiver_expr),
+                    Some(arg_exprs) => {
+                        let method_name = if let ast::Expression::Name(s) = receiver_expr {
+                                            s
+                                          } else { panic!() };
+                        Ok(ast::Expression::MethodCall{
+                            receiver_expr: None,
+                            method_name: method_name.to_string(),
+                            arg_exprs: arg_exprs
+                        })
+                    }
+                }
+            },
+            Token::Symbol(_) => {
+                // foo+
+                Ok(receiver_expr)
+            },
+            Token::Separator | Token:: Eof => {
+                // foo;
+                Ok(receiver_expr)
+            },
+            Token::Word(_) => {
+                // (foo)bar
+                Err(self.parseerror("unexpected ident"))
+            },
+            Token::Number(_) => {
+                // (foo)123
+                Err(self.parseerror("unexpected number"))
+            },
+        }
+    }
+
+    fn parse_method_call_args(&mut self) -> Result<Option<Vec<ast::Expression>>, ParseError> {
+        self.skip_ws();
+        let has_paren;
+        match self.lexer.current_token() {
+            Token::Space => panic!(),
+            Token::Separator | Token::Eof => {
+                // foo ;
+                // foo.bar;
+                return Ok(None)
+            }
+            Token::Symbol("(") => {
+                // foo(
+                // foo (...
+                // foo.bar(
+                has_paren = true
+            }
+            Token::Symbol(_) => {
+                // foo +
+                // foo.bar+
+                return Ok(None)
+            },
+            Token::Word(_) | Token::Number(_) => {
+                // foo bar
+                // foo 123
+                has_paren = false
+            }
+        }
+
+        let mut arg_exprs: Vec<ast::Expression> = Vec::new();
+        loop {
+            arg_exprs.push(self.parse_expr()?);
+            self.skip_ws();
+            match self.lexer.current_token() {
+                Token::Space => panic!(),
+                Token::Separator | Token::Eof => {
+                    break
+                },
+                Token::Symbol(",") => {
+                    self.lexer.consume();
+                    self.skip_ws();
+                },
+                Token::Symbol(")") => {
+                    if has_paren {
+                        self.lexer.consume();
+                        break
+                    }
+                    else {
+                        return Err(self.parseerror("unexpected `)'"));
+                    }
+                },
+                _ => {
+                    let msg = format!("unexpected token: {:?}", self.lexer.current_token());
+                    return Err(self.parseerror(&msg));
+                }
+            }
+        }
+        Ok(Some(arg_exprs))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
@@ -144,9 +291,16 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn expect(&mut self, token: Token) -> Result<(), ParseError> {
-        if *self.lexer.current_token() == token {
-            Ok(())
+    fn expect_sep(&mut self) -> Result<(), ParseError> {
+        self.skip_ws();
+        self.expect(Token::Separator)?;
+        self.skip_wsn();
+        Ok(())
+    }
+
+    fn expect(&mut self, token: Token) -> Result<&Token, ParseError> {
+        if self.lexer.current_token_is(&token) {
+            Ok(self.lexer.current_token())
         }
         else {
             let msg = format!("expected {:?} but got {:?}", token, self.lexer.current_token());

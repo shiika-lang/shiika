@@ -68,7 +68,10 @@ impl<'a, 'b> Lexer<'a, 'b> {
         }
     }
 
-    // Must be called after peek_token
+    pub fn current_token_is(&mut self, token: &Token) -> bool {
+        *self.current_token() == *token
+    }
+
     pub fn current_token(&mut self) -> &Token {
         if self.current_token == None {
             self.read_token();
@@ -92,8 +95,6 @@ impl<'a, 'b> Lexer<'a, 'b> {
             CharType::Symbol    => self.read_symbol(&mut next_cur),
             CharType::Number    => self.read_number(&mut next_cur),
             CharType::Eof       => self.read_eof(),
-            //_ => {Token::Eof;},
-            _ => self.read_number(&mut next_cur),
         }
         self.next_cur = Some(next_cur)
     }
@@ -172,8 +173,9 @@ impl<'a, 'b> Lexer<'a, 'b> {
             ' ' | '\t' => CharType::Space,
             '\n' | ';' => CharType::Separator,
             '0'...'9' => CharType::Number,
-            '+' | '-' | '*' | '/' | '%' |
-            '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' => CharType::Symbol,
+            '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
+            '+' | '-' | '*' | '/' | '%' | '=' | '!' |
+            '.' | '@' | '~' | '?'  => CharType::Symbol,
             _ => CharType::Word,
         }
     }
