@@ -346,23 +346,3 @@ pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
     };
     parser.parse()
 }
-
-//#[test]
-//fn test_parser() {
-//    //let result = parse("1+2*3");
-//    let result = parse("hello.world(1)");
-//    println!("{:#?}", result);
-//    assert_eq!(result.unwrap(), 
-//      ast::Program {
-//        expr: ast::Expression::BinOp {
-//                left: Box::new(ast::Expression::DecimalLiteral {value: 1}),
-//                op: ast::BinOp::Add,
-//                right: Box::new(ast::Expression::BinOp {
-//                    left: Box::new(ast::Expression::DecimalLiteral {value: 2}),
-//                    op: ast::BinOp::Mul,
-//                    right: Box::new(ast::Expression::DecimalLiteral {value: 3}),
-//                })
-//        }
-//      }
-//    )
-//}
