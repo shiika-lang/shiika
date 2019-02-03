@@ -132,13 +132,18 @@ impl<'a, 'b> Parser<'a, 'b> {
                     return Ok(receiver_expr);
                 }
                 else {
-                    // foo ...
+                    let method_name;
+                    if let ast::Expression::Name(s) = &receiver_expr {
+                        // foo ...
+                        method_name = s;
+                    }
+                    else {
+                        // 1 ...
+                        return Ok(receiver_expr);
+                    }
                     match self.parse_method_call_args()? {
                         None => Ok(receiver_expr),
                         Some(arg_exprs) => {
-                            let method_name = if let ast::Expression::Name(s) = receiver_expr {
-                                                s
-                                              } else { panic!() };
                             Ok(ast::Expression::MethodCall{
                                 receiver_expr: None,
                                 method_name: method_name.to_string(),
