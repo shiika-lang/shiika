@@ -98,14 +98,6 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-//    // Method call with no space
-//    // ok: 1.foo(2)
-//    // ok: 1.foo
-//    // ok: foo(2)
-//    // ok: foo
-//    fn parse_dense_method_call(&mut self) -> Result<ast::Expression, ParseError> {
-//    }
-
     fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
         let mut receiver_expr;
         let receiver_has_paren;
