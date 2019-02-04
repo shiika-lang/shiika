@@ -68,10 +68,6 @@ impl<'a, 'b> Lexer<'a, 'b> {
         }
     }
 
-    pub fn current_token_is(&mut self, token: &Token) -> bool {
-        *self.current_token() == *token
-    }
-
     pub fn current_token(&mut self) -> &Token {
         if self.current_token == None {
             self.read_token();
@@ -79,7 +75,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
         self.current_token.as_ref().unwrap()
     }
 
-    pub fn consume(&mut self) -> Token {
+    pub fn consume_token(&mut self) -> Token {
         assert!(self.current_token.is_some());
         self.cur = self.next_cur.take().unwrap();
         self.current_token.take().unwrap()

@@ -27,7 +27,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
             Token::Word("if") => self.parse_if_expr(),
             _ => self.parse_additive_expr(),
@@ -35,14 +35,14 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        assert_eq!(*self.lexer.current_token(), Token::Word("if"));
+        assert_eq!(*self.current_token(), Token::Word("if"));
 
-        self.lexer.consume();
+        self.consume_token();
         self.skip_ws();
         let cond_expr = Box::new(self.parse_expr()?);
         self.skip_ws();
-        if self.lexer.current_token_is(&Token::Word("then")) {
-            self.lexer.consume();
+        if self.current_token_is(&Token::Word("then")) {
+            self.consume_token();
             self.skip_wsn();
         }
         else {
@@ -50,8 +50,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
         let then_expr = Box::new(self.parse_expr()?);
         self.skip_wsn();
-        if self.lexer.current_token_is(&Token::Word("else")) {
-            self.lexer.consume();
+        if self.current_token_is(&Token::Word("else")) {
+            self.consume_token();
             self.skip_wsn();
             let else_expr = Some(Box::new(self.parse_expr()?));
             Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
@@ -67,11 +67,11 @@ impl<'a, 'b> Parser<'a, 'b> {
         let left = self.parse_multiplicative_expr()?;
         self.skip_ws();
 
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Symbol(s @ "+") | Token::Symbol(s @ "-") => {
                 let op = if *s == "+" { ast::BinOp::Add }
                          else { ast::BinOp::Sub };
-                self.lexer.consume();
+                self.consume_token();
                 self.skip_wsn();
                 let right = self.parse_expr()?;
                 Ok(ast::bin_op_expr(left, op, right))
@@ -84,12 +84,12 @@ impl<'a, 'b> Parser<'a, 'b> {
         let left = self.parse_method_call()?;
         self.skip_ws();
 
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Symbol(s @ "*") | Token::Symbol(s @ "/") | Token::Symbol(s @ "%") => {
                 let op = if *s == "*" { ast::BinOp::Mul }
                          else if *s == "/" { ast::BinOp::Div }
                          else { ast::BinOp::Mod };
-                self.lexer.consume();
+                self.consume_token();
                 self.skip_wsn();
                 let right = self.parse_multiplicative_expr()?;
                 Ok(ast::bin_op_expr(left, op, right))
@@ -101,10 +101,10 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
         let mut receiver_expr;
         let receiver_has_paren;
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Word(s) => {
                 receiver_expr = ast::Expression::Name(s.to_string());
-                self.lexer.consume();
+                self.consume_token();
                 receiver_has_paren = false;
             },
             Token::Symbol("(") => {
@@ -117,7 +117,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
         }
 
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Space => {
                 if receiver_has_paren {
                     // (foo) ...
@@ -146,12 +146,12 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
             },
             Token::Symbol(".") => {
-                self.lexer.consume();
+                self.consume_token();
                 let mut method_name;
-                match self.lexer.current_token() {
+                match self.current_token() {
                     Token::Word(s) => {
                         method_name = s.to_string();
-                        self.lexer.consume();
+                        self.consume_token();
                     },
                     token => {
                         let msg = format!("expected ident but got {:?}", token);
@@ -207,7 +207,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_method_call_args(&mut self) -> Result<Option<Vec<ast::Expression>>, ParseError> {
         self.skip_ws();
         let has_paren;
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Space => panic!(),
             Token::Separator | Token::Eof => {
                 // foo ;
@@ -236,18 +236,18 @@ impl<'a, 'b> Parser<'a, 'b> {
         loop {
             arg_exprs.push(self.parse_expr()?);
             self.skip_ws();
-            match self.lexer.current_token() {
+            match self.current_token() {
                 Token::Space => panic!(),
                 Token::Separator | Token::Eof => {
                     break
                 },
                 Token::Symbol(",") => {
-                    self.lexer.consume();
+                    self.consume_token();
                     self.skip_ws();
                 },
                 Token::Symbol(")") => {
                     if has_paren {
-                        self.lexer.consume();
+                        self.consume_token();
                         break
                     }
                     else {
@@ -255,7 +255,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                     }
                 },
                 _ => {
-                    let msg = format!("unexpected token: {:?}", self.lexer.current_token());
+                    let msg = format!("unexpected token: {:?}", self.current_token());
                     return Err(self.parseerror(&msg));
                 }
             }
@@ -264,10 +264,10 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        if *self.lexer.current_token() != Token::Symbol("(") {
+        if *self.current_token() != Token::Symbol("(") {
             return self.parse_decimal_literal();
         }
-        self.lexer.consume();
+        self.consume_token();
         self.skip_wsn();
         let expr = self.parse_expr()?;
         self.skip_wsn();
@@ -276,10 +276,10 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
-        match self.lexer.current_token() {
+        match self.current_token() {
             Token::Number(s) => {
                 let value = s.parse().unwrap();
-                self.lexer.consume();
+                self.consume_token();
                 Ok(ast::Expression::DecimalLiteral{ value })
             },
             _ => {
@@ -296,19 +296,19 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn expect(&mut self, token: Token) -> Result<&Token, ParseError> {
-        if self.lexer.current_token_is(&token) {
-            Ok(self.lexer.current_token())
+        if self.current_token_is(&token) {
+            Ok(self.current_token())
         }
         else {
-            let msg = format!("expected {:?} but got {:?}", token, self.lexer.current_token());
+            let msg = format!("expected {:?} but got {:?}", token, self.current_token());
             Err(self.parseerror(&msg))
         }
     }
 
     fn skip_wsn(&mut self) {
         loop {
-            match self.lexer.current_token() {
-                Token::Space | Token::Separator => self.lexer.consume(),
+            match self.current_token() {
+                Token::Space | Token::Separator => self.consume_token(),
                 _ => return
             };
         }
@@ -316,11 +316,23 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn skip_ws(&mut self) {
         loop {
-            match self.lexer.current_token() {
-                Token::Space => self.lexer.consume(),
+            match self.current_token() {
+                Token::Space => self.consume_token(),
                 _ => return
             };
         }
+    }
+
+    fn consume_token(&mut self) {
+        self.lexer.consume_token();
+    }
+
+    fn current_token_is(&mut self, token: &Token) -> bool {
+        *self.lexer.current_token() == *token
+    }
+
+    fn current_token(&mut self) -> &Token {
+        self.lexer.current_token()
     }
 
     fn parseerror(&self, msg: &str) -> ParseError {
