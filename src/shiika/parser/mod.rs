@@ -185,22 +185,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                     }
                 }
             },
-            Token::Symbol(_) => {
-                // foo+
-                Ok(receiver_expr)
-            },
-            Token::Separator | Token:: Eof => {
-                // foo;
-                Ok(receiver_expr)
-            },
-            Token::Word(_) => {
-                // (foo)bar
-                Err(self.parseerror("unexpected ident"))
-            },
-            Token::Number(_) => {
-                // (foo)123
-                Err(self.parseerror("unexpected number"))
-            },
+            Token::Symbol(_) => { Ok(receiver_expr) }, // foo+
+            Token::Separator | Token:: Eof => { Ok(receiver_expr) }, // foo;
+            Token::Word(_) => { Err(self.parseerror("unexpected ident")) }, // (foo)bar
+            Token::Number(_) => { Err(self.parseerror("unexpected number")) }, // (foo)123
         }
     }
 
