@@ -141,6 +141,23 @@ fn test_method_call_with_binop() {
 }
 
 #[test]
+fn test_method_call_with_args() {
+    let result = super::parse("foo 1, 2");
+    assert_eq!(result.unwrap(), 
+        ast::Program {
+            expr: ast::Expression::MethodCall {
+                receiver_expr: None,
+                method_name: "foo".to_string(),
+                arg_exprs: vec![
+                    ast::decimal_literal(1),
+                    ast::decimal_literal(2),
+                ]
+            }
+        }
+    )
+}
+
+#[test]
 fn test_parenthesized_expr() {
     let result = super::parse("(123)");
     assert_eq!(result.unwrap(), 

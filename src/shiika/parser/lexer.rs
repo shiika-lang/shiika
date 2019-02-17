@@ -171,7 +171,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
             '0'...'9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
-            '.' | '@' | '~' | '?'  => CharType::Symbol,
+            '.' | '@' | '~' | '?' | ','  => CharType::Symbol,
             _ => CharType::Word,
         }
     }
