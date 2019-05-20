@@ -1,12 +1,9 @@
 # CHANGELOG
 
-## HEAD
+## v0.1.3 (2019-05-20)
 
 - `-> Void` is now optional
-- (WIP) Inheritance
-  - [x] Parse `extends`
-  - [x] Treat subclasses as compatible to its superclasses
-  - [x] Update method lookup to traverse superclasses
+- Type checker: supports inheritance
 
 ## v0.1.2 (2018-06-16)
 

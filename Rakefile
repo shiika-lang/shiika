@@ -25,4 +25,17 @@ task :doc do
   sh "gitbook build book doc"
 end
 
+require_relative 'lib/shiika/version'
+desc "git ci, git tag and git push"
+task :release do
+  sh "git diff HEAD"
+  v = "v#{Shiika::VERSION}"
+  puts "release as #{v}? [y/N]"
+  break unless $stdin.gets.chomp == "y"
+
+  sh "git ci -am '#{v}'"
+  sh "git tag '#{v}'"
+  sh "git push origin master --tags"
+end
+
 task :default => [:parser, :test]
