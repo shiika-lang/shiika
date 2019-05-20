@@ -264,11 +264,16 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
-        match self.current_token() {
+        match self.consume_token() {
             Token::Number(s) => {
-                let value = s.parse().unwrap();
-                self.consume_token();
-                Ok(ast::Expression::DecimalLiteral{ value })
+                if s.contains('.') {
+                    let value = s.parse().unwrap();
+                    Ok(ast::Expression::FloatLiteral{ value })
+                }
+                else {
+                    let value = s.parse().unwrap();
+                    Ok(ast::Expression::DecimalLiteral{ value })
+                }
             },
             _ => {
                 Err(self.parseerror("expected decimal literal"))
@@ -311,8 +316,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn consume_token(&mut self) {
-        self.lexer.consume_token();
+    fn consume_token(&mut self) -> Token {
+        self.lexer.consume_token()
     }
 
     fn current_token_is(&mut self, token: &Token) -> bool {

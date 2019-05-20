@@ -35,6 +35,18 @@ impl Cursor {
         src[self.pos..].chars().next()
     }
 
+    // Peek the second next character.
+    // Must not be called on EOF
+    pub fn peek2(&self, src: &str) -> Option<char> {
+        if let Some(c) = self.peek(src) {
+            let pos = self.pos + c.len_utf8();
+            src[pos..].chars().next()
+        }
+        else {
+            panic!("peek2 must not be called on EOF")
+        }
+    }
+
     pub fn proceed(&mut self, src: &str) -> char {
         let c = src[self.pos..].chars().next().unwrap();
         if c == '\n' {
@@ -49,6 +61,7 @@ impl Cursor {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum CharType {
     Space,
     Separator, // Newline or ';'
@@ -151,6 +164,20 @@ impl<'a, 'b> Lexer<'a, 'b> {
                     // TODO: this should be lexing error
                     break
                 },
+                CharType::Symbol => {
+                    if next_cur.peek(self.src) == Some('.') {
+                        if self.char_type(next_cur.peek2(self.src)) == CharType::Number {
+                            next_cur.proceed(self.src);
+                            next_cur.proceed(self.src);
+                        }
+                        else {
+                            break
+                        }
+                    }
+                    else {
+                        break
+                    }
+                }
                 _ => break
             }
         }

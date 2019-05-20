@@ -168,9 +168,18 @@ fn test_parenthesized_expr() {
 }
 
 #[test]
+fn test_float_literal() {
+    let result = super::parse("1.23");
+    assert_eq!(result.unwrap(), 
+        ast::Program {
+            expr: ast::float_literal(1.23),
+        }
+    )
+}
+
+#[test]
 fn test_decimal_literal() {
     let result = super::parse("123");
-    //println!("{:#?}", result);
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::decimal_literal(123),
