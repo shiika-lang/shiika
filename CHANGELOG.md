@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## HEAD
+
+- Started reimplementation with Rust
+
 ## v0.1.3 (2019-05-20)
 
 - `-> Void` is now optional
