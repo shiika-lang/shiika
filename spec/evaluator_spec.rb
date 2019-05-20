@@ -22,6 +22,10 @@ describe "Evaluator" do
           def snd -> T; @b; end
         end
         Pair<Int, Bool>.new(1, true).fst
+# TODO
+#        class IntBoolPair extends Pair<Int, Bool>
+#        end
+#        IntBoolPair.new(1, true).fst
       EOD
       expect(run(src)).to eq(sk_int(1))
     end
