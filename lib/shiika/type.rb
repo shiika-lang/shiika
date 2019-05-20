@@ -50,6 +50,7 @@ module Shiika
 
       # eg. TyMeta.new('Array') represents Meta:Array
       def initialize(base_name)
+        raise if base_name.start_with?('Meta:')
         @base_name = base_name
       end
       attr_reader :base_name
