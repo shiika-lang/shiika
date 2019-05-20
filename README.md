@@ -15,30 +15,39 @@ A statically-typed programming language.
 
 ## Status
 
+### WIP
+
+- [ ] Inheritance
+
 ### Done
 
 - [x] Class method, instance method
 - [x] Basic generics
 - [x] Variable-length arguments
 - [x] Array literal
-- [x] Allow omitting `-> Void`
 
 ### Todo (short-term)
 
+- Subtyping
 - String class
 - Hash class
 
 ### Todo (middle term)
 
-- Subtyping
 - lambda/function(block)
 - Module (like Ruby's `Module`)
+- Enum
+- Optional
 - Constants
 - ...
 
 ### Todo (long term)
 
 - Generate LLVM IR
+
+### Todo (postponed error checks)
+
+- [ ] Check all ivars will be initialized (like Swift)
 
 ## License
 
