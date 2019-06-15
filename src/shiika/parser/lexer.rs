@@ -1,18 +1,10 @@
+use super::token::Token;
+
 pub struct Lexer<'a: 'b, 'b: 'a> {
     pub src: &'a str,
     pub cur: Cursor,
     current_token: Option<Token<'b>>,
     next_cur: Option<Cursor>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Token<'a> {
-    Space,
-    Separator,
-    Word(&'a str),
-    Symbol(&'a str),
-    Number(&'a str),
-    Eof,
 }
 
 #[derive(Debug, PartialEq, Clone)]

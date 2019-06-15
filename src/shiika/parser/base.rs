@@ -1,8 +1,9 @@
 use backtrace::Backtrace;
-use super::Parser;
-use super::super::ast;
-use super::lexer;
-use super::lexer::*;
+pub use super::Parser;
+pub use super::super::ast;
+pub use super::token::Token;
+pub use super::lexer;
+pub use super::lexer::*;
 
 #[derive(Debug)]
 pub struct ParseError {

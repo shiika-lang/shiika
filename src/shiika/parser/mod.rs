@@ -1,5 +1,6 @@
 mod base;
-mod lexer;
+mod token;
+pub mod lexer;
 mod expression_parser;
 mod expression_parser_test;
 

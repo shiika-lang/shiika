@@ -1,7 +1,4 @@
-use super::Parser;
-use super::lexer::*;
 use super::base::*;
-use super::super::ast;
 
 impl<'a, 'b> Parser<'a, 'b> {
     pub (in super) fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
