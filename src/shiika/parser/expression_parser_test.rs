@@ -1,8 +1,9 @@
-use super::ast;
+use super::super::ast;
+use super::Parser;
 
 #[test]
 fn test_if_expr() {
-    let result = super::parse("if 1 then 2 else 3 end");
+    let result = Parser::parse("if 1 then 2 else 3 end");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::If {
@@ -16,7 +17,7 @@ fn test_if_expr() {
 
 #[test]
 fn test_additive_expr() {
-    let result = super::parse("1+2*3");
+    let result = Parser::parse("1+2*3");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::BinOp {
@@ -34,7 +35,7 @@ fn test_additive_expr() {
 
 #[test]
 fn test_multiplicative_expr() {
-    let result = super::parse("1%2");
+    let result = Parser::parse("1%2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::BinOp {
@@ -48,7 +49,7 @@ fn test_multiplicative_expr() {
 
 #[test]
 fn test_multiplicative_with_method_call() {
-    let result = super::parse("1.foo * 2");
+    let result = Parser::parse("1.foo * 2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::BinOp {
@@ -66,7 +67,7 @@ fn test_multiplicative_with_method_call() {
 
 #[test]
 fn test_method_call_with_dot_and_paren() {
-    let result = super::parse("1.foo(2)");
+    let result = Parser::parse("1.foo(2)");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -80,7 +81,7 @@ fn test_method_call_with_dot_and_paren() {
 
 #[test]
 fn test_method_call_with_dot() {
-    let result = super::parse("1.foo 2");
+    let result = Parser::parse("1.foo 2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -94,7 +95,7 @@ fn test_method_call_with_dot() {
 
 #[test]
 fn test_method_call_with_paren() {
-    let result = super::parse("foo(2)");
+    let result = Parser::parse("foo(2)");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -108,7 +109,7 @@ fn test_method_call_with_paren() {
 
 #[test]
 fn test_method_call_no_paren_or_dot() {
-    let result = super::parse("foo 2");
+    let result = Parser::parse("foo 2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -122,7 +123,7 @@ fn test_method_call_no_paren_or_dot() {
 
 #[test]
 fn test_method_call_with_binop() {
-    let result = super::parse("foo 1+2");
+    let result = Parser::parse("foo 1+2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -142,7 +143,7 @@ fn test_method_call_with_binop() {
 
 #[test]
 fn test_method_call_with_args() {
-    let result = super::parse("foo 1, 2");
+    let result = Parser::parse("foo 1, 2");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::Expression::MethodCall {
@@ -159,7 +160,7 @@ fn test_method_call_with_args() {
 
 #[test]
 fn test_parenthesized_expr() {
-    let result = super::parse("(123)");
+    let result = Parser::parse("(123)");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::decimal_literal(123),
@@ -169,7 +170,7 @@ fn test_parenthesized_expr() {
 
 #[test]
 fn test_float_literal() {
-    let result = super::parse("1.23");
+    let result = Parser::parse("1.23");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::float_literal(1.23),
@@ -179,7 +180,7 @@ fn test_float_literal() {
 
 #[test]
 fn test_decimal_literal() {
-    let result = super::parse("123");
+    let result = Parser::parse("123");
     assert_eq!(result.unwrap(), 
         ast::Program {
             expr: ast::decimal_literal(123),
