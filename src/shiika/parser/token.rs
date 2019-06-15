@@ -2,7 +2,8 @@
 pub enum Token<'a> {
     Space,
     Separator,
-    Word(&'a str),
+    UpperWord(&'a str),
+    LowerWord(&'a str),
     Symbol(&'a str),
     Number(&'a str),
     Eof,

@@ -4,19 +4,19 @@ impl<'a, 'b> Parser<'a, 'b> {
     pub (in super) fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
         match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
-            Token::Word("if") => self.parse_if_expr(),
+            Token::LowerWord("if") => self.parse_if_expr(),
             _ => self.parse_additive_expr(),
         }
     }
 
     fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
-        assert_eq!(*self.current_token(), Token::Word("if"));
+        assert_eq!(*self.current_token(), Token::LowerWord("if"));
 
         self.consume_token();
         self.skip_ws();
         let cond_expr = Box::new(self.parse_expr()?);
         self.skip_ws();
-        if self.current_token_is(&Token::Word("then")) {
+        if self.current_token_is(&Token::LowerWord("then")) {
             self.consume_token();
             self.skip_wsn();
         }
@@ -25,14 +25,14 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
         let then_expr = Box::new(self.parse_expr()?);
         self.skip_wsn();
-        if self.current_token_is(&Token::Word("else")) {
+        if self.current_token_is(&Token::LowerWord("else")) {
             self.consume_token();
             self.skip_wsn();
             let else_expr = Some(Box::new(self.parse_expr()?));
             Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
         }
         else {
-            self.expect(Token::Word("end"))?;
+            self.expect(Token::LowerWord("end"))?;
             let else_expr = None;
             Ok(ast::Expression::If { cond_expr, then_expr, else_expr })
         }
@@ -77,7 +77,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         let mut receiver_expr;
         let receiver_has_paren;
         match self.current_token() {
-            Token::Word(s) => {
+            Token::LowerWord(s) | Token::UpperWord(s) => {
                 receiver_expr = ast::Expression::Name(s.to_string());
                 self.consume_token();
                 receiver_has_paren = false;
@@ -124,7 +124,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.consume_token();
                 let mut method_name;
                 match self.current_token() {
-                    Token::Word(s) => {
+                    Token::UpperWord(s) | Token::LowerWord(s) => {
                         method_name = s.to_string();
                         self.consume_token();
                     },
@@ -162,7 +162,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             },
             Token::Symbol(_) => { Ok(receiver_expr) }, // foo+
             Token::Separator | Token:: Eof => { Ok(receiver_expr) }, // foo;
-            Token::Word(_) => { Err(self.parseerror("unexpected ident")) }, // (foo)bar
+            Token::UpperWord(_) | Token::LowerWord(_) => { Err(self.parseerror("unexpected ident")) }, // (foo)bar
             Token::Number(_) => { Err(self.parseerror("unexpected number")) }, // (foo)123
         }
     }
@@ -188,7 +188,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 // foo.bar+
                 return Ok(None)
             },
-            Token::Word(_) | Token::Number(_) => {
+            Token::UpperWord(_) | Token::LowerWord(_) | Token::Number(_) => {
                 // foo bar
                 // foo 123
                 has_paren = false

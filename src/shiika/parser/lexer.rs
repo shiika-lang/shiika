@@ -57,7 +57,8 @@ impl Cursor {
 enum CharType {
     Space,
     Separator, // Newline or ';'
-    Word, // Keyword or identifier
+    UpperWord, // identifier which starts with upper-case letter
+    LowerWord, // Keyword or identifier which starts with lower-case letter
     Symbol, // '+', '(', etc.
     Number, // '0'~'9'
     Eof,
@@ -92,7 +93,8 @@ impl<'a, 'b> Lexer<'a, 'b> {
         match self.char_type(cc) {
             CharType::Space     => self.read_space(&mut next_cur),
             CharType::Separator => self.read_separator(&mut next_cur),
-            CharType::Word      => self.read_word(&mut next_cur),
+            CharType::UpperWord => self.read_upper_word(&mut next_cur),
+            CharType::LowerWord => self.read_lower_word(&mut next_cur),
             CharType::Symbol    => self.read_symbol(&mut next_cur),
             CharType::Number    => self.read_number(&mut next_cur),
             CharType::Eof       => self.read_eof(),
@@ -122,16 +124,28 @@ impl<'a, 'b> Lexer<'a, 'b> {
         self.current_token = Some(Token::Separator);
     }
 
-    fn read_word(&mut self, next_cur: &mut Cursor) {
+    fn read_upper_word(&mut self, next_cur: &mut Cursor) {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
-                CharType::Word | CharType::Number => {
+                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
                     next_cur.proceed(self.src);
                 },
                 _ => break
             }
         }
-        self.current_token = Some(Token::Word(&self.src[self.cur.pos..next_cur.pos]));
+        self.current_token = Some(Token::UpperWord(&self.src[self.cur.pos..next_cur.pos]));
+    }
+
+    fn read_lower_word(&mut self, next_cur: &mut Cursor) {
+        loop {
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
+                    next_cur.proceed(self.src);
+                },
+                _ => break
+            }
+        }
+        self.current_token = Some(Token::LowerWord(&self.src[self.cur.pos..next_cur.pos]));
     }
 
     fn read_symbol(&mut self, next_cur: &mut Cursor) {
@@ -152,9 +166,9 @@ impl<'a, 'b> Lexer<'a, 'b> {
                 CharType::Number => {
                     next_cur.proceed(self.src);
                 },
-                CharType::Word => {
+                CharType::UpperWord | CharType::LowerWord => {
                     // TODO: this should be lexing error
-                    break
+                    panic!("need space after a number")
                 },
                 CharType::Symbol => {
                     if next_cur.peek(self.src) == Some('.') {
@@ -191,7 +205,8 @@ impl<'a, 'b> Lexer<'a, 'b> {
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
             '.' | '@' | '~' | '?' | ','  => CharType::Symbol,
-            _ => CharType::Word,
+            'A'...'Z' => CharType::UpperWord,
+            _ => CharType::LowerWord,
         }
     }
 }
