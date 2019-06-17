@@ -13,14 +13,18 @@ pub struct ParseError {
 }
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
-        let mut parser = Parser {
+    pub fn new(src: &str) -> Parser {
+        Parser {
             lexer: Lexer::new(src)
-        };
+        }
+    }
+
+    pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
+        let mut parser = Parser::new(src);
         parser.parse_program()
     }
 
-    pub (in super) fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
+    fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
         self.skip_wsn();
         Ok(ast::Program {
             expr: self.parse_expr()?
