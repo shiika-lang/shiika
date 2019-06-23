@@ -21,7 +21,7 @@ pub enum Expression {
         op: BinOp,
         right: Box<Expression>
     },
-    FloatLiteral{ value: f64 },
+    FloatLiteral{ value: f32 },
     DecimalLiteral{ value: usize },
 }
 
@@ -33,7 +33,7 @@ pub fn bin_op_expr(left: Expression, op: BinOp, right: Expression) -> Expression
     }
 }
 
-pub fn float_literal(value: f64) -> Expression {
+pub fn float_literal(value: f32) -> Expression {
     Expression::FloatLiteral{ value }
 }
 
