@@ -139,7 +139,7 @@ impl CodeGen {
                     panic!("TODO")
                 }
             },
-            TermTy::TyMeta { base_fullname } => panic!("TODO")
+            TermTy::TyMeta { base_fullname } => panic!("TODO: {:?}", base_fullname)
         }
     }
 }
