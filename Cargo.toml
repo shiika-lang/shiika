@@ -6,3 +6,6 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 
 [dependencies]
 backtrace = "0.3"
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm7-0" }
+llvm-sys = "70"
+failure = "0.1.5"

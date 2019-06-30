@@ -1,85 +1,50 @@
 #![feature(range_contains)]
 #![feature(nll)]
 mod shiika;
-use crate::shiika::parser;
 
-fn main() {
-    let str = "1+1";
-    println!("{:?}", shiika::parser::parse(str));
-
-//    let args: Vec<String> = env::args().collect();
-//    let rng_seed: u64 = if args.len() > 1 {
-//        args[1].parse().unwrap()
-//    } else {
-//        SystemTime::now()
-//            .duration_since(UNIX_EPOCH)
-//            .unwrap()
-//            .as_secs()
-//    };
-//    let seed_bytes: Vec<u8> = (0..16)
-//        .map(|x| ((rng_seed >> (x % 8)) & 0xFF) as u8)
-//        .collect();
-//    let mut rng: XorShiftRng = SeedableRng::from_seed([
-//        seed_bytes[0],
-//        seed_bytes[1],
-//        seed_bytes[2],
-//        seed_bytes[3],
-//        seed_bytes[4],
-//        seed_bytes[5],
-//        seed_bytes[6],
-//        seed_bytes[7],
-//        seed_bytes[8],
-//        seed_bytes[9],
-//        seed_bytes[10],
-//        seed_bytes[11],
-//        seed_bytes[12],
-//        seed_bytes[13],
-//        seed_bytes[14],
-//        seed_bytes[15],
-//    ]);
-//
-//    let mut game = Game::new();
-//    let mut navi = Navi::new(game.map.width, game.map.height);
-//    // At this point "game" variable is populated with initial map data.
-//    // This is a good place to do computationally expensive start-up pre-processing.
-//    // As soon as you call "ready" function below, the 2 second per turn timer will start.
-//    Game::ready("MyRustBot");
-//
-//    Log::log(&format!(
-//        "Successfully created bot! My Player ID is {}. Bot rng seed is {}.",
-//        game.my_id.0, rng_seed
-//    ));
-//
-//    loop {
-//        game.update_frame();
-//        navi.update_frame(&game);
-//
-//        let me = &game.players[game.my_id.0];
-//        let map = &game.map;
-//
-//        let mut command_queue: Vec<Command> = Vec::new();
-//
-//        for ship_id in &me.ship_ids {
-//            let ship = &game.ships[ship_id];
-//            let cell = map.at_entity(ship);
-//
-//            let command = if cell.halite < game.constants.max_halite / 10 || ship.is_full() {
-//                let dir = navi.naive_navigate(ship, &me.shipyard.position); 
-//                //Direction::get_all_cardinals()[rng.gen_range(0, 4)];
-//                ship.move_ship(dir)
-//            } else {
-//                ship.stay_still()
-//            };
-//            command_queue.push(command);
-//        }
-//
-//        if game.turn_number <= 200
-//            && me.halite >= game.constants.ship_cost
-//            && navi.is_safe(&me.shipyard.position)
-//        {
-//            command_queue.push(me.shipyard.spawn());
-//        }
-//
-//        Game::end_turn(&command_queue);
-//    }
+fn main() -> Result<(), Box<std::error::Error>> {
+    let str = "72.0";
+    let ast = shiika::parser::Parser::parse(str)?;
+    let hir = ast.to_hir()?;
+    let code_gen = shiika::code_gen::CodeGen::new();
+    code_gen.gen_program(hir)?;
+    code_gen.module.print_to_file("a.ll")?;
+    Ok(())
+    //println!("{:?}", shiika::parser::parse(str));
 }
+
+//use inkwell::context::Context;
+//use inkwell::values::BasicValue;
+//use std::error::Error;
+//
+//fn main() -> Result<(), Box<Error>> {
+//    let context = Context::create();
+//    let module = context.create_module("main");
+//    let builder = context.create_builder();
+//    let i32_type = context.i32_type();
+//
+//    // declare i32 @putchar(i32)
+//    let putchar_type = i32_type.fn_type(&[i32_type.into()], false);
+//    module.add_function("putchar", putchar_type, None);
+//
+//    // define i32 @main() {
+//    let main_type = i32_type.fn_type(&[], false);
+//    let function = module.add_function("main", main_type, None);
+//    let basic_block = context.append_basic_block(&function, "entry");
+//    builder.position_at_end(&basic_block);
+//
+//    // call i32 @putchar(i32 72)
+//    let fun = module.get_function("putchar");
+//    let n = -72;
+//    let i = i32_type.const_int(n as u64, false);
+//    builder.build_call(fun.unwrap(), &[i.as_basic_value_enum()], "putchar");
+//    builder.build_call(fun.unwrap(), &[i32_type.const_int(105, false).into()], "putchar");
+//
+//    // ret i32 0
+//    builder.build_return(Some(&i32_type.const_int(0, false)));
+//
+//    module.print_to_file("a.ll");
+//
+//    Ok(())
+//}
+//

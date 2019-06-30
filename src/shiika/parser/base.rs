@@ -11,6 +11,12 @@ pub struct ParseError {
     pub location: lexer::Cursor,
     pub backtrace: Backtrace
 }
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+impl std::error::Error for ParseError {}
 
 impl<'a, 'b> Parser<'a, 'b> {
     pub fn new(src: &str) -> Parser {
@@ -27,7 +33,8 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
         self.skip_wsn();
         Ok(ast::Program {
-            expr: self.parse_expr()?
+            expr: self.parse_expr()?,
+            class_defs: Vec::new(),
         })
     }
 
