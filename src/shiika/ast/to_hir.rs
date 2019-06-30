@@ -52,6 +52,12 @@ impl ast::Expression {
             ast::Expression::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },
+
+            ast::Expression::DecimalLiteral {value} => {
+                // TODO: Support Integer 
+                Ok(Hir::float_literal(*value as f32))
+            },
+
             _ => panic!("TODO: ast.to_hir for {:?}", self)
         }
     }

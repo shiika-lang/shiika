@@ -125,9 +125,9 @@ impl CodeGen {
         self.f32_type.const_float(value as f64).as_basic_value_enum()
     }
 
-    fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
-        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
-    }
+//    fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
+//        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
+//    }
 
     fn llvm_basic_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
         match ty {
