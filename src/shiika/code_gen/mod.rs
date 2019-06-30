@@ -54,12 +54,17 @@ impl CodeGen {
         self.builder.position_at_end(&basic_block);
 
         let expr_value = self.gen_expr(function, &hir.hir_expr)?;
+        let float_val = 
+            match expr_value {
+                inkwell::values::BasicValueEnum::FloatValue(v) => v,
+                _ => panic!("not float")
+            };
 
         // call i32 @putchar(i32 72)
         let fun = self.module.get_function("putchar");
         // %reg353 = fptosi double 32.0 to i32
-        //let cast = self.builder.build_float_to_signed_int(expr_value as FloatValue, self.i32_type, "");
-        //self.builder.build_call(fun.unwrap(), &[cast.as_basic_value()], "putchar");
+        let cast2 = self.builder.build_float_to_signed_int(float_val, self.i32_type, "");
+        self.builder.build_call(fun.unwrap(), &[cast2.as_basic_value_enum()], "putchar");
         self.builder.build_call(fun.unwrap(), &[i32_type.const_int(72, false).into()], "putchar");
         self.builder.build_call(fun.unwrap(), &[i32_type.const_int(106, false).into()], "putchar");
 
