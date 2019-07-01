@@ -15,11 +15,30 @@ impl Hir {
 //    pub name: String,
 //    pub methods: Vec<SkMethod>,
 //}
-//
-//pub struct SkMethod {
-//    pub name: String,
-//    pub body_stmts: Vec<HirStatement>
-//}
+
+#[derive(Debug, PartialEq)]
+pub struct SkMethod {
+    pub fullname: String,
+    pub signature: MethodSignature,
+    pub body: SkMethodBody,
+}
+impl SkMethod {
+    pub fn llvm_func_name(&self) -> &str {
+        &self.fullname
+    }
+}
+#[derive(Debug, PartialEq)]
+pub enum SkMethodBody {
+    ShiikaMethodBody {
+        stmts: Vec<HirStatement>
+    },
+    RustMethodBody {
+        // TODO: better name
+        gen: fn(code_gen: &crate::shiika::code_gen::CodeGen,
+                function: &inkwell::values::FunctionValue) -> Result<(), crate::shiika::code_gen::Error>
+    }
+}
+
 
 #[derive(Debug, PartialEq)]
 pub enum HirStatement {

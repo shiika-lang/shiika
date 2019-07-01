@@ -9,6 +9,10 @@ pub enum TermTy {
     TyMeta { base_fullname: String },
 }
 
+pub fn raw(fullname: &str) -> TermTy {
+    TermTy::TyRaw { fullname: fullname.to_string() }
+}
+
 //impl TermTy for TyRaw {
 //    fn fullname(&self) -> &str {
 //        &self.fullname
@@ -43,3 +47,9 @@ pub enum TermTy {
 // Types corresponds to specialized generic metaclass
 //pub struct TySpeMeta {}
 //impl TermTy for TySpeMeta {}
+
+#[derive(Debug, PartialEq)]
+pub struct MethodSignature {
+    pub ret_ty: TermTy,
+    pub arg_tys: Vec<TermTy>,
+}

@@ -49,6 +49,19 @@ impl ast::Expression {
                         then_hir,
                         else_hir))
             },
+
+//            ast::Expression::MethodCall {receiver_expr, method_name, arg_exprs} => {
+//                Ok(Hir::method_call())
+//            },
+
+//            ast::Expression::BinOp {left, op, right} => {
+//                let method = TODO;
+//                Ok(Hir::method_call(
+//                        left.to_hir()?,
+//                        method,
+//                        [right.to_hir()?]))
+//            },
+
             ast::Expression::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },

@@ -1,10 +1,11 @@
-//use failure::Fail;
 use backtrace::Backtrace;
 use inkwell::values::*;
 use inkwell::types::*;
+use crate::shiika::ty;
 use crate::shiika::ty::*;
 use crate::shiika::hir::*;
 use crate::shiika::hir::HirExpressionBase::*;
+use crate::shiika::stdlib;
 
 #[derive(Debug)]
 pub struct Error {
@@ -19,11 +20,11 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 pub struct CodeGen {
-    context: inkwell::context::Context,
+    pub context: inkwell::context::Context,
     pub module: inkwell::module::Module,
-    builder: inkwell::builder::Builder,
-    i32_type: inkwell::types::IntType,
-    f32_type: inkwell::types::FloatType,
+    pub builder: inkwell::builder::Builder,
+    pub i32_type: inkwell::types::IntType,
+    pub f32_type: inkwell::types::FloatType,
 }
 
 impl CodeGen {
@@ -41,6 +42,8 @@ impl CodeGen {
     }
 
     pub fn gen_program(&self, hir: Hir) -> Result<(), Error> {
+        self.gen_stdlib()?;
+
         let i32_type = self.i32_type;
 
         // declare i32 @putchar(i32)
@@ -70,6 +73,25 @@ impl CodeGen {
 
         // ret i32 0
         self.builder.build_return(Some(&i32_type.const_int(0, false)));
+        Ok(())
+    }
+
+    fn gen_stdlib(&self) -> Result<(), Error> {
+        stdlib::stdlib_methods().iter().try_for_each(|method| {
+            self.gen_method(method)
+        })
+    }
+
+    fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
+        let func_type = self.llvm_func_type(&method.signature);
+        let function = self.module.add_function(method.llvm_func_name(), func_type, None);
+        match method.body {
+            SkMethodBody::RustMethodBody { gen } => {
+                gen(self, &function)?
+            },
+            //SkMethod::ShiikaMethod =>
+            _ => panic!("TODO"),
+        }
         Ok(())
     }
 
@@ -112,15 +134,32 @@ impl CodeGen {
         let else_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_basic_type(ty), "");
+        let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
         phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
         Ok(phi_node.as_basic_value())
     }
 
-    //fn gen_method_call
+    fn gen_method_call(&self,
+                       function: inkwell::values::FunctionValue,
+                       method: &SkMethod,
+                       self_expr: &HirExpression,
+                       arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let self_value = self.gen_expr(function, self_expr)?;
+        let mut arg_values = arg_exprs.iter().map(|arg_expr|
+          self.gen_expr(function, arg_expr)
+        ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
+
+        let function = self.module.get_function(method.llvm_func_name()).expect("[BUG] get_function not found");
+        let mut llvm_args = vec!(self_value);
+        llvm_args.append(&mut arg_values);
+        match self.builder.build_call(function, &llvm_args, "gen_method_call").try_as_basic_value().left() {
+            Some(result_value) => Ok(result_value),
+            None => panic!("[BUG] void function")
+        }
+    }
 
     //fn gen_bin_op
-    
+
     fn gen_float_literal(&self, value: f32) -> inkwell::values::BasicValueEnum {
         self.f32_type.const_float(value as f64).as_basic_value_enum()
     }
@@ -129,7 +168,14 @@ impl CodeGen {
 //        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
 //    }
 
-    fn llvm_basic_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
+    fn llvm_func_type(&self, signature: &MethodSignature) -> inkwell::types::FunctionType {
+        let self_type = self.llvm_type(&ty::raw("Float"));
+        let mut types = signature.arg_tys.iter().map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        types.insert(0, self_type);
+        self.llvm_type(&signature.ret_ty).fn_type(&types, false)
+    }
+
+    fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
         match ty {
             TermTy::TyRaw { fullname } => {
                 if fullname == "Float" {
