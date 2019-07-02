@@ -85,6 +85,9 @@ impl CodeGen {
     fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
         let func_type = self.llvm_func_type(&method.signature);
         let function = self.module.add_function(method.llvm_func_name(), func_type, None);
+        let basic_block = self.context.append_basic_block(&function, "");
+        self.builder.position_at_end(&basic_block);
+
         match method.body {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?

@@ -33,11 +33,11 @@ pub enum SkMethodBody {
         stmts: Vec<HirStatement>
     },
     RustMethodBody {
-        // TODO: better name
-        gen: fn(code_gen: &crate::shiika::code_gen::CodeGen,
-                function: &inkwell::values::FunctionValue) -> Result<(), crate::shiika::code_gen::Error>
+        gen: GenMethodBody // TODO: better name
     }
 }
+pub type GenMethodBody = fn(code_gen: &crate::shiika::code_gen::CodeGen,
+                function: &inkwell::values::FunctionValue) -> Result<(), crate::shiika::code_gen::Error>;
 
 
 #[derive(Debug, PartialEq)]
