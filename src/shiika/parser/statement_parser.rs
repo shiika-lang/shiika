@@ -8,7 +8,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 Token::Eof => break,
                 _ => ret.push(self.parse_expr_stmt()?),
             };
-            self.expect_sep();
+            self.expect_sep()?;
         }
         Ok(ret)
     }
