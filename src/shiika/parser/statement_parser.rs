@@ -3,7 +3,7 @@ use super::base::*;
 impl<'a, 'b> Parser<'a, 'b> {
     pub (in super) fn parse_stmts(&mut self) -> Result<Vec<ast::Statement>, ParseError> {
         let mut ret = Vec::new();
-        while true {
+        loop {
             match self.current_token() {
                 Token::Eof => break,
                 _ => ret.push(self.parse_expr_stmt()?),
