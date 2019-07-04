@@ -9,7 +9,7 @@ pub struct Hir {
     pub main_stmts: Vec<HirStatement>,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, hir_maker::Error> {
+    pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, crate::error::Error> {
         hir_maker::HirMaker::new(stdlib).convert_program(ast)
     }
 

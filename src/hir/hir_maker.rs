@@ -1,19 +1,9 @@
 use std::collections::HashMap;
 use backtrace::Backtrace;
 use crate::ast;
+use crate::error::Error;
 use crate::hir::*;
-
-#[derive(Debug)]
-pub struct Error {
-    pub msg: String,
-    pub backtrace: Backtrace
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-impl std::error::Error for Error {}
+use crate::type_checking;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker<'a> {
@@ -46,6 +36,8 @@ impl<'a> HirMaker<'a> {
         match expr {
             ast::Expression::If { cond_expr, then_expr, else_expr } => {
                 let cond_hir = self.convert_expr(cond_expr)?;
+                type_checking::check_if_condition_ty(&cond_hir.ty)?;
+
                 let then_hir = self.convert_expr(then_expr)?;
                 let else_hir = match else_expr {
                     Some(expr) => self.convert_expr(expr)?,
@@ -90,7 +82,7 @@ impl<'a> HirMaker<'a> {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let method = self.lookup_method(&receiver_hir.ty, method_name)
-            .ok_or(Error {
+            .ok_or(Error::ProgramError {
                 msg: format!("method {:?} not found on {:?}", method_name, receiver_hir.ty.class_fullname()),
                 backtrace: Backtrace::new()
             })?;
