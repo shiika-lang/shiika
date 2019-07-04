@@ -62,10 +62,12 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     pub (in super) fn parseerror(&self, msg: &str) -> Error {
-        Error::ParseError {
+        Error {
             msg: msg.to_string(),
-            location: self.lexer.cur.clone(),
-            backtrace: backtrace::Backtrace::new()
+            backtrace: backtrace::Backtrace::new(),
+            details: ErrorDetails::ParseError {
+                location: self.lexer.cur.clone(),
+            }
         }
     }
 }

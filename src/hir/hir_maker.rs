@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use backtrace::Backtrace;
 use crate::ast;
+use crate::error;
 use crate::error::Error;
 use crate::hir::*;
 use crate::type_checking;
@@ -82,10 +82,7 @@ impl<'a> HirMaker<'a> {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let method = self.lookup_method(&receiver_hir.ty, method_name)
-            .ok_or(Error::ProgramError {
-                msg: format!("method {:?} not found on {:?}", method_name, receiver_hir.ty.class_fullname()),
-                backtrace: Backtrace::new()
-            })?;
+            .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_hir.ty.class_fullname())))?;
         Ok(Hir::method_call(method.signature.ret_ty.clone(), receiver_hir, method.id.clone(), arg_hirs))
     }
 
