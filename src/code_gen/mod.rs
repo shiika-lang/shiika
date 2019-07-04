@@ -2,10 +2,9 @@ use std::collections::HashMap;
 use backtrace::Backtrace;
 use inkwell::values::*;
 use inkwell::types::*;
-use crate::shiika::ty;
-use crate::shiika::ty::*;
-use crate::shiika::hir::*;
-use crate::shiika::hir::HirExpressionBase::*;
+use crate::ty::*;
+use crate::hir::*;
+use crate::hir::HirExpressionBase::*;
 
 #[derive(Debug)]
 pub struct Error {

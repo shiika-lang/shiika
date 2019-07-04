@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use inkwell::values::*;
-use crate::shiika::ty;
-use crate::shiika::hir::*;
-use crate::shiika::stdlib::define_method;
+use crate::ty;
+use crate::hir::*;
+use crate::stdlib::define_method;
 
 pub fn create_class() -> SkClass {
     SkClass {

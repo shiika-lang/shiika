@@ -1,8 +1,8 @@
 mod hir_maker;
 use std::collections::HashMap;
-use crate::shiika::ast;
-use crate::shiika::ty;
-use crate::shiika::ty::*;
+use crate::ast;
+use crate::ty;
+use crate::ty::*;
 
 pub struct Hir {
     //pub class_defs: Vec<SkClass>,
@@ -49,8 +49,8 @@ pub enum SkMethodBody {
         gen: GenMethodBody // TODO: better name
     }
 }
-pub type GenMethodBody = fn(code_gen: &crate::shiika::code_gen::CodeGen,
-                function: &inkwell::values::FunctionValue) -> Result<(), crate::shiika::code_gen::Error>;
+pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
+                function: &inkwell::values::FunctionValue) -> Result<(), crate::code_gen::Error>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodId(pub String);

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use backtrace::Backtrace;
-use crate::shiika::ast;
-use crate::shiika::hir::*;
+use crate::ast;
+use crate::hir::*;
 
 #[derive(Debug)]
 pub struct Error {

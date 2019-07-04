@@ -2,8 +2,8 @@ use std::collections::HashMap;
 mod float;
 mod int;
 mod object;
-use crate::shiika::ty::*;
-use crate::shiika::hir::*;
+use crate::ty::*;
+use crate::hir::*;
 
 pub fn create_classes() -> HashMap<String, SkClass> {
     let mut ret = HashMap::new();
