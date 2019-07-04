@@ -1,6 +1,6 @@
-use super::super::ast;
-use super::Parser;
-use super::base::ParseError;
+use shiika::ast;
+use shiika::parser::Parser;
+use shiika::parser::ParseError;
 
 fn parse_expr(src: &str) -> Result<ast::Expression, ParseError> {
     let mut parser = Parser::new(src);
@@ -23,10 +23,10 @@ fn test_if_expr() {
 fn test_additive_expr() {
     let result = parse_expr("1+2*3");
     assert_eq!(result.unwrap(), 
-        ast::Expression::BinOp {
+        ast::Expression::BinOpExpression {
             left: Box::new(ast::decimal_literal(1)),
             op: ast::BinOp::Add,
-            right: Box::new(ast::Expression::BinOp {
+            right: Box::new(ast::Expression::BinOpExpression {
                 left: Box::new(ast::decimal_literal(2)),
                 op: ast::BinOp::Mul,
                 right: Box::new(ast::decimal_literal(3)),
@@ -39,7 +39,7 @@ fn test_additive_expr() {
 fn test_multiplicative_expr() {
     let result = parse_expr("1%2");
     assert_eq!(result.unwrap(), 
-        ast::Expression::BinOp {
+        ast::Expression::BinOpExpression {
             left: Box::new(ast::decimal_literal(1)),
             op: ast::BinOp::Mod,
             right: Box::new(ast::decimal_literal(2)),
@@ -51,7 +51,7 @@ fn test_multiplicative_expr() {
 fn test_multiplicative_with_method_call() {
     let result = parse_expr("1.foo * 2");
     assert_eq!(result.unwrap(), 
-        ast::Expression::BinOp {
+        ast::Expression::BinOpExpression {
             left: Box::new(ast::Expression::MethodCall {
                 receiver_expr: Some(Box::new(ast::decimal_literal(1))),
                 method_name: "foo".to_string(),
@@ -119,7 +119,7 @@ fn test_method_call_with_binop() {
             receiver_expr: None,
             method_name: "foo".to_string(),
             arg_exprs: vec![
-                ast::Expression::BinOp {
+                ast::Expression::BinOpExpression {
                     left: Box::new(ast::decimal_literal(1)),
                     op: ast::BinOp::Add,
                     right: Box::new(ast::decimal_literal(2)),

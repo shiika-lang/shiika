@@ -1,7 +1,7 @@
 use super::base::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub (in super) fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    pub fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
         match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
             Token::LowerWord("if") => self.parse_if_expr(),

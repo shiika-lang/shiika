@@ -1,22 +1,9 @@
-use backtrace::Backtrace;
-pub use super::Parser;
-pub use super::super::ast;
-pub use super::token::Token;
-pub use super::lexer;
-pub use super::lexer::*;
-
-#[derive(Debug)]
-pub struct ParseError {
-    pub msg: String,
-    pub location: lexer::Cursor,
-    pub backtrace: Backtrace
-}
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-impl std::error::Error for ParseError {}
+pub use crate::ast;
+pub use crate::parser::Parser;
+pub use crate::parser::ParseError;
+pub use crate::parser::token::Token;
+pub use crate::parser::lexer;
+pub use crate::parser::lexer::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
     pub fn new(src: &str) -> Parser {
@@ -96,7 +83,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         ParseError{
             msg: msg.to_string(),
             location: self.lexer.cur.clone(),
-            backtrace: Backtrace::new()
+            backtrace: backtrace::Backtrace::new()
         }
     }
 }
