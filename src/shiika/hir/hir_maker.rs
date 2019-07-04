@@ -69,21 +69,12 @@ impl<'a> HirMaker<'a> {
                 // TODO: arg types must match with method signature
                 let arg_hirs = arg_exprs.iter().map(|arg_expr| self.convert_expr(arg_expr)).collect::<Result<Vec<_>,_>>()?;
 
-                let method = self.lookup_method(&receiver_hir.ty, method_name)
-                    .ok_or(Error {
-                        msg: format!("method {:?} not found", method_name),
-                        backtrace: Backtrace::new()
-                    })?;
-                Ok(Hir::method_call(method.signature.ret_ty.clone(), receiver_hir, method.id.clone(), arg_hirs))
+                self.make_method_call(receiver_hir, &method_name, arg_hirs)
             },
 
-//            ast::Expression::BinOp {left, op, right} => {
-//                let method = TODO;
-//                Ok(Hir::method_call(
-//                        left.to_hir()?,
-//                        method,
-//                        [right.to_hir()?]))
-//            },
+            ast::Expression::BinOpExpression {left, op, right} => {
+                self.make_method_call(self.convert_expr(left)?, &op.method_name(), vec!(self.convert_expr(right)?))
+            },
 
             ast::Expression::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
@@ -95,6 +86,15 @@ impl<'a> HirMaker<'a> {
 
             _ => panic!("TODO: convert_expr for {:?}", self)
         }
+    }
+
+    fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
+        let method = self.lookup_method(&receiver_hir.ty, method_name)
+            .ok_or(Error {
+                msg: format!("method {:?} not found on {:?}", method_name, receiver_hir.ty.class_fullname()),
+                backtrace: Backtrace::new()
+            })?;
+        Ok(Hir::method_call(method.signature.ret_ty.clone(), receiver_hir, method.id.clone(), arg_hirs))
     }
 
     fn lookup_method(&self, receiver_ty: &TermTy, method_name: &str) -> Option<&SkMethod> {

@@ -45,7 +45,7 @@ pub enum Expression {
     },
     // Local variable reference or method call with implicit receiver(self)
     Name(String),
-    BinOp {
+    BinOpExpression {
         left: Box<Expression>,
         op: BinOp,
         right: Box<Expression>
@@ -68,7 +68,7 @@ impl Expression {
 }
 
 pub fn bin_op_expr(left: Expression, op: BinOp, right: Expression) -> Expression {
-    Expression::BinOp{
+    Expression::BinOpExpression {
         left: Box::new(left),
         op: op,
         right: Box::new(right)
@@ -90,4 +90,15 @@ pub enum BinOp {
     Mul,
     Div,
     Mod,
+}
+impl BinOp {
+    pub fn method_name(&self) -> String {
+        (match self {
+            BinOp::Add => "+",
+            BinOp::Sub => "-",
+            BinOp::Mul => "*",
+            BinOp::Div => "/",
+            BinOp::Mod => "%",
+        }).to_string()
+    }
 }

@@ -3,7 +3,9 @@
 mod shiika;
 
 fn main() -> Result<(), Box<std::error::Error>> {
-    let str = "putchar 72; putchar 105";
+    let str = "
+putchar 72
+putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(str)?;
     let stdlib = shiika::stdlib::create_classes();
     let hir = shiika::hir::Hir::from_ast(ast, &stdlib)?;
