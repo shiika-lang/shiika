@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use backtrace::Backtrace;
 use inkwell::values::*;
 use inkwell::types::*;
@@ -5,7 +6,6 @@ use crate::shiika::ty;
 use crate::shiika::ty::*;
 use crate::shiika::hir::*;
 use crate::shiika::hir::HirExpressionBase::*;
-use crate::shiika::stdlib;
 
 #[derive(Debug)]
 pub struct Error {
@@ -25,6 +25,7 @@ pub struct CodeGen {
     pub builder: inkwell::builder::Builder,
     pub i32_type: inkwell::types::IntType,
     pub f32_type: inkwell::types::FloatType,
+    pub void_type: inkwell::types::VoidType,
 }
 
 impl CodeGen {
@@ -38,17 +39,18 @@ impl CodeGen {
             builder: builder,
             i32_type: inkwell::types::IntType::i32_type(),
             f32_type: inkwell::types::FloatType::f32_type(),
+            void_type: inkwell::types::VoidType::void_type(),
         }
     }
 
-    pub fn gen_program(&self, hir: Hir) -> Result<(), Error> {
-        self.gen_stdlib()?;
-
+    pub fn gen_program(&self, hir: Hir, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
         let i32_type = self.i32_type;
 
         // declare i32 @putchar(i32)
         let putchar_type = i32_type.fn_type(&[i32_type.into()], false);
         self.module.add_function("putchar", putchar_type, None);
+
+        self.gen_stdlib(stdlib)?;
 
         // define i32 @main() {
         let main_type = i32_type.fn_type(&[], false);
@@ -56,39 +58,44 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "entry");
         self.builder.position_at_end(&basic_block);
 
-        let expr_value = self.gen_expr(function, &hir.hir_expr)?;
-        let float_val = 
-            match expr_value {
-                inkwell::values::BasicValueEnum::FloatValue(v) => v,
-                _ => panic!("not float")
-            };
+        self.gen_expr(function, &hir.hir_expr)?;
+//        let expr_value = self.gen_expr(function, &hir.hir_expr)?;
+//        let float_val = 
+//            match expr_value {
+//                inkwell::values::BasicValueEnum::FloatValue(v) => v,
+//                _ => panic!("not float")
+//            };
 
-        // call i32 @putchar(i32 72)
-        let fun = self.module.get_function("putchar");
-        // %reg353 = fptosi double 32.0 to i32
-        let cast2 = self.builder.build_float_to_signed_int(float_val, self.i32_type, "");
-        self.builder.build_call(fun.unwrap(), &[cast2.as_basic_value_enum()], "putchar");
-        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(72, false).into()], "putchar");
-        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(106, false).into()], "putchar");
+//        // call i32 @putchar(i32 72)
+//        let fun = self.module.get_function("putchar");
+//        // %reg353 = fptosi double 32.0 to i32
+//        let cast2 = self.builder.build_float_to_signed_int(float_val, self.i32_type, "");
+//        self.builder.build_call(fun.unwrap(), &[cast2.as_basic_value_enum()], "putchar");
+//        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(72, false).into()], "putchar");
+//        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(106, false).into()], "putchar");
 
         // ret i32 0
         self.builder.build_return(Some(&i32_type.const_int(0, false)));
         Ok(())
     }
 
-    fn gen_stdlib(&self) -> Result<(), Error> {
-        stdlib::stdlib_methods().iter().try_for_each(|method| {
-            self.gen_method(method)
+    fn gen_stdlib(&self, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
+        stdlib.values().try_for_each(|sk_class| {
+            sk_class.methods.values().try_for_each(|method| {
+                self.gen_method(&sk_class, &method)
+            })
         })
     }
 
-    fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
-        let func_type = self.llvm_func_type(&method.signature);
-        let function = self.module.add_function(method.llvm_func_name(), func_type, None);
+    fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
+        let func_type = self.llvm_func_type(&sk_class.instance_ty(), &method.signature);
+        let function = self.module.add_function(method.id.llvm_func_name(), func_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        match method.body {
+        // Method should have a body in code gen phase
+        let body = method.body.as_ref().unwrap();
+        match body {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
@@ -105,8 +112,18 @@ impl CodeGen {
             HirIfExpression { cond_expr, then_expr, else_expr } => {
                 self.gen_if_expr(function, &expr.ty, &cond_expr, &then_expr, &else_expr)
             },
+            HirMethodCall { receiver_expr, method_id, arg_exprs } => {
+                self.gen_method_call(function, method_id, receiver_expr, arg_exprs)
+            },
+            HirSelfExpression => {
+                // TODO: generate current self
+                Ok(self.gen_decimal_literal(1042))
+            },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
+            },
+            HirDecimalLiteral { value } => {
+                Ok(self.gen_decimal_literal(*value))
             },
             HirNop => {
                 panic!("HirNop not handled by `else`")
@@ -144,20 +161,23 @@ impl CodeGen {
 
     fn gen_method_call(&self,
                        function: inkwell::values::FunctionValue,
-                       method: &SkMethod,
-                       self_expr: &HirExpression,
+                       method_id: &MethodId,
+                       receiver_expr: &HirExpression,
                        arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let self_value = self.gen_expr(function, self_expr)?;
+        let receiver_value = self.gen_expr(function, receiver_expr)?;
         let mut arg_values = arg_exprs.iter().map(|arg_expr|
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(method.llvm_func_name()).expect("[BUG] get_function not found");
-        let mut llvm_args = vec!(self_value);
+        let function = self.module.get_function(method_id.llvm_func_name()).expect("[BUG] get_function not found");
+        let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "gen_method_call").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
-            None => panic!("[BUG] void function")
+            None => {
+                // Dummy value (TODO: replace with special value?)
+                Ok(self.gen_decimal_literal(42))
+            }
         }
     }
 
@@ -167,28 +187,38 @@ impl CodeGen {
         self.f32_type.const_float(value as f64).as_basic_value_enum()
     }
 
-//    fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
-//        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
-//    }
+    fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
+        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
+    }
 
-    fn llvm_func_type(&self, signature: &MethodSignature) -> inkwell::types::FunctionType {
-        let self_type = self.llvm_type(&ty::raw("Float"));
-        let mut types = signature.arg_tys.iter().map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
-        types.insert(0, self_type);
-        self.llvm_type(&signature.ret_ty).fn_type(&types, false)
+    fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
+        let self_type = self.llvm_type(self_ty);
+        let mut arg_types = signature.arg_tys.iter().map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        arg_types.insert(0, self_type);
+
+        if signature.ret_ty.is_void_type() {
+            self.void_type.fn_type(&arg_types, false)
+        }
+        else {
+            let result_type = self.llvm_type(&signature.ret_ty);
+            result_type.fn_type(&arg_types, false)
+        }
     }
 
     fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
         match ty {
             TermTy::TyRaw { fullname } => {
-                if fullname == "Float" {
-                    return self.f32_type.as_basic_type_enum();
-                }
-                else {
-                    panic!("TODO")
+                match fullname.as_str() {
+                    "Int" => self.i32_type.as_basic_type_enum(),
+                    "Float" => self.f32_type.as_basic_type_enum(),
+                    // TODO: should be a struct
+                    "Object" => self.i32_type.as_basic_type_enum(),
+                    // TODO: replace with special value?
+                    "Void" => self.i32_type.as_basic_type_enum(),
+                    _ => panic!("TODO: {:?}", fullname)
                 }
             },
-            TermTy::TyMeta { base_fullname } => panic!("TODO: {:?}", base_fullname)
+            TermTy::TyMeta { .. } => panic!("TODO")
         }
     }
 }

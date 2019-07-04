@@ -6,7 +6,23 @@ pub enum TermTy {
     TyRaw { fullname: String },
     // Types corresponds to (non-generic) metaclass
     // eg. "Meta:Int", "Meta:String", "Meta:Object"
-    TyMeta { base_fullname: String },
+    TyMeta { fullname: String, base_fullname: String },
+}
+impl TermTy {
+    pub fn class_fullname(&self) -> &str {
+        match self {
+            TermTy::TyRaw { fullname } => &fullname,
+            TermTy::TyMeta { fullname, .. } => &fullname,
+        }
+    }
+
+    // Returns true when this is the Void type
+    pub fn is_void_type(&self) -> bool {
+        match self {
+            TermTy::TyRaw { fullname } => (fullname == "Void"),
+            _ => false
+        }
+    }
 }
 
 pub fn raw(fullname: &str) -> TermTy {

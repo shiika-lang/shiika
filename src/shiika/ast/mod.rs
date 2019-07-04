@@ -1,5 +1,3 @@
-mod to_hir;
-
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub class_defs: Vec<ClassDefinition>,
@@ -33,7 +31,7 @@ pub enum Statement {
     },
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     If {
         cond_expr: Box<Expression>,
@@ -56,7 +54,7 @@ pub enum Expression {
         value: f32,
     },
     DecimalLiteral {
-        value: usize,
+        value: i32,
     }
 }
 
@@ -81,7 +79,7 @@ pub fn float_literal(value: f32) -> Expression {
     Expression::FloatLiteral{ value }
 }
 
-pub fn decimal_literal(value: usize) -> Expression {
+pub fn decimal_literal(value: i32) -> Expression {
     Expression::DecimalLiteral{ value }
 }
 

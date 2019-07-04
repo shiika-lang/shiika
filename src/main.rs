@@ -3,11 +3,12 @@
 mod shiika;
 
 fn main() -> Result<(), Box<std::error::Error>> {
-    let str = "72.0";
+    let str = "putchar 72";
     let ast = shiika::parser::Parser::parse(str)?;
-    let hir = ast.to_hir()?;
+    let stdlib = shiika::stdlib::create_classes();
+    let hir = shiika::hir::Hir::from_ast(ast, &stdlib)?;
     let code_gen = shiika::code_gen::CodeGen::new();
-    code_gen.gen_program(hir)?;
+    code_gen.gen_program(hir, stdlib)?;
     code_gen.module.print_to_file("a.ll")?;
     Ok(())
     //println!("{:?}", shiika::parser::parse(str));

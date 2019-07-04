@@ -1,3 +1,7 @@
+mod hir_maker;
+use std::collections::HashMap;
+use crate::shiika::ast;
+use crate::shiika::ty;
 use crate::shiika::ty::*;
 
 pub struct Hir {
@@ -6,27 +10,37 @@ pub struct Hir {
     pub hir_expr: HirExpression
 }
 impl Hir {
+    pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, hir_maker::Error> {
+        hir_maker::HirMaker::new(stdlib).convert_program(ast)
+    }
+
     pub fn new(hir_expr: HirExpression) -> Hir {
         Hir { hir_expr }
     }
 }
 
-//pub struct SkClass {
-//    pub name: String,
-//    pub methods: Vec<SkMethod>,
-//}
+#[derive(Debug, PartialEq)]
+pub struct SkClass {
+    pub fullname: String,
+    pub methods: HashMap<String, SkMethod>,
+}
+impl SkClass {
+    pub fn find_method(&self, name: &str) -> Option<&SkMethod> {
+        self.methods.get(name)
+    }
+
+    pub fn instance_ty(&self) -> TermTy {
+        ty::raw(&self.fullname)
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct SkMethod {
-    pub fullname: String,
+    pub id: MethodId,
     pub signature: MethodSignature,
-    pub body: SkMethodBody,
+    pub body: Option<SkMethodBody>, // None on creation
 }
-impl SkMethod {
-    pub fn llvm_func_name(&self) -> &str {
-        &self.fullname
-    }
-}
+
 #[derive(Debug, PartialEq)]
 pub enum SkMethodBody {
     ShiikaMethodBody {
@@ -39,6 +53,13 @@ pub enum SkMethodBody {
 pub type GenMethodBody = fn(code_gen: &crate::shiika::code_gen::CodeGen,
                 function: &inkwell::values::FunctionValue) -> Result<(), crate::shiika::code_gen::Error>;
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MethodId(pub String);
+impl MethodId {
+    pub fn llvm_func_name(&self) -> &str {
+        &self.0
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum HirStatement {
@@ -60,8 +81,17 @@ pub enum HirExpressionBase {
         then_expr: Box<HirExpression>,
         else_expr: Box<HirExpression>,
     },
+    HirMethodCall {
+        receiver_expr: Box<HirExpression>,
+        method_id: MethodId,
+        arg_exprs: Vec<HirExpression>,
+    },
+    HirSelfExpression,
     HirFloatLiteral {
         value: f32,
+    },
+    HirDecimalLiteral {
+        value: i32,
     },
     HirNop  // For else-less if expr
 }
@@ -81,10 +111,36 @@ impl Hir {
         }
     }
 
+    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_id: MethodId, arg_hirs: Vec<HirExpression>) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                method_id: method_id,
+                arg_exprs: arg_hirs,
+            }
+        }
+    }
+
+    // TODO: get self as argument
+    pub fn self_expression() -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Object"),
+            node: HirExpressionBase::HirSelfExpression,
+        }
+    }
+
     pub fn float_literal(value: f32) -> HirExpression {
         HirExpression {
-            ty: TermTy::TyRaw{ fullname: "Float".to_string() },
+            ty: ty::raw("Float"),
             node: HirExpressionBase::HirFloatLiteral { value }
+        }
+    }
+    
+    pub fn decimal_literal(value: i32) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Int"),
+            node: HirExpressionBase::HirDecimalLiteral { value }
         }
     }
     
