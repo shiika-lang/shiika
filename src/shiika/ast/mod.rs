@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub class_defs: Vec<ClassDefinition>,
-    pub expr: Expression
+    pub stmts: Vec<Statement>,
 }
 
 pub trait Definition {}

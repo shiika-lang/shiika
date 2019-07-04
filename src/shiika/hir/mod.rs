@@ -6,16 +6,15 @@ use crate::shiika::ty::*;
 
 pub struct Hir {
     //pub class_defs: Vec<SkClass>,
-    //pub main_stmts: Vec<HirStatement>,
-    pub hir_expr: HirExpression
+    pub main_stmts: Vec<HirStatement>,
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, hir_maker::Error> {
         hir_maker::HirMaker::new(stdlib).convert_program(ast)
     }
 
-    pub fn new(hir_expr: HirExpression) -> Hir {
-        Hir { hir_expr }
+    pub fn new(hir_stmts: Vec<HirStatement>) -> Hir {
+        Hir { main_stmts: hir_stmts }
     }
 }
 
@@ -72,6 +71,11 @@ pub enum HirStatement {
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
+}
+impl HirExpression {
+    pub fn to_hir_statement(self) -> HirStatement {
+        HirStatement::HirExpressionStatement { expr: self }
+    }
 }
 
 #[derive(Debug, PartialEq)]

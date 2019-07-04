@@ -1,6 +1,7 @@
 mod base;
 mod token;
 pub mod lexer;
+mod statement_parser;
 mod expression_parser;
 mod expression_parser_test;
 //mod definition_parser;

@@ -58,7 +58,7 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "entry");
         self.builder.position_at_end(&basic_block);
 
-        self.gen_expr(function, &hir.hir_expr)?;
+        self.gen_stmts(function, &hir.main_stmts)?;
 //        let expr_value = self.gen_expr(function, &hir.hir_expr)?;
 //        let float_val = 
 //            match expr_value {
@@ -103,6 +103,23 @@ impl CodeGen {
             _ => panic!("TODO"),
         }
         Ok(())
+    }
+
+    fn gen_stmts(&self,
+                function: inkwell::values::FunctionValue,
+                stmts: &Vec<HirStatement>) -> Result<(), Error> {
+        stmts.iter().try_for_each(|stmt| self.gen_stmt(function, &stmt))
+    }
+
+    fn gen_stmt(&self,
+                function: inkwell::values::FunctionValue,
+                stmt: &HirStatement) -> Result<(), Error> {
+        match stmt {
+            HirStatement::HirExpressionStatement { expr } => {
+                self.gen_expr(function, &expr)?;
+                Ok(())
+            }
+        }
     }
 
     fn gen_expr(&self,

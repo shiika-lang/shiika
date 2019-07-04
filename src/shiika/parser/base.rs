@@ -33,8 +33,8 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
         self.skip_wsn();
         Ok(ast::Program {
-            expr: self.parse_expr()?,
             class_defs: Vec::new(),
+            stmts: self.parse_stmts()?,
         })
     }
 

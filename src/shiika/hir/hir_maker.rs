@@ -28,8 +28,18 @@ impl<'a> HirMaker<'a> {
     }
 
     pub fn convert_program(&self, prog: ast::Program) -> Result<Hir, Error> {
-        let hir_expr = self.convert_expr(&prog.expr)?;
-        Ok(Hir::new(hir_expr))
+        let hir_stmts = prog.stmts.iter().map(|stmt| {
+            self.convert_stmt(&stmt)
+        }).collect::<Result<Vec<_>, _>>()?;
+        Ok(Hir::new(hir_stmts))
+    }
+
+    fn convert_stmt(&self, stmt: &ast::Statement) -> Result<HirStatement, Error> {
+        match stmt {
+            ast::Statement::ExpressionStatement { expr } => {
+                Ok(self.convert_expr(&expr)?.to_hir_statement())
+            }
+        }
     }
 
     fn convert_expr(&self, expr: &ast::Expression) -> Result<HirExpression, Error> {
