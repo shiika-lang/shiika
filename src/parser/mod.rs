@@ -3,7 +3,31 @@ mod token;
 pub mod lexer;
 mod statement_parser;
 mod expression_parser;
+use crate::ast;
+use crate::error::Error;
+use crate::parser::lexer::Lexer;
 
 pub struct Parser<'a, 'b> {
-    pub lexer: lexer::Lexer<'a, 'b>
+    pub lexer: Lexer<'a, 'b>
+}
+
+impl<'a, 'b> Parser<'a, 'b> {
+    pub fn new(src: &str) -> Parser {
+        Parser {
+            lexer: Lexer::new(src)
+        }
+    }
+
+    pub fn parse(src: &str) -> Result<ast::Program, Error> {
+        let mut parser = Parser::new(src);
+        parser.parse_program()
+    }
+
+    fn parse_program(&mut self) -> Result<ast::Program, Error> {
+        self.skip_wsn();
+        Ok(ast::Program {
+            class_defs: Vec::new(),
+            stmts: self.parse_stmts()?,
+        })
+    }
 }

@@ -1,3 +1,4 @@
+/// Provides utilities for *_parser.rs
 pub use crate::ast;
 pub use crate::error::*;
 pub use crate::parser::Parser;
@@ -6,25 +7,6 @@ pub use crate::parser::lexer;
 pub use crate::parser::lexer::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub fn new(src: &str) -> Parser {
-        Parser {
-            lexer: Lexer::new(src)
-        }
-    }
-
-    pub fn parse(src: &str) -> Result<ast::Program, Error> {
-        let mut parser = Parser::new(src);
-        parser.parse_program()
-    }
-
-    fn parse_program(&mut self) -> Result<ast::Program, Error> {
-        self.skip_wsn();
-        Ok(ast::Program {
-            class_defs: Vec::new(),
-            stmts: self.parse_stmts()?,
-        })
-    }
-
     pub (in super) fn expect_sep(&mut self) -> Result<(), Error> {
         self.skip_ws();
         match self.current_token() {
