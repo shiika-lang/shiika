@@ -1,22 +1,10 @@
 use std::collections::HashMap;
-use backtrace::Backtrace;
 use inkwell::values::*;
 use inkwell::types::*;
+use crate::error::Error;
 use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
-
-#[derive(Debug)]
-pub struct Error {
-    pub msg: String,
-    pub backtrace: Backtrace
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-impl std::error::Error for Error {}
 
 pub struct CodeGen {
     pub context: inkwell::context::Context,
@@ -58,20 +46,6 @@ impl CodeGen {
         self.builder.position_at_end(&basic_block);
 
         self.gen_stmts(function, &hir.main_stmts)?;
-//        let expr_value = self.gen_expr(function, &hir.hir_expr)?;
-//        let float_val = 
-//            match expr_value {
-//                inkwell::values::BasicValueEnum::FloatValue(v) => v,
-//                _ => panic!("not float")
-//            };
-
-//        // call i32 @putchar(i32 72)
-//        let fun = self.module.get_function("putchar");
-//        // %reg353 = fptosi double 32.0 to i32
-//        let cast2 = self.builder.build_float_to_signed_int(float_val, self.i32_type, "");
-//        self.builder.build_call(fun.unwrap(), &[cast2.as_basic_value_enum()], "putchar");
-//        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(72, false).into()], "putchar");
-//        self.builder.build_call(fun.unwrap(), &[i32_type.const_int(106, false).into()], "putchar");
 
         // ret i32 0
         self.builder.build_return(Some(&i32_type.const_int(0, false)));

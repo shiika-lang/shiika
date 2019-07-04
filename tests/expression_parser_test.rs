@@ -1,8 +1,7 @@
 use shiika::ast;
 use shiika::parser::Parser;
-use shiika::parser::ParseError;
 
-fn parse_expr(src: &str) -> Result<ast::Expression, ParseError> {
+fn parse_expr(src: &str) -> Result<ast::Expression, shiika::error::Error> {
     let mut parser = Parser::new(src);
     parser.parse_expr()
 }

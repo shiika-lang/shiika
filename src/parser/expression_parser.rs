@@ -1,7 +1,7 @@
 use super::base::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub fn parse_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    pub fn parse_expr(&mut self) -> Result<ast::Expression, Error> {
         match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
             Token::LowerWord("if") => self.parse_if_expr(),
@@ -9,7 +9,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_if_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_if_expr(&mut self) -> Result<ast::Expression, Error> {
         assert_eq!(*self.current_token(), Token::LowerWord("if"));
 
         self.consume_token();
@@ -38,7 +38,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_additive_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_additive_expr(&mut self) -> Result<ast::Expression, Error> {
         let left = self.parse_multiplicative_expr()?;
         self.skip_ws();
 
@@ -55,7 +55,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, Error> {
         let left = self.parse_method_call()?;
         self.skip_ws();
 
@@ -73,7 +73,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_method_call(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_method_call(&mut self) -> Result<ast::Expression, Error> {
         let mut receiver_expr;
         let receiver_has_paren;
         match self.current_token() {
@@ -167,7 +167,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_method_call_args(&mut self) -> Result<Option<Vec<ast::Expression>>, ParseError> {
+    fn parse_method_call_args(&mut self) -> Result<Option<Vec<ast::Expression>>, Error> {
         self.skip_ws();
         let has_paren;
         match self.current_token() {
@@ -226,7 +226,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(Some(arg_exprs))
     }
 
-    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, Error> {
         if *self.current_token() != Token::Symbol("(") {
             return self.parse_decimal_literal();
         }
@@ -238,7 +238,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(expr)
     }
 
-    fn parse_decimal_literal(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_decimal_literal(&mut self) -> Result<ast::Expression, Error> {
         match self.consume_token() {
             Token::Number(s) => {
                 if s.contains('.') {

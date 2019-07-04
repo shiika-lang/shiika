@@ -4,7 +4,7 @@ use super::base::*;
 use super::super::ast;
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub (in super) fn parse_definition(&mut self) -> Result<ast::Expression, ParseError> {
+    pub (in super) fn parse_definition(&mut self) -> Result<ast::Expression, Error> {
         match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
             Token::LowerWord("class") => self.parse_class_definition(),
@@ -14,7 +14,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn parse_class_definition(&mut self) -> Result<ast::Expression, ParseError> {
+    fn parse_class_definition(&mut self) -> Result<ast::Expression, Error> {
         assert_eq!(*self.current_token(), Token::LowerWord("class"));
         self.consume_token();
         self.skip_ws();

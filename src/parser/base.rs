@@ -1,6 +1,6 @@
 pub use crate::ast;
+pub use crate::error::*;
 pub use crate::parser::Parser;
-pub use crate::parser::ParseError;
 pub use crate::parser::token::Token;
 pub use crate::parser::lexer;
 pub use crate::parser::lexer::*;
@@ -12,12 +12,12 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    pub fn parse(src: &str) -> Result<ast::Program, ParseError> {
+    pub fn parse(src: &str) -> Result<ast::Program, Error> {
         let mut parser = Parser::new(src);
         parser.parse_program()
     }
 
-    fn parse_program(&mut self) -> Result<ast::Program, ParseError> {
+    fn parse_program(&mut self) -> Result<ast::Program, Error> {
         self.skip_wsn();
         Ok(ast::Program {
             class_defs: Vec::new(),
@@ -25,7 +25,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         })
     }
 
-    pub (in super) fn expect_sep(&mut self) -> Result<(), ParseError> {
+    pub (in super) fn expect_sep(&mut self) -> Result<(), Error> {
         self.skip_ws();
         match self.current_token() {
             Token::Separator => { self.consume_token(); },
@@ -39,7 +39,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(())
     }
 
-    pub (in super) fn expect(&mut self, token: Token) -> Result<&Token, ParseError> {
+    pub (in super) fn expect(&mut self, token: Token) -> Result<&Token, Error> {
         if self.current_token_is(&token) {
             Ok(self.current_token())
         }
@@ -79,8 +79,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.lexer.current_token()
     }
 
-    pub (in super) fn parseerror(&self, msg: &str) -> ParseError {
-        ParseError{
+    pub (in super) fn parseerror(&self, msg: &str) -> Error {
+        Error::ParseError {
             msg: msg.to_string(),
             location: self.lexer.cur.clone(),
             backtrace: backtrace::Backtrace::new()

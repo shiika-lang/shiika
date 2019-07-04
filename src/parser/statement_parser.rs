@@ -1,7 +1,7 @@
 use super::base::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub (in super) fn parse_stmts(&mut self) -> Result<Vec<ast::Statement>, ParseError> {
+    pub (in super) fn parse_stmts(&mut self) -> Result<Vec<ast::Statement>, Error> {
         let mut ret = Vec::new();
         loop {
             match self.current_token() {
@@ -13,7 +13,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(ret)
     }
 
-    pub fn parse_expr_stmt(&mut self) -> Result<ast::Statement, ParseError> {
+    pub fn parse_expr_stmt(&mut self) -> Result<ast::Statement, Error> {
         Ok(self.parse_expr()?.to_statement())
     }
 }

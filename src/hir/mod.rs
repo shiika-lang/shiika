@@ -50,7 +50,7 @@ pub enum SkMethodBody {
     }
 }
 pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
-                function: &inkwell::values::FunctionValue) -> Result<(), crate::code_gen::Error>;
+                function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodId(pub String);
