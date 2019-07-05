@@ -1,24 +1,40 @@
 #[derive(Debug, PartialEq)]
 pub struct Program {
-    pub class_defs: Vec<ClassDefinition>,
+    pub class_defs: Vec<Definition>,
     pub stmts: Vec<Statement>,
 }
 
-pub trait Definition {}
+#[derive(Debug, PartialEq)]
+pub enum Definition {
+    ClassDefinition {
+        name: String,
+        defs: Vec<Definition>,
+    },
+    InitializerDefinition {
+        name: String,
+        body_stmts: Vec<Statement>,
+    },
+    InstanceMethodDefinition {
+        name: String,
+        params: Vec<Param>,
+        body_stmts: Vec<Statement>,
+    },
+    ClassMethodDefinition {
+        name: String,
+        body_stmts: Vec<Statement>,
+    }
+}
 
 #[derive(Debug, PartialEq)]
-pub struct ClassDefinition {
+pub struct Param {
     pub name: String,
-    pub instance_method_defs: Vec<InstanceMethodDefinition>,
+    pub ty: Ty,
 }
-impl Definition for ClassDefinition {}
 
 #[derive(Debug, PartialEq)]
-pub struct InstanceMethodDefinition {
+pub struct Ty {
     pub name: String,
-    pub body_stmts: Vec<Statement>,
 }
-impl Definition for InstanceMethodDefinition {}
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {

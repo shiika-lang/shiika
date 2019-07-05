@@ -12,9 +12,9 @@ impl<'a, 'b> Parser<'a, 'b> {
         match self.current_token() {
             Token::Separator => { self.consume_token(); },
             Token::Eof => (),
-            _ => {
-                let msg = format!("expected separator but got {:?}", self.current_token());
-                return Err(self.parseerror(&msg))
+            token => {
+                let msg = &format!("expected separator but got {:?}", token);
+                return Err(self.parseerror(msg))
             }
         }
         self.skip_wsn();

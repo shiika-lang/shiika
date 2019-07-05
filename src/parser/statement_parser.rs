@@ -5,7 +5,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         let mut ret = Vec::new();
         loop {
             match self.current_token() {
-                Token::Eof => break,
+                Token::Eof | Token::LowerWord("end") => break,
                 _ => ret.push(self.parse_expr_stmt()?),
             };
             self.expect_sep()?;

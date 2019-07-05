@@ -1,6 +1,14 @@
+macro_rules! parse_error {
+    ( $self:ident, $( $arg:expr ),* ) => ({
+        let msg = format!( $( $arg ),* );
+        $self.parseerror(&msg)
+    })
+}
+
 mod base;
 mod token;
 pub mod lexer;
+mod definition_parser;
 mod statement_parser;
 mod expression_parser;
 use crate::ast;

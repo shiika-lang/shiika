@@ -204,7 +204,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
             '0'...'9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
-            '.' | '@' | '~' | '?' | ','  => CharType::Symbol,
+            '.' | '@' | '~' | '?' | ',' | ':' => CharType::Symbol,
             'A'...'Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
         }
