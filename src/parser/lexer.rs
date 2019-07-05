@@ -149,13 +149,16 @@ impl<'a, 'b> Lexer<'a, 'b> {
     }
 
     fn read_symbol(&mut self, next_cur: &mut Cursor) {
-        loop {
-            match self.char_type(next_cur.peek(self.src)) {
-                CharType::Symbol => {
+        let c1 = next_cur.proceed(self.src);
+        let c2 = next_cur.peek(self.src);
+        match self.char_type(c2) {
+            CharType::Symbol => {
+                if c1 == '-' && c2 == Some('>') ||
+                   c1 == '=' && c2 == Some('=') {
                     next_cur.proceed(self.src);
-                },
-                _ => break
-            }
+                }
+            },
+            _ => ()
         }
         self.current_token = Some(Token::Symbol(&self.src[self.cur.pos..next_cur.pos]));
     }

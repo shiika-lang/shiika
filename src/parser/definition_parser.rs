@@ -73,8 +73,6 @@ impl<'a, 'b> Parser<'a, 'b> {
         // Params (optional)
         match self.current_token() {
             Token::Symbol("(") => { params = self.parse_params()? },
-            // TODO: fix lexer to yield '(' and ')' separately
-            Token::Symbol("()") => { params = vec![]; self.consume_token(); },
             // Has no params
             _ => { params = vec![]; },
         }
