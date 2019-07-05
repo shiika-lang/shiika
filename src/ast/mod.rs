@@ -1,6 +1,6 @@
 #[derive(Debug, PartialEq)]
 pub struct Program {
-    pub class_defs: Vec<Definition>,
+    pub toplevel_defs: Vec<Definition>,
     pub stmts: Vec<Statement>,
 }
 

@@ -18,10 +18,77 @@ impl<'a> HirMaker<'a> {
     }
 
     pub fn convert_program(&self, prog: ast::Program) -> Result<Hir, Error> {
-        let hir_stmts = prog.stmts.iter().map(|stmt| {
+        let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
+        let main_stmts = prog.stmts.iter().map(|stmt| {
             self.convert_stmt(&stmt)
         }).collect::<Result<Vec<_>, _>>()?;
-        Ok(Hir::new(hir_stmts))
+        Ok(Hir { sk_classes, main_stmts } )
+    }
+
+    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
+        toplevel_defs.iter().map(|def| {
+            match def {
+                ast::Definition::ClassDefinition { name, defs } => {
+                    self.convert_class_def(&name, &defs)
+                },
+                _ => {
+                    Err(error::syntax_error(&format!("must not be toplevel: {:?}", def)))
+                }
+            }
+        }).collect::<Result<Vec<_>, _>>()
+    }
+
+    fn convert_class_def(&self, name: &str, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
+        let fullname = name.to_string();
+        let mut methods = HashMap::new();
+        for def in defs {
+            match def {
+                ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts } => {
+                    match self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts) {
+                        Ok(method) => methods.insert(name.to_string(), method),
+                        Err(err) => return Err(err)
+                    };
+                },
+                _ => panic!("TODO")
+            }
+        }
+
+        Ok(SkClass { fullname, methods })
+    }
+
+    fn convert_method_def(&self,
+                          class_fullname: &str,
+                          name: &str,
+                          params: &Vec<ast::Param>,
+                          ret_typ: &ast::Typ,
+                          body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
+        let id = MethodId(class_fullname.to_string() + "#" + name);
+        let signature = self.convert_signature(params, ret_typ)?;
+        let body = Some(SkMethodBody::ShiikaMethodBody {
+            stmts: self.convert_stmts(body_stmts)?
+        });
+
+        Ok(SkMethod { id, signature, body })
+    }
+
+    fn convert_signature(&self, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> Result<MethodSignature, Error> {
+        let ret_ty = self.convert_typ(ret_typ);
+        let arg_tys = params.iter().map(|param|
+            self.convert_typ(&param.typ)
+        ).collect();
+
+        Ok(MethodSignature { ret_ty, arg_tys })
+    }
+
+    fn convert_typ(&self, typ: &ast::Typ) -> TermTy {
+        // TODO: check the type exists
+        ty::raw(&typ.name)
+    }
+
+    fn convert_stmts(&self, stmts: &Vec<ast::Statement>) -> Result<Vec<HirStatement>, Error> {
+        stmts.iter().map(|stmt|
+            self.convert_stmt(stmt)
+        ).collect::<Result<Vec<_>, _>>()
     }
 
     fn convert_stmt(&self, stmt: &ast::Statement) -> Result<HirStatement, Error> {

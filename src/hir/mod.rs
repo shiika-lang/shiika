@@ -5,16 +5,12 @@ use crate::ty;
 use crate::ty::*;
 
 pub struct Hir {
-    //pub class_defs: Vec<SkClass>,
+    pub sk_classes: Vec<SkClass>,
     pub main_stmts: Vec<HirStatement>,
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, crate::error::Error> {
         hir_maker::HirMaker::new(stdlib).convert_program(ast)
-    }
-
-    pub fn new(hir_stmts: Vec<HirStatement>) -> Hir {
-        Hir { main_stmts: hir_stmts }
     }
 }
 
