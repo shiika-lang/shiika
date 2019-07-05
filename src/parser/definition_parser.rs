@@ -56,7 +56,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
         let name;
         let params;
-        let ret_ty;
+        let ret_typ;
 
         // `def'
         assert_eq!(*self.current_token(), Token::LowerWord("def"));
@@ -83,10 +83,10 @@ impl<'a, 'b> Parser<'a, 'b> {
             Token::Symbol("->") => {
                 self.consume_token();
                 self.skip_ws();
-                ret_ty = self.parse_ty()?;
+                ret_typ = self.parse_ty()?;
             },
             _ => {
-                ret_ty = ast::Ty { name: "Void".to_string() };
+                ret_typ = ast::Typ { name: "Void".to_string() };
                 self.skip_ws();
             }
         }
@@ -102,7 +102,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", name, token))
         }
 
-        Ok(ast::Definition::InstanceMethodDefinition { name, params, ret_ty, body_stmts })
+        Ok(ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts })
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
@@ -144,17 +144,17 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.skip_ws();
 
         // Type
-        let ty = self.parse_ty()?;
+        let typ = self.parse_ty()?;
 
-        Ok(ast::Param { name, ty })
+        Ok(ast::Param { name, typ })
     }
 
-    fn parse_ty(&mut self) -> Result<ast::Ty, Error> {
+    fn parse_ty(&mut self) -> Result<ast::Typ, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
-                let ty = ast::Ty { name: s.to_string() };
+                let typ = ast::Typ { name: s.to_string() };
                 self.consume_token();
-                Ok(ty)
+                Ok(typ)
             },
             token => Err(parse_error!(self, "invalid token as type: {:?}", token))
         }

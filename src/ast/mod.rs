@@ -17,7 +17,7 @@ pub enum Definition {
     InstanceMethodDefinition {
         name: String,
         params: Vec<Param>,
-        ret_ty: Ty,
+        ret_typ: Typ,
         body_stmts: Vec<Statement>,
     },
     ClassMethodDefinition {
@@ -29,11 +29,11 @@ pub enum Definition {
 #[derive(Debug, PartialEq)]
 pub struct Param {
     pub name: String,
-    pub ty: Ty,
+    pub typ: Typ,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Ty {
+pub struct Typ {
     pub name: String,
 }
 
