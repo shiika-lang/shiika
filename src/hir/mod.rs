@@ -10,7 +10,7 @@ pub struct Hir {
     pub main_stmts: Vec<HirStatement>,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, crate::error::Error> {
+    pub fn from_ast(ast: ast::Program, stdlib: &Vec<SkClass>) -> Result<Hir, crate::error::Error> {
         let index = index::new(stdlib, &ast.toplevel_defs)?;
         hir_maker::HirMaker::new(index).convert_program(ast)
     }
@@ -19,13 +19,9 @@ impl Hir {
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: String,
-    pub methods: HashMap<String, SkMethod>,
+    pub methods: HashMap<String, SkMethod>, // TODO: Vec is fine because we have Index now
 }
 impl SkClass {
-    pub fn find_method(&self, name: &str) -> Option<&SkMethod> {
-        self.methods.get(name)
-    }
-
     pub fn instance_ty(&self) -> TermTy {
         ty::raw(&self.fullname)
     }

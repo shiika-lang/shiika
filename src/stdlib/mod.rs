@@ -5,13 +5,12 @@ mod object;
 use crate::ty::*;
 use crate::hir::*;
 
-pub fn create_classes() -> HashMap<String, SkClass> {
-    // TODO: should be just a Vec now
-    let mut ret = HashMap::new();
-    ret.insert("Float".to_string(), float::create_class());
-    ret.insert("Int".to_string(), int::create_class());
-    ret.insert("Object".to_string(), object::create_class());
-    ret
+pub fn create_classes() -> Vec<SkClass> {
+    vec![
+        float::create_class(),
+        int::create_class(),
+        object::create_class(),
+    ]
 }
 
 pub fn define_method(hash: &mut HashMap<String, SkMethod>, class_name: &str, name: &str, arg_tys: Vec<TermTy>, ret_ty: TermTy, gen: GenMethodBody) {

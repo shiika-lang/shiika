@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use inkwell::values::*;
 use inkwell::types::*;
 use crate::error::Error;
@@ -30,7 +29,7 @@ impl CodeGen {
         }
     }
 
-    pub fn gen_program(&self, hir: Hir, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
+    pub fn gen_program(&self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
         let i32_type = self.i32_type;
 
         // declare i32 @putchar(i32)
@@ -52,8 +51,8 @@ impl CodeGen {
         Ok(())
     }
 
-    fn gen_stdlib(&self, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
-        stdlib.values().try_for_each(|sk_class| {
+    fn gen_stdlib(&self, stdlib: &Vec<SkClass>) -> Result<(), Error> {
+        stdlib.iter().try_for_each(|sk_class| {
             sk_class.methods.values().try_for_each(|method| {
                 self.gen_method(&sk_class, &method)
             })
