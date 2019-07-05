@@ -64,8 +64,10 @@ pub fn raw(fullname: &str) -> TermTy {
 //pub struct TySpeMeta {}
 //impl TermTy for TySpeMeta {}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MethodSignature {
+    pub name: String,
+    pub fullname: String,
     pub ret_ty: TermTy,
     pub arg_tys: Vec<TermTy>,
 }

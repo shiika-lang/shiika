@@ -1,4 +1,5 @@
 mod hir_maker;
+mod index;
 use std::collections::HashMap;
 use crate::ast;
 use crate::ty;
@@ -10,7 +11,8 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: &HashMap<String, SkClass>) -> Result<Hir, crate::error::Error> {
-        hir_maker::HirMaker::new(stdlib).convert_program(ast)
+        let index = index::new(stdlib, &ast.toplevel_defs)?;
+        hir_maker::HirMaker::new(index).convert_program(ast)
     }
 }
 
@@ -31,7 +33,6 @@ impl SkClass {
 
 #[derive(Debug, PartialEq)]
 pub struct SkMethod {
-    pub id: MethodId,
     pub signature: MethodSignature,
     pub body: Option<SkMethodBody>, // None on creation
 }
@@ -47,14 +48,6 @@ pub enum SkMethodBody {
 }
 pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
                 function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct MethodId(pub String);
-impl MethodId {
-    pub fn llvm_func_name(&self) -> &str {
-        &self.0
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub enum HirStatement {
@@ -83,7 +76,7 @@ pub enum HirExpressionBase {
     },
     HirMethodCall {
         receiver_expr: Box<HirExpression>,
-        method_id: MethodId,
+        method_fullname: String,
         arg_exprs: Vec<HirExpression>,
     },
     HirSelfExpression,
@@ -111,12 +104,12 @@ impl Hir {
         }
     }
 
-    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_id: MethodId, arg_hirs: Vec<HirExpression>) -> HirExpression {
+    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: String, arg_hirs: Vec<HirExpression>) -> HirExpression {
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
                 receiver_expr: Box::new(receiver_hir),
-                method_id: method_id,
+                method_fullname: method_fullname,
                 arg_exprs: arg_hirs,
             }
         }
