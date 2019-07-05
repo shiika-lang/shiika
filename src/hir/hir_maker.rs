@@ -30,9 +30,7 @@ impl HirMaker {
                 ast::Definition::ClassDefinition { name, defs } => {
                     self.convert_class_def(&name, &defs)
                 },
-                _ => {
-                    Err(error::syntax_error(&format!("must not be toplevel: {:?}", def)))
-                }
+                _ => panic!("should be checked in hir::index")
             }
         }).collect::<Result<Vec<_>, _>>()
     }
