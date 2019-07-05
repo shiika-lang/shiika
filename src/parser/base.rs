@@ -7,15 +7,12 @@ pub use crate::parser::lexer;
 pub use crate::parser::lexer::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
+    // Consume a separator and its surrounding spaces
     pub (in super) fn expect_sep(&mut self) -> Result<(), Error> {
-        self.skip_ws();
         match self.current_token() {
             Token::Separator => { self.consume_token(); },
             Token::Eof => (),
-            token => {
-                let msg = &format!("expected separator but got {:?}", token);
-                return Err(self.parseerror(msg))
-            }
+            token => return Err(parse_error!(self, "expected separator but got {:?}", token))
         }
         self.skip_wsn();
         Ok(())

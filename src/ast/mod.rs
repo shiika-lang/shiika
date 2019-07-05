@@ -17,6 +17,7 @@ pub enum Definition {
     InstanceMethodDefinition {
         name: String,
         params: Vec<Param>,
+        ret_ty: Ty,
         body_stmts: Vec<Statement>,
     },
     ClassMethodDefinition {

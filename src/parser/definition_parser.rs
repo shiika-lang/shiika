@@ -56,6 +56,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
         let name;
         let params;
+        let ret_ty;
 
         // `def'
         assert_eq!(*self.current_token(), Token::LowerWord("def"));
@@ -72,16 +73,28 @@ impl<'a, 'b> Parser<'a, 'b> {
         // Params (optional)
         match self.current_token() {
             Token::Symbol("(") => { params = self.parse_params()? },
+            // TODO: fix lexer to yield '(' and ')' separately
+            Token::Symbol("()") => { params = vec![]; self.consume_token(); },
             // Has no params
-            Token::Separator => { params = vec![]; self.consume_token(); },
-            token => return Err(parse_error!(self, "unexpected token in method {:?}: {:?}", name, token))
+            _ => { params = vec![]; },
         }
+        self.skip_ws();
 
         // Return type (optional)
-        // TODO
+        match self.current_token() {
+            Token::Symbol("->") => {
+                self.consume_token();
+                self.skip_ws();
+                ret_ty = self.parse_ty()?;
+            },
+            _ => {
+                ret_ty = ast::Ty { name: "Void".to_string() };
+                self.skip_ws();
+            }
+        }
 
         // Body (optional)
-        self.skip_wsn();
+        self.expect_sep()?;
         let body_stmts = self.parse_stmts()?;
 
         // `end'
@@ -91,7 +104,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", name, token))
         }
 
-        Ok(ast::Definition::InstanceMethodDefinition { name, params, body_stmts })
+        Ok(ast::Definition::InstanceMethodDefinition { name, params, ret_ty, body_stmts })
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
