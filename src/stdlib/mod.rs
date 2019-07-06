@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 mod float;
 mod int;
 mod object;
@@ -13,8 +12,8 @@ pub fn create_classes() -> Vec<SkClass> {
     ]
 }
 
-pub fn define_method(hash: &mut HashMap<String, SkMethod>, class_name: &str, name: &str, arg_tys: Vec<TermTy>, ret_ty: TermTy, gen: GenMethodBody) {
-    let method = SkMethod {
+pub fn create_method(class_name: &str, name: &str, arg_tys: Vec<TermTy>, ret_ty: TermTy, gen: GenMethodBody) -> SkMethod {
+    SkMethod {
         signature: MethodSignature {
             name: name.to_string(),
             fullname: (class_name.to_string() + "#" + name),
@@ -22,6 +21,5 @@ pub fn define_method(hash: &mut HashMap<String, SkMethod>, class_name: &str, nam
             arg_tys: arg_tys,
         },
         body: Some(SkMethodBody::RustMethodBody{ gen: gen })
-    };
-    hash.insert(name.to_string(), method);
+    }
 }

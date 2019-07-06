@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::ast;
 use crate::error;
 use crate::error::Error;
@@ -37,18 +36,14 @@ impl HirMaker {
 
     fn convert_class_def(&self, name: &str, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
         let fullname = name.to_string();
-        let mut methods = HashMap::new();
-        for def in defs {
+        let methods = defs.iter().map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts } => {
-                    match self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts) {
-                        Ok(method) => methods.insert(name.to_string(), method),
-                        Err(err) => return Err(err)
-                    };
+                    self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts)
                 },
                 _ => panic!("TODO")
             }
-        }
+        }).collect::<Result<Vec<_>, _>>()?;
 
         Ok(SkClass { fullname, methods })
     }

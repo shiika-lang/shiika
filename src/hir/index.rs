@@ -25,7 +25,7 @@ pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Resul
 fn index_stdlib(index: &mut Index, stdlib: &Vec<SkClass>) {
     stdlib.iter().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
-        sk_class.methods.values().for_each(|sk_method| {
+        sk_class.methods.iter().for_each(|sk_method| {
             sk_methods.insert(sk_method.signature.name.to_string(),
                               sk_method.signature.clone());
         });

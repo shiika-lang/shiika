@@ -1,6 +1,5 @@
 mod hir_maker;
 mod index;
-use std::collections::HashMap;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
@@ -19,7 +18,7 @@ impl Hir {
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: String,
-    pub methods: HashMap<String, SkMethod>, // TODO: Vec is fine because we have Index now
+    pub methods: Vec<SkMethod>,
 }
 impl SkClass {
     pub fn instance_ty(&self) -> TermTy {

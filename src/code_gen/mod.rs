@@ -53,7 +53,7 @@ impl CodeGen {
 
     fn gen_stdlib(&self, stdlib: &Vec<SkClass>) -> Result<(), Error> {
         stdlib.iter().try_for_each(|sk_class| {
-            sk_class.methods.values().try_for_each(|method| {
+            sk_class.methods.iter().try_for_each(|method| {
                 self.gen_method(&sk_class, &method)
             })
         })
