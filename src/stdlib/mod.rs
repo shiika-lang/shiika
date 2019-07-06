@@ -12,7 +12,11 @@ pub fn create_classes() -> Vec<SkClass> {
     ]
 }
 
-pub fn create_method(class_name: &str, name: &str, arg_tys: Vec<TermTy>, ret_ty: TermTy, gen: GenMethodBody) -> SkMethod {
+pub fn create_method(class_name: &str,
+                     name: &str,
+                     arg_tys: Vec<TermTy>,
+                     ret_ty: TermTy,
+                     gen: GenMethodBody) -> SkMethod {
     SkMethod {
         signature: MethodSignature {
             name: name.to_string(),
