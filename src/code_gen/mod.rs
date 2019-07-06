@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use inkwell::values::*;
 use inkwell::types::*;
 use crate::error::Error;
@@ -30,7 +29,7 @@ impl CodeGen {
         }
     }
 
-    pub fn gen_program(&self, hir: Hir, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
+    pub fn gen_program(&self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
         let i32_type = self.i32_type;
 
         // declare i32 @putchar(i32)
@@ -52,9 +51,9 @@ impl CodeGen {
         Ok(())
     }
 
-    fn gen_stdlib(&self, stdlib: HashMap<String, SkClass>) -> Result<(), Error> {
-        stdlib.values().try_for_each(|sk_class| {
-            sk_class.methods.values().try_for_each(|method| {
+    fn gen_stdlib(&self, stdlib: &Vec<SkClass>) -> Result<(), Error> {
+        stdlib.iter().try_for_each(|sk_class| {
+            sk_class.methods.iter().try_for_each(|method| {
                 self.gen_method(&sk_class, &method)
             })
         })
@@ -62,7 +61,7 @@ impl CodeGen {
 
     fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
         let func_type = self.llvm_func_type(&sk_class.instance_ty(), &method.signature);
-        let function = self.module.add_function(method.id.llvm_func_name(), func_type, None);
+        let function = self.module.add_function(&method.signature.fullname, func_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
@@ -102,8 +101,8 @@ impl CodeGen {
             HirIfExpression { cond_expr, then_expr, else_expr } => {
                 self.gen_if_expr(function, &expr.ty, &cond_expr, &then_expr, &else_expr)
             },
-            HirMethodCall { receiver_expr, method_id, arg_exprs } => {
-                self.gen_method_call(function, method_id, receiver_expr, arg_exprs)
+            HirMethodCall { receiver_expr, method_fullname, arg_exprs } => {
+                self.gen_method_call(function, method_fullname, receiver_expr, arg_exprs)
             },
             HirSelfExpression => {
                 // TODO: generate current self
@@ -151,7 +150,7 @@ impl CodeGen {
 
     fn gen_method_call(&self,
                        function: inkwell::values::FunctionValue,
-                       method_id: &MethodId,
+                       method_fullname: &str,
                        receiver_expr: &HirExpression,
                        arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
         let receiver_value = self.gen_expr(function, receiver_expr)?;
@@ -159,7 +158,7 @@ impl CodeGen {
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(method_id.llvm_func_name()).expect("[BUG] get_function not found");
+        let function = self.module.get_function(method_fullname).expect("[BUG] get_function not found");
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "gen_method_call").try_as_basic_value().left() {

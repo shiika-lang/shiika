@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::ast;
 use crate::error;
 use crate::error::Error;
@@ -6,18 +5,16 @@ use crate::hir::*;
 use crate::type_checking;
 
 #[derive(Debug, PartialEq)]
-pub struct HirMaker<'a> {
-    pub sk_classes: &'a HashMap<String, SkClass>,
+pub struct HirMaker {
+    pub index: crate::hir::index::Index
 }
 
-impl<'a> HirMaker<'a> {
-    pub fn new(stdlib: &HashMap<String, SkClass>) -> HirMaker {
-        HirMaker {
-            sk_classes: stdlib,
-        }
+impl HirMaker {
+    pub fn new(index: crate::hir::index::Index) -> HirMaker {
+        HirMaker { index }
     }
 
-    pub fn convert_program(&self, prog: ast::Program) -> Result<Hir, Error> {
+    pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
         let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
         let main_stmts = prog.stmts.iter().map(|stmt| {
             self.convert_stmt(&stmt)
@@ -25,33 +22,28 @@ impl<'a> HirMaker<'a> {
         Ok(Hir { sk_classes, main_stmts } )
     }
 
+
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
         toplevel_defs.iter().map(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
                     self.convert_class_def(&name, &defs)
                 },
-                _ => {
-                    Err(error::syntax_error(&format!("must not be toplevel: {:?}", def)))
-                }
+                _ => panic!("should be checked in hir::index")
             }
         }).collect::<Result<Vec<_>, _>>()
     }
 
     fn convert_class_def(&self, name: &str, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
         let fullname = name.to_string();
-        let mut methods = HashMap::new();
-        for def in defs {
+        let methods = defs.iter().map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts } => {
-                    match self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts) {
-                        Ok(method) => methods.insert(name.to_string(), method),
-                        Err(err) => return Err(err)
-                    };
+                    self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts)
                 },
                 _ => panic!("TODO")
             }
-        }
+        }).collect::<Result<Vec<_>, _>>()?;
 
         Ok(SkClass { fullname, methods })
     }
@@ -62,27 +54,31 @@ impl<'a> HirMaker<'a> {
                           params: &Vec<ast::Param>,
                           ret_typ: &ast::Typ,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
-        let id = MethodId(class_fullname.to_string() + "#" + name);
-        let signature = self.convert_signature(params, ret_typ)?;
+        let fullname = class_fullname.to_string() + "#" + name;
+        let signature = self.convert_signature(name.to_string(), fullname, params, ret_typ)?;
         let body = Some(SkMethodBody::ShiikaMethodBody {
             stmts: self.convert_stmts(body_stmts)?
         });
 
-        Ok(SkMethod { id, signature, body })
+        Ok(SkMethod { signature, body })
     }
 
-    fn convert_signature(&self, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> Result<MethodSignature, Error> {
-        let ret_ty = self.convert_typ(ret_typ);
+    fn convert_signature(&self, name: String, fullname: String, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> Result<MethodSignature, Error> {
+        let ret_ty = self.convert_typ(ret_typ)?;
         let arg_tys = params.iter().map(|param|
             self.convert_typ(&param.typ)
-        ).collect();
+        ).collect::<Result<Vec<_>,_>>()?;
 
-        Ok(MethodSignature { ret_ty, arg_tys })
+        Ok(MethodSignature { name, fullname, ret_ty, arg_tys })
     }
 
-    fn convert_typ(&self, typ: &ast::Typ) -> TermTy {
-        // TODO: check the type exists
-        ty::raw(&typ.name)
+    fn convert_typ(&self, typ: &ast::Typ) -> Result<TermTy, Error> {
+        if self.index.contains_key(&typ.name) {
+            Ok(ty::raw(&typ.name))
+        }
+        else {
+            Err(error::program_error(&format!("unknown class: {:?}", typ.name)))
+        }
     }
 
     fn convert_stmts(&self, stmts: &Vec<ast::Statement>) -> Result<Vec<HirStatement>, Error> {
@@ -148,17 +144,14 @@ impl<'a> HirMaker<'a> {
     }
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
-        let method = self.lookup_method(&receiver_hir.ty, method_name)
-            .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_hir.ty.class_fullname())))?;
-        Ok(Hir::method_call(method.signature.ret_ty.clone(), receiver_hir, method.id.clone(), arg_hirs))
+        let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
+        Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
-    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &str) -> Option<&SkMethod> {
-        self.find_class(receiver_ty.class_fullname())
-            .and_then(|sk_class| sk_class.find_method(method_name))
-    }
-
-    fn find_class(&self, fullname: &str) -> Option<&SkClass> {
-        self.sk_classes.get(fullname)
+    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &str) -> Result<&MethodSignature, Error> {
+        let class_fullname = receiver_ty.class_fullname();
+        self.index.get(class_fullname)
+            .and_then(|sk_methods| sk_methods.get(method_name))
+            .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, class_fullname)))
     }
 }
