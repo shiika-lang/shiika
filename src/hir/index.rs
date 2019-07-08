@@ -10,8 +10,12 @@ use crate::error::*;
 use crate::hir::*;
 use crate::ty::*;
 
+#[derive(Debug, PartialEq)]
+pub struct Index {
+    pub hash: IndexBody
+}
 // class_fullname => method_name => signature
-pub type Index = HashMap<String, HashMap<String, MethodSignature>>;
+type IndexBody = HashMap<String, HashMap<String, MethodSignature>>;
 
 pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
     let mut index = HashMap::new();
@@ -19,10 +23,10 @@ pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Resul
     index_stdlib(&mut index, stdlib);
     index_program(&mut index, toplevel_defs)?;
 
-    Ok(index)
+    Ok(Index { hash: index })
 }
 
-fn index_stdlib(index: &mut Index, stdlib: &Vec<SkClass>) {
+fn index_stdlib(index: &mut IndexBody, stdlib: &Vec<SkClass>) {
     stdlib.iter().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
         sk_class.methods.iter().for_each(|sk_method| {
@@ -33,7 +37,7 @@ fn index_stdlib(index: &mut Index, stdlib: &Vec<SkClass>) {
     });
 }
 
-fn index_program(index: &mut Index, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
+fn index_program(index: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
     toplevel_defs.iter().try_for_each(|def| {
         match def {
             ast::Definition::ClassDefinition { name, defs } => {
@@ -47,7 +51,7 @@ fn index_program(index: &mut Index, toplevel_defs: &Vec<ast::Definition>) -> Res
     })
 }
 
-fn index_class(index: &mut Index, name: &str, defs: &Vec<ast::Definition>) {
+fn index_class(index: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
     let class_fullname = name; // TODO: nested class
     let mut sk_methods = HashMap::new();
     defs.iter().for_each(|def| {
@@ -78,8 +82,12 @@ fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
 }
 
-// REFACTOR: make this to method of Index
-pub fn find_method<'a>(index: &'a Index, class_fullname: &str, method_name: &str) -> Option<&'a MethodSignature> {
-    index.get(class_fullname).and_then(|methods| methods.get(method_name))
-}
+impl Index {
+    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<String, MethodSignature>> {
+        self.hash.get(class_fullname)
+    }
 
+    pub fn find_method(&self, class_fullname: &str, method_name: &str) -> Option<&MethodSignature> {
+        self.hash.get(class_fullname).and_then(|methods| methods.get(method_name))
+    }
+}
