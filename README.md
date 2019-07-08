@@ -15,39 +15,31 @@ A statically-typed programming language.
 
 ## Status
 
-### WIP
+Early-alpha
 
-- [ ] Inheritance
+### Implementation (Rust, src/*)
 
-### Done
+- [x] Parse and emit LLVM IR for minimal case 
+- [ ] Implement metaclass (eg. `A.new`)
+
+### Type system (Prototype in Ruby, lib/*)
+
+#### Done
 
 - [x] Class method, instance method
 - [x] Basic generics
 - [x] Variable-length arguments
 - [x] Array literal
+- [x] Inheritance
 
-### Todo (short-term)
-
-- Subtyping
-- String class
-- Hash class
-
-### Todo (middle term)
+#### Todo
 
 - lambda/function(block)
 - Module (like Ruby's `Module`)
 - Enum
-- Optional
 - Constants
+- Check all ivars will be initialized (like Swift)
 - ...
-
-### Todo (long term)
-
-- Generate LLVM IR
-
-### Todo (postponed error checks)
-
-- [ ] Check all ivars will be initialized (like Swift)
 
 ## License
 
