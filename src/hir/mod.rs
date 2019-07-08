@@ -134,7 +134,7 @@ impl Hir {
     
     pub fn nop() -> HirExpression {
         HirExpression {
-            ty: TermTy::TyRaw{ fullname: "NOP".to_string() }, // must not be used
+            ty: ty::raw(" NOP "), // must not be used
             node: HirExpressionBase::HirNop,
         }
     }

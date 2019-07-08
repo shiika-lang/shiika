@@ -13,7 +13,7 @@ pub fn check_if_condition_ty(ty: &TermTy) -> Result<(), Error> {
         Ok(())
     }
     else {
-        Err(type_error!("if condition must be bool but got {:?}", ty.class_fullname()))
+        Err(type_error!("if condition must be bool but got {:?}", ty.fullname))
     }
 }
 
@@ -28,7 +28,7 @@ pub fn check_method_args(sig: &MethodSignature, arg_tys: &Vec<&TermTy>) -> Resul
         }
         else {
             Err(type_error!("{} takes {} but got {}",
-                            sig.fullname, param_ty.class_fullname(), arg_ty.class_fullname()))
+                            sig.fullname, param_ty.fullname, arg_ty.fullname))
         }
     })?;
 

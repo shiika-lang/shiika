@@ -208,20 +208,20 @@ impl CodeGen {
     }
 
     fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
-        match ty {
-            TermTy::TyRaw { fullname } => {
-                match fullname.as_str() {
+        match ty.body {
+            TyBody::TyRaw => {
+                match ty.fullname.as_str() {
                     "Int" => self.i32_type.as_basic_type_enum(),
                     "Float" => self.f32_type.as_basic_type_enum(),
                     // TODO: replace with special value?
                     "Void" => self.i32_type.as_basic_type_enum(),
                     _ => {
-                        let struct_type = self.llvm_struct_types.get(fullname).unwrap();
+                        let struct_type = self.llvm_struct_types.get(&ty.fullname).unwrap();
                         struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()
                     }
                 }
             },
-            TermTy::TyMeta { .. } => panic!("TODO")
+            TyBody::TyMeta { .. } => panic!("TODO")
         }
     }
 }

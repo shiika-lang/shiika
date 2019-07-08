@@ -1,42 +1,43 @@
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
-pub enum TermTy { // TODO: Change this to a struct which have `fullname'
+pub struct TermTy {
+    pub fullname: String,
+    pub body: TyBody
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TyBody {
     // Types corresponds to non-generic class 
     // eg. "Int", "String", "Object"
-    TyRaw { fullname: String },
+    TyRaw,
     // Types corresponds to (non-generic) metaclass
     // eg. "Meta:Int", "Meta:String", "Meta:Object"
-    TyMeta { fullname: String, base_fullname: String },
+    TyMeta { base_fullname: String },
 }
-impl TermTy {
-    pub fn class_fullname(&self) -> &str {
-        match self {
-            TermTy::TyRaw { fullname } => &fullname,
-            TermTy::TyMeta { fullname, .. } => &fullname,
-        }
-    }
 
+use TyBody::*;
+
+impl TermTy {
     // Returns true when this is the Void type
     pub fn is_void_type(&self) -> bool {
-        match self {
-            TermTy::TyRaw { fullname } => (fullname == "Void"),
+        match self.body {
+            TyRaw => (self.fullname == "Void"),
             _ => false
         }
     }
 
     pub fn conforms_to(&self, other: &TermTy) -> bool {
-        match self {
-            TermTy::TyRaw { fullname: name1 } => {
-                match other {
-                    TermTy::TyRaw { fullname: name2 } => (*name1 == *name2),
-                    TermTy::TyMeta { .. } => false,
+        match self.body {
+            TyRaw => {
+                match other.body {
+                    TyRaw => (self.fullname == *other.fullname),
+                    TyMeta { .. } => false,
                 }
             },
-
-            TermTy::TyMeta { fullname: name1, .. } => {
-                match other {
-                    TermTy::TyRaw { .. } => false,
-                    TermTy::TyMeta { fullname: name2, .. } => (*name1 == *name2),
+            TyMeta { .. } => {
+                match other.body  {
+                    TyRaw => false,
+                    TyMeta { .. } => (self.fullname == *other.fullname),
                 }
             },
         }
@@ -44,7 +45,7 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
-    TermTy::TyRaw { fullname: fullname.to_string() }
+    TermTy { fullname: fullname.to_string(), body: TyRaw }
 }
 
 //impl TermTy for TyRaw {
@@ -87,5 +88,5 @@ pub struct MethodSignature {
     pub name: String,
     pub fullname: String,
     pub ret_ty: TermTy,
-    pub arg_tys: Vec<TermTy>, // TODO: Rename to 'param_tys'
+    pub arg_tys: Vec<TermTy>, // TODO: Rename to 'param_tys' / Add arg name
 }

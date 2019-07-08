@@ -154,7 +154,7 @@ impl HirMaker {
     }
 
     fn lookup_method(&self, receiver_ty: &TermTy, method_name: &str) -> Result<&MethodSignature, Error> {
-        let class_fullname = receiver_ty.class_fullname();
+        let class_fullname = &receiver_ty.fullname;
         self.index.get(class_fullname)
             .and_then(|sk_methods| sk_methods.get(method_name))
             .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, class_fullname)))
