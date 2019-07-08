@@ -1,6 +1,7 @@
 mod float;
 mod int;
 mod object;
+mod void;
 use crate::ty::*;
 use crate::hir::*;
 
@@ -9,6 +10,7 @@ pub fn create_classes() -> Vec<SkClass> {
         float::create_class(),
         int::create_class(),
         object::create_class(),
+        void::create_class(),
     ]
 }
 

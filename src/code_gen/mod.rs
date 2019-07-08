@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use inkwell::AddressSpace;
 use inkwell::values::*;
 use inkwell::types::*;
 use crate::error::Error;
@@ -12,6 +14,7 @@ pub struct CodeGen {
     pub i32_type: inkwell::types::IntType,
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
+    llvm_struct_types: HashMap<String, inkwell::types::StructType>,
 }
 
 impl CodeGen {
@@ -26,17 +29,19 @@ impl CodeGen {
             i32_type: inkwell::types::IntType::i32_type(),
             f32_type: inkwell::types::FloatType::f32_type(),
             void_type: inkwell::types::VoidType::void_type(),
+            llvm_struct_types: HashMap::new(),
         }
     }
 
-    pub fn gen_program(&self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
         let i32_type = self.i32_type;
 
         // declare i32 @putchar(i32)
         let putchar_type = i32_type.fn_type(&[i32_type.into()], false);
         self.module.add_function("putchar", putchar_type, None);
 
-        self.gen_stdlib(stdlib)?;
+        self.gen_classes(stdlib)?;
+        self.gen_classes(&hir.sk_classes)?;
 
         // define i32 @main() {
         let main_type = i32_type.fn_type(&[], false);
@@ -51,8 +56,16 @@ impl CodeGen {
         Ok(())
     }
 
-    fn gen_stdlib(&self, stdlib: &Vec<SkClass>) -> Result<(), Error> {
-        stdlib.iter().try_for_each(|sk_class| {
+    fn gen_classes(&mut self, classes: &Vec<SkClass>) -> Result<(), Error> {
+        // Create llvm struct types
+        classes.iter().for_each(|sk_class| {
+            let struct_type = self.context.opaque_struct_type(&sk_class.fullname);
+            struct_type.set_body(&[], true);
+            self.llvm_struct_types.insert(sk_class.fullname.clone(), struct_type);
+        })
+
+        // Compile methods
+        classes.iter().try_for_each(|sk_class| {
             sk_class.methods.iter().try_for_each(|method| {
                 self.gen_method(&sk_class, &method)
             })
@@ -71,8 +84,10 @@ impl CodeGen {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
-            //SkMethod::ShiikaMethod =>
-            _ => panic!("TODO"),
+            SkMethodBody::ShiikaMethodBody { stmts }=> {
+                self.gen_stmts(function, stmts)?
+                // TODO: generete return
+            }
         }
         Ok(())
     }
@@ -200,11 +215,12 @@ impl CodeGen {
                 match fullname.as_str() {
                     "Int" => self.i32_type.as_basic_type_enum(),
                     "Float" => self.f32_type.as_basic_type_enum(),
-                    // TODO: should be a struct
-                    "Object" => self.i32_type.as_basic_type_enum(),
                     // TODO: replace with special value?
                     "Void" => self.i32_type.as_basic_type_enum(),
-                    _ => panic!("TODO: {:?}", fullname)
+                    _ => {
+                        let struct_type = self.llvm_struct_types.get(fullname).unwrap();
+                        struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()
+                    }
                 }
             },
             TermTy::TyMeta { .. } => panic!("TODO")
