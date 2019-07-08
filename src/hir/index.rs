@@ -17,13 +17,23 @@ pub struct Index {
 // class_fullname => method_name => signature
 type IndexBody = HashMap<String, HashMap<String, MethodSignature>>;
 
-pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
-    let mut body = HashMap::new();
+impl Index {
+    pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
+        let mut body = HashMap::new();
 
-    index_stdlib(&mut body, stdlib);
-    index_program(&mut body, toplevel_defs)?;
+        index_stdlib(&mut body, stdlib);
+        index_program(&mut body, toplevel_defs)?;
 
-    Ok(Index { body })
+        Ok(Index { body })
+    }
+
+    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<String, MethodSignature>> {
+        self.body.get(class_fullname)
+    }
+
+    pub fn find_method(&self, class_fullname: &str, method_name: &str) -> Option<&MethodSignature> {
+        self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
+    }
 }
 
 fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
@@ -80,14 +90,4 @@ fn create_signature(class_fullname: String, name: String, params: &Vec<ast::Para
 
 fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
-}
-
-impl Index {
-    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<String, MethodSignature>> {
-        self.body.get(class_fullname)
-    }
-
-    pub fn find_method(&self, class_fullname: &str, method_name: &str) -> Option<&MethodSignature> {
-        self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
-    }
 }

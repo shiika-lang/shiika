@@ -10,7 +10,7 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: &Vec<SkClass>) -> Result<Hir, crate::error::Error> {
-        let index = index::new(stdlib, &ast.toplevel_defs)?;
+        let index = index::Index::new(stdlib, &ast.toplevel_defs)?;
         hir_maker::HirMaker::new(index).convert_program(ast)
     }
 }
