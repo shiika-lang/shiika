@@ -77,3 +77,9 @@ fn create_signature(class_fullname: String, name: String, params: &Vec<ast::Para
 fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
 }
+
+// REFACTOR: make this to method of Index
+pub fn find_method<'a>(index: &'a Index, class_fullname: &str, method_name: &str) -> Option<&'a MethodSignature> {
+    index.get(class_fullname).and_then(|methods| methods.get(method_name))
+}
+
