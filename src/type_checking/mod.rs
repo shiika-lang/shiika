@@ -8,6 +8,16 @@ macro_rules! type_error {
     })
 }
 
+pub fn check_return_value(sig: &MethodSignature, ty: &TermTy) -> Result<(), Error> {
+    if ty.conforms_to(&sig.ret_ty) {
+        Ok(())
+    }
+    else {
+        Err(type_error!("{} should return {} but returns {}",
+                        sig.fullname, sig.ret_ty.fullname, ty.fullname))
+    }
+}
+
 pub fn check_if_condition_ty(ty: &TermTy) -> Result<(), Error> {
     if *ty == ty::raw("Bool") {
         Ok(())

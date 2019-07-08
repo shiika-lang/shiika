@@ -56,7 +56,7 @@ impl HirMaker {
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
 
         let body_exprs = self.convert_exprs(body_exprs)?;
-        //type_checking::check_return_value(&sig, &param_tys)?;
+        type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
 
