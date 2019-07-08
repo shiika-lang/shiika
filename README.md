@@ -20,6 +20,7 @@ Early-alpha
 ### Implementation (Rust, src/*)
 
 - [x] Parse and emit LLVM IR for minimal case 
+- [ ] Check type of return value
 - [ ] Implement metaclass (eg. `A.new`)
 - [ ] Nested class
 - [ ] Constant

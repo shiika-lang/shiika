@@ -31,7 +31,7 @@ fn test_class_with_empty_method() {
                         params: vec![],
                         ret_typ: ast::Typ { name: "Void".to_string() },
                     },
-                    body_stmts: vec![],
+                    body_exprs: vec![],
                 }
             ]
         }
@@ -51,7 +51,7 @@ fn test_method_with_params() {
             ],
             ret_typ: ast::Typ { name: "Void".to_string() },
         },
-        body_stmts: vec![],
+        body_exprs: vec![],
     })
 }
 
@@ -65,6 +65,6 @@ fn test_method_with_explicit_return_type() {
             params: vec![],
             ret_typ: ast::Typ { name: "Int".to_string() },
         },
-        body_stmts: vec![],
+        body_exprs: vec![],
     })
 }

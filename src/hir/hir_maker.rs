@@ -17,11 +17,11 @@ impl HirMaker {
     pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
         let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
 
-        let main_stmts = prog.stmts.iter().map(|stmt| {
-            self.convert_stmt(&stmt)
+        let main_exprs = prog.exprs.iter().map(|expr| {
+            self.convert_expr(&expr)
         }).collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Hir { sk_classes, main_stmts } )
+        Ok(Hir { sk_classes, main_exprs } )
     }
 
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
@@ -40,8 +40,8 @@ impl HirMaker {
         let fullname = name.to_class_fullname();
         let methods = defs.iter().map(|def| {
             match def {
-                ast::Definition::InstanceMethodDefinition { sig, body_stmts, .. } => {
-                    self.convert_method_def(&fullname, &sig.name, &body_stmts)
+                ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
+                    self.convert_method_def(&fullname, &sig.name, &body_exprs)
                 },
                 _ => panic!("TODO")
             }
@@ -53,29 +53,21 @@ impl HirMaker {
     fn convert_method_def(&self,
                           class_fullname: &ClassFullname,
                           name: &MethodName,
-                          body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
+                          body_exprs: &Vec<ast::Expression>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
         let body = SkMethodBody::ShiikaMethodBody {
-            stmts: self.convert_stmts(body_stmts)?
+            exprs: self.convert_exprs(body_exprs)?
         };
 
         Ok(SkMethod { signature, body })
     }
 
-    fn convert_stmts(&self, stmts: &Vec<ast::Statement>) -> Result<Vec<HirStatement>, Error> {
-        stmts.iter().map(|stmt|
-            self.convert_stmt(stmt)
+    fn convert_exprs(&self, exprs: &Vec<ast::Expression>) -> Result<Vec<HirExpression>, Error> {
+        exprs.iter().map(|expr|
+            self.convert_expr(expr)
         ).collect::<Result<Vec<_>, _>>()
-    }
-
-    fn convert_stmt(&self, stmt: &ast::Statement) -> Result<HirStatement, Error> {
-        match stmt {
-            ast::Statement::ExpressionStatement { expr } => {
-                Ok(self.convert_expr(&expr)?.to_hir_statement())
-            }
-        }
     }
 
     fn convert_expr(&self, expr: &ast::Expression) -> Result<HirExpression, Error> {

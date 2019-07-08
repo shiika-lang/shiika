@@ -67,7 +67,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.expect_sep()?;
 
         // Body (optional)
-        let body_stmts = self.parse_stmts()?;
+        let body_exprs = self.parse_exprs()?;
 
         // `end'
         self.skip_wsn();
@@ -76,7 +76,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", sig.name, token))
         }
 
-        Ok(ast::Definition::InstanceMethodDefinition { sig, body_stmts })
+        Ok(ast::Definition::InstanceMethodDefinition { sig, body_exprs })
     }
 
     pub fn parse_method_signature(&mut self) -> Result<ast::MethodSignature, Error> {

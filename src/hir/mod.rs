@@ -7,7 +7,7 @@ use crate::names::*;
 
 pub struct Hir {
     pub sk_classes: Vec<SkClass>,
-    pub main_stmts: Vec<HirStatement>,
+    pub main_exprs: Vec<HirExpression>,
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: &Vec<SkClass>) -> Result<Hir, crate::error::Error> {
@@ -36,7 +36,7 @@ pub struct SkMethod {
 #[derive(Debug, PartialEq)]
 pub enum SkMethodBody {
     ShiikaMethodBody {
-        stmts: Vec<HirStatement>
+        exprs: Vec<HirExpression>
     },
     RustMethodBody {
         gen: GenMethodBody // TODO: better name
@@ -46,21 +46,9 @@ pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
                 function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
 
 #[derive(Debug, PartialEq)]
-pub enum HirStatement {
-    HirExpressionStatement {
-        expr: HirExpression
-    }
-}
-
-#[derive(Debug, PartialEq)]
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
-}
-impl HirExpression {
-    pub fn to_hir_statement(self) -> HirStatement {
-        HirStatement::HirExpressionStatement { expr: self }
-    }
 }
 
 #[derive(Debug, PartialEq)]

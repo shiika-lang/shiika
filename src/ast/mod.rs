@@ -3,7 +3,7 @@ use crate::names::*;
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub toplevel_defs: Vec<Definition>,
-    pub stmts: Vec<Statement>,
+    pub exprs: Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -14,15 +14,15 @@ pub enum Definition {
     },
     InitializerDefinition {
         name: String,
-        body_stmts: Vec<Statement>,
+        body_exprs: Vec<Expression>,
     },
     InstanceMethodDefinition {
         sig: MethodSignature,
-        body_stmts: Vec<Statement>,
+        body_exprs: Vec<Expression>,
     },
     ClassMethodDefinition {
         name: String,
-        body_stmts: Vec<Statement>,
+        body_exprs: Vec<Expression>,
     }
 }
 
@@ -42,17 +42,6 @@ pub struct Param {
 #[derive(Debug, PartialEq)]
 pub struct Typ {
     pub name: String,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Statement {
-//    WhileStatement {
-//        cond_expr: Box<Expression>,
-//        body_stmts: Vec<Statement>,
-//    },
-    ExpressionStatement {
-        expr: Box<Expression>,
-    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,15 +68,6 @@ pub enum Expression {
     },
     DecimalLiteral {
         value: i32,
-    }
-}
-
-impl Expression {
-    pub fn to_statement(self) -> Statement
-    {
-        Statement::ExpressionStatement {
-            expr: Box::new(self)
-        }
     }
 }
 

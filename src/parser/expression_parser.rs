@@ -2,6 +2,18 @@ use super::base::*;
 use crate::names::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
+    pub fn parse_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
+        let mut ret = Vec::new();
+        loop {
+            match self.current_token() {
+                Token::Eof | Token::LowerWord("end") => break,
+                _ => ret.push(self.parse_expr()?),
+            };
+            self.expect_sep()?;
+        }
+        Ok(ret)
+    }
+
     pub fn parse_expr(&mut self) -> Result<ast::Expression, Error> {
         match self.current_token() {
             Token::Eof => Err(self.parseerror("unexpected EOF")),
