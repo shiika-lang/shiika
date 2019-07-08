@@ -1,6 +1,7 @@
 mod float;
 mod int;
 mod object;
+mod void;
 use crate::ty::*;
 use crate::hir::*;
 
@@ -9,10 +10,15 @@ pub fn create_classes() -> Vec<SkClass> {
         float::create_class(),
         int::create_class(),
         object::create_class(),
+        void::create_class(),
     ]
 }
 
-pub fn create_method(class_name: &str, name: &str, arg_tys: Vec<TermTy>, ret_ty: TermTy, gen: GenMethodBody) -> SkMethod {
+pub fn create_method(class_name: &str,
+                     name: &str,
+                     arg_tys: Vec<TermTy>,
+                     ret_ty: TermTy,
+                     gen: GenMethodBody) -> SkMethod {
     SkMethod {
         signature: MethodSignature {
             name: name.to_string(),

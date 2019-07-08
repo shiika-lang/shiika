@@ -34,7 +34,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn parse_program(&mut self) -> Result<ast::Program, Error> {
         self.skip_wsn();
         Ok(ast::Program {
-            toplevel_defs: Vec::new(),
+            toplevel_defs: self.parse_definitions()?,
             stmts: self.parse_stmts()?,
         })
     }
