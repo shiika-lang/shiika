@@ -67,7 +67,7 @@ fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
     defs.iter().for_each(|def| {
         match def {
             ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                let hir_sig = create_signature(class_fullname.to_string(), sig);
+                let hir_sig = crate::hir::create_signature(class_fullname.to_string(), sig);
                 sk_methods.insert(sig.name.to_string(), hir_sig);
             },
             _ => panic!("TODO")
@@ -75,19 +75,4 @@ fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
     });
 
     body.insert(class_fullname.to_string(), sk_methods);
-}
-
-pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
-    let name = sig.name.clone();
-    let fullname = class_fullname + "#" + &sig.name;
-    let ret_ty = convert_typ(&sig.ret_typ);
-    let params = sig.params.iter().map(|param|
-        MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }
-    ).collect();
-
-    MethodSignature { name, fullname, ret_ty, params }
-}
-
-fn convert_typ(typ: &ast::Typ) -> TermTy {
-    ty::raw(&typ.name)
 }
