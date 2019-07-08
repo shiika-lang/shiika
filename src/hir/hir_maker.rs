@@ -16,10 +16,7 @@ impl HirMaker {
 
     pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
         let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
-
-        let main_exprs = prog.exprs.iter().map(|expr| {
-            self.convert_expr(&expr)
-        }).collect::<Result<Vec<_>, _>>()?;
+        let main_exprs = self.convert_exprs(&prog.exprs)?;
 
         Ok(Hir { sk_classes, main_exprs } )
     }
@@ -57,17 +54,26 @@ impl HirMaker {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
-        let body = SkMethodBody::ShiikaMethodBody {
-            exprs: self.convert_exprs(body_exprs)?
-        };
+
+        let body_exprs = self.convert_exprs(body_exprs)?;
+        //type_checking::check_return_value(&sig, &param_tys)?;
+
+        let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
 
         Ok(SkMethod { signature, body })
     }
 
-    fn convert_exprs(&self, exprs: &Vec<ast::Expression>) -> Result<Vec<HirExpression>, Error> {
-        exprs.iter().map(|expr|
+    fn convert_exprs(&self, exprs: &Vec<ast::Expression>) -> Result<HirExpressions, Error> {
+        let hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(expr)
-        ).collect::<Result<Vec<_>, _>>()
+        ).collect::<Result<Vec<_>, _>>()?;
+
+        let ty = match hir_exprs.last() {
+                   Some(hir_expr) => hir_expr.ty.clone(),
+                   None => ty::raw("Void"),
+                 };
+
+        Ok(HirExpressions { ty: ty, exprs: hir_exprs })
     }
 
     fn convert_expr(&self, expr: &ast::Expression) -> Result<HirExpression, Error> {

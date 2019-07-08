@@ -93,8 +93,8 @@ impl CodeGen {
 
     fn gen_exprs(&self,
                 function: inkwell::values::FunctionValue,
-                exprs: &Vec<HirExpression>) -> Result<(), Error> {
-        exprs.iter().try_for_each(|expr|
+                exprs: &HirExpressions) -> Result<(), Error> {
+        exprs.exprs.iter().try_for_each(|expr|
             self.gen_expr(function, &expr).map(|_result| () )
         )
     }
