@@ -39,8 +39,8 @@ impl HirMaker {
         let fullname = name.to_string();
         let methods = defs.iter().map(|def| {
             match def {
-                ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts } => {
-                    self.convert_method_def(&fullname, &name, &params, &ret_typ, &body_stmts)
+                ast::Definition::InstanceMethodDefinition { name, body_stmts, .. } => {
+                    self.convert_method_def(&fullname, &name, &body_stmts)
                 },
                 _ => panic!("TODO")
             }
@@ -52,8 +52,6 @@ impl HirMaker {
     fn convert_method_def(&self,
                           class_fullname: &str,
                           name: &str,
-                          params: &Vec<ast::Param>,
-                          ret_typ: &ast::Typ,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let signature = index::find_method(&self.index, class_fullname, name).unwrap().clone();
@@ -62,15 +60,6 @@ impl HirMaker {
         });
 
         Ok(SkMethod { signature, body })
-    }
-
-    fn convert_typ(&self, typ: &ast::Typ) -> Result<TermTy, Error> {
-        if self.index.contains_key(&typ.name) {
-            Ok(ty::raw(&typ.name))
-        }
-        else {
-            Err(error::program_error(&format!("unknown class: {:?}", typ.name)))
-        }
     }
 
     fn convert_stmts(&self, stmts: &Vec<ast::Statement>) -> Result<Vec<HirStatement>, Error> {
