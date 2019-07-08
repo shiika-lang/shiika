@@ -88,5 +88,5 @@ pub struct MethodSignature {
     pub name: String,
     pub fullname: String,
     pub ret_ty: TermTy,
-    pub arg_tys: Vec<TermTy>, // TODO: Rename to 'param_tys' / Add arg name
+    pub param_tys: Vec<TermTy>, // TODO: Add param name
 }

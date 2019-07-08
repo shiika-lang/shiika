@@ -18,11 +18,11 @@ pub fn check_if_condition_ty(ty: &TermTy) -> Result<(), Error> {
 }
 
 pub fn check_method_args(sig: &MethodSignature, arg_tys: &Vec<&TermTy>) -> Result<(), Error> {
-    if sig.arg_tys.len() != arg_tys.len() {
-        return Err(type_error!("{} takes {} args but got {}", sig.fullname, sig.arg_tys.len(), arg_tys.len()));
+    if sig.param_tys.len() != arg_tys.len() {
+        return Err(type_error!("{} takes {} args but got {}", sig.fullname, sig.param_tys.len(), arg_tys.len()));
     }
 
-    sig.arg_tys.iter().zip(arg_tys.iter()).try_for_each(|(param_ty, arg_ty)| {
+    sig.param_tys.iter().zip(arg_tys.iter()).try_for_each(|(param_ty, arg_ty)| {
         if arg_ty.conforms_to(param_ty) {
             Ok(())
         }

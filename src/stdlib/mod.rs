@@ -16,7 +16,7 @@ pub fn create_classes() -> Vec<SkClass> {
 
 pub fn create_method(class_name: &str,
                      name: &str,
-                     arg_tys: Vec<TermTy>,
+                     param_tys: Vec<TermTy>,
                      ret_ty: TermTy,
                      gen: GenMethodBody) -> SkMethod {
     SkMethod {
@@ -24,7 +24,7 @@ pub fn create_method(class_name: &str,
             name: name.to_string(),
             fullname: (class_name.to_string() + "#" + name),
             ret_ty: ret_ty,
-            arg_tys: arg_tys,
+            param_tys: param_tys,
         },
         body: Some(SkMethodBody::RustMethodBody{ gen: gen })
     }

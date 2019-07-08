@@ -66,11 +66,11 @@ impl HirMaker {
 
     fn convert_signature(&self, name: String, fullname: String, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> Result<MethodSignature, Error> {
         let ret_ty = self.convert_typ(ret_typ)?;
-        let arg_tys = params.iter().map(|param|
+        let param_tys = params.iter().map(|param|
             self.convert_typ(&param.typ)
         ).collect::<Result<Vec<_>,_>>()?;
 
-        Ok(MethodSignature { name, fullname, ret_ty, arg_tys })
+        Ok(MethodSignature { name, fullname, ret_ty, param_tys })
     }
 
     fn convert_typ(&self, typ: &ast::Typ) -> Result<TermTy, Error> {
@@ -147,8 +147,8 @@ impl HirMaker {
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
 
-        let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
-        type_checking::check_method_args(&sig, &arg_tys)?;
+        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
+        type_checking::check_method_args(&sig, &param_tys)?;
 
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
