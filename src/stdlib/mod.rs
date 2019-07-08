@@ -2,7 +2,6 @@ mod float;
 mod int;
 mod object;
 mod void;
-use crate::ty::*;
 use crate::hir::*;
 
 pub fn create_classes() -> Vec<SkClass> {
@@ -15,17 +14,14 @@ pub fn create_classes() -> Vec<SkClass> {
 }
 
 pub fn create_method(class_name: &str,
-                     name: &str,
-                     param_tys: Vec<TermTy>,
-                     ret_ty: TermTy,
-                     gen: GenMethodBody) -> SkMethod {
+                      sig_str: &str,
+                      gen: GenMethodBody) -> SkMethod {
+    let mut parser = crate::parser::Parser::new(sig_str);
+    let ast_sig = parser.parse_method_signature().unwrap();
+    let sig = crate::hir::index::create_signature(class_name.to_string(), &ast_sig);
+
     SkMethod {
-        signature: MethodSignature {
-            name: name.to_string(),
-            fullname: (class_name.to_string() + "#" + name),
-            ret_ty: ret_ty,
-            params: param_tys.into_iter().map(|ty| MethodParam { name: "".to_string(), ty: ty }).collect(),
-        },
+        signature: sig,
         body: Some(SkMethodBody::RustMethodBody{ gen: gen })
     }
 }

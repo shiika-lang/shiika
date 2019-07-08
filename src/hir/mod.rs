@@ -1,5 +1,5 @@
 mod hir_maker;
-mod index;
+pub mod index; // REFACTOR: Move create_signature to hir::
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
