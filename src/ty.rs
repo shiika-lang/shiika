@@ -1,6 +1,6 @@
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
-pub enum TermTy {
+pub enum TermTy { // TODO: Change this to a struct which have `fullname'
     // Types corresponds to non-generic class 
     // eg. "Int", "String", "Object"
     TyRaw { fullname: String },
@@ -21,6 +21,24 @@ impl TermTy {
         match self {
             TermTy::TyRaw { fullname } => (fullname == "Void"),
             _ => false
+        }
+    }
+
+    pub fn conforms_to(&self, other: &TermTy) -> bool {
+        match self {
+            TermTy::TyRaw { fullname: name1 } => {
+                match other {
+                    TermTy::TyRaw { fullname: name2 } => (*name1 == *name2),
+                    TermTy::TyMeta { .. } => false,
+                }
+            },
+
+            TermTy::TyMeta { fullname: name1, .. } => {
+                match other {
+                    TermTy::TyRaw { .. } => false,
+                    TermTy::TyMeta { fullname: name2, .. } => (*name1 == *name2),
+                }
+            },
         }
     }
 }
@@ -69,5 +87,5 @@ pub struct MethodSignature {
     pub name: String,
     pub fullname: String,
     pub ret_ty: TermTy,
-    pub arg_tys: Vec<TermTy>,
+    pub arg_tys: Vec<TermTy>, // TODO: Rename to 'param_tys'
 }

@@ -146,6 +146,10 @@ impl HirMaker {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
+
+        let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
+        type_checking::check_method_args(&sig, &arg_tys)?;
+
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
