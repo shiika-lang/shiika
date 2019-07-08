@@ -12,36 +12,36 @@ use crate::ty::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
-    pub hash: IndexBody
+    pub body: IndexBody
 }
 // class_fullname => method_name => signature
 type IndexBody = HashMap<String, HashMap<String, MethodSignature>>;
 
 pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
-    let mut index = HashMap::new();
+    let mut body = HashMap::new();
 
-    index_stdlib(&mut index, stdlib);
-    index_program(&mut index, toplevel_defs)?;
+    index_stdlib(&mut body, stdlib);
+    index_program(&mut body, toplevel_defs)?;
 
-    Ok(Index { hash: index })
+    Ok(Index { body })
 }
 
-fn index_stdlib(index: &mut IndexBody, stdlib: &Vec<SkClass>) {
+fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
     stdlib.iter().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
         sk_class.methods.iter().for_each(|sk_method| {
             sk_methods.insert(sk_method.signature.name.to_string(),
                               sk_method.signature.clone());
         });
-        index.insert(sk_class.fullname.to_string(), sk_methods);
+        body.insert(sk_class.fullname.to_string(), sk_methods);
     });
 }
 
-fn index_program(index: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
+fn index_program(body: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
     toplevel_defs.iter().try_for_each(|def| {
         match def {
             ast::Definition::ClassDefinition { name, defs } => {
-                index_class(index, &name, &defs);
+                index_class(body, &name, &defs);
                 Ok(())
             },
             _ => {
@@ -51,7 +51,7 @@ fn index_program(index: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) ->
     })
 }
 
-fn index_class(index: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
+fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
     let class_fullname = name; // TODO: nested class
     let mut sk_methods = HashMap::new();
     defs.iter().for_each(|def| {
@@ -65,7 +65,7 @@ fn index_class(index: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
         }
     });
 
-    index.insert(class_fullname.to_string(), sk_methods);
+    body.insert(class_fullname.to_string(), sk_methods);
 }
 
 fn create_signature(class_fullname: String, name: String, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> MethodSignature {
@@ -84,10 +84,10 @@ fn convert_typ(typ: &ast::Typ) -> TermTy {
 
 impl Index {
     pub fn get(&self, class_fullname: &str) -> Option<&HashMap<String, MethodSignature>> {
-        self.hash.get(class_fullname)
+        self.body.get(class_fullname)
     }
 
     pub fn find_method(&self, class_fullname: &str, method_name: &str) -> Option<&MethodSignature> {
-        self.hash.get(class_fullname).and_then(|methods| methods.get(method_name))
+        self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
     }
 }
