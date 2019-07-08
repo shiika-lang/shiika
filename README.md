@@ -21,6 +21,8 @@ Early-alpha
 
 - [x] Parse and emit LLVM IR for minimal case 
 - [ ] Implement metaclass (eg. `A.new`)
+- [ ] Nested class
+- [ ] Constant
 
 ### Type system (Prototype in Ruby, lib/*)
 
