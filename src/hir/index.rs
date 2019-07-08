@@ -9,13 +9,14 @@ use crate::error;
 use crate::error::*;
 use crate::hir::*;
 use crate::ty::*;
+use crate::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
     pub body: IndexBody
 }
 // class_fullname => method_name => signature
-type IndexBody = HashMap<String, HashMap<String, MethodSignature>>;
+type IndexBody = HashMap<String, HashMap<MethodName, MethodSignature>>;
 
 impl Index {
     pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
@@ -27,11 +28,11 @@ impl Index {
         Ok(Index { body })
     }
 
-    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<String, MethodSignature>> {
+    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<MethodName, MethodSignature>> {
         self.body.get(class_fullname)
     }
 
-    pub fn find_method(&self, class_fullname: &str, method_name: &str) -> Option<&MethodSignature> {
+    pub fn find_method(&self, class_fullname: &str, method_name: &MethodName) -> Option<&MethodSignature> {
         self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
     }
 }
@@ -40,7 +41,7 @@ fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
     stdlib.iter().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
         sk_class.methods.iter().for_each(|sk_method| {
-            sk_methods.insert(sk_method.signature.name.0.clone(),
+            sk_methods.insert(sk_method.signature.name.clone(),
                               sk_method.signature.clone());
         });
         body.insert(sk_class.fullname.to_string(), sk_methods);
@@ -68,7 +69,7 @@ fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
         match def {
             ast::Definition::InstanceMethodDefinition { sig, .. } => {
                 let hir_sig = crate::hir::create_signature(class_fullname.to_string(), sig);
-                sk_methods.insert(sig.name.to_string(), hir_sig);
+                sk_methods.insert(sig.name.clone(), hir_sig);
             },
             _ => panic!("TODO")
         }

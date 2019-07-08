@@ -51,7 +51,7 @@ impl HirMaker {
 
     fn convert_method_def(&self,
                           class_fullname: &str,
-                          name: &str,
+                          name: &MethodName,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
@@ -125,7 +125,7 @@ impl HirMaker {
         }
     }
 
-    fn make_method_call(&self, receiver_hir: HirExpression, method_name: &str, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
+    fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodName, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
@@ -134,7 +134,7 @@ impl HirMaker {
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
-    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &str) -> Result<&MethodSignature, Error> {
+    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &MethodName) -> Result<&MethodSignature, Error> {
         let class_fullname = &receiver_ty.fullname;
         self.index.get(class_fullname)
             .and_then(|sk_methods| sk_methods.get(method_name))

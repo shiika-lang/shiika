@@ -1,6 +1,7 @@
-use super::Parser;
+use super::Parser; // REFACTOR: use crate:: instead of super
 use super::base::*;
 use super::super::ast;
+use crate::names::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
     pub fn parse_definitions(&mut self) -> Result<Vec<ast::Definition>, Error> {
@@ -82,10 +83,10 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         // Method name
         match self.current_token() {
-            Token::LowerWord(s) => { name = s.to_string(); self.consume_token(); },
+            Token::LowerWord(s) => { name = MethodName(s.to_string()); self.consume_token(); },
             Token::Symbol(s) => {
                 if *s == "+" || *s == "-" || *s == "*" || *s == "/" || *s == "%" {
-                    name = s.to_string(); self.consume_token();
+                    name = MethodName(s.to_string()); self.consume_token();
                 }
                 else {
                     return Err(parse_error!(self, "method name must start with a-z but got {:?}", s))
