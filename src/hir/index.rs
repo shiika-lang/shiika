@@ -61,8 +61,8 @@ fn index_program(body: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> 
     })
 }
 
-fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
-    let class_fullname = ClassFullname(name.to_string()); // TODO: nested class
+fn index_class(body: &mut IndexBody, name: &ClassName, defs: &Vec<ast::Definition>) {
+    let class_fullname = name.to_class_fullname(); // TODO: nested class
     let mut sk_methods = HashMap::new();
     defs.iter().for_each(|def| {
         match def {

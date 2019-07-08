@@ -1,5 +1,12 @@
-//#[derive(Debug, PartialEq, Clone)]
-//pub struct ClassName(pub String);
+#[derive(Debug, PartialEq, Clone)]
+pub struct ClassName(pub String);
+
+impl ClassName {
+    // TODO: remove this after nested class is supported
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        ClassFullname(self.0.clone())
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ClassFullname(pub String);

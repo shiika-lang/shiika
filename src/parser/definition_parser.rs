@@ -37,7 +37,10 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         // Class name
         match self.current_token() {
-            Token::UpperWord(s) => { name = s.to_string(); self.consume_token(); },
+            Token::UpperWord(s) => {
+                name = ClassName(s.to_string());
+                self.consume_token();
+            },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
         }
         self.expect_sep()?;

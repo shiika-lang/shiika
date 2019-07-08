@@ -35,9 +35,9 @@ impl HirMaker {
         }).collect::<Result<Vec<_>, _>>()
     }
 
-    fn convert_class_def(&self, name: &str, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
+    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
         // TODO: nested class
-        let fullname = ClassFullname(name.to_string());
+        let fullname = name.to_class_fullname();
         let methods = defs.iter().map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_stmts, .. } => {

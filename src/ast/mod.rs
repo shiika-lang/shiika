@@ -9,7 +9,7 @@ pub struct Program {
 #[derive(Debug, PartialEq)]
 pub enum Definition {
     ClassDefinition {
-        name: String,
+        name: ClassName,
         defs: Vec<Definition>,
     },
     InitializerDefinition {
