@@ -16,12 +16,13 @@ impl HirMaker {
 
     pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
         let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
+
         let main_stmts = prog.stmts.iter().map(|stmt| {
             self.convert_stmt(&stmt)
         }).collect::<Result<Vec<_>, _>>()?;
+
         Ok(Hir { sk_classes, main_stmts } )
     }
-
 
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
         toplevel_defs.iter().map(|def| {
@@ -139,7 +140,7 @@ impl HirMaker {
                 Ok(Hir::decimal_literal(*value))
             },
 
-            _ => panic!("TODO: convert_expr for {:?}", self)
+            _ => panic!("TODO: convert_expr for {:?}", expr)
         }
     }
 
