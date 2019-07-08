@@ -71,7 +71,7 @@ pub enum HirExpressionBase {
     },
     HirMethodCall {
         receiver_expr: Box<HirExpression>,
-        method_fullname: String,
+        method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
     HirSelfExpression,
@@ -99,7 +99,7 @@ impl Hir {
         }
     }
 
-    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: String, arg_hirs: Vec<HirExpression>) -> HirExpression {
+    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: MethodFullname, arg_hirs: Vec<HirExpression>) -> HirExpression {
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
@@ -142,7 +142,7 @@ impl Hir {
 
 pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
     let name = sig.name.clone();
-    let fullname = class_fullname + "#" + &sig.name;
+    let fullname = MethodFullname(class_fullname + "#" + &sig.name);
     let ret_ty = convert_typ(&sig.ret_typ);
     let params = sig.params.iter().map(|param|
         MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }

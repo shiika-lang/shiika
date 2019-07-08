@@ -74,7 +74,7 @@ impl CodeGen {
 
     fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
         let func_type = self.llvm_func_type(&sk_class.instance_ty(), &method.signature);
-        let function = self.module.add_function(&method.signature.fullname, func_type, None);
+        let function = self.module.add_function(&method.signature.fullname.0, func_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
@@ -163,7 +163,7 @@ impl CodeGen {
 
     fn gen_method_call(&self,
                        function: inkwell::values::FunctionValue,
-                       method_fullname: &str,
+                       method_fullname: &MethodFullname,
                        receiver_expr: &HirExpression,
                        arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
         let receiver_value = self.gen_expr(function, receiver_expr)?;
@@ -171,7 +171,7 @@ impl CodeGen {
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(method_fullname).expect("[BUG] get_function not found");
+        let function = self.module.get_function(&method_fullname.0).expect("[BUG] get_function not found");
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "gen_method_call").try_as_basic_value().left() {
