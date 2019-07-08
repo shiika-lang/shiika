@@ -3,6 +3,7 @@ mod index;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
+use crate::names::*;
 
 pub struct Hir {
     pub sk_classes: Vec<SkClass>,
@@ -17,12 +18,12 @@ impl Hir {
 
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
-    pub fullname: String,
+    pub fullname: ClassFullname,
     pub methods: Vec<SkMethod>,
 }
 impl SkClass {
     pub fn instance_ty(&self) -> TermTy {
-        ty::raw(&self.fullname)
+        ty::raw(&self.fullname.0)
     }
 }
 
@@ -71,7 +72,7 @@ pub enum HirExpressionBase {
     },
     HirMethodCall {
         receiver_expr: Box<HirExpression>,
-        method_fullname: String,
+        method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
     HirSelfExpression,
@@ -99,7 +100,7 @@ impl Hir {
         }
     }
 
-    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: String, arg_hirs: Vec<HirExpression>) -> HirExpression {
+    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: MethodFullname, arg_hirs: Vec<HirExpression>) -> HirExpression {
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
@@ -142,7 +143,7 @@ impl Hir {
 
 pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
     let name = sig.name.clone();
-    let fullname = class_fullname + "#" + &sig.name;
+    let fullname = MethodFullname(class_fullname + "#" + &sig.name.0);
     let ret_ty = convert_typ(&sig.ret_typ);
     let params = sig.params.iter().map(|param|
         MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }

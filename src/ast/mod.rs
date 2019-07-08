@@ -1,3 +1,5 @@
+use crate::names::*;
+
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub toplevel_defs: Vec<Definition>,
@@ -7,7 +9,7 @@ pub struct Program {
 #[derive(Debug, PartialEq)]
 pub enum Definition {
     ClassDefinition {
-        name: String,
+        name: ClassName,
         defs: Vec<Definition>,
     },
     InitializerDefinition {
@@ -26,7 +28,7 @@ pub enum Definition {
 
 #[derive(Debug, PartialEq)]
 pub struct MethodSignature {
-    pub name: String,
+    pub name: MethodName,
     pub params: Vec<Param>,
     pub ret_typ: Typ,
 }
@@ -62,7 +64,7 @@ pub enum Expression {
     },
     MethodCall {
         receiver_expr: Option<Box<Expression>>,
-        method_name: String,
+        method_name: MethodName,
         arg_exprs: Vec<Expression>
     },
     // Local variable reference or method call with implicit receiver(self)
@@ -114,13 +116,13 @@ pub enum BinOp {
     Mod,
 }
 impl BinOp {
-    pub fn method_name(&self) -> String {
-        (match self {
+    pub fn method_name(&self) -> MethodName {
+        MethodName((match self {
             BinOp::Add => "+",
             BinOp::Sub => "-",
             BinOp::Mul => "*",
             BinOp::Div => "/",
             BinOp::Mod => "%",
-        }).to_string()
+        }).to_string())
     }
 }

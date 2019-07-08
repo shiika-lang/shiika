@@ -1,4 +1,5 @@
 use super::base::*;
+use crate::names::*;
 
 impl<'a, 'b> Parser<'a, 'b> {
     pub fn parse_expr(&mut self) -> Result<ast::Expression, Error> {
@@ -113,7 +114,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         Some(arg_exprs) => {
                             Ok(ast::Expression::MethodCall{
                                 receiver_expr: None,
-                                method_name: method_name.to_string(),
+                                method_name: MethodName(method_name.to_string()),
                                 arg_exprs: arg_exprs
                             })
                         }
@@ -125,7 +126,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 let mut method_name;
                 match self.current_token() {
                     Token::UpperWord(s) | Token::LowerWord(s) => {
-                        method_name = s.to_string();
+                        method_name = MethodName(s.to_string());
                         self.consume_token();
                     },
                     token => {
@@ -150,11 +151,11 @@ impl<'a, 'b> Parser<'a, 'b> {
                     None => Ok(receiver_expr),
                     Some(arg_exprs) => {
                         let method_name = if let ast::Expression::Name(s) = receiver_expr {
-                                            s
+                                            MethodName(s.to_string())
                                           } else { panic!() };
                         Ok(ast::Expression::MethodCall{
                             receiver_expr: None,
-                            method_name: method_name.to_string(),
+                            method_name: method_name,
                             arg_exprs: arg_exprs
                         })
                     }

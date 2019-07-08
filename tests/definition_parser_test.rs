@@ -1,5 +1,6 @@
 use shiika::ast;
 use shiika::parser::Parser;
+use shiika::names::*;
 
 fn parse_definitions(src: &str) -> Result<Vec<ast::Definition>, shiika::error::Error> {
     let mut parser = Parser::new(src);
@@ -11,7 +12,7 @@ fn test_emtpy_class() {
     let result = parse_definitions("class A; end");
     assert_eq!(result.unwrap(), vec![ 
         ast::Definition::ClassDefinition {
-            name: "A".to_string(),
+            name: ClassName("A".to_string()),
             defs: vec![]
         }
     ])
@@ -22,11 +23,11 @@ fn test_class_with_empty_method() {
     let result = parse_definitions("class A; def foo; end; end");
     assert_eq!(result.unwrap(), vec![
         ast::Definition::ClassDefinition {
-            name: "A".to_string(),
+            name: ClassName("A".to_string()),
             defs: vec![
                 ast::Definition::InstanceMethodDefinition {
                     sig: ast::MethodSignature {
-                        name: "foo".to_string(),
+                        name: MethodName("foo".to_string()),
                         params: vec![],
                         ret_typ: ast::Typ { name: "Void".to_string() },
                     },
@@ -43,7 +44,7 @@ fn test_method_with_params() {
     let result = parser.parse_method_definition();
     assert_eq!(result.unwrap(), ast::Definition::InstanceMethodDefinition {
         sig: ast::MethodSignature {
-            name: "foo".to_string(),
+            name: MethodName("foo".to_string()),
             params: vec![
                 ast::Param { name: "a".to_string(), typ: ast::Typ { name: "Int".to_string() }},
                 ast::Param { name: "b".to_string(), typ: ast::Typ { name: "Float".to_string() }},
@@ -60,7 +61,7 @@ fn test_method_with_explicit_return_type() {
     let result = parser.parse_method_definition();
     assert_eq!(result.unwrap(), ast::Definition::InstanceMethodDefinition {
         sig: ast::MethodSignature {
-            name: "foo".to_string(),
+            name: MethodName("foo".to_string()),
             params: vec![],
             ret_typ: ast::Typ { name: "Int".to_string() },
         },

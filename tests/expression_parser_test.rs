@@ -1,5 +1,6 @@
 use shiika::ast;
 use shiika::parser::Parser;
+use shiika::names::*;
 
 fn parse_expr(src: &str) -> Result<ast::Expression, shiika::error::Error> {
     let mut parser = Parser::new(src);
@@ -53,7 +54,7 @@ fn test_multiplicative_with_method_call() {
         ast::Expression::BinOpExpression {
             left: Box::new(ast::Expression::MethodCall {
                 receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-                method_name: "foo".to_string(),
+                method_name: MethodName("foo".to_string()),
                 arg_exprs: vec![],
             }),
             op: ast::BinOp::Mul,
@@ -68,7 +69,7 @@ fn test_method_call_with_dot_and_paren() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![ast::decimal_literal(2)],
         }
     )
@@ -80,7 +81,7 @@ fn test_method_call_with_dot() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![ast::decimal_literal(2)],
         }
     )
@@ -92,7 +93,7 @@ fn test_method_call_with_paren() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: None,
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![ast::decimal_literal(2)],
         }
     )
@@ -104,7 +105,7 @@ fn test_method_call_no_paren_or_dot() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: None,
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![ast::decimal_literal(2)],
         }
     )
@@ -116,7 +117,7 @@ fn test_method_call_with_binop() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: None,
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![
                 ast::Expression::BinOpExpression {
                     left: Box::new(ast::decimal_literal(1)),
@@ -134,7 +135,7 @@ fn test_method_call_with_args() {
     assert_eq!(result.unwrap(), 
         ast::Expression::MethodCall {
             receiver_expr: None,
-            method_name: "foo".to_string(),
+            method_name: MethodName("foo".to_string()),
             arg_exprs: vec![
                 ast::decimal_literal(1),
                 ast::decimal_literal(2),
