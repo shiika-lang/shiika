@@ -15,15 +15,20 @@ pub enum Definition {
         body_stmts: Vec<Statement>,
     },
     InstanceMethodDefinition {
-        name: String,
-        params: Vec<Param>,
-        ret_typ: Typ,
+        sig: MethodSignature,
         body_stmts: Vec<Statement>,
     },
     ClassMethodDefinition {
         name: String,
         body_stmts: Vec<Statement>,
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct MethodSignature {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub ret_typ: Typ,
 }
 
 #[derive(Debug, PartialEq)]

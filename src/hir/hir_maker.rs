@@ -39,8 +39,8 @@ impl HirMaker {
         let fullname = name.to_string();
         let methods = defs.iter().map(|def| {
             match def {
-                ast::Definition::InstanceMethodDefinition { name, body_stmts, .. } => {
-                    self.convert_method_def(&fullname, &name, &body_stmts)
+                ast::Definition::InstanceMethodDefinition { sig, body_stmts, .. } => {
+                    self.convert_method_def(&fullname, &sig.name, &body_stmts)
                 },
                 _ => panic!("TODO")
             }

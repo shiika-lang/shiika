@@ -54,14 +54,31 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
-        let name;
-        let params;
-        let ret_typ;
-
         // `def'
         assert_eq!(*self.current_token(), Token::LowerWord("def"));
         self.consume_token();
         self.skip_ws();
+
+        let sig = self.parse_method_signature()?;
+        self.expect_sep()?;
+
+        // Body (optional)
+        let body_stmts = self.parse_stmts()?;
+
+        // `end'
+        self.skip_wsn();
+        match self.current_token() {
+            Token::LowerWord("end") => { self.consume_token(); },
+            token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", sig.name, token))
+        }
+
+        Ok(ast::Definition::InstanceMethodDefinition { sig, body_stmts })
+    }
+
+    pub fn parse_method_signature(&mut self) -> Result<ast::MethodSignature, Error> {
+        let name;
+        let params;
+        let ret_typ;
 
         // Method name
         match self.current_token() {
@@ -91,18 +108,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
         }
 
-        // Body (optional)
-        self.expect_sep()?;
-        let body_stmts = self.parse_stmts()?;
-
-        // `end'
-        self.skip_wsn();
-        match self.current_token() {
-            Token::LowerWord("end") => { self.consume_token(); },
-            token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", name, token))
-        }
-
-        Ok(ast::Definition::InstanceMethodDefinition { name, params, ret_typ, body_stmts })
+        Ok(ast::MethodSignature { name, params, ret_typ })
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {

@@ -66,10 +66,10 @@ fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
     let mut sk_methods = HashMap::new();
     defs.iter().for_each(|def| {
         match def {
-            ast::Definition::InstanceMethodDefinition { name, params, ret_typ, .. } => {
-                let sig = create_signature(class_fullname.to_string(), name.to_string(),
-                                           &params, &ret_typ);
-                sk_methods.insert(name.to_string(), sig);
+            ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                let hir_sig = create_signature(class_fullname.to_string(), sig.name.to_string(),
+                                           &sig.params, &sig.ret_typ);
+                sk_methods.insert(name.to_string(), hir_sig);
             },
             _ => panic!("TODO")
         }
