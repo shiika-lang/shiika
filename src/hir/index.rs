@@ -40,7 +40,7 @@ fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
     stdlib.iter().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
         sk_class.methods.iter().for_each(|sk_method| {
-            sk_methods.insert(sk_method.signature.name.to_string(),
+            sk_methods.insert(sk_method.signature.name.0.clone(),
                               sk_method.signature.clone());
         });
         body.insert(sk_class.fullname.to_string(), sk_methods);

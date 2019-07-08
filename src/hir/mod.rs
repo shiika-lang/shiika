@@ -141,7 +141,7 @@ impl Hir {
 }
 
 pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
-    let name = sig.name.clone();
+    let name = MethodName(sig.name.clone());
     let fullname = MethodFullname(class_fullname + "#" + &sig.name);
     let ret_ty = convert_typ(&sig.ret_typ);
     let params = sig.params.iter().map(|param|

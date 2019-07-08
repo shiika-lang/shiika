@@ -2,8 +2,9 @@
 //pub struct ClassName(pub String);
 //#[derive(Debug, PartialEq, Clone)]
 //pub struct ClassFullname(pub String);
-//#[derive(Debug, PartialEq, Clone)]
-//pub struct MethodName(pub String);
+#[derive(Debug, PartialEq, Clone)]
+pub struct MethodName(pub String);
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname(pub String);
 impl std::fmt::Display for MethodFullname {
@@ -99,7 +100,7 @@ pub fn raw(fullname: &str) -> TermTy {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodSignature {
-    pub name: String,
+    pub name: MethodName,
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
     pub params: Vec<MethodParam>,
