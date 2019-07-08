@@ -62,7 +62,7 @@ impl CodeGen {
             let struct_type = self.context.opaque_struct_type(&sk_class.fullname);
             struct_type.set_body(&[], true);
             self.llvm_struct_types.insert(sk_class.fullname.clone(), struct_type);
-        })
+        });
 
         // Compile methods
         classes.iter().try_for_each(|sk_class| {
