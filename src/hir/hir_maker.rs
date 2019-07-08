@@ -54,7 +54,8 @@ impl HirMaker {
                           name: &str,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
-        let signature = self.index.find_method(class_fullname, name).unwrap().clone();
+        let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
+        let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
         let body = Some(SkMethodBody::ShiikaMethodBody {
             stmts: self.convert_stmts(body_stmts)?
         });
