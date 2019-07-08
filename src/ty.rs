@@ -3,7 +3,7 @@ use crate::names::*;
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
 pub struct TermTy {
-    pub fullname: String,
+    pub fullname: ClassFullname,
     pub body: TyBody
 }
 
@@ -23,7 +23,7 @@ impl TermTy {
     // Returns true when this is the Void type
     pub fn is_void_type(&self) -> bool {
         match self.body {
-            TyRaw => (self.fullname == "Void"),
+            TyRaw => (self.fullname.0 == "Void"),
             _ => false
         }
     }
@@ -32,14 +32,14 @@ impl TermTy {
         match self.body {
             TyRaw => {
                 match other.body {
-                    TyRaw => (self.fullname == *other.fullname),
+                    TyRaw => (self.fullname == other.fullname),
                     TyMeta { .. } => false,
                 }
             },
             TyMeta { .. } => {
                 match other.body  {
                     TyRaw => false,
-                    TyMeta { .. } => (self.fullname == *other.fullname),
+                    TyMeta { .. } => (self.fullname == other.fullname),
                 }
             },
         }
@@ -47,7 +47,7 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
-    TermTy { fullname: fullname.to_string(), body: TyRaw }
+    TermTy { fullname: ClassFullname(fullname.to_string()), body: TyRaw }
 }
 
 //impl TermTy for TyRaw {

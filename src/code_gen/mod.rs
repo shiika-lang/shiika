@@ -15,7 +15,7 @@ pub struct CodeGen {
     pub i32_type: inkwell::types::IntType,
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
-    llvm_struct_types: HashMap<String, inkwell::types::StructType>,
+    llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
 }
 
 impl CodeGen {
@@ -60,7 +60,7 @@ impl CodeGen {
     fn gen_classes(&mut self, classes: &Vec<SkClass>) -> Result<(), Error> {
         // Create llvm struct types
         classes.iter().for_each(|sk_class| {
-            let struct_type = self.context.opaque_struct_type(&sk_class.fullname);
+            let struct_type = self.context.opaque_struct_type(&sk_class.fullname.0);
             struct_type.set_body(&[], true);
             self.llvm_struct_types.insert(sk_class.fullname.clone(), struct_type);
         });
@@ -209,7 +209,7 @@ impl CodeGen {
     fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
         match ty.body {
             TyBody::TyRaw => {
-                match ty.fullname.as_str() {
+                match ty.fullname.0.as_str() {
                     "Int" => self.i32_type.as_basic_type_enum(),
                     "Float" => self.f32_type.as_basic_type_enum(),
                     // TODO: replace with special value?

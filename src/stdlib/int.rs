@@ -1,9 +1,10 @@
+use crate::names::*;
 use crate::hir::*;
 use crate::stdlib::create_method;
 
 pub fn create_class() -> SkClass {
     SkClass {
-        fullname: "Int".to_string(),
+        fullname: ClassFullname("Int".to_string()),
         methods: create_methods(),
     }
 }

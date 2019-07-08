@@ -15,8 +15,7 @@ use crate::names::*;
 pub struct Index {
     pub body: IndexBody
 }
-// class_fullname => method_name => signature
-type IndexBody = HashMap<String, HashMap<MethodName, MethodSignature>>;
+type IndexBody = HashMap<ClassFullname, HashMap<MethodName, MethodSignature>>;
 
 impl Index {
     pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
@@ -28,11 +27,11 @@ impl Index {
         Ok(Index { body })
     }
 
-    pub fn get(&self, class_fullname: &str) -> Option<&HashMap<MethodName, MethodSignature>> {
+    pub fn get(&self, class_fullname: &ClassFullname) -> Option<&HashMap<MethodName, MethodSignature>> {
         self.body.get(class_fullname)
     }
 
-    pub fn find_method(&self, class_fullname: &str, method_name: &MethodName) -> Option<&MethodSignature> {
+    pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodName) -> Option<&MethodSignature> {
         self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
     }
 }
@@ -44,7 +43,7 @@ fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
             sk_methods.insert(sk_method.signature.name.clone(),
                               sk_method.signature.clone());
         });
-        body.insert(sk_class.fullname.to_string(), sk_methods);
+        body.insert(sk_class.fullname.clone(), sk_methods);
     });
 }
 
@@ -63,7 +62,7 @@ fn index_program(body: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> 
 }
 
 fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
-    let class_fullname = name; // TODO: nested class
+    let class_fullname = ClassFullname(name.to_string()); // TODO: nested class
     let mut sk_methods = HashMap::new();
     defs.iter().for_each(|def| {
         match def {
@@ -75,5 +74,5 @@ fn index_class(body: &mut IndexBody, name: &str, defs: &Vec<ast::Definition>) {
         }
     });
 
-    body.insert(class_fullname.to_string(), sk_methods);
+    body.insert(class_fullname, sk_methods);
 }

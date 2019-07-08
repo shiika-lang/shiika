@@ -36,7 +36,8 @@ impl HirMaker {
     }
 
     fn convert_class_def(&self, name: &str, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
-        let fullname = name.to_string();
+        // TODO: nested class
+        let fullname = ClassFullname(name.to_string());
         let methods = defs.iter().map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_stmts, .. } => {
@@ -50,7 +51,7 @@ impl HirMaker {
     }
 
     fn convert_method_def(&self,
-                          class_fullname: &str,
+                          class_fullname: &ClassFullname,
                           name: &MethodName,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new

@@ -18,12 +18,12 @@ impl Hir {
 
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
-    pub fullname: String,
+    pub fullname: ClassFullname,
     pub methods: Vec<SkMethod>,
 }
 impl SkClass {
     pub fn instance_ty(&self) -> TermTy {
-        ty::raw(&self.fullname)
+        ty::raw(&self.fullname.0)
     }
 }
 
