@@ -22,6 +22,6 @@ pub fn create_method(class_name: &str,
 
     SkMethod {
         signature: sig,
-        body: Some(SkMethodBody::RustMethodBody{ gen: gen })
+        body: SkMethodBody::RustMethodBody{ gen: gen }
     }
 }

@@ -56,9 +56,9 @@ impl HirMaker {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
-        let body = Some(SkMethodBody::ShiikaMethodBody {
+        let body = SkMethodBody::ShiikaMethodBody {
             stmts: self.convert_stmts(body_stmts)?
-        });
+        };
 
         Ok(SkMethod { signature, body })
     }

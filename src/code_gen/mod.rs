@@ -78,14 +78,12 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        // Method should have a body in code gen phase
-        let body = method.body.as_ref().unwrap();
-        match body {
+        match &method.body {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
             SkMethodBody::ShiikaMethodBody { stmts }=> {
-                self.gen_stmts(function, stmts)?
+                self.gen_stmts(function, &stmts)?
                 // TODO: generete return
             }
         }

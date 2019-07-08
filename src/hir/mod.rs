@@ -29,7 +29,7 @@ impl SkClass {
 #[derive(Debug, PartialEq)]
 pub struct SkMethod {
     pub signature: MethodSignature,
-    pub body: Option<SkMethodBody>, // None on creation
+    pub body: SkMethodBody,
 }
 
 #[derive(Debug, PartialEq)]
