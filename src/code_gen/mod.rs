@@ -46,7 +46,7 @@ impl CodeGen {
         // define i32 @main() {
         let main_type = i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
-        let basic_block = self.context.append_basic_block(&function, "entry");
+        let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
         self.gen_stmts(function, &hir.main_stmts)?;
