@@ -185,8 +185,6 @@ impl CodeGen {
         }
     }
 
-    //fn gen_bin_op
-
     fn gen_float_literal(&self, value: f32) -> inkwell::values::BasicValueEnum {
         self.f32_type.const_float(value as f64).as_basic_value_enum()
     }
