@@ -67,11 +67,11 @@ fn index_class(index: &mut Index, name: &str, defs: &Vec<ast::Definition>) {
 fn create_signature(class_fullname: String, name: String, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> MethodSignature {
     let fullname = class_fullname + "#" + &name;
     let ret_ty = convert_typ(ret_typ);
-    let param_tys = params.iter().map(|param|
-        convert_typ(&param.typ)
+    let params = params.iter().map(|param|
+        MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }
     ).collect();
 
-    MethodSignature { name, fullname, ret_ty, param_tys }
+    MethodSignature { name, fullname, ret_ty, params }
 }
 
 fn convert_typ(typ: &ast::Typ) -> TermTy {

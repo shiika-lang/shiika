@@ -56,6 +56,7 @@ impl HirMaker {
                           ret_typ: &ast::Typ,
                           body_stmts: &Vec<ast::Statement>) -> Result<SkMethod, Error> {
         let fullname = class_fullname.to_string() + "#" + name;
+        // REFACTOR: just retrieve signature from self.index
         let signature = self.convert_signature(name.to_string(), fullname, params, ret_typ)?;
         let body = Some(SkMethodBody::ShiikaMethodBody {
             stmts: self.convert_stmts(body_stmts)?
@@ -66,11 +67,13 @@ impl HirMaker {
 
     fn convert_signature(&self, name: String, fullname: String, params: &Vec<ast::Param>, ret_typ: &ast::Typ) -> Result<MethodSignature, Error> {
         let ret_ty = self.convert_typ(ret_typ)?;
-        let param_tys = params.iter().map(|param|
-            self.convert_typ(&param.typ)
-        ).collect::<Result<Vec<_>,_>>()?;
+        let params = params.iter().map(|param| {
+            self.convert_typ(&param.typ).map(|ty| {
+                MethodParam { name: param.name.to_string(), ty: ty }
+            })
+        }).collect::<Result<Vec<_>,_>>()?;
 
-        Ok(MethodSignature { name, fullname, ret_ty, param_tys })
+        Ok(MethodSignature { name, fullname, ret_ty, params })
     }
 
     fn convert_typ(&self, typ: &ast::Typ) -> Result<TermTy, Error> {

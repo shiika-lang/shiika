@@ -195,7 +195,7 @@ impl CodeGen {
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
         let self_type = self.llvm_type(self_ty);
-        let mut arg_types = signature.param_tys.iter().map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        let mut arg_types = signature.params.iter().map(|param| self.llvm_type(&param.ty)).collect::<Vec<_>>();
         arg_types.insert(0, self_type);
 
         if signature.ret_ty.is_void_type() {

@@ -88,5 +88,11 @@ pub struct MethodSignature {
     pub name: String,
     pub fullname: String,
     pub ret_ty: TermTy,
-    pub param_tys: Vec<TermTy>, // TODO: Add param name
+    pub params: Vec<MethodParam>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct MethodParam {
+    pub name: String,
+    pub ty: TermTy,
 }

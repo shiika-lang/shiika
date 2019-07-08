@@ -24,7 +24,7 @@ pub fn create_method(class_name: &str,
             name: name.to_string(),
             fullname: (class_name.to_string() + "#" + name),
             ret_ty: ret_ty,
-            param_tys: param_tys,
+            params: param_tys.into_iter().map(|ty| MethodParam { name: "".to_string(), ty: ty }).collect(),
         },
         body: Some(SkMethodBody::RustMethodBody{ gen: gen })
     }
