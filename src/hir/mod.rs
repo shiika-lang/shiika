@@ -3,6 +3,7 @@ mod index;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
+use crate::names::*;
 
 pub struct Hir {
     pub sk_classes: Vec<SkClass>,

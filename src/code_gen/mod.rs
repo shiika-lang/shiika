@@ -6,6 +6,7 @@ use crate::error::Error;
 use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
+use crate::names::*;
 
 pub struct CodeGen {
     pub context: inkwell::context::Context,
