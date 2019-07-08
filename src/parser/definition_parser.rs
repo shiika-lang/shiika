@@ -83,6 +83,14 @@ impl<'a, 'b> Parser<'a, 'b> {
         // Method name
         match self.current_token() {
             Token::LowerWord(s) => { name = s.to_string(); self.consume_token(); },
+            Token::Symbol(s) => {
+                if *s == "+" || *s == "-" || *s == "*" || *s == "/" || *s == "%" {
+                    name = s.to_string(); self.consume_token();
+                }
+                else {
+                    return Err(parse_error!(self, "method name must start with a-z but got {:?}", s))
+                }
+            },
             token => return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
         }
         self.skip_ws();
