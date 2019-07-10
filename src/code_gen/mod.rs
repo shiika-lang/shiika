@@ -35,25 +35,27 @@ impl CodeGen {
     }
 
     pub fn gen_program(&mut self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
-        let i32_type = self.i32_type;
-
         // declare i32 @putchar(i32)
-        let putchar_type = i32_type.fn_type(&[i32_type.into()], false);
+        let putchar_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
         self.module.add_function("putchar", putchar_type, None);
 
         self.gen_classes(stdlib)?;
         self.gen_classes(&hir.sk_classes)?;
+        self.gen_main(&hir.main_exprs)?;
+        Ok(())
+    }
 
+    pub fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
         // define i32 @main() {
-        let main_type = i32_type.fn_type(&[], false);
+        let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        self.gen_exprs(function, &hir.main_exprs)?;
+        self.gen_exprs(function, &main_exprs)?;
 
         // ret i32 0
-        self.builder.build_return(Some(&i32_type.const_int(0, false)));
+        self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
     }
 
