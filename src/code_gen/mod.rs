@@ -84,8 +84,27 @@ impl CodeGen {
                 gen(self, &function)?
             },
             SkMethodBody::ShiikaMethodBody { exprs }=> {
-                self.gen_exprs(function, &exprs)?
-                // TODO: generete return
+                self.gen_shiika_method_body(function, &exprs)?
+            }
+        }
+        Ok(())
+    }
+
+    fn gen_shiika_method_body(&self,
+                              function: inkwell::values::FunctionValue,
+                              exprs: &HirExpressions) -> Result<(), Error> {
+        let last_value_opt = self.gen_exprs(function, exprs)?;
+        match last_value_opt {
+            Some(v) => {
+                if exprs.ty.is_void_type() {
+                    self.builder.build_return(None);
+                }
+                else {
+                    self.builder.build_aggregate_return(&[v]);
+                }
+            },
+            None => {
+                self.builder.build_return(None);
             }
         }
         Ok(())
@@ -93,10 +112,14 @@ impl CodeGen {
 
     fn gen_exprs(&self,
                 function: inkwell::values::FunctionValue,
-                exprs: &HirExpressions) -> Result<(), Error> {
-        exprs.exprs.iter().try_for_each(|expr|
-            self.gen_expr(function, &expr).map(|_result| () )
-        )
+                exprs: &HirExpressions) -> Result<Option<inkwell::values::BasicValueEnum>, Error> {
+        let mut last_value_opt = None;
+        exprs.exprs.iter().try_for_each(|expr| {
+            let value: inkwell::values::BasicValueEnum = self.gen_expr(function, &expr)?;
+            last_value_opt = Some(value);
+            Ok(())
+        })?;
+        Ok(last_value_opt)
     }
 
     fn gen_expr(&self,
