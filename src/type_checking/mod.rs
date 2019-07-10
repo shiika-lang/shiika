@@ -9,7 +9,7 @@ macro_rules! type_error {
 }
 
 pub fn check_return_value(sig: &MethodSignature, ty: &TermTy) -> Result<(), Error> {
-    if ty.conforms_to(&sig.ret_ty) {
+    if ty.conforms_to(&sig.ret_ty) || sig.ret_ty.is_void_type() {
         Ok(())
     }
     else {
