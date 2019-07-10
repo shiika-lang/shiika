@@ -9,7 +9,6 @@ mod base;
 mod token;
 pub mod lexer;
 mod definition_parser;
-mod statement_parser;
 mod expression_parser;
 use crate::ast;
 use crate::error::Error;
@@ -35,7 +34,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.skip_wsn();
         Ok(ast::Program {
             toplevel_defs: self.parse_definitions()?,
-            stmts: self.parse_stmts()?,
+            exprs: self.parse_exprs()?,
         })
     }
 }

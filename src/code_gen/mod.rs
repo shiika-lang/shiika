@@ -50,7 +50,7 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        self.gen_stmts(function, &hir.main_stmts)?;
+        self.gen_exprs(function, &hir.main_exprs)?;
 
         // ret i32 0
         self.builder.build_return(Some(&i32_type.const_int(0, false)));
@@ -83,29 +83,20 @@ impl CodeGen {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
-            SkMethodBody::ShiikaMethodBody { stmts }=> {
-                self.gen_stmts(function, &stmts)?
+            SkMethodBody::ShiikaMethodBody { exprs }=> {
+                self.gen_exprs(function, &exprs)?
                 // TODO: generete return
             }
         }
         Ok(())
     }
 
-    fn gen_stmts(&self,
+    fn gen_exprs(&self,
                 function: inkwell::values::FunctionValue,
-                stmts: &Vec<HirStatement>) -> Result<(), Error> {
-        stmts.iter().try_for_each(|stmt| self.gen_stmt(function, &stmt))
-    }
-
-    fn gen_stmt(&self,
-                function: inkwell::values::FunctionValue,
-                stmt: &HirStatement) -> Result<(), Error> {
-        match stmt {
-            HirStatement::HirExpressionStatement { expr } => {
-                self.gen_expr(function, &expr)?;
-                Ok(())
-            }
-        }
+                exprs: &HirExpressions) -> Result<(), Error> {
+        exprs.exprs.iter().try_for_each(|expr|
+            self.gen_expr(function, &expr).map(|_result| () )
+        )
     }
 
     fn gen_expr(&self,
