@@ -13,6 +13,7 @@ pub struct CodeGen {
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
     pub i32_type: inkwell::types::IntType,
+    pub i64_type: inkwell::types::IntType,
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
@@ -28,6 +29,7 @@ impl CodeGen {
             module: module,
             builder: builder,
             i32_type: inkwell::types::IntType::i32_type(),
+            i64_type: inkwell::types::IntType::i64_type(),
             f32_type: inkwell::types::FloatType::f32_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
@@ -60,11 +62,34 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
+        let the_main = self.gen_runtime();
         self.gen_exprs(function, &main_exprs)?;
 
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
+    }
+
+    fn gen_runtime(&self) -> inkwell::values::BasicValueEnum {
+        let object_type = self.llvm_struct_types.get(&ClassFullname("Object".to_string())).unwrap();
+
+        // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
+        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
+        let gep = unsafe {
+            self.builder.build_in_bounds_gep(
+              obj_ptr_type.const_null(),
+              &[self.i64_type.const_int(1, false)],
+              "",
+            )
+        };
+        let size = self.builder.build_ptr_to_int(gep, self.i64_type, "size");
+
+        // %raw_addr = call i8* @GC_malloc(i64 %size)",
+        let func = self.module.get_function("GC_malloc").unwrap();
+        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "raw_addr").try_as_basic_value().left().unwrap();
+
+        // %addr = bitcast i8* %raw_addr to %#{t}*",
+        self.builder.build_bitcast(raw_addr, obj_ptr_type, "The_Main")
     }
 
     fn gen_classes(&mut self, classes: &Vec<SkClass>) -> Result<(), Error> {
