@@ -17,6 +17,8 @@ pub struct CodeGen {
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    // TODO: Remove this after `self` is properly handled
+    the_main: Option<inkwell::values::BasicValueEnum>,
 }
 
 impl CodeGen {
@@ -33,6 +35,7 @@ impl CodeGen {
             f32_type: inkwell::types::FloatType::f32_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
+            the_main: None,
         }
     }
 
@@ -55,14 +58,14 @@ impl CodeGen {
         self.module.add_function("GC_malloc", fn_type, None);
     }
 
-    fn gen_main(&self, main_exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        let the_main = self.gen_runtime();
+        self.the_main = Some(self.gen_runtime());
         self.gen_exprs(function, &main_exprs)?;
 
         // ret i32 0
@@ -169,7 +172,7 @@ impl CodeGen {
             },
             HirSelfExpression => {
                 // TODO: generate current self
-                Ok(self.gen_decimal_literal(1042))
+                Ok(self.the_main.unwrap())
             },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
