@@ -20,7 +20,8 @@ Early-alpha
 ### Implementation (Rust, src/*)
 
 - [x] Parse and emit LLVM IR for minimal case 
-- [ ] Check type of return value
+- [ ] Embed arg name to .ll (for better debuggability; but can we do this with inkwell/llvm-sys?)
+- [x] Check type of return value
 - [ ] Implement metaclass (eg. `A.new`)
 - [ ] Nested class
 - [ ] Constant
