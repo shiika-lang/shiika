@@ -57,7 +57,7 @@ pub enum Expression {
         arg_exprs: Vec<Expression>
     },
     // Local variable reference or method call with implicit receiver(self)
-    Name(String),
+    BareName(String),
     BinOpExpression {
         left: Box<Expression>,
         op: BinOp,
