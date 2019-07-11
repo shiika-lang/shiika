@@ -54,7 +54,7 @@ impl CodeGen {
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
 
-        let fn_type = IntType::i8_type().fn_type(&[IntType::i64_type().into()], false);
+        let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
     }
 
