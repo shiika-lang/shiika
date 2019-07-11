@@ -45,6 +45,28 @@ Early-alpha
 - Check all ivars will be initialized (like Swift)
 - ...
 
+## Development
+
+### How to run tests
+
+Prerequisits: Rust, LLVM (`brew intall llvm@7`)
+
+```
+$ cargo test
+```
+
+### How to compile a Shiika program
+
+Prerequisits: Rust, LLVM, Boehm GC (`brew install bdw-gc`)
+
+1. Edit the program in src/main.rs
+2. `cargo run` to generate `a.ll`
+3. `llc a.ll` to generate `a.s`
+4. `cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s`
+5. `./a.out`
+
+You can also do this by `rake run`, if you have Ruby and Rake installed.
+
 ## License
 
 MIT
