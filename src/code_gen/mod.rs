@@ -65,37 +65,19 @@ impl CodeGen {
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        self.the_main = Some(self.gen_runtime());
+        // Call GC_init
+        let func = self.module.get_function("GC_init").unwrap();
+        self.builder.build_call(func, &[], "");
+
+        // Create the Main object
+        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
+
+        // Generate main exprs
         self.gen_exprs(function, &main_exprs)?;
 
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
-    }
-
-    fn gen_runtime(&self) -> inkwell::values::BasicValueEnum {
-        let object_type = self.llvm_struct_types.get(&ClassFullname("Object".to_string())).unwrap();
-
-        let func = self.module.get_function("GC_init").unwrap();
-        self.builder.build_call(func, &[], "");
-
-        // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
-        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let gep = unsafe {
-            self.builder.build_in_bounds_gep(
-              obj_ptr_type.const_null(),
-              &[self.i64_type.const_int(1, false)],
-              "",
-            )
-        };
-        let size = self.builder.build_ptr_to_int(gep, self.i64_type, "size");
-
-        // %raw_addr = call i8* @GC_malloc(i64 %size)",
-        let func = self.module.get_function("GC_malloc").unwrap();
-        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "raw_addr").try_as_basic_value().left().unwrap();
-
-        // %addr = bitcast i8* %raw_addr to %#{t}*",
-        self.builder.build_bitcast(raw_addr, obj_ptr_type, "The_Main")
     }
 
     fn gen_classes(&mut self, classes: &Vec<SkClass>) -> Result<(), Error> {
@@ -245,6 +227,29 @@ impl CodeGen {
 
     fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
         self.i32_type.const_int(value as u64, false).as_basic_value_enum()
+    }
+
+    // Generate call of GC_malloc and returns a ptr to Shiika object
+    fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+        let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
+
+        // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
+        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
+        let gep = unsafe {
+            self.builder.build_in_bounds_gep(
+              obj_ptr_type.const_null(),
+              &[self.i64_type.const_int(1, false)],
+              "",
+            )
+        };
+        let size = self.builder.build_ptr_to_int(gep, self.i64_type, "size");
+
+        // %raw_addr = call i8* @GC_malloc(i64 %size)",
+        let func = self.module.get_function("GC_malloc").unwrap();
+        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "raw_addr").try_as_basic_value().left().unwrap();
+
+        // %addr = bitcast i8* %raw_addr to %#{t}*",
+        self.builder.build_bitcast(raw_addr, obj_ptr_type, "addr")
     }
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
