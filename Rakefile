@@ -39,3 +39,10 @@ task :release do
 end
 
 task :default => [:parser, :test]
+
+task :run do
+  sh "cargo run"
+  sh "llc a.ll"
+  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o bgc a.s"
+  sh "./bgc"
+end
