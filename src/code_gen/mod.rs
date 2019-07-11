@@ -13,9 +13,12 @@ pub struct CodeGen {
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
     pub i32_type: inkwell::types::IntType,
+    pub i64_type: inkwell::types::IntType,
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    // TODO: Remove this after `self` is properly handled
+    the_main: Option<inkwell::values::BasicValueEnum>,
 }
 
 impl CodeGen {
@@ -28,30 +31,48 @@ impl CodeGen {
             module: module,
             builder: builder,
             i32_type: inkwell::types::IntType::i32_type(),
+            i64_type: inkwell::types::IntType::i64_type(),
             f32_type: inkwell::types::FloatType::f32_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
+            the_main: None,
         }
     }
 
     pub fn gen_program(&mut self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
-        // declare i32 @putchar(i32)
-        let putchar_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
-        self.module.add_function("putchar", putchar_type, None);
-
+        self.gen_declares();
         self.gen_classes(stdlib)?;
         self.gen_classes(&hir.sk_classes)?;
         self.gen_main(&hir.main_exprs)?;
         Ok(())
     }
 
-    pub fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_declares(&self) {
+        let fn_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
+        self.module.add_function("putchar", fn_type, None);
+
+        let fn_type = self.void_type.fn_type(&[], false);
+        self.module.add_function("GC_init", fn_type, None);
+
+        let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
+        self.module.add_function("GC_malloc", fn_type, None);
+    }
+
+    fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
+        // Call GC_init
+        let func = self.module.get_function("GC_init").unwrap();
+        self.builder.build_call(func, &[], "");
+
+        // Create the Main object
+        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
+
+        // Generate main exprs
         self.gen_exprs(function, &main_exprs)?;
 
         // ret i32 0
@@ -136,7 +157,7 @@ impl CodeGen {
             },
             HirSelfExpression => {
                 // TODO: generate current self
-                Ok(self.gen_decimal_literal(1042))
+                Ok(self.the_main.unwrap())
             },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -206,6 +227,29 @@ impl CodeGen {
 
     fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
         self.i32_type.const_int(value as u64, false).as_basic_value_enum()
+    }
+
+    // Generate call of GC_malloc and returns a ptr to Shiika object
+    fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+        let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
+
+        // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
+        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
+        let gep = unsafe {
+            self.builder.build_in_bounds_gep(
+              obj_ptr_type.const_null(),
+              &[self.i64_type.const_int(1, false)],
+              "",
+            )
+        };
+        let size = self.builder.build_ptr_to_int(gep, self.i64_type, "size");
+
+        // %raw_addr = call i8* @GC_malloc(i64 %size)",
+        let func = self.module.get_function("GC_malloc").unwrap();
+        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "raw_addr").try_as_basic_value().left().unwrap();
+
+        // %addr = bitcast i8* %raw_addr to %#{t}*",
+        self.builder.build_bitcast(raw_addr, obj_ptr_type, "addr")
     }
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
