@@ -76,6 +76,9 @@ impl CodeGen {
     fn gen_runtime(&self) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&ClassFullname("Object".to_string())).unwrap();
 
+        let func = self.module.get_function("GC_init").unwrap();
+        self.builder.build_call(func, &[], "");
+
         // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let gep = unsafe {
