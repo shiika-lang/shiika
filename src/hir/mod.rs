@@ -71,7 +71,7 @@ pub enum HirExpressionBase {
         arg_exprs: Vec<HirExpression>,
     },
     HirArgRef {
-        idx: u32,
+        idx: usize,
     },
     HirSelfExpression,
     HirFloatLiteral {
@@ -109,7 +109,7 @@ impl Hir {
         }
     }
 
-    pub fn hir_arg_ref(ty: TermTy, idx: u32) -> HirExpression {
+    pub fn hir_arg_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
             ty: ty,
             node: HirExpressionBase::HirArgRef { idx: idx },

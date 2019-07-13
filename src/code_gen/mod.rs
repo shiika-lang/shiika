@@ -155,7 +155,7 @@ impl CodeGen {
                 self.gen_method_call(function, method_fullname, receiver_expr, arg_exprs)
             },
             HirArgRef { idx } => {
-                Ok(function.get_nth_param(*idx + 1).unwrap()) // +1 for the first %self 
+                Ok(function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
             },
             HirSelfExpression => {
                 if function.get_name().to_str().unwrap() == "main" {

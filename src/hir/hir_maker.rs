@@ -151,7 +151,7 @@ impl HirMaker {
                          ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {
         match &ctx.method_sig.find_param(name) {
-            Some((param, idx)) => {
+            Some((idx, param)) => {
                 Ok(Hir::hir_arg_ref(param.ty.clone(), *idx))
             },
             None => {

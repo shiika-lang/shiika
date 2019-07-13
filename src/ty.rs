@@ -95,14 +95,8 @@ pub struct MethodSignature {
 
 impl MethodSignature {
     /// Return a param of the given name and its index
-    pub fn find_param(&self, name: &str) -> Option<(&MethodParam, u32)> {
-        for i in 0..self.params.len() {
-            let param = &self.params[i];
-            if param.name == name {
-                return Some((param, i as u32))
-            }
-        }
-        None
+    pub fn find_param(&self, name: &str) -> Option<(usize, &MethodParam)> {
+        self.params.iter().enumerate().find(|(_, param)| param.name == name)
     }
 }
 
