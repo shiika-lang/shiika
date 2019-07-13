@@ -2,7 +2,7 @@ use shiika;
 
 fn main() -> Result<(), Box<std::error::Error>> {
     let str = "
-class A; def foo; end; end
+class A; def id(x: Int, y: Int) -> Int; y; end; end
 putchar 72
 putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(str)?;

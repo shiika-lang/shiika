@@ -56,13 +56,13 @@ pub enum Expression {
         method_name: MethodName,
         arg_exprs: Vec<Expression>
     },
-    // Local variable reference or method call with implicit receiver(self)
-    Name(String),
     BinOpExpression {
         left: Box<Expression>,
         op: BinOp,
         right: Box<Expression>
     },
+    // Local variable reference or method call with implicit receiver(self)
+    BareName(String),
     FloatLiteral {
         value: f32,
     },

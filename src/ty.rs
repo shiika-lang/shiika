@@ -93,6 +93,19 @@ pub struct MethodSignature {
     pub params: Vec<MethodParam>,
 }
 
+impl MethodSignature {
+    /// Return a param of the given name and its index
+    pub fn find_param(&self, name: &str) -> Option<(&MethodParam, u32)> {
+        for i in 0..self.params.len() {
+            let param = &self.params[i];
+            if param.name == name {
+                return Some((param, i as u32))
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodParam {
     pub name: String,

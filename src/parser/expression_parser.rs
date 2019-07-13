@@ -91,7 +91,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         let receiver_has_paren;
         match self.current_token() {
             Token::LowerWord(s) | Token::UpperWord(s) => {
-                receiver_expr = ast::Expression::Name(s.to_string());
+                receiver_expr = ast::Expression::BareName(s.to_string());
                 self.consume_token();
                 receiver_has_paren = false;
             },
@@ -113,7 +113,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
                 else {
                     let method_name;
-                    if let ast::Expression::Name(s) = &receiver_expr {
+                    if let ast::Expression::BareName(s) = &receiver_expr {
                         // foo ...
                         method_name = s;
                     }
@@ -162,7 +162,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 match self.parse_method_call_args()? {
                     None => Ok(receiver_expr),
                     Some(arg_exprs) => {
-                        let method_name = if let ast::Expression::Name(s) = receiver_expr {
+                        let method_name = if let ast::Expression::BareName(s) = receiver_expr {
                                             MethodName(s.to_string())
                                           } else { panic!() };
                         Ok(ast::Expression::MethodCall{
