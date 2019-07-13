@@ -21,7 +21,7 @@ pub enum Definition {
         body_exprs: Vec<Expression>,
     },
     ClassMethodDefinition {
-        name: String,
+        sig: MethodSignature,
         body_exprs: Vec<Expression>,
     }
 }

@@ -63,7 +63,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.consume_token();
         self.skip_ws();
 
-        let sig = self.parse_method_signature()?;
+        // `foo(bar) -> Baz`
+        let (sig, is_class_method) = self.parse_method_signature()?;
         self.expect_sep()?;
 
         // Body (optional)
@@ -76,26 +77,44 @@ impl<'a, 'b> Parser<'a, 'b> {
             token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", sig.name, token))
         }
 
-        Ok(ast::Definition::InstanceMethodDefinition { sig, body_exprs })
+        if is_class_method {
+            Ok(ast::Definition::ClassMethodDefinition { sig, body_exprs })
+        }
+        else {
+            Ok(ast::Definition::InstanceMethodDefinition { sig, body_exprs })
+        }
     }
 
-    pub fn parse_method_signature(&mut self) -> Result<ast::MethodSignature, Error> {
-        let name;
+    pub fn parse_method_signature(&mut self) -> Result<(ast::MethodSignature, bool), Error> {
+        let mut name = None;
         let params;
         let ret_typ;
+        let mut is_class_method = false;
+
+        // `self.` (Optional)
+        if self.current_token_is(&Token::LowerWord("self")) {
+            self.consume_token();
+            if self.current_token_is(&Token::Symbol(".")) {
+                self.consume_token();
+                is_class_method = true;
+            }
+            else {
+                name = Some(MethodName("self".to_string()));
+            }
+        }
 
         // Method name
-        match self.current_token() {
-            Token::LowerWord(s) => { name = MethodName(s.to_string()); self.consume_token(); },
-            Token::Symbol(s) => {
-                if *s == "+" || *s == "-" || *s == "*" || *s == "/" || *s == "%" {
-                    name = MethodName(s.to_string()); self.consume_token();
+        if name == None {
+            let name_str;
+            match self.current_token() {
+                Token::LowerWord(s) => { name_str = s; },
+                Token::Symbol(s) if *s == "+" || *s == "-" || *s == "*" || *s == "/" || *s == "%" => { name_str = s; }
+                token => {
+                    return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
                 }
-                else {
-                    return Err(parse_error!(self, "method name must start with a-z but got {:?}", s))
-                }
-            },
-            token => return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
+            }
+            name = Some(MethodName(name_str.to_string()));
+            self.consume_token();
         }
         self.skip_ws();
 
@@ -120,7 +139,8 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
         }
 
-        Ok(ast::MethodSignature { name, params, ret_typ })
+        let sig = ast::MethodSignature { name: name.unwrap(), params, ret_typ };
+        Ok((sig, is_class_method))
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {

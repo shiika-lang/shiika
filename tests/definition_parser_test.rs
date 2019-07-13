@@ -68,3 +68,17 @@ fn test_method_with_explicit_return_type() {
         body_exprs: vec![],
     })
 }
+
+#[test]
+fn test_class_method_def() {
+    let mut parser = Parser::new("def self.foo; end");
+    let result = parser.parse_method_definition();
+    assert_eq!(result.unwrap(), ast::Definition::ClassMethodDefinition {
+        sig: ast::MethodSignature {
+            name: MethodName("foo".to_string()),
+            params: vec![],
+            ret_typ: ast::Typ { name: "Void".to_string() },
+        },
+        body_exprs: vec![],
+    })
+}
