@@ -107,7 +107,9 @@ impl CodeGen {
                 gen(self, &function)?
             },
             SkMethodBody::ShiikaMethodBody { exprs }=> {
-                self.gen_shiika_method_body(function, &exprs)?
+                self.gen_shiika_method_body(function,
+                                            method.signature.ret_ty.is_void_type(),
+                                            &exprs)?
             }
         }
         Ok(())
@@ -115,20 +117,17 @@ impl CodeGen {
 
     fn gen_shiika_method_body(&self,
                               function: inkwell::values::FunctionValue,
+                              void_method: bool,
                               exprs: &HirExpressions) -> Result<(), Error> {
         let last_value_opt = self.gen_exprs(function, exprs)?;
-        match last_value_opt {
-            Some(v) => {
-                if exprs.ty.is_void_type() {
-                    self.builder.build_return(None);
-                }
-                else {
-                    self.builder.build_aggregate_return(&[v]);
-                }
-            },
-            None => {
-                self.builder.build_return(None);
-            }
+        if void_method {
+            self.builder.build_return(None);
+        }
+        else {
+            match last_value_opt {
+                Some(v) => self.builder.build_return(Some(&v)),
+                None => self.builder.build_return(None)
+            };
         }
         Ok(())
     }
@@ -155,8 +154,11 @@ impl CodeGen {
             HirMethodCall { receiver_expr, method_fullname, arg_exprs } => {
                 self.gen_method_call(function, method_fullname, receiver_expr, arg_exprs)
             },
+            HirArgRef { idx } => {
+                Ok(function.get_nth_param(*idx + 1).unwrap()) // +1 for the first %self 
+            },
             HirSelfExpression => {
-                // TODO: generate current self
+                // TODO: get the 0-th param except toplevel
                 Ok(self.the_main.unwrap())
             },
             HirFloatLiteral { value } => {
