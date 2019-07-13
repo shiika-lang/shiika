@@ -63,16 +63,24 @@ fn index_program(body: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> 
 
 fn index_class(body: &mut IndexBody, name: &ClassName, defs: &Vec<ast::Definition>) {
     let class_fullname = name.to_class_fullname(); // TODO: nested class
-    let mut sk_methods = HashMap::new();
+    let metaclass_fullname = class_fullname.metaclass_fullname();
+    let mut instance_methods = HashMap::new();
+    let mut class_methods = HashMap::new();
+
     defs.iter().for_each(|def| {
         match def {
             ast::Definition::InstanceMethodDefinition { sig, .. } => {
                 let hir_sig = crate::hir::create_signature(class_fullname.to_string(), sig);
-                sk_methods.insert(sig.name.clone(), hir_sig);
+                instance_methods.insert(sig.name.clone(), hir_sig);
+            },
+            ast::Definition::ClassMethodDefinition { sig, .. } => {
+                let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
+                class_methods.insert(sig.name.clone(), hir_sig);
             },
             _ => panic!("TODO")
         }
     });
 
-    body.insert(class_fullname, sk_methods);
+    body.insert(class_fullname, instance_methods);
+    body.insert(metaclass_fullname, class_methods);
 }

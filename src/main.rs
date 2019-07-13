@@ -3,6 +3,7 @@ use shiika;
 fn main() -> Result<(), Box<std::error::Error>> {
     let str = "
 class A
+    def self.foo -> Int; 42; end
     def id(x: Int, y: Int) -> Int; y; end;
     def me() -> A; self; end;
 end

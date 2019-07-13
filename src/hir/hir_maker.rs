@@ -24,29 +24,45 @@ impl HirMaker {
     }
 
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
-        toplevel_defs.iter().map(|def| {
+        let pairs = toplevel_defs.iter().map(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
                     self.convert_class_def(&name, &defs)
                 },
                 _ => panic!("should be checked in hir::index")
             }
-        }).collect::<Result<Vec<_>, _>>()
+        }).collect::<Result<Vec<_>, _>>()?;
+        Ok(pairs.into_iter().flatten().collect())
     }
 
-    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<SkClass, Error> {
+    /// Create SkClass and its metaclass
+    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
-        let methods = defs.iter().map(|def| {
+        let instance_methods = defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    self.convert_method_def(&fullname, &sig.name, &body_exprs)
+                    Some(self.convert_method_def(&fullname, &sig.name, &body_exprs))
                 },
-                _ => panic!("TODO")
+                _ => None,
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        Ok(SkClass { fullname, methods })
+        // Metaclass
+        let meta_name = fullname.metaclass_fullname();
+        let class_methods = defs.iter().filter_map(|def| {
+            match def {
+                ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
+                    Some(self.convert_method_def(&meta_name, &sig.name, &body_exprs))
+                },
+                _ => None,
+            }
+        }).collect::<Result<Vec<_>, _>>()?;
+
+        Ok(vec![
+           SkClass { fullname: fullname, methods: instance_methods },
+           SkClass { fullname: meta_name, methods: class_methods },
+        ])
     }
 
     fn convert_method_def(&self,
