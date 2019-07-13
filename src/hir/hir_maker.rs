@@ -59,6 +59,7 @@ impl HirMaker {
 
         let ctx = HirMakerContext {
             method_sig: signature.clone(),
+            self_ty: ty::raw(&class_fullname.0),
         };
         let body_exprs = self.convert_exprs(&ctx, body_exprs)?;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
@@ -109,7 +110,7 @@ impl HirMaker {
                     match receiver_expr {
                         Some(expr) => self.convert_expr(ctx, &expr)?,
                         // Implicit self
-                        _ => Hir::self_expression(), // TODO: pass current self
+                        _ => self.convert_self_expr(ctx)?,
                     };
                 // TODO: arg types must match with method signature
                 let arg_hirs = arg_exprs.iter().map(|arg_expr| self.convert_expr(ctx, arg_expr)).collect::<Result<Vec<_>,_>>()?;
@@ -122,7 +123,12 @@ impl HirMaker {
             },
 
             ast::Expression::BareName(name) => {
-                self.convert_bare_name(ctx, name)
+                if name == "self" {
+                    self.convert_self_expr(ctx)
+                }
+                else {
+                    self.convert_bare_name(ctx, name)
+                }
             },
 
             ast::Expression::FloatLiteral {value} => {
@@ -135,7 +141,12 @@ impl HirMaker {
         }
     }
 
-    // Generate local variable reference or method call with implicit receiver(self)
+    fn convert_self_expr(&self,
+                         ctx: &HirMakerContext) -> Result<HirExpression, Error> {
+        Ok(Hir::self_expression(ctx.self_ty.clone()))
+    }
+
+    /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&self,
                          ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {

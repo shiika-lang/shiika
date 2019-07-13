@@ -116,10 +116,9 @@ impl Hir {
         }
     }
 
-    // TODO: get self as argument
-    pub fn self_expression() -> HirExpression {
+    pub fn self_expression(ty: TermTy) -> HirExpression {
         HirExpression {
-            ty: ty::raw("Object"),
+            ty: ty,
             node: HirExpressionBase::HirSelfExpression,
         }
     }
