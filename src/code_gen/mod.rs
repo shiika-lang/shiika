@@ -97,11 +97,25 @@ impl CodeGen {
     }
 
     fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
+        // LLVM function
         let func_type = self.llvm_func_type(&sk_class.instance_ty(), &method.signature);
         let function = self.module.add_function(&method.signature.fullname.0, func_type, None);
+
+        // Set param names
+        for (i, param) in function.get_param_iter().enumerate() {
+            if i == 0 {
+                inkwell_set_name(param, "self")
+            }
+            else {
+                inkwell_set_name(param, &method.signature.params[i-1].name)
+            }
+        }
+
+        // Main basic block
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
+        // Method body
         match &method.body {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
@@ -289,5 +303,17 @@ impl CodeGen {
             },
             TyBody::TyMeta { .. } => panic!("TODO")
         }
+    }
+}
+
+// Question: is there a better way to do this?
+fn inkwell_set_name(val: BasicValueEnum, name: &str) {
+    match val {
+        BasicValueEnum::ArrayValue(v) => v.set_name(name),
+        BasicValueEnum::IntValue(v) => v.set_name(name),
+        BasicValueEnum::FloatValue(v) => v.set_name(name),
+        BasicValueEnum::PointerValue(v) => v.set_name(name),
+        BasicValueEnum::StructValue(v) => v.set_name(name),
+        BasicValueEnum::VectorValue(v) => v.set_name(name),
     }
 }
