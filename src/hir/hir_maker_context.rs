@@ -11,9 +11,8 @@ pub struct HirMakerContext {
     ///
     /// On the toplevel, this will be a dummy signature with no params. 
     pub method_sig: MethodSignature,
-//    /// The type of current `self`
-//    /// (Used to typecheck method calls on self)
-//    self_ty: TermTy,
+    /// The type of current `self`
+    pub self_ty: TermTy,
 //    // List of instance variables of the current `self`
 //    //self_ivars: HashMap<IVarName, TermTy>,
 }
@@ -35,6 +34,7 @@ impl HirMakerContext {
 
         HirMakerContext {
             method_sig: dummy_sig,
+            self_ty: ty::raw("Object"),
         }
     }
 }

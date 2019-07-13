@@ -17,7 +17,7 @@ pub struct CodeGen {
     pub f32_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
-    // TODO: Remove this after `self` is properly handled
+    /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum>,
 }
 
@@ -158,8 +158,13 @@ impl CodeGen {
                 Ok(function.get_nth_param(*idx + 1).unwrap()) // +1 for the first %self 
             },
             HirSelfExpression => {
-                // TODO: get the 0-th param except toplevel
-                Ok(self.the_main.unwrap())
+                if function.get_name().to_str().unwrap() == "main" {
+                    Ok(self.the_main.unwrap())
+                }
+                else {
+                    // The first arg of llvm function is `self`
+                    Ok(function.get_first_param().unwrap())
+                }
             },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
