@@ -1,4 +1,5 @@
 mod hir_maker;
+mod hir_maker_context;
 mod index;
 use crate::ast;
 use crate::ty;
