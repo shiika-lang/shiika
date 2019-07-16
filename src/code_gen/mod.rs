@@ -298,17 +298,9 @@ impl CodeGen {
     // Generate call of GC_malloc and returns a ptr to Shiika object
     fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
-
-        // %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let gep = unsafe {
-            self.builder.build_in_bounds_gep(
-              obj_ptr_type.const_null(),
-              &[self.i64_type.const_int(1, false)],
-              "",
-            )
-        };
-        let size = self.builder.build_ptr_to_int(gep, self.i64_type, "size");
+        let size = object_type.size_of()
+            .expect("[BUG] object_type has no size");
 
         // %raw_addr = call i8* @GC_malloc(i64 %size)",
         let func = self.module.get_function("GC_malloc").unwrap();
