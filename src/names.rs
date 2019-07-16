@@ -11,12 +11,6 @@ impl ClassName {
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ClassFullname(pub String);
 
-impl ClassFullname {
-    pub fn metaclass_fullname(&self) -> ClassFullname {
-        ClassFullname("Meta:".to_string() + &self.0)
-    }
-}
-
 impl std::fmt::Display for ClassFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)

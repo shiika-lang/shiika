@@ -98,7 +98,7 @@ impl CodeGen {
 
     fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
         // LLVM function
-        let func_type = self.llvm_func_type(&sk_class.instance_ty(), &method.signature);
+        let func_type = self.llvm_func_type(&sk_class.instance_ty, &method.signature);
         let function = self.module.add_function(&method.signature.fullname.0, func_type, None);
 
         // Set param names

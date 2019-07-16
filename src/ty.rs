@@ -1,4 +1,19 @@
+///
+/// ```
+/// ^ : superclass-subclass relationship
+/// ~ : class-instance relationship
+///
+///                    Object
+///                       ^
+///                    Class ~ Class
+///                       ^
+///           Object ~ Meta:Object
+///             ^         ^
+/// [1,2,3] ~ Array  ~ Meta:Array ~ Class
+/// ```
+///
 use crate::names::*;
+use crate::ty;
 
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
@@ -15,6 +30,8 @@ pub enum TyBody {
     // Types corresponds to (non-generic) metaclass
     // eg. "Meta:Int", "Meta:String", "Meta:Object"
     TyMeta { base_fullname: String },
+    // This object belongs to the class `Class` (i.e. this is a class object)
+    TyClass,
 }
 
 use TyBody::*;
@@ -28,20 +45,41 @@ impl TermTy {
         }
     }
 
+    pub fn is_nonmeta(&self) -> bool {
+        match self.body {
+            TyRaw => true,
+            _ => false,
+        }
+    }
+
+    pub fn meta_ty(&self) -> TermTy {
+        match self.body {
+            TyRaw => ty::meta(&self.fullname.0),
+            TyMeta { .. } => ty::class(),
+            TyClass => ty::class(),
+        }
+    }
+
     pub fn conforms_to(&self, other: &TermTy) -> bool {
         match self.body {
             TyRaw => {
                 match other.body {
                     TyRaw => (self.fullname == other.fullname),
-                    TyMeta { .. } => false,
+                    _ => false,
                 }
             },
             TyMeta { .. } => {
                 match other.body  {
-                    TyRaw => false,
                     TyMeta { .. } => (self.fullname == other.fullname),
+                    _ => false,
                 }
             },
+            TyClass => {
+                match other.body {
+                    TyClass => true,
+                    _ => false,
+                }
+            }
         }
     }
 }
@@ -50,29 +88,19 @@ pub fn raw(fullname: &str) -> TermTy {
     TermTy { fullname: ClassFullname(fullname.to_string()), body: TyRaw }
 }
 
-//impl TermTy for TyRaw {
-//    fn fullname(&self) -> &str {
-//        &self.fullname
-//    }
-//}
-//
-//pub struct TyMeta {
-//    pub base_fullname: String,  // eg. "Int", "String", "Object"
-//    pub fullname: String,
-//}
-//impl TyMeta {
-//    pub fn new(base_fullname: &str) -> TyMeta {
-//        TyMeta {
-//            base_fullname: base_fullname.to_owned(),
-//            fullname: "Meta:".to_owned() + base_fullname,
-//        }
-//    }
-//}
-//impl TermTy for TyMeta {
-//    fn fullname(&self) -> &str {
-//        &self.fullname
-//    }
-//}
+pub fn meta(base_fullname: &str) -> TermTy {
+    TermTy {
+        fullname: ClassFullname("Meta:".to_string() + base_fullname),
+        body: TyMeta { base_fullname: base_fullname.to_string() },
+    }
+}
+
+pub fn class() -> TermTy {
+    TermTy {
+        fullname: ClassFullname("Class".to_string()),
+        body: TyClass,
+    }
+}
 
 // Types corresponds to (non-specialized) generic class
 //pub struct TyGen {}

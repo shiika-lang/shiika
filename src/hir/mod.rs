@@ -20,11 +20,12 @@ impl Hir {
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: ClassFullname,
+    pub instance_ty: TermTy,
     pub methods: Vec<SkMethod>,
 }
 impl SkClass {
-    pub fn instance_ty(&self) -> TermTy {
-        ty::raw(&self.fullname.0)
+    pub fn class_ty(&self) -> TermTy {
+        self.instance_ty.meta_ty()
     }
 }
 

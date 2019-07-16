@@ -39,6 +39,8 @@ impl HirMaker {
     fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
+        let instance_ty = ty::raw(&fullname.0);
+
         let instance_methods = defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
@@ -49,7 +51,8 @@ impl HirMaker {
         }).collect::<Result<Vec<_>, _>>()?;
 
         // Metaclass
-        let meta_name = fullname.metaclass_fullname();
+        let class_ty = instance_ty.meta_ty();
+        let meta_name = class_ty.fullname.clone();
         let class_methods = defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
@@ -60,8 +63,8 @@ impl HirMaker {
         }).collect::<Result<Vec<_>, _>>()?;
 
         Ok(vec![
-           SkClass { fullname: fullname, methods: instance_methods },
-           SkClass { fullname: meta_name, methods: class_methods },
+           SkClass { fullname: fullname,  instance_ty: instance_ty, methods: instance_methods },
+           SkClass { fullname: meta_name, instance_ty: class_ty,    methods: class_methods },
         ])
     }
 
