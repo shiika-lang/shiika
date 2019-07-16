@@ -278,7 +278,7 @@ impl CodeGen {
         let function = self.module.get_function(&method_fullname.0).expect("[BUG] get_function not found");
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
-        match self.builder.build_call(function, &llvm_args, "gen_method_call").try_as_basic_value().left() {
+        match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
             None => {
                 // Dummy value (TODO: replace with special value?)
