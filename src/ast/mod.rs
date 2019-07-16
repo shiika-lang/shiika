@@ -63,6 +63,7 @@ pub enum Expression {
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
+    ConstRef(String),
     FloatLiteral {
         value: f32,
     },

@@ -3,11 +3,11 @@ use shiika;
 fn main() -> Result<(), Box<std::error::Error>> {
     let str = "
 class A
-    def self.foo -> Int; 42; end
+    def self.foo -> Int; 72; end
     def id(x: Int, y: Int) -> Int; y; end;
     def me() -> A; self; end;
 end
-putchar 72
+putchar A.foo
 putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(str)?;
     let stdlib = shiika::stdlib::create_classes();

@@ -63,7 +63,10 @@ fn index_program(body: &mut IndexBody, toplevel_defs: &Vec<ast::Definition>) -> 
 
 fn index_class(body: &mut IndexBody, name: &ClassName, defs: &Vec<ast::Definition>) {
     let class_fullname = name.to_class_fullname(); // TODO: nested class
-    let metaclass_fullname = class_fullname.metaclass_fullname();
+    let instance_ty = ty::raw(&class_fullname.0);
+    let class_ty = instance_ty.meta_ty();
+
+    let metaclass_fullname = class_ty.fullname;
     let mut instance_methods = HashMap::new();
     let mut class_methods = HashMap::new();
 

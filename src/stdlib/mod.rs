@@ -5,12 +5,14 @@ mod void;
 use crate::hir::*;
 
 pub fn create_classes() -> Vec<SkClass> {
+    let mut v = vec![];
     vec![
         float::create_class(),
         int::create_class(),
         object::create_class(),
         void::create_class(),
-    ]
+    ].iter_mut().for_each(|mut a| v.append(&mut a));
+    v
 }
 
 pub fn create_method(class_name: &str,

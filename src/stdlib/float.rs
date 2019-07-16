@@ -1,12 +1,21 @@
 use crate::names::*;
+use crate::ty;
 use crate::hir::*;
 use crate::stdlib::create_method;
 
-pub fn create_class() -> SkClass {
-    SkClass {
-        fullname: ClassFullname("Float".to_string()),
-        methods: create_methods(),
-    }
+pub fn create_class() -> Vec<SkClass> {
+    vec![
+        SkClass {
+            fullname: ClassFullname("Float".to_string()),
+            instance_ty: ty::raw("Float"),
+            methods: create_methods(),
+        },
+        SkClass {
+            fullname: ClassFullname("Meta:Float".to_string()),
+            instance_ty: ty::meta("Float"),
+            methods: vec![],
+        },
+    ]
 }
 
 fn create_methods() -> Vec<SkMethod> {
