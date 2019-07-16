@@ -35,7 +35,7 @@ impl std::fmt::Display for MethodFullname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ConstFullname(pub String);
 
 impl std::fmt::Display for ConstFullname {
