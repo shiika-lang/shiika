@@ -34,3 +34,12 @@ impl std::fmt::Display for MethodFullname {
         write!(f, "{}", self.0)
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConstFullname(pub String);
+
+impl std::fmt::Display for ConstFullname {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

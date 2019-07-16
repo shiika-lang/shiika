@@ -74,6 +74,9 @@ pub enum HirExpressionBase {
     HirArgRef {
         idx: usize,
     },
+    HirConstRef {
+        fullname: ConstFullname,
+    },
     HirSelfExpression,
     HirFloatLiteral {
         value: f32,
@@ -110,10 +113,18 @@ impl Hir {
         }
     }
 
+    // REFACTOR: Remove `hir_`
     pub fn hir_arg_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
             ty: ty,
             node: HirExpressionBase::HirArgRef { idx: idx },
+        }
+    }
+
+    pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
+        HirExpression {
+            ty: ty,
+            node: HirExpressionBase::HirConstRef { fullname },
         }
     }
 

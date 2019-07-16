@@ -90,11 +90,16 @@ impl<'a, 'b> Parser<'a, 'b> {
         let mut receiver_expr;
         let receiver_has_paren;
         match self.current_token() {
-            Token::LowerWord(s) | Token::UpperWord(s) => {
+            Token::LowerWord(s) => {
                 receiver_expr = ast::Expression::BareName(s.to_string());
                 self.consume_token();
                 receiver_has_paren = false;
             },
+            Token::UpperWord(s) => {
+                receiver_expr = ast::Expression::ConstRef(s.to_string());
+                self.consume_token();
+                receiver_has_paren = false;
+            }
             Token::Symbol("(") => {
                 receiver_expr = self.parse_parenthesized_expr()?;
                 receiver_has_paren = true;

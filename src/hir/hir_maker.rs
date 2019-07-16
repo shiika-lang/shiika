@@ -150,6 +150,10 @@ impl HirMaker {
                 }
             },
 
+            ast::Expression::ConstRef(name) => {
+                self.convert_const_ref(ctx, name)
+            },
+
             ast::Expression::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },
@@ -174,8 +178,22 @@ impl HirMaker {
                 Ok(Hir::hir_arg_ref(param.ty.clone(), *idx))
             },
             None => {
-                Err(error::program_error(&format!("variable {} not found", name)))
+                Err(error::program_error(&format!("variable `{}' was not found", name)))
             }
+        }
+    }
+
+    /// Resolve constant name
+    fn convert_const_ref(&self,
+                         _ctx: &HirMakerContext,
+                         name: &str) -> Result<HirExpression, Error> {
+        // TODO: nested class, constants
+        if self.index.body.contains_key(&ClassFullname(name.to_string())) {
+            let ty = ty::meta(name);
+            Ok(Hir::const_ref(ty, ConstFullname(name.to_string())))
+        }
+        else {
+            Err(error::program_error(&format!("constant `{}' was not found", name)))
         }
     }
 
