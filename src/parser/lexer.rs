@@ -65,26 +65,29 @@ enum CharType {
 }
 
 impl<'a, 'b> Lexer<'a, 'b> {
+    /// Create lexer and get the first token
     pub fn new(src: &str) -> Lexer {
-        Lexer {
+        let mut lexer = Lexer {
             src: src,
             cur: Cursor::new(),
             next_cur: None,
             current_token: None,
-        }
+        };
+        lexer.read_token();
+        lexer
     }
 
-    pub fn current_token(&mut self) -> &Token {
-        if self.current_token == None {
-            self.read_token();
-        }
+    /// Return a reference to the current token
+    pub fn current_token(&self) -> &Token {
         self.current_token.as_ref().unwrap()
     }
 
+    /// Remove the current token and read next
     pub fn consume_token(&mut self) -> Token {
-        assert!(self.current_token.is_some());
         self.cur = self.next_cur.take().unwrap();
-        self.current_token.take().unwrap()
+        let tok = self.current_token.take().unwrap();
+        self.read_token();
+        tok
     }
 
     fn read_token(&mut self) {
