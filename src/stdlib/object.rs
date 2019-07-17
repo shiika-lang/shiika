@@ -1,23 +1,6 @@
 use inkwell::values::*;
-use crate::names::*;
-use crate::ty;
 use crate::hir::*;
 use crate::stdlib::create_method;
-
-pub fn create_class() -> Vec<SkClass> {
-    vec![
-        SkClass {
-            fullname: ClassFullname("Object".to_string()),
-            instance_ty: ty::raw("Object"),
-            methods: create_methods(),
-        },
-        SkClass {
-            fullname: ClassFullname("Meta:Object".to_string()),
-            instance_ty: ty::meta("Object"),
-            methods: vec![],
-        },
-    ]
-}
 
 pub fn create_methods() -> Vec<SkMethod> {
     vec![

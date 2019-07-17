@@ -58,6 +58,15 @@ impl CodeGen {
 
         let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
+
+        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        self.module.add_function("sin", fn_type, None);
+        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        self.module.add_function("cos", fn_type, None);
+        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        self.module.add_function("sqrt", fn_type, None);
+        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        self.module.add_function("fabs", fn_type, None);
     }
 
     fn gen_constant_ptrs(&self, classes: &Vec<&SkClass>) {
