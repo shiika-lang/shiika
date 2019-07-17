@@ -22,7 +22,9 @@ Early-alpha
 - [x] Parse and emit LLVM IR for minimal case 
 - [x] Embed arg name to .ll for better debuggability
 - [x] Check type of return value
-- [ ] Implement metaclass (eg. `A.new`)
+- [x] Implement class method (eg. `Math.pow`)
+- [ ] Implement .new
+- [ ] Instance variables
 - [ ] Nested class
 - [ ] Constant
 

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## HEAD
+## v0.2.0 (2019/07/17)
 
 - Started reimplementation with Rust
 
