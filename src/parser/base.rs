@@ -47,6 +47,8 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     pub (in super) fn consume_token(&mut self) -> Token {
+        let tok = self.lexer.current_token();
+        self.debug_log(&format!("- {:?}", &tok));
         self.lexer.consume_token()
     }
 
@@ -66,5 +68,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                 location: self.lexer.cur.clone(),
             }
         }
+    }
+
+    /// Print parser debug log (uncomment to enable)
+    pub (in super) fn debug_log(&self, msg: &str) {
+        //println!("{}", msg);
     }
 }
