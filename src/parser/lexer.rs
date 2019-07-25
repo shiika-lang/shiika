@@ -78,11 +78,36 @@ impl<'a, 'b> Lexer<'a, 'b> {
     }
 
     /// Return a reference to the current token
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shiika::parser::lexer::Lexer;
+    /// use shiika::parser::token::Token;
+    ///
+    /// let src = "  1";
+    /// let mut lexer = Lexer::new(src);
+    /// assert_eq!(*lexer.current_token(), Token::Space);
+    /// ```
     pub fn current_token(&self) -> &Token {
         self.current_token.as_ref().unwrap()
     }
 
     /// Remove the current token and read next
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shiika::parser::lexer::Lexer;
+    /// use shiika::parser::token::Token;
+    ///
+    /// let src = "  1";
+    /// let mut lexer = Lexer::new(src);
+    ///
+    /// assert_eq!(*lexer.current_token(), Token::Space);
+    /// lexer.consume_token();
+    /// assert_eq!(*lexer.current_token(), Token::Number("1"));
+    /// ```
     pub fn consume_token(&mut self) -> Token {
         self.cur = self.next_cur.take().unwrap();
         let tok = self.current_token.take().unwrap();
