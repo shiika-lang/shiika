@@ -253,7 +253,7 @@ impl CodeGen {
                    then_expr: &HirExpression,
                    else_expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let cond_value = self.gen_expr(function, cond_expr)?.into_int_value();
-        let then_value: &inkwell::values::BasicValue = &self.gen_expr(function, then_expr)?;
+        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(function, then_expr)?;
         let else_value = self.gen_expr(function, else_expr)?;
 
         let then_block = function.append_basic_block(&"then");

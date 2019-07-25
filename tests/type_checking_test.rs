@@ -2,7 +2,7 @@ use shiika::hir::*;
 use shiika::ty;
 
 #[test]
-fn test_discarding_return_value() -> Result<(), Box<std::error::Error>> {
+fn test_discarding_return_value() -> Result<(), Box<dyn std::error::Error>> {
     let src = "
       class A
         def foo

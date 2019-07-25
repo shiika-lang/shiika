@@ -35,7 +35,6 @@ pub struct SkMethod {
     pub body: SkMethodBody,
 }
 
-#[derive(Debug, PartialEq)]
 pub enum SkMethodBody {
     ShiikaMethodBody {
         exprs: HirExpressions
@@ -44,6 +43,27 @@ pub enum SkMethodBody {
         gen: GenMethodBody // TODO: better name
     }
 }
+// Manually deriving because GenMethodBody is a function (auto-deriving seems unsupported)
+impl std::fmt::Debug for SkMethodBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "#<SkMethodBody>")
+    }
+}
+impl std::cmp::PartialEq for SkMethodBody {
+    fn eq(&self, other: &SkMethodBody) -> bool {
+        match self {
+            SkMethodBody::ShiikaMethodBody { exprs } => {
+                match other {
+                    SkMethodBody::ShiikaMethodBody { exprs: exprs2 } => return exprs == exprs2,
+                    SkMethodBody::RustMethodBody { .. } => (),
+                }
+            },
+            SkMethodBody::RustMethodBody { .. } => (),
+        }
+        panic!("cannot compare RustMethodBody");
+    }
+}
+
 pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
                 function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
 

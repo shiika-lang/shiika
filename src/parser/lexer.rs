@@ -207,11 +207,11 @@ impl<'a, 'b> Lexer<'a, 'b> {
         match cc.unwrap() {
             ' ' | '\t' => CharType::Space,
             '\n' | ';' => CharType::Separator,
-            '0'...'9' => CharType::Number,
+            '0'..='9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
             '.' | '@' | '~' | '?' | ',' | ':' => CharType::Symbol,
-            'A'...'Z' => CharType::UpperWord,
+            'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
         }
     }

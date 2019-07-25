@@ -1,5 +1,3 @@
-#![feature(range_contains)]
-#![feature(nll)]
 pub mod ast;
 pub mod ty;
 pub mod parser;

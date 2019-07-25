@@ -1,6 +1,6 @@
 use shiika;
 
-fn main() -> Result<(), Box<std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let str = "
 class A
     def self.foo -> Int; 72; end
