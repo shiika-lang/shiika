@@ -1,4 +1,5 @@
 use crate::names::*;
+use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
@@ -89,7 +90,7 @@ pub enum ExpressionBody {
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
     ConstRef(String),
-    SelfExpr,
+    PseudoVariable(Token),
     FloatLiteral {
         value: f64,
     },
@@ -180,8 +181,8 @@ pub fn bin_op_expr(left: Expression, op: &str, right: Expression) -> Expression 
     }
 }
 
-pub fn self_expression() -> Expression {
-    primary_expression(ExpressionBody::SelfExpr)
+pub fn pseudo_variable(token: Token) -> Expression {
+    primary_expression(ExpressionBody::PseudoVariable(token))
 }
 
 pub fn float_literal(value: f64) -> Expression {

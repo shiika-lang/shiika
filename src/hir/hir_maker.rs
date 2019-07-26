@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::hir::*;
 use crate::hir::hir_maker_context::HirMakerContext;
 use crate::type_checking;
+use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
@@ -145,8 +146,8 @@ impl HirMaker {
                 self.convert_const_ref(ctx, name)
             },
 
-            ast::ExpressionBody::SelfExpr => {
-                self.convert_self_expr(ctx)
+            ast::ExpressionBody::PseudoVariable(token) => {
+                self.convert_pseudo_variable(ctx, token)
             },
 
             ast::ExpressionBody::FloatLiteral {value} => {
@@ -161,8 +162,24 @@ impl HirMaker {
         }
     }
 
-    fn convert_self_expr(&self,
-                         ctx: &HirMakerContext) -> Result<HirExpression, Error> {
+    fn convert_pseudo_variable(&self,
+                               ctx: &HirMakerContext,
+                               token: &Token) -> Result<HirExpression, Error> {
+        match token {
+            Token::KwSelf => {
+                self.convert_self_expr(ctx)
+            },
+            Token::KwTrue => {
+                Ok(Hir::boolean_literal(true))
+            },
+            Token::KwFalse => {
+                Ok(Hir::boolean_literal(false))
+            },
+            _ => panic!("[BUG] not a pseudo variable token: {:?}", token)
+        }
+    }
+
+    fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {
         Ok(Hir::self_expression(ctx.self_ty.clone()))
     }
 

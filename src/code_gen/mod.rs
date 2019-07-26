@@ -12,6 +12,7 @@ pub struct CodeGen {
     pub context: inkwell::context::Context,
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
+    pub i1_type: inkwell::types::IntType,
     pub i32_type: inkwell::types::IntType,
     pub i64_type: inkwell::types::IntType,
     pub f64_type: inkwell::types::FloatType,
@@ -30,6 +31,7 @@ impl CodeGen {
             context: context,
             module: module,
             builder: builder,
+            i1_type: inkwell::types::IntType::bool_type(),
             i32_type: inkwell::types::IntType::i32_type(),
             i64_type: inkwell::types::IntType::i64_type(),
             f64_type: inkwell::types::FloatType::f64_type(),
@@ -240,6 +242,9 @@ impl CodeGen {
             HirDecimalLiteral { value } => {
                 Ok(self.gen_decimal_literal(*value))
             },
+            HirBooleanLiteral { value } => {
+                Ok(self.gen_boolean_literal(*value))
+            },
             HirNop => {
                 panic!("HirNop not handled by `else`")
             }
@@ -304,6 +309,11 @@ impl CodeGen {
         self.i32_type.const_int(value as u64, false).as_basic_value_enum()
     }
 
+    fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
+        let i = if value { 1 } else { 0 };
+        self.i1_type.const_int(i, false).as_basic_value_enum()
+    }
+
     // Generate call of GC_malloc and returns a ptr to Shiika object
     fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
@@ -343,6 +353,7 @@ impl CodeGen {
         match ty.body {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
+                    "Bool" => self.i1_type.as_basic_type_enum(),
                     "Int" => self.i32_type.as_basic_type_enum(),
                     "Float" => self.f64_type.as_basic_type_enum(),
                     // TODO: replace with special value?

@@ -46,6 +46,8 @@ pub enum Token {
     KwThen,
     KwElse,
     KwSelf,
+    KwTrue,
+    KwFalse,
 }
 
 impl Token {

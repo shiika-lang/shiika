@@ -395,7 +395,8 @@ impl<'a> Parser<'a> {
 
     fn parse_atomic(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_atomic");
-        let expr = match self.current_token() {
+        let token = self.current_token();
+        let expr = match token {
             Token::LowerWord(s) => {
                 let name = s.to_string();
                 self.consume_token();
@@ -406,9 +407,10 @@ impl<'a> Parser<'a> {
                 self.consume_token();
                 Ok(expr)
             },
-            Token::KwSelf => {
+            Token::KwSelf | Token::KwTrue | Token::KwFalse => {
+                let t = token.clone();
                 self.consume_token();
-                Ok(ast::self_expression())
+                Ok(ast::pseudo_variable(t))
             },
             Token::Number(_) => {
                 self.parse_decimal_literal()

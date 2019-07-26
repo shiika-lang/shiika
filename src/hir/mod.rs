@@ -104,6 +104,9 @@ pub enum HirExpressionBase {
     HirDecimalLiteral {
         value: i32,
     },
+    HirBooleanLiteral {
+        value: bool,
+    },
     HirNop  // For else-less if expr
 }
 
@@ -166,6 +169,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Int"),
             node: HirExpressionBase::HirDecimalLiteral { value }
+        }
+    }
+    
+    pub fn boolean_literal(value: bool) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Bool"),
+            node: HirExpressionBase::HirBooleanLiteral { value }
         }
     }
     

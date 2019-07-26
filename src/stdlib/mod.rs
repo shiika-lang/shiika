@@ -1,3 +1,4 @@
+mod bool;
 mod float;
 mod int;
 mod math;
@@ -10,6 +11,7 @@ use crate::hir::*;
 pub fn create_classes() -> Vec<SkClass> {
     let mut v = vec![];
     let items = vec![
+        ("Bool", bool::create_methods(), vec![]),
         ("Float", float::create_methods(), vec![]),
         ("Int", int::create_methods(), vec![]),
         ("Object", object::create_methods(), vec![]),

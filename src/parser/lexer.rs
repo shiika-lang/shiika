@@ -219,6 +219,8 @@ impl<'a> Lexer<'a> {
             "then" => Token::KwThen,
             "else" => Token::KwElse,
             "self" => Token::KwSelf,
+            "true" => Token::KwTrue,
+            "false" => Token::KwFalse,
             _ => Token::LowerWord(s.to_string()),
         }
     }
