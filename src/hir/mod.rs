@@ -99,7 +99,7 @@ pub enum HirExpressionBase {
     },
     HirSelfExpression,
     HirFloatLiteral {
-        value: f32,
+        value: f64,
     },
     HirDecimalLiteral {
         value: i32,
@@ -155,7 +155,7 @@ impl Hir {
         }
     }
 
-    pub fn float_literal(value: f32) -> HirExpression {
+    pub fn float_literal(value: f64) -> HirExpression {
         HirExpression {
             ty: ty::raw("Float"),
             node: HirExpressionBase::HirFloatLiteral { value }

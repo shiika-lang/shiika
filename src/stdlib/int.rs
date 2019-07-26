@@ -14,7 +14,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Int", "to_f() -> Float", |code_gen, function| {
         let int = function.get_params()[0].into_int_value();
-        let float = code_gen.builder.build_signed_int_to_float(int, code_gen.f32_type, "float");
+        let float = code_gen.builder.build_signed_int_to_float(int, code_gen.f64_type, "float");
         code_gen.builder.build_return(Some(&float));
         Ok(())
     }),

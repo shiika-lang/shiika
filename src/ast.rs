@@ -91,7 +91,7 @@ pub enum ExpressionBody {
     ConstRef(String),
     SelfExpr,
     FloatLiteral {
-        value: f32,
+        value: f64,
     },
     DecimalLiteral {
         value: i32,
@@ -184,7 +184,7 @@ pub fn self_expression() -> Expression {
     primary_expression(ExpressionBody::SelfExpr)
 }
 
-pub fn float_literal(value: f32) -> Expression {
+pub fn float_literal(value: f64) -> Expression {
     primary_expression(ExpressionBody::FloatLiteral{ value })
 }
 

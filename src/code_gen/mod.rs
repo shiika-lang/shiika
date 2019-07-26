@@ -14,7 +14,7 @@ pub struct CodeGen {
     pub builder: inkwell::builder::Builder,
     pub i32_type: inkwell::types::IntType,
     pub i64_type: inkwell::types::IntType,
-    pub f32_type: inkwell::types::FloatType,
+    pub f64_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
     /// Toplevel `self`
@@ -32,7 +32,7 @@ impl CodeGen {
             builder: builder,
             i32_type: inkwell::types::IntType::i32_type(),
             i64_type: inkwell::types::IntType::i64_type(),
-            f32_type: inkwell::types::FloatType::f32_type(),
+            f64_type: inkwell::types::FloatType::f64_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
             the_main: None,
@@ -59,13 +59,13 @@ impl CodeGen {
         let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
 
-        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("sin", fn_type, None);
-        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("cos", fn_type, None);
-        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("sqrt", fn_type, None);
-        let fn_type = self.f32_type.fn_type(&[self.f32_type.into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("fabs", fn_type, None);
     }
 
@@ -296,8 +296,8 @@ impl CodeGen {
         }
     }
 
-    fn gen_float_literal(&self, value: f32) -> inkwell::values::BasicValueEnum {
-        self.f32_type.const_float(value as f64).as_basic_value_enum()
+    fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
+        self.f64_type.const_float(value).as_basic_value_enum()
     }
 
     fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
@@ -344,7 +344,7 @@ impl CodeGen {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
                     "Int" => self.i32_type.as_basic_type_enum(),
-                    "Float" => self.f32_type.as_basic_type_enum(),
+                    "Float" => self.f64_type.as_basic_type_enum(),
                     // TODO: replace with special value?
                     "Void" => self.i32_type.as_basic_type_enum(),
                     _ => self.sk_obj_llvm_type(ty)
