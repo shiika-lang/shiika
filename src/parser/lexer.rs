@@ -1,9 +1,9 @@
 use super::token::Token;
 
-pub struct Lexer<'a: 'b, 'b: 'a> {
+pub struct Lexer<'a> {
     pub src: &'a str,
     pub cur: Cursor,
-    current_token: Option<Token<'b>>,
+    current_token: Option<Token>,
     next_cur: Option<Cursor>,
 }
 
@@ -64,7 +64,7 @@ enum CharType {
     Eof,
 }
 
-impl<'a, 'b> Lexer<'a, 'b> {
+impl<'a> Lexer<'a> {
     /// Create lexer and get the first token
     pub fn new(src: &str) -> Lexer {
         let mut lexer = Lexer {
@@ -106,7 +106,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
     ///
     /// assert_eq!(*lexer.current_token(), Token::Space);
     /// lexer.consume_token();
-    /// assert_eq!(*lexer.current_token(), Token::Number("1"));
+    /// assert_eq!(*lexer.current_token(), Token::number("1"));
     /// ```
     pub fn consume_token(&mut self) -> Token {
         self.cur = self.next_cur.take().unwrap();
@@ -115,32 +115,63 @@ impl<'a, 'b> Lexer<'a, 'b> {
         tok
     }
 
-    fn read_token(&mut self) {
-        let cc = self.cur.peek(self.src);
-        let mut next_cur = self.cur.clone();
-        match self.char_type(cc) {
-            CharType::Space     => self.read_space(&mut next_cur),
-            CharType::Separator => self.read_separator(&mut next_cur),
-            CharType::UpperWord => self.read_upper_word(&mut next_cur),
-            CharType::LowerWord => self.read_lower_word(&mut next_cur),
-            CharType::Symbol    => self.read_symbol(&mut next_cur),
-            CharType::Number    => self.read_number(&mut next_cur),
+    /// Return the next token while keeping the current one
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use shiika::parser::lexer::Lexer;
+    /// use shiika::parser::token::Token;
+    ///
+    /// let src = "@1";
+    /// let mut lexer = Lexer::new(src);
+    ///
+    /// assert_eq!(lexer.peek_next(), Token::number("1"));
+    /// assert_eq!(*lexer.current_token(), Token::At);
+    /// ```
+    pub fn peek_next(&mut self) -> Token {
+        let next_cur = self.next_cur.as_ref().unwrap().clone();
+        let c = next_cur.peek(self.src);
+        let mut next_next_cur = next_cur.clone();
+        match self.char_type(c) {
+            CharType::Space     => self.read_space(&mut next_next_cur),
+            CharType::Separator => self.read_separator(&mut next_next_cur),
+            CharType::UpperWord => self.read_upper_word(&mut next_next_cur, Some(&next_cur)),
+            CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
+            CharType::Symbol    => self.read_symbol(&mut next_next_cur),
+            CharType::Number    => self.read_number(&mut next_next_cur, Some(&next_cur)),
             CharType::Eof       => self.read_eof(),
         }
+    }
+
+    fn read_token(&mut self) {
+        let c = self.cur.peek(self.src);
+        let mut next_cur = self.cur.clone();
+        self.current_token = Some(
+            match self.char_type(c) {
+                CharType::Space     => self.read_space(&mut next_cur),
+                CharType::Separator => self.read_separator(&mut next_cur),
+                CharType::UpperWord => self.read_upper_word(&mut next_cur, None),
+                CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
+                CharType::Symbol    => self.read_symbol(&mut next_cur),
+                CharType::Number    => self.read_number(&mut next_cur, None),
+                CharType::Eof       => self.read_eof(),
+            }
+        );
         self.next_cur = Some(next_cur)
     }
 
-    fn read_space(&mut self, next_cur: &mut Cursor) {
+    fn read_space(&mut self, next_cur: &mut Cursor) -> Token {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Space => next_cur.proceed(self.src),
                 _ => break
             };
         }
-        self.current_token = Some(Token::Space);
+        Token::Space
     }
 
-    fn read_separator(&mut self, next_cur: &mut Cursor) {
+    fn read_separator(&mut self, next_cur: &mut Cursor) -> Token {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Space | CharType::Separator => {
@@ -149,10 +180,10 @@ impl<'a, 'b> Lexer<'a, 'b> {
                 _ => break
             };
         }
-        self.current_token = Some(Token::Separator);
+        Token::Separator
     }
 
-    fn read_upper_word(&mut self, next_cur: &mut Cursor) {
+    fn read_upper_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
@@ -161,10 +192,11 @@ impl<'a, 'b> Lexer<'a, 'b> {
                 _ => break
             }
         }
-        self.current_token = Some(Token::UpperWord(&self.src[self.cur.pos..next_cur.pos]));
+        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        Token::UpperWord(self.src[begin..next_cur.pos].to_string())
     }
 
-    fn read_lower_word(&mut self, next_cur: &mut Cursor) {
+    fn read_lower_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
@@ -173,25 +205,91 @@ impl<'a, 'b> Lexer<'a, 'b> {
                 _ => break
             }
         }
-        self.current_token = Some(Token::LowerWord(&self.src[self.cur.pos..next_cur.pos]));
+        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        let s = &self.src[begin..next_cur.pos];
+        match s {
+            "class" => Token::KwClass,
+            "end" => Token::KwEnd,
+            "def" => Token::KwDef,
+            "and" => Token::KwAnd,
+            "or" => Token::KwOr,
+            "not" => Token::KwNot,
+            "if" => Token::KwIf,
+            "unless" => Token::KwUnless,
+            "then" => Token::KwThen,
+            "else" => Token::KwElse,
+            "self" => Token::KwSelf,
+            _ => Token::LowerWord(s.to_string()),
+        }
     }
 
-    fn read_symbol(&mut self, next_cur: &mut Cursor) {
+    fn read_symbol(&mut self, next_cur: &mut Cursor) -> Token {
         let c1 = next_cur.proceed(self.src);
         let c2 = next_cur.peek(self.src);
-        match self.char_type(c2) {
-            CharType::Symbol => {
-                if c1 == '-' && c2 == Some('>') ||
-                   c1 == '=' && c2 == Some('=') {
+        match c1 {
+            '(' => Token::LParen,
+            ')' => Token::RParen,
+            '[' => Token::LSqBracket,
+            ']' => Token::RSqBracket,
+            '<' => Token::LAngBracket,
+            '>' => Token::RAngBracket,
+            '{' => Token::LBrace,
+            '}' => Token::RBrace,
+            '+' => Token::Plus,
+            '-' => {
+                if c2 == Some('>') {
                     next_cur.proceed(self.src);
+                    Token::RightArrow
+                }
+                else {
+                    Token::Minus
                 }
             },
-            _ => ()
+            '*' => Token::Mul,
+            '/' => Token::Div,
+            '%' => Token::Mod,
+            '=' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    Token::EqEq
+                }
+                else {
+                    Token::Equal
+                }
+            },
+            '!' => Token::Bang,
+            '.' => Token::Dot,
+            '@' => Token::At,
+            '~' => Token::Tilde,
+            '?' => Token::Question,
+            ',' => Token::Comma,
+            ':' => Token::Colon,
+            '&' => {
+                if c2 == Some('&') {
+                    next_cur.proceed(self.src);
+                    Token::AndAnd
+                }
+                else {
+                    Token::And
+                }
+            },
+            '|' => {
+                if c2 == Some('|') {
+                    next_cur.proceed(self.src);
+                    Token::OrOr
+                }
+                else {
+                    Token::Or
+                }
+            },
+            c => {
+                // TODO: this should be lexing error
+                panic!("unknown symbol: {}", c)
+            }
         }
-        self.current_token = Some(Token::Symbol(&self.src[self.cur.pos..next_cur.pos]));
     }
 
-    fn read_number(&mut self, next_cur: &mut Cursor) {
+    fn read_number(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Number => {
@@ -218,11 +316,12 @@ impl<'a, 'b> Lexer<'a, 'b> {
                 _ => break
             }
         }
-        self.current_token = Some(Token::Number(&self.src[self.cur.pos..next_cur.pos]));
+        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        Token::Number(self.src[begin..next_cur.pos].to_string())
     }
 
-    fn read_eof(&mut self) {
-        self.current_token = Some(Token::Eof)
+    fn read_eof(&mut self) -> Token {
+        Token::Eof
     }
 
     fn char_type(&self, cc: Option<char>) -> CharType {
@@ -235,7 +334,7 @@ impl<'a, 'b> Lexer<'a, 'b> {
             '0'..='9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
-            '.' | '@' | '~' | '?' | ',' | ':' => CharType::Symbol,
+            '.' | '@' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
             'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
         }

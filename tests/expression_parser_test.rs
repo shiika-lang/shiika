@@ -1,6 +1,5 @@
 use shiika::ast;
 use shiika::parser::Parser;
-use shiika::names::*;
 
 fn parse_expr(src: &str) -> Result<ast::Expression, shiika::error::Error> {
     let mut parser = Parser::new(src);
@@ -10,146 +9,75 @@ fn parse_expr(src: &str) -> Result<ast::Expression, shiika::error::Error> {
 #[test]
 fn test_if_expr() {
     let result = parse_expr("if 1 then 2 else 3 end");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::If {
-            cond_expr: Box::new(ast::decimal_literal(1)),
-            then_expr: Box::new(ast::decimal_literal(2)),
-            else_expr: Some(Box::new(ast::decimal_literal(3))),
-        }
-    )
+    assert_eq!(result.unwrap(),
+    ast::if_expr(
+        ast::decimal_literal(1),
+        ast::decimal_literal(2),
+        Some(ast::decimal_literal(3))))
 }
 
 #[test]
 fn test_additive_expr() {
     let result = parse_expr("1+2*3");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::BinOpExpression {
-            left: Box::new(ast::decimal_literal(1)),
-            op: ast::BinOp::Add,
-            right: Box::new(ast::Expression::BinOpExpression {
-                left: Box::new(ast::decimal_literal(2)),
-                op: ast::BinOp::Mul,
-                right: Box::new(ast::decimal_literal(3)),
-            }),
-        }
-    )
-}
-
-#[test]
-fn test_multiplicative_expr() {
-    let result = parse_expr("1%2");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::BinOpExpression {
-            left: Box::new(ast::decimal_literal(1)),
-            op: ast::BinOp::Mod,
-            right: Box::new(ast::decimal_literal(2)),
-        }
-    )
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "+",
+        vec![ast::method_call(
+            Some(ast::decimal_literal(2)),
+            "*",
+            vec![ast::decimal_literal(3)],
+            false,
+            false)],
+        false,
+        false))
 }
 
 #[test]
 fn test_multiplicative_with_method_call() {
     let result = parse_expr("1.foo * 2");
+
+    let left = ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "foo",
+        vec![],
+        true,
+        true);
+
     assert_eq!(result.unwrap(), 
-        ast::Expression::BinOpExpression {
-            left: Box::new(ast::Expression::MethodCall {
-                receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-                method_name: MethodName("foo".to_string()),
-                arg_exprs: vec![],
-            }),
-            op: ast::BinOp::Mul,
-            right: Box::new(ast::decimal_literal(2)),
-        }
-    )
+    ast::method_call(
+        Some(left),
+        "*",
+        vec![ast::decimal_literal(2)],
+        false,
+        false))
 }
 
 #[test]
-fn test_method_call_with_dot_and_paren() {
-    let result = parse_expr("1.foo(2)");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![ast::decimal_literal(2)],
-        }
-    )
-}
+fn test_method_call_with_paren_and_dot() {
+    let result = parse_expr("foo bar().baz");
 
-#[test]
-fn test_method_call_with_dot() {
-    let result = parse_expr("1.foo 2");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: Some(Box::new(ast::decimal_literal(1))),
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![ast::decimal_literal(2)],
-        }
-    )
-}
+    let call_bar = ast::method_call(
+        None,
+        "bar",
+        vec![],
+        true,
+        false);
 
-#[test]
-fn test_method_call_with_paren() {
-    let result = parse_expr("foo(2)");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: None,
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![ast::decimal_literal(2)],
-        }
-    )
-}
+    let right = ast::method_call(
+        Some(call_bar),
+        "baz",
+        vec![],
+        true,
+        true);
 
-#[test]
-fn test_method_call_no_paren_or_dot() {
-    let result = parse_expr("foo 2");
     assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: None,
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![ast::decimal_literal(2)],
-        }
-    )
-}
-
-#[test]
-fn test_method_call_with_binop() {
-    let result = parse_expr("foo 1+2");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: None,
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![
-                ast::Expression::BinOpExpression {
-                    left: Box::new(ast::decimal_literal(1)),
-                    op: ast::BinOp::Add,
-                    right: Box::new(ast::decimal_literal(2)),
-                }
-            ]
-        }
-    )
-}
-
-#[test]
-fn test_method_call_with_args() {
-    let result = parse_expr("foo 1, 2");
-    assert_eq!(result.unwrap(), 
-        ast::Expression::MethodCall {
-            receiver_expr: None,
-            method_name: MethodName("foo".to_string()),
-            arg_exprs: vec![
-                ast::decimal_literal(1),
-                ast::decimal_literal(2),
-            ]
-        }
-    )
-}
-
-#[test]
-fn test_parenthesized_expr() {
-    let result = parse_expr("(123)");
-    assert_eq!(result.unwrap(), 
-        ast::decimal_literal(123),
-    )
+    ast::method_call(
+        None,
+        "foo",
+        vec![right],
+        false,
+        false));
 }
 
 #[test]
@@ -166,4 +94,100 @@ fn test_decimal_literal() {
     assert_eq!(result.unwrap(), 
         ast::decimal_literal(123),
     )
+}
+
+//
+// Method call (0 args)
+//
+
+#[test]
+fn test_bare_name() {
+    let result = parse_expr("foo");
+    assert_eq!(result.unwrap(), ast::bare_name("foo"))
+}
+
+#[test]
+fn test_call_with_paren_0() {
+    let result = parse_expr("foo()");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        None,
+        "foo",
+        vec![],
+        true,
+        false))
+}
+
+#[test]
+fn test_call_with_dot() {
+    let result = parse_expr("1.foo");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "foo",
+        vec![],
+        true,
+        true))
+}
+
+//
+// Method call (1 arg)
+//
+
+#[test]
+fn test_call_with_paren_1() {
+    let result = parse_expr("foo(1)");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        None,
+        "foo",
+        vec![ast::decimal_literal(1)],
+        true,
+        false))
+}
+
+#[test]
+fn test_call_with_space_1() {
+    let result = parse_expr("foo 1");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        None,
+        "foo",
+        vec![ast::decimal_literal(1)],
+        false,
+        false))
+}
+
+//
+// Method call (2 args)
+//
+
+#[test]
+fn test_call_with_paren_2() {
+    let result = parse_expr("foo(1, 2)");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        None,
+        "foo",
+        vec![
+            ast::decimal_literal(1),
+            ast::decimal_literal(2),
+        ],
+        true,
+        false))
+}
+
+#[test]
+fn test_call_with_space_2() {
+    let result = parse_expr("foo 1, 2");
+    assert_eq!(result.unwrap(),
+    ast::method_call(
+        None,
+        "foo",
+        vec![
+            ast::decimal_literal(1),
+            ast::decimal_literal(2),
+        ],
+        false,
+        false))
 }

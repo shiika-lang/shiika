@@ -1,3 +1,8 @@
+/// Parser
+///
+/// Implementaion rules
+/// - Call `skip_ws`/`skip_wsn` before calling other `parse_xx`
+
 macro_rules! parse_error {
     ( $self:ident, $( $arg:expr ),* ) => ({
         let msg = format!( $( $arg ),* );
@@ -6,7 +11,7 @@ macro_rules! parse_error {
 }
 
 mod base;
-mod token;
+pub mod token;
 pub mod lexer;
 mod definition_parser;
 mod expression_parser;
@@ -14,14 +19,17 @@ use crate::ast;
 use crate::error::Error;
 use crate::parser::lexer::Lexer;
 
-pub struct Parser<'a, 'b> {
-    pub lexer: Lexer<'a, 'b>
+pub struct Parser<'a> {
+    pub lexer: Lexer<'a>,
+    /// For debug print
+    pub lv: usize,
 }
 
-impl<'a, 'b> Parser<'a, 'b> {
+impl<'a> Parser<'a> {
     pub fn new(src: &str) -> Parser {
         Parser {
-            lexer: Lexer::new(src)
+            lexer: Lexer::new(src),
+            lv: 0,
         }
     }
 

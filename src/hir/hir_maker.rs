@@ -106,8 +106,8 @@ impl HirMaker {
     fn convert_expr(&self,
                     ctx: &HirMakerContext,
                     expr: &ast::Expression) -> Result<HirExpression, Error> {
-        match expr {
-            ast::Expression::If { cond_expr, then_expr, else_expr } => {
+        match &expr.body {
+            ast::ExpressionBody::If { cond_expr, then_expr, else_expr } => {
                 let cond_hir = self.convert_expr(ctx, cond_expr)?;
                 type_checking::check_if_condition_ty(&cond_hir.ty)?;
 
@@ -124,7 +124,7 @@ impl HirMaker {
                         else_hir))
             },
 
-            ast::Expression::MethodCall {receiver_expr, method_name, arg_exprs} => {
+            ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
                 let receiver_hir =
                     match receiver_expr {
                         Some(expr) => self.convert_expr(ctx, &expr)?,
@@ -137,30 +137,27 @@ impl HirMaker {
                 self.make_method_call(receiver_hir, &method_name, arg_hirs)
             },
 
-            ast::Expression::BinOpExpression {left, op, right} => {
-                self.make_method_call(self.convert_expr(ctx, left)?, &op.method_name(), vec!(self.convert_expr(ctx, right)?))
+            ast::ExpressionBody::BareName(name) => {
+                self.convert_bare_name(ctx, name)
             },
 
-            ast::Expression::BareName(name) => {
-                if name == "self" {
-                    self.convert_self_expr(ctx)
-                }
-                else {
-                    self.convert_bare_name(ctx, name)
-                }
-            },
-
-            ast::Expression::ConstRef(name) => {
+            ast::ExpressionBody::ConstRef(name) => {
                 self.convert_const_ref(ctx, name)
             },
 
-            ast::Expression::FloatLiteral {value} => {
+            ast::ExpressionBody::SelfExpr => {
+                self.convert_self_expr(ctx)
+            },
+
+            ast::ExpressionBody::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },
 
-            ast::Expression::DecimalLiteral {value} => {
+            ast::ExpressionBody::DecimalLiteral {value} => {
                 Ok(Hir::decimal_literal(*value))
             },
+
+            x => panic!("TODO: {:?}", x)
         }
     }
 

@@ -1,3 +1,4 @@
+#![feature(nll)]  // QUESTION: Do we still need this?
 pub mod ast;
 pub mod ty;
 pub mod parser;

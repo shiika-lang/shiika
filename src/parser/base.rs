@@ -6,7 +6,7 @@ pub use crate::parser::token::Token;
 pub use crate::parser::lexer;
 pub use crate::parser::lexer::*;
 
-impl<'a, 'b> Parser<'a, 'b> {
+impl<'a> Parser<'a> {
     // Consume a separator and its surrounding spaces
     pub (in super) fn expect_sep(&mut self) -> Result<(), Error> {
         match self.current_token() {
@@ -18,9 +18,12 @@ impl<'a, 'b> Parser<'a, 'b> {
         Ok(())
     }
 
-    pub (in super) fn expect(&mut self, token: Token) -> Result<&Token, Error> {
-        if self.current_token_is(&token) {
-            Ok(self.current_token())
+    /// Generates error if the current token does not equal to `token`.
+    ///
+    /// Note: Takes `Token` rather than `&Token` for convenience.
+    pub (in super) fn expect(&mut self, token: Token) -> Result<Token, Error> {
+        if *self.current_token() == token {
+            Ok(self.consume_token())
         }
         else {
             let msg = format!("expected {:?} but got {:?}", token, self.current_token());
@@ -46,18 +49,44 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    /// Consume the current token and return it
     pub (in super) fn consume_token(&mut self) -> Token {
         let tok = self.lexer.current_token();
-        self.debug_log(&format!("- {:?}", &tok));
+        self.debug_log(&format!("@ {:?}", &tok));
         self.lexer.consume_token()
     }
 
-    pub (in super) fn current_token_is(&mut self, token: &Token) -> bool {
-        *self.lexer.current_token() == *token
+    /// Consume the current token if it equals to `token`.
+    /// Return whether matched and consumed
+    pub (in super) fn consume(&mut self, token: Token) -> bool {
+        if self.current_token_is(token) {
+            self.consume_token();
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    /// Return true if the current token is `token`
+    ///
+    /// Note: Takes `Token` rather than `&Token` for convenience.
+    pub (in super) fn current_token_is(&mut self, token: Token) -> bool {
+        *self.lexer.current_token() == token
     }
 
     pub (in super) fn current_token(&mut self) -> &Token {
         self.lexer.current_token()
+    }
+
+    /// Return next token which is not `Token::Space`
+    pub (in super) fn next_nonspace_token(&mut self) -> Token {
+        if self.current_token_is(Token::Space) {
+            self.lexer.peek_next()
+        }
+        else {
+            self.current_token().clone()
+        }
     }
 
     pub (in super) fn parseerror(&self, msg: &str) -> Error {
@@ -71,7 +100,11 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     /// Print parser debug log (uncomment to enable)
-    pub (in super) fn debug_log(&self, msg: &str) {
-        //println!("{}", msg);
+    pub (in super) fn debug_log(&self, _msg: &str) {
+        //println!("{}{}", self.lv_space(), _msg);
+    }
+    #[allow(dead_code)]
+    fn lv_space(&self) -> String {
+        "  ".repeat(self.lv)
     }
 }
