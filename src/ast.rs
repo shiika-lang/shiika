@@ -169,16 +169,22 @@ pub fn const_ref(name: &str) -> Expression {
     primary_expression(ExpressionBody::ConstRef(name.to_string()))
 }
 
+pub fn unary_expr(expr: Expression, op: &str) -> Expression {
+    primary_expression(ExpressionBody::MethodCall {
+        receiver_expr: Some(Box::new(expr)),
+        method_name: MethodName(op.to_string()),
+        arg_exprs: vec![],
+        may_have_paren_wo_args: false,
+    })
+}
+
 pub fn bin_op_expr(left: Expression, op: &str, right: Expression) -> Expression {
-    Expression {
-        primary: false,
-        body: ExpressionBody::MethodCall {
-            receiver_expr: Some(Box::new(left)),
-            method_name: MethodName(op.to_string()),
-            arg_exprs: vec![right],
-            may_have_paren_wo_args: false,
-        }
-    }
+    non_primary_expression(ExpressionBody::MethodCall {
+        receiver_expr: Some(Box::new(left)),
+        method_name: MethodName(op.to_string()),
+        arg_exprs: vec![right],
+        may_have_paren_wo_args: false,
+    })
 }
 
 pub fn pseudo_variable(token: Token) -> Expression {
