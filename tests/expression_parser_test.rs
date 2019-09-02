@@ -54,6 +54,37 @@ fn test_multiplicative_with_method_call() {
 }
 
 #[test]
+fn test_unary() {
+    let result = parse_expr("p -1");
+    let minus1 = ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "-@",
+        vec![],
+        true,
+        false);
+
+    assert_eq!(result.unwrap(), 
+    ast::method_call(
+        None,
+        "p",
+        vec![minus1],
+        false,
+        false))
+}
+
+#[test]
+fn test_binary() {
+    let result = parse_expr("p - 1");
+    assert_eq!(result.unwrap(), 
+    ast::method_call(
+        Some(ast::bare_name("p")),
+        "-",
+        vec![ast::decimal_literal(1)],
+        false,
+        false))
+}
+
+#[test]
 fn test_method_call_with_paren_and_dot() {
     let result = parse_expr("foo bar().baz");
 

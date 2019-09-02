@@ -104,8 +104,9 @@ impl<'a> Parser<'a> {
             let name_str: &str;
             match self.current_token() {
                 Token::LowerWord(s) => { name_str = s; },
-                Token::Plus => { name_str = "+" },
-                Token::Minus => { name_str = "-" },
+                // TODO: `+@`, `-@`
+                Token::UnaryPlus => { name_str = "+" },
+                Token::UnaryMinus => { name_str = "-" },
                 Token::Mul => { name_str = "*" },
                 Token::Div => { name_str = "/" },
                 Token::Mod => { name_str = "%" },

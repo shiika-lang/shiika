@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
 
     /// Consume the current token and return it
     pub (in super) fn consume_token(&mut self) -> Token {
-        let tok = self.lexer.current_token();
+        let tok = self.current_token();
         self.debug_log(&format!("@ {:?}", &tok));
         self.lexer.consume_token()
     }
@@ -72,11 +72,16 @@ impl<'a> Parser<'a> {
     ///
     /// Note: Takes `Token` rather than `&Token` for convenience.
     pub (in super) fn current_token_is(&mut self, token: Token) -> bool {
-        *self.lexer.current_token() == token
+        *self.current_token() == token
     }
 
-    pub (in super) fn current_token(&mut self) -> &Token {
-        self.lexer.current_token()
+    pub (in super) fn current_token(&self) -> &Token {
+        &self.lexer.current_token
+    }
+
+    /// Return next token
+    pub (in super) fn peek_next_token(&mut self) -> Token {
+        self.lexer.peek_next()
     }
 
     /// Return next token which is not `Token::Space`
@@ -87,6 +92,20 @@ impl<'a> Parser<'a> {
         else {
             self.current_token().clone()
         }
+    }
+
+    /// Get the lexer position
+    pub (in super) fn current_position(&self) -> Cursor {
+        self.lexer.cur.clone()
+    }
+
+    /// Rewind lexer position (backtrack)
+    pub (in super) fn rewind_to(&mut self, cur: Cursor) {
+        self.lexer.set_position(cur);
+    }
+
+    pub (in super) fn set_lexer_state(&mut self, state: LexerState) {
+        self.lexer.set_state(state);
     }
 
     pub (in super) fn parseerror(&self, msg: &str) -> Error {
@@ -101,7 +120,7 @@ impl<'a> Parser<'a> {
 
     /// Print parser debug log (uncomment to enable)
     pub (in super) fn debug_log(&self, _msg: &str) {
-        //println!("{}{}", self.lv_space(), _msg);
+        //println!("{}{} {:?} {:?}", self.lv_space(), _msg, self.lexer.current_token, self.lexer.state);
     }
     #[allow(dead_code)]
     fn lv_space(&self) -> String {

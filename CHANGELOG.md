@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## HEAD
+
+- feat: Support unary +/-
+
 ## v0.2.0 (2019/07/17)
 
 - Started reimplementation with Rust

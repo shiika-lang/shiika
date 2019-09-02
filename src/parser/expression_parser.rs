@@ -40,119 +40,64 @@ impl<'a> Parser<'a> {
 
     fn parse_not_expr(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_not_expr");
-        match self.current_token() {
+        let expr = match self.current_token() {
             Token::KwOr => {
                 self.skip_ws();
-                let expr = self.parse_not_expr()?;
-                self.lv -= 1;
-                Ok(ast::logical_not(expr))
+                let inner = self.parse_not_expr()?;
+                ast::logical_not(inner)
             },
             Token::Bang => {
                 self.skip_ws();
-                let mut expr = self.parse_operator_expr()?;
-                expr = self.parse_call_wo_paren(expr)?;
-                self.lv -= 1;
-                Ok(ast::logical_not(expr))
+                let inner = self.parse_call_wo_paren()?;
+                ast::logical_not(inner)
             },
             _ => {
-                let expr = self.parse_operator_expr()?;
-                self.lv -= 1;
-                Ok(self.parse_call_wo_paren(expr)?)
+                self.parse_call_wo_paren()?
             }
-        }
+        };
+        self.lv -= 1;
+        Ok(expr)
     }
 
-    //        methodInvocationWithoutParentheses |
+    //        methodInvocationWithoutParentheses:
     //                MethodIdentifier bar (do ... end)?
     //                primaryExpression . foo bar (do ... end)?
-    fn parse_call_wo_paren(&mut self, expr: ast::Expression) -> Result<ast::Expression, Error> {
+    //        operatorExpression
+    fn parse_call_wo_paren(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_call_wo_paren");
-        let expr = self.parse_method_chains(expr)?;
-        self.lv -= 1;
-        Ok(expr)
-    }
 
-//    // command:
-//    //   MethodIdentifier ~ not(not(WS) ~ LPAREN) ~ argumentWithoutParentheses
-//    //   primaryExpression ~ not(LineTerminator) ~ PERIOD ~ methodName ~ not(not(WS) ~ LPAREN) ~ argumentWithoutParentheses
-//    fn parse_command(&mut self, mut expr: ast::Expression) -> Result<ast::Expression, Error> {
-//    }
-
-    /// Parse `foo.bar(args).baz quux`
-    fn parse_method_chains(&mut self, mut expr: ast::Expression) -> Result<ast::Expression, Error> {
-        self.lv += 1; self.debug_log(&format!("parse_method_chains(expr: {:?})", expr.body));
-        // Check expr
-        if let BareName(_) = expr.body { }
-        else if expr.primary { }
-        else { self.lv -= 1; return Ok(expr) }
-
-        while expr.primary || expr.may_have_paren_wo_args() {
-            if expr.may_have_paren_wo_args() && self.current_token_is(Token::Space) {
-                self.skip_ws();
-                if !self.current_token_is(Token::Separator) &&
-                   !self.current_token_is(Token::LBrace) {
-                    let args = self.parse_args()?; // TODO: do...end
-                    expr = ast::set_method_call_args(expr, args);
+        let token = self.current_token();
+        if let Token::LowerWord(s) = token.clone() {
+            let next_token = self.peek_next_token();
+            if next_token == Token::Space {
+                let cur = self.current_position();
+                self.consume_token();
+                self.set_lexer_state(LexerState::ExprArg);
+                assert!(self.consume(Token::Space));
+                let args = self.parse_operator_exprs()?;
+                self.debug_log(&format!("tried/args: {:?}", args));
+                if !args.is_empty() {
+                    self.lv -= 1;
+                    return Ok(ast::method_call(
+                            None,
+                            &s,
+                            args,
+                            false,
+                            false))
                 }
+                self.rewind_to(cur)
             }
-            if expr.primary && self.next_nonspace_token() == Token::Dot {
-                self.skip_ws();
-                expr = self.parse_method_chain(expr)?;
-            }
-            else {
-                break
+        }
+        let mut expr = self.parse_operator_expr()?;
+        if expr.may_have_paren_wo_args() {
+            // foo bar, baz
+            let args = self.parse_operator_exprs()?;
+            if !args.is_empty() {
+                expr = ast::set_method_call_args(expr, args);
             }
         }
         self.lv -= 1;
         Ok(expr)
-    }
-
-    /// Parse `.foo(args)`
-    fn parse_method_chain(&mut self, expr: ast::Expression) -> Result<ast::Expression, Error> {
-        self.lv += 1; self.debug_log("parse_method_chain");
-        // .
-        assert!(self.consume(Token::Dot));
-        self.skip_wsn();
-
-        // Method name
-        let method_name = match self.current_token() {
-            Token::LowerWord(s) => s.clone(),
-            token => return Err(parse_error!(self, "invalid method name: {:?}", token))
-        };
-        self.consume_token();
-
-        // Args
-        let (args, may_have_paren_wo_args) = match self.current_token() {
-            // .foo(args)
-            Token::LParen => (self.parse_paren_and_args()?, false),
-            // .foo
-            _ => (vec![], true),
-        };
-
-        self.lv -= 1;
-        Ok(ast::method_call(
-                Some(expr),
-                &method_name,
-                args,
-                true,
-                may_have_paren_wo_args))
-    }
-
-    fn parse_paren_and_args(&mut self) -> Result<Vec<ast::Expression>, Error> {
-        self.lv += 1; self.debug_log("parse_paren_and_args");
-        assert!(self.consume(Token::LParen));
-        self.skip_wsn();
-        let args;
-        if self.consume(Token::RParen) {
-            args = vec![]
-        }
-        else {
-            args = self.parse_args()?;
-            self.skip_wsn();
-            self.expect(Token::RParen)?;
-        }
-        self.lv -= 1;
-        Ok(args)
     }
 
     fn parse_args(&mut self) -> Result<Vec<ast::Expression>, Error> {
@@ -162,17 +107,21 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
+    /// Parse successive operator_exprs delimited by `,`
+    ///
+    /// May return empty Vec if there are no values
     fn parse_operator_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
         self.lv += 1; self.debug_log("parse_operator_exprs");
-        let mut v = vec![
-            self.parse_operator_expr()?
-        ];
-        loop {
-            self.skip_ws();
-            if !self.current_token_is(Token::Comma) { break }
-            self.consume_token();
-            self.skip_wsn();
-            v.push( self.parse_operator_expr()? );
+        let mut v = vec![];
+        if self.next_nonspace_token().value_starts() {
+            v.push(self.parse_operator_expr()?);
+            loop {
+                self.skip_ws();
+                if !self.current_token_is(Token::Comma) { break }
+                self.consume_token();
+                self.skip_wsn();
+                v.push( self.parse_operator_expr()? );
+            }
         }
         self.lv -= 1;
         Ok(v)
@@ -296,9 +245,11 @@ impl<'a> Parser<'a> {
         self.lv += 1; self.debug_log("parse_additive_expr");
         let left = self.parse_multiplicative_expr()?;
 
-        let op = match self.next_nonspace_token() {
-            Token::Plus => "+",
-            Token::Minus => "-",
+        let t = self.next_nonspace_token();
+        self.debug_log(&format!("self.next_nonspace_token {:?}", t));
+        let op = match t {
+            Token::BinaryPlus => "+",
+            Token::BinaryMinus => "-",
             _ => { self.lv -= 1; return Ok(left) },
         };
         self.skip_ws(); self.consume_token();
@@ -310,13 +261,7 @@ impl<'a> Parser<'a> {
 
     fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_multiplicative_expr");
-        //TODO:
-        //  parse_multiplicative_expr
-        //  parse_unary_minus_expr
-        //  parse_power_expr
-        //  parse_unary_expr
-        //  parse_secondary_expr
-        let left = self.parse_secondary_expr()?;
+        let left = self.parse_unary_minus_expr()?;
 
         let op = match self.next_nonspace_token() {
             Token::Mul => "*",
@@ -326,9 +271,27 @@ impl<'a> Parser<'a> {
         };
         self.skip_ws(); self.consume_token();
         self.skip_wsn();
-        let right = self.parse_secondary_expr()?;
+        let right = self.parse_unary_minus_expr()?;
         self.lv -= 1;
         Ok(ast::bin_op_expr(left, &op, right))
+    }
+
+    fn parse_unary_minus_expr(&mut self) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_unary_minus_expr");
+        //TODO:
+        //  parse_unary_minus_expr
+        //  parse_power_expr
+        //  parse_unary_expr
+        //  parse_secondary_expr
+        let expr = if self.consume(Token::UnaryMinus) {
+            let target = self.parse_secondary_expr()?;
+            ast::unary_expr(target, "-@")
+        }
+        else {
+            self.parse_secondary_expr()?
+        };
+        self.lv -= 1;
+        Ok(expr)
     }
 
     /// Secondary expression
@@ -391,6 +354,54 @@ impl<'a> Parser<'a> {
         }
         self.lv -= 1;
         Ok(expr)
+    }
+
+    /// Parse `.foo(args)`
+    fn parse_method_chain(&mut self, expr: ast::Expression) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_method_chain");
+        // .
+        assert!(self.consume(Token::Dot));
+        self.skip_wsn();
+
+        // Method name
+        let method_name = match self.current_token() {
+            Token::LowerWord(s) => s.clone(),
+            token => return Err(parse_error!(self, "invalid method name: {:?}", token))
+        };
+        self.consume_token();
+
+        // Args
+        let (args, may_have_paren_wo_args) = match self.current_token() {
+            // .foo(args)
+            Token::LParen => (self.parse_paren_and_args()?, false),
+            // .foo
+            _ => (vec![], true),
+        };
+
+        self.lv -= 1;
+        Ok(ast::method_call(
+                Some(expr),
+                &method_name,
+                args,
+                true,
+                may_have_paren_wo_args))
+    }
+
+    fn parse_paren_and_args(&mut self) -> Result<Vec<ast::Expression>, Error> {
+        self.lv += 1; self.debug_log("parse_paren_and_args");
+        assert!(self.consume(Token::LParen));
+        self.skip_wsn();
+        let args;
+        if self.consume(Token::RParen) {
+            args = vec![]
+        }
+        else {
+            args = self.parse_args()?;
+            self.skip_wsn();
+            self.expect(Token::RParen)?;
+        }
+        self.lv -= 1;
+        Ok(args)
     }
 
     fn parse_atomic(&mut self) -> Result<ast::Expression, Error> {
