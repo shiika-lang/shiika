@@ -23,11 +23,13 @@ pub fn create_classes() -> Vec<SkClass> {
         v.append(&mut vec![
             SkClass {
                 fullname: ClassFullname(name.to_string()),
+                superclass_fullname: ClassFullname("Object".to_string()),
                 instance_ty: ty::raw(name),
                 methods: imethods,
             },
             SkClass {
                 fullname: ClassFullname("Meta:".to_string() + name),
+                superclass_fullname: ClassFullname("Meta:Object".to_string()),
                 instance_ty: ty::meta(name),
                 methods: cmethods,
             },

@@ -66,11 +66,13 @@ impl HirMaker {
         Ok(vec![
            SkClass {
                fullname: fullname,
+               superclass_fullname: ClassFullname("Object".to_string()),
                instance_ty: instance_ty,
                methods: instance_methods
            },
            SkClass {
                fullname: meta_name,
+               superclass_fullname: ClassFullname("Meta:Object".to_string()),
                instance_ty: class_ty,
                methods: class_methods
            },
