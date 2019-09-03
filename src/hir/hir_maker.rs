@@ -64,8 +64,16 @@ impl HirMaker {
         }).collect::<Result<Vec<_>, _>>()?;
 
         Ok(vec![
-           SkClass { fullname: fullname,  instance_ty: instance_ty, methods: instance_methods },
-           SkClass { fullname: meta_name, instance_ty: class_ty,    methods: class_methods },
+           SkClass {
+               fullname: fullname,
+               instance_ty: instance_ty,
+               methods: instance_methods
+           },
+           SkClass {
+               fullname: meta_name,
+               instance_ty: class_ty,
+               methods: class_methods
+           },
         ])
     }
 
