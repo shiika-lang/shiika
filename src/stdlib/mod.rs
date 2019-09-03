@@ -20,16 +20,18 @@ pub fn create_classes() -> Vec<SkClass> {
     ];
     for t in items.into_iter() {
         let (name, imethods, cmethods) = t;
+        let super_name = if name == "Object" { None }
+                         else { Some(ClassFullname("Object".to_string())) };
         v.append(&mut vec![
             SkClass {
                 fullname: ClassFullname(name.to_string()),
-                superclass_fullname: ClassFullname("Object".to_string()),
+                superclass_fullname: super_name,
                 instance_ty: ty::raw(name),
                 methods: imethods,
             },
             SkClass {
                 fullname: ClassFullname("Meta:".to_string() + name),
-                superclass_fullname: ClassFullname("Meta:Object".to_string()),
+                superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
                 instance_ty: ty::meta(name),
                 methods: cmethods,
             },

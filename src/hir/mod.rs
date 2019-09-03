@@ -20,7 +20,7 @@ impl Hir {
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: ClassFullname,
-    pub superclass_fullname: ClassFullname,
+    pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
     pub methods: Vec<SkMethod>,
 }
