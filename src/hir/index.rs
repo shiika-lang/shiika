@@ -28,11 +28,7 @@ impl Index {
         Ok(Index { body })
     }
 
-    pub fn get(&self, class_fullname: &ClassFullname) -> Option<&HashMap<MethodName, MethodSignature>> {
-        self.body.get(class_fullname)
-    }
-
-    /// Return a signature of the given class and method
+    /// Find a method from class name and first name
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodName) -> Option<&MethodSignature> {
         self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
     }
