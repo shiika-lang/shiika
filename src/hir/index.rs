@@ -13,14 +13,11 @@ use crate::names::*;
 use crate::stdlib::Stdlib;
 
 #[derive(Debug, PartialEq)]
-pub struct Index {
-    body: IndexBody
-}
-type IndexBody = HashMap<ClassFullname, HashMap<MethodName, MethodSignature>>;
+pub struct Index(HashMap<ClassFullname, SkClass>);
 
 impl Index {
     pub fn new(stdlib: &Stdlib, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
-        let mut index = Index { body: HashMap::new() };
+        let mut index = Index(HashMap::new());
         index.index_stdlib(stdlib);
         index.index_program(toplevel_defs)?;
         Ok(index)
@@ -28,26 +25,23 @@ impl Index {
 
     /// Find a method from class name and first name
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodName) -> Option<&MethodSignature> {
-        self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
+        self.0.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
     /// Return true if there is a class of the name
     pub fn class_exists(&self, class_fullname: &str) -> bool {
-        self.body.contains_key(&ClassFullname(class_fullname.to_string()))
+        self.0.contains_key(&ClassFullname(class_fullname.to_string()))
     }
 
-    /// Register a class and its methods
-    fn add_class(&mut self, class_fullname: ClassFullname, sk_methods: Vec<SkMethod>) {
-        self.body.insert(class_fullname, sk_methods)
+    /// Register a class
+    fn add_class(&mut self, class: SkClass) {
+        self.0.insert(class.fullname.clone(), class);
     }
 
     fn index_stdlib(&mut self, stdlib: &Stdlib) {
         stdlib.sk_classes.values().for_each(|sk_class| {
-            let mut sk_methods = HashMap::new();
-            sk_class.method_sigs.iter().for_each(|sig| {
-                sk_methods.insert(sig.name.clone(), sig.clone());
-            });
-            self.add_class(sk_class.fullname.clone(), sk_methods);
+            // TODO: avoid this clone
+            self.add_class(sk_class.clone());
         });
     }
 
@@ -70,7 +64,7 @@ impl Index {
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
 
-        let metaclass_fullname = class_ty.fullname;
+        let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
 
@@ -88,7 +82,18 @@ impl Index {
             }
         });
 
-        self.add_class(class_fullname, instance_methods);
-        self.add_class(metaclass_fullname, class_methods);
+        self.add_class(SkClass {
+            fullname: class_fullname,
+            superclass_fullname: if name.0 == "Object" { None }
+                                 else { Some(ClassFullname("Object".to_string())) },
+            instance_ty: instance_ty,
+            method_sigs: instance_methods,
+        });
+        self.add_class(SkClass {
+            fullname: metaclass_fullname,
+            superclass_fullname: Some(ClassFullname("Object".to_string())),
+            instance_ty: class_ty,
+            method_sigs: class_methods,
+        });
     }
 }

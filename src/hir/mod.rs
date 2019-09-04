@@ -20,12 +20,12 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
-    pub method_sigs: Vec<MethodSignature>,
+    pub method_sigs: HashMap<MethodName, MethodSignature>,
 }
 impl SkClass {
     pub fn class_ty(&self) -> TermTy {

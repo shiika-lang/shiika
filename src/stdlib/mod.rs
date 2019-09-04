@@ -44,7 +44,9 @@ impl Stdlib {
                     fullname: ClassFullname(name.to_string()),
                     superclass_fullname: super_name,
                     instance_ty: ty::raw(name),
-                    method_sigs: imethods.iter().map(|x| x.signature.clone()).collect(),
+                    method_sigs: imethods.iter().map(|x|
+                        (x.signature.name.clone(), x.signature.clone())
+                    ).collect(),
                 }
             );
             sk_classes.insert(
@@ -53,7 +55,9 @@ impl Stdlib {
                     fullname: ClassFullname("Meta:".to_string() + name),
                     superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
                     instance_ty: ty::meta(name),
-                    method_sigs: cmethods.iter().map(|x| x.signature.clone()).collect(),
+                    method_sigs: cmethods.iter().map(|x|
+                        (x.signature.name.clone(), x.signature.clone())
+                    ).collect(),
                 }
             );
             sk_methods.insert(

@@ -101,7 +101,9 @@ impl HirMaker {
                fullname: fullname,
                superclass_fullname: Some(ClassFullname("Object".to_string())),
                instance_ty: instance_ty,
-               method_sigs: instance_methods.iter().map(|x| x.signature.clone()).collect(),
+               method_sigs: instance_methods.iter().map(|x|
+                   (x.signature.name.clone(), x.signature.clone())
+               ).collect(),
            },
            instance_methods
         );
@@ -111,7 +113,9 @@ impl HirMaker {
                fullname: meta_name,
                superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
                instance_ty: class_ty,
-               method_sigs: class_methods.iter().map(|x| x.signature.clone()).collect(),
+               method_sigs: class_methods.iter().map(|x|
+                   (x.signature.name.clone(), x.signature.clone())
+               ).collect(),
            },
            class_methods
         );
