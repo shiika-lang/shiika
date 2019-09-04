@@ -36,13 +36,18 @@ impl Index {
         self.body.contains_key(&ClassFullname(class_fullname.to_string()))
     }
 
+    /// Register a class and its methods
+    fn add_class(&mut self, class_fullname: ClassFullname, sk_methods: Vec<SkMethod>) {
+        self.body.insert(class_fullname, sk_methods)
+    }
+
     fn index_stdlib(&mut self, stdlib: &Stdlib) {
         stdlib.sk_classes.values().for_each(|sk_class| {
             let mut sk_methods = HashMap::new();
             sk_class.method_sigs.iter().for_each(|sig| {
                 sk_methods.insert(sig.name.clone(), sig.clone());
             });
-            self.body.insert(sk_class.fullname.clone(), sk_methods);
+            self.add_class(sk_class.fullname.clone(), sk_methods);
         });
     }
 
@@ -83,7 +88,7 @@ impl Index {
             }
         });
 
-        self.body.insert(class_fullname, instance_methods);
-        self.body.insert(metaclass_fullname, class_methods);
+        self.add_class(class_fullname, instance_methods);
+        self.add_class(metaclass_fullname, class_methods);
     }
 }
