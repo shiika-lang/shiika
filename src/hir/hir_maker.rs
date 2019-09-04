@@ -251,7 +251,7 @@ impl HirMaker {
                          _ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {
         // TODO: nested class, constants
-        if self.index.body.contains_key(&ClassFullname(name.to_string())) {
+        if self.index.class_exists(&name) {
             let ty = ty::meta(name);
             Ok(Hir::const_ref(ty, ConstFullname(name.to_string())))
         }

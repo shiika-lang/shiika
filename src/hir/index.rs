@@ -14,7 +14,7 @@ use crate::stdlib::Stdlib;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
-    pub body: IndexBody
+    body: IndexBody
 }
 type IndexBody = HashMap<ClassFullname, HashMap<MethodName, MethodSignature>>;
 
@@ -32,8 +32,14 @@ impl Index {
         self.body.get(class_fullname)
     }
 
+    /// Return a signature of the given class and method
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodName) -> Option<&MethodSignature> {
         self.body.get(class_fullname).and_then(|methods| methods.get(method_name))
+    }
+
+    /// Return true if there is a class of the name
+    pub fn class_exists(&self, class_fullname: &str) -> bool {
+        self.body.contains_key(&ClassFullname(class_fullname.to_string()))
     }
 }
 
