@@ -7,6 +7,7 @@ use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
 use crate::names::*;
+use crate::stdlib::Stdlib;
 
 pub struct CodeGen {
     pub context: inkwell::context::Context,
@@ -41,10 +42,13 @@ impl CodeGen {
         }
     }
 
-    pub fn gen_program(&mut self, hir: Hir, stdlib: &Vec<SkClass>) -> Result<(), Error> {
-        let classes: Vec<&SkClass> = stdlib.iter().chain(hir.sk_classes.iter()).collect();
+    pub fn gen_program(&mut self, hir: Hir, stdlib: &Stdlib) -> Result<(), Error> {
+        let classes: HashMap<&ClassFullname, &SkClass> = 
+            stdlib.sk_classes.iter().chain(hir.sk_classes.iter()).collect();
+
         self.gen_declares();
-        self.gen_classes(&classes)?;
+        self.gen_classes(&classes);
+        self.gen_methods(&classes, &stdlib.sk_methods)?;
         self.gen_constant_ptrs(&classes);
         self.gen_initialize_constants(&classes);
         self.gen_main(&hir.main_exprs)?;
@@ -71,8 +75,8 @@ impl CodeGen {
         self.module.add_function("fabs", fn_type, None);
     }
 
-    fn gen_constant_ptrs(&self, classes: &Vec<&SkClass>) {
-        classes.iter().filter(|class|
+    fn gen_constant_ptrs(&self, classes: &HashMap<&ClassFullname, &SkClass>) {
+        classes.values().filter(|class|
             class.instance_ty.is_nonmeta()
         ).for_each(|class| {
             let ty = class.class_ty();
@@ -84,13 +88,13 @@ impl CodeGen {
         })
     }
 
-    fn gen_initialize_constants(&mut self, classes: &Vec<&SkClass>) {
+    fn gen_initialize_constants(&mut self, classes: &HashMap<&ClassFullname, &SkClass>) {
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("initialize_constants", fn_type, None);
         let basic_block = self.context.append_basic_block(&function, "");
         self.builder.position_at_end(&basic_block);
 
-        classes.iter().filter(|class|
+        classes.values().filter(|class|
             class.instance_ty.is_nonmeta()
         ).for_each(|class| {
             let const_name = ConstFullname(class.fullname.0.to_string());
@@ -130,26 +134,30 @@ impl CodeGen {
         Ok(())
     }
 
-    fn gen_classes(&mut self, classes: &Vec<&SkClass>) -> Result<(), Error> {
+    fn gen_classes(&mut self, classes: &HashMap<&ClassFullname, &SkClass>) {
         // Create llvm struct types
-        classes.iter().for_each(|sk_class| {
+        classes.values().for_each(|sk_class| {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
                 self.llvm_struct_type(&sk_class.fullname.0));
-        });
+        })
+    }
 
-        // Compile methods
-        classes.iter().try_for_each(|sk_class| {
-            sk_class.methods.iter().try_for_each(|method| {
+    fn gen_methods(&self, 
+                   classes: &HashMap<&ClassFullname, &SkClass>,
+                   methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
+        methods.iter().try_for_each(|(cname, sk_methods)| {
+            let sk_class = classes.get(cname).expect("missing class");
+            sk_methods.iter().try_for_each(|method|
                 self.gen_method(&sk_class, &method)
-            })
+            )
         })
     }
 
     fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
         // LLVM function
         let func_type = self.llvm_func_type(&sk_class.instance_ty, &method.signature);
-        let function = self.module.add_function(&method.signature.fullname.0, func_type, None);
+        let function = self.module.add_function(&method.signature.fullname.full_name, func_type, None);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
@@ -289,7 +297,7 @@ impl CodeGen {
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(&method_fullname.0).expect("[BUG] get_function not found");
+        let function = self.module.get_function(&method_fullname.full_name).expect("[BUG] get_function not found");
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {

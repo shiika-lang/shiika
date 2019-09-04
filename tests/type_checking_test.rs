@@ -1,5 +1,6 @@
 use shiika::hir::*;
 use shiika::ty;
+use shiika::stdlib::Stdlib;
 
 #[test]
 fn test_discarding_return_value() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,8 +12,8 @@ fn test_discarding_return_value() -> Result<(), Box<dyn std::error::Error>> {
       end
     ";
     let ast = shiika::parser::Parser::parse(src)?;
-    let hir = shiika::hir::Hir::from_ast(ast, &vec![])?;
-    let method = &hir.sk_classes[0].methods[0];
+    let hir = shiika::hir::Hir::from_ast(ast, &Stdlib::empty())?;
+    let method = &hir.sk_methods.values().next().unwrap()[0];
     assert_eq!(method.signature.ret_ty, ty::raw("Void"));
     assert_eq!(method.body, SkMethodBody::ShiikaMethodBody {
         exprs: HirExpressions {

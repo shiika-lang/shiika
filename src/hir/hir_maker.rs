@@ -6,6 +6,29 @@ use crate::hir::hir_maker_context::HirMakerContext;
 use crate::type_checking;
 use crate::parser::token::Token;
 
+struct ClassesAndMethods((HashMap<ClassFullname, SkClass>,
+                          HashMap<ClassFullname, Vec<SkMethod>>));
+
+impl ClassesAndMethods {
+    pub fn new() -> ClassesAndMethods {
+        ClassesAndMethods((HashMap::new(), HashMap::new()))
+    }
+
+    /// Merge `other` into self
+    pub fn extend(&mut self, other: ClassesAndMethods) {
+        (self.0).0.extend((other.0).0);
+        (self.0).1.extend((other.0).1);
+    }
+
+    pub fn add_class(&mut self,
+                     class_name: ClassFullname,
+                     class: SkClass,
+                     methods: Vec<SkMethod>) {
+        (self.0).0.insert(class_name.clone(), class);
+        (self.0).1.insert(class_name,         methods);
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
     pub index: crate::hir::index::Index
@@ -17,15 +40,18 @@ impl HirMaker {
     }
 
     pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
-        let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
+        let ClassesAndMethods((sk_classes, sk_methods)) = self.convert_toplevel_defs(&prog.toplevel_defs)?;
 
         let main_exprs = self.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
 
-        Ok(Hir { sk_classes, main_exprs } )
+        Ok(Hir { sk_classes, sk_methods, main_exprs } )
     }
 
-    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
-        let pairs = toplevel_defs.iter().map(|def| {
+    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>)
+                            -> Result<ClassesAndMethods, Error> {
+        let mut ret = ClassesAndMethods::new();
+
+        let results = toplevel_defs.iter().map(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
                     self.convert_class_def(&name, &defs)
@@ -33,11 +59,16 @@ impl HirMaker {
                 _ => panic!("should be checked in hir::index")
             }
         }).collect::<Result<Vec<_>, _>>()?;
-        Ok(pairs.into_iter().flatten().collect())
+
+        results.into_iter().for_each(|classes_and_methods| {
+            ret.extend(classes_and_methods);
+        });
+        Ok(ret)
     }
 
     /// Create SkClass and its metaclass
-    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
+    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>)
+                        -> Result<ClassesAndMethods, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
@@ -63,20 +94,28 @@ impl HirMaker {
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        Ok(vec![
+        let mut ret = ClassesAndMethods::new();
+        ret.add_class(
+           fullname.clone(),
            SkClass {
                fullname: fullname,
                superclass_fullname: Some(ClassFullname("Object".to_string())),
                instance_ty: instance_ty,
-               methods: instance_methods
+               method_sigs: instance_methods.iter().map(|x| x.signature.clone()).collect(),
            },
+           instance_methods
+        );
+        ret.add_class(
+           meta_name.clone(),
            SkClass {
                fullname: meta_name,
                superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
                instance_ty: class_ty,
-               methods: class_methods
+               method_sigs: class_methods.iter().map(|x| x.signature.clone()).collect(),
            },
-        ])
+           class_methods
+        );
+        Ok(ret)
     }
 
     fn convert_method_def(&self,

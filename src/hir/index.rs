@@ -10,6 +10,7 @@ use crate::error::*;
 use crate::hir::*;
 use crate::ty::*;
 use crate::names::*;
+use crate::stdlib::Stdlib;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
@@ -18,7 +19,7 @@ pub struct Index {
 type IndexBody = HashMap<ClassFullname, HashMap<MethodName, MethodSignature>>;
 
 impl Index {
-    pub fn new(stdlib: &Vec<SkClass>, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
+    pub fn new(stdlib: &Stdlib, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
         let mut body = HashMap::new();
 
         index_stdlib(&mut body, stdlib);
@@ -36,12 +37,11 @@ impl Index {
     }
 }
 
-fn index_stdlib(body: &mut IndexBody, stdlib: &Vec<SkClass>) {
-    stdlib.iter().for_each(|sk_class| {
+fn index_stdlib(body: &mut IndexBody, stdlib: &Stdlib) {
+    stdlib.sk_classes.values().for_each(|sk_class| {
         let mut sk_methods = HashMap::new();
-        sk_class.methods.iter().for_each(|sk_method| {
-            sk_methods.insert(sk_method.signature.name.clone(),
-                              sk_method.signature.clone());
+        sk_class.method_sigs.iter().for_each(|sig| {
+            sk_methods.insert(sig.name.clone(), sig.clone());
         });
         body.insert(sk_class.fullname.clone(), sk_methods);
     });

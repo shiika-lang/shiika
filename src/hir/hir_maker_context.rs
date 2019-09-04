@@ -27,7 +27,7 @@ impl HirMakerContext {
     pub fn toplevel() -> HirMakerContext {
         let dummy_sig = MethodSignature {
             name: MethodName("(dummy)".to_string()),
-            fullname: MethodFullname("(dummy)".to_string()),
+            fullname: MethodFullname { full_name: "(dummy)".to_string(), first_name: "(dummy)".to_string() },
             ret_ty: ty::raw("Void"),
             params: vec![],
         };
