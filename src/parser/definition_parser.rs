@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
                 is_class_method = true;
             }
             else {
-                name = Some(MethodName("self".to_string()));
+                name = Some(MethodFirstName("self".to_string()));
             }
         }
 
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
                 }
             }
-            name = Some(MethodName(name_str.to_string()));
+            name = Some(MethodFirstName(name_str.to_string()));
             self.consume_token();
         }
         self.skip_ws();

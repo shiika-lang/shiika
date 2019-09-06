@@ -27,7 +27,7 @@ fn test_class_with_empty_method() {
             defs: vec![
                 ast::Definition::InstanceMethodDefinition {
                     sig: ast::MethodSignature {
-                        name: MethodName("foo".to_string()),
+                        name: MethodFirstName("foo".to_string()),
                         params: vec![],
                         ret_typ: ast::Typ { name: "Void".to_string() },
                     },
@@ -44,7 +44,7 @@ fn test_method_with_params() {
     let result = parser.parse_method_definition();
     assert_eq!(result.unwrap(), ast::Definition::InstanceMethodDefinition {
         sig: ast::MethodSignature {
-            name: MethodName("foo".to_string()),
+            name: MethodFirstName("foo".to_string()),
             params: vec![
                 ast::Param { name: "a".to_string(), typ: ast::Typ { name: "Int".to_string() }},
                 ast::Param { name: "b".to_string(), typ: ast::Typ { name: "Float".to_string() }},
@@ -61,7 +61,7 @@ fn test_method_with_explicit_return_type() {
     let result = parser.parse_method_definition();
     assert_eq!(result.unwrap(), ast::Definition::InstanceMethodDefinition {
         sig: ast::MethodSignature {
-            name: MethodName("foo".to_string()),
+            name: MethodFirstName("foo".to_string()),
             params: vec![],
             ret_typ: ast::Typ { name: "Int".to_string() },
         },
@@ -75,7 +75,7 @@ fn test_class_method_def() {
     let result = parser.parse_method_definition();
     assert_eq!(result.unwrap(), ast::Definition::ClassMethodDefinition {
         sig: ast::MethodSignature {
-            name: MethodName("foo".to_string()),
+            name: MethodFirstName("foo".to_string()),
             params: vec![],
             ret_typ: ast::Typ { name: "Void".to_string() },
         },

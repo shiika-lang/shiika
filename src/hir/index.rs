@@ -28,7 +28,7 @@ impl Index {
     }
 
     /// Find a method from class name and first name
-    pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodName) -> Option<&MethodSignature> {
+    pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstName) -> Option<&MethodSignature> {
         self.0.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 

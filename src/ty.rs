@@ -127,7 +127,7 @@ impl MethodSignature {
         self.params.iter().enumerate().find(|(_, param)| param.name == name)
     }
 
-    pub fn first_name(&self) -> &MethodName {
+    pub fn first_name(&self) -> &MethodFirstName {
         &self.fullname.first_name
     }
 }

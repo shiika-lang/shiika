@@ -18,9 +18,9 @@ impl std::fmt::Display for ClassFullname {
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
-pub struct MethodName(pub String);
+pub struct MethodFirstName(pub String);
 
-impl std::fmt::Display for MethodName {
+impl std::fmt::Display for MethodFirstName {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -29,7 +29,7 @@ impl std::fmt::Display for MethodName {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname {
     pub full_name: String,
-    pub first_name: MethodName,
+    pub first_name: MethodFirstName,
 }
 
 impl std::fmt::Display for MethodFullname {

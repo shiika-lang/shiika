@@ -39,7 +39,7 @@ pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
-    pub method_sigs: HashMap<MethodName, MethodSignature>,
+    pub method_sigs: HashMap<MethodFirstName, MethodSignature>,
 }
 impl SkClass {
     pub fn class_ty(&self) -> TermTy {
