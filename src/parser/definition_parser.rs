@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_method_signature(&mut self) -> Result<(ast::MethodSignature, bool), Error> {
+    pub fn parse_method_signature(&mut self) -> Result<(ast::AstMethodSignature, bool), Error> {
         let mut name = None;
         let params;
         let ret_typ;
@@ -140,7 +140,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let sig = ast::MethodSignature { name: name.unwrap(), params, ret_typ };
+        let sig = ast::AstMethodSignature { name: name.unwrap(), params, ret_typ };
         Ok((sig, is_class_method))
     }
 

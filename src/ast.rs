@@ -18,17 +18,17 @@ pub enum Definition {
         body_exprs: Vec<Expression>,
     },
     InstanceMethodDefinition {
-        sig: MethodSignature,
+        sig: AstMethodSignature,
         body_exprs: Vec<Expression>,
     },
     ClassMethodDefinition {
-        sig: MethodSignature,
+        sig: AstMethodSignature,
         body_exprs: Vec<Expression>,
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct MethodSignature { // REFACTOR: rename (MethodSig or MethodSignatureAst)
+pub struct AstMethodSignature {
     pub name: MethodFirstName,
     pub params: Vec<Param>,
     pub ret_typ: Typ,

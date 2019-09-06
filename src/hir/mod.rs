@@ -206,7 +206,7 @@ impl Hir {
 }
 
 /// Create `hir::MethodSignature` from `ast::MethodSignature`
-pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
+pub fn create_signature(class_fullname: String, sig: &ast::AstMethodSignature) -> MethodSignature {
     let fullname = MethodFullname {
         full_name: (class_fullname + "#" + &sig.name.0),
         first_name: sig.name.clone(),
