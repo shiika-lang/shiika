@@ -29,7 +29,7 @@ impl std::fmt::Display for MethodName {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname {
     pub full_name: String,
-    pub first_name: String,
+    pub first_name: MethodName,
 }
 
 impl std::fmt::Display for MethodFullname {

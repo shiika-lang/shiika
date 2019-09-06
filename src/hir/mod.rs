@@ -207,17 +207,16 @@ impl Hir {
 
 /// Create `hir::MethodSignature` from `ast::MethodSignature`
 pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
-    let name = sig.name.clone();
     let fullname = MethodFullname {
         full_name: (class_fullname + "#" + &sig.name.0),
-        first_name: sig.name.to_string(),
+        first_name: sig.name.clone(),
     };
     let ret_ty = convert_typ(&sig.ret_typ);
     let params = sig.params.iter().map(|param|
         MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }
     ).collect();
 
-    MethodSignature { name, fullname, ret_ty, params }
+    MethodSignature { fullname, ret_ty, params }
 }
 
 fn convert_typ(typ: &ast::Typ) -> TermTy {
