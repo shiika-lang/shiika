@@ -58,7 +58,10 @@ pub enum SkMethodBody {
         exprs: HirExpressions
     },
     RustMethodBody {
-        gen: GenMethodBody // TODO: better name
+        gen: GenMethodBody
+    },
+    RustClosureMethodBody {
+        boxed_gen: Box<ClosureMethodBody>
     }
 }
 // Manually deriving because GenMethodBody is a function (auto-deriving seems unsupported)
@@ -74,16 +77,18 @@ impl std::cmp::PartialEq for SkMethodBody {
                 match other {
                     SkMethodBody::ShiikaMethodBody { exprs: exprs2 } => return exprs == exprs2,
                     SkMethodBody::RustMethodBody { .. } => (),
+                    SkMethodBody::RustClosureMethodBody { .. } => (),
                 }
             },
             SkMethodBody::RustMethodBody { .. } => (),
+            SkMethodBody::RustClosureMethodBody { .. } => (),
         }
         panic!("cannot compare RustMethodBody");
     }
 }
 
-pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen,
-                function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
+pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen, function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
+pub type ClosureMethodBody = dyn Fn(&crate::code_gen::CodeGen, &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
 
 #[derive(Debug, PartialEq)]
 pub struct HirExpressions {

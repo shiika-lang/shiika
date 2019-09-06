@@ -174,6 +174,9 @@ impl CodeGen {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
+            SkMethodBody::RustClosureMethodBody { boxed_gen } => {
+                boxed_gen(self, &function)?
+            },
             SkMethodBody::ShiikaMethodBody { exprs }=> {
                 self.gen_shiika_method_body(function,
                                             method.signature.ret_ty.is_void_type(),

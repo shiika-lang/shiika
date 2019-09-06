@@ -90,6 +90,10 @@ impl Index {
             }
         });
 
+        // Add `.new` to the metaclass
+        let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
+        class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+
         self.add_class(SkClass {
             fullname: class_fullname,
             superclass_fullname: if name.0 == "Object" { None }
