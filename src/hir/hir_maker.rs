@@ -240,7 +240,6 @@ impl<'a> HirMaker<'a> {
                      receiver_class_fullname: &ClassFullname,
                      class_fullname: &ClassFullname,
                      method_name: &MethodFirstName) -> Result<&MethodSignature, Error> {
-        println!("lookup_method: {:?} on {:?}", method_name, class_fullname);
         let found = self.index.find_method(class_fullname, method_name);
         if let Some(sig) = found {
             Ok(sig)
