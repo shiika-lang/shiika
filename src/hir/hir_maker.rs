@@ -51,7 +51,7 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Create SkClass and its metaclass
-    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>)
+    fn convert_class_def(&self, name: &ClassFirstName, defs: &Vec<ast::Definition>)
                         -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();

@@ -67,7 +67,7 @@ impl Index {
         })
     }
 
-    fn index_class(&mut self, name: &ClassName, defs: &Vec<ast::Definition>) {
+    fn index_class(&mut self, name: &ClassFirstName, defs: &Vec<ast::Definition>) {
         let class_fullname = name.to_class_fullname(); // TODO: nested class
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();

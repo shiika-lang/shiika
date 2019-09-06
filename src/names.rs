@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassName(pub String);
+pub struct ClassFirstName(pub String);
 
-impl ClassName {
+impl ClassFirstName {
     // TODO: remove this after nested class is supported
     pub fn to_class_fullname(&self) -> ClassFullname {
         ClassFullname(self.0.clone())

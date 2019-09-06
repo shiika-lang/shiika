@@ -12,7 +12,7 @@ fn test_emtpy_class() {
     let result = parse_definitions("class A; end");
     assert_eq!(result.unwrap(), vec![ 
         ast::Definition::ClassDefinition {
-            name: ClassName("A".to_string()),
+            name: ClassFirstName("A".to_string()),
             defs: vec![]
         }
     ])
@@ -23,7 +23,7 @@ fn test_class_with_empty_method() {
     let result = parse_definitions("class A; def foo; end; end");
     assert_eq!(result.unwrap(), vec![
         ast::Definition::ClassDefinition {
-            name: ClassName("A".to_string()),
+            name: ClassFirstName("A".to_string()),
             defs: vec![
                 ast::Definition::InstanceMethodDefinition {
                     sig: ast::AstMethodSignature {
