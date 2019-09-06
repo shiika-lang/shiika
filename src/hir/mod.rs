@@ -1,27 +1,45 @@
 mod hir_maker;
 mod hir_maker_context;
 mod index;
+use std::collections::HashMap;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
 use crate::names::*;
+use crate::stdlib::Stdlib;
 
 pub struct Hir {
-    pub sk_classes: Vec<SkClass>,
+    pub sk_classes: HashMap<ClassFullname, SkClass>,
+    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: &Vec<SkClass>) -> Result<Hir, crate::error::Error> {
-        let index = index::Index::new(stdlib, &ast.toplevel_defs)?;
-        hir_maker::HirMaker::new(index).convert_program(ast)
+    pub fn from_ast(ast: ast::Program, stdlib: Stdlib) -> Result<Hir, crate::error::Error> {
+        let index = index::Index::new(stdlib.sk_classes, &ast.toplevel_defs)?;
+        let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
+
+        // While stdlib classes are included in `index`,
+        // stdlib methods are not. Here we need to add them manually
+        hir.add_methods(stdlib.sk_methods);
+
+        Ok(hir)
+    }
+
+    pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
+        self.sk_classes.extend(sk_classes)
+    }
+
+    pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
+        self.sk_methods.extend(sk_methods)
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: ClassFullname,
+    pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
-    pub methods: Vec<SkMethod>,
+    pub method_sigs: HashMap<MethodName, MethodSignature>,
 }
 impl SkClass {
     pub fn class_ty(&self) -> TermTy {
@@ -187,9 +205,13 @@ impl Hir {
     }
 }
 
+/// Create `hir::MethodSignature` from `ast::MethodSignature`
 pub fn create_signature(class_fullname: String, sig: &ast::MethodSignature) -> MethodSignature {
     let name = sig.name.clone();
-    let fullname = MethodFullname(class_fullname + "#" + &sig.name.0);
+    let fullname = MethodFullname {
+        full_name: (class_fullname + "#" + &sig.name.0),
+        first_name: sig.name.to_string(),
+    };
     let ret_ty = convert_typ(&sig.ret_typ);
     let params = sig.params.iter().map(|param|
         MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }

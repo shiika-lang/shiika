@@ -2,30 +2,40 @@ use crate::ast;
 use crate::error;
 use crate::error::Error;
 use crate::hir::*;
+use crate::hir::index::Index;
 use crate::hir::hir_maker_context::HirMakerContext;
 use crate::type_checking;
 use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
-pub struct HirMaker {
-    pub index: crate::hir::index::Index
+pub struct HirMaker<'a> {
+    pub index: &'a Index
 }
 
-impl HirMaker {
-    pub fn new(index: crate::hir::index::Index) -> HirMaker {
+impl<'a> HirMaker<'a> {
+    fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
         HirMaker { index }
     }
 
-    pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
-        let sk_classes = self.convert_toplevel_defs(&prog.toplevel_defs)?;
+    pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
+        let hir_maker = HirMaker::new(&index);
 
-        let main_exprs = self.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
-
-        Ok(Hir { sk_classes, main_exprs } )
+        let sk_methods =
+            hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
+        let main_exprs =
+            hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
+        Ok(Hir {
+            sk_classes: index.sk_classes(),
+            sk_methods,
+            main_exprs,
+        })
     }
 
-    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
-        let pairs = toplevel_defs.iter().map(|def| {
+    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>)
+                            -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
+        let mut ret = HashMap::new();
+
+        let results = toplevel_defs.iter().map(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
                     self.convert_class_def(&name, &defs)
@@ -33,11 +43,16 @@ impl HirMaker {
                 _ => panic!("should be checked in hir::index")
             }
         }).collect::<Result<Vec<_>, _>>()?;
-        Ok(pairs.into_iter().flatten().collect())
+
+        results.into_iter().for_each(|methods| {
+            ret.extend(methods);
+        });
+        Ok(ret)
     }
 
     /// Create SkClass and its metaclass
-    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>) -> Result<Vec<SkClass>, Error> {
+    fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>)
+                        -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
@@ -63,10 +78,10 @@ impl HirMaker {
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        Ok(vec![
-           SkClass { fullname: fullname,  instance_ty: instance_ty, methods: instance_methods },
-           SkClass { fullname: meta_name, instance_ty: class_ty,    methods: class_methods },
-        ])
+        let mut ret = HashMap::new();
+        ret.insert(fullname, instance_methods);
+        ret.insert(meta_name, class_methods);
+        Ok(ret)
     }
 
     fn convert_method_def(&self,
@@ -202,7 +217,7 @@ impl HirMaker {
                          _ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {
         // TODO: nested class, constants
-        if self.index.body.contains_key(&ClassFullname(name.to_string())) {
+        if self.index.class_exists(&name) {
             let ty = ty::meta(name);
             Ok(Hir::const_ref(ty, ConstFullname(name.to_string())))
         }
@@ -212,7 +227,8 @@ impl HirMaker {
     }
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodName, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
-        let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
+        let class_fullname = &receiver_hir.ty.fullname;
+        let sig = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
         type_checking::check_method_args(&sig, &param_tys)?;
@@ -220,10 +236,25 @@ impl HirMaker {
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
-    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &MethodName) -> Result<&MethodSignature, Error> {
-        let class_fullname = &receiver_ty.fullname;
-        self.index.get(class_fullname)
-            .and_then(|sk_methods| sk_methods.get(method_name))
-            .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, class_fullname)))
+    fn lookup_method(&self, 
+                     receiver_class_fullname: &ClassFullname,
+                     class_fullname: &ClassFullname,
+                     method_name: &MethodName) -> Result<&MethodSignature, Error> {
+        println!("lookup_method: {:?} on {:?}", method_name, class_fullname);
+        let found = self.index.find_method(class_fullname, method_name);
+        if let Some(sig) = found {
+            Ok(sig)
+        }
+        else {
+            // Look up in superclass
+            let sk_class = self.index.find_class(class_fullname)
+                .expect("[BUG] lookup_method: class not found");
+            if let Some(super_name) = &sk_class.superclass_fullname {
+                self.lookup_method(receiver_class_fullname, super_name, method_name)
+            }
+            else {
+                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
+            }
+        }
     }
 }

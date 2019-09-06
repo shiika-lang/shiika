@@ -27,11 +27,14 @@ impl std::fmt::Display for MethodName {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MethodFullname(pub String);
+pub struct MethodFullname {
+    pub full_name: String,
+    pub first_name: String,
+}
 
 impl std::fmt::Display for MethodFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.full_name)
     }
 }
 
