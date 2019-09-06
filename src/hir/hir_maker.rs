@@ -227,7 +227,8 @@ impl<'a> HirMaker<'a> {
     }
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodName, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
-        let sig = self.lookup_method(&receiver_hir.ty, method_name)?;
+        let class_fullname = &receiver_hir.ty.fullname;
+        let sig = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
         type_checking::check_method_args(&sig, &param_tys)?;
@@ -235,9 +236,25 @@ impl<'a> HirMaker<'a> {
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
-    fn lookup_method(&self, receiver_ty: &TermTy, method_name: &MethodName) -> Result<&MethodSignature, Error> {
-        let class_fullname = &receiver_ty.fullname;
-        self.index.find_method(class_fullname, method_name)
-            .ok_or(error::program_error(&format!("method {:?} not found on {:?}", method_name, class_fullname)))
+    fn lookup_method(&self, 
+                     receiver_class_fullname: &ClassFullname,
+                     class_fullname: &ClassFullname,
+                     method_name: &MethodName) -> Result<&MethodSignature, Error> {
+        println!("lookup_method: {:?} on {:?}", method_name, class_fullname);
+        let found = self.index.find_method(class_fullname, method_name);
+        if let Some(sig) = found {
+            Ok(sig)
+        }
+        else {
+            // Look up in superclass
+            let sk_class = self.index.find_class(class_fullname)
+                .expect("[BUG] lookup_method: class not found");
+            if let Some(super_name) = &sk_class.superclass_fullname {
+                self.lookup_method(receiver_class_fullname, super_name, method_name)
+            }
+            else {
+                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
+            }
+        }
     }
 }

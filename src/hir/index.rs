@@ -32,6 +32,11 @@ impl Index {
         self.0.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
+    /// Find a class
+    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+        self.0.get(class_fullname)
+    }
+
     /// Return true if there is a class of the name
     pub fn class_exists(&self, class_fullname: &str) -> bool {
         self.0.contains_key(&ClassFullname(class_fullname.to_string()))
