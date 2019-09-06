@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         // Class name
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = ClassName(s.to_string());
+                name = ClassFirstname(s.to_string());
                 self.consume_token();
             },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_method_signature(&mut self) -> Result<(ast::MethodSignature, bool), Error> {
+    pub fn parse_method_signature(&mut self) -> Result<(ast::AstMethodSignature, bool), Error> {
         let mut name = None;
         let params;
         let ret_typ;
@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
                 is_class_method = true;
             }
             else {
-                name = Some(MethodName("self".to_string()));
+                name = Some(MethodFirstname("self".to_string()));
             }
         }
 
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
                 }
             }
-            name = Some(MethodName(name_str.to_string()));
+            name = Some(MethodFirstname(name_str.to_string()));
             self.consume_token();
         }
         self.skip_ws();
@@ -140,7 +140,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let sig = ast::MethodSignature { name: name.unwrap(), params, ret_typ };
+        let sig = ast::AstMethodSignature { name: name.unwrap(), params, ret_typ };
         Ok((sig, is_class_method))
     }
 
