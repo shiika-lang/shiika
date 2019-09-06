@@ -293,7 +293,8 @@ impl CodeGen {
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(&method_fullname.full_name).expect("[BUG] get_function not found");
+        let function = self.module.get_function(&method_fullname.full_name)
+            .expect(&format!("[BUG] get_function not found: {:?}", method_fullname));
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
