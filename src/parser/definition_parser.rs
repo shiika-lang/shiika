@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         // Class name
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = ClassFirstName(s.to_string());
+                name = ClassFirstname(s.to_string());
                 self.consume_token();
             },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
                 is_class_method = true;
             }
             else {
-                name = Some(MethodFirstName("self".to_string()));
+                name = Some(MethodFirstname("self".to_string()));
             }
         }
 
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
                 }
             }
-            name = Some(MethodFirstName(name_str.to_string()));
+            name = Some(MethodFirstname(name_str.to_string()));
             self.consume_token();
         }
         self.skip_ws();

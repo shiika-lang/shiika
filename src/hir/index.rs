@@ -28,7 +28,7 @@ impl Index {
     }
 
     /// Find a method from class name and first name
-    pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstName) -> Option<&MethodSignature> {
+    pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstname) -> Option<&MethodSignature> {
         self.0.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
@@ -67,7 +67,7 @@ impl Index {
         })
     }
 
-    fn index_class(&mut self, name: &ClassFirstName, defs: &Vec<ast::Definition>) {
+    fn index_class(&mut self, name: &ClassFirstname, defs: &Vec<ast::Definition>) {
         let class_fullname = name.to_class_fullname(); // TODO: nested class
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();

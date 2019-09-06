@@ -10,7 +10,7 @@ pub struct Program {
 #[derive(Debug, PartialEq)]
 pub enum Definition {
     ClassDefinition {
-        name: ClassFirstName,
+        name: ClassFirstname,
         defs: Vec<Definition>,
     },
     InitializerDefinition {
@@ -29,7 +29,7 @@ pub enum Definition {
 
 #[derive(Debug, PartialEq)]
 pub struct AstMethodSignature {
-    pub name: MethodFirstName,
+    pub name: MethodFirstname,
     pub params: Vec<Param>,
     pub ret_typ: Typ,
 }
@@ -83,7 +83,7 @@ pub enum ExpressionBody {
     },
     MethodCall {
         receiver_expr: Option<Box<Expression>>, // Box is needed to aboid E0072
-        method_name: MethodFirstName,
+        method_name: MethodFirstname,
         arg_exprs: Vec<Expression>,
         may_have_paren_wo_args: bool,
     },
@@ -154,7 +154,7 @@ pub fn method_call(receiver_expr: Option<Expression>,
         primary: primary,
         body: ExpressionBody::MethodCall {
             receiver_expr: receiver_expr.map(|e| Box::new(e)),
-            method_name: MethodFirstName(method_name.to_string()),
+            method_name: MethodFirstname(method_name.to_string()),
             arg_exprs,
             may_have_paren_wo_args,
         }
@@ -172,7 +172,7 @@ pub fn const_ref(name: &str) -> Expression {
 pub fn unary_expr(expr: Expression, op: &str) -> Expression {
     primary_expression(ExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),
-        method_name: MethodFirstName(op.to_string()),
+        method_name: MethodFirstname(op.to_string()),
         arg_exprs: vec![],
         may_have_paren_wo_args: false,
     })
@@ -181,7 +181,7 @@ pub fn unary_expr(expr: Expression, op: &str) -> Expression {
 pub fn bin_op_expr(left: Expression, op: &str, right: Expression) -> Expression {
     non_primary_expression(ExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(left)),
-        method_name: MethodFirstName(op.to_string()),
+        method_name: MethodFirstname(op.to_string()),
         arg_exprs: vec![right],
         may_have_paren_wo_args: false,
     })
@@ -231,7 +231,7 @@ pub fn set_method_call_args(expr: Expression, args: Vec<Expression>) -> Expressi
                 primary: false,
                 body: ExpressionBody::MethodCall {
                     receiver_expr: None,
-                    method_name: MethodFirstName(s.to_string()),
+                    method_name: MethodFirstname(s.to_string()),
                     arg_exprs: args,
                     may_have_paren_wo_args: false,
                 }

@@ -26,7 +26,7 @@ impl HirMakerContext {
     /// Create a ctx for toplevel
     pub fn toplevel() -> HirMakerContext {
         let dummy_sig = MethodSignature {
-            fullname: MethodFullname { full_name: "(dummy)".to_string(), first_name: MethodFirstName("(dummy)".to_string()) },
+            fullname: MethodFullname { full_name: "(dummy)".to_string(), first_name: MethodFirstname("(dummy)".to_string()) },
             ret_ty: ty::raw("Void"),
             params: vec![],
         };

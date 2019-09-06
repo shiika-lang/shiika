@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
-pub struct ClassFirstName(pub String);
+pub struct ClassFirstname(pub String);
 
-impl ClassFirstName {
+impl ClassFirstname {
     // TODO: remove this after nested class is supported
     pub fn to_class_fullname(&self) -> ClassFullname {
         ClassFullname(self.0.clone())
@@ -18,9 +18,9 @@ impl std::fmt::Display for ClassFullname {
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
-pub struct MethodFirstName(pub String);
+pub struct MethodFirstname(pub String);
 
-impl std::fmt::Display for MethodFirstName {
+impl std::fmt::Display for MethodFirstname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -29,7 +29,7 @@ impl std::fmt::Display for MethodFirstName {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname {
     pub full_name: String,
-    pub first_name: MethodFirstName,
+    pub first_name: MethodFirstname,
 }
 
 impl std::fmt::Display for MethodFullname {
