@@ -174,6 +174,9 @@ impl CodeGen {
             SkMethodBody::RustMethodBody { gen } => {
                 gen(self, &function)?
             },
+            SkMethodBody::RustClosureMethodBody { boxed_gen } => {
+                boxed_gen(self, &function)?
+            },
             SkMethodBody::ShiikaMethodBody { exprs }=> {
                 self.gen_shiika_method_body(function,
                                             method.signature.ret_ty.is_void_type(),
@@ -293,7 +296,8 @@ impl CodeGen {
           self.gen_expr(function, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
-        let function = self.module.get_function(&method_fullname.full_name).expect("[BUG] get_function not found");
+        let function = self.module.get_function(&method_fullname.full_name)
+            .expect(&format!("[BUG] get_function not found: {:?}", method_fullname));
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
@@ -319,7 +323,7 @@ impl CodeGen {
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
-    fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type.size_of()

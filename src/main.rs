@@ -7,6 +7,7 @@ class A
     def id(x: Int, y: Int) -> Int; y; end;
     def me() -> A; self; end;
 end
+A.new
 putchar A.foo
 putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(str)?;
