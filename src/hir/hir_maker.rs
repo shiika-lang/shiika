@@ -2,54 +2,38 @@ use crate::ast;
 use crate::error;
 use crate::error::Error;
 use crate::hir::*;
+use crate::hir::index::Index;
 use crate::hir::hir_maker_context::HirMakerContext;
 use crate::type_checking;
 use crate::parser::token::Token;
 
-struct ClassesAndMethods((HashMap<ClassFullname, SkClass>,
-                          HashMap<ClassFullname, Vec<SkMethod>>));
-
-impl ClassesAndMethods {
-    pub fn new() -> ClassesAndMethods {
-        ClassesAndMethods((HashMap::new(), HashMap::new()))
-    }
-
-    /// Merge `other` into self
-    pub fn extend(&mut self, other: ClassesAndMethods) {
-        (self.0).0.extend((other.0).0);
-        (self.0).1.extend((other.0).1);
-    }
-
-    pub fn add_class(&mut self,
-                     class_name: ClassFullname,
-                     class: SkClass,
-                     methods: Vec<SkMethod>) {
-        (self.0).0.insert(class_name.clone(), class);
-        (self.0).1.insert(class_name,         methods);
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct HirMaker {
-    pub index: crate::hir::index::Index
+pub struct HirMaker<'a> {
+    pub index: &'a Index
 }
 
-impl HirMaker {
-    pub fn new(index: crate::hir::index::Index) -> HirMaker {
+impl<'a> HirMaker<'a> {
+    fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
         HirMaker { index }
     }
 
-    pub fn convert_program(&mut self, prog: ast::Program) -> Result<Hir, Error> {
-        let ClassesAndMethods((sk_classes, sk_methods)) = self.convert_toplevel_defs(&prog.toplevel_defs)?;
+    pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
+        let hir_maker = HirMaker::new(&index);
 
-        let main_exprs = self.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
-
-        Ok(Hir { sk_classes, sk_methods, main_exprs } )
+        let sk_methods =
+            hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
+        let main_exprs =
+            hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
+        Ok(Hir {
+            sk_classes: index.sk_classes(),
+            sk_methods,
+            main_exprs,
+        })
     }
 
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>)
-                            -> Result<ClassesAndMethods, Error> {
-        let mut ret = ClassesAndMethods::new();
+                            -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
+        let mut ret = HashMap::new();
 
         let results = toplevel_defs.iter().map(|def| {
             match def {
@@ -60,15 +44,15 @@ impl HirMaker {
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        results.into_iter().for_each(|classes_and_methods| {
-            ret.extend(classes_and_methods);
+        results.into_iter().for_each(|methods| {
+            ret.extend(methods);
         });
         Ok(ret)
     }
 
     /// Create SkClass and its metaclass
     fn convert_class_def(&self, name: &ClassName, defs: &Vec<ast::Definition>)
-                        -> Result<ClassesAndMethods, Error> {
+                        -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
@@ -94,31 +78,9 @@ impl HirMaker {
             }
         }).collect::<Result<Vec<_>, _>>()?;
 
-        let mut ret = ClassesAndMethods::new();
-        ret.add_class(
-           fullname.clone(),
-           SkClass {
-               fullname: fullname,
-               superclass_fullname: Some(ClassFullname("Object".to_string())),
-               instance_ty: instance_ty,
-               method_sigs: instance_methods.iter().map(|x|
-                   (x.signature.name.clone(), x.signature.clone())
-               ).collect(),
-           },
-           instance_methods
-        );
-        ret.add_class(
-           meta_name.clone(),
-           SkClass {
-               fullname: meta_name,
-               superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
-               instance_ty: class_ty,
-               method_sigs: class_methods.iter().map(|x|
-                   (x.signature.name.clone(), x.signature.clone())
-               ).collect(),
-           },
-           class_methods
-        );
+        let mut ret = HashMap::new();
+        ret.insert(fullname, instance_methods);
+        ret.insert(meta_name, class_methods);
         Ok(ret)
     }
 

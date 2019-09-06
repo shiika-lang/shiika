@@ -14,13 +14,27 @@ pub struct Hir {
     pub main_exprs: HirExpressions,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: &Stdlib) -> Result<Hir, crate::error::Error> {
-        let index = index::Index::new(stdlib, &ast.toplevel_defs)?;
-        hir_maker::HirMaker::new(index).convert_program(ast)
+    pub fn from_ast(ast: ast::Program, stdlib: Stdlib) -> Result<Hir, crate::error::Error> {
+        let index = index::Index::new(stdlib.sk_classes, &ast.toplevel_defs)?;
+        let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
+
+        // While stdlib classes are included in `index`,
+        // stdlib methods are not. Here we need to add them manually
+        hir.add_methods(stdlib.sk_methods);
+
+        Ok(hir)
+    }
+
+    pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
+        self.sk_classes.extend(sk_classes)
+    }
+
+    pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
+        self.sk_methods.extend(sk_methods)
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,

@@ -1,4 +1,4 @@
-/// Index of all the classes and methods
+/// Index of all the classes and method signatures
 ///
 /// Note: `MethodSignature` contained in `Index` is "as is" and
 /// may be wrong (eg. its return type does not exist).
@@ -10,17 +10,21 @@ use crate::error::*;
 use crate::hir::*;
 use crate::ty::*;
 use crate::names::*;
-use crate::stdlib::Stdlib;
 
 #[derive(Debug, PartialEq)]
 pub struct Index(HashMap<ClassFullname, SkClass>);
 
 impl Index {
-    pub fn new(stdlib: &Stdlib, toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
+    pub fn new(stdlib_classes: HashMap<ClassFullname, SkClass>,
+               toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
         let mut index = Index(HashMap::new());
-        index.index_stdlib(stdlib);
+        index.index_stdlib(stdlib_classes);
         index.index_program(toplevel_defs)?;
         Ok(index)
+    }
+
+    pub fn sk_classes(self) -> HashMap<ClassFullname, SkClass> {
+        self.0
     }
 
     /// Find a method from class name and first name
@@ -38,10 +42,9 @@ impl Index {
         self.0.insert(class.fullname.clone(), class);
     }
 
-    fn index_stdlib(&mut self, stdlib: &Stdlib) {
-        stdlib.sk_classes.values().for_each(|sk_class| {
-            // TODO: avoid this clone
-            self.add_class(sk_class.clone());
+    fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
+        stdlib_classes.into_iter().for_each(|(_, sk_class)| {
+            self.add_class(sk_class);
         });
     }
 
