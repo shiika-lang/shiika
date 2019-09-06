@@ -227,3 +227,15 @@ pub fn create_signature(class_fullname: String, sig: &ast::AstMethodSignature) -
 fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
 }
+
+/// Create a signature of `.new`
+fn signature_of_new(metaclass_fullname: &ClassFullname, instance_ty: &TermTy) -> MethodSignature {
+    MethodSignature {
+        fullname: MethodFullname {
+            full_name: metaclass_fullname.0.clone() + "#new",
+            first_name: MethodFirstname("new".to_string()),
+        },
+        ret_ty: instance_ty.clone(),
+        params: vec![],
+    }
+}

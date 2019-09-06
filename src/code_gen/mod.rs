@@ -323,7 +323,7 @@ impl CodeGen {
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
-    fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type.size_of()

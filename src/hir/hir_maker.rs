@@ -69,7 +69,7 @@ impl<'a> HirMaker<'a> {
         // Metaclass
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname.clone();
-        let class_methods = defs.iter().filter_map(|def| {
+        let mut class_methods = defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
                     Some(self.convert_method_def(&meta_name, &sig.name, &body_exprs))
@@ -77,6 +77,19 @@ impl<'a> HirMaker<'a> {
                 _ => None,
             }
         }).collect::<Result<Vec<_>, _>>()?;
+
+        // Add .new
+        let class_fullname = fullname.clone();
+        class_methods.push(SkMethod {
+            signature: signature_of_new(&meta_name, &instance_ty),
+            body: SkMethodBody::RustClosureMethodBody {
+                boxed_gen: Box::new(move |code_gen, _| {
+                    let addr = code_gen.allocate_sk_obj(&class_fullname);
+                    code_gen.builder.build_return(Some(&addr));
+                    Ok(())
+                })
+            }
+        });
 
         let mut ret = HashMap::new();
         ret.insert(fullname, instance_methods);
