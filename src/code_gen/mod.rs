@@ -3,6 +3,7 @@ use inkwell::AddressSpace;
 use inkwell::values::*;
 use inkwell::types::*;
 use crate::error::Error;
+use crate::ty;
 use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
@@ -44,7 +45,8 @@ impl CodeGen {
     pub fn gen_program(&mut self, hir: Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
-        self.gen_methods(&hir.sk_classes, &hir.sk_methods)?;
+        self.gen_method_funcs(&hir.sk_methods);
+        self.gen_methods(&hir.sk_methods)?;
         self.gen_constant_ptrs(&hir.sk_classes);
         self.gen_initialize_constants(&hir.sk_classes);
         self.gen_main(&hir.main_exprs)?;
@@ -132,7 +134,7 @@ impl CodeGen {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_strucs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
         classes.values().for_each(|sk_class| {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
@@ -140,21 +142,30 @@ impl CodeGen {
         })
     }
 
-    fn gen_methods(&self, 
-                   classes: &HashMap<ClassFullname, SkClass>,
-                   methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
-        methods.iter().try_for_each(|(cname, sk_methods)| {
-            let sk_class = classes.get(cname).expect(&format!("missing class: {:?}", cname));
+    /// Create inkwell functions
+    fn gen_method_funcs(&self,
+                        methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
+        methods.iter().for_each(|(cname, sk_methods)| {
+            sk_methods.iter().for_each(|method| {
+                let self_ty = ty::raw(&cname.0);
+                let func_type = self.llvm_func_type(&self_ty, &method.signature);
+                self.module.add_function(&method.signature.fullname.full_name, func_type, None);
+            })
+        })
+    }
+
+    fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
+        methods.values().try_for_each(|sk_methods| {
             sk_methods.iter().try_for_each(|method|
-                self.gen_method(&sk_class, &method)
+                self.gen_method(&method)
             )
         })
     }
 
-    fn gen_method(&self, sk_class: &SkClass, method: &SkMethod) -> Result<(), Error> {
+    fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
         // LLVM function
-        let func_type = self.llvm_func_type(&sk_class.instance_ty, &method.signature);
-        let function = self.module.add_function(&method.signature.fullname.full_name, func_type, None);
+        let function = self.module.get_function(&method.signature.fullname.full_name)
+            .expect(&format!("[BUG] get_function not found: {:?}", method.signature));
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
