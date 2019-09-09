@@ -43,7 +43,7 @@ impl CodeGen {
 
     pub fn gen_program(&mut self, hir: Hir) -> Result<(), Error> {
         self.gen_declares();
-        self.gen_classes(&hir.sk_classes);
+        self.gen_class_structs(&hir.sk_classes);
         self.gen_methods(&hir.sk_classes, &hir.sk_methods)?;
         self.gen_constant_ptrs(&hir.sk_classes);
         self.gen_initialize_constants(&hir.sk_classes);
@@ -59,6 +59,7 @@ impl CodeGen {
         self.module.add_function("GC_init", fn_type, None);
 
         let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
+
         self.module.add_function("GC_malloc", fn_type, None);
 
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
@@ -130,8 +131,8 @@ impl CodeGen {
         Ok(())
     }
 
-    fn gen_classes(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
-        // Create llvm struct types
+    /// Create llvm struct types for Shiika objects
+    fn gen_class_strucs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
         classes.values().for_each(|sk_class| {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
