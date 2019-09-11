@@ -153,6 +153,10 @@ impl<'a> HirMaker<'a> {
                         else_hir))
             },
 
+            ast::ExpressionBody::ConstAssign { name, rhs } => {
+                Ok(Hir::assign_const(name.to_string(), self.convert_expr(ctx, rhs)?))
+            },
+
             ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
                 let receiver_hir =
                     match receiver_expr {

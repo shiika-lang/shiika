@@ -266,7 +266,8 @@ impl CodeGen {
             },
             HirNop => {
                 panic!("HirNop not handled by `else`")
-            }
+            },
+            _ => panic!("TODO")
         }
     }
 

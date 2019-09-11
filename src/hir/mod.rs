@@ -109,6 +109,10 @@ pub enum HirExpressionBase {
         then_expr: Box<HirExpression>,
         else_expr: Box<HirExpression>,
     },
+    HirConstAssign {
+        fullname: ConstFullname,
+        rhs: Box<HirExpression>,
+    },
     HirMethodCall {
         receiver_expr: Box<HirExpression>,
         method_fullname: MethodFullname,
@@ -144,6 +148,16 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 then_expr: Box::new(then_hir),
                 else_expr: Box::new(else_hir),
+            }
+        }
+    }
+
+    pub fn assign_const(name: String, rhs: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirConstAssign {
+                fullname: ConstFullname(name), // TODO: namespace
+                rhs: Box::new(rhs),
             }
         }
     }
