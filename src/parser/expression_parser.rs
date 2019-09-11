@@ -127,23 +127,29 @@ impl<'a> Parser<'a> {
         Ok(v)
     }
 
+    // operatorExpression:
+    //   assignmentExpression |
+    //   conditionalOperatorExpression
     fn parse_operator_expr(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_operator_expr");
         let expr = self.parse_conditional_expr()?;
-        if let BareName(_) = expr.body {
-            // TODO: may be a singleVariableAssignmentExpression
-            self.lv -= 1;
-            Ok(expr)
-        }
-        else if expr.primary {
-            // TODO: may be a singleIndexingAssignmentExpression or a singleMethodAssignmentExpression
-            self.lv -= 1;
-            Ok(expr)
+        if expr.is_lhs() && self.next_nonspace_token() == Token::Equal {
+            self.parse_assignment_expr(expr)
         }
         else {
             self.lv -= 1;
             Ok(expr)
         }
+    }
+
+    // assignmentExpression:
+    //       singleAssignmentExpression |
+    //       abbreviatedAssignmentExpression |
+    //       assignmentWithRescueModifier
+    fn parse_assignment_expr(&mut self, lhs: ast::Expression) -> Result<ast::Expression, Error> {
+        self.skip_ws(); assert!(self.consume(Token::Equal));  // TODO: `+=` etc.
+        let rhs = self.parse_operator_expr()?;
+        Ok(ast::assignment(lhs, rhs))
     }
 
     /// `a ? b : c`

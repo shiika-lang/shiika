@@ -26,6 +26,12 @@ impl std::fmt::Display for MethodFirstname {
     }
 }
 
+impl MethodFirstname {
+    pub fn append(&self, suffix: &str) -> MethodFirstname {
+        MethodFirstname(self.0.clone() + suffix)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname {
     pub full_name: String,
