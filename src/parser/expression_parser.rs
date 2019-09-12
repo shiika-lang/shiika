@@ -147,8 +147,13 @@ impl<'a> Parser<'a> {
     //       abbreviatedAssignmentExpression |
     //       assignmentWithRescueModifier
     fn parse_assignment_expr(&mut self, lhs: ast::Expression) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_assignment_expr");
+
         self.skip_ws(); assert!(self.consume(Token::Equal));  // TODO: `+=` etc.
+        self.skip_wsn();
         let rhs = self.parse_operator_expr()?;
+
+        self.lv -= 1;
         Ok(ast::assignment(lhs, rhs))
     }
 
