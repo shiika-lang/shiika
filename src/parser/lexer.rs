@@ -115,6 +115,10 @@ impl<'a> Lexer<'a> {
         self.current_token = token;
     }
 
+    pub fn debug_info(&self) -> String {
+        format!("{:?} {:?}", self.current_token, self.state)
+    }
+
     /// Remove the current token and read next
     ///
     /// # Examples
