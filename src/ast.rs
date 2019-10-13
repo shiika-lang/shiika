@@ -24,6 +24,10 @@ pub enum Definition {
     ClassMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<Expression>,
+    },
+    ConstDefinition {
+        name: ConstFirstname,
+        expr: Expression,
     }
 }
 

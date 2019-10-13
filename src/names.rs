@@ -45,6 +45,15 @@ impl std::fmt::Display for MethodFullname {
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
+pub struct ConstFirstname(pub String);
+
+impl std::fmt::Display for ConstFirstname {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ConstFullname(pub String);
 
 impl std::fmt::Display for ConstFullname {

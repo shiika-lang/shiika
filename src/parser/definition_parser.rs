@@ -22,6 +22,7 @@ impl<'a> Parser<'a> {
         match self.current_token() {
             Token::KwClass => Ok(Some(self.parse_class_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
+            Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
             _ => Ok(None),
         }
     }
@@ -195,5 +196,24 @@ impl<'a> Parser<'a> {
             },
             token => Err(parse_error!(self, "invalid token as type: {:?}", token))
         }
+    }
+
+    fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
+        let mut name;
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                name = ConstFirstname(s.to_string());
+            },
+            _ => panic!("must be called on an UpperWord"),
+        }
+        self.consume_token();
+
+        self.skip_wsn();
+        self.expect(Token::Equal);
+        self.skip_wsn();
+
+        let expr = self.parse_expr()?;
+
+        Ok(ast::Definition::ConstDefinition { name, expr })
     }
 }

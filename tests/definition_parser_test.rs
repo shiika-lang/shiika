@@ -19,6 +19,22 @@ fn test_emtpy_class() {
 }
 
 #[test]
+fn test_class_with_constant() {
+    let result = parse_definitions("class A; B = 1; end");
+    assert_eq!(result.unwrap(), vec![ 
+        ast::Definition::ClassDefinition {
+            name: ClassFirstname("A".to_string()),
+            defs: vec![
+                ast::Definition::ConstDefinition {
+                    name: ConstFirstname("B".to_string()),
+                    expr: ast::decimal_literal(1),
+                }
+            ]
+        }
+    ])
+}
+
+#[test]
 fn test_class_with_empty_method() {
     let result = parse_definitions("class A; def foo; end; end");
     assert_eq!(result.unwrap(), vec![
