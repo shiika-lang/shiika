@@ -336,7 +336,15 @@ impl<'a> Lexer<'a> {
             '~' => (Token::Tilde, LexerState::ExprBegin),
             '?' => (Token::Question, LexerState::ExprBegin),
             ',' => (Token::Comma, LexerState::ExprBegin),
-            ':' => (Token::Colon, LexerState::ExprBegin),
+            ':' => {
+                if c2 == Some(':') {
+                    next_cur.proceed(self.src);
+                    (Token::ColonColon, LexerState::ExprBegin)
+                }
+                else {
+                    (Token::Colon, LexerState::ExprBegin)
+                }
+            },
             '&' => {
                 if c2 == Some('&') {
                     next_cur.proceed(self.src);

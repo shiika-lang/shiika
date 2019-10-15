@@ -424,9 +424,7 @@ impl<'a> Parser<'a> {
                 self.parse_primary_method_call(&name)
             },
             Token::UpperWord(s) => {
-                let expr = ast::const_ref(s);
-                self.consume_token();
-                Ok(expr)
+                self.parse_const_ref(s.to_string())
             },
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
@@ -465,6 +463,26 @@ impl<'a> Parser<'a> {
         };
         self.lv -= 1;
         Ok(expr)
+    }
+
+    fn parse_const_ref(&mut self, s: String) -> Result<ast::Expression, Error> {
+        let mut names = vec![s];
+        self.consume_token();
+        // Parse `A::B`
+        while self.current_token_is(Token::ColonColon) {
+            self.consume_token();
+            match self.current_token() {
+                Token::UpperWord(s) => {
+                    let name = s.to_string();
+                    self.consume_token();
+                    names.push(name);
+                },
+                token => {
+                    return Err(parse_error!(self, "unexpected token: {:?}", token))
+                }
+            }
+        }
+        Ok(ast::const_ref(names))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, Error> {
