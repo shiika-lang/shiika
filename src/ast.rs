@@ -90,7 +90,7 @@ pub enum ExpressionBody {
         rhs: Box<Expression>,
     },
     ConstAssign {
-        name: String,
+        names: Vec<String>,
         rhs: Box<Expression>,
     },
     MethodCall {
@@ -101,7 +101,7 @@ pub enum ExpressionBody {
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
-    ConstRef(String),
+    ConstRef(Vec<String>),
     PseudoVariable(Token),
     FloatLiteral {
         value: f64,
@@ -127,7 +127,7 @@ impl Expression {
         }
         match self.body {
             ExpressionBody::ConstRef(_) => true,
-            // TODO: a[b] / A::B
+            // TODO: a[b]
             _ => false
         }
     }
@@ -177,8 +177,8 @@ pub fn assignment(lhs: Expression, rhs: Expression) -> Expression {
         },
         // ToDo: IVarRef =>
         // ToDo: CVarRef =>
-        ExpressionBody::ConstRef(s) => {
-            ExpressionBody::ConstAssign { name: s.to_string(), rhs: Box::new(rhs) }
+        ExpressionBody::ConstRef(names) => {
+            ExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
         },
         ExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
             ExpressionBody::MethodCall {
@@ -213,8 +213,8 @@ pub fn bare_name(name: &str) -> Expression {
     primary_expression(ExpressionBody::BareName(name.to_string()))
 }
 
-pub fn const_ref(name: &str) -> Expression {
-    primary_expression(ExpressionBody::ConstRef(name.to_string()))
+pub fn const_ref(names: Vec<String>) -> Expression {
+    primary_expression(ExpressionBody::ConstRef(names))
 }
 
 pub fn unary_expr(expr: Expression, op: &str) -> Expression {

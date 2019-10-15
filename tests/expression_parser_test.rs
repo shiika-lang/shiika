@@ -21,7 +21,7 @@ fn test_const_assign() {
     let result = parse_expr("X = 1");
     assert_eq!(result.unwrap(),
     ast::assignment(
-        ast::const_ref("X"),
+        ast::const_ref(vec!["X".to_string()]),
         ast::decimal_literal(1)))
 }
 

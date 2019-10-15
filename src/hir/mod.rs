@@ -152,11 +152,11 @@ impl Hir {
         }
     }
 
-    pub fn assign_const(name: String, rhs: HirExpression) -> HirExpression {
+    pub fn assign_const(names: &Vec<String>, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirConstAssign {
-                fullname: ConstFullname(name), // TODO: namespace
+                fullname: ConstFullname(names[0].clone()), // TODO: namespace
                 rhs: Box::new(rhs),
             }
         }

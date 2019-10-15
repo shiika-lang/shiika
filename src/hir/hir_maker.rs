@@ -153,8 +153,8 @@ impl<'a> HirMaker<'a> {
                         else_hir))
             },
 
-            ast::ExpressionBody::ConstAssign { name, rhs } => {
-                Ok(Hir::assign_const(name.to_string(), self.convert_expr(ctx, rhs)?))
+            ast::ExpressionBody::ConstAssign { names, rhs } => {
+                Ok(Hir::assign_const(names, self.convert_expr(ctx, rhs)?))
             },
 
             ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
@@ -174,8 +174,8 @@ impl<'a> HirMaker<'a> {
                 self.convert_bare_name(ctx, name)
             },
 
-            ast::ExpressionBody::ConstRef(name) => {
-                self.convert_const_ref(ctx, name)
+            ast::ExpressionBody::ConstRef(names) => {
+                self.convert_const_ref(ctx, names)
             },
 
             ast::ExpressionBody::PseudoVariable(token) => {
@@ -232,8 +232,9 @@ impl<'a> HirMaker<'a> {
     /// Resolve constant name
     fn convert_const_ref(&self,
                          _ctx: &HirMakerContext,
-                         name: &str) -> Result<HirExpression, Error> {
+                         names: &Vec<String>) -> Result<HirExpression, Error> {
         // TODO: nested class, constants
+        let name = &names[0];
         if self.index.class_exists(&name) {
             let ty = ty::meta(name);
             Ok(Hir::const_ref(ty, ConstFullname(name.to_string())))

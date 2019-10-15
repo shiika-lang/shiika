@@ -86,6 +86,7 @@ impl Index {
                     let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
+                ast::Definition::ConstDefinition { .. } => (),
                 _ => panic!("TODO")
             }
         });
