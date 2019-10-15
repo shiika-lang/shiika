@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
         self.consume_token();
 
         self.skip_wsn();
-        self.expect(Token::Equal);
+        self.expect(Token::Equal)?;
         self.skip_wsn();
 
         let expr = self.parse_expr()?;
