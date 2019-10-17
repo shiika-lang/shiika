@@ -25,7 +25,7 @@ impl<'a> HirMaker<'a> {
         let main_exprs =
             hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
         Ok(Hir {
-            sk_classes: index.sk_classes(),
+            sk_classes: index.sk_classes,
             sk_methods,
             main_exprs,
         })
