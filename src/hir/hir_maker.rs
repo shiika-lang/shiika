@@ -33,26 +33,35 @@ impl<'a> HirMaker<'a> {
 
     fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
-        let mut ret = HashMap::new();
+        let mut sk_methods = HashMap::new();
 
-        let results = toplevel_defs.iter().map(|def| {
+        toplevel_defs.iter().try_for_each(|def|
             match def {
+                // Extract instance/class methods
                 ast::Definition::ClassDefinition { name, defs } => {
-                    self.convert_class_def(&name, &defs)
+                    match self.convert_class_def(&name, &defs) {
+                        Ok((fullname, instance_methods, meta_name, class_methods)) => {
+                            sk_methods.insert(fullname, instance_methods);
+                            sk_methods.insert(meta_name, class_methods);
+                            Ok(())
+                        },
+                        Err(err) => Err(err)
+                    }
                 },
+//                ast::Definition::ConstDefinition { name, expr } => {
+//                    convert_const_def(name, expr)
+//                }
                 _ => panic!("should be checked in hir::index")
             }
-        }).collect::<Result<Vec<_>, _>>()?;
+        )?;
 
-        results.into_iter().for_each(|methods| {
-            ret.extend(methods);
-        });
-        Ok(ret)
+        Ok(sk_methods)
     }
 
     /// Create SkClass and its metaclass
     fn convert_class_def(&self, name: &ClassFirstname, defs: &Vec<ast::Definition>)
-                        -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
+                        -> Result<(ClassFullname, Vec<SkMethod>,
+                                   ClassFullname, Vec<SkMethod>), Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
@@ -91,10 +100,7 @@ impl<'a> HirMaker<'a> {
             }
         });
 
-        let mut ret = HashMap::new();
-        ret.insert(fullname, instance_methods);
-        ret.insert(meta_name, class_methods);
-        Ok(ret)
+        Ok((fullname, instance_methods, meta_name, class_methods))
     }
 
     fn convert_method_def(&self,
