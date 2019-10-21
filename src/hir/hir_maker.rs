@@ -68,42 +68,39 @@ impl<'a> HirMaker<'a> {
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname.clone();
 
-        let instance_methods = self.convert_instance_methods(defs, &fullname)?;
-        let class_methods = self.convert_class_methods(defs, &fullname)?;
+        let mut instance_methods = vec![];
+        let mut class_methods = vec![];
 
+        defs.iter().try_for_each(|def| {
+            match def {
+                ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
+                    match self.convert_method_def(&fullname, &sig.name, &body_exprs) {
+                        Ok(method) => { instance_methods.push(method); Ok(()) },
+                        Err(err) => Err(err)
+                    }
+                },
+                ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
+                    match self.convert_method_def(&meta_name, &sig.name, &body_exprs) {
+                        Ok(method) => { class_methods.push(method); Ok(()) },
+                        Err(err) => Err(err)
+                    }
+                },
+                _ => Ok(()),
+            }
+        })?;
+
+        class_methods.push(self.create_new(&fullname));
         Ok((fullname, instance_methods, meta_name, class_methods))
     }
 
-    fn convert_instance_methods(&self, defs: &Vec<ast::Definition>, class_fullname: &ClassFullname)
-                               -> Result<Vec<SkMethod>, Error> {
-        defs.iter().filter_map(|def| {
-            match def {
-                ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    Some(self.convert_method_def(&class_fullname, &sig.name, &body_exprs))
-                },
-                _ => None,
-            }
-        }).collect::<Result<Vec<_>, _>>()
-    }
-
-    fn convert_class_methods(&self, defs: &Vec<ast::Definition>, fullname: &ClassFullname)
-                            -> Result<Vec<SkMethod>, Error> {
+    /// Create .new
+    fn create_new(&self, fullname: &ClassFullname) -> SkMethod {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname;
 
-        let mut class_methods = defs.iter().filter_map(|def| {
-            match def {
-                ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    Some(self.convert_method_def(&meta_name, &sig.name, &body_exprs))
-                },
-                _ => None,
-            }
-        }).collect::<Result<Vec<_>, _>>()?;
-
-        // Add .new
-        class_methods.push(SkMethod {
+        SkMethod {
             signature: signature_of_new(&meta_name, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(move |code_gen, _| {
@@ -112,9 +109,7 @@ impl<'a> HirMaker<'a> {
                     Ok(())
                 })
             }
-        });
-
-        Ok(class_methods)
+        }
     }
 
     fn convert_method_def(&self,
