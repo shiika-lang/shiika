@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
-        let mut name;
+        let name;
         match self.current_token() {
             Token::UpperWord(s) => {
                 name = ConstFirstname(s.to_string());
