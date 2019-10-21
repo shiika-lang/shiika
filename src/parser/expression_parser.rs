@@ -424,7 +424,8 @@ impl<'a> Parser<'a> {
                 self.parse_primary_method_call(&name)
             },
             Token::UpperWord(s) => {
-                self.parse_const_ref(s.to_string())
+                let name = s.to_string();
+                self.parse_const_ref(name)
             },
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
