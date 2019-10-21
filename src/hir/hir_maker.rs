@@ -65,19 +65,34 @@ impl<'a> HirMaker<'a> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
+        let class_ty = instance_ty.meta_ty();
+        let meta_name = class_ty.fullname.clone();
 
-        let instance_methods = defs.iter().filter_map(|def| {
+        let instance_methods = self.convert_instance_methods(defs, &fullname)?;
+        let class_methods = self.convert_class_methods(defs, &fullname)?;
+
+        Ok((fullname, instance_methods, meta_name, class_methods))
+    }
+
+    fn convert_instance_methods(&self, defs: &Vec<ast::Definition>, class_fullname: &ClassFullname)
+                               -> Result<Vec<SkMethod>, Error> {
+        defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    Some(self.convert_method_def(&fullname, &sig.name, &body_exprs))
+                    Some(self.convert_method_def(&class_fullname, &sig.name, &body_exprs))
                 },
                 _ => None,
             }
-        }).collect::<Result<Vec<_>, _>>()?;
+        }).collect::<Result<Vec<_>, _>>()
+    }
 
-        // Metaclass
+    fn convert_class_methods(&self, defs: &Vec<ast::Definition>, fullname: &ClassFullname)
+                            -> Result<Vec<SkMethod>, Error> {
+        let class_fullname = fullname.clone();
+        let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
-        let meta_name = class_ty.fullname.clone();
+        let meta_name = class_ty.fullname;
+
         let mut class_methods = defs.iter().filter_map(|def| {
             match def {
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
@@ -88,7 +103,6 @@ impl<'a> HirMaker<'a> {
         }).collect::<Result<Vec<_>, _>>()?;
 
         // Add .new
-        let class_fullname = fullname.clone();
         class_methods.push(SkMethod {
             signature: signature_of_new(&meta_name, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
@@ -100,7 +114,7 @@ impl<'a> HirMaker<'a> {
             }
         });
 
-        Ok((fullname, instance_methods, meta_name, class_methods))
+        Ok(class_methods)
     }
 
     fn convert_method_def(&self,
