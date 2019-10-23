@@ -121,7 +121,7 @@ impl<'a> HirMaker<'a> {
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
 
         let ctx = HirMakerContext {
-            method_sig: signature.clone(),
+            method_sig: Some(signature.clone()),
             self_ty: ty::raw(&class_fullname.0),
         };
         let body_exprs = self.convert_exprs(&ctx, body_exprs)?;
@@ -234,7 +234,11 @@ impl<'a> HirMaker<'a> {
     fn convert_bare_name(&self,
                          ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {
-        match &ctx.method_sig.find_param(name) {
+        let method_sig = match &ctx.method_sig {
+            Some(x) => x,
+            None => panic!("bare name out of a method")
+        };
+        match &method_sig.find_param(name) {
             Some((idx, param)) => {
                 Ok(Hir::hir_arg_ref(param.ty.clone(), *idx))
             },

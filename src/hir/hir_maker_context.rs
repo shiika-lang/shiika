@@ -1,4 +1,3 @@
-use crate::names::*;
 use crate::ty;
 use crate::ty::*;
 
@@ -6,11 +5,9 @@ use crate::ty::*;
 pub struct HirMakerContext {
 //    /// Local variables of the current function found so far
 //    local_vars: HashSet<CtxLVar>,
-    /// Signature of the current method
-    /// (Used to get the list of parameters)
-    ///
-    /// On the toplevel, this will be a dummy signature with no params. 
-    pub method_sig: MethodSignature,
+    /// Signature of the current method (Used to get the list of parameters)
+    /// None if out of a method
+    pub method_sig: Option<MethodSignature>,
     /// The type of current `self`
     pub self_ty: TermTy,
 //    // List of instance variables of the current `self`
@@ -25,14 +22,8 @@ pub struct HirMakerContext {
 impl HirMakerContext {
     /// Create a ctx for toplevel
     pub fn toplevel() -> HirMakerContext {
-        let dummy_sig = MethodSignature {
-            fullname: MethodFullname { full_name: "(dummy)".to_string(), first_name: MethodFirstname("(dummy)".to_string()) },
-            ret_ty: ty::raw("Void"),
-            params: vec![],
-        };
-
         HirMakerContext {
-            method_sig: dummy_sig,
+            method_sig: None,
             self_ty: ty::raw("Object"),
         }
     }
