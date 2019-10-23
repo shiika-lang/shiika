@@ -18,7 +18,7 @@ impl<'a> HirMaker<'a> {
     }
 
     pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
-        let hir_maker = HirMaker::new(&index);
+        let mut hir_maker = HirMaker::new(&index);
 
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
@@ -31,7 +31,7 @@ impl<'a> HirMaker<'a> {
         })
     }
 
-    fn convert_toplevel_defs(&self, toplevel_defs: &Vec<ast::Definition>)
+    fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         let mut sk_methods = HashMap::new();
 
@@ -58,8 +58,8 @@ impl<'a> HirMaker<'a> {
         Ok(sk_methods)
     }
 
-    /// Create SkClass and its metaclass
-    fn convert_class_def(&self, name: &ClassFirstname, defs: &Vec<ast::Definition>)
+    /// Extract instance/class methods and constants
+    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &Vec<ast::Definition>)
                         -> Result<(ClassFullname, Vec<SkMethod>,
                                    ClassFullname, Vec<SkMethod>), Error> {
         // TODO: nested class
@@ -70,17 +70,18 @@ impl<'a> HirMaker<'a> {
 
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
+        let ctx = HirMakerContext::class_ctx(&fullname);
 
         defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&fullname, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&meta_name, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
@@ -113,6 +114,7 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_method_def(&self,
+                          ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
                           body_exprs: &Vec<ast::Expression>) -> Result<SkMethod, Error> {
@@ -120,11 +122,8 @@ impl<'a> HirMaker<'a> {
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
 
-        let ctx = HirMakerContext {
-            method_sig: Some(signature.clone()),
-            self_ty: ty::raw(&class_fullname.0),
-        };
-        let body_exprs = self.convert_exprs(&ctx, body_exprs)?;
+        let method_ctx = HirMakerContext::method_ctx(ctx, &signature);
+        let body_exprs = self.convert_exprs(&method_ctx, body_exprs)?;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
@@ -236,7 +235,7 @@ impl<'a> HirMaker<'a> {
                          name: &str) -> Result<HirExpression, Error> {
         let method_sig = match &ctx.method_sig {
             Some(x) => x,
-            None => panic!("bare name out of a method")
+            None => return Err(error::program_error(&format!("bare name outside method: `{}'", name)))
         };
         match &method_sig.find_param(name) {
             Some((idx, param)) => {
@@ -252,7 +251,7 @@ impl<'a> HirMaker<'a> {
     fn convert_const_ref(&self,
                          _ctx: &HirMakerContext,
                          names: &Vec<String>) -> Result<HirExpression, Error> {
-        // TODO: nested class, constants
+        // TODO: Resolve using ctx
         let name = &names[0];
         if self.index.class_exists(&name) {
             let ty = ty::meta(name);
