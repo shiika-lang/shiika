@@ -60,6 +60,7 @@ impl Index {
                     self.index_class(&name, &defs);
                     Ok(())
                 },
+                ast::Definition::ConstDefinition { .. } => Ok(()),
                 _ => {
                     Err(error::syntax_error(&format!("must not be toplevel: {:?}", def)))
                 }

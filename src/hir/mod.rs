@@ -11,6 +11,7 @@ use crate::stdlib::Stdlib;
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    //pub constants: HashMap<ConstFullname, TermTy>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
@@ -152,11 +153,11 @@ impl Hir {
         }
     }
 
-    pub fn assign_const(names: &Vec<String>, rhs: HirExpression) -> HirExpression {
+    pub fn assign_const(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirConstAssign {
-                fullname: ConstFullname(names[0].clone()), // TODO: namespace
+                fullname: fullname,
                 rhs: Box::new(rhs),
             }
         }

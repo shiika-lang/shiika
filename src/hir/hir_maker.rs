@@ -9,12 +9,19 @@ use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker<'a> {
-    pub index: &'a Index
+    pub index: &'a Index,
+    // List of constants found so far
+    pub constants: HashMap<ConstFullname, TermTy>,
+    pub const_inits: Vec<HirExpression>,
 }
 
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
-        HirMaker { index }
+        HirMaker {
+            index: index,
+            constants: HashMap::new(),
+            const_inits: vec![],
+        }
     }
 
     pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
@@ -34,6 +41,7 @@ impl<'a> HirMaker<'a> {
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         let mut sk_methods = HashMap::new();
+        let ctx = HirMakerContext::toplevel();
 
         toplevel_defs.iter().try_for_each(|def|
             match def {
@@ -48,9 +56,9 @@ impl<'a> HirMaker<'a> {
                         Err(err) => Err(err)
                     }
                 },
-//                ast::Definition::ConstDefinition { name, expr } => {
-//                    convert_const_def(name, expr)
-//                }
+                ast::Definition::ConstDefinition { name, expr } => {
+                    self.register_const(&ctx, name, expr)
+                }
                 _ => panic!("should be checked in hir::index")
             }
         )?;
@@ -86,6 +94,9 @@ impl<'a> HirMaker<'a> {
                         Err(err) => Err(err)
                     }
                 },
+                ast::Definition::ConstDefinition { name, expr } => {
+                    self.register_const(&ctx, name, expr)
+                }
                 _ => Ok(()),
             }
         })?;
@@ -112,6 +123,20 @@ impl<'a> HirMaker<'a> {
             }
         }
     }
+
+    /// Register a constant
+    fn register_const(&mut self,
+                      ctx: &HirMakerContext,
+                      name: &ConstFirstname,
+                      expr: &ast::Expression) -> Result<(), Error> {
+        let fullname = ConstFullname(ctx.namespace.0.clone() + "::" + &name.0);
+        let hir_expr = self.convert_expr(ctx, expr)?;
+        self.constants.insert(fullname.clone(), hir_expr.ty.clone());
+        let op = Hir::assign_const(fullname, hir_expr);
+        self.const_inits.push(op);
+        Ok(())
+    }
+
 
     fn convert_method_def(&self,
                           ctx: &HirMakerContext,
@@ -168,7 +193,9 @@ impl<'a> HirMaker<'a> {
             },
 
             ast::ExpressionBody::ConstAssign { names, rhs } => {
-                Ok(Hir::assign_const(names, self.convert_expr(ctx, rhs)?))
+                // TODO: resolve name
+                let fullname = ConstFullname(names.join("::"));
+                Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
             },
 
             ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
