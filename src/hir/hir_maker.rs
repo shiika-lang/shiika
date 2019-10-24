@@ -76,6 +76,8 @@ impl<'a> HirMaker<'a> {
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname.clone();
 
+        self.register_class_const(&fullname);
+
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
         let ctx = HirMakerContext::class_ctx(&fullname);
@@ -103,6 +105,20 @@ impl<'a> HirMaker<'a> {
 
         class_methods.push(self.create_new(&fullname));
         Ok((fullname, instance_methods, meta_name, class_methods))
+    }
+
+    /// Register a constant that holds a class
+    fn register_class_const(&mut self, fullname: &ClassFullname) {
+        let instance_ty = ty::raw(&fullname.0);
+        let class_ty = instance_ty.meta_ty();
+
+        // eg. Constant `A` holds the class A
+        self.constants.insert(ConstFullname(fullname.0.clone()),
+                              class_ty.clone());
+        // eg. A = Meta:A.new
+        let op = Hir::assign_const(ConstFullname(fullname.0.clone()),
+                                   Hir::class_literal(fullname.clone()));
+        self.const_inits.push(op);
     }
 
     /// Create .new

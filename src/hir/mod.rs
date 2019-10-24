@@ -135,6 +135,12 @@ pub enum HirExpressionBase {
     HirBooleanLiteral {
         value: bool,
     },
+    /// A special expression that evaluates to a class
+    /// (eg. `class A; end; A = 1` shadows A, but this special expr
+    /// is never be shadowed)
+    HirClassLiteral {
+        fullname: ClassFullname,
+    },
     HirNop  // For else-less if expr
 }
 
@@ -214,6 +220,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value }
+        }
+    }
+
+    pub fn class_literal(fullname: ClassFullname) -> HirExpression {
+        HirExpression {
+            ty: ty::meta(&fullname.0),
+            node: HirExpressionBase::HirClassLiteral { fullname }
         }
     }
     
