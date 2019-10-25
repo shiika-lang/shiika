@@ -37,10 +37,10 @@ impl Index {
         self.sk_classes.get(class_fullname)
     }
 
-    /// Return true if there is a class of the name
-    pub fn class_exists(&self, class_fullname: &str) -> bool {
-        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
-    }
+//    /// Return true if there is a class of the name
+//    pub fn class_exists(&self, class_fullname: &str) -> bool {
+//        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+//    }
 
     /// Register a class
     fn add_class(&mut self, class: SkClass) {

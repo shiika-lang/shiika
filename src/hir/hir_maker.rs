@@ -117,13 +117,12 @@ impl<'a> HirMaker<'a> {
     fn register_class_const(&mut self, fullname: &ClassFullname) {
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
+        let const_name = ConstFullname("::".to_string() + &fullname.0);
 
         // eg. Constant `A` holds the class A
-        self.constants.insert(ConstFullname(fullname.0.clone()),
-                              class_ty.clone());
+        self.constants.insert(const_name.clone(), class_ty.clone());
         // eg. A = Meta:A.new
-        let op = Hir::assign_const(ConstFullname(fullname.0.clone()),
-                                   Hir::class_literal(fullname.clone()));
+        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone()));
         self.const_inits.push(op);
     }
 
@@ -301,13 +300,14 @@ impl<'a> HirMaker<'a> {
                          _ctx: &HirMakerContext,
                          names: &Vec<String>) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
-        let name = &names[0];
-        if self.index.class_exists(&name) {
-            let ty = ty::meta(name);
-            Ok(Hir::const_ref(ty, ConstFullname(name.to_string())))
-        }
-        else {
-            Err(error::program_error(&format!("constant `{}' was not found", name)))
+        let fullname = ConstFullname("::".to_string() + &names.join("::"));
+        match self.constants.get(&fullname) {
+            Some(ty) => {
+                Ok(Hir::const_ref(ty.clone(), fullname))
+            },
+            None => {
+                Err(error::program_error(&format!("constant `{:?}' was not found", names)))
+            }
         }
     }
 
