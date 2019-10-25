@@ -29,16 +29,20 @@ impl<'a> HirMaker<'a> {
 
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-        let main_exprs =
+        let mut main_exprs =
             hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
-            HirMaker { index, constants, .. } => {
+            HirMaker { index, constants, mut const_inits } => {
+                const_inits.append(&mut main_exprs.exprs);
                 Ok(Hir {
                     // PERF: how to avoid this clone??
                     sk_classes: index.sk_classes.clone(),
                     sk_methods,
                     constants,
-                    main_exprs,
+                    main_exprs:  HirExpressions {
+                        ty: main_exprs.ty,
+                        exprs: const_inits,
+                    }
                 })
             }
         }
