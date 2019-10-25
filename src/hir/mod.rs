@@ -11,7 +11,7 @@ use crate::stdlib::Stdlib;
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
-    //pub constants: HashMap<ConstFullname, TermTy>,
+    pub constants: HashMap<ConstFullname, TermTy>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
@@ -35,7 +35,7 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,

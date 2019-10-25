@@ -31,11 +31,17 @@ impl<'a> HirMaker<'a> {
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
         let main_exprs =
             hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
-        Ok(Hir {
-            sk_classes: index.sk_classes,
-            sk_methods,
-            main_exprs,
-        })
+        match hir_maker {
+            HirMaker { index, constants, .. } => {
+                Ok(Hir {
+                    // PERF: how to avoid this clone??
+                    sk_classes: index.sk_classes.clone(),
+                    sk_methods,
+                    constants,
+                    main_exprs,
+                })
+            }
+        }
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
