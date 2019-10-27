@@ -11,6 +11,7 @@ use crate::stdlib::Stdlib;
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub constants: HashMap<ConstFullname, TermTy>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
@@ -34,7 +35,7 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
@@ -109,6 +110,10 @@ pub enum HirExpressionBase {
         then_expr: Box<HirExpression>,
         else_expr: Box<HirExpression>,
     },
+    HirConstAssign {
+        fullname: ConstFullname,
+        rhs: Box<HirExpression>,
+    },
     HirMethodCall {
         receiver_expr: Box<HirExpression>,
         method_fullname: MethodFullname,
@@ -130,6 +135,12 @@ pub enum HirExpressionBase {
     HirBooleanLiteral {
         value: bool,
     },
+    /// A special expression that evaluates to a class
+    /// (eg. `class A; end; A = 1` shadows A, but this special expr
+    /// is never be shadowed)
+    HirClassLiteral {
+        fullname: ClassFullname,
+    },
     HirNop  // For else-less if expr
 }
 
@@ -144,6 +155,16 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 then_expr: Box::new(then_hir),
                 else_expr: Box::new(else_hir),
+            }
+        }
+    }
+
+    pub fn assign_const(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirConstAssign {
+                fullname: fullname,
+                rhs: Box::new(rhs),
             }
         }
     }
@@ -199,6 +220,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value }
+        }
+    }
+
+    pub fn class_literal(fullname: ClassFullname) -> HirExpression {
+        HirExpression {
+            ty: ty::meta(&fullname.0),
+            node: HirExpressionBase::HirClassLiteral { fullname }
         }
     }
     

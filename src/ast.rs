@@ -24,6 +24,10 @@ pub enum Definition {
     ClassMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<Expression>,
+    },
+    ConstDefinition {
+        name: ConstFirstname,
+        expr: Expression,
     }
 }
 
@@ -81,6 +85,14 @@ pub enum ExpressionBody {
         then_expr: Box<Expression>,
         else_expr: Option<Box<Expression>> // Box is needed to aboid E0072
     },
+    LVarAssign {
+        name: String,
+        rhs: Box<Expression>,
+    },
+    ConstAssign {
+        names: Vec<String>,
+        rhs: Box<Expression>,
+    },
     MethodCall {
         receiver_expr: Option<Box<Expression>>, // Box is needed to aboid E0072
         method_name: MethodFirstname,
@@ -89,7 +101,7 @@ pub enum ExpressionBody {
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
-    ConstRef(String),
+    ConstRef(Vec<String>),
     PseudoVariable(Token),
     FloatLiteral {
         value: f64,
@@ -105,6 +117,18 @@ impl Expression {
             ExpressionBody::MethodCall { may_have_paren_wo_args, .. } => may_have_paren_wo_args,
             ExpressionBody::BareName(_) => true,
             _ => false,
+        }
+    }
+
+    /// True if this can be the left hand side of an assignment
+    pub fn is_lhs(&self) -> bool {
+        if self.may_have_paren_wo_args() {
+            return true;
+        }
+        match self.body {
+            ExpressionBody::ConstRef(_) => true,
+            // TODO: a[b]
+            _ => false
         }
     }
 }
@@ -145,6 +169,30 @@ pub fn if_expr(cond_expr: Expression, then_expr: Expression, else_expr: Option<E
     )
 }
 
+/// Create an expression for an assigment
+pub fn assignment(lhs: Expression, rhs: Expression) -> Expression {
+    let body = match lhs.body {
+        ExpressionBody::BareName(s) =>  {
+            ExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs) } 
+        },
+        // ToDo: IVarRef =>
+        // ToDo: CVarRef =>
+        ExpressionBody::ConstRef(names) => {
+            ExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
+        },
+        ExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
+            ExpressionBody::MethodCall {
+                receiver_expr,
+                method_name: method_name.append("="),
+                arg_exprs,
+                may_have_paren_wo_args: false,
+            }
+        },
+        _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body)
+    };
+    non_primary_expression(body)
+}
+
 pub fn method_call(receiver_expr: Option<Expression>,
                    method_name: &str,
                    arg_exprs: Vec<Expression>,
@@ -165,8 +213,8 @@ pub fn bare_name(name: &str) -> Expression {
     primary_expression(ExpressionBody::BareName(name.to_string()))
 }
 
-pub fn const_ref(name: &str) -> Expression {
-    primary_expression(ExpressionBody::ConstRef(name.to_string()))
+pub fn const_ref(names: Vec<String>) -> Expression {
+    primary_expression(ExpressionBody::ConstRef(names))
 }
 
 pub fn unary_expr(expr: Expression, op: &str) -> Expression {

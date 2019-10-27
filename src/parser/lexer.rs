@@ -115,6 +115,10 @@ impl<'a> Lexer<'a> {
         self.current_token = token;
     }
 
+    pub fn debug_info(&self) -> String {
+        format!("{:?} {:?}", self.current_token, self.state)
+    }
+
     /// Remove the current token and read next
     ///
     /// # Examples
@@ -332,7 +336,15 @@ impl<'a> Lexer<'a> {
             '~' => (Token::Tilde, LexerState::ExprBegin),
             '?' => (Token::Question, LexerState::ExprBegin),
             ',' => (Token::Comma, LexerState::ExprBegin),
-            ':' => (Token::Colon, LexerState::ExprBegin),
+            ':' => {
+                if c2 == Some(':') {
+                    next_cur.proceed(self.src);
+                    (Token::ColonColon, LexerState::ExprBegin)
+                }
+                else {
+                    (Token::Colon, LexerState::ExprBegin)
+                }
+            },
             '&' => {
                 if c2 == Some('&') {
                     next_cur.proceed(self.src);

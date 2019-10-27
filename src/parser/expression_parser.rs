@@ -1,5 +1,4 @@
 use crate::parser::base::*;
-use crate::ast::ExpressionBody::*;
 
 impl<'a> Parser<'a> {
     pub fn parse_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
@@ -127,23 +126,34 @@ impl<'a> Parser<'a> {
         Ok(v)
     }
 
+    // operatorExpression:
+    //   assignmentExpression |
+    //   conditionalOperatorExpression
     fn parse_operator_expr(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_operator_expr");
         let expr = self.parse_conditional_expr()?;
-        if let BareName(_) = expr.body {
-            // TODO: may be a singleVariableAssignmentExpression
-            self.lv -= 1;
-            Ok(expr)
-        }
-        else if expr.primary {
-            // TODO: may be a singleIndexingAssignmentExpression or a singleMethodAssignmentExpression
-            self.lv -= 1;
-            Ok(expr)
+        if expr.is_lhs() && self.next_nonspace_token() == Token::Equal {
+            self.parse_assignment_expr(expr)
         }
         else {
             self.lv -= 1;
             Ok(expr)
         }
+    }
+
+    // assignmentExpression:
+    //       singleAssignmentExpression |
+    //       abbreviatedAssignmentExpression |
+    //       assignmentWithRescueModifier
+    fn parse_assignment_expr(&mut self, lhs: ast::Expression) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_assignment_expr");
+
+        self.skip_ws(); assert!(self.consume(Token::Equal));  // TODO: `+=` etc.
+        self.skip_wsn();
+        let rhs = self.parse_operator_expr()?;
+
+        self.lv -= 1;
+        Ok(ast::assignment(lhs, rhs))
     }
 
     /// `a ? b : c`
@@ -414,9 +424,8 @@ impl<'a> Parser<'a> {
                 self.parse_primary_method_call(&name)
             },
             Token::UpperWord(s) => {
-                let expr = ast::const_ref(s);
-                self.consume_token();
-                Ok(expr)
+                let name = s.to_string();
+                self.parse_const_ref(name)
             },
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
@@ -455,6 +464,26 @@ impl<'a> Parser<'a> {
         };
         self.lv -= 1;
         Ok(expr)
+    }
+
+    fn parse_const_ref(&mut self, s: String) -> Result<ast::Expression, Error> {
+        let mut names = vec![s];
+        self.consume_token();
+        // Parse `A::B`
+        while self.current_token_is(Token::ColonColon) {
+            self.consume_token();
+            match self.current_token() {
+                Token::UpperWord(s) => {
+                    let name = s.to_string();
+                    self.consume_token();
+                    names.push(name);
+                },
+                token => {
+                    return Err(parse_error!(self, "unexpected token: {:?}", token))
+                }
+            }
+        }
+        Ok(ast::const_ref(names))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, Error> {

@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
 
     /// Print parser debug log (uncomment to enable)
     pub (in super) fn debug_log(&self, _msg: &str) {
-        //println!("{}{} {:?} {:?}", self.lv_space(), _msg, self.lexer.current_token, self.lexer.state);
+        //println!("{}{} {}", self.lv_space(), _msg, self.lexer.debug_info());
     }
     #[allow(dead_code)]
     fn lv_space(&self) -> String {

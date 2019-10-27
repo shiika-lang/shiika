@@ -12,39 +12,39 @@ use crate::ty::*;
 use crate::names::*;
 
 #[derive(Debug, PartialEq)]
-pub struct Index(HashMap<ClassFullname, SkClass>);
+pub struct Index {
+    pub sk_classes: HashMap<ClassFullname, SkClass>
+}
 
 impl Index {
     pub fn new(stdlib_classes: HashMap<ClassFullname, SkClass>,
                toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
-        let mut index = Index(HashMap::new());
+        let mut index = Index {
+            sk_classes: HashMap::new()
+        };
         index.index_stdlib(stdlib_classes);
         index.index_program(toplevel_defs)?;
         Ok(index)
     }
 
-    pub fn sk_classes(self) -> HashMap<ClassFullname, SkClass> {
-        self.0
-    }
-
     /// Find a method from class name and first name
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstname) -> Option<&MethodSignature> {
-        self.0.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
+        self.sk_classes.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
     /// Find a class
     pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.0.get(class_fullname)
+        self.sk_classes.get(class_fullname)
     }
 
-    /// Return true if there is a class of the name
-    pub fn class_exists(&self, class_fullname: &str) -> bool {
-        self.0.contains_key(&ClassFullname(class_fullname.to_string()))
-    }
+//    /// Return true if there is a class of the name
+//    pub fn class_exists(&self, class_fullname: &str) -> bool {
+//        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+//    }
 
     /// Register a class
     fn add_class(&mut self, class: SkClass) {
-        self.0.insert(class.fullname.clone(), class);
+        self.sk_classes.insert(class.fullname.clone(), class);
     }
 
     fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
@@ -60,6 +60,7 @@ impl Index {
                     self.index_class(&name, &defs);
                     Ok(())
                 },
+                ast::Definition::ConstDefinition { .. } => Ok(()),
                 _ => {
                     Err(error::syntax_error(&format!("must not be toplevel: {:?}", def)))
                 }
@@ -86,6 +87,7 @@ impl Index {
                     let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
+                ast::Definition::ConstDefinition { .. } => (),
                 _ => panic!("TODO")
             }
         });

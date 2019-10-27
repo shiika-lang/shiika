@@ -26,6 +26,12 @@ impl std::fmt::Display for MethodFirstname {
     }
 }
 
+impl MethodFirstname {
+    pub fn append(&self, suffix: &str) -> MethodFirstname {
+        MethodFirstname(self.0.clone() + suffix)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodFullname {
     pub full_name: String,
@@ -35,6 +41,15 @@ pub struct MethodFullname {
 impl std::fmt::Display for MethodFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.full_name)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+pub struct ConstFirstname(pub String);
+
+impl std::fmt::Display for ConstFirstname {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

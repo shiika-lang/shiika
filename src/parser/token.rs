@@ -33,6 +33,7 @@ pub enum Token {
     Question,     //  ? 
     Comma,        //  , 
     Colon,        //  :      
+    ColonColon,   //  ::
     And,          //  &
     AndAnd,       //  &&
     Or,           //  |
@@ -96,6 +97,7 @@ impl Token {
             Token::Question => false,     //  ? 
             Token::Comma => false,        //  , 
             Token::Colon => true,         //  :      
+            Token::ColonColon => true,    //  ::
             Token::And => true,           //  &
             Token::AndAnd => false,       //  &&
             Token::Or => false,           //  |
