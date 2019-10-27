@@ -47,8 +47,7 @@ impl CodeGen {
         self.gen_class_structs(&hir.sk_classes);
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
-        self.gen_constant_ptrs(&hir.sk_classes);
-        self.gen_initialize_constants(&hir.sk_classes);
+        self.gen_constant_ptrs(&hir.constants);
         self.gen_main(&hir.main_exprs)?;
         Ok(())
     }
@@ -74,37 +73,17 @@ impl CodeGen {
         self.module.add_function("fabs", fn_type, None);
     }
 
-    fn gen_constant_ptrs(&self, classes: &HashMap<ClassFullname, SkClass>) {
-        classes.values().filter(|class|
-            class.instance_ty.is_nonmeta()
-        ).for_each(|class| {
-            let ty = class.class_ty();
-            let name = &class.fullname.0;
+    fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
+        for (fullname, ty) in constants {
+            let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(&ty), None, name);
             global.set_linkage(inkwell::module::Linkage::Internal);
             let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
-            global.set_initializer(&null);
-        })
-    }
-
-    fn gen_initialize_constants(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
-        let fn_type = self.void_type.fn_type(&[], false);
-        let function = self.module.add_function("initialize_constants", fn_type, None);
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
-
-        classes.values().filter(|class|
-            class.instance_ty.is_nonmeta()
-        ).for_each(|class| {
-            let const_name = ConstFullname(class.fullname.0.to_string());
-            let value = self.allocate_sk_obj(&class.class_ty().fullname);
-            let ptr = self.module.get_global(&const_name.0).
-                expect(&format!("[BUG] global for Constant `{}' not created", const_name.0)).
-                as_pointer_value();
-            self.builder.build_store(ptr, value);
-        });
-
-        self.builder.build_return(None);
+            match self.llvm_zero_value(ty) {
+                Some(zero) => global.set_initializer(&zero),
+                None       => global.set_initializer(&null),
+            }
+        }
     }
 
     fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
@@ -120,10 +99,6 @@ impl CodeGen {
 
         // Create the Main object
         self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
-
-        // Call initialize_constants
-        let func = self.module.get_function("initialize_constants").unwrap();
-        self.builder.build_call(func, &[], "");
 
         // Generate main exprs
         self.gen_exprs(function, &main_exprs)?;
@@ -234,6 +209,9 @@ impl CodeGen {
             HirIfExpression { cond_expr, then_expr, else_expr } => {
                 self.gen_if_expr(function, &expr.ty, &cond_expr, &then_expr, &else_expr)
             },
+            HirConstAssign { fullname, rhs } => {
+                self.gen_const_assign(function, fullname, rhs)
+            },
             HirMethodCall { receiver_expr, method_fullname, arg_exprs } => {
                 self.gen_method_call(function, method_fullname, receiver_expr, arg_exprs)
             },
@@ -264,10 +242,12 @@ impl CodeGen {
             HirBooleanLiteral { value } => {
                 Ok(self.gen_boolean_literal(*value))
             },
+            HirClassLiteral { fullname } => {
+                Ok(self.gen_class_literal(fullname))
+            }
             HirNop => {
                 panic!("HirNop not handled by `else`")
             },
-            _ => panic!("TODO")
         }
     }
 
@@ -297,6 +277,18 @@ impl CodeGen {
         let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
         phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
         Ok(phi_node.as_basic_value())
+    }
+
+    fn gen_const_assign(&self,
+                        function: inkwell::values::FunctionValue,
+                        fullname: &ConstFullname,
+                        rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let value = self.gen_expr(function, rhs)?;
+        let ptr = self.module.get_global(&fullname.0).
+            expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
+            as_pointer_value();
+        self.builder.build_store(ptr, value);
+        Ok(value)
     }
 
     fn gen_method_call(&self,
@@ -333,6 +325,10 @@ impl CodeGen {
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
         let i = if value { 1 } else { 0 };
         self.i1_type.const_int(i, false).as_basic_value_enum()
+    }
+
+    fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname)
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
@@ -383,6 +379,21 @@ impl CodeGen {
                 }
             },
             _ => self.sk_obj_llvm_type(ty)
+        }
+    }
+
+    /// Return zero value in LLVM. None if it is a pointer
+    fn llvm_zero_value(&self, ty: &TermTy) -> Option<inkwell::values::BasicValueEnum> {
+        match ty.body {
+            TyBody::TyRaw => {
+                match ty.fullname.0.as_str() {
+                    "Bool" => Some(self.i1_type.const_int(0, false).as_basic_value_enum()),
+                    "Int" => Some(self.i32_type.const_int(0, false).as_basic_value_enum()),
+                    "Float" => Some(self.f64_type.const_float(0.0).as_basic_value_enum()),
+                    _ => None,
+                }
+            },
+            _ => None,
         }
     }
 
