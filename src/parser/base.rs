@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
     /// Consume the current token and return it
     pub (in super) fn consume_token(&mut self) -> Token {
         let tok = self.current_token();
-        self.debug_log(&format!("@ {:?}", &tok));
+        self.debug_log(&format!("consume_token {:?}", &tok));
         self.lexer.consume_token()
     }
 

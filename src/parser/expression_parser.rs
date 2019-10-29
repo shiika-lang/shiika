@@ -256,7 +256,6 @@ impl<'a> Parser<'a> {
         let left = self.parse_multiplicative_expr()?;
 
         let t = self.next_nonspace_token();
-        self.debug_log(&format!("self.next_nonspace_token {:?}", t));
         let op = match t {
             Token::BinaryPlus => "+",
             Token::BinaryMinus => "-",
