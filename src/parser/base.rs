@@ -85,6 +85,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Return next token which is not `Token::Space`
+    /// Note: newlines are not skipped. (i.e. this function may return Token::Newline)
     pub (in super) fn next_nonspace_token(&mut self) -> Token {
         if self.current_token_is(Token::Space) {
             self.lexer.peek_next()
