@@ -26,6 +26,19 @@ fn test_const_assign() {
 }
 
 #[test]
+fn test_equality_expr() {
+    let result = parse_expr("1 != 2");
+    assert_eq!(result.unwrap(),
+    ast::logical_not(
+    ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "==",
+        vec![ast::decimal_literal(2)],
+        false,
+        false)))
+}
+
+#[test]
 fn test_additive_expr() {
     let result = parse_expr("1+2*3");
     assert_eq!(result.unwrap(),

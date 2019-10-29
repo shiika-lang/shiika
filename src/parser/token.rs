@@ -25,6 +25,7 @@ pub enum Token {
     Div,          //  / 
     Mod,          //  % 
     EqEq,         //  ==
+    NotEq,        //  !=
     Equal,        //  = 
     Bang,         //  ! 
     Dot,          //  . 
@@ -89,6 +90,7 @@ impl Token {
             Token::Div => true,           //  / 
             Token::Mod => false,          //  % 
             Token::EqEq => false,         //  ==
+            Token::NotEq => false,        //  !=
             Token::Equal => false,        //  = 
             Token::Bang => true,          //  ! 
             Token::Dot => false,          //  . 

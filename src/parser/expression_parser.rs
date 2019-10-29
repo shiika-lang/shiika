@@ -240,13 +240,40 @@ impl<'a> Parser<'a> {
     /// `==`, etc.
     fn parse_equality_expr(&mut self) -> Result<ast::Expression, Error> {
         self.lv += 1; self.debug_log("parse_equality_expr");
+        let left = self.parse_relational_expr()?;
+        let op = match self.next_nonspace_token() {
+            // TODO: <=> === =~ !~
+            Token::EqEq => "==",
+            Token::NotEq => "!=",
+            _ => {
+                self.lv -= 1;
+                return Ok(left)
+            }
+        };
+
+        self.skip_ws();
+        self.consume_token();
+        self.skip_wsn();
+        let right = self.parse_relational_expr()?;
+        let call_eq = ast::method_call(Some(left),
+                                       "==",
+                                       vec![right],
+                                       false,
+                                       false);
+        let expr = if op == "!=" { ast::logical_not(call_eq) } else { call_eq };
+        self.lv -= 1;
+        Ok(expr)
+    }
+
+    fn parse_relational_expr(&mut self) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_relational_expr");
         //TODO:
         //  parse_relational_expr
         //  parse_bitwise_or
         //  parse_bitwise_and
         //  parse_bitwise_shift
         //  parse_additive_expr
-        let expr = self.parse_additive_expr()?;
+        let expr = self.parse_additive_expr()?; // additive (> >= < <=) additive
         self.lv -= 1;
         Ok(expr)
     }

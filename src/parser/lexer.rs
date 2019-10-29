@@ -330,7 +330,15 @@ impl<'a> Lexer<'a> {
                     (Token::Equal, LexerState::ExprBegin)
                 }
             },
-            '!' => (Token::Bang, LexerState::ExprBegin),
+            '!' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::NotEq, LexerState::ExprBegin)
+                }
+                else {
+                    (Token::Bang, LexerState::ExprBegin)
+                }
+            },
             '.' => (Token::Dot, LexerState::ExprBegin),
             '@' => (Token::At, LexerState::ExprBegin),
             '~' => (Token::Tilde, LexerState::ExprBegin),
