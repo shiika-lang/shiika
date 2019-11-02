@@ -115,8 +115,12 @@ impl<'a> Parser<'a> {
                 Token::Mul => { name_str = "*" },
                 Token::Div => { name_str = "/" },
                 Token::Mod => { name_str = "%" },
+                Token::LessThan => { name_str = "<" },
+                Token::LessEq => { name_str = "<=" },
+                Token::GraterThan => { name_str = ">" },
+                Token::GraterEq => { name_str = ">=" },
                 token => {
-                    return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
+                    return Err(parse_error!(self, "invalid method name {:?}", token))
                 }
             }
             name = Some(MethodFirstname(name_str.to_string()));
