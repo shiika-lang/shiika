@@ -43,6 +43,15 @@ task :default => [:parser, :test]
 task :run do
   sh "cargo run"
   sh "llc a.ll"
-  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o bgc a.s"
-  sh "./bgc"
+  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s"
+  sh "./a.out"
+end
+
+task :opt do
+  sh "cargo run"
+  sh "opt -O3 a.ll > a.bc"
+  sh "llvm-dis a.bc -o a2.ll"
+  sh "llc a.bc"
+  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s"
+  sh "./a.out"
 end
