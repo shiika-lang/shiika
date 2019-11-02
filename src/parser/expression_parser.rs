@@ -273,7 +273,33 @@ impl<'a> Parser<'a> {
         //  parse_bitwise_and
         //  parse_bitwise_shift
         //  parse_additive_expr
-        let expr = self.parse_additive_expr()?; // additive (> >= < <=) additive
+        let mut expr = self.parse_additive_expr()?; // additive (> >= < <=) additive
+        let mut nesting = false;
+        loop {
+            let op = match self.next_nonspace_token() {
+                Token::LessThan => "<",
+                Token::GraterThan => ">",
+                Token::LessEq => "<=",
+                Token::GraterEq => "<=",
+                _ => break,
+            };
+            self.skip_ws();
+            self.consume_token();
+            self.skip_wsn();
+            let right = self.parse_additive_expr()?;
+
+            if nesting {
+                if let ast::ExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
+                    let mid = arg_exprs[0].clone();
+                    let compare = ast::method_call(Some(mid), op, vec![right], false, false);
+                    expr = ast::logical_and(expr, compare);
+                }
+            }
+            else {
+                expr = ast::method_call(Some(expr), op, vec![right], false, false);
+                nesting = true;
+            }
+        }
         self.lv -= 1;
         Ok(expr)
     }
@@ -363,6 +389,8 @@ impl<'a> Parser<'a> {
         if self.consume(Token::KwElse) {
             self.skip_wsn();
             let else_expr = Some(self.parse_expr()?);
+            self.skip_wsn();
+            self.expect(Token::KwEnd)?;
             self.lv -= 1;
             Ok(ast::if_expr(cond_expr, then_expr, else_expr))
         }

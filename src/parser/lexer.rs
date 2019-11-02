@@ -292,8 +292,6 @@ impl<'a> Lexer<'a> {
             ')' => (Token::RParen, LexerState::ExprEnd),
             '[' => (Token::LSqBracket, LexerState::ExprBegin),
             ']' => (Token::RSqBracket, LexerState::ExprEnd),
-            '<' => (Token::LAngBracket, LexerState::ExprBegin),
-            '>' => (Token::RAngBracket, LexerState::ExprBegin),
             '{' => (Token::LBrace, LexerState::ExprBegin),
             '}' => (Token::RBrace, LexerState::ExprEnd),
             '+' => {
@@ -337,6 +335,24 @@ impl<'a> Lexer<'a> {
                 }
                 else {
                     (Token::Bang, LexerState::ExprBegin)
+                }
+            },
+            '<' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::LessEq, LexerState::ExprBegin)
+                }
+                else {
+                    (Token::LessThan, LexerState::ExprBegin)
+                }
+            },
+            '>' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::GraterEq, LexerState::ExprBegin)
+                }
+                else {
+                    (Token::GraterThan, LexerState::ExprBegin)
                 }
             },
             '.' => (Token::Dot, LexerState::ExprBegin),

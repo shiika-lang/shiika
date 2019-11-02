@@ -39,6 +39,25 @@ fn test_equality_expr() {
 }
 
 #[test]
+fn test_relational_expr() {
+    let result = parse_expr("1 < 2 < 3");
+    assert_eq!(result.unwrap(),
+    ast::logical_and(
+        ast::method_call(
+            Some(ast::decimal_literal(1)),
+            "<",
+            vec![ast::decimal_literal(2)],
+            false,
+            false),
+        ast::method_call(
+            Some(ast::decimal_literal(2)),
+            "<",
+            vec![ast::decimal_literal(3)],
+            false,
+            false)))
+}
+
+#[test]
 fn test_additive_expr() {
     let result = parse_expr("1+2*3");
     assert_eq!(result.unwrap(),

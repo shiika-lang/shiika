@@ -61,13 +61,13 @@ pub struct Typ {
     pub name: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expression {
     pub body: ExpressionBody,
     pub primary: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExpressionBody {
     LogicalNot {
         expr: Box<Expression>,
