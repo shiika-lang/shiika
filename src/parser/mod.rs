@@ -18,6 +18,7 @@ mod expression_parser;
 use crate::ast;
 use crate::error::Error;
 use crate::parser::lexer::Lexer;
+pub use crate::parser::token::Token;
 
 pub struct Parser<'a> {
     pub lexer: Lexer<'a>,
@@ -40,9 +41,11 @@ impl<'a> Parser<'a> {
 
     fn parse_program(&mut self) -> Result<ast::Program, Error> {
         self.skip_wsn();
-        Ok(ast::Program {
-            toplevel_defs: self.parse_definitions()?,
-            exprs: self.parse_exprs()?,
-        })
+        let toplevel_defs = self.parse_definitions()?; 
+        let exprs = self.parse_exprs()?; 
+        if *self.current_token() != Token::Eof {
+            return Err(parse_error!(self, "unexpected token: {:?}", self.current_token()))
+        }
+        Ok(ast::Program { toplevel_defs, exprs })
     }
 }
