@@ -28,6 +28,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_class_definition(&mut self) -> Result<ast::Definition, Error> {
+        self.debug_log("parse_class_definition"); self.lv += 1;
         let name;
         let defs;
 
@@ -54,10 +55,12 @@ impl<'a> Parser<'a> {
             token => return Err(parse_error!(self, "missing `end' for class {:?}; got {:?}", name, token))
         }
         
+        self.lv -= 1;
         Ok(ast::Definition::ClassDefinition { name, defs })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
+        self.debug_log("parse_method_definition"); self.lv += 1;
         // `def'
         assert!(self.consume(Token::KwDef));
         self.skip_ws();
@@ -76,6 +79,7 @@ impl<'a> Parser<'a> {
             token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", sig.name, token))
         }
 
+        self.lv -= 1;
         if is_class_method {
             Ok(ast::Definition::ClassMethodDefinition { sig, body_exprs })
         }
@@ -111,8 +115,12 @@ impl<'a> Parser<'a> {
                 Token::Mul => { name_str = "*" },
                 Token::Div => { name_str = "/" },
                 Token::Mod => { name_str = "%" },
+                Token::LessThan => { name_str = "<" },
+                Token::LessEq => { name_str = "<=" },
+                Token::GraterThan => { name_str = ">" },
+                Token::GraterEq => { name_str = ">=" },
                 token => {
-                    return Err(parse_error!(self, "method name must start with a-z but got {:?}", token))
+                    return Err(parse_error!(self, "invalid method name {:?}", token))
                 }
             }
             name = Some(MethodFirstname(name_str.to_string()));
@@ -199,6 +207,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
+        self.debug_log("parse_const_definition"); self.lv += 1;
         let name;
         match self.current_token() {
             Token::UpperWord(s) => {
@@ -214,6 +223,7 @@ impl<'a> Parser<'a> {
 
         let expr = self.parse_expr()?;
 
+        self.lv -= 1;
         Ok(ast::Definition::ConstDefinition { name, expr })
     }
 }

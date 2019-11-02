@@ -12,8 +12,6 @@ pub enum Token {
     RParen,       //  ) 
     LSqBracket,   //  [ 
     RSqBracket,   //  ] 
-    LAngBracket,  //  < 
-    RAngBracket,  //  > 
     LBrace,       //  { 
     RBrace,       //  } 
     UnaryPlus,    //  +a
@@ -26,6 +24,10 @@ pub enum Token {
     Mod,          //  % 
     EqEq,         //  ==
     NotEq,        //  !=
+    LessThan,     //  < 
+    GraterThan,   //  > 
+    LessEq,       //  <=
+    GraterEq,     //  >=
     Equal,        //  = 
     Bang,         //  ! 
     Dot,          //  . 
@@ -77,8 +79,6 @@ impl Token {
             Token::RParen => false,       //  ) 
             Token::LSqBracket => false,   //  [ 
             Token::RSqBracket => false,   //  ] 
-            Token::LAngBracket => false,  //  < 
-            Token::RAngBracket => false,  //  > 
             Token::LBrace => false,       //  { 
             Token::RBrace => false,       //  } 
             Token::UnaryPlus => true,     //  + 
@@ -91,6 +91,10 @@ impl Token {
             Token::Mod => false,          //  % 
             Token::EqEq => false,         //  ==
             Token::NotEq => false,        //  !=
+            Token::LessThan => false,     //  < 
+            Token::GraterThan => false,   //  > 
+            Token::LessEq => false,       //  <=
+            Token::GraterEq => false,     //  >=
             Token::Equal => false,        //  = 
             Token::Bang => true,          //  ! 
             Token::Dot => false,          //  . 

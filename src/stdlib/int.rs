@@ -4,10 +4,26 @@ use crate::stdlib::create_method;
 pub fn create_methods() -> Vec<SkMethod> {
     vec![
 
+    create_method("Int", "<(other: Int) -> Bool", |code_gen, function| {
+        let val1 = function.get_params()[0].into_int_value();
+        let val2 = function.get_params()[1].into_int_value();
+        let result = code_gen.builder.build_int_compare(inkwell::IntPredicate::SLT, val1, val2, "result");
+        code_gen.builder.build_return(Some(&result));
+        Ok(())
+    }),
+
     create_method("Int", "+(other: Int) -> Int", |code_gen, function| {
         let val1 = function.get_params()[0].into_int_value();
         let val2 = function.get_params()[1].into_int_value();
         let result = code_gen.builder.build_int_add(val1, val2, "result");
+        code_gen.builder.build_return(Some(&result));
+        Ok(())
+    }),
+
+    create_method("Int", "-(other: Int) -> Int", |code_gen, function| {
+        let val1 = function.get_params()[0].into_int_value();
+        let val2 = function.get_params()[1].into_int_value();
+        let result = code_gen.builder.build_int_sub(val1, val2, "result");
         code_gen.builder.build_return(Some(&result));
         Ok(())
     }),
