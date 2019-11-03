@@ -3,7 +3,7 @@ pub enum Token {
     Bof,
     Eof,
     Space,
-    Separator, // Newline or ';'
+    Separator, // Newline, ';' or comment
     UpperWord(String),
     LowerWord(String),
     Number(String),
