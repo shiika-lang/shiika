@@ -50,12 +50,13 @@ impl Cursor {
         }
     }
 
+    /// Return the current char (None if eof)
     pub fn peek(&self, src: &str) -> Option<char> {
         src[self.pos..].chars().next()
     }
 
-    // Peek the second next character.
-    // Must not be called on EOF
+    /// Peek the second next character.
+    /// Must not be called on EOF
     pub fn peek2(&self, src: &str) -> Option<char> {
         if let Some(c) = self.peek(src) {
             let pos = self.pos + c.len_utf8();
@@ -66,6 +67,7 @@ impl Cursor {
         }
     }
 
+    /// Consume the current char and return it
     pub fn proceed(&mut self, src: &str) -> char {
         let c = src[self.pos..].chars().next().unwrap();
         if c == '\n' {
@@ -84,6 +86,7 @@ impl Cursor {
 enum CharType {
     Space,
     Separator, // Newline or ';'
+    Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
     LowerWord, // Keyword or identifier which starts with lower-case letter
     Symbol, // '+', '(', etc.
@@ -190,6 +193,7 @@ impl<'a> Lexer<'a> {
         let (token, _) = match self.char_type(c) {
             CharType::Space     => (self.read_space(&mut next_next_cur), None),
             CharType::Separator => (self.read_separator(&mut next_next_cur), None),
+            CharType::Comment   => (self.read_comment(&mut next_next_cur), None),
             CharType::UpperWord => (self.read_upper_word(&mut next_next_cur, Some(&next_cur)), None),
             CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
             CharType::Symbol    => self.read_symbol(&mut next_next_cur),
@@ -206,6 +210,7 @@ impl<'a> Lexer<'a> {
         let (token, new_state) = match self.char_type(c) {
             CharType::Space     => (self.read_space(&mut next_cur),            None),
             CharType::Separator => (self.read_separator(&mut next_cur),        None),
+            CharType::Comment   => (self.read_comment(&mut next_cur), None),
             CharType::UpperWord => (self.read_upper_word(&mut next_cur, None), Some(LexerState::ExprEnd)),
             CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
             CharType::Symbol    => self.read_symbol(&mut next_cur),
@@ -237,6 +242,15 @@ impl<'a> Lexer<'a> {
                 },
                 _ => break
             };
+        }
+        Token::Separator
+    }
+
+    fn read_comment(&mut self, next_cur: &mut Cursor) -> Token {
+        next_cur.proceed(self.src); // Skip the `#'
+        loop {
+            let c = next_cur.proceed(self.src);
+            if c == '\n' { break }
         }
         Token::Separator
     }
@@ -448,6 +462,7 @@ impl<'a> Lexer<'a> {
         match cc.unwrap() {
             ' ' | '\t' => CharType::Space,
             '\n' | ';' => CharType::Separator,
+            '#' => CharType::Comment,
             '0'..='9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
