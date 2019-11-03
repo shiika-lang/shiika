@@ -1,6 +1,7 @@
 use crate::parser::base::*;
 
 impl<'a> Parser<'a> {
+    /// Parse successive expressions
     pub fn parse_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
         let mut ret = Vec::new();
         loop {

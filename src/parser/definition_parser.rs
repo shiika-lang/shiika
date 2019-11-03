@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_class_definition(&mut self) -> Result<ast::Definition, Error> {
+    pub fn parse_class_definition(&mut self) -> Result<ast::Definition, Error> {
         self.debug_log("parse_class_definition"); self.lv += 1;
         let name;
         let defs;
