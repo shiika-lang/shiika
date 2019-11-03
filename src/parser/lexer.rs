@@ -50,12 +50,13 @@ impl Cursor {
         }
     }
 
+    /// Return the current char (None if eof)
     pub fn peek(&self, src: &str) -> Option<char> {
         src[self.pos..].chars().next()
     }
 
-    // Peek the second next character.
-    // Must not be called on EOF
+    /// Peek the second next character.
+    /// Must not be called on EOF
     pub fn peek2(&self, src: &str) -> Option<char> {
         if let Some(c) = self.peek(src) {
             let pos = self.pos + c.len_utf8();
@@ -66,6 +67,7 @@ impl Cursor {
         }
     }
 
+    /// Consume the current char and return it
     pub fn proceed(&mut self, src: &str) -> char {
         let c = src[self.pos..].chars().next().unwrap();
         if c == '\n' {
