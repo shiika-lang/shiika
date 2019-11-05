@@ -1,6 +1,7 @@
 use crate::parser::base::*;
 
 impl<'a> Parser<'a> {
+    /// Parse successive expressions
     pub fn parse_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
         let mut ret = Vec::new();
         loop {
@@ -14,7 +15,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expr(&mut self) -> Result<ast::Expression, Error> {
-        self.lv += 1; self.debug_log("parse_expr");
+        self.parse_and_or_expr()
+    }
+
+    pub fn parse_and_or_expr(&mut self) -> Result<ast::Expression, Error> {
+        self.lv += 1; self.debug_log("parse_and_or_expr");
         let mut expr = self.parse_not_expr()?;
         self.skip_ws();
         loop {

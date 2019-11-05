@@ -67,7 +67,8 @@ impl<'a> HirMaker<'a> {
                     }
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&ctx, name, expr)
+                    self.register_const(&ctx, name, expr)?;
+                    Ok(())
                 }
                 _ => panic!("should be checked in hir::index")
             }
@@ -107,7 +108,8 @@ impl<'a> HirMaker<'a> {
                     }
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&ctx, name, expr)
+                    self.register_const(&ctx, name, expr)?;
+                    Ok(())
                 }
                 _ => Ok(()),
             }
@@ -153,17 +155,18 @@ impl<'a> HirMaker<'a> {
     fn register_const(&mut self,
                       ctx: &HirMakerContext,
                       name: &ConstFirstname,
-                      expr: &ast::Expression) -> Result<(), Error> {
+                      expr: &ast::Expression) -> Result<ConstFullname, Error> {
+        // TODO: resolve name using ctx
         let fullname = ConstFullname(ctx.namespace.0.clone() + "::" + &name.0);
         let hir_expr = self.convert_expr(ctx, expr)?;
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        let op = Hir::assign_const(fullname, hir_expr);
+        let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);
-        Ok(())
+        Ok(fullname)
     }
 
 
-    fn convert_method_def(&self,
+    fn convert_method_def(&mut self,
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
@@ -181,7 +184,7 @@ impl<'a> HirMaker<'a> {
         Ok(SkMethod { signature, body })
     }
 
-    fn convert_exprs(&self,
+    fn convert_exprs(&mut self,
                      ctx: &HirMakerContext,
                      exprs: &Vec<ast::Expression>) -> Result<HirExpressions, Error> {
         let hir_exprs = exprs.iter().map(|expr|
@@ -196,7 +199,7 @@ impl<'a> HirMaker<'a> {
         Ok(HirExpressions { ty: ty, exprs: hir_exprs })
     }
 
-    fn convert_expr(&self,
+    fn convert_expr(&mut self,
                     ctx: &HirMakerContext,
                     expr: &ast::Expression) -> Result<HirExpression, Error> {
         match &expr.body {
@@ -218,9 +221,7 @@ impl<'a> HirMaker<'a> {
             },
 
             ast::ExpressionBody::ConstAssign { names, rhs } => {
-                // TODO: resolve name
-                let fullname = ConstFullname(names.join("::"));
-                Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
+                self.convert_const_assign(ctx, names, &*rhs)
             },
 
             ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
@@ -258,6 +259,15 @@ impl<'a> HirMaker<'a> {
 
             x => panic!("TODO: {:?}", x)
         }
+    }
+
+    fn convert_const_assign(&mut self,
+                            ctx: &HirMakerContext,
+                            names: &Vec<String>,
+                            rhs: &ast::Expression) -> Result<HirExpression, Error> {
+        let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
+        let fullname = self.register_const(&ctx, &name, &rhs)?;
+        Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
     }
 
     fn convert_pseudo_variable(&self,

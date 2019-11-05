@@ -2,13 +2,21 @@ use shiika;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let str = "
+# hello
+H = 72
 class A
-    def self.foo -> Int; 72; end
-    def id(x: Int, y: Int) -> Int; y; end;
-    def me() -> A; self; end;
+  def self.foo -> Int; 72; end
+
+  def fib(n: Int) -> Int
+    if n < 3
+      1
+    else
+      fib(n-1) + fib(n-2)
+    end
+  end
 end
-A.new
-putchar A.foo
+putchar A.new.fib(40)
+putchar H
 putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(str)?;
     let stdlib = shiika::stdlib::Stdlib::create();
