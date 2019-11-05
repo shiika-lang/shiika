@@ -286,25 +286,35 @@ impl<'a> HirMaker<'a> {
         self.make_method_call(receiver_hir, &method_name, arg_hirs)
     }
 
-    fn convert_pseudo_variable(&self,
-                               ctx: &HirMakerContext,
-                               token: &Token) -> Result<HirExpression, Error> {
-        match token {
-            Token::KwSelf => {
-                self.convert_self_expr(ctx)
-            },
-            Token::KwTrue => {
-                Ok(Hir::boolean_literal(true))
-            },
-            Token::KwFalse => {
-                Ok(Hir::boolean_literal(false))
-            },
-            _ => panic!("[BUG] not a pseudo variable token: {:?}", token)
-        }
+    fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
+        let class_fullname = &receiver_hir.ty.fullname;
+        let sig = self.lookup_method(class_fullname, class_fullname, method_name)?;
+
+        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
+        type_checking::check_method_args(&sig, &param_tys)?;
+
+        Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
     }
 
-    fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {
-        Ok(Hir::self_expression(ctx.self_ty.clone()))
+    fn lookup_method(&self, 
+                     receiver_class_fullname: &ClassFullname,
+                     class_fullname: &ClassFullname,
+                     method_name: &MethodFirstname) -> Result<&MethodSignature, Error> {
+        let found = self.index.find_method(class_fullname, method_name);
+        if let Some(sig) = found {
+            Ok(sig)
+        }
+        else {
+            // Look up in superclass
+            let sk_class = self.index.find_class(class_fullname)
+                .expect("[BUG] lookup_method: class not found");
+            if let Some(super_name) = &sk_class.superclass_fullname {
+                self.lookup_method(receiver_class_fullname, super_name, method_name)
+            }
+            else {
+                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
+            }
+        }
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
@@ -341,34 +351,24 @@ impl<'a> HirMaker<'a> {
         }
     }
 
-    fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
-        let class_fullname = &receiver_hir.ty.fullname;
-        let sig = self.lookup_method(class_fullname, class_fullname, method_name)?;
-
-        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
-        type_checking::check_method_args(&sig, &param_tys)?;
-
-        Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
+    fn convert_pseudo_variable(&self,
+                               ctx: &HirMakerContext,
+                               token: &Token) -> Result<HirExpression, Error> {
+        match token {
+            Token::KwSelf => {
+                self.convert_self_expr(ctx)
+            },
+            Token::KwTrue => {
+                Ok(Hir::boolean_literal(true))
+            },
+            Token::KwFalse => {
+                Ok(Hir::boolean_literal(false))
+            },
+            _ => panic!("[BUG] not a pseudo variable token: {:?}", token)
+        }
     }
 
-    fn lookup_method(&self, 
-                     receiver_class_fullname: &ClassFullname,
-                     class_fullname: &ClassFullname,
-                     method_name: &MethodFirstname) -> Result<&MethodSignature, Error> {
-        let found = self.index.find_method(class_fullname, method_name);
-        if let Some(sig) = found {
-            Ok(sig)
-        }
-        else {
-            // Look up in superclass
-            let sk_class = self.index.find_class(class_fullname)
-                .expect("[BUG] lookup_method: class not found");
-            if let Some(super_name) = &sk_class.superclass_fullname {
-                self.lookup_method(receiver_class_fullname, super_name, method_name)
-            }
-            else {
-                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
-            }
-        }
+    fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {
+        Ok(Hir::self_expression(ctx.self_ty.clone()))
     }
 }
