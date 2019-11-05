@@ -1,4 +1,4 @@
-use crate::ast;
+use crate::ast::*;
 use crate::error;
 use crate::error::Error;
 use crate::hir::*;
@@ -155,7 +155,7 @@ impl<'a> HirMaker<'a> {
     fn register_const(&mut self,
                       ctx: &HirMakerContext,
                       name: &ConstFirstname,
-                      expr: &ast::Expression) -> Result<ConstFullname, Error> {
+                      expr: &AstExpression) -> Result<ConstFullname, Error> {
         // TODO: resolve name using ctx
         let fullname = ConstFullname(ctx.namespace.0.clone() + "::" + &name.0);
         let hir_expr = self.convert_expr(ctx, expr)?;
@@ -170,7 +170,7 @@ impl<'a> HirMaker<'a> {
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
-                          body_exprs: &Vec<ast::Expression>) -> Result<SkMethod, Error> {
+                          body_exprs: &Vec<AstExpression>) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
@@ -186,7 +186,7 @@ impl<'a> HirMaker<'a> {
 
     fn convert_exprs(&mut self,
                      ctx: &HirMakerContext,
-                     exprs: &Vec<ast::Expression>) -> Result<HirExpressions, Error> {
+                     exprs: &Vec<AstExpression>) -> Result<HirExpressions, Error> {
         let hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
@@ -201,37 +201,37 @@ impl<'a> HirMaker<'a> {
 
     fn convert_expr(&mut self,
                     ctx: &HirMakerContext,
-                    expr: &ast::Expression) -> Result<HirExpression, Error> {
+                    expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
-            ast::ExpressionBody::If { cond_expr, then_expr, else_expr } => {
+            AstExpressionBody::If { cond_expr, then_expr, else_expr } => {
                 self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
             },
 
-            ast::ExpressionBody::ConstAssign { names, rhs } => {
+            AstExpressionBody::ConstAssign { names, rhs } => {
                 self.convert_const_assign(ctx, names, &*rhs)
             },
 
-            ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
+            AstExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
                 self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs)
             },
 
-            ast::ExpressionBody::BareName(name) => {
+            AstExpressionBody::BareName(name) => {
                 self.convert_bare_name(ctx, name)
             },
 
-            ast::ExpressionBody::ConstRef(names) => {
+            AstExpressionBody::ConstRef(names) => {
                 self.convert_const_ref(ctx, names)
             },
 
-            ast::ExpressionBody::PseudoVariable(token) => {
+            AstExpressionBody::PseudoVariable(token) => {
                 self.convert_pseudo_variable(ctx, token)
             },
 
-            ast::ExpressionBody::FloatLiteral {value} => {
+            AstExpressionBody::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },
 
-            ast::ExpressionBody::DecimalLiteral {value} => {
+            AstExpressionBody::DecimalLiteral {value} => {
                 Ok(Hir::decimal_literal(*value))
             },
 
@@ -241,9 +241,9 @@ impl<'a> HirMaker<'a> {
 
     fn convert_if_expr(&mut self,
                        ctx: &HirMakerContext,
-                       cond_expr: &ast::Expression,
-                       then_expr: &ast::Expression,
-                       else_expr: &Option<Box<ast::Expression>>) -> Result<HirExpression, Error> {
+                       cond_expr: &AstExpression,
+                       then_expr: &AstExpression,
+                       else_expr: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_if_condition_ty(&cond_hir.ty)?;
 
@@ -263,7 +263,7 @@ impl<'a> HirMaker<'a> {
     fn convert_const_assign(&mut self,
                             ctx: &HirMakerContext,
                             names: &Vec<String>,
-                            rhs: &ast::Expression) -> Result<HirExpression, Error> {
+                            rhs: &AstExpression) -> Result<HirExpression, Error> {
         let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(&ctx, &name, &rhs)?;
         Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
@@ -271,9 +271,9 @@ impl<'a> HirMaker<'a> {
 
     fn convert_method_call(&mut self,
                             ctx: &HirMakerContext,
-                            receiver_expr: &Option<Box<ast::Expression>>,
+                            receiver_expr: &Option<Box<AstExpression>>,
                             method_name: &MethodFirstname,
-                            arg_exprs: &Vec<ast::Expression>) -> Result<HirExpression, Error> {
+                            arg_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
         let receiver_hir =
             match receiver_expr {
                 Some(expr) => self.convert_expr(ctx, &expr)?,

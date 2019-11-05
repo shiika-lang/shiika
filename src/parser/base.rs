@@ -1,5 +1,6 @@
 /// Provides utilities for *_parser.rs
 pub use crate::ast;
+pub use crate::ast::*;
 pub use crate::error::*;
 pub use crate::parser::Parser;
 pub use crate::parser::token::Token;

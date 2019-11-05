@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Program { toplevel_defs, exprs })
     }
 
-    fn parse_toplevel_items(&mut self) -> Result<(Vec<ast::Definition>, Vec<ast::Expression>), Error> {
+    fn parse_toplevel_items(&mut self) -> Result<(Vec<ast::Definition>, Vec<ast::AstExpression>), Error> {
         let mut defs = vec![];
         let mut exprs = vec![];
         loop {

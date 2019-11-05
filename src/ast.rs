@@ -4,7 +4,7 @@ use crate::parser::token::Token;
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub toplevel_defs: Vec<Definition>,
-    pub exprs: Vec<Expression>,
+    pub exprs: Vec<AstExpression>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -15,19 +15,19 @@ pub enum Definition {
     },
     InitializerDefinition {
         sig: InitializerSig,
-        body_exprs: Vec<Expression>,
+        body_exprs: Vec<AstExpression>,
     },
     InstanceMethodDefinition {
         sig: AstMethodSignature,
-        body_exprs: Vec<Expression>,
+        body_exprs: Vec<AstExpression>,
     },
     ClassMethodDefinition {
         sig: AstMethodSignature,
-        body_exprs: Vec<Expression>,
+        body_exprs: Vec<AstExpression>,
     },
     ConstDefinition {
         name: ConstFirstname,
-        expr: Expression,
+        expr: AstExpression,
     }
 }
 
@@ -62,41 +62,41 @@ pub struct Typ {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Expression {
-    pub body: ExpressionBody,
+pub struct AstExpression {
+    pub body: AstExpressionBody,
     pub primary: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum ExpressionBody {
+pub enum AstExpressionBody {
     LogicalNot {
-        expr: Box<Expression>,
+        expr: Box<AstExpression>,
     },
     LogicalAnd {
-        left: Box<Expression>,
-        right: Box<Expression>,
+        left: Box<AstExpression>,
+        right: Box<AstExpression>,
     },
     LogicalOr {
-        left: Box<Expression>,
-        right: Box<Expression>,
+        left: Box<AstExpression>,
+        right: Box<AstExpression>,
     },
     If {
-        cond_expr: Box<Expression>,
-        then_expr: Box<Expression>,
-        else_expr: Option<Box<Expression>> // Box is needed to aboid E0072
+        cond_expr: Box<AstExpression>,
+        then_expr: Box<AstExpression>,
+        else_expr: Option<Box<AstExpression>> // Box is needed to aboid E0072
     },
     LVarAssign {
         name: String,
-        rhs: Box<Expression>,
+        rhs: Box<AstExpression>,
     },
     ConstAssign {
         names: Vec<String>,
-        rhs: Box<Expression>,
+        rhs: Box<AstExpression>,
     },
     MethodCall {
-        receiver_expr: Option<Box<Expression>>, // Box is needed to aboid E0072
+        receiver_expr: Option<Box<AstExpression>>, // Box is needed to aboid E0072
         method_name: MethodFirstname,
-        arg_exprs: Vec<Expression>,
+        arg_exprs: Vec<AstExpression>,
         may_have_paren_wo_args: bool,
     },
     // Local variable reference or method call with implicit receiver(self)
@@ -111,11 +111,11 @@ pub enum ExpressionBody {
     }
 }
 
-impl Expression {
+impl AstExpression {
     pub fn may_have_paren_wo_args(&self) -> bool {
         match self.body {
-            ExpressionBody::MethodCall { may_have_paren_wo_args, .. } => may_have_paren_wo_args,
-            ExpressionBody::BareName(_) => true,
+            AstExpressionBody::MethodCall { may_have_paren_wo_args, .. } => may_have_paren_wo_args,
+            AstExpressionBody::BareName(_) => true,
             _ => false,
         }
     }
@@ -126,42 +126,42 @@ impl Expression {
             return true;
         }
         match self.body {
-            ExpressionBody::ConstRef(_) => true,
+            AstExpressionBody::ConstRef(_) => true,
             // TODO: a[b]
             _ => false
         }
     }
 }
 
-pub fn logical_not(expr: Expression) -> Expression {
+pub fn logical_not(expr: AstExpression) -> AstExpression {
     non_primary_expression(
-        ExpressionBody::LogicalNot {
+        AstExpressionBody::LogicalNot {
             expr: Box::new(expr),
         }
     )
 }
 
-pub fn logical_and(left: Expression, right: Expression) -> Expression {
+pub fn logical_and(left: AstExpression, right: AstExpression) -> AstExpression {
     non_primary_expression(
-        ExpressionBody::LogicalAnd {
+        AstExpressionBody::LogicalAnd {
             left: Box::new(left),
             right: Box::new(right),
         }
     )
 }
 
-pub fn logical_or(left: Expression, right: Expression) -> Expression {
+pub fn logical_or(left: AstExpression, right: AstExpression) -> AstExpression {
     non_primary_expression(
-        ExpressionBody::LogicalOr {
+        AstExpressionBody::LogicalOr {
             left: Box::new(left),
             right: Box::new(right),
         }
     )
 }
 
-pub fn if_expr(cond_expr: Expression, then_expr: Expression, else_expr: Option<Expression>) -> Expression {
+pub fn if_expr(cond_expr: AstExpression, then_expr: AstExpression, else_expr: Option<AstExpression>) -> AstExpression {
     non_primary_expression(
-        ExpressionBody::If {
+        AstExpressionBody::If {
             cond_expr: Box::new(cond_expr),
             then_expr: Box::new(then_expr),
             else_expr: else_expr.map(|e| Box::new(e)),
@@ -170,18 +170,18 @@ pub fn if_expr(cond_expr: Expression, then_expr: Expression, else_expr: Option<E
 }
 
 /// Create an expression for an assigment
-pub fn assignment(lhs: Expression, rhs: Expression) -> Expression {
+pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     let body = match lhs.body {
-        ExpressionBody::BareName(s) =>  {
-            ExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs) } 
+        AstExpressionBody::BareName(s) =>  {
+            AstExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs) } 
         },
         // ToDo: IVarRef =>
         // ToDo: CVarRef =>
-        ExpressionBody::ConstRef(names) => {
-            ExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
+        AstExpressionBody::ConstRef(names) => {
+            AstExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
         },
-        ExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
-            ExpressionBody::MethodCall {
+        AstExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
+            AstExpressionBody::MethodCall {
                 receiver_expr,
                 method_name: method_name.append("="),
                 arg_exprs,
@@ -193,14 +193,14 @@ pub fn assignment(lhs: Expression, rhs: Expression) -> Expression {
     non_primary_expression(body)
 }
 
-pub fn method_call(receiver_expr: Option<Expression>,
+pub fn method_call(receiver_expr: Option<AstExpression>,
                    method_name: &str,
-                   arg_exprs: Vec<Expression>,
+                   arg_exprs: Vec<AstExpression>,
                    primary: bool,
-                   may_have_paren_wo_args: bool) -> Expression {
-    Expression {
+                   may_have_paren_wo_args: bool) -> AstExpression {
+    AstExpression {
         primary: primary,
-        body: ExpressionBody::MethodCall {
+        body: AstExpressionBody::MethodCall {
             receiver_expr: receiver_expr.map(|e| Box::new(e)),
             method_name: MethodFirstname(method_name.to_string()),
             arg_exprs,
@@ -209,16 +209,16 @@ pub fn method_call(receiver_expr: Option<Expression>,
     }
 }
 
-pub fn bare_name(name: &str) -> Expression {
-    primary_expression(ExpressionBody::BareName(name.to_string()))
+pub fn bare_name(name: &str) -> AstExpression {
+    primary_expression(AstExpressionBody::BareName(name.to_string()))
 }
 
-pub fn const_ref(names: Vec<String>) -> Expression {
-    primary_expression(ExpressionBody::ConstRef(names))
+pub fn const_ref(names: Vec<String>) -> AstExpression {
+    primary_expression(AstExpressionBody::ConstRef(names))
 }
 
-pub fn unary_expr(expr: Expression, op: &str) -> Expression {
-    primary_expression(ExpressionBody::MethodCall {
+pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
+    primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),
         method_name: MethodFirstname(op.to_string()),
         arg_exprs: vec![],
@@ -226,8 +226,8 @@ pub fn unary_expr(expr: Expression, op: &str) -> Expression {
     })
 }
 
-pub fn bin_op_expr(left: Expression, op: &str, right: Expression) -> Expression {
-    non_primary_expression(ExpressionBody::MethodCall {
+pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstExpression {
+    non_primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(left)),
         method_name: MethodFirstname(op.to_string()),
         arg_exprs: vec![right],
@@ -235,38 +235,38 @@ pub fn bin_op_expr(left: Expression, op: &str, right: Expression) -> Expression 
     })
 }
 
-pub fn pseudo_variable(token: Token) -> Expression {
-    primary_expression(ExpressionBody::PseudoVariable(token))
+pub fn pseudo_variable(token: Token) -> AstExpression {
+    primary_expression(AstExpressionBody::PseudoVariable(token))
 }
 
-pub fn float_literal(value: f64) -> Expression {
-    primary_expression(ExpressionBody::FloatLiteral{ value })
+pub fn float_literal(value: f64) -> AstExpression {
+    primary_expression(AstExpressionBody::FloatLiteral{ value })
 }
 
-pub fn decimal_literal(value: i32) -> Expression {
-    primary_expression(ExpressionBody::DecimalLiteral{ value })
+pub fn decimal_literal(value: i32) -> AstExpression {
+    primary_expression(AstExpressionBody::DecimalLiteral{ value })
 }
 
-pub fn primary_expression(body: ExpressionBody) -> Expression {
-    Expression { primary: true, body: body }
+pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
+    AstExpression { primary: true, body: body }
 }
 
-pub fn non_primary_expression(body: ExpressionBody) -> Expression {
-    Expression { primary: false, body: body }
+pub fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
+    AstExpression { primary: false, body: body }
 }
 
 /// Extend `foo.bar` to `foo.bar args`
 /// (expr must be a MethodCall or a BareName)
-pub fn set_method_call_args(expr: Expression, args: Vec<Expression>) -> Expression {
+pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> AstExpression {
     match expr.body {
-        ExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
+        AstExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
             if !arg_exprs.is_empty() {
                 panic!("[BUG] cannot extend because arg_exprs is not empty: {:?}", arg_exprs);
             }
 
-            Expression {
+            AstExpression {
                 primary: false,
-                body: ExpressionBody::MethodCall {
+                body: AstExpressionBody::MethodCall {
                     receiver_expr,
                     method_name,
                     arg_exprs: args,
@@ -274,10 +274,10 @@ pub fn set_method_call_args(expr: Expression, args: Vec<Expression>) -> Expressi
                 }
             }
         },
-        ExpressionBody::BareName(s) => {
-            Expression {
+        AstExpressionBody::BareName(s) => {
+            AstExpression {
                 primary: false,
-                body: ExpressionBody::MethodCall {
+                body: AstExpressionBody::MethodCall {
                     receiver_expr: None,
                     method_name: MethodFirstname(s.to_string()),
                     arg_exprs: args,

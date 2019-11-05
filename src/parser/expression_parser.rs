@@ -2,7 +2,7 @@ use crate::parser::base::*;
 
 impl<'a> Parser<'a> {
     /// Parse successive expressions
-    pub fn parse_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
+    pub fn parse_exprs(&mut self) -> Result<Vec<AstExpression>, Error> {
         let mut ret = Vec::new();
         loop {
             match self.current_token() {
@@ -14,11 +14,11 @@ impl<'a> Parser<'a> {
         Ok(ret)
     }
 
-    pub fn parse_expr(&mut self) -> Result<ast::Expression, Error> {
+    pub fn parse_expr(&mut self) -> Result<AstExpression, Error> {
         self.parse_and_or_expr()
     }
 
-    pub fn parse_and_or_expr(&mut self) -> Result<ast::Expression, Error> {
+    pub fn parse_and_or_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_and_or_expr");
         let mut expr = self.parse_not_expr()?;
         self.skip_ws();
@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_not_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_not_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_not_expr");
         let expr = match self.current_token() {
             Token::KwOr => {
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
     //                MethodIdentifier bar (do ... end)?
     //                primaryExpression . foo bar (do ... end)?
     //        operatorExpression
-    fn parse_call_wo_paren(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_call_wo_paren(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_call_wo_paren");
 
         let token = self.current_token();
@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_args(&mut self) -> Result<Vec<ast::Expression>, Error> {
+    fn parse_args(&mut self) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1; self.debug_log("parse_args");
         let expr = self.parse_operator_exprs()?;
         self.lv -= 1;
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
     /// Parse successive operator_exprs delimited by `,`
     ///
     /// May return empty Vec if there are no values
-    fn parse_operator_exprs(&mut self) -> Result<Vec<ast::Expression>, Error> {
+    fn parse_operator_exprs(&mut self) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1; self.debug_log("parse_operator_exprs");
         let mut v = vec![];
         if self.next_nonspace_token().value_starts() {
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
     // operatorExpression:
     //   assignmentExpression |
     //   conditionalOperatorExpression
-    fn parse_operator_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_operator_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_operator_expr");
         let expr = self.parse_conditional_expr()?;
         if expr.is_lhs() && self.next_nonspace_token() == Token::Equal {
@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
     //       singleAssignmentExpression |
     //       abbreviatedAssignmentExpression |
     //       assignmentWithRescueModifier
-    fn parse_assignment_expr(&mut self, lhs: ast::Expression) -> Result<ast::Expression, Error> {
+    fn parse_assignment_expr(&mut self, lhs: AstExpression) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_assignment_expr");
 
         self.skip_ws(); assert!(self.consume(Token::Equal));  // TODO: `+=` etc.
@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `a ? b : c`
-    fn parse_conditional_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_conditional_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_conditional_expr");
         let expr = self.parse_range_expr()?;
         if self.next_nonspace_token() == Token::Question {
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `a..b`, `a...b`
-    fn parse_range_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_range_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_range_expr");
         let expr = self.parse_operator_or()?;
 //        self.skip_ws();
@@ -201,7 +201,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `||`
-    fn parse_operator_or(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_operator_or(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_operator_or");
         let mut expr = self.parse_operator_and()?;
         let mut token = &self.next_nonspace_token();
@@ -222,7 +222,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `&&`
-    fn parse_operator_and(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_operator_and(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_operator_and");
         let mut expr = self.parse_equality_expr()?;
         let mut token = &self.next_nonspace_token();
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `==`, etc.
-    fn parse_equality_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_equality_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_equality_expr");
         let left = self.parse_relational_expr()?;
         let op = match self.next_nonspace_token() {
@@ -270,7 +270,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_relational_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_relational_expr");
         //TODO:
         //  parse_relational_expr
@@ -294,7 +294,7 @@ impl<'a> Parser<'a> {
             let right = self.parse_additive_expr()?;
 
             if nesting {
-                if let ast::ExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
+                if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
                     let mid = arg_exprs[0].clone();
                     let compare = ast::method_call(Some(mid), op, vec![right], false, false);
                     expr = ast::logical_and(expr, compare);
@@ -309,7 +309,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_additive_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_additive_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_additive_expr");
         let left = self.parse_multiplicative_expr()?;
 
@@ -326,7 +326,7 @@ impl<'a> Parser<'a> {
         Ok(ast::bin_op_expr(left, &op, right))
     }
 
-    fn parse_multiplicative_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_multiplicative_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_multiplicative_expr");
         let left = self.parse_unary_minus_expr()?;
 
@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
         Ok(ast::bin_op_expr(left, &op, right))
     }
 
-    fn parse_unary_minus_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_unary_minus_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_unary_minus_expr");
         //TODO:
         //  parse_unary_minus_expr
@@ -367,7 +367,7 @@ impl<'a> Parser<'a> {
     /// eg. 
     ///    NG: if foo then bar else baz end.quux()
     ///    OK: (if foo then bar else baz end).quux()
-    fn parse_secondary_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_secondary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_secondary_expr");
         let expr = match self.current_token() {
             Token::KwIf => self.parse_if_expr(),
@@ -377,7 +377,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_if_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_if_expr");
         assert!(self.consume(Token::KwIf));
         self.skip_ws();
@@ -409,7 +409,7 @@ impl<'a> Parser<'a> {
 
     // prim . methodName argumentWithParentheses? block?
     // prim [ indexingArgumentList? ] not(EQUAL)
-    fn parse_primary_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_primary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_primary_expr");
         let mut expr = self.parse_atomic()?;
         loop {
@@ -426,7 +426,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse `.foo(args)`
-    fn parse_method_chain(&mut self, expr: ast::Expression) -> Result<ast::Expression, Error> {
+    fn parse_method_chain(&mut self, expr: AstExpression) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_method_chain");
         // .
         assert!(self.consume(Token::Dot));
@@ -456,7 +456,7 @@ impl<'a> Parser<'a> {
                 may_have_paren_wo_args))
     }
 
-    fn parse_paren_and_args(&mut self) -> Result<Vec<ast::Expression>, Error> {
+    fn parse_paren_and_args(&mut self) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1; self.debug_log("parse_paren_and_args");
         assert!(self.consume(Token::LParen));
         self.skip_wsn();
@@ -473,7 +473,7 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    fn parse_atomic(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_atomic(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_atomic");
         let token = self.current_token();
         let expr = match token {
@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
     }
 
     // Method call with explicit parenthesis (eg. `foo(bar)`)
-    fn parse_primary_method_call(&mut self, bare_name_str: &str) -> Result<ast::Expression, Error> {
+    fn parse_primary_method_call(&mut self, bare_name_str: &str) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_primary_method_call");
         let expr = match self.current_token() {
             Token::LParen => {
@@ -525,7 +525,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_const_ref(&mut self, s: String) -> Result<ast::Expression, Error> {
+    fn parse_const_ref(&mut self, s: String) -> Result<AstExpression, Error> {
         let mut names = vec![s];
         self.consume_token();
         // Parse `A::B`
@@ -545,7 +545,7 @@ impl<'a> Parser<'a> {
         Ok(ast::const_ref(names))
     }
 
-    fn parse_parenthesized_expr(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_parenthesized_expr");
         assert!(self.consume(Token::LParen));
         self.skip_wsn();
@@ -556,7 +556,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_decimal_literal(&mut self) -> Result<ast::Expression, Error> {
+    fn parse_decimal_literal(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_parenthesized_expr");
         let expr = match self.consume_token() {
             Token::Number(s) => {
