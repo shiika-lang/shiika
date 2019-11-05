@@ -258,18 +258,16 @@ impl CodeGen {
                    then_expr: &HirExpression,
                    else_expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let cond_value = self.gen_expr(function, cond_expr)?.into_int_value();
-        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(function, then_expr)?;
-        let else_value = self.gen_expr(function, else_expr)?;
-
         let then_block = function.append_basic_block(&"then");
         let else_block = function.append_basic_block(&"else");
         let merge_block = function.append_basic_block(&"merge");
-
         self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
         self.builder.position_at_end(&then_block);
+        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(function, then_expr)?;
         self.builder.build_unconditional_branch(&merge_block);
         let then_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&else_block);
+        let else_value = self.gen_expr(function, else_expr)?;
         self.builder.build_unconditional_branch(&merge_block);
         let else_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&merge_block);
