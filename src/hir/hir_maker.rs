@@ -204,20 +204,7 @@ impl<'a> HirMaker<'a> {
                     expr: &ast::Expression) -> Result<HirExpression, Error> {
         match &expr.body {
             ast::ExpressionBody::If { cond_expr, then_expr, else_expr } => {
-                let cond_hir = self.convert_expr(ctx, cond_expr)?;
-                type_checking::check_if_condition_ty(&cond_hir.ty)?;
-
-                let then_hir = self.convert_expr(ctx, then_expr)?;
-                let else_hir = match else_expr {
-                    Some(expr) => self.convert_expr(ctx, expr)?,
-                    None => Hir::nop(),
-                };
-                // TODO: then and else must have conpatible type
-                Ok(Hir::if_expression(
-                        then_hir.ty.clone(),
-                        cond_hir,
-                        then_hir,
-                        else_hir))
+                self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
             },
 
             ast::ExpressionBody::ConstAssign { names, rhs } => {
@@ -225,16 +212,7 @@ impl<'a> HirMaker<'a> {
             },
 
             ast::ExpressionBody::MethodCall {receiver_expr, method_name, arg_exprs, .. } => {
-                let receiver_hir =
-                    match receiver_expr {
-                        Some(expr) => self.convert_expr(ctx, &expr)?,
-                        // Implicit self
-                        _ => self.convert_self_expr(ctx)?,
-                    };
-                // TODO: arg types must match with method signature
-                let arg_hirs = arg_exprs.iter().map(|arg_expr| self.convert_expr(ctx, arg_expr)).collect::<Result<Vec<_>,_>>()?;
-
-                self.make_method_call(receiver_hir, &method_name, arg_hirs)
+                self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs)
             },
 
             ast::ExpressionBody::BareName(name) => {
@@ -261,6 +239,27 @@ impl<'a> HirMaker<'a> {
         }
     }
 
+    fn convert_if_expr(&mut self,
+                       ctx: &HirMakerContext,
+                       cond_expr: &ast::Expression,
+                       then_expr: &ast::Expression,
+                       else_expr: &Option<Box<ast::Expression>>) -> Result<HirExpression, Error> {
+        let cond_hir = self.convert_expr(ctx, cond_expr)?;
+        type_checking::check_if_condition_ty(&cond_hir.ty)?;
+
+        let then_hir = self.convert_expr(ctx, then_expr)?;
+        let else_hir = match else_expr {
+            Some(expr) => self.convert_expr(ctx, expr)?,
+            None => Hir::nop(),
+        };
+        // TODO: then and else must have conpatible type
+        Ok(Hir::if_expression(
+                then_hir.ty.clone(),
+                cond_hir,
+                then_hir,
+                else_hir))
+    }
+
     fn convert_const_assign(&mut self,
                             ctx: &HirMakerContext,
                             names: &Vec<String>,
@@ -268,6 +267,23 @@ impl<'a> HirMaker<'a> {
         let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(&ctx, &name, &rhs)?;
         Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
+    }
+
+    fn convert_method_call(&mut self,
+                            ctx: &HirMakerContext,
+                            receiver_expr: &Option<Box<ast::Expression>>,
+                            method_name: &MethodFirstname,
+                            arg_exprs: &Vec<ast::Expression>) -> Result<HirExpression, Error> {
+        let receiver_hir =
+            match receiver_expr {
+                Some(expr) => self.convert_expr(ctx, &expr)?,
+                // Implicit self
+                _ => self.convert_self_expr(ctx)?,
+            };
+        // TODO: arg types must match with method signature
+        let arg_hirs = arg_exprs.iter().map(|arg_expr| self.convert_expr(ctx, arg_expr)).collect::<Result<Vec<_>,_>>()?;
+
+        self.make_method_call(receiver_hir, &method_name, arg_hirs)
     }
 
     fn convert_pseudo_variable(&self,
