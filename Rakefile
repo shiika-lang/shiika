@@ -25,11 +25,11 @@ task :doc do
   sh "gitbook build book doc"
 end
 
-require_relative 'lib/shiika/version'
+#require_relative 'lib/shiika/version'
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff HEAD"
-  v = "v#{Shiika::VERSION}"
+  v = "v0.2.1"
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 

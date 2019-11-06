@@ -1,8 +1,11 @@
 # CHANGELOG
 
-## HEAD
+## v0.2.1 (2019/11/06)
 
-- feat: Support unary +/-
+- New example: fib
+- feat: One-line comment
+- feat: Add some operators
+- feat: Constant
 
 ## v0.2.0 (2019/07/17)
 

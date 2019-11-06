@@ -4,6 +4,54 @@ A statically-typed programming language.
 
 ## Example
 
+        class A
+          def fib(n: Int) -> Int
+            if n < 3
+              1
+            else
+              fib(n-1) + fib(n-2)
+            end
+          end
+        end
+        A.new.fib(34)
+
+## Status
+
+Early-alpha
+
+### Implementation (Rust, src/*)
+
+- [x] Implement class method (eg. `Math.pow`)
+- [x] Implement .new
+- [ ] Local variables
+- [ ] Instance variables
+- [ ] Blocks
+- Constant
+  - [x] Toplevel
+  - [ ] Namespaced (eg. `A::FOO`)
+- [ ] Modules
+- [ ] Enums
+- ...
+
+#### TODO
+
+- lambda/function(block)
+- Module (like Ruby's `Module`)
+- Enum
+- Constants
+- Check all ivars will be initialized (like Swift)
+- ...
+
+### Type system (Prototype in Ruby, lib/*)
+
+- [x] Class method, instance method
+- [x] Basic generics
+- [x] Variable-length arguments
+- [x] Array literal
+- [x] Inheritance
+
+#### Example
+
         class Pair<S, T>
           def initialize(@a: S, @b: T)
           end
@@ -12,40 +60,6 @@ A statically-typed programming language.
           def snd -> T; @b; end
         end
         Pair<Int, Bool>.new(1, true).fst
-
-## Status
-
-Early-alpha
-
-### Implementation (Rust, src/*)
-
-- [x] Parse and emit LLVM IR for minimal case 
-- [x] Embed arg name to .ll for better debuggability
-- [x] Check type of return value
-- [x] Implement class method (eg. `Math.pow`)
-- [ ] Implement .new
-- [ ] Instance variables
-- [ ] Nested class
-- [ ] Constant
-
-### Type system (Prototype in Ruby, lib/*)
-
-#### Done
-
-- [x] Class method, instance method
-- [x] Basic generics
-- [x] Variable-length arguments
-- [x] Array literal
-- [x] Inheritance
-
-#### Todo
-
-- lambda/function(block)
-- Module (like Ruby's `Module`)
-- Enum
-- Constants
-- Check all ivars will be initialized (like Swift)
-- ...
 
 ## Development
 
