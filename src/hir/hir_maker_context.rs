@@ -1,11 +1,10 @@
+use std::collections::HashMap;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
 
 #[derive(Debug)]
 pub struct HirMakerContext {
-//    /// Local variables of the current function found so far
-//    local_vars: HashSet<CtxLVar>,
     /// Signature of the current method (Used to get the list of parameters)
     /// None if out of a method
     pub method_sig: Option<MethodSignature>,
@@ -13,15 +12,12 @@ pub struct HirMakerContext {
     pub self_ty: TermTy,
     /// Current namespace
     /// `""` for toplevel
-    pub namespace: ClassFullname
+    pub namespace: ClassFullname,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
 //    // List of instance variables of the current `self`
 //    //self_ivars: HashMap<IVarName, TermTy>,
 }
-
-//pub struct CtxLVar {
-//    name: LVarName,
-//    ty: TermTy
-//}
 
 impl HirMakerContext {
     /// Create a ctx for toplevel
@@ -30,6 +26,7 @@ impl HirMakerContext {
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
+            lvars: HashMap::new(),
         }
     }
 
@@ -39,6 +36,7 @@ impl HirMakerContext {
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
+            lvars: HashMap::new(),
         }
     }
 
@@ -48,6 +46,15 @@ impl HirMakerContext {
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
+            lvars: HashMap::new(),
         }
     }
+}
+
+/// A local variable
+#[derive(Debug)]
+pub struct CtxLVar {
+    pub name: String,
+    pub ty: TermTy,
+    pub readonly: bool,
 }

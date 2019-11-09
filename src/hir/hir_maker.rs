@@ -3,7 +3,7 @@ use crate::error;
 use crate::error::Error;
 use crate::hir::*;
 use crate::hir::index::Index;
-use crate::hir::hir_maker_context::HirMakerContext;
+use crate::hir::hir_maker_context::*;
 use crate::type_checking;
 use crate::parser::token::Token;
 
@@ -30,7 +30,7 @@ impl<'a> HirMaker<'a> {
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
         let mut main_exprs =
-            hir_maker.convert_exprs(&HirMakerContext::toplevel(), &prog.exprs)?;
+            hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
             HirMaker { index, constants, mut const_inits } => {
                 const_inits.append(&mut main_exprs.exprs);
@@ -51,7 +51,7 @@ impl<'a> HirMaker<'a> {
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         let mut sk_methods = HashMap::new();
-        let ctx = HirMakerContext::toplevel();
+        let mut ctx = HirMakerContext::toplevel();
 
         toplevel_defs.iter().try_for_each(|def|
             match def {
@@ -67,7 +67,7 @@ impl<'a> HirMaker<'a> {
                     }
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&ctx, name, expr)?;
+                    self.register_const(&mut ctx, name, expr)?;
                     Ok(())
                 }
                 _ => panic!("should be checked in hir::index")
@@ -91,24 +91,24 @@ impl<'a> HirMaker<'a> {
 
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
-        let ctx = HirMakerContext::class_ctx(&fullname);
+        let mut ctx = HirMakerContext::class_ctx(&fullname);
 
         defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&mut ctx, &meta_name, &sig.name, &body_exprs) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&ctx, name, expr)?;
+                    self.register_const(&mut ctx, name, expr)?;
                     Ok(())
                 }
                 _ => Ok(()),
@@ -153,7 +153,7 @@ impl<'a> HirMaker<'a> {
 
     /// Register a constant
     fn register_const(&mut self,
-                      ctx: &HirMakerContext,
+                      ctx: &mut HirMakerContext,
                       name: &ConstFirstname,
                       expr: &AstExpression) -> Result<ConstFullname, Error> {
         // TODO: resolve name using ctx
@@ -175,8 +175,8 @@ impl<'a> HirMaker<'a> {
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
 
-        let method_ctx = HirMakerContext::method_ctx(ctx, &signature);
-        let body_exprs = self.convert_exprs(&method_ctx, body_exprs)?;
+        let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature);
+        let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
@@ -185,7 +185,7 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_exprs(&mut self,
-                     ctx: &HirMakerContext,
+                     ctx: &mut HirMakerContext,
                      exprs: &Vec<AstExpression>) -> Result<HirExpressions, Error> {
         let hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
@@ -200,12 +200,16 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_expr(&mut self,
-                    ctx: &HirMakerContext,
+                    ctx: &mut HirMakerContext,
                     expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
             AstExpressionBody::If { cond_expr, then_expr, else_expr } => {
                 self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
             },
+
+            AstExpressionBody::LVarAssign { name, rhs } => {
+                self.convert_lvar_assign(ctx, name, &*rhs)
+            }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
                 self.convert_const_assign(ctx, names, &*rhs)
@@ -240,7 +244,7 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_if_expr(&mut self,
-                       ctx: &HirMakerContext,
+                       ctx: &mut HirMakerContext,
                        cond_expr: &AstExpression,
                        then_expr: &AstExpression,
                        else_expr: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
@@ -260,17 +264,42 @@ impl<'a> HirMaker<'a> {
                 else_hir))
     }
 
+    fn convert_lvar_assign(&mut self,
+                            ctx: &mut HirMakerContext,
+                            name: &str,
+                            rhs: &AstExpression) -> Result<HirExpression, Error> {
+        let expr = self.convert_expr(ctx, rhs)?;
+        match ctx.lvars.get(name) {
+            Some(lvar) => {
+                if lvar.readonly {
+                    return Err(error::program_error(&format!(
+                      "cannot reassign to {} (Hint: declare it with `var')",
+                      name)))
+                }
+            },
+            None => {
+                ctx.lvars.insert(name.to_string(), CtxLVar {
+                    name: name.to_string(),
+                    ty: expr.ty.clone(),
+                    readonly: true,
+                });
+            }
+        }
+
+        Ok(Hir::assign_lvar(name, expr))
+    }
+
     fn convert_const_assign(&mut self,
-                            ctx: &HirMakerContext,
+                            ctx: &mut HirMakerContext,
                             names: &Vec<String>,
                             rhs: &AstExpression) -> Result<HirExpression, Error> {
         let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
-        let fullname = self.register_const(&ctx, &name, &rhs)?;
+        let fullname = self.register_const(ctx, &name, &rhs)?;
         Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
     }
 
     fn convert_method_call(&mut self,
-                            ctx: &HirMakerContext,
+                            ctx: &mut HirMakerContext,
                             receiver_expr: &Option<Box<AstExpression>>,
                             method_name: &MethodFirstname,
                             arg_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
@@ -321,9 +350,14 @@ impl<'a> HirMaker<'a> {
     fn convert_bare_name(&self,
                          ctx: &HirMakerContext,
                          name: &str) -> Result<HirExpression, Error> {
+        // It is a local variable
+        if let Some(lvar) = ctx.lvars.get(name) {
+            return Ok(Hir::lvar_ref(lvar.ty.clone(), name.to_string()))
+        }
+        // It is a method parameter
         let method_sig = match &ctx.method_sig {
             Some(x) => x,
-            None => return Err(error::program_error(&format!("bare name outside method: `{}'", name)))
+            None => return Err(error::program_error(&format!("variable not found: `{}'", name)))
         };
         match &method_sig.find_param(name) {
             Some((idx, param)) => {
@@ -333,6 +367,7 @@ impl<'a> HirMaker<'a> {
                 Err(error::program_error(&format!("variable `{}' was not found", name)))
             }
         }
+        // TODO: It may be a nullary method call
     }
 
     /// Resolve constant name
