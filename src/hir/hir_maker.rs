@@ -276,6 +276,7 @@ impl<'a> HirMaker<'a> {
                       "cannot reassign to {} (Hint: declare it with `var')",
                       name)))
                 }
+                // TODO: reassign (typecheck needed)
             },
             None => {
                 ctx.lvars.insert(name.to_string(), CtxLVar {
