@@ -2,11 +2,7 @@ use shiika;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let str = "
-# hello
-H = 72
 class A
-  def self.foo -> Int; 72; end
-
   def fib(n: Int) -> Int
     if n < 3
       1
@@ -15,9 +11,11 @@ class A
     end
   end
 end
-putchar A.new.fib(40)
-putchar H
-putchar 100 + 5";
+a = A.new
+putchar a.fib(40)
+putchar 20
+putchar 79
+putchar 107";
     let ast = shiika::parser::Parser::parse(str)?;
     let stdlib = shiika::stdlib::Stdlib::create();
     let hir = shiika::hir::Hir::from_ast(ast, stdlib)?;

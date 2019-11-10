@@ -1,3 +1,4 @@
+mod code_gen_context;
 use std::collections::HashMap;
 use inkwell::AddressSpace;
 use inkwell::values::*;
@@ -8,6 +9,7 @@ use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
 use crate::names::*;
+use crate::code_gen::code_gen_context::*;
 
 pub struct CodeGen {
     pub context: inkwell::context::Context,
@@ -101,7 +103,8 @@ impl CodeGen {
         self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
 
         // Generate main exprs
-        self.gen_exprs(function, &main_exprs)?;
+        let mut ctx = CodeGenContext::new(function);
+        self.gen_exprs(&mut ctx, &main_exprs)?;
 
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
@@ -177,7 +180,8 @@ impl CodeGen {
                               function: inkwell::values::FunctionValue,
                               void_method: bool,
                               exprs: &HirExpressions) -> Result<(), Error> {
-        let last_value_opt = self.gen_exprs(function, exprs)?;
+        let mut ctx = CodeGenContext::new(function);
+        let last_value_opt = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
         }
@@ -191,11 +195,12 @@ impl CodeGen {
     }
 
     fn gen_exprs(&self,
-                function: inkwell::values::FunctionValue,
+                ctx: &mut CodeGenContext,
                 exprs: &HirExpressions) -> Result<Option<inkwell::values::BasicValueEnum>, Error> {
         let mut last_value_opt = None;
         exprs.exprs.iter().try_for_each(|expr| {
-            let value: inkwell::values::BasicValueEnum = self.gen_expr(function, &expr)?;
+            let value: inkwell::values::BasicValueEnum = self.gen_expr(ctx, &expr)?;
+
             last_value_opt = Some(value);
             Ok(())
         })?;
@@ -203,20 +208,26 @@ impl CodeGen {
     }
 
     fn gen_expr(&self,
-                function: inkwell::values::FunctionValue,
+                ctx: &mut CodeGenContext,
                 expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         match &expr.node {
             HirIfExpression { cond_expr, then_expr, else_expr } => {
-                self.gen_if_expr(function, &expr.ty, &cond_expr, &then_expr, &else_expr)
+                self.gen_if_expr(ctx, &expr.ty, &cond_expr, &then_expr, &else_expr)
+            },
+            HirLVarAssign { name, rhs } => {
+                self.gen_lvar_assign(ctx, name, rhs)
             },
             HirConstAssign { fullname, rhs } => {
-                self.gen_const_assign(function, fullname, rhs)
+                self.gen_const_assign(ctx, fullname, rhs)
             },
             HirMethodCall { receiver_expr, method_fullname, arg_exprs } => {
-                self.gen_method_call(function, method_fullname, receiver_expr, arg_exprs)
+                self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs)
             },
             HirArgRef { idx } => {
-                Ok(function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+            },
+            HirLVarRef { name } => {
+                self.gen_lvar_ref(ctx, name)
             },
             HirConstRef { fullname } => {
                 let ptr = self.module.get_global(&fullname.0).
@@ -225,12 +236,12 @@ impl CodeGen {
                 Ok(self.builder.build_load(ptr, &fullname.0))
             },
             HirSelfExpression => {
-                if function.get_name().to_str().unwrap() == "main" {
+                if ctx.function.get_name().to_str().unwrap() == "main" {
                     Ok(self.the_main.unwrap())
                 }
                 else {
                     // The first arg of llvm function is `self`
-                    Ok(function.get_first_param().unwrap())
+                    Ok(ctx.function.get_first_param().unwrap())
                 }
             },
             HirFloatLiteral { value } => {
@@ -252,22 +263,22 @@ impl CodeGen {
     }
 
     fn gen_if_expr(&self, 
-                   function: inkwell::values::FunctionValue,
+                   ctx: &mut CodeGenContext,
                    ty: &TermTy,
                    cond_expr: &HirExpression,
                    then_expr: &HirExpression,
                    else_expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let cond_value = self.gen_expr(function, cond_expr)?.into_int_value();
-        let then_block = function.append_basic_block(&"then");
-        let else_block = function.append_basic_block(&"else");
-        let merge_block = function.append_basic_block(&"merge");
+        let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+        let then_block = ctx.function.append_basic_block(&"then");
+        let else_block = ctx.function.append_basic_block(&"else");
+        let merge_block = ctx.function.append_basic_block(&"merge");
         self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
         self.builder.position_at_end(&then_block);
-        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(function, then_expr)?;
+        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(ctx, then_expr)?;
         self.builder.build_unconditional_branch(&merge_block);
         let then_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&else_block);
-        let else_value = self.gen_expr(function, else_expr)?;
+        let else_value = self.gen_expr(ctx, else_expr)?;
         self.builder.build_unconditional_branch(&merge_block);
         let else_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&merge_block);
@@ -277,11 +288,22 @@ impl CodeGen {
         Ok(phi_node.as_basic_value())
     }
 
+    fn gen_lvar_assign(&self,
+                       ctx: &mut CodeGenContext,
+                       name: &str,
+                       rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let value = self.gen_expr(ctx, rhs)?;
+        let ptr = self.builder.build_alloca(self.llvm_type(&rhs.ty), name);
+        self.builder.build_store(ptr, value);
+        ctx.lvars.insert(name.to_string(), ptr);
+        Ok(value)
+    }
+
     fn gen_const_assign(&self,
-                        function: inkwell::values::FunctionValue,
+                        ctx: &mut CodeGenContext,
                         fullname: &ConstFullname,
                         rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let value = self.gen_expr(function, rhs)?;
+        let value = self.gen_expr(ctx, rhs)?;
         let ptr = self.module.get_global(&fullname.0).
             expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
             as_pointer_value();
@@ -290,13 +312,13 @@ impl CodeGen {
     }
 
     fn gen_method_call(&self,
-                       function: inkwell::values::FunctionValue,
+                       ctx: &mut CodeGenContext,
                        method_fullname: &MethodFullname,
                        receiver_expr: &HirExpression,
                        arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let receiver_value = self.gen_expr(function, receiver_expr)?;
+        let receiver_value = self.gen_expr(ctx, receiver_expr)?;
         let mut arg_values = arg_exprs.iter().map(|arg_expr|
-          self.gen_expr(function, arg_expr)
+          self.gen_expr(ctx, arg_expr)
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
         let function = self.module.get_function(&method_fullname.full_name)
@@ -310,6 +332,14 @@ impl CodeGen {
                 Ok(self.gen_decimal_literal(42))
             }
         }
+    }
+
+    fn gen_lvar_ref(&self,
+                    ctx: &mut CodeGenContext,
+                    name: &str) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let ptr = ctx.lvars.get(name)
+            .expect("[BUG] lvar not declared");
+        Ok(self.builder.build_load(*ptr, name))
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
