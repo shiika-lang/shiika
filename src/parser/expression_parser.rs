@@ -401,6 +401,7 @@ impl<'a> Parser<'a> {
         self.lv += 1; self.debug_log("parse_secondary_expr");
         let expr = match self.current_token() {
             Token::KwIf => self.parse_if_expr(),
+            Token::KwWhile => self.parse_while_expr(),
             _ => self.parse_primary_expr()
         }?;
         self.lv -= 1;
@@ -435,6 +436,20 @@ impl<'a> Parser<'a> {
             self.lv -= 1;
             Ok(ast::if_expr(cond_expr, then_expr, else_expr))
         }
+    }
+
+    fn parse_while_expr(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_while_expr");
+        assert!(self.consume(Token::KwWhile));
+        self.skip_ws();
+        let cond_expr = self.parse_expr()?;
+        self.skip_ws();
+        self.expect(Token::Separator)?;
+        let body_exprs = self.parse_exprs()?;
+        self.skip_wsn();
+        self.expect(Token::KwEnd)?;
+        self.lv -= 1;
+        Ok(ast::while_expr(cond_expr, body_exprs))
     }
 
     // prim . methodName argumentWithParentheses? block?

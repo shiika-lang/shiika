@@ -85,6 +85,10 @@ pub enum AstExpressionBody {
         then_expr: Box<AstExpression>,
         else_expr: Option<Box<AstExpression>> // Box is needed to aboid E0072
     },
+    While {
+        cond_expr: Box<AstExpression>,
+        body_exprs: Vec<AstExpression>,
+    },
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
@@ -167,6 +171,15 @@ pub fn if_expr(cond_expr: AstExpression, then_expr: AstExpression, else_expr: Op
             cond_expr: Box::new(cond_expr),
             then_expr: Box::new(then_expr),
             else_expr: else_expr.map(|e| Box::new(e)),
+        }
+    )
+}
+
+pub fn while_expr(cond_expr: AstExpression, body_exprs: Vec<AstExpression>) -> AstExpression {
+    non_primary_expression(
+        AstExpressionBody::While {
+            cond_expr: Box::new(cond_expr),
+            body_exprs: body_exprs,
         }
     )
 }

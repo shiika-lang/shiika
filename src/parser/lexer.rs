@@ -289,6 +289,7 @@ impl<'a> Lexer<'a> {
             "not" => (Token::KwNot, LexerState::ExprBegin),
             "if" => (Token::KwIf, LexerState::ExprBegin),
             "unless" => (Token::KwUnless, LexerState::ExprBegin),
+            "while" => (Token::KwWhile, LexerState::ExprBegin),
             "then" => (Token::KwThen, LexerState::ExprBegin),
             "else" => (Token::KwElse, LexerState::ExprBegin),
             "self" => (Token::KwSelf, LexerState::ExprEnd),
