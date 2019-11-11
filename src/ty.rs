@@ -83,6 +83,29 @@ impl TermTy {
             }
         }
     }
+
+    pub fn equals_to(&self, other: &TermTy) -> bool {
+        match self.body {
+            TyRaw => {
+                match other.body {
+                    TyRaw => (self.fullname == other.fullname),
+                    _ => false,
+                }
+            },
+            TyMeta { .. } => {
+                match other.body  {
+                    TyMeta { .. } => (self.fullname == other.fullname),
+                    _ => false,
+                }
+            },
+            TyClass => {
+                match other.body {
+                    TyClass => true,
+                    _ => false,
+                }
+            }
+        }
+    }
 }
 
 pub fn raw(fullname: &str) -> TermTy {
