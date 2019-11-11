@@ -283,6 +283,7 @@ impl<'a> Lexer<'a> {
             "class" => (Token::KwClass, LexerState::ExprBegin),
             "end" => (Token::KwEnd, LexerState::ExprEnd),
             "def" => (Token::KwDef, LexerState::ExprBegin),
+            "var" => (Token::KwVar, LexerState::ExprBegin),
             "and" => (Token::KwAnd, LexerState::ExprBegin),
             "or" => (Token::KwOr, LexerState::ExprBegin),
             "not" => (Token::KwNot, LexerState::ExprBegin),
