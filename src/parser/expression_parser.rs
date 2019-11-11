@@ -15,7 +15,37 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_expr(&mut self) -> Result<AstExpression, Error> {
-        self.parse_and_or_expr()
+        self.parse_var_decl()
+    }
+
+
+    pub fn parse_var_decl(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_var_decl");
+        let expr;
+        if self.current_token_is(Token::KwVar) {
+            self.consume_token();
+            self.skip_ws();
+            match self.current_token() {
+                Token::LowerWord(s) => {
+                    let name = s.to_string();
+                    self.consume_token();
+                    self.skip_ws();
+                    self.expect(Token::Equal)?;  // TODO: `+=` etc.
+                    self.skip_wsn();
+                    let rhs = self.parse_operator_expr()?;
+                    expr = ast::var_decl(name, rhs);
+
+                },
+                token => {
+                    return Err(parse_error!(self, "invalid var name: {:?}", token))
+                }
+            }
+        }
+        else {
+            expr = self.parse_and_or_expr()?;
+        }
+        self.lv -= 1;
+        Ok(expr)
     }
 
     pub fn parse_and_or_expr(&mut self) -> Result<AstExpression, Error> {

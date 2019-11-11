@@ -88,6 +88,8 @@ pub enum AstExpressionBody {
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
+        /// Whether declared with `var`
+        is_var: bool,
     },
     ConstAssign {
         names: Vec<String>,
@@ -173,7 +175,7 @@ pub fn if_expr(cond_expr: AstExpression, then_expr: AstExpression, else_expr: Op
 pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     let body = match lhs.body {
         AstExpressionBody::BareName(s) =>  {
-            AstExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs) } 
+            AstExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs), is_var: false } 
         },
         // ToDo: IVarRef =>
         // ToDo: CVarRef =>
@@ -191,6 +193,14 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
         _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body)
     };
     non_primary_expression(body)
+}
+
+pub fn var_decl(name: String, rhs: AstExpression) -> AstExpression {
+    non_primary_expression(AstExpressionBody::LVarAssign {
+        name: name,
+        rhs: Box::new(rhs),
+        is_var: true,
+    })
 }
 
 pub fn method_call(receiver_expr: Option<AstExpression>,

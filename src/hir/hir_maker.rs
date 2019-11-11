@@ -207,8 +207,8 @@ impl<'a> HirMaker<'a> {
                 self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
             },
 
-            AstExpressionBody::LVarAssign { name, rhs } => {
-                self.convert_lvar_assign(ctx, name, &*rhs)
+            AstExpressionBody::LVarAssign { name, rhs, is_var } => {
+                self.convert_lvar_assign(ctx, name, &*rhs, is_var)
             }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
@@ -267,22 +267,31 @@ impl<'a> HirMaker<'a> {
     fn convert_lvar_assign(&mut self,
                             ctx: &mut HirMakerContext,
                             name: &str,
-                            rhs: &AstExpression) -> Result<HirExpression, Error> {
+                            rhs: &AstExpression,
+                            is_var: &bool) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(ctx, rhs)?;
         match ctx.lvars.get(name) {
             Some(lvar) => {
+                // Reassigning
                 if lvar.readonly {
                     return Err(error::program_error(&format!(
-                      "cannot reassign to {} (Hint: declare it with `var')",
-                      name)))
+                      "cannot reassign to {} (Hint: declare it with `var')", name)))
                 }
-                // TODO: reassign (typecheck needed)
+                else {
+                    if *is_var {
+                        return Err(error::program_error(&format!("variable `{}' already exists", name)))
+                    }
+                    else {
+                        type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
+                    }
+                }
             },
             None => {
+                // Newly introduced lvar
                 ctx.lvars.insert(name.to_string(), CtxLVar {
                     name: name.to_string(),
                     ty: expr.ty.clone(),
-                    readonly: true,
+                    readonly: !is_var,
                 });
             }
         }

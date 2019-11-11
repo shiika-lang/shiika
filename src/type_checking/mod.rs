@@ -27,6 +27,15 @@ pub fn check_if_condition_ty(ty: &TermTy) -> Result<(), Error> {
     }
 }
 
+pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Result<(), Error> {
+    if orig_ty.equals_to(new_ty) {
+        Ok(())
+    }
+    else {
+        Err(type_error!("variable {} is {:?} but tried to assign a {:?}", name, orig_ty, new_ty))
+    }
+}
+
 pub fn check_method_args(sig: &MethodSignature, arg_tys: &Vec<&TermTy>) -> Result<(), Error> {
     if sig.params.len() != arg_tys.len() {
         return Err(type_error!("{} takes {} args but got {}", sig.fullname, sig.params.len(), arg_tys.len()));
