@@ -110,6 +110,10 @@ pub enum HirExpressionBase {
         then_expr: Box<HirExpression>,
         else_expr: Box<HirExpression>,
     },
+    HirWhileExpression {
+        cond_expr: Box<HirExpression>,
+        body_exprs: Box<HirExpressions>,
+    },
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -162,6 +166,17 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 then_expr: Box::new(then_hir),
                 else_expr: Box::new(else_hir),
+            }
+        }
+    }
+
+    pub fn while_expression(cond_hir: HirExpression,
+                            body_hirs: HirExpressions) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Void"),
+            node: HirExpressionBase::HirWhileExpression {
+                cond_expr: Box::new(cond_hir),
+                body_exprs: Box::new(body_hirs),
             }
         }
     }

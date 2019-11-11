@@ -214,6 +214,9 @@ impl CodeGen {
             HirIfExpression { cond_expr, then_expr, else_expr } => {
                 self.gen_if_expr(ctx, &expr.ty, &cond_expr, &then_expr, &else_expr)
             },
+            HirWhileExpression { cond_expr, body_exprs } => {
+                self.gen_while_expr(ctx, &cond_expr, &body_exprs)
+            },
             HirLVarAssign { name, rhs } => {
                 self.gen_lvar_assign(ctx, name, rhs)
             },
@@ -269,9 +272,9 @@ impl CodeGen {
                    then_expr: &HirExpression,
                    else_expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-        let then_block = ctx.function.append_basic_block(&"then");
-        let else_block = ctx.function.append_basic_block(&"else");
-        let merge_block = ctx.function.append_basic_block(&"merge");
+        let then_block = ctx.function.append_basic_block(&"IfThen");
+        let else_block = ctx.function.append_basic_block(&"IfElse");
+        let merge_block = ctx.function.append_basic_block(&"IfEnd");
         self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
         self.builder.position_at_end(&then_block);
         let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(ctx, then_expr)?;
@@ -288,14 +291,45 @@ impl CodeGen {
         Ok(phi_node.as_basic_value())
     }
 
+    fn gen_while_expr(&self, 
+                      ctx: &mut CodeGenContext,
+                      cond_expr: &HirExpression,
+                      body_exprs: &HirExpressions) -> Result<inkwell::values::BasicValueEnum, Error> {
+
+        let begin_block = ctx.function.append_basic_block(&"WhileBegin");
+        self.builder.build_unconditional_branch(&begin_block);
+        // WhileBegin:
+        self.builder.position_at_end(&begin_block);
+        let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+        let body_block = ctx.function.append_basic_block(&"WhileBody");
+        let end_block = ctx.function.append_basic_block(&"WhileEnd");
+        self.builder.build_conditional_branch(cond_value, &body_block, &end_block);
+        // WhileBody:
+        self.builder.position_at_end(&body_block);
+        self.gen_exprs(ctx, body_exprs)?;
+        self.builder.build_unconditional_branch(&begin_block);
+
+        // WhileEnd:
+        self.builder.position_at_end(&end_block);
+        Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
+    }
+
     fn gen_lvar_assign(&self,
                        ctx: &mut CodeGenContext,
                        name: &str,
                        rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
-        let ptr = self.builder.build_alloca(self.llvm_type(&rhs.ty), name);
-        self.builder.build_store(ptr, value);
-        ctx.lvars.insert(name.to_string(), ptr);
+        match ctx.lvars.get(name) {
+            Some(ptr) => {
+                // Reassigning; Just store to it
+                self.builder.build_store(*ptr, value);
+            },
+            None => {
+                let ptr = self.builder.build_alloca(self.llvm_type(&rhs.ty), name);
+                self.builder.build_store(ptr, value);
+                ctx.lvars.insert(name.to_string(), ptr);
+            }
+        }
         Ok(value)
     }
 

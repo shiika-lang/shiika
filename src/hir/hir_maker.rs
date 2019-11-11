@@ -207,6 +207,10 @@ impl<'a> HirMaker<'a> {
                 self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
             },
 
+            AstExpressionBody::While { cond_expr, body_exprs } => {
+                self.convert_while_expr(ctx, cond_expr, body_exprs)
+            },
+
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
                 self.convert_lvar_assign(ctx, name, &*rhs, is_var)
             }
@@ -249,7 +253,7 @@ impl<'a> HirMaker<'a> {
                        then_expr: &AstExpression,
                        else_expr: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
-        type_checking::check_if_condition_ty(&cond_hir.ty)?;
+        type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
         let then_hir = self.convert_expr(ctx, then_expr)?;
         let else_hir = match else_expr {
@@ -262,6 +266,17 @@ impl<'a> HirMaker<'a> {
                 cond_hir,
                 then_hir,
                 else_hir))
+    }
+
+    fn convert_while_expr(&mut self,
+                          ctx: &mut HirMakerContext,
+                          cond_expr: &AstExpression,
+                          body_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
+        let cond_hir = self.convert_expr(ctx, cond_expr)?;
+        type_checking::check_condition_ty(&cond_hir.ty, "while")?;
+
+        let body_hirs = self.convert_exprs(ctx, body_exprs)?;
+        Ok(Hir::while_expression(cond_hir, body_hirs))
     }
 
     fn convert_lvar_assign(&mut self,
