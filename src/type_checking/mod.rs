@@ -18,12 +18,12 @@ pub fn check_return_value(sig: &MethodSignature, ty: &TermTy) -> Result<(), Erro
     }
 }
 
-pub fn check_if_condition_ty(ty: &TermTy) -> Result<(), Error> {
+pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     if *ty == ty::raw("Bool") {
         Ok(())
     }
     else {
-        Err(type_error!("if condition must be bool but got {:?}", ty.fullname))
+        Err(type_error!("{} condition must be bool but got {:?}", on, ty.fullname))
     }
 }
 
