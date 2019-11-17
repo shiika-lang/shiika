@@ -37,10 +37,13 @@ pub enum Token {
     Comma,        //  , 
     Colon,        //  :      
     ColonColon,   //  ::
-    And,          //  &
     AndAnd,       //  &&
-    Or,           //  |
     OrOr,         //  ||
+    BitAnd,       //  &
+    BitOr,        //  |
+    BitXor,       //  ^
+    BitLShift,    //  <<
+    BitRShift,    //  >>
     // Keywords
     KwClass,
     KwEnd,
@@ -106,10 +109,13 @@ impl Token {
             Token::Comma => false,        //  , 
             Token::Colon => true,         //  :      
             Token::ColonColon => true,    //  ::
-            Token::And => true,           //  &
             Token::AndAnd => false,       //  &&
-            Token::Or => false,           //  |
             Token::OrOr => false,         //  ||
+            Token::BitAnd => false,       //  &
+            Token::BitOr => false,        //  |
+            Token::BitXor => false,       //  ^
+            Token::BitLShift => false,    //  <<
+            Token::BitRShift => false,    //  >>
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,

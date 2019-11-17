@@ -358,6 +358,10 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     (Token::LessEq, LexerState::ExprBegin)
                 }
+                else if c2 == Some('<') {
+                    next_cur.proceed(self.src);
+                    (Token::BitLShift, LexerState::ExprBegin)
+                }
                 else {
                     (Token::LessThan, LexerState::ExprBegin)
                 }
@@ -366,6 +370,10 @@ impl<'a> Lexer<'a> {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::GraterEq, LexerState::ExprBegin)
+                }
+                else if c2 == Some('>') {
+                    next_cur.proceed(self.src);
+                    (Token::BitRShift, LexerState::ExprBegin)
                 }
                 else {
                     (Token::GraterThan, LexerState::ExprBegin)
@@ -391,7 +399,7 @@ impl<'a> Lexer<'a> {
                     (Token::AndAnd, LexerState::ExprBegin)
                 }
                 else {
-                    (Token::And, LexerState::ExprBegin)
+                    (Token::BitAnd, LexerState::ExprBegin)
                 }
             },
             '|' => {
@@ -400,7 +408,7 @@ impl<'a> Lexer<'a> {
                     (Token::OrOr, LexerState::ExprBegin)
                 }
                 else {
-                    (Token::Or, LexerState::ExprBegin)
+                    (Token::BitOr, LexerState::ExprBegin)
                 }
             },
             c => {

@@ -303,13 +303,7 @@ impl<'a> Parser<'a> {
 
     fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_relational_expr");
-        //TODO:
-        //  parse_relational_expr
-        //  parse_bitwise_or
-        //  parse_bitwise_and
-        //  parse_bitwise_shift
-        //  parse_additive_expr
-        let mut expr = self.parse_additive_expr()?; // additive (> >= < <=) additive
+        let mut expr = self.parse_bitwise_or()?; // additive (> >= < <=) additive
         let mut nesting = false;
         loop {
             let op = match self.next_nonspace_token() {
@@ -322,7 +316,7 @@ impl<'a> Parser<'a> {
             self.skip_ws();
             self.consume_token();
             self.skip_wsn();
-            let right = self.parse_additive_expr()?;
+            let right = self.parse_bitwise_or()?;
 
             if nesting {
                 if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
@@ -338,6 +332,32 @@ impl<'a> Parser<'a> {
         }
         self.lv -= 1;
         Ok(expr)
+    }
+
+    fn parse_bitwise_or(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::BitOr, "|");
+        symbols.insert(Token::BitOr, "^");
+        self.parse_binary_operator("parse_bitwise_or",
+                                   Parser::parse_bitwise_and,
+                                   symbols)
+    }
+
+    fn parse_bitwise_and(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::BitAnd, "&");
+        self.parse_binary_operator("parse_bitwise_and",
+                                   Parser::parse_bitwise_shift,
+                                   symbols)
+    }
+
+    fn parse_bitwise_shift(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::BitLShift, "<<");
+        symbols.insert(Token::BitRShift, ">>");
+        self.parse_binary_operator("parse_bitwise_shift",
+                                   Parser::parse_additive_expr,
+                                   symbols)
     }
 
     fn parse_additive_expr(&mut self) -> Result<AstExpression, Error> {
