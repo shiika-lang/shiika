@@ -118,6 +118,8 @@ impl<'a> Parser<'a> {
                 Token::And => { name_str = "&" },
                 Token::Or => { name_str = "|" },
                 Token::Xor => { name_str = "^" },
+                Token::LShift => { name_str = "<<" },
+                Token::RShift => { name_str = ">>" },
                 Token::LessThan => { name_str = "<" },
                 Token::LessEq => { name_str = "<=" },
                 Token::GraterThan => { name_str = ">" },
