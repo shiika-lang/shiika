@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::parser::base::*;
 
 impl<'a> Parser<'a> {
@@ -302,13 +303,7 @@ impl<'a> Parser<'a> {
 
     fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_relational_expr");
-        //TODO:
-        //  parse_relational_expr
-        //  parse_bitwise_or
-        //  parse_bitwise_and
-        //  parse_bitwise_shift
-        //  parse_additive_expr
-        let mut expr = self.parse_additive_expr()?; // additive (> >= < <=) additive
+        let mut expr = self.parse_bitwise_or()?; // additive (> >= < <=) additive
         let mut nesting = false;
         loop {
             let op = match self.next_nonspace_token() {
@@ -321,7 +316,7 @@ impl<'a> Parser<'a> {
             self.skip_ws();
             self.consume_token();
             self.skip_wsn();
-            let right = self.parse_additive_expr()?;
+            let right = self.parse_bitwise_or()?;
 
             if nesting {
                 if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
@@ -339,38 +334,49 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_additive_expr(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1; self.debug_log("parse_additive_expr");
-        let left = self.parse_multiplicative_expr()?;
+    fn parse_bitwise_or(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::Or, "|");
+        symbols.insert(Token::Xor, "^");
+        self.parse_binary_operator("parse_bitwise_or",
+                                   Parser::parse_bitwise_and,
+                                   symbols)
+    }
 
-        let t = self.next_nonspace_token();
-        let op = match t {
-            Token::BinaryPlus => "+",
-            Token::BinaryMinus => "-",
-            _ => { self.lv -= 1; return Ok(left) },
-        };
-        self.skip_ws(); self.consume_token();
-        self.skip_wsn();
-        let right = self.parse_multiplicative_expr()?;
-        self.lv -= 1;
-        Ok(ast::bin_op_expr(left, &op, right))
+    fn parse_bitwise_and(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::And, "&");
+        self.parse_binary_operator("parse_bitwise_and",
+                                   Parser::parse_bitwise_shift,
+                                   symbols)
+    }
+
+    fn parse_bitwise_shift(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::LShift, "<<");
+        symbols.insert(Token::RShift, ">>");
+        self.parse_binary_operator("parse_bitwise_shift",
+                                   Parser::parse_additive_expr,
+                                   symbols)
+    }
+
+    fn parse_additive_expr(&mut self) -> Result<AstExpression, Error> {
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::BinaryPlus, "+");
+        symbols.insert(Token::BinaryMinus, "-");
+        self.parse_binary_operator("parse_additive_expr",
+                                   Parser::parse_multiplicative_expr,
+                                   symbols)
     }
 
     fn parse_multiplicative_expr(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1; self.debug_log("parse_multiplicative_expr");
-        let left = self.parse_unary_minus_expr()?;
-
-        let op = match self.next_nonspace_token() {
-            Token::Mul => "*",
-            Token::Div => "/",
-            Token::Mod => "%",
-            _ => { self.lv -= 1; return Ok(left) },
-        };
-        self.skip_ws(); self.consume_token();
-        self.skip_wsn();
-        let right = self.parse_unary_minus_expr()?;
-        self.lv -= 1;
-        Ok(ast::bin_op_expr(left, &op, right))
+        let mut symbols = HashMap::new();
+        symbols.insert(Token::Mul, "*");
+        symbols.insert(Token::Div, "/");
+        symbols.insert(Token::Mod, "%");
+        self.parse_binary_operator("parse_multiplicative_expr",
+                                   Parser::parse_unary_minus_expr,
+                                   symbols)
     }
 
     fn parse_unary_minus_expr(&mut self) -> Result<AstExpression, Error> {
@@ -621,5 +627,24 @@ impl<'a> Parser<'a> {
         };
         self.lv -= 1;
         Ok(expr)
+    }
+
+    fn parse_binary_operator<F: Fn(&mut Self) -> Result<AstExpression, Error>>
+                            (&mut self,
+                             name: &str,
+                             func: F,
+                             symbols: HashMap<Token, &str>) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log(name);
+        let left = func(self)?;
+        let t = self.next_nonspace_token();
+        let op = match symbols.get(&t) {
+            Some(s) => s,
+            None => { self.lv -= 1; return Ok(left) },
+        };
+        self.skip_ws(); self.consume_token();
+        self.skip_wsn();
+        let right = func(self)?;
+        self.lv -= 1;
+        Ok(ast::bin_op_expr(left, op, right))
     }
 }

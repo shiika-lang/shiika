@@ -358,6 +358,10 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     (Token::LessEq, LexerState::ExprBegin)
                 }
+                else if c2 == Some('<') {
+                    next_cur.proceed(self.src);
+                    (Token::LShift, LexerState::ExprBegin)
+                }
                 else {
                     (Token::LessThan, LexerState::ExprBegin)
                 }
@@ -366,6 +370,10 @@ impl<'a> Lexer<'a> {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::GraterEq, LexerState::ExprBegin)
+                }
+                else if c2 == Some('>') {
+                    next_cur.proceed(self.src);
+                    (Token::RShift, LexerState::ExprBegin)
                 }
                 else {
                     (Token::GraterThan, LexerState::ExprBegin)
@@ -403,6 +411,7 @@ impl<'a> Lexer<'a> {
                     (Token::Or, LexerState::ExprBegin)
                 }
             },
+            '^' => (Token::Xor, LexerState::ExprBegin),
             c => {
                 // TODO: this should be lexing error
                 panic!("unknown symbol: {}", c)

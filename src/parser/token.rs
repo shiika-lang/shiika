@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Token {
     Bof,
     Eof,
@@ -37,10 +37,13 @@ pub enum Token {
     Comma,        //  , 
     Colon,        //  :      
     ColonColon,   //  ::
-    And,          //  &
     AndAnd,       //  &&
-    Or,           //  |
     OrOr,         //  ||
+    And,          //  &
+    Or,           //  |
+    Xor,          //  ^
+    LShift,       //  <<
+    RShift,       //  >>
     // Keywords
     KwClass,
     KwEnd,
@@ -106,10 +109,13 @@ impl Token {
             Token::Comma => false,        //  , 
             Token::Colon => true,         //  :      
             Token::ColonColon => true,    //  ::
-            Token::And => true,           //  &
             Token::AndAnd => false,       //  &&
-            Token::Or => false,           //  |
             Token::OrOr => false,         //  ||
+            Token::And => false,       //  &
+            Token::Or => false,        //  |
+            Token::Xor => false,       //  ^
+            Token::LShift => false,    //  <<
+            Token::RShift => false,    //  >>
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,
