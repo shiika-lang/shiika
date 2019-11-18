@@ -336,8 +336,8 @@ impl<'a> Parser<'a> {
 
     fn parse_bitwise_or(&mut self) -> Result<AstExpression, Error> {
         let mut symbols = HashMap::new();
-        symbols.insert(Token::BitOr, "|");
-        symbols.insert(Token::BitOr, "^");
+        symbols.insert(Token::Or, "|");
+        symbols.insert(Token::Xor, "^");
         self.parse_binary_operator("parse_bitwise_or",
                                    Parser::parse_bitwise_and,
                                    symbols)
@@ -345,7 +345,7 @@ impl<'a> Parser<'a> {
 
     fn parse_bitwise_and(&mut self) -> Result<AstExpression, Error> {
         let mut symbols = HashMap::new();
-        symbols.insert(Token::BitAnd, "&");
+        symbols.insert(Token::And, "&");
         self.parse_binary_operator("parse_bitwise_and",
                                    Parser::parse_bitwise_shift,
                                    symbols)
@@ -353,8 +353,8 @@ impl<'a> Parser<'a> {
 
     fn parse_bitwise_shift(&mut self) -> Result<AstExpression, Error> {
         let mut symbols = HashMap::new();
-        symbols.insert(Token::BitLShift, "<<");
-        symbols.insert(Token::BitRShift, ">>");
+        symbols.insert(Token::LShift, "<<");
+        symbols.insert(Token::RShift, ">>");
         self.parse_binary_operator("parse_bitwise_shift",
                                    Parser::parse_additive_expr,
                                    symbols)

@@ -39,11 +39,11 @@ pub enum Token {
     ColonColon,   //  ::
     AndAnd,       //  &&
     OrOr,         //  ||
-    BitAnd,       //  &
-    BitOr,        //  |
-    BitXor,       //  ^
-    BitLShift,    //  <<
-    BitRShift,    //  >>
+    And,          //  &
+    Or,           //  |
+    Xor,          //  ^
+    LShift,       //  <<
+    RShift,       //  >>
     // Keywords
     KwClass,
     KwEnd,
@@ -111,11 +111,11 @@ impl Token {
             Token::ColonColon => true,    //  ::
             Token::AndAnd => false,       //  &&
             Token::OrOr => false,         //  ||
-            Token::BitAnd => false,       //  &
-            Token::BitOr => false,        //  |
-            Token::BitXor => false,       //  ^
-            Token::BitLShift => false,    //  <<
-            Token::BitRShift => false,    //  >>
+            Token::And => false,       //  &
+            Token::Or => false,        //  |
+            Token::Xor => false,       //  ^
+            Token::LShift => false,    //  <<
+            Token::RShift => false,    //  >>
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,
