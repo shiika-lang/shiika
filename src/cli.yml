@@ -1,0 +1,22 @@
+name: "shiika"
+version: "0.2.1"
+args:
+    - version:
+        long: "version"
+        help: "Show version"
+subcommands:
+    - compile:
+        about: "Compile shiika source"
+        args:
+            - INPUT:
+                help: "Shiika source (*.sk)"
+                required: true
+                index: 1
+
+    - run:
+        about: "Compile and execute shiika program"
+        args:
+            - INPUT:
+                help: "Shiika source (*.sk)"
+                required: true
+                index: 1
