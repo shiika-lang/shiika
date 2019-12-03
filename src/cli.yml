@@ -12,3 +12,11 @@ subcommands:
                 help: "Shiika source (*.sk)"
                 required: true
                 index: 1
+
+    - run:
+        about: "Compile and execute shiika program"
+        args:
+            - INPUT:
+                help: "Shiika source (*.sk)"
+                required: true
+                index: 1
