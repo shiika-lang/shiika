@@ -29,7 +29,7 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff HEAD"
-  v = "v0.2.1"
+  v = "v0.2.2"
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 

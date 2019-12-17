@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.2.2 (2019/12/17)
+
+- feat: shiika compile, shiika run
+- feat: while expression
+
 ## v0.2.1 (2019/11/06)
 
 - New example: fib
