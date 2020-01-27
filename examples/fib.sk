@@ -1,0 +1,14 @@
+class A
+  def fib(n: Int) -> Int
+    if n < 3
+      1
+    else
+      fib(n-1) + fib(n-2)
+    end
+  end
+end
+a = A.new
+putchar a.fib(40)
+putchar 20
+putchar 79
+putchar 107

@@ -1,0 +1,8 @@
+var i = 0
+while i < 5
+  putchar 42
+  i = i + 1
+end
+putchar 20
+putchar 79
+putchar 107
