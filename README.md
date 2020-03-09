@@ -23,7 +23,10 @@ Early-alpha
 
 - [x] Implement class method (eg. `Math.pow`)
 - [x] Implement .new
-- [ ] Local variables
+- [x] Local variables
+- [ ] `break`
+- [ ] String
+- [ ] Array
 - [ ] Instance variables
 - [ ] Blocks
 - Constant
