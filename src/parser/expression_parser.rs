@@ -406,12 +406,19 @@ impl<'a> Parser<'a> {
     fn parse_secondary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_secondary_expr");
         let expr = match self.current_token() {
+            Token::KwBreak => self.parse_break_expr(),
             Token::KwIf => self.parse_if_expr(),
             Token::KwWhile => self.parse_while_expr(),
             _ => self.parse_primary_expr()
         }?;
         self.lv -= 1;
         Ok(expr)
+    }
+
+    fn parse_break_expr(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_break_expr");
+        assert!(self.consume(Token::KwBreak));
+        Ok(ast::break_expr())
     }
 
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {

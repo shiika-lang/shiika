@@ -89,6 +89,7 @@ pub enum AstExpressionBody {
         cond_expr: Box<AstExpression>,
         body_exprs: Vec<AstExpression>,
     },
+    Break {},
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
@@ -181,6 +182,12 @@ pub fn while_expr(cond_expr: AstExpression, body_exprs: Vec<AstExpression>) -> A
             cond_expr: Box::new(cond_expr),
             body_exprs: body_exprs,
         }
+    )
+}
+
+pub fn break_expr() -> AstExpression {
+    non_primary_expression(
+        AstExpressionBody::Break {}
     )
 }
 
