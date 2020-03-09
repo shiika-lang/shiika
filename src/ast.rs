@@ -89,7 +89,7 @@ pub enum AstExpressionBody {
         cond_expr: Box<AstExpression>,
         body_exprs: Vec<AstExpression>,
     },
-    Break {},
+    Break,
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,

@@ -211,6 +211,10 @@ impl<'a> HirMaker<'a> {
                 self.convert_while_expr(ctx, cond_expr, body_exprs)
             },
 
+            AstExpressionBody::Break => {
+                self.convert_break_expr()
+            },
+
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
                 self.convert_lvar_assign(ctx, name, &*rhs, is_var)
             }
@@ -277,6 +281,10 @@ impl<'a> HirMaker<'a> {
 
         let body_hirs = self.convert_exprs(ctx, body_exprs)?;
         Ok(Hir::while_expression(cond_hir, body_hirs))
+    }
+
+    fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
+        Ok(Hir::break_expression())
     }
 
     fn convert_lvar_assign(&mut self,

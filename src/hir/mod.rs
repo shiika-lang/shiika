@@ -114,6 +114,7 @@ pub enum HirExpressionBase {
         cond_expr: Box<HirExpression>,
         body_exprs: Box<HirExpressions>,
     },
+    HirBreakExpression,
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -178,6 +179,13 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 body_exprs: Box::new(body_hirs),
             }
+        }
+    }
+
+    pub fn break_expression() -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Never"),
+            node: HirExpressionBase::HirBreakExpression {}
         }
     }
 
