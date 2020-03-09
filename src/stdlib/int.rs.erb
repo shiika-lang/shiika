@@ -22,8 +22,33 @@ pub fn create_methods() -> Vec<SkMethod> {
     vec![
 
     <%= create_bin_method(
+          "==(other: Int) -> Bool",
+          'code_gen.builder.build_int_compare(inkwell::IntPredicate::EQ, val1, val2, "eq")'
+    ) %>
+
+    <%= create_bin_method(
+          "!=(other: Int) -> Bool",
+          'code_gen.builder.build_int_compare(inkwell::IntPredicate::NE, val1, val2, "neq")'
+    ) %>
+
+    <%= create_bin_method(
           "<(other: Int) -> Bool",
           'code_gen.builder.build_int_compare(inkwell::IntPredicate::SLT, val1, val2, "lt")'
+    ) %>
+
+    <%= create_bin_method(
+          ">(other: Int) -> Bool",
+          'code_gen.builder.build_int_compare(inkwell::IntPredicate::SGT, val1, val2, "gt")'
+    ) %>
+
+    <%= create_bin_method(
+          "<=(other: Int) -> Bool",
+          'code_gen.builder.build_int_compare(inkwell::IntPredicate::SLE, val1, val2, "leq")'
+    ) %>
+
+    <%= create_bin_method(
+          ">=(other: Int) -> Bool",
+          'code_gen.builder.build_int_compare(inkwell::IntPredicate::SGE, val1, val2, "geq")'
     ) %>
 
     <%= create_bin_method(
@@ -35,6 +60,18 @@ pub fn create_methods() -> Vec<SkMethod> {
           "-(other: Int) -> Int",
           'code_gen.builder.build_int_sub(val1, val2, "sub")'
     ) %>
+
+    <%= create_bin_method(
+          "*(other: Int) -> Int",
+          'code_gen.builder.build_int_mul(val1, val2, "mul")'
+    ) %>
+
+    <%= create_bin_method(
+          "/(other: Int) -> Int",
+          'code_gen.builder.build_int_signed_div(val1, val2, "div")'
+    ) %>
+
+    // TODO: %
 
     <%= create_bin_method(
           "&(other: Int) -> Int",

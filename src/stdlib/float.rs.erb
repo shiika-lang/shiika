@@ -22,9 +22,56 @@ pub fn create_methods() -> Vec<SkMethod> {
     vec![
 
     <%= create_bin_method(
+          "==(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::OEQ, val1, val2, "eq")'
+    ) %>
+
+    <%= create_bin_method(
+          "!=(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::UNE, val1, val2, "neq")'
+    ) %>
+
+    <%= create_bin_method(
+          "<(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::OLT, val1, val2, "lt")'
+    ) %>
+
+    <%= create_bin_method(
+          ">(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::OGT, val1, val2, "gt")'
+    ) %>
+
+    <%= create_bin_method(
+          "<=(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::OLE, val1, val2, "leq")'
+    ) %>
+
+    <%= create_bin_method(
+          ">=(other: Float) -> Bool",
+          'code_gen.builder.build_float_compare(inkwell::FloatPredicate::OGE, val1, val2, "geq")'
+    ) %>
+
+    <%= create_bin_method(
           "+(other: Float) -> Float",
           'code_gen.builder.build_float_add(val1, val2, "add")'
     ) %>
+
+    <%= create_bin_method(
+          "-(other: Float) -> Float",
+          'code_gen.builder.build_float_sub(val1, val2, "sub")'
+    ) %>
+
+    <%= create_bin_method(
+          "*(other: Float) -> Float",
+          'code_gen.builder.build_float_mul(val1, val2, "mul")'
+    ) %>
+
+    <%= create_bin_method(
+          "/(other: Float) -> Float",
+          'code_gen.builder.build_float_div(val1, val2, "div")'
+    ) %>
+
+    // TODO: %
 
     create_method("Float", "abs -> Float", |code_gen, function| {
         let x = function.get_params()[0].into_float_value();
