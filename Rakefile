@@ -10,15 +10,6 @@ file 'lib/shiika/parser.rb' => 'lib/shiika/parser.ry' do
   sh cmd
 end
 
-desc "run test"
-task :test do
-  if ENV["F"]
-    sh "rspec --fail-fast"
-  else
-    sh "rspec"
-  end
-end
-
 task :parser => 'lib/shiika/parser.rb'
 
 task :doc do
@@ -54,4 +45,21 @@ task :opt do
   sh "llc a.bc"
   sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s"
   sh "./a.out"
+end
+
+rule ".rs" => ".rs.erb" do |t|
+  sh "erb #{t.source} > #{t.name}"
+end
+
+LIBS = [
+  "src/stdlib/int.rs",
+  "src/stdlib/float.rs",
+]
+
+task :build => LIBS do
+  sh "cargo build"
+end
+
+task :test => LIBS do
+  sh "cargo test"
 end
