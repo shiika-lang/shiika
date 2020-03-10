@@ -264,10 +264,6 @@ impl CodeGen {
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
-            // TODO: Delete this
-            HirNop => {
-                panic!("HirNop not handled by `else`")
-            },
             _ => {
                 panic!("TODO: {:?}", expr.node) 
             }

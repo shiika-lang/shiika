@@ -153,7 +153,6 @@ pub enum HirExpressionBase {
     HirClassLiteral {
         fullname: ClassFullname,
     },
-    HirNop  // For else-less if expr
 }
 
 impl Hir {
@@ -274,13 +273,6 @@ impl Hir {
         HirExpression {
             ty: ty::meta(&fullname.0),
             node: HirExpressionBase::HirClassLiteral { fullname }
-        }
-    }
-    
-    pub fn nop() -> HirExpression {
-        HirExpression {
-            ty: ty::raw(" NOP "), // must not be used
-            node: HirExpressionBase::HirNop,
         }
     }
 }
