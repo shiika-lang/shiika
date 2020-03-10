@@ -261,8 +261,8 @@ impl<'a> HirMaker<'a> {
 
         let then_hir = self.convert_expr(ctx, then_expr)?;
         let else_hir = match else_expr {
-            Some(expr) => self.convert_expr(ctx, expr)?,
-            None => Hir::nop(),
+            Some(expr) => Some(self.convert_expr(ctx, expr)?),
+            None => None,
         };
         // TODO: then and else must have conpatible type
         Ok(Hir::if_expression(

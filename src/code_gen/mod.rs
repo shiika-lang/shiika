@@ -264,6 +264,7 @@ impl CodeGen {
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
+            // TODO: Delete this
             HirNop => {
                 panic!("HirNop not handled by `else`")
             },
@@ -278,29 +279,39 @@ impl CodeGen {
                    ty: &TermTy,
                    cond_expr: &HirExpression,
                    then_expr: &HirExpression,
-                   else_expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-        let then_block = ctx.function.append_basic_block(&"IfThen");
-        let else_block = ctx.function.append_basic_block(&"IfElse");
-        let merge_block = ctx.function.append_basic_block(&"IfEnd");
-        self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
-        self.builder.position_at_end(&then_block);
-        let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(ctx, then_expr)?;
-        self.builder.build_unconditional_branch(&merge_block);
-        let then_block = self.builder.get_insert_block().unwrap();
-        self.builder.position_at_end(&else_block);
-        let else_value = self.gen_expr(ctx, else_expr)?;
-        self.builder.build_unconditional_branch(&merge_block);
-        let else_block = self.builder.get_insert_block().unwrap();
-        self.builder.position_at_end(&merge_block);
+                   opt_else_expr: &Option<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
+        match opt_else_expr {
+            Some(else_expr) => {
+                let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+                let then_block = ctx.function.append_basic_block(&"IfThen");
+                let else_block = ctx.function.append_basic_block(&"IfElse");
+                let merge_block = ctx.function.append_basic_block(&"IfEnd");
+                self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
+                self.builder.position_at_end(&then_block);
+                let then_value: &dyn inkwell::values::BasicValue = &self.gen_expr(ctx, then_expr)?;
+                self.builder.build_unconditional_branch(&merge_block);
+                let then_block = self.builder.get_insert_block().unwrap();
+                self.builder.position_at_end(&else_block);
+                let else_value = self.gen_expr(ctx, else_expr)?;
+                self.builder.build_unconditional_branch(&merge_block);
+                let else_block = self.builder.get_insert_block().unwrap();
+                self.builder.position_at_end(&merge_block);
 
-        if ty == &ty::raw("Never") {
-            Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
-        }
-        else {
-            let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
-            phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
-            Ok(phi_node.as_basic_value())
+                let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
+                phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
+                Ok(phi_node.as_basic_value())
+            },
+            None => {
+                let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+                let then_block = ctx.function.append_basic_block(&"IfThen");
+                let merge_block = ctx.function.append_basic_block(&"IfEnd");
+                self.builder.build_conditional_branch(cond_value, &then_block, &merge_block);
+                self.builder.position_at_end(&then_block);
+                self.gen_expr(ctx, then_expr)?;
+                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.position_at_end(&merge_block);
+                Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
+            }
         }
     }
 
