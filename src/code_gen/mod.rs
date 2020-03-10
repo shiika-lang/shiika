@@ -1,8 +1,10 @@
 mod code_gen_context;
 use std::collections::HashMap;
+use std::rc::Rc;
 use inkwell::AddressSpace;
 use inkwell::values::*;
 use inkwell::types::*;
+use crate::error;
 use crate::error::Error;
 use crate::ty;
 use crate::ty::*;
@@ -217,6 +219,9 @@ impl CodeGen {
             HirWhileExpression { cond_expr, body_exprs } => {
                 self.gen_while_expr(ctx, &cond_expr, &body_exprs)
             },
+            HirBreakExpression => {
+                self.gen_break_expr(ctx)
+            },
             HirLVarAssign { name, rhs } => {
                 self.gen_lvar_assign(ctx, name, rhs)
             },
@@ -289,9 +294,14 @@ impl CodeGen {
         let else_block = self.builder.get_insert_block().unwrap();
         self.builder.position_at_end(&merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
-        phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
-        Ok(phi_node.as_basic_value())
+        if ty == &ty::raw("Never") {
+            Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
+        }
+        else {
+            let phi_node = self.builder.build_phi(self.llvm_type(ty), "");
+            phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
+            Ok(phi_node.as_basic_value())
+        }
     }
 
     fn gen_while_expr(&self, 
@@ -309,12 +319,29 @@ impl CodeGen {
         self.builder.build_conditional_branch(cond_value, &body_block, &end_block);
         // WhileBody:
         self.builder.position_at_end(&body_block);
+        let rc1 = Rc::new(end_block);
+        let rc2 = Rc::clone(&rc1);
+        ctx.current_loop_end = Some(rc1);
         self.gen_exprs(ctx, body_exprs)?;
+        ctx.current_loop_end = None;
         self.builder.build_unconditional_branch(&begin_block);
 
         // WhileEnd:
-        self.builder.position_at_end(&end_block);
+        self.builder.position_at_end(&rc2);
         Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
+    }
+
+    fn gen_break_expr(&self, 
+                      ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
+        match &ctx.current_loop_end {
+            Some(b) => {
+                self.builder.build_unconditional_branch(&b);
+                Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
+            },
+            None => {
+                Err(error::program_error("break outside of a loop"))
+            }
+        }
     }
 
     fn gen_lvar_assign(&self,
