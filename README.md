@@ -23,7 +23,10 @@ Early-alpha
 
 - [x] Implement class method (eg. `Math.pow`)
 - [x] Implement .new
-- [ ] Local variables
+- [x] Local variables
+- [ ] `break`
+- [ ] String
+- [ ] Array
 - [ ] Instance variables
 - [ ] Blocks
 - Constant
@@ -63,25 +66,31 @@ Early-alpha
 
 ## Development
 
-### How to run tests
+### Prerequisits
 
-Prerequisits: Rust, LLVM (`brew intall llvm@7`)
+- Rust
+- LLVM (`brew intall llvm@7`)
+- bdw-gc 7.6.0 (Currently the path is hardcorded in src/main.rs. PR welcome)
+- Ruby (used to generate boiler-plate library definitions)
+
+### Compile
 
 ```
-$ cargo test
+$ bundle install
+$ rake build
 ```
 
-### How to compile a Shiika program
+### Run tests
 
-Prerequisits: Rust, LLVM, Boehm GC (`brew install bdw-gc`)
+```
+$ rake test
+```
 
-1. Edit the program in src/main.rs
-2. `cargo run` to generate `a.ll`
-3. `llc a.ll` to generate `a.s`
-4. `cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s`
-5. `./a.out`
+### How to run a Shiika program
 
-You can also do this by `rake run`, if you have Ruby and Rake installed.
+```
+$ ./build/debug/shiika run examples/fib.sk
+```
 
 ## License
 

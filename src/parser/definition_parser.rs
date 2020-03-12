@@ -124,6 +124,8 @@ impl<'a> Parser<'a> {
                 Token::LessEq => { name_str = "<=" },
                 Token::GraterThan => { name_str = ">" },
                 Token::GraterEq => { name_str = ">=" },
+                Token::EqEq => { name_str = "==" },
+                Token::NotEq => { name_str = "!=" },
                 token => {
                     return Err(parse_error!(self, "invalid method name {:?}", token))
                 }

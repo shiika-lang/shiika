@@ -290,6 +290,7 @@ impl<'a> Lexer<'a> {
             "if" => (Token::KwIf, LexerState::ExprBegin),
             "unless" => (Token::KwUnless, LexerState::ExprBegin),
             "while" => (Token::KwWhile, LexerState::ExprBegin),
+            "break" => (Token::KwBreak, LexerState::ExprEnd),
             "then" => (Token::KwThen, LexerState::ExprBegin),
             "else" => (Token::KwElse, LexerState::ExprBegin),
             "self" => (Token::KwSelf, LexerState::ExprEnd),

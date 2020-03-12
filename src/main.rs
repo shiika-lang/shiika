@@ -45,7 +45,8 @@ fn run(sk_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg(ll_path);
     cmd.arg("-o");
     cmd.arg(bc_path.clone());
-    cmd.output()?;
+    let output = cmd.output()?;
+    println!("{}", String::from_utf8(output.stderr)?);
 
     let mut cmd = Command::new("llvm-dis");
     cmd.arg(bc_path.clone());
@@ -55,7 +56,8 @@ fn run(sk_path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::new("llc");
     cmd.arg(bc_path.clone());
-    cmd.output()?;
+    let output = cmd.output()?;
+    println!("{}", String::from_utf8(output.stderr)?);
 
     let mut cmd = Command::new("cc");
     cmd.arg("-I/usr/local/Cellar/bdw-gc/7.6.0/include/");
