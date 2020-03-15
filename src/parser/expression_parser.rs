@@ -636,22 +636,25 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
+    // func: parse_xx
+    // Parse `xx op xx op ... xx`
     fn parse_binary_operator<F: Fn(&mut Self) -> Result<AstExpression, Error>>
                             (&mut self,
                              name: &str,
                              func: F,
                              symbols: HashMap<Token, &str>) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log(name);
-        let left = func(self)?;
-        let t = self.next_nonspace_token();
-        let op = match symbols.get(&t) {
-            Some(s) => s,
-            None => { self.lv -= 1; return Ok(left) },
-        };
-        self.skip_ws(); self.consume_token();
-        self.skip_wsn();
-        let right = func(self)?;
-        self.lv -= 1;
-        Ok(ast::bin_op_expr(left, op, right))
+        let mut left = func(self)?;
+        loop {
+            let t = self.next_nonspace_token();
+            let op = match symbols.get(&t) {
+                Some(s) => s,
+                None => { self.lv -= 1; return Ok(left) },
+            };
+            self.skip_ws(); self.consume_token(); // Consume t
+            self.skip_wsn(); // TODO: should ban ';' here
+            let right = func(self)?;
+            left = ast::bin_op_expr(left, op, right)
+        }
     }
 }
