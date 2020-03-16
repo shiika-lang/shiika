@@ -3,13 +3,16 @@ use crate::parser::base::*;
 
 impl<'a> Parser<'a> {
     /// Parse successive expressions
-    pub fn parse_exprs(&mut self) -> Result<Vec<AstExpression>, Error> {
+    pub fn parse_exprs(&mut self, stop_toks: Vec<Token>) -> Result<Vec<AstExpression>, Error> {
         let mut ret = Vec::new();
         loop {
-            match self.current_token() {
-                Token::Eof | Token::KwEnd => break,
-                _ => ret.push(self.parse_expr()?),
-            };
+            let tok = self.current_token();
+            if stop_toks.contains(tok) {
+                break
+            }
+            else {
+                ret.push(self.parse_expr()?)
+            }
             self.expect_sep()?;
         }
         Ok(ret)
@@ -205,7 +208,7 @@ impl<'a> Parser<'a> {
             self.skip_wsn();
             let else_expr = self.parse_operator_expr()?;
             self.lv -= 1;
-            Ok(ast::if_expr(expr, then_expr, Some(else_expr)))
+            Ok(ast::if_expr(expr, vec![then_expr], Some(vec![else_expr])))
         }
         else {
             self.lv -= 1;
@@ -433,21 +436,20 @@ impl<'a> Parser<'a> {
         else {
             self.expect(Token::Separator)?;
         }
-        let then_expr = self.parse_expr()?;
+        let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
         self.skip_wsn();
         if self.consume(Token::KwElse) {
             self.skip_wsn();
-            let else_expr = Some(self.parse_expr()?);
+            let else_exprs = self.parse_exprs(vec![Token::KwEnd])?;
             self.skip_wsn();
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
-            Ok(ast::if_expr(cond_expr, then_expr, else_expr))
+            Ok(ast::if_expr(cond_expr, then_exprs, Some(else_exprs)))
         }
         else {
             self.expect(Token::KwEnd)?;
-            let else_expr = None;
             self.lv -= 1;
-            Ok(ast::if_expr(cond_expr, then_expr, else_expr))
+            Ok(ast::if_expr(cond_expr, then_exprs, None))
         }
     }
 
@@ -458,7 +460,7 @@ impl<'a> Parser<'a> {
         let cond_expr = self.parse_expr()?;
         self.skip_ws();
         self.expect(Token::Separator)?;
-        let body_exprs = self.parse_exprs()?;
+        let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.skip_wsn();
         self.expect(Token::KwEnd)?;
         self.lv -= 1;

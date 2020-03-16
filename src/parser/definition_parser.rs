@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
         self.expect_sep()?;
 
         // Body (optional)
-        let body_exprs = self.parse_exprs()?;
+        let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
 
         // `end'
         self.skip_wsn();

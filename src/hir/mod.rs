@@ -107,8 +107,8 @@ pub struct HirExpression {
 pub enum HirExpressionBase {
     HirIfExpression {
         cond_expr: Box<HirExpression>,
-        then_expr: Box<HirExpression>,
-        else_expr: Box<Option<HirExpression>>,
+        then_exprs: Box<HirExpressions>,
+        else_exprs: Box<Option<HirExpressions>>,
     },
     HirWhileExpression {
         cond_expr: Box<HirExpression>,
@@ -158,14 +158,14 @@ pub enum HirExpressionBase {
 impl Hir {
     pub fn if_expression(ty: TermTy,
                          cond_hir: HirExpression,
-                         then_hir: HirExpression,
-                         else_hir: Option<HirExpression>) -> HirExpression {
+                         then_hir: HirExpressions,
+                         else_hir: Option<HirExpressions>) -> HirExpression {
         HirExpression {
             ty: ty,
             node: HirExpressionBase::HirIfExpression {
                 cond_expr: Box::new(cond_hir),
-                then_expr: Box::new(then_hir),
-                else_expr: Box::new(else_hir),
+                then_exprs: Box::new(then_hir),
+                else_exprs: Box::new(else_hir),
             }
         }
     }
