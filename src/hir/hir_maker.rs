@@ -17,9 +17,11 @@ pub struct HirMaker<'a> {
 
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
+        let mut constants = HashMap::new();
+        constants.insert(ConstFullname("::Void".to_string()), ty::raw("Void"));
         HirMaker {
             index: index,
-            constants: HashMap::new(),
+            constants: constants,
             const_inits: vec![],
         }
     }
@@ -187,14 +189,16 @@ impl<'a> HirMaker<'a> {
     fn convert_exprs(&mut self,
                      ctx: &mut HirMakerContext,
                      exprs: &Vec<AstExpression>) -> Result<HirExpressions, Error> {
-        let hir_exprs = exprs.iter().map(|expr|
+        let mut hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
 
-        let ty = match hir_exprs.last() {
-                   Some(hir_expr) => hir_expr.ty.clone(),
-                   None => ty::raw("Void"),
-                 };
+        if hir_exprs.is_empty() {
+            hir_exprs.push(Hir::const_ref(ty::raw("Void"), ConstFullname("::Void".to_string())))
+        }
+
+        let last_expr = hir_exprs.last().unwrap();
+        let ty = last_expr.ty.clone();
 
         Ok(HirExpressions { ty: ty, exprs: hir_exprs })
     }
@@ -203,8 +207,8 @@ impl<'a> HirMaker<'a> {
                     ctx: &mut HirMakerContext,
                     expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
-            AstExpressionBody::If { cond_expr, then_expr, else_expr } => {
-                self.convert_if_expr(ctx, cond_expr, then_expr, else_expr)
+            AstExpressionBody::If { cond_expr, then_exprs, else_exprs } => {
+                self.convert_if_expr(ctx, cond_expr, then_exprs, else_exprs)
             },
 
             AstExpressionBody::While { cond_expr, body_exprs } => {
@@ -254,22 +258,22 @@ impl<'a> HirMaker<'a> {
     fn convert_if_expr(&mut self,
                        ctx: &mut HirMakerContext,
                        cond_expr: &AstExpression,
-                       then_expr: &AstExpression,
-                       else_expr: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
+                       then_exprs: &Vec<AstExpression>,
+                       else_exprs: &Option<Vec<AstExpression>>) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
-        let then_hir = self.convert_expr(ctx, then_expr)?;
-        let else_hir = match else_expr {
-            Some(expr) => Some(self.convert_expr(ctx, expr)?),
+        let then_hirs = self.convert_exprs(ctx, then_exprs)?;
+        let else_hirs = match else_exprs {
+            Some(exprs) => Some(self.convert_exprs(ctx, exprs)?),
             None => None,
         };
         // TODO: then and else must have conpatible type
         Ok(Hir::if_expression(
-                then_hir.ty.clone(),
+                then_hirs.ty.clone(),
                 cond_hir,
-                then_hir,
-                else_hir))
+                then_hirs,
+                else_hirs))
     }
 
     fn convert_while_expr(&mut self,
