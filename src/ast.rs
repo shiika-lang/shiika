@@ -82,8 +82,8 @@ pub enum AstExpressionBody {
     },
     If {
         cond_expr: Box<AstExpression>,
-        then_expr: Box<AstExpression>,
-        else_expr: Option<Box<AstExpression>> // Box is needed to aboid E0072
+        then_exprs: Vec<AstExpression>,
+        else_exprs: Option<Vec<AstExpression>>,
     },
     While {
         cond_expr: Box<AstExpression>,
@@ -166,12 +166,12 @@ pub fn logical_or(left: AstExpression, right: AstExpression) -> AstExpression {
     )
 }
 
-pub fn if_expr(cond_expr: AstExpression, then_expr: AstExpression, else_expr: Option<AstExpression>) -> AstExpression {
+pub fn if_expr(cond_expr: AstExpression, then_exprs: Vec<AstExpression>, else_exprs: Option<Vec<AstExpression>>) -> AstExpression {
     non_primary_expression(
         AstExpressionBody::If {
             cond_expr: Box::new(cond_expr),
-            then_expr: Box::new(then_expr),
-            else_expr: else_expr.map(|e| Box::new(e)),
+            then_exprs: then_exprs,
+            else_exprs: else_exprs,
         }
     )
 }
