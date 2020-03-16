@@ -1,0 +1,74 @@
+# How to run
+#   $ rake build
+#   $ ./build/debug/shiika run examples/mandel.sk > a.pbm
+#   $ open a.pbm   # With Preview.app or something
+size = 600
+
+#puts "P4\n#{size} #{size}"
+putchar 80
+putchar 52
+putchar 10
+putchar 54
+putchar 48
+putchar 48
+putchar 32
+putchar 54
+putchar 48
+putchar 48
+putchar 10
+
+ITER = 49                           # Iterations - 1 for easy for..in looping
+LIMIT_SQUARED = 4.0                 # Presquared limit
+
+var byte_acc = 0
+var bit_num = 0
+
+count_size = size - 1               # Precomputed size for easy for..in looping
+
+var y=0; while y <= count_size
+  var x=0; while x <= count_size
+    var zr = 0.0
+    var zi = 0.0
+    cr = (2.0*x.to_f/size.to_f)-1.5
+    ci = (2.0*y.to_f/size.to_f)-1.0
+    var escape = false
+
+    # To make use of the for..in code, we use a dummy variable,
+    # like one would in C
+    var dummy = 0; while dummy <= ITER
+      tr = zr*zr - zi*zi + cr
+      ti = 2.0*zr*zi + ci
+      zr = tr
+      zi = ti
+
+      if (zr*zr+zi*zi) > LIMIT_SQUARED
+        escape = true
+        break
+      end
+      dummy = dummy + 1
+    end
+
+    byte_acc = (byte_acc << 1) | (if escape then 0; else 1; end)
+    bit_num = bit_num + 1
+
+    # Code is very similar for these cases, but using separate blocks
+    # ensures we skip the shifting when it's unnecessary, which is most cases.
+    if (bit_num == 8)
+      putchar byte_acc
+      byte_acc = 0
+      bit_num = 0
+    else 
+      if (x == count_size)
+        byte_acc = byte_acc << (8 - bit_num)
+        putchar byte_acc
+        byte_acc = 0
+        bit_num = 0
+      else
+        0
+      end
+    end
+
+    x = x + 1
+  end
+  y = y + 1
+end
