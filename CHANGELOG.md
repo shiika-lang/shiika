@@ -1,5 +1,6 @@
 ## HEAD
 
+- feat: Support `if` with multiple stmts (#4)
 - fix: Parse a*b*c (#5)
 
 ## v0.2.2 (2019/12/17)
