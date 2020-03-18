@@ -52,7 +52,8 @@ impl CodeGen {
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_constant_ptrs(&hir.constants);
-        self.gen_main(&hir.main_exprs)?;
+        self.gen_user_main(&hir.main_exprs)?;
+        self.gen_main()?;
         Ok(())
     }
 
@@ -90,7 +91,27 @@ impl CodeGen {
         }
     }
 
-    fn gen_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
+        // define void @user_main()
+        let user_main_type = self.void_type.fn_type(&[], false);
+        let function = self.module.add_function("user_main", user_main_type, None);
+        let create_main_block = self.context.append_basic_block(&function, "CreateMain");
+        let user_main_block = self.context.append_basic_block(&function, "UserMain");
+
+        // CreateMain:
+        self.builder.position_at_end(&create_main_block);
+        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
+        self.builder.build_unconditional_branch(&user_main_block);
+
+        // UserMain:
+        self.builder.position_at_end(&user_main_block);
+        let mut ctx = CodeGenContext::new(function);
+        self.gen_exprs(&mut ctx, &main_exprs)?;
+        self.builder.build_return(None);
+        Ok(())
+    }
+
+    fn gen_main(&mut self) -> Result<(), Error> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
@@ -102,12 +123,11 @@ impl CodeGen {
         self.builder.build_call(func, &[], "");
 
         // Create Main and Void
-        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
         self.gen_void();
 
-        // Generate main exprs
-        let mut ctx = CodeGenContext::new(function);
-        self.gen_exprs(&mut ctx, &main_exprs)?;
+        // Call user_main
+        let func = self.module.get_function("user_main").unwrap();
+        self.builder.build_call(func, &[], "");
 
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
@@ -250,12 +270,12 @@ impl CodeGen {
                 Ok(self.builder.build_load(ptr, &fullname.0))
             },
             HirSelfExpression => {
-                if ctx.function.get_name().to_str().unwrap() == "main" {
-                    Ok(self.the_main.unwrap())
+                if ctx.function.get_name().to_str().unwrap() == "user_main" {
+                    Ok(self.the_main.expect("[BUG] self.the_main is None"))
                 }
                 else {
                     // The first arg of llvm function is `self`
-                    Ok(ctx.function.get_first_param().unwrap())
+                    Ok(ctx.function.get_first_param().expect("[BUG] get_first_param() is None"))
                 }
             },
             HirFloatLiteral { value } => {
