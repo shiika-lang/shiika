@@ -18,6 +18,7 @@ pub struct CodeGen {
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
     pub i1_type: inkwell::types::IntType,
+    pub i8_type: inkwell::types::IntType,
     pub i32_type: inkwell::types::IntType,
     pub i64_type: inkwell::types::IntType,
     pub f64_type: inkwell::types::FloatType,
@@ -37,6 +38,7 @@ impl CodeGen {
             module: module,
             builder: builder,
             i1_type: inkwell::types::IntType::bool_type(),
+            i8_type: inkwell::types::IntType::i8_type(),
             i32_type: inkwell::types::IntType::i32_type(),
             i64_type: inkwell::types::IntType::i64_type(),
             f64_type: inkwell::types::FloatType::f64_type(),
@@ -60,6 +62,8 @@ impl CodeGen {
     fn gen_declares(&self) {
         let fn_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
         self.module.add_function("putchar", fn_type, None);
+        let fn_type = self.i32_type.fn_type(&[self.i8_type.ptr_type(AddressSpace::Generic).into()], true);
+        self.module.add_function("printf", fn_type, None);
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
@@ -76,6 +80,14 @@ impl CodeGen {
         self.module.add_function("sqrt", fn_type, None);
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("fabs", fn_type, None);
+
+        let str_type = self.i8_type.array_type(3);
+        let global = self.module.add_global(str_type, None, "putd_tmpl");
+        global.set_linkage(inkwell::module::Linkage::Internal);
+        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
+                                                           self.i8_type.const_int(100, false), // d
+                                                           self.i8_type.const_int(  0, false)]));
+        global.set_constant(true)
     }
 
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
