@@ -145,7 +145,7 @@ impl<'a> HirMaker<'a> {
             signature: signature_of_new(&meta_name, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(move |code_gen, _| {
-                    let addr = code_gen.allocate_sk_obj(&class_fullname);
+                    let addr = code_gen.allocate_sk_obj(&class_fullname, "obj");
                     code_gen.builder.build_return(Some(&addr));
                     Ok(())
                 })

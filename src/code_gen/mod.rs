@@ -100,7 +100,7 @@ impl CodeGen {
 
         // CreateMain:
         self.builder.position_at_end(&create_main_block);
-        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string())));
+        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string()), "main"));
         self.builder.build_unconditional_branch(&user_main_block);
 
         // UserMain:
@@ -136,7 +136,7 @@ impl CodeGen {
 
     /// Create the Void object
     fn gen_void(&mut self) {
-        let rhs = self.allocate_sk_obj(&ClassFullname("Void".to_string()));
+        let rhs = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "Void");
         let ptr = self.module.get_global("::Void").
             expect("[BUG] global for Constant `::Void' not created").
             as_pointer_value();
@@ -462,22 +462,22 @@ impl CodeGen {
     }
 
     fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
-        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname)
+        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, &fullname.0)
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> inkwell::values::BasicValueEnum {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type.size_of()
             .expect("[BUG] object_type has no size");
 
-        // %raw_addr = call i8* @GC_malloc(i64 %size)",
+        // %mem = call i8* @GC_malloc(i64 %size)",
         let func = self.module.get_function("GC_malloc").unwrap();
-        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "raw_addr").try_as_basic_value().left().unwrap();
+        let raw_addr = self.builder.build_call(func, &[size.as_basic_value_enum()], "mem").try_as_basic_value().left().unwrap();
 
-        // %addr = bitcast i8* %raw_addr to %#{t}*",
-        self.builder.build_bitcast(raw_addr, obj_ptr_type, "addr")
+        // %foo = bitcast i8* %mem to %#{t}*",
+        self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
     }
 
     fn llvm_struct_type(&self, name: &str) -> inkwell::types::StructType {
