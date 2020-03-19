@@ -91,6 +91,7 @@ enum CharType {
     LowerWord, // Keyword or identifier which starts with lower-case letter
     Symbol, // '+', '(', etc.
     Number, // '0'~'9'
+    Str, // '"'
     Eof,
 }
 
@@ -198,6 +199,7 @@ impl<'a> Lexer<'a> {
             CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
             CharType::Symbol    => self.read_symbol(&mut next_next_cur),
             CharType::Number    => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Str       => (self.read_str(&mut next_next_cur, Some(&next_cur)), None),
             CharType::Eof       => (self.read_eof(), None),
         };
         token
@@ -215,6 +217,7 @@ impl<'a> Lexer<'a> {
             CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
             CharType::Symbol    => self.read_symbol(&mut next_cur),
             CharType::Number    => (self.read_number(&mut next_cur, None),     Some(LexerState::ExprEnd)),
+            CharType::Str       => (self.read_str(&mut next_cur, None), None),
             CharType::Eof       => (self.read_eof(),                           None),
         };
         self.set_current_token(token);
@@ -416,7 +419,7 @@ impl<'a> Lexer<'a> {
             c => {
                 // TODO: this should be lexing error
                 panic!("unknown symbol: {}", c)
-            }
+            },
         };
         (token, Some(state))
     }
@@ -463,6 +466,27 @@ impl<'a> Lexer<'a> {
         Token::Number(self.src[begin..next_cur.pos].to_string())
     }
 
+    fn read_str(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
+        next_cur.proceed(self.src);
+        loop {
+            match next_cur.peek(self.src) {
+                None => {
+                    // TODO: should be a LexError
+                    panic!("found unterminated string");
+                },
+                Some('"') =>{
+                    next_cur.proceed(self.src);
+                    break
+                },
+                _ => {
+                    next_cur.proceed(self.src);
+                }
+            }
+        }
+        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        Token::Str(self.src[(begin+1)..(next_cur.pos-1)].to_string())
+    }
+
     fn read_eof(&mut self) -> Token {
         Token::Eof
     }
@@ -475,6 +499,7 @@ impl<'a> Lexer<'a> {
             ' ' | '\t' => CharType::Space,
             '\n' | ';' => CharType::Separator,
             '#' => CharType::Comment,
+            '"' => CharType::Str,
             '0'..='9' => CharType::Number,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |

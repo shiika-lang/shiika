@@ -5,6 +5,7 @@ mod math;
 mod object;
 mod void;
 mod never;
+mod string;
 use std::collections::HashMap;
 use crate::names::*;
 use crate::ty;
@@ -35,6 +36,7 @@ impl Stdlib {
             ("Void", void::create_methods(), vec![]),
             ("Never", never::create_methods(), vec![]),
             ("Math", vec![], math::create_class_methods()),
+            ("String", string::create_methods(), vec![]),
         ];
         for t in items.into_iter() {
             let (name, imethods, cmethods) = t;

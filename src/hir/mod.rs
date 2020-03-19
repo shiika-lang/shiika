@@ -12,6 +12,7 @@ pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
+    pub str_literals: Vec<String>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
@@ -144,6 +145,10 @@ pub enum HirExpressionBase {
     HirDecimalLiteral {
         value: i32,
     },
+    /// A string literal. Its body is stored in str_literals
+    HirStringLiteral {
+        idx: usize,
+    },
     HirBooleanLiteral {
         value: bool,
     },
@@ -262,6 +267,13 @@ impl Hir {
         }
     }
     
+    pub fn string_literal(idx: usize) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("String"),
+            node: HirExpressionBase::HirStringLiteral { idx }
+        }
+    }
+
     pub fn boolean_literal(value: bool) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),

@@ -13,6 +13,8 @@ pub struct HirMaker<'a> {
     // List of constants found so far
     pub constants: HashMap<ConstFullname, TermTy>,
     pub const_inits: Vec<HirExpression>,
+    // List of string literals found so far
+    pub str_literals: Vec<String>,
 }
 
 impl<'a> HirMaker<'a> {
@@ -23,6 +25,7 @@ impl<'a> HirMaker<'a> {
             index: index,
             constants: constants,
             const_inits: vec![],
+            str_literals: vec![],
         }
     }
 
@@ -34,13 +37,15 @@ impl<'a> HirMaker<'a> {
         let mut main_exprs =
             hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
-            HirMaker { index, constants, mut const_inits } => {
+            HirMaker { index, constants, mut const_inits, str_literals } => {
                 const_inits.append(&mut main_exprs.exprs);
                 Ok(Hir {
                     // PERF: how to avoid this clone??
                     sk_classes: index.sk_classes.clone(),
                     sk_methods,
                     constants,
+                    str_literals,
+                    //str_literals,
                     main_exprs:  HirExpressions {
                         ty: main_exprs.ty,
                         exprs: const_inits,
@@ -251,6 +256,10 @@ impl<'a> HirMaker<'a> {
                 Ok(Hir::decimal_literal(*value))
             },
 
+            AstExpressionBody::StringLiteral {content} => {
+                self.convert_string_literal(content)
+            },
+
             x => panic!("TODO: {:?}", x)
         }
     }
@@ -442,5 +451,11 @@ impl<'a> HirMaker<'a> {
 
     fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {
         Ok(Hir::self_expression(ctx.self_ty.clone()))
+    }
+
+    fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
+        let idx = self.str_literals.len();
+        self.str_literals.push(content.to_string());
+        Ok(Hir::string_literal(idx))
     }
 }

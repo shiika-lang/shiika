@@ -18,6 +18,8 @@ pub struct CodeGen {
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
     pub i1_type: inkwell::types::IntType,
+    pub i8_type: inkwell::types::IntType,
+    pub i8ptr_type: inkwell::types::PointerType,
     pub i32_type: inkwell::types::IntType,
     pub i64_type: inkwell::types::IntType,
     pub f64_type: inkwell::types::FloatType,
@@ -37,6 +39,8 @@ impl CodeGen {
             module: module,
             builder: builder,
             i1_type: inkwell::types::IntType::bool_type(),
+            i8_type: inkwell::types::IntType::i8_type(),
+            i8ptr_type: inkwell::types::IntType::i8_type().ptr_type(AddressSpace::Generic),
             i32_type: inkwell::types::IntType::i32_type(),
             i64_type: inkwell::types::IntType::i64_type(),
             f64_type: inkwell::types::FloatType::f64_type(),
@@ -49,6 +53,7 @@ impl CodeGen {
     pub fn gen_program(&mut self, hir: Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
+        self.gen_string_literals(&hir.str_literals);
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_constant_ptrs(&hir.constants);
@@ -60,11 +65,15 @@ impl CodeGen {
     fn gen_declares(&self) {
         let fn_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
         self.module.add_function("putchar", fn_type, None);
+        let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], true);
+        self.module.add_function("printf", fn_type, None);
+        let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], false);
+        self.module.add_function("puts", fn_type, None);
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
 
-        let fn_type = IntType::i8_type().ptr_type(AddressSpace::Generic).fn_type(&[IntType::i64_type().into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[IntType::i64_type().into()], false);
 
         self.module.add_function("GC_malloc", fn_type, None);
 
@@ -76,6 +85,14 @@ impl CodeGen {
         self.module.add_function("sqrt", fn_type, None);
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("fabs", fn_type, None);
+
+        let str_type = self.i8_type.array_type(3);
+        let global = self.module.add_global(str_type, None, "putd_tmpl");
+        global.set_linkage(inkwell::module::Linkage::Internal);
+        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
+                                                           self.i8_type.const_int(100, false), // d
+                                                           self.i8_type.const_int(  0, false)]));
+        global.set_constant(true)
     }
 
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
@@ -149,6 +166,22 @@ impl CodeGen {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
                 self.llvm_struct_type(&sk_class.fullname.0));
+        })
+    }
+
+    /// Generate llvm constants for string literals
+    fn gen_string_literals(&self, str_literals: &Vec<String>) {
+        str_literals.iter().enumerate().for_each(|(i, s)| {
+            // PERF: how to avoid .to_string?
+            let s_with_null = s.to_string() + "\0";
+            let bytesize = s_with_null.len();
+            let str_type = self.i8_type.array_type(bytesize as u32);
+            let global = self.module.add_global(str_type, None, &format!("str_{}", i));
+            global.set_linkage(inkwell::module::Linkage::Internal);
+            let content = s_with_null.into_bytes().iter().map(|byte| {
+                self.i8_type.const_int((*byte).into(), false)
+            }).collect::<Vec<_>>();
+            global.set_initializer(&self.i8_type.const_array(&content))
         })
     }
 
@@ -264,6 +297,7 @@ impl CodeGen {
                 self.gen_lvar_ref(ctx, name)
             },
             HirConstRef { fullname } => {
+                // TODO: extract as gen_const_ref
                 let ptr = self.module.get_global(&fullname.0).
                     expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
                     as_pointer_value();
@@ -284,15 +318,18 @@ impl CodeGen {
             HirDecimalLiteral { value } => {
                 Ok(self.gen_decimal_literal(*value))
             },
+            HirStringLiteral { idx } => {
+                Ok(self.gen_string_literal(idx))
+            },
             HirBooleanLiteral { value } => {
                 Ok(self.gen_boolean_literal(*value))
             },
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
-            _ => {
-                panic!("TODO: {:?}", expr.node) 
-            }
+//            _ => {
+//                panic!("TODO: {:?}", expr.node) 
+//            }
         }
     }
 
@@ -456,6 +493,19 @@ impl CodeGen {
         self.i32_type.const_int(value as u64, false).as_basic_value_enum()
     }
 
+    fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
+        let sk_str = self.allocate_sk_obj(&ClassFullname("String".to_string()), "str");
+        let loc = unsafe {
+            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "")
+        };
+        let global = self.module.get_global(&format!("str_{}", idx)).
+            expect(&format!("[BUG] global for str_{} not created", idx)).
+            as_pointer_value();
+        let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
+        self.builder.build_store(loc, glob_i8);
+        sk_str
+    }
+
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
         let i = if value { 1 } else { 0 };
         self.i1_type.const_int(i, false).as_basic_value_enum()
@@ -481,8 +531,15 @@ impl CodeGen {
     }
 
     fn llvm_struct_type(&self, name: &str) -> inkwell::types::StructType {
+        // TODO: use self.context.struct_type
         let struct_type = self.context.opaque_struct_type(name);
-        struct_type.set_body(&[], true); // TODO: ivars
+        if name == "String" {
+            // TODO: define as ivar
+            struct_type.set_body(&[self.i8ptr_type.into()], true);
+        }
+        else {
+            struct_type.set_body(&[], true);
+        }
         struct_type
     }
 

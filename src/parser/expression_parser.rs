@@ -554,6 +554,9 @@ impl<'a> Parser<'a> {
             Token::Number(_) => {
                 self.parse_decimal_literal()
             },
+            Token::Str(_) => {
+                self.parse_string()
+            },
             Token::LParen => {
                 self.parse_parenthesized_expr()
             },
@@ -633,6 +636,16 @@ impl<'a> Parser<'a> {
                 self.lv -= 1;
                 return Err(self.parseerror("expected decimal literal"))
             }
+        };
+        self.lv -= 1;
+        Ok(expr)
+    }
+
+    fn parse_string(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_string");
+        let expr = match self.consume_token() {
+            Token::Str(content) => ast::string_literal(content.to_string()),
+            _ => panic!("parse_string called on non-string token"),
         };
         self.lv -= 1;
         Ok(expr)
