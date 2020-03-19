@@ -1,5 +1,7 @@
-## HEAD
+## v0.2.3 (2020-03-19)
 
+- New examples: mandel, hello
+- feat: String literal and `puts` (#9)
 - feat: Support `if` with multiple stmts (#4)
 - fix: Parse a*b*c (#5)
 

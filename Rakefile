@@ -20,7 +20,7 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff HEAD"
-  v = "v0.2.2"
+  v = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
