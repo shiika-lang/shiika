@@ -7,6 +7,7 @@ pub enum Token {
     UpperWord(String),
     LowerWord(String),
     Number(String),
+    Str(String),
     // Symbols
     LParen,       //  ( 
     RParen,       //  ) 
@@ -80,6 +81,7 @@ impl Token {
             Token::UpperWord(_) => true,
             Token::LowerWord(_) => true,
             Token::Number(_) => true,
+            Token::Str(_) => true,
             // Symbols
             Token::LParen => true,        //  ( 
             Token::RParen => false,       //  ) 
