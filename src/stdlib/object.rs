@@ -35,5 +35,17 @@ pub fn create_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
+    create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
+        let s = function.get_params()[1].into_pointer_value();
+        let pptr = unsafe {
+            code_gen.builder.build_struct_gep(s, 0, "")
+        };
+        let ptr = code_gen.builder.build_load(pptr, "");
+        let func = code_gen.module.get_function("puts").unwrap();
+        code_gen.builder.build_call(func, &[ptr.into()], "");
+        code_gen.builder.build_return(None);
+        Ok(())
+    }),
+
     ]
 }
