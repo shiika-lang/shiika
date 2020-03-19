@@ -144,6 +144,9 @@ pub enum HirExpressionBase {
     HirDecimalLiteral {
         value: i32,
     },
+    HirStringLiteral {
+        content: String,
+    },
     HirBooleanLiteral {
         value: bool,
     },
@@ -262,6 +265,13 @@ impl Hir {
         }
     }
     
+    pub fn string_literal(content: String) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("String"),
+            node: HirExpressionBase::HirStringLiteral { content }
+        }
+    }
+
     pub fn boolean_literal(value: bool) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),

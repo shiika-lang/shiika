@@ -251,6 +251,10 @@ impl<'a> HirMaker<'a> {
                 Ok(Hir::decimal_literal(*value))
             },
 
+            AstExpressionBody::StringLiteral {content} => {
+                Ok(Hir::string_literal(content.to_string()))
+            },
+
             x => panic!("TODO: {:?}", x)
         }
     }
