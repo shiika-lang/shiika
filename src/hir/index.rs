@@ -37,6 +37,13 @@ impl Index {
         self.sk_classes.get(class_fullname)
     }
 
+    /// Find a instance variable from the class `self_ty`
+    pub fn find_ivar(&self, self_ty: &TermTy, name: &str) -> Option<&SkIVar> {
+        self.find_class(&self_ty.fullname).and_then(|cls| {
+            cls.ivars.get(name)
+        })
+    }
+
 //    /// Return true if there is a class of the name
 //    pub fn class_exists(&self, class_fullname: &str) -> bool {
 //        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
@@ -101,12 +108,14 @@ impl Index {
             superclass_fullname: if name.0 == "Object" { None }
                                  else { Some(ClassFullname("Object".to_string())) },
             instance_ty: instance_ty,
+            ivars: HashMap::new(), // TODO: Collect ivars from `initialize'
             method_sigs: instance_methods,
         });
         self.add_class(SkClass {
             fullname: metaclass_fullname,
             superclass_fullname: Some(ClassFullname("Object".to_string())),
             instance_ty: class_ty,
+            ivars: HashMap::new(),
             method_sigs: class_methods,
         });
     }

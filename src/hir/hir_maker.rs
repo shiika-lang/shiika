@@ -228,6 +228,10 @@ impl<'a> HirMaker<'a> {
                 self.convert_lvar_assign(ctx, name, &*rhs, is_var)
             }
 
+            AstExpressionBody::IVarAssign { name, rhs, is_var } => {
+                self.convert_ivar_assign(ctx, name, &*rhs, is_var)
+            }
+
             AstExpressionBody::ConstAssign { names, rhs } => {
                 self.convert_const_assign(ctx, names, &*rhs)
             },
@@ -238,6 +242,10 @@ impl<'a> HirMaker<'a> {
 
             AstExpressionBody::BareName(name) => {
                 self.convert_bare_name(ctx, name)
+            },
+
+            AstExpressionBody::IVarRef(names) => {
+                self.convert_ivar_ref(ctx, names)
             },
 
             AstExpressionBody::ConstRef(names) => {
@@ -335,6 +343,19 @@ impl<'a> HirMaker<'a> {
         Ok(Hir::assign_lvar(name, expr))
     }
 
+    fn convert_ivar_assign(&mut self,
+                            ctx: &mut HirMakerContext,
+                            name: &str,
+                            rhs: &AstExpression,
+                            _is_var: &bool) -> Result<HirExpression, Error> {
+        let expr = self.convert_expr(ctx, rhs)?;
+        if self.index.find_ivar(&ctx.self_ty, name).is_none() {
+            return Err(error::program_error(&format!("instance variable `{}' not found", name)))
+        }
+
+        Ok(Hir::assign_ivar(name, expr))
+    }
+
     fn convert_const_assign(&mut self,
                             ctx: &mut HirMakerContext,
                             names: &Vec<String>,
@@ -414,6 +435,19 @@ impl<'a> HirMaker<'a> {
             }
         }
         // TODO: It may be a nullary method call
+    }
+
+    fn convert_ivar_ref(&self,
+                        ctx: &HirMakerContext,
+                        name: &str) -> Result<HirExpression, Error> {
+        match self.index.find_ivar(&ctx.self_ty, name) {
+            Some(ivar) => {
+                Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string()))
+            },
+            None => {
+                Err(error::program_error(&format!("ivar `{}' was not found", name)))
+            }
+        }
     }
 
     /// Resolve constant name
