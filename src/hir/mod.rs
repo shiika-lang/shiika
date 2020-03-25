@@ -120,6 +120,10 @@ pub enum HirExpressionBase {
         name: String,
         rhs: Box<HirExpression>,
     },
+    HirIVarAssign {
+        name: String,
+        rhs: Box<HirExpression>,
+    },
     HirConstAssign {
         fullname: ConstFullname,
         rhs: Box<HirExpression>,
@@ -133,6 +137,9 @@ pub enum HirExpressionBase {
         idx: usize,
     },
     HirLVarRef {
+        name: String,
+    },
+    HirIVarRef {
         name: String,
     },
     HirConstRef {
@@ -203,6 +210,16 @@ impl Hir {
         }
     }
 
+    pub fn assign_ivar(name: &str, rhs: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirIVarAssign {
+                name: name.to_string(),
+                rhs: Box::new(rhs),
+            }
+        }
+    }
+
     pub fn assign_const(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
@@ -236,6 +253,13 @@ impl Hir {
         HirExpression {
             ty: ty,
             node: HirExpressionBase::HirLVarRef { name },
+        }
+    }
+
+    pub fn ivar_ref(ty: TermTy, name: String) -> HirExpression {
+        HirExpression {
+            ty: ty,
+            node: HirExpressionBase::HirIVarRef { name },
         }
     }
 
