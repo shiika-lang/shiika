@@ -106,31 +106,7 @@ impl<'a> Parser<'a> {
 
         // Method name
         if name == None {
-            let name_str: &str;
-            match self.current_token() {
-                Token::LowerWord(s) => { name_str = s; },
-                // TODO: `+@`, `-@`
-                Token::UnaryPlus => { name_str = "+" },
-                Token::UnaryMinus => { name_str = "-" },
-                Token::Mul => { name_str = "*" },
-                Token::Div => { name_str = "/" },
-                Token::Mod => { name_str = "%" },
-                Token::And => { name_str = "&" },
-                Token::Or => { name_str = "|" },
-                Token::Xor => { name_str = "^" },
-                Token::LShift => { name_str = "<<" },
-                Token::RShift => { name_str = ">>" },
-                Token::LessThan => { name_str = "<" },
-                Token::LessEq => { name_str = "<=" },
-                Token::GraterThan => { name_str = ">" },
-                Token::GraterEq => { name_str = ">=" },
-                Token::EqEq => { name_str = "==" },
-                Token::NotEq => { name_str = "!=" },
-                token => {
-                    return Err(parse_error!(self, "invalid method name {:?}", token))
-                }
-            }
-            name = Some(MethodFirstname(name_str.to_string()));
+            name = Some(MethodFirstname(self.get_method_name()?.to_string()));
             self.consume_token();
         }
         self.skip_ws();
@@ -158,6 +134,33 @@ impl<'a> Parser<'a> {
 
         let sig = ast::AstMethodSignature { name: name.unwrap(), params, ret_typ };
         Ok((sig, is_class_method))
+    }
+
+    fn get_method_name(&self) -> Result<&str, Error> {
+        let name = match self.current_token() {
+            Token::LowerWord(s) => { s },
+            // TODO: `+@`, `-@`
+            Token::UnaryPlus => { "+" },
+            Token::UnaryMinus => { "-" },
+            Token::Mul => { "*" },
+            Token::Div => { "/" },
+            Token::Mod => { "%" },
+            Token::And => { "&" },
+            Token::Or => { "|" },
+            Token::Xor => { "^" },
+            Token::LShift => { "<<" },
+            Token::RShift => { ">>" },
+            Token::LessThan => { "<" },
+            Token::LessEq => { "<=" },
+            Token::GraterThan => { ">" },
+            Token::GraterEq => { ">=" },
+            Token::EqEq => { "==" },
+            Token::NotEq => { "!=" },
+            token => {
+                return Err(parse_error!(self, "invalid method name {:?}", token))
+            }
+        };
+        Ok(name)
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
