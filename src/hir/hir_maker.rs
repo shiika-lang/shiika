@@ -38,14 +38,15 @@ impl<'a> HirMaker<'a> {
             hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
             HirMaker { index, constants, mut const_inits, str_literals } => {
-                let sk_classes = HashMap::new();
-                index.classes.into_iter().for_each(|(name, c)| {
-                    sk_classes.insert(name, SkClass {
-                        fullname: c.fullname,
-                        superclass_fullname: c.superclass_fullname,
-                        instance_ty: c.instance_ty,
+                let mut sk_classes = HashMap::new();
+                index.classes.iter().for_each(|(name, c)| {
+                    // PERF: How to avoid these clone's?
+                    sk_classes.insert(name.clone(), SkClass {
+                        fullname: c.fullname.clone(),
+                        superclass_fullname: c.superclass_fullname.clone(),
+                        instance_ty: c.instance_ty.clone(),
                         ivars: HashMap::new(), // TODO
-                        method_sigs: c.method_sigs
+                        method_sigs: c.method_sigs.clone()
                     });
                 });
 
@@ -110,7 +111,16 @@ impl<'a> HirMaker<'a> {
         let mut class_methods = vec![];
         let mut ctx = HirMakerContext::class_ctx(&fullname);
 
-        defs.iter().try_for_each(|def| {
+        match defs.iter().find(|d| d.is_initializer()) {
+            Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
+                let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs)?;
+                ctx.ivars = collect_ivars(&method);
+                instance_methods.push(method);
+            },
+            _ => (),
+        };
+
+        defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
                     match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs) {
@@ -450,7 +460,7 @@ impl<'a> HirMaker<'a> {
     fn convert_ivar_ref(&self,
                         ctx: &HirMakerContext,
                         name: &str) -> Result<HirExpression, Error> {
-        match self.index.find_ivar(&ctx.self_ty, name) {
+        match ctx.ivars.get(name) {
             Some(ivar) => {
                 Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string()))
             },
@@ -501,5 +511,30 @@ impl<'a> HirMaker<'a> {
         let idx = self.str_literals.len();
         self.str_literals.push(content.to_string());
         Ok(Hir::string_literal(idx))
+    }
+}
+
+fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
+{
+    let mut ivars = HashMap::new();
+    match &method.body {
+        SkMethodBody::ShiikaMethodBody { exprs } => {
+            exprs.exprs.iter().for_each(|expr| {
+                match &expr.node {
+                    HirExpressionBase::HirIVarAssign { name, rhs } => {
+                        ivars.insert(name.to_string(), SkIVar {
+                            idx: ivars.len(),
+                            name: name.to_string(),
+                            ty: rhs.ty.clone(),
+                            readonly: false,  // TODO: `var @foo`
+                        });
+                    },
+                    // TODO: IVarAssign in `if'
+                    _ => (),
+                }
+            });
+            ivars
+        },
+        _ => HashMap::new(),
     }
 }

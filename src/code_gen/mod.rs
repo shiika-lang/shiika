@@ -327,9 +327,9 @@ impl CodeGen {
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
-//            _ => {
-//                panic!("TODO: {:?}", expr.node) 
-//            }
+            _ => {
+                panic!("TODO: {:?}", expr.node) 
+            }
         }
     }
 

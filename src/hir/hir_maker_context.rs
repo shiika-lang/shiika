@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use crate::hir::*;
 
 #[derive(Debug)]
 pub struct HirMakerContext {
@@ -15,8 +16,8 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
-//    // List of instance variables of the current `self`
-//    //self_ivars: HashMap<IVarName, TermTy>,
+    /// List of instance variables of the current `self`
+    pub ivars: HashMap<String, SkIVar>,
 }
 
 impl HirMakerContext {
@@ -27,6 +28,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
+            ivars: HashMap::new(),
         }
     }
 
@@ -37,6 +39,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
+            ivars: HashMap::new(),
         }
     }
 
@@ -47,6 +50,7 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
+            ivars: class_ctx.ivars.clone(),
         }
     }
 }

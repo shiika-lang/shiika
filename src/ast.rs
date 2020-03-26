@@ -13,10 +13,6 @@ pub enum Definition {
         name: ClassFirstname,
         defs: Vec<Definition>,
     },
-    InitializerDefinition {
-        sig: InitializerSig,
-        body_exprs: Vec<AstExpression>,
-    },
     InstanceMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
@@ -39,19 +35,7 @@ pub struct AstMethodSignature {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct InitializerSig {
-    pub params: Vec<IParam>,
-    pub ret_typ: Typ,
-}
-
-#[derive(Debug, PartialEq)]
 pub struct Param {
-    pub name: String,
-    pub typ: Typ,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct IParam {
     pub name: String,
     pub typ: Typ,
 }
@@ -125,6 +109,17 @@ pub enum AstExpressionBody {
     },
     StringLiteral {
         content: String,
+    }
+}
+
+impl Definition {
+    pub fn is_initializer(&self) -> bool {
+        match self {
+            Definition::InstanceMethodDefinition { sig, .. } => {
+                sig.name.0 == "initialize"
+            },
+            _ => false
+        }
     }
 }
 
