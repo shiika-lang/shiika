@@ -39,7 +39,7 @@ impl<'a> HirMaker<'a> {
         match hir_maker {
             HirMaker { index, constants, mut const_inits, str_literals } => {
                 let sk_classes = HashMap::new();
-                index.sk_classes.into_iter().for_each(|(name, c)| {
+                index.classes.into_iter().for_each(|(name, c)| {
                     sk_classes.insert(name, SkClass {
                         fullname: c.fullname,
                         superclass_fullname: c.superclass_fullname,
