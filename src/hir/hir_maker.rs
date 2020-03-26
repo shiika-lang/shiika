@@ -38,10 +38,20 @@ impl<'a> HirMaker<'a> {
             hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
             HirMaker { index, constants, mut const_inits, str_literals } => {
+                let sk_classes = HashMap::new();
+                index.sk_classes.into_iter().for_each(|(name, c)| {
+                    sk_classes.insert(name, SkClass {
+                        fullname: c.fullname,
+                        superclass_fullname: c.superclass_fullname,
+                        instance_ty: c.instance_ty,
+                        ivars: HashMap::new(), // TODO
+                        method_sigs: c.method_sigs
+                    });
+                });
+
                 const_inits.append(&mut main_exprs.exprs);
                 Ok(Hir {
-                    // PERF: how to avoid this clone??
-                    sk_classes: index.sk_classes.clone(),
+                    sk_classes,
                     sk_methods,
                     constants,
                     str_literals,

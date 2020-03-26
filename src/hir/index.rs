@@ -13,7 +13,23 @@ use crate::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
-    pub sk_classes: HashMap<ClassFullname, SkClass>
+    // TODO: Rename to `idx_classes`
+    pub sk_classes: HashMap<ClassFullname, IdxClass>
+}
+
+#[derive(Debug, PartialEq)]
+struct IdxClass {
+    pub fullname: ClassFullname,
+    pub superclass_fullname: Option<ClassFullname>,
+    pub instance_ty: TermTy,
+    pub ivars: HashMap<String, IdxIVar>,
+    pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
+}
+
+#[derive(Debug, PartialEq)]
+struct IdxIVar {
+    idx: usize,
+    name: String,
 }
 
 impl Index {
@@ -33,12 +49,12 @@ impl Index {
     }
 
     /// Find a class
-    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&IdxClass> {
         self.sk_classes.get(class_fullname)
     }
 
     /// Find a instance variable from the class `self_ty`
-    pub fn find_ivar(&self, self_ty: &TermTy, name: &str) -> Option<&SkIVar> {
+    pub fn find_ivar(&self, self_ty: &TermTy, name: &str) -> Option<&IdxIVar> {
         self.find_class(&self_ty.fullname).and_then(|cls| {
             cls.ivars.get(name)
         })
@@ -50,13 +66,19 @@ impl Index {
 //    }
 
     /// Register a class
-    fn add_class(&mut self, class: SkClass) {
+    fn add_class(&mut self, class: IdxClass) {
         self.sk_classes.insert(class.fullname.clone(), class);
     }
 
     fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
-        stdlib_classes.into_iter().for_each(|(_, sk_class)| {
-            self.add_class(sk_class);
+        stdlib_classes.into_iter().for_each(|(_, c)| {
+            self.add_class(IdxClass {
+                fullname: c.fullname,
+                superclass_fullname: c.superclass_fullname,
+                instance_ty: c.instance_ty,
+                ivars: HashMap::new(), // TODO: Support stdlibs with ivars
+                method_sigs: c.method_sigs
+            })
         });
     }
 
@@ -103,7 +125,7 @@ impl Index {
         let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
         class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
 
-        self.add_class(SkClass {
+        self.add_class(IdxClass {
             fullname: class_fullname,
             superclass_fullname: if name.0 == "Object" { None }
                                  else { Some(ClassFullname("Object".to_string())) },
@@ -111,7 +133,7 @@ impl Index {
             ivars: HashMap::new(), // TODO: Collect ivars from `initialize'
             method_sigs: instance_methods,
         });
-        self.add_class(SkClass {
+        self.add_class(IdxClass {
             fullname: metaclass_fullname,
             superclass_fullname: Some(ClassFullname("Object".to_string())),
             instance_ty: class_ty,
