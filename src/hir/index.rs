@@ -5,6 +5,7 @@
 /// It is checked in `HirMaker`.
 use std::collections::HashMap;
 use crate::ast;
+use crate::ast::*;
 use crate::error;
 use crate::error::*;
 use crate::hir::*;
@@ -105,12 +106,16 @@ impl Index {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
+        let mut ivars = HashMap::new();
 
         defs.iter().for_each(|def| {
             match def {
-                ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     let hir_sig = crate::hir::create_signature(class_fullname.to_string(), sig);
                     instance_methods.insert(sig.name.clone(), hir_sig);
+                    if sig.name.0 == "initialize" {
+                        index_ivars(body_exprs, ivars);
+                    }
                 },
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
                     let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
@@ -130,7 +135,7 @@ impl Index {
             superclass_fullname: if name.0 == "Object" { None }
                                  else { Some(ClassFullname("Object".to_string())) },
             instance_ty: instance_ty,
-            ivars: HashMap::new(), // TODO: Collect ivars from `initialize'
+            ivars: ivars,
             method_sigs: instance_methods,
         });
         self.add_class(IdxClass {
@@ -140,5 +145,23 @@ impl Index {
             ivars: HashMap::new(),
             method_sigs: class_methods,
         });
+    }
+}
+
+fn index_ivars(exprs: &Vec<AstExpression>, ivars: HashMap<String, IdxIVar>) {
+    exprs.iter().for_each(|expr| {
+        index_ivars_(expr, ivars);
+    });
+}
+
+fn index_ivars_(expr: &AstExpression, ivars: HashMap<String, IdxIVar>) {
+    match &expr.body {
+        AstExpressionBody::IVarAssign { name, .. } => {
+            ivars.insert(name.to_string(), IdxIVar {
+                idx: ivars.len(),
+                name: name.to_string(),
+            });
+        },
+        // TODO: IVarAssign in `if'
     }
 }
