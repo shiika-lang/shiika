@@ -369,11 +369,20 @@ impl<'a> HirMaker<'a> {
                             rhs: &AstExpression,
                             _is_var: &bool) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(ctx, rhs)?;
-        if self.index.find_ivar(&ctx.self_ty, name).is_none() {
-            return Err(error::program_error(&format!("instance variable `{}' not found", name)))
+        match ctx.ivars.get(name) {
+            Some(ivar) => {
+                if ivar.ty.equals_to(&expr.ty) {
+                    Ok(Hir::assign_ivar(name, expr))
+                }
+                else {
+                    // TODO: Subtype (@obj = 1, etc.)
+                    Err(error::type_error(&format!("instance variable `{}' has type {:?} but tried to assign a {:?}", name, ivar.ty, expr.ty)))
+                }
+            },
+            None => {
+                Err(error::program_error(&format!("instance variable `{}' not found", name)))
+            }
         }
-
-        Ok(Hir::assign_ivar(name, expr))
     }
 
     fn convert_const_assign(&mut self,
