@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::ast::*;
 use crate::error;
 use crate::error::Error;
@@ -15,6 +16,8 @@ pub struct HirMaker<'a> {
     pub const_inits: Vec<HirExpression>,
     // List of string literals found so far
     pub str_literals: Vec<String>,
+    // List of ivars of the classes
+    class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
 }
 
 impl<'a> HirMaker<'a> {
@@ -26,6 +29,7 @@ impl<'a> HirMaker<'a> {
             constants: constants,
             const_inits: vec![],
             str_literals: vec![],
+            class_ivars: HashMap::new(),
         }
     }
 
@@ -37,15 +41,16 @@ impl<'a> HirMaker<'a> {
         let mut main_exprs =
             hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
         match hir_maker {
-            HirMaker { index, constants, mut const_inits, str_literals } => {
+            HirMaker { index, constants, mut const_inits, str_literals, class_ivars } => {
                 let mut sk_classes = HashMap::new();
                 index.classes.iter().for_each(|(name, c)| {
-                    // PERF: How to avoid these clone's?
+                    let ivars = class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
+                    // PERF: How to avoid these clone's? Use Rc?
                     sk_classes.insert(name.clone(), SkClass {
                         fullname: c.fullname.clone(),
                         superclass_fullname: c.superclass_fullname.clone(),
                         instance_ty: c.instance_ty.clone(),
-                        ivars: HashMap::new(), // TODO
+                        ivars: Rc::clone(&ivars),
                         method_sigs: c.method_sigs.clone()
                     });
                 });
@@ -114,7 +119,8 @@ impl<'a> HirMaker<'a> {
         match defs.iter().find(|d| d.is_initializer()) {
             Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
                 let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs)?;
-                ctx.ivars = collect_ivars(&method);
+                ctx.ivars = Rc::new(collect_ivars(&method));
+                self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
                 instance_methods.push(method);
             },
             _ => (),

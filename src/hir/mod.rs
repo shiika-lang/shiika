@@ -2,6 +2,7 @@ mod hir_maker;
 mod hir_maker_context;
 mod index;
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
@@ -41,7 +42,7 @@ pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
-    pub ivars: HashMap<String, SkIVar>,
+    pub ivars: Rc<HashMap<String, SkIVar>>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
 }
 impl SkClass {

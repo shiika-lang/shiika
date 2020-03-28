@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
@@ -17,7 +18,7 @@ pub struct HirMakerContext {
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
     /// List of instance variables of the current `self`
-    pub ivars: HashMap<String, SkIVar>,
+    pub ivars: Rc<HashMap<String, SkIVar>>,
 }
 
 impl HirMakerContext {
@@ -28,7 +29,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
-            ivars: HashMap::new(),
+            ivars: Rc::new(HashMap::new()),
         }
     }
 
@@ -39,7 +40,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
-            ivars: HashMap::new(),
+            ivars: Rc::new(HashMap::new()),
         }
     }
 
@@ -50,7 +51,7 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            ivars: class_ctx.ivars.clone(),
+            ivars: Rc::clone(&class_ctx.ivars),
         }
     }
 }

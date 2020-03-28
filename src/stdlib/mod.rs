@@ -7,6 +7,7 @@ mod void;
 mod never;
 mod string;
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::names::*;
 use crate::ty;
 use crate::hir::*;
@@ -48,7 +49,7 @@ impl Stdlib {
                     fullname: ClassFullname(name.to_string()),
                     superclass_fullname: super_name,
                     instance_ty: ty::raw(name),
-                    ivars: HashMap::new(),
+                    ivars: Rc::new(HashMap::new()),
                     method_sigs: imethods.iter().map(|x|
                         (x.signature.first_name().clone(), x.signature.clone())
                     ).collect(),
@@ -60,7 +61,7 @@ impl Stdlib {
                     fullname: ClassFullname("Meta:".to_string() + name),
                     superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
                     instance_ty: ty::meta(name),
-                    ivars: HashMap::new(),
+                    ivars: Rc::new(HashMap::new()),
                     method_sigs: cmethods.iter().map(|x|
                         (x.signature.first_name().clone(), x.signature.clone())
                     ).collect(),
