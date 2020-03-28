@@ -19,6 +19,8 @@ pub struct HirMakerContext {
     pub lvars: HashMap<String, CtxLVar>,
     /// List of instance variables of the current `self`
     pub ivars: Rc<HashMap<String, SkIVar>>,
+    /// Whether we are in an initializer
+    pub is_initializer: bool,
 }
 
 impl HirMakerContext {
@@ -30,6 +32,7 @@ impl HirMakerContext {
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
             ivars: Rc::new(HashMap::new()),
+            is_initializer: false,
         }
     }
 
@@ -41,17 +44,19 @@ impl HirMakerContext {
             namespace: fullname.clone(),
             lvars: HashMap::new(),
             ivars: Rc::new(HashMap::new()),
+            is_initializer: false,
         }
     }
 
     /// Create a method context
-    pub fn method_ctx(class_ctx: &HirMakerContext, method_sig: &MethodSignature) -> HirMakerContext {
+    pub fn method_ctx(class_ctx: &HirMakerContext, method_sig: &MethodSignature, is_initializer: bool) -> HirMakerContext {
         HirMakerContext {
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
             ivars: Rc::clone(&class_ctx.ivars),
+            is_initializer: is_initializer,
         }
     }
 }

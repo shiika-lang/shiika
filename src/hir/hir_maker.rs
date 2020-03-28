@@ -24,12 +24,18 @@ impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
         let mut constants = HashMap::new();
         constants.insert(ConstFullname("::Void".to_string()), ty::raw("Void"));
+
+        let mut class_ivars = HashMap::new();
+        index.classes.iter().for_each(|(name, _)| {
+            class_ivars.insert(name.clone(), Rc::new(HashMap::new()));
+        });
+
         HirMaker {
             index: index,
             constants: constants,
             const_inits: vec![],
             str_literals: vec![],
-            class_ivars: HashMap::new(),
+            class_ivars: class_ivars,
         }
     }
 
@@ -118,7 +124,7 @@ impl<'a> HirMaker<'a> {
 
         match defs.iter().find(|d| d.is_initializer()) {
             Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
-                let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs)?;
+                let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, true)?;
                 ctx.ivars = Rc::new(collect_ivars(&method));
                 self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
                 instance_methods.push(method);
@@ -129,13 +135,13 @@ impl<'a> HirMaker<'a> {
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, false) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &meta_name, &sig.name, &body_exprs) {
+                    match self.convert_method_def(&mut ctx, &meta_name, &sig.name, &body_exprs, false) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
@@ -203,12 +209,13 @@ impl<'a> HirMaker<'a> {
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
-                          body_exprs: &Vec<AstExpression>) -> Result<SkMethod, Error> {
+                          body_exprs: &Vec<AstExpression>,
+                          is_initializer: bool) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
 
-        let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature);
+        let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature, is_initializer);
         let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
@@ -375,6 +382,9 @@ impl<'a> HirMaker<'a> {
                             rhs: &AstExpression,
                             _is_var: &bool) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(ctx, rhs)?;
+        if ctx.is_initializer {
+            return Ok(Hir::assign_ivar(name, expr))
+        }
         match ctx.ivars.get(name) {
             Some(ivar) => {
                 if ivar.ty.equals_to(&expr.ty) {
