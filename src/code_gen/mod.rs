@@ -165,7 +165,7 @@ impl CodeGen {
         classes.values().for_each(|sk_class| {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
-                self.llvm_struct_type(&sk_class.fullname.0));
+                self.llvm_struct_type(&sk_class.fullname.0, &sk_class.ivars));
         })
     }
 
@@ -530,17 +530,25 @@ impl CodeGen {
         self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
     }
 
-    fn llvm_struct_type(&self, name: &str) -> inkwell::types::StructType {
-        // TODO: use self.context.struct_type
-        let struct_type = self.context.opaque_struct_type(name);
+    fn llvm_struct_type(&self, name: &str, ivars: &HashMap<String, SkIVar>) -> inkwell::types::StructType {
+        let ret = self.context.opaque_struct_type(name);
         if name == "String" {
             // TODO: define as ivar
-            struct_type.set_body(&[self.i8ptr_type.into()], true);
+            ret.set_body(&[self.i8ptr_type.into()], false);
         }
         else {
-            struct_type.set_body(&[], true);
+            ret.set_body(&self.llvm_field_types(ivars), false);
         }
-        struct_type
+        ret
+    }
+
+    fn llvm_field_types(&self, ivars: &HashMap<String, SkIVar>) -> Vec<inkwell::types::BasicTypeEnum>
+    {
+        let mut values = ivars.values().collect::<Vec<_>>();
+        values.sort_by_key(|ivar| ivar.idx);
+        values.iter().map(|ivar| {
+            self.llvm_type(&ivar.ty)
+        }).collect::<Vec<_>>()
     }
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
