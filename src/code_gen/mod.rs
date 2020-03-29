@@ -299,9 +299,8 @@ impl CodeGen {
             HirConstRef { fullname } => {
                 // TODO: extract as gen_const_ref
                 let ptr = self.module.get_global(&fullname.0).
-                    expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
-                    as_pointer_value();
-                Ok(self.builder.build_load(ptr, &fullname.0))
+                    expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).as_pointer_value();
+                Ok(ptr.into()) //self.builder.build_load(ptr, &fullname.0))
             },
             HirSelfExpression => {
                 if ctx.function.get_name().to_str().unwrap() == "user_main" {
