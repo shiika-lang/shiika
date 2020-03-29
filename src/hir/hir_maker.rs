@@ -487,7 +487,7 @@ impl<'a> HirMaker<'a> {
                         name: &str) -> Result<HirExpression, Error> {
         match ctx.ivars.get(name) {
             Some(ivar) => {
-                Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string()))
+                Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx))
             },
             None => {
                 Err(error::program_error(&format!("ivar `{}' was not found", name)))

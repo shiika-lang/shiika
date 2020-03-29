@@ -296,6 +296,9 @@ impl CodeGen {
             HirLVarRef { name } => {
                 self.gen_lvar_ref(ctx, name)
             },
+            HirIVarRef { name, idx } => {
+                self.gen_ivar_ref(ctx, name, idx)
+            },
             HirConstRef { fullname } => {
                 self.gen_const_ref(fullname)
             },
@@ -479,6 +482,17 @@ impl CodeGen {
         let ptr = ctx.lvars.get(name)
             .expect("[BUG] lvar not declared");
         Ok(self.builder.build_load(*ptr, name))
+    }
+
+    fn gen_ivar_ref(&self,
+                    ctx: &mut CodeGenContext,
+                    name: &str,
+                    idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let theself = self.gen_self_expression(ctx)?;
+        let ptr = unsafe {
+            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
+        };
+        Ok(ptr.into())
     }
 
     fn gen_const_ref(&self,

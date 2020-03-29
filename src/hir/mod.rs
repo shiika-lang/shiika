@@ -151,6 +151,7 @@ pub enum HirExpressionBase {
     },
     HirIVarRef {
         name: String,
+        idx: usize,
     },
     HirConstRef {
         fullname: ConstFullname,
@@ -266,10 +267,10 @@ impl Hir {
         }
     }
 
-    pub fn ivar_ref(ty: TermTy, name: String) -> HirExpression {
+    pub fn ivar_ref(ty: TermTy, name: String, idx: usize) -> HirExpression {
         HirExpression {
             ty: ty,
-            node: HirExpressionBase::HirIVarRef { name },
+            node: HirExpressionBase::HirIVarRef { name, idx },
         }
     }
 
