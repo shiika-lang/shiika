@@ -512,7 +512,8 @@ impl CodeGen {
     }
 
     fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
-        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, &fullname.0)
+        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, 
+                             &format!("class_{}", fullname.0))
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
