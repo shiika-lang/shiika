@@ -291,25 +291,16 @@ impl CodeGen {
                 self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs)
             },
             HirArgRef { idx } => {
-                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+                self.gen_arg_ref(ctx, idx)
             },
             HirLVarRef { name } => {
                 self.gen_lvar_ref(ctx, name)
             },
             HirConstRef { fullname } => {
-                // TODO: extract as gen_const_ref
-                let ptr = self.module.get_global(&fullname.0).
-                    expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).as_pointer_value();
-                Ok(ptr.into()) //self.builder.build_load(ptr, &fullname.0))
+                self.gen_const_ref(fullname)
             },
             HirSelfExpression => {
-                if ctx.function.get_name().to_str().unwrap() == "user_main" {
-                    Ok(self.the_main.expect("[BUG] self.the_main is None"))
-                }
-                else {
-                    // The first arg of llvm function is `self`
-                    Ok(ctx.function.get_first_param().expect("[BUG] get_first_param() is None"))
-                }
+                self.gen_self_expression(ctx)
             },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -476,12 +467,36 @@ impl CodeGen {
         }
     }
 
+    fn gen_arg_ref(&self,
+                       ctx: &mut CodeGenContext,
+                       idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
+        Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+    }
+
     fn gen_lvar_ref(&self,
                     ctx: &mut CodeGenContext,
                     name: &str) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ptr = ctx.lvars.get(name)
             .expect("[BUG] lvar not declared");
         Ok(self.builder.build_load(*ptr, name))
+    }
+
+    fn gen_const_ref(&self,
+                    fullname: &ConstFullname) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let ptr = self.module.get_global(&fullname.0).
+            expect(&format!("[BUG] global for Constant `{}' not created", fullname.0));
+        Ok(ptr.as_pointer_value().into())
+    }
+
+    fn gen_self_expression(&self,
+                    ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
+        if ctx.function.get_name().to_str().unwrap() == "user_main" {
+            Ok(self.the_main.expect("[BUG] self.the_main is None"))
+        }
+        else {
+            // The first arg of llvm function is `self`
+            Ok(ctx.function.get_first_param().expect("[BUG] get_first_param() is None"))
+        }
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
