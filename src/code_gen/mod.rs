@@ -284,6 +284,9 @@ impl CodeGen {
             HirLVarAssign { name, rhs } => {
                 self.gen_lvar_assign(ctx, name, rhs)
             },
+            HirIVarAssign { name, idx, rhs } => {
+                self.gen_ivar_assign(ctx, name, idx, rhs)
+            },
             HirConstAssign { fullname, rhs } => {
                 self.gen_const_assign(ctx, fullname, rhs)
             },
@@ -432,6 +435,20 @@ impl CodeGen {
                 ctx.lvars.insert(name.to_string(), ptr);
             }
         }
+        Ok(value)
+    }
+
+    fn gen_ivar_assign(&self,
+                       ctx: &mut CodeGenContext,
+                       name: &str,
+                       idx: &usize,
+                       rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let value = self.gen_expr(ctx, rhs)?;
+        let theself = self.gen_self_expression(ctx)?;
+        let ptr = unsafe {
+            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
+        };
+        self.builder.build_store(ptr, value);
         Ok(value)
     }
 
