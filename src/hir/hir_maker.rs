@@ -383,12 +383,20 @@ impl<'a> HirMaker<'a> {
                             _is_var: &bool) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(ctx, rhs)?;
         if ctx.is_initializer {
-            return Ok(Hir::assign_ivar(name, expr))
+            // TODO: check duplicates
+            let idx = ctx.iivars.len();
+            ctx.iivars.insert(name.to_string(), SkIVar {
+                idx: idx,
+                name: name.to_string(),
+                ty: expr.ty.clone(),
+                readonly: true,  // TODO: `var @foo`
+            });
+            return Ok(Hir::assign_ivar(name, idx, expr))
         }
         match ctx.ivars.get(name) {
             Some(ivar) => {
                 if ivar.ty.equals_to(&expr.ty) {
-                    Ok(Hir::assign_ivar(name, expr))
+                    Ok(Hir::assign_ivar(name, ivar.idx, expr))
                 }
                 else {
                     // TODO: Subtype (@obj = 1, etc.)
@@ -546,12 +554,12 @@ fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
         SkMethodBody::ShiikaMethodBody { exprs } => {
             exprs.exprs.iter().for_each(|expr| {
                 match &expr.node {
-                    HirExpressionBase::HirIVarAssign { name, rhs } => {
+                    HirExpressionBase::HirIVarAssign { name, idx, rhs } => {
                         ivars.insert(name.to_string(), SkIVar {
-                            idx: ivars.len(),
+                            idx: *idx,
                             name: name.to_string(),
                             ty: rhs.ty.clone(),
-                            readonly: false,  // TODO: `var @foo`
+                            readonly: true,  // TODO: `var @foo`
                         });
                     },
                     // TODO: IVarAssign in `if'
