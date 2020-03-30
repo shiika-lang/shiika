@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use crate::hir::*;
 
 #[derive(Debug)]
 pub struct HirMakerContext {
@@ -15,8 +17,12 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
-//    // List of instance variables of the current `self`
-//    //self_ivars: HashMap<IVarName, TermTy>,
+    /// List of instance variables of the current `self`
+    pub ivars: Rc<HashMap<String, SkIVar>>,
+    /// List of instance variables in an initializer found so far
+    pub iivars: HashMap<String, SkIVar>,
+    /// Whether we are in an initializer
+    pub is_initializer: bool,
 }
 
 impl HirMakerContext {
@@ -27,6 +33,9 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
+            ivars: Rc::new(HashMap::new()),
+            iivars: HashMap::new(),
+            is_initializer: false,
         }
     }
 
@@ -37,16 +46,22 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
+            ivars: Rc::new(HashMap::new()),
+            iivars: HashMap::new(),
+            is_initializer: false,
         }
     }
 
     /// Create a method context
-    pub fn method_ctx(class_ctx: &HirMakerContext, method_sig: &MethodSignature) -> HirMakerContext {
+    pub fn method_ctx(class_ctx: &HirMakerContext, method_sig: &MethodSignature, is_initializer: bool) -> HirMakerContext {
         HirMakerContext {
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
+            ivars: Rc::clone(&class_ctx.ivars),
+            iivars: HashMap::new(),
+            is_initializer: is_initializer,
         }
     }
 }

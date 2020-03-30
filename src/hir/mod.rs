@@ -2,6 +2,7 @@ mod hir_maker;
 mod hir_maker_context;
 mod index;
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
@@ -41,12 +42,21 @@ pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
+    pub ivars: Rc<HashMap<String, SkIVar>>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
 }
 impl SkClass {
     pub fn class_ty(&self) -> TermTy {
         self.instance_ty.meta_ty()
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct SkIVar {
+    pub idx: usize,
+    pub name: String,  // Starts with `@`
+    pub ty: TermTy,
+    pub readonly: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -120,6 +130,11 @@ pub enum HirExpressionBase {
         name: String,
         rhs: Box<HirExpression>,
     },
+    HirIVarAssign {
+        name: String,
+        idx: usize,
+        rhs: Box<HirExpression>,
+    },
     HirConstAssign {
         fullname: ConstFullname,
         rhs: Box<HirExpression>,
@@ -134,6 +149,10 @@ pub enum HirExpressionBase {
     },
     HirLVarRef {
         name: String,
+    },
+    HirIVarRef {
+        name: String,
+        idx: usize,
     },
     HirConstRef {
         fullname: ConstFullname,
@@ -203,6 +222,17 @@ impl Hir {
         }
     }
 
+    pub fn assign_ivar(name: &str, idx: usize, rhs: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirIVarAssign {
+                name: name.to_string(),
+                idx: idx,
+                rhs: Box::new(rhs),
+            }
+        }
+    }
+
     pub fn assign_const(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
@@ -236,6 +266,13 @@ impl Hir {
         HirExpression {
             ty: ty,
             node: HirExpressionBase::HirLVarRef { name },
+        }
+    }
+
+    pub fn ivar_ref(ty: TermTy, name: String, idx: usize) -> HirExpression {
+        HirExpression {
+            ty: ty,
+            node: HirExpressionBase::HirIVarRef { name, idx },
         }
     }
 

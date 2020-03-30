@@ -13,10 +13,6 @@ pub enum Definition {
         name: ClassFirstname,
         defs: Vec<Definition>,
     },
-    InitializerDefinition {
-        sig: InitializerSig,
-        body_exprs: Vec<AstExpression>,
-    },
     InstanceMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
@@ -39,19 +35,7 @@ pub struct AstMethodSignature {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct InitializerSig {
-    pub params: Vec<IParam>,
-    pub ret_typ: Typ,
-}
-
-#[derive(Debug, PartialEq)]
 pub struct Param {
-    pub name: String,
-    pub typ: Typ,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct IParam {
     pub name: String,
     pub typ: Typ,
 }
@@ -93,6 +77,12 @@ pub enum AstExpressionBody {
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
+        /// Whether declared with `var` (TODO: rename to `readonly`?)
+        is_var: bool,
+    },
+    IVarAssign {
+        name: String,
+        rhs: Box<AstExpression>,
         /// Whether declared with `var`
         is_var: bool,
     },
@@ -108,6 +98,7 @@ pub enum AstExpressionBody {
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
+    IVarRef(String),
     ConstRef(Vec<String>),
     PseudoVariable(Token),
     FloatLiteral {
@@ -118,6 +109,17 @@ pub enum AstExpressionBody {
     },
     StringLiteral {
         content: String,
+    }
+}
+
+impl Definition {
+    pub fn is_initializer(&self) -> bool {
+        match self {
+            Definition::InstanceMethodDefinition { sig, .. } => {
+                sig.name.0 == "initialize"
+            },
+            _ => false
+        }
     }
 }
 
@@ -136,6 +138,7 @@ impl AstExpression {
             return true;
         }
         match self.body {
+            AstExpressionBody::IVarRef(_) => true,
             AstExpressionBody::ConstRef(_) => true,
             // TODO: a[b]
             _ => false
@@ -200,8 +203,9 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
         AstExpressionBody::BareName(s) =>  {
             AstExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs), is_var: false } 
         },
-        // ToDo: IVarRef =>
-        // ToDo: CVarRef =>
+        AstExpressionBody::IVarRef(name) => {
+            AstExpressionBody::IVarAssign { name: name.to_string(), rhs: Box::new(rhs), is_var: false } 
+        },
         AstExpressionBody::ConstRef(names) => {
             AstExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
         },
@@ -244,6 +248,10 @@ pub fn method_call(receiver_expr: Option<AstExpression>,
 
 pub fn bare_name(name: &str) -> AstExpression {
     primary_expression(AstExpressionBody::BareName(name.to_string()))
+}
+
+pub fn ivar_ref(name: String) -> AstExpression {
+    primary_expression(AstExpressionBody::IVarRef(name))
 }
 
 pub fn const_ref(names: Vec<String>) -> AstExpression {

@@ -22,7 +22,6 @@ impl<'a> Parser<'a> {
         self.parse_var_decl()
     }
 
-
     pub fn parse_var_decl(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_var_decl");
         let expr;
@@ -40,6 +39,7 @@ impl<'a> Parser<'a> {
                     expr = ast::var_decl(name, rhs);
 
                 },
+                // TODO: Impl. `var @foo`
                 token => {
                     return Err(parse_error!(self, "invalid var name: {:?}", token))
                 }
@@ -550,6 +550,11 @@ impl<'a> Parser<'a> {
                 let t = token.clone();
                 self.consume_token();
                 Ok(ast::pseudo_variable(t))
+            },
+            Token::IVar(s) => {
+                let name = s.to_string();
+                self.consume_token();
+                Ok(ast::ivar_ref(name))
             },
             Token::Number(_) => {
                 self.parse_decimal_literal()

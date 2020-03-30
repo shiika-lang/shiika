@@ -89,6 +89,7 @@ enum CharType {
     Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
     LowerWord, // Keyword or identifier which starts with lower-case letter
+    IVar, // Instance variable (`@foo`)
     Symbol, // '+', '(', etc.
     Number, // '0'~'9'
     Str, // '"'
@@ -197,6 +198,7 @@ impl<'a> Lexer<'a> {
             CharType::Comment   => (self.read_comment(&mut next_next_cur), None),
             CharType::UpperWord => (self.read_upper_word(&mut next_next_cur, Some(&next_cur)), None),
             CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
+            CharType::IVar      => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
             CharType::Symbol    => self.read_symbol(&mut next_next_cur),
             CharType::Number    => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
             CharType::Str       => (self.read_str(&mut next_next_cur, Some(&next_cur)), None),
@@ -215,6 +217,7 @@ impl<'a> Lexer<'a> {
             CharType::Comment   => (self.read_comment(&mut next_cur), None),
             CharType::UpperWord => (self.read_upper_word(&mut next_cur, None), Some(LexerState::ExprEnd)),
             CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
+            CharType::IVar      => (self.read_ivar(&mut next_cur, None),       Some(LexerState::ExprEnd)),
             CharType::Symbol    => self.read_symbol(&mut next_cur),
             CharType::Number    => (self.read_number(&mut next_cur, None),     Some(LexerState::ExprEnd)),
             CharType::Str       => (self.read_str(&mut next_cur, None), None),
@@ -302,6 +305,23 @@ impl<'a> Lexer<'a> {
             _ => (Token::LowerWord(s.to_string()), LexerState::ExprEnd),
         };
         (token, Some(state))
+    }
+
+    fn read_ivar(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
+        next_cur.proceed(self.src);  // Skip '@'
+        loop {
+            // TODO: First character must not be a number
+            match self.char_type(next_cur.peek(self.src)) {
+                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
+                    next_cur.proceed(self.src);
+                },
+                _ => break
+            }
+        }
+        // TODO: LexError if no word succeeds '@'
+        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        let s = &self.src[begin..next_cur.pos];
+        Token::IVar(s.to_string())
     }
 
     fn read_symbol(&mut self, next_cur: &mut Cursor) -> (Token, Option<LexerState>) {
@@ -501,9 +521,10 @@ impl<'a> Lexer<'a> {
             '#' => CharType::Comment,
             '"' => CharType::Str,
             '0'..='9' => CharType::Number,
+            '@' => CharType::IVar,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
             '+' | '-' | '*' | '/' | '%' | '=' | '!' |
-            '.' | '@' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
+            '.' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
             'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
         }

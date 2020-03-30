@@ -13,14 +13,29 @@ use crate::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
-    pub sk_classes: HashMap<ClassFullname, SkClass>
+    // TODO: Rename to `idx_classes`
+    pub classes: HashMap<ClassFullname, IdxClass>
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IdxClass {
+    pub fullname: ClassFullname,
+    pub superclass_fullname: Option<ClassFullname>,
+    pub instance_ty: TermTy,
+    pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IdxIVar {
+    idx: usize,
+    name: String,
 }
 
 impl Index {
     pub fn new(stdlib_classes: HashMap<ClassFullname, SkClass>,
                toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
         let mut index = Index {
-            sk_classes: HashMap::new()
+            classes: HashMap::new()
         };
         index.index_stdlib(stdlib_classes);
         index.index_program(toplevel_defs)?;
@@ -29,27 +44,32 @@ impl Index {
 
     /// Find a method from class name and first name
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstname) -> Option<&MethodSignature> {
-        self.sk_classes.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
+        self.classes.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
     /// Find a class
-    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.sk_classes.get(class_fullname)
+    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&IdxClass> {
+        self.classes.get(class_fullname)
     }
 
 //    /// Return true if there is a class of the name
 //    pub fn class_exists(&self, class_fullname: &str) -> bool {
-//        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+//        self.classes.contains_key(&ClassFullname(class_fullname.to_string()))
 //    }
 
     /// Register a class
-    fn add_class(&mut self, class: SkClass) {
-        self.sk_classes.insert(class.fullname.clone(), class);
+    fn add_class(&mut self, class: IdxClass) {
+        self.classes.insert(class.fullname.clone(), class);
     }
 
     fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
-        stdlib_classes.into_iter().for_each(|(_, sk_class)| {
-            self.add_class(sk_class);
+        stdlib_classes.into_iter().for_each(|(_, c)| {
+            self.add_class(IdxClass {
+                fullname: c.fullname,
+                superclass_fullname: c.superclass_fullname,
+                instance_ty: c.instance_ty,
+                method_sigs: c.method_sigs
+            })
         });
     }
 
@@ -96,14 +116,14 @@ impl Index {
         let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
         class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
 
-        self.add_class(SkClass {
+        self.add_class(IdxClass {
             fullname: class_fullname,
             superclass_fullname: if name.0 == "Object" { None }
                                  else { Some(ClassFullname("Object".to_string())) },
             instance_ty: instance_ty,
             method_sigs: instance_methods,
         });
-        self.add_class(SkClass {
+        self.add_class(IdxClass {
             fullname: metaclass_fullname,
             superclass_fullname: Some(ClassFullname("Object".to_string())),
             instance_ty: class_ty,

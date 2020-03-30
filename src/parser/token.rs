@@ -6,6 +6,7 @@ pub enum Token {
     Separator, // Newline, ';' or comment
     UpperWord(String),
     LowerWord(String),
+    IVar(String),
     Number(String),
     Str(String),
     // Symbols
@@ -80,6 +81,7 @@ impl Token {
             Token::Separator => false, // Newline or ';'
             Token::UpperWord(_) => true,
             Token::LowerWord(_) => true,
+            Token::IVar(_) => true,
             Token::Number(_) => true,
             Token::Str(_) => true,
             // Symbols

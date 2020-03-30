@@ -165,7 +165,7 @@ impl CodeGen {
         classes.values().for_each(|sk_class| {
             self.llvm_struct_types.insert(
                 sk_class.fullname.clone(),
-                self.llvm_struct_type(&sk_class.fullname.0));
+                self.llvm_struct_type(&sk_class.fullname.0, &sk_class.ivars));
         })
     }
 
@@ -284,6 +284,9 @@ impl CodeGen {
             HirLVarAssign { name, rhs } => {
                 self.gen_lvar_assign(ctx, name, rhs)
             },
+            HirIVarAssign { name, idx, rhs } => {
+                self.gen_ivar_assign(ctx, name, idx, rhs)
+            },
             HirConstAssign { fullname, rhs } => {
                 self.gen_const_assign(ctx, fullname, rhs)
             },
@@ -291,26 +294,19 @@ impl CodeGen {
                 self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs)
             },
             HirArgRef { idx } => {
-                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+                self.gen_arg_ref(ctx, idx)
             },
             HirLVarRef { name } => {
                 self.gen_lvar_ref(ctx, name)
             },
+            HirIVarRef { name, idx } => {
+                self.gen_ivar_ref(ctx, name, idx)
+            },
             HirConstRef { fullname } => {
-                // TODO: extract as gen_const_ref
-                let ptr = self.module.get_global(&fullname.0).
-                    expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
-                    as_pointer_value();
-                Ok(self.builder.build_load(ptr, &fullname.0))
+                self.gen_const_ref(fullname)
             },
             HirSelfExpression => {
-                if ctx.function.get_name().to_str().unwrap() == "user_main" {
-                    Ok(self.the_main.expect("[BUG] self.the_main is None"))
-                }
-                else {
-                    // The first arg of llvm function is `self`
-                    Ok(ctx.function.get_first_param().expect("[BUG] get_first_param() is None"))
-                }
+                self.gen_self_expression(ctx)
             },
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -327,9 +323,9 @@ impl CodeGen {
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
-//            _ => {
-//                panic!("TODO: {:?}", expr.node) 
-//            }
+            _ => {
+                panic!("TODO: {:?}", expr.node) 
+            }
         }
     }
 
@@ -442,6 +438,20 @@ impl CodeGen {
         Ok(value)
     }
 
+    fn gen_ivar_assign(&self,
+                       ctx: &mut CodeGenContext,
+                       name: &str,
+                       idx: &usize,
+                       rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let value = self.gen_expr(ctx, rhs)?;
+        let theself = self.gen_self_expression(ctx)?;
+        let ptr = unsafe {
+            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
+        };
+        self.builder.build_store(ptr, value);
+        Ok(value)
+    }
+
     fn gen_const_assign(&self,
                         ctx: &mut CodeGenContext,
                         fullname: &ConstFullname,
@@ -477,12 +487,47 @@ impl CodeGen {
         }
     }
 
+    fn gen_arg_ref(&self,
+                       ctx: &mut CodeGenContext,
+                       idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
+        Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
+    }
+
     fn gen_lvar_ref(&self,
                     ctx: &mut CodeGenContext,
                     name: &str) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ptr = ctx.lvars.get(name)
             .expect("[BUG] lvar not declared");
         Ok(self.builder.build_load(*ptr, name))
+    }
+
+    fn gen_ivar_ref(&self,
+                    ctx: &mut CodeGenContext,
+                    name: &str,
+                    idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let theself = self.gen_self_expression(ctx)?;
+        let ptr = unsafe {
+            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
+        };
+        Ok(ptr.into())
+    }
+
+    fn gen_const_ref(&self,
+                    fullname: &ConstFullname) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let ptr = self.module.get_global(&fullname.0).
+            expect(&format!("[BUG] global for Constant `{}' not created", fullname.0));
+        Ok(ptr.as_pointer_value().into())
+    }
+
+    fn gen_self_expression(&self,
+                    ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
+        if ctx.function.get_name().to_str().unwrap() == "user_main" {
+            Ok(self.the_main.expect("[BUG] self.the_main is None"))
+        }
+        else {
+            // The first arg of llvm function is `self`
+            Ok(ctx.function.get_first_param().expect("[BUG] get_first_param() is None"))
+        }
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
@@ -512,7 +557,8 @@ impl CodeGen {
     }
 
     fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
-        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, &fullname.0)
+        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, 
+                             &format!("class_{}", fullname.0))
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
@@ -530,17 +576,25 @@ impl CodeGen {
         self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
     }
 
-    fn llvm_struct_type(&self, name: &str) -> inkwell::types::StructType {
-        // TODO: use self.context.struct_type
-        let struct_type = self.context.opaque_struct_type(name);
+    fn llvm_struct_type(&self, name: &str, ivars: &HashMap<String, SkIVar>) -> inkwell::types::StructType {
+        let ret = self.context.opaque_struct_type(name);
         if name == "String" {
             // TODO: define as ivar
-            struct_type.set_body(&[self.i8ptr_type.into()], true);
+            ret.set_body(&[self.i8ptr_type.into()], false);
         }
         else {
-            struct_type.set_body(&[], true);
+            ret.set_body(&self.llvm_field_types(ivars), false);
         }
-        struct_type
+        ret
+    }
+
+    fn llvm_field_types(&self, ivars: &HashMap<String, SkIVar>) -> Vec<inkwell::types::BasicTypeEnum>
+    {
+        let mut values = ivars.values().collect::<Vec<_>>();
+        values.sort_by_key(|ivar| ivar.idx);
+        values.iter().map(|ivar| {
+            self.llvm_type(&ivar.ty)
+        }).collect::<Vec<_>>()
     }
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
