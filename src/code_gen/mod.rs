@@ -507,16 +507,16 @@ impl CodeGen {
                     idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
         let theself = self.gen_self_expression(ctx)?;
         let ptr = unsafe {
-            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
+            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, &format!("addr_{}", name))
         };
-        Ok(ptr.into())
+        Ok(self.builder.build_load(ptr, name))
     }
 
     fn gen_const_ref(&self,
                     fullname: &ConstFullname) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ptr = self.module.get_global(&fullname.0).
             expect(&format!("[BUG] global for Constant `{}' not created", fullname.0));
-        Ok(ptr.as_pointer_value().into())
+        Ok(self.builder.build_load(ptr.as_pointer_value(), &fullname.0))
     }
 
     fn gen_self_expression(&self,
