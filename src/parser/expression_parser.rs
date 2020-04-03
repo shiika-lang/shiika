@@ -5,17 +5,26 @@ impl<'a> Parser<'a> {
     /// Parse successive expressions
     pub fn parse_exprs(&mut self, stop_toks: Vec<Token>) -> Result<Vec<AstExpression>, Error> {
         let mut ret = Vec::new();
+        let mut expr_seen = false;
         loop {
-            let tok = self.current_token();
-            if stop_toks.contains(tok) {
-                break
+            if stop_toks.contains(self.current_token()) {
+                return Ok(ret)
+            }
+            else if self.current_token_is(Token::Space) {
+                self.consume_token();
+            }
+            else if self.current_token_is(Token::Separator) {
+                self.consume_token();
+                expr_seen = false;
             }
             else {
-                ret.push(self.parse_expr()?)
+                if expr_seen {
+                    self.expect_sep()?;  // Missing separator between exprs
+                }
+                ret.push(self.parse_expr()?);
+                expr_seen = true;
             }
-            self.expect_sep()?;
         }
-        Ok(ret)
     }
 
     pub fn parse_expr(&mut self) -> Result<AstExpression, Error> {
