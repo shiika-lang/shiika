@@ -176,12 +176,12 @@ impl<'a> Lexer<'a> {
     /// use shiika::parser::lexer::Lexer;
     /// use shiika::parser::token::Token;
     ///
-    /// let src = "@1";
+    /// let src = "+1";
     /// let mut lexer = Lexer::new(src);
     ///
     /// // Return the next token but does not move the position
     /// assert_eq!(lexer.peek_next(), Token::number("1"));
-    /// assert_eq!(lexer.current_token, Token::At);
+    /// assert_eq!(lexer.current_token, Token::UnaryPlus);
     ///
     /// // Return Eof when called on the end
     /// lexer.consume_token();
