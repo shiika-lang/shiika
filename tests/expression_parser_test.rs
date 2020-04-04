@@ -12,8 +12,18 @@ fn test_if_expr() {
     assert_eq!(result.unwrap(),
     ast::if_expr(
         ast::decimal_literal(1),
-        ast::decimal_literal(2),
-        Some(ast::decimal_literal(3))))
+        vec![ast::decimal_literal(2)],
+        Some(vec![ast::decimal_literal(3)])))
+}
+
+#[test]
+fn test_if_expr_with_sep() {
+    let result = parse_expr("if 1 then 2; else 3; end");
+    assert_eq!(result.unwrap(),
+    ast::if_expr(
+        ast::decimal_literal(1),
+        vec![ast::decimal_literal(2)],
+        Some(vec![ast::decimal_literal(3)])))
 }
 
 #[test]

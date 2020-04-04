@@ -54,9 +54,9 @@ impl CodeGen {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
+        self.gen_constant_ptrs(&hir.constants);
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
-        self.gen_constant_ptrs(&hir.constants);
         self.gen_user_main(&hir.main_exprs)?;
         self.gen_main()?;
         Ok(())
@@ -95,19 +95,6 @@ impl CodeGen {
         global.set_constant(true)
     }
 
-    fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
-        for (fullname, ty) in constants {
-            let name = &fullname.0;
-            let global = self.module.add_global(self.llvm_type(&ty), None, name);
-            global.set_linkage(inkwell::module::Linkage::Internal);
-            let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
-            match self.llvm_zero_value(ty) {
-                Some(zero) => global.set_initializer(&zero),
-                None       => global.set_initializer(&null),
-            }
-        }
-    }
-
     fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
@@ -139,7 +126,7 @@ impl CodeGen {
         let func = self.module.get_function("GC_init").unwrap();
         self.builder.build_call(func, &[], "");
 
-        // Create Main and Void
+        // Create Void
         self.gen_void();
 
         // Call user_main
@@ -183,6 +170,19 @@ impl CodeGen {
             }).collect::<Vec<_>>();
             global.set_initializer(&self.i8_type.const_array(&content))
         })
+    }
+
+    fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
+        for (fullname, ty) in constants {
+            let name = &fullname.0;
+            let global = self.module.add_global(self.llvm_type(&ty), None, name);
+            global.set_linkage(inkwell::module::Linkage::Internal);
+            let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
+            match self.llvm_zero_value(ty) {
+                Some(zero) => global.set_initializer(&zero),
+                None       => global.set_initializer(&null),
+            }
+        }
     }
 
     /// Create inkwell functions
