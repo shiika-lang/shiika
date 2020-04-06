@@ -44,35 +44,45 @@ impl<'a> HirMaker<'a> {
 
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-        let mut main_exprs =
+        let main_exprs =
             hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
-        match hir_maker {
-            HirMaker { index, constants, mut const_inits, str_literals, class_ivars } => {
-                let mut sk_classes = HashMap::new();
-                index.classes.iter().for_each(|(name, c)| {
-                    let ivars = class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
-                    // PERF: How to avoid these clone's? Use Rc?
-                    sk_classes.insert(name.clone(), SkClass {
-                        fullname: c.fullname.clone(),
-                        superclass_fullname: c.superclass_fullname.clone(),
-                        instance_ty: c.instance_ty.clone(),
-                        ivars: Rc::clone(&ivars),
-                        method_sigs: c.method_sigs.clone()
-                    });
-                });
+        Ok(hir_maker.to_hir(sk_methods, main_exprs))
+    }
 
-                const_inits.append(&mut main_exprs.exprs);
-                Ok(Hir {
-                    sk_classes,
-                    sk_methods,
-                    constants,
-                    str_literals,
-                    //str_literals,
-                    main_exprs:  HirExpressions {
-                        ty: main_exprs.ty,
-                        exprs: const_inits,
-                    }
-                })
+    /// Destructively convert self to Hir
+    fn to_hir(&mut self,
+           sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+           mut main_exprs: HirExpressions) -> Hir {
+        let mut sk_classes = HashMap::new();
+        self.index.classes.iter().for_each(|(name, c)| {
+            let ivars = self.class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
+            // PERF: How to avoid these clone's? Use Rc?
+            sk_classes.insert(name.clone(), SkClass {
+                fullname: c.fullname.clone(),
+                superclass_fullname: c.superclass_fullname.clone(),
+                instance_ty: c.instance_ty.clone(),
+                ivars: Rc::clone(&ivars),
+                method_sigs: c.method_sigs.clone()
+            });
+        });
+
+        // Extract data from self
+        let mut constants = HashMap::new();
+        std::mem::swap(&mut constants, &mut self.constants);
+        let mut str_literals = vec![];
+        std::mem::swap(&mut str_literals, &mut self.str_literals);
+        let mut const_inits = vec![];
+        std::mem::swap(&mut const_inits, &mut self.const_inits);
+
+        const_inits.append(&mut main_exprs.exprs);
+        Hir {
+            sk_classes,
+            sk_methods,
+            constants,
+            str_literals,
+            main_exprs:  HirExpressions {
+                ty: main_exprs.ty,
+                exprs: const_inits,
             }
         }
     }
