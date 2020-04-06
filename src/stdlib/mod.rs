@@ -27,54 +27,72 @@ impl Stdlib {
     }
 
     pub fn create() -> Stdlib {
-        let mut sk_classes = HashMap::new();
-        let mut sk_methods = HashMap::new();
-        let items = vec![
-            ("Bool", bool::create_methods(), vec![]),
-            ("Float", float::create_methods(), vec![]),
-            ("Int", int::create_methods(), vec![]),
-            ("Object", object::create_methods(), vec![]),
-            ("Void", void::create_methods(), vec![]),
-            ("Never", never::create_methods(), vec![]),
-            ("Math", vec![], math::create_class_methods()),
-            ("String", string::create_methods(), vec![]),
-        ];
-        for t in items.into_iter() {
-            let (name, imethods, cmethods) = t;
-            let super_name = if name == "Object" { None }
-                             else { Some(ClassFullname("Object".to_string())) };
-            sk_classes.insert(
-                ClassFullname(name.to_string()),
-                SkClass {
-                    fullname: ClassFullname(name.to_string()),
-                    superclass_fullname: super_name,
-                    instance_ty: ty::raw(name),
-                    ivars: Rc::new(HashMap::new()),
-                    method_sigs: imethods.iter().map(|x|
-                        (x.signature.first_name().clone(), x.signature.clone())
-                    ).collect(),
-                }
-            );
-            sk_classes.insert(
-                ClassFullname("Meta:".to_string() + name),
-                SkClass {
-                    fullname: ClassFullname("Meta:".to_string() + name),
-                    superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
-                    instance_ty: ty::meta(name),
-                    ivars: Rc::new(HashMap::new()),
-                    method_sigs: cmethods.iter().map(|x|
-                        (x.signature.first_name().clone(), x.signature.clone())
-                    ).collect(),
-                }
-            );
-            sk_methods.insert(
-                ClassFullname(name.to_string()),
-                imethods.into_iter().chain(cmethods).collect()
-            );
-        };
+        let items = rust_body_items();
+        let (sk_classes, sk_methods) = make_classes(items);
         Stdlib { sk_classes, sk_methods }
     }
 }
+
+fn rust_body_items() -> Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<String, SkIVar>)> {
+    vec![
+        // Classes
+        ("Bool"  , bool::create_methods()  , vec![]                      , HashMap::new()),
+        ("Float" , float::create_methods() , vec![]                      , HashMap::new()),
+        ("Int"   , int::create_methods()   , vec![]                      , HashMap::new()),
+        ("Object", object::create_methods(), vec![]                      , HashMap::new()),
+        ("Void"  , void::create_methods()  , vec![]                      , HashMap::new()),
+        ("Never" , never::create_methods() , vec![]                      , HashMap::new()),
+        ("String", string::create_methods(), vec![]                      , string::ivars()),
+        //("Class" , class::create_methods() , vec![]                      , class::ivars()),
+        //("Shiika::Internal::Ptr", vec![], vec![], HashMap::new()),
+        // Modules
+        ("Math"  , vec![]                  , math::create_class_methods(), HashMap::new()),
+        //("Shiika::Internal::Memory", vec![], shiika_internal_memory::create_class_methods(), HashMap::new()),
+    ]
+}
+
+fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<String, SkIVar>)>)
+               -> (HashMap<ClassFullname, SkClass>, HashMap<ClassFullname, Vec<SkMethod>>) {
+    let mut sk_classes = HashMap::new();
+    let mut sk_methods = HashMap::new();
+    for t in items.into_iter() {
+        let (name, imethods, cmethods, ivars) = t;
+        let super_name = if name == "Object" { None }
+                         else { Some(ClassFullname("Object".to_string())) };
+        sk_classes.insert(
+            ClassFullname(name.to_string()),
+            SkClass {
+                fullname: ClassFullname(name.to_string()),
+                superclass_fullname: super_name,
+                instance_ty: ty::raw(name),
+                ivars: Rc::new(ivars),
+                method_sigs: imethods.iter().map(|x|
+                    (x.signature.first_name().clone(), x.signature.clone())
+                ).collect(),
+            }
+        );
+        sk_classes.insert(
+            ClassFullname("Meta:".to_string() + name),
+            SkClass {
+                fullname: ClassFullname("Meta:".to_string() + name),
+                superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
+                instance_ty: ty::meta(name),
+                ivars: Rc::new(HashMap::new()),
+                method_sigs: cmethods.iter().map(|x|
+                    (x.signature.first_name().clone(), x.signature.clone())
+                ).collect(),
+            }
+        );
+        sk_methods.insert(
+            ClassFullname(name.to_string()),
+            imethods.into_iter().chain(cmethods).collect()
+        );
+    };
+    (sk_classes, sk_methods)
+}
+
+//fn shiika_body_items() -> Vec<> {
+//}
 
 fn create_method(class_name: &str,
                       sig_str: &str,
