@@ -1,0 +1,6 @@
+class Object
+  def inspect() -> String
+    # "#<" + self.class.name + ">"
+    "#<Something>"
+  end
+end
