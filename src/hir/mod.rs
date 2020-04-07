@@ -182,6 +182,11 @@ pub enum HirExpressionBase {
     HirBooleanLiteral {
         value: bool,
     },
+
+    /// Represents bitcast of an object
+    HirBitCast {
+        expr: Box<HirExpression>,
+    },
     /// A special expression that evaluates to a class
     /// (eg. `class A; end; A = 1` shadows A, but this special expr
     /// is never be shadowed)
@@ -326,6 +331,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value }
+        }
+    }
+
+    pub fn bit_cast(ty: TermTy, expr: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: ty,
+            node: HirExpressionBase::HirBitCast { expr: Box::new(expr) }
         }
     }
 

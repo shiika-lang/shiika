@@ -320,12 +320,15 @@ impl CodeGen {
             HirBooleanLiteral { value } => {
                 Ok(self.gen_boolean_literal(*value))
             },
+            HirBitCast { expr: target } => {
+                self.gen_bitcast(ctx, target, &expr.ty)
+            },
             HirClassLiteral { fullname } => {
                 Ok(self.gen_class_literal(fullname))
             }
-            _ => {
-                panic!("TODO: {:?}", expr.node) 
-            }
+//            _ => {
+//                panic!("TODO: {:?}", expr.node) 
+//            }
         }
     }
 
@@ -554,6 +557,14 @@ impl CodeGen {
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
         let i = if value { 1 } else { 0 };
         self.i1_type.const_int(i, false).as_basic_value_enum()
+    }
+
+    fn gen_bitcast(&self,
+                   ctx: &mut CodeGenContext,
+                   expr: &HirExpression,
+                   ty: &TermTy) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let obj = self.gen_expr(ctx, expr)?;
+        Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
     }
 
     fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {

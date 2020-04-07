@@ -1,3 +1,6 @@
+use crate::ty;
+use crate::ty::*;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassFirstname(pub String);
 
@@ -14,6 +17,12 @@ pub struct ClassFullname(pub String);
 impl std::fmt::Display for ClassFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl ClassFullname {
+    pub fn instance_ty(&self) -> TermTy {
+        ty::raw(&self.0)
     }
 }
 
