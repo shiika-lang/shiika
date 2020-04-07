@@ -473,21 +473,29 @@ impl<'a> HirMaker<'a> {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let class_fullname = &receiver_hir.ty.fullname;
-        let sig = self.lookup_method(class_fullname, class_fullname, method_name)?;
+        let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
         type_checking::check_method_args(&sig, &param_tys)?;
 
-        Ok(Hir::method_call(sig.ret_ty.clone(), receiver_hir, sig.fullname.clone(), arg_hirs))
+        let receiver = 
+            if &found_class_name != class_fullname {
+                // Upcast needed
+                Hir::bit_cast(found_class_name.instance_ty(), receiver_hir)
+            }
+            else {
+                receiver_hir
+            };
+        Ok(Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs))
     }
 
     fn lookup_method(&self, 
                      receiver_class_fullname: &ClassFullname,
                      class_fullname: &ClassFullname,
-                     method_name: &MethodFirstname) -> Result<&MethodSignature, Error> {
+                     method_name: &MethodFirstname) -> Result<(&MethodSignature, ClassFullname), Error> {
         let found = self.index.find_method(class_fullname, method_name);
         if let Some(sig) = found {
-            Ok(sig)
+            Ok((sig, class_fullname.clone()))
         }
         else {
             // Look up in superclass
