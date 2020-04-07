@@ -18,7 +18,9 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: Stdlib) -> Result<Hir, crate::error::Error> {
-        let index = index::Index::new(stdlib.sk_classes, &ast.toplevel_defs)?;
+        let mut index = index::Index::new();
+        index.index_stdlib(stdlib.sk_classes);
+        index.index_program(&ast.toplevel_defs)?;
         let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
 
         // While stdlib classes are included in `index`,
@@ -28,12 +30,21 @@ impl Hir {
         Ok(hir)
     }
 
-    pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
-        self.sk_classes.extend(sk_classes)
-    }
+    //pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
+    //    self.sk_classes.extend(sk_classes)
+    //}
 
     pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
-        self.sk_methods.extend(sk_methods)
+        for (classname, mut new_methods) in sk_methods {
+            match self.sk_methods.get_mut(&classname) {
+                Some(methods) => {
+                    methods.append(&mut new_methods);
+                },
+                None => {
+                    self.sk_methods.insert(classname, new_methods);
+                }
+            }
+        }
     }
 }
 

@@ -32,14 +32,10 @@ pub struct IdxIVar {
 }
 
 impl Index {
-    pub fn new(stdlib_classes: HashMap<ClassFullname, SkClass>,
-               toplevel_defs: &Vec<ast::Definition>) -> Result<Index, Error> {
-        let mut index = Index {
+    pub fn new() -> Index {
+        Index {
             classes: HashMap::new()
-        };
-        index.index_stdlib(stdlib_classes);
-        index.index_program(toplevel_defs)?;
-        Ok(index)
+        }
     }
 
     /// Find a method from class name and first name
@@ -62,7 +58,7 @@ impl Index {
         self.classes.insert(class.fullname.clone(), class);
     }
 
-    fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
+    pub fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
         stdlib_classes.into_iter().for_each(|(_, c)| {
             self.add_class(IdxClass {
                 fullname: c.fullname,
@@ -73,7 +69,7 @@ impl Index {
         });
     }
 
-    fn index_program(&mut self, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
+    pub fn index_program(&mut self, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
@@ -112,22 +108,32 @@ impl Index {
             }
         });
 
-        // Add `.new` to the metaclass
-        let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
-        class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
-
-        self.add_class(IdxClass {
-            fullname: class_fullname,
-            superclass_fullname: if name.0 == "Object" { None }
-                                 else { Some(ClassFullname("Object".to_string())) },
-            instance_ty: instance_ty,
-            method_sigs: instance_methods,
-        });
-        self.add_class(IdxClass {
-            fullname: metaclass_fullname,
-            superclass_fullname: Some(ClassFullname("Object".to_string())),
-            instance_ty: class_ty,
-            method_sigs: class_methods,
-        });
+        match self.classes.get_mut(&class_fullname) {
+            Some(class) => {
+                // Merge methods to existing class (Class is reopened)
+                class.method_sigs.extend(instance_methods);
+                let metaclass = self.classes.get_mut(&metaclass_fullname)
+                    .expect("[BUG] Only class is indexed");
+                metaclass.method_sigs.extend(class_methods);
+            },
+            None => {
+                // Add `.new` to the metaclass
+                let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
+                class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+                self.add_class(IdxClass {
+                    fullname: class_fullname,
+                    superclass_fullname: if name.0 == "Object" { None }
+                                         else { Some(ClassFullname("Object".to_string())) },
+                    instance_ty: instance_ty,
+                    method_sigs: instance_methods,
+                });
+                self.add_class(IdxClass {
+                    fullname: metaclass_fullname,
+                    superclass_fullname: Some(ClassFullname("Object".to_string())),
+                    instance_ty: class_ty,
+                    method_sigs: class_methods,
+                });
+            }
+        }
     }
 }
