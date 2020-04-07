@@ -53,18 +53,7 @@ impl<'a> HirMaker<'a> {
     fn to_hir(&mut self,
            sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
            mut main_exprs: HirExpressions) -> Hir {
-        let mut sk_classes = HashMap::new();
-        self.index.classes.iter().for_each(|(name, c)| {
-            let ivars = self.class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
-            // PERF: How to avoid these clone's? Use Rc?
-            sk_classes.insert(name.clone(), SkClass {
-                fullname: c.fullname.clone(),
-                superclass_fullname: c.superclass_fullname.clone(),
-                instance_ty: c.instance_ty.clone(),
-                ivars: Rc::clone(&ivars),
-                method_sigs: c.method_sigs.clone()
-            });
-        });
+        let sk_classes = self.extract_classes();
 
         // Extract data from self
         let mut constants = HashMap::new();
@@ -86,6 +75,27 @@ impl<'a> HirMaker<'a> {
             }
         }
     }
+
+    fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
+        // TODO: Extract index
+        //let mut index = Index::new();
+        //std::mem::swap(&mut index, &mut self.index);
+
+        let mut sk_classes = HashMap::new();
+        self.index.classes.iter().for_each(|(name, c)| {
+            let ivars = self.class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
+            // PERF: How to avoid these clone's? Use Rc?
+            sk_classes.insert(name.clone(), SkClass {
+                fullname: c.fullname.clone(),
+                superclass_fullname: c.superclass_fullname.clone(),
+                instance_ty: c.instance_ty.clone(),
+                ivars: Rc::clone(&ivars),
+                method_sigs: c.method_sigs.clone()
+            });
+        });
+        sk_classes
+    }
+
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
