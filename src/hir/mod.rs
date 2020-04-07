@@ -18,7 +18,9 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, stdlib: Stdlib) -> Result<Hir, crate::error::Error> {
-        let index = index::Index::new(stdlib.sk_classes, &ast.toplevel_defs)?;
+        let mut index = index::Index::new();
+        index.index_stdlib(stdlib.sk_classes);
+        index.index_program(&ast.toplevel_defs)?;
         let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
 
         // While stdlib classes are included in `index`,
