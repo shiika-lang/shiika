@@ -28,9 +28,9 @@ impl Hir {
         Ok(hir)
     }
 
-    pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
-        self.sk_classes.extend(sk_classes)
-    }
+    //pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
+    //    self.sk_classes.extend(sk_classes)
+    //}
 
     pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
         self.sk_methods.extend(sk_methods)
