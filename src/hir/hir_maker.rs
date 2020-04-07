@@ -106,14 +106,8 @@ impl<'a> HirMaker<'a> {
             match def {
                 // Extract instance/class methods
                 ast::Definition::ClassDefinition { name, defs } => {
-                    match self.convert_class_def(&name, &defs) {
-                        Ok((fullname, instance_methods, meta_name, class_methods)) => {
-                            sk_methods.insert(fullname, instance_methods);
-                            sk_methods.insert(meta_name, class_methods);
-                            Ok(())
-                        },
-                        Err(err) => Err(err)
-                    }
+                    self.collect_sk_methods(name, defs, &mut sk_methods)?;
+                    Ok(())
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
@@ -124,6 +118,28 @@ impl<'a> HirMaker<'a> {
         )?;
 
         Ok(sk_methods)
+    }
+
+    fn collect_sk_methods(&mut self,
+                          firstname: &ClassFirstname,
+                          defs: &Vec<ast::Definition>,
+                          sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
+                         -> Result<(), Error> {
+        let (fullname, mut instance_methods, meta_name, mut class_methods) =
+            self.convert_class_def(firstname, defs)?;
+        match sk_methods.get_mut(&fullname) {
+            Some(imethods) => {
+                // Merge methods to existing class (Class is reopened)
+                imethods.append(&mut instance_methods);
+                let cmethods = sk_methods.get_mut(&meta_name).expect("[BUG] meta not found");
+                cmethods.append(&mut class_methods);
+            },
+            None => {
+                sk_methods.insert(fullname, instance_methods);
+                sk_methods.insert(meta_name, class_methods);
+            }
+        }
+        Ok(())
     }
 
     /// Extract instance/class methods and constants

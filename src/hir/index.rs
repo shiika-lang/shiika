@@ -108,22 +108,32 @@ impl Index {
             }
         });
 
-        // Add `.new` to the metaclass
-        let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
-        class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
-
-        self.add_class(IdxClass {
-            fullname: class_fullname,
-            superclass_fullname: if name.0 == "Object" { None }
-                                 else { Some(ClassFullname("Object".to_string())) },
-            instance_ty: instance_ty,
-            method_sigs: instance_methods,
-        });
-        self.add_class(IdxClass {
-            fullname: metaclass_fullname,
-            superclass_fullname: Some(ClassFullname("Object".to_string())),
-            instance_ty: class_ty,
-            method_sigs: class_methods,
-        });
+        match self.classes.get_mut(&class_fullname) {
+            Some(class) => {
+                // Merge methods to existing class (Class is reopened)
+                class.method_sigs.extend(instance_methods);
+                let metaclass = self.classes.get_mut(&metaclass_fullname)
+                    .expect("[BUG] Only class is indexed");
+                metaclass.method_sigs.extend(class_methods);
+            },
+            None => {
+                // Add `.new` to the metaclass
+                let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
+                class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+                self.add_class(IdxClass {
+                    fullname: class_fullname,
+                    superclass_fullname: if name.0 == "Object" { None }
+                                         else { Some(ClassFullname("Object".to_string())) },
+                    instance_ty: instance_ty,
+                    method_sigs: instance_methods,
+                });
+                self.add_class(IdxClass {
+                    fullname: metaclass_fullname,
+                    superclass_fullname: Some(ClassFullname("Object".to_string())),
+                    instance_ty: class_ty,
+                    method_sigs: class_methods,
+                });
+            }
+        }
     }
 }

@@ -35,7 +35,16 @@ impl Hir {
     //}
 
     pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
-        self.sk_methods.extend(sk_methods)
+        for (classname, mut new_methods) in sk_methods {
+            match self.sk_methods.get_mut(&classname) {
+                Some(methods) => {
+                    methods.append(&mut new_methods);
+                },
+                None => {
+                    self.sk_methods.insert(classname, new_methods);
+                }
+            }
+        }
     }
 }
 
