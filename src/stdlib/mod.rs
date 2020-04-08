@@ -6,6 +6,7 @@ mod object;
 mod void;
 mod never;
 mod string;
+mod shiika_internal_memory;
 use std::collections::HashMap;
 use std::rc::Rc;
 use crate::names::*;
@@ -47,7 +48,9 @@ fn rust_body_items() -> Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap
         //("Shiika::Internal::Ptr", vec![], vec![], HashMap::new()),
         // Modules
         ("Math"  , vec![]                  , math::create_class_methods(), HashMap::new()),
-        //("Shiika::Internal::Memory", vec![], shiika_internal_memory::create_class_methods(), HashMap::new()),
+        ("Shiika", vec![], vec![], HashMap::new()),
+        ("Shiika::Internal", vec![], vec![], HashMap::new()),
+        ("Shiika::Internal::Memory", vec![], shiika_internal_memory::create_class_methods(), HashMap::new()),
     ]
 }
 
