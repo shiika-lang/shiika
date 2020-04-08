@@ -24,6 +24,10 @@ impl ClassFullname {
     pub fn instance_ty(&self) -> TermTy {
         ty::raw(&self.0)
     }
+
+    pub fn class_ty(&self) -> TermTy {
+        ty::meta(&self.0)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]

@@ -558,11 +558,17 @@ impl<'a> HirMaker<'a> {
                 Ok(Hir::const_ref(ty.clone(), fullname))
             },
             None => {
-                Err(error::program_error(&format!("constant `{:?}' was not found", names)))
+                let c = ClassFullname(names.join("::"));
+                if self.index.class_exists(&c.0) {
+                    Ok(Hir::const_ref(c.class_ty(), fullname))
+                }
+                else {
+                    Err(error::program_error(&format!("constant `{:?}' was not found", fullname)))
+                }
             }
         }
     }
-
+    
     fn convert_pseudo_variable(&self,
                                ctx: &HirMakerContext,
                                token: &Token) -> Result<HirExpression, Error> {
