@@ -43,7 +43,7 @@ fn rust_body_items() -> Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap
         ("Void"  , void::create_methods()  , vec![]                      , HashMap::new()),
         ("Never" , never::create_methods() , vec![]                      , HashMap::new()),
         ("String", string::create_methods(), vec![]                      , string::ivars()),
-        //("Class" , class::create_methods() , vec![]                      , class::ivars()),
+        ("Class" , vec![],                   vec![]                      , HashMap::new()),
         //("Shiika::Internal::Ptr", vec![], vec![], HashMap::new()),
         // Modules
         ("Math"  , vec![]                  , math::create_class_methods(), HashMap::new()),
@@ -71,11 +71,12 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
                 ).collect(),
             }
         );
+
         sk_classes.insert(
             ClassFullname("Meta:".to_string() + name),
             SkClass {
                 fullname: ClassFullname("Meta:".to_string() + name),
-                superclass_fullname: Some(ClassFullname("Meta:Object".to_string())),
+                superclass_fullname: Some(ClassFullname("Class".to_string())),
                 instance_ty: ty::meta(name),
                 ivars: Rc::new(HashMap::new()),
                 method_sigs: cmethods.iter().map(|x|
