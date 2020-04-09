@@ -72,11 +72,13 @@ impl CodeGen {
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
-
         let fn_type = self.i8ptr_type.fn_type(&[IntType::i64_type().into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
         let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), IntType::i64_type().into()], false);
         self.module.add_function("GC_realloc", fn_type, None);
+        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), IntType::i64_type().into(),
+                                                self.i32_type.into(), self.i1_type.into()], false);
+        self.module.add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
 
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("sin", fn_type, None);
