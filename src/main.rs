@@ -42,9 +42,6 @@ fn load_corelib() -> Result<String, Box<dyn std::error::Error>> {
         if path.ends_with(".sk") {
             s += &fs::read_to_string(path)?;
         }
-        else {
-            dbg!(&path);
-        }
     }
     Ok(s)
 }

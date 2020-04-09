@@ -206,13 +206,26 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_ty(&mut self) -> Result<ast::Typ, Error> {
-        match self.current_token() {
-            Token::UpperWord(s) => {
-                let typ = ast::Typ { name: s.to_string() };
-                self.consume_token();
-                Ok(typ)
-            },
-            token => Err(parse_error!(self, "invalid token as type: {:?}", token))
+        let mut name = String::new();
+        loop {
+            match self.current_token() {
+                Token::UpperWord(s) => {
+                    name += s;
+                    self.consume_token();
+                },
+                Token::ColonColon => {
+                    name += "::";
+                    self.consume_token();
+                }
+                token => {
+                    if name.is_empty() {
+                        return Err(parse_error!(self, "invalid token as type: {:?}", token))
+                    }
+                    else {
+                        return Ok(ast::Typ{ name })
+                    }
+                }
+            }
         }
     }
 

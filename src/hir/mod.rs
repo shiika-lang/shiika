@@ -9,6 +9,7 @@ use crate::ty::*;
 use crate::names::*;
 use crate::stdlib::Stdlib;
 
+#[derive(Debug)]
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,

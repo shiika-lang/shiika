@@ -220,7 +220,7 @@ impl<'a> Lexer<'a> {
             CharType::IVar      => (self.read_ivar(&mut next_cur, None),       Some(LexerState::ExprEnd)),
             CharType::Symbol    => self.read_symbol(&mut next_cur),
             CharType::Number    => (self.read_number(&mut next_cur, None),     Some(LexerState::ExprEnd)),
-            CharType::Str       => (self.read_str(&mut next_cur, None), None),
+            CharType::Str       => (self.read_str(&mut next_cur, None),        Some(LexerState::ExprEnd)),
             CharType::Eof       => (self.read_eof(),                           None),
         };
         self.set_current_token(token);
