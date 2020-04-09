@@ -632,6 +632,7 @@ impl CodeGen {
                     "Bool" => self.i1_type.as_basic_type_enum(),
                     "Int" => self.i32_type.as_basic_type_enum(),
                     "Float" => self.f64_type.as_basic_type_enum(),
+                    "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
                     _ => self.sk_obj_llvm_type(ty)
                 }
             },
