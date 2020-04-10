@@ -52,7 +52,7 @@ impl<'a> HirMaker<'a> {
     /// Destructively convert self to Hir
     fn to_hir(&mut self,
            sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
-           mut main_exprs: HirExpressions) -> Hir {
+           main_exprs: HirExpressions) -> Hir {
         let sk_classes = self.extract_classes();
 
         // Extract data from self
@@ -63,16 +63,13 @@ impl<'a> HirMaker<'a> {
         let mut const_inits = vec![];
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
-        const_inits.append(&mut main_exprs.exprs);
         Hir {
             sk_classes,
             sk_methods,
             constants,
             str_literals,
-            main_exprs:  HirExpressions {
-                ty: main_exprs.ty,
-                exprs: const_inits,
-            }
+            const_inits,
+            main_exprs,
         }
     }
 
