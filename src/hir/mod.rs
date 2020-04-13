@@ -15,6 +15,7 @@ pub struct Hir {
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
+    pub const_inits: Vec<HirExpression>,
     pub main_exprs: HirExpressions,
 }
 impl Hir {
