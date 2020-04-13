@@ -57,6 +57,7 @@ impl CodeGen {
         self.gen_constant_ptrs(&hir.constants);
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
+        self.gen_const_inits(&hir.const_inits)?;
         self.gen_user_main(&hir.main_exprs)?;
         self.gen_main()?;
         Ok(())
@@ -132,7 +133,9 @@ impl CodeGen {
         // Create Void
         self.gen_void();
 
-        // Call user_main
+        // Call init_constants, user_main
+        let func = self.module.get_function("init_constants").unwrap();
+        self.builder.build_call(func, &[], "");
         let func = self.module.get_function("user_main").unwrap();
         self.builder.build_call(func, &[], "");
 
@@ -186,6 +189,21 @@ impl CodeGen {
                 None       => global.set_initializer(&null),
             }
         }
+    }
+
+    fn gen_const_inits(&self, const_inits: &Vec<HirExpression>) -> Result<(), Error> {
+        // define void @init_constants()
+        let fn_type = self.void_type.fn_type(&[], false);
+        let function = self.module.add_function("init_constants", fn_type, None);
+        let basic_block = self.context.append_basic_block(&function, "");
+        self.builder.position_at_end(&basic_block);
+
+        let mut ctx = CodeGenContext::new(function);
+        for expr in const_inits {
+            self.gen_expr(&mut ctx, &expr)?;
+        }
+        self.builder.build_return(None);
+        Ok(())
     }
 
     /// Create inkwell functions
