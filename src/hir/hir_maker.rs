@@ -2,6 +2,7 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::error;
 use crate::error::Error;
+use crate::hir;
 use crate::hir::*;
 use crate::hir::index::Index;
 use crate::hir::hir_maker_context::*;
@@ -154,6 +155,7 @@ impl<'a> HirMaker<'a> {
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
         let mut ctx = HirMakerContext::class_ctx(&fullname);
+        let mut initialize_params = &vec![];
 
         match defs.iter().find(|d| d.is_initializer()) {
             Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
@@ -161,8 +163,13 @@ impl<'a> HirMaker<'a> {
                 ctx.ivars = Rc::new(collect_ivars(&method));
                 self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
                 instance_methods.push(method);
+
+                initialize_params = &sig.params;
             },
-            _ => (),
+            _ => {
+                // TODO: it may inherit `initialize`
+                ()
+            }
         };
 
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
@@ -187,7 +194,7 @@ impl<'a> HirMaker<'a> {
             }
         })?;
 
-        class_methods.push(self.create_new(&fullname));
+        class_methods.push(self.create_new(&fullname, initialize_params));
         Ok((fullname, instance_methods, meta_name, class_methods))
     }
 
@@ -205,14 +212,16 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Create .new
-    fn create_new(&self, fullname: &ClassFullname) -> SkMethod {
+    fn create_new(&self,
+                  fullname: &ClassFullname,
+                  initialize_params: &Vec<ast::Param>) -> SkMethod {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname;
 
         SkMethod {
-            signature: signature_of_new(&meta_name, &instance_ty),
+            signature: hir::signature_of_new(&meta_name, initialize_params, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(move |code_gen, _| {
                     let addr = code_gen.allocate_sk_obj(&class_fullname, "obj");

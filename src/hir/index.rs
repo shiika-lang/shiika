@@ -118,7 +118,9 @@ impl Index {
             },
             None => {
                 // Add `.new` to the metaclass
-                let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
+                let new_sig = signature_of_new(&metaclass_fullname,
+                                               initializer_params(&defs).unwrap_or(&vec![]),
+                                               &instance_ty);
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(IdxClass {
                     fullname: class_fullname,
@@ -135,5 +137,17 @@ impl Index {
                 });
             }
         }
+    }
+}
+
+/// Return parameters of `initialize`
+fn initializer_params(defs: &Vec<ast::Definition>) -> Option<&Vec<ast::Param>> {
+    match defs.iter().find(|d| d.is_initializer()) {
+        Some(ast::Definition::InstanceMethodDefinition { sig, .. }) => {
+            Some(&sig.params)
+        },
+        // `initialize` takes no args
+        // TODO: may be inheriting superclass's initialize
+        _ => None
     }
 }
