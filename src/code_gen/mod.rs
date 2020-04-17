@@ -145,11 +145,28 @@ impl<'hir> CodeGen<'hir> {
 
     /// Create llvm struct types for Shiika objects
     fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
-        classes.values().for_each(|sk_class| {
+        // 1. Create struct type for each class
+        for (name, _sk_class) in classes {
             self.llvm_struct_types.insert(
-                sk_class.fullname.clone(),
-                self.llvm_struct_type(&sk_class.fullname.0, &sk_class.ivars));
-        })
+                name.clone(),
+                self.context.opaque_struct_type(&name.0)
+            );
+        }
+
+        // 2. Set ivars
+        for (name, sk_class) in classes {
+            let struct_type = self.llvm_struct_types.get(&name).unwrap();
+            struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
+        }
+    }
+
+    fn llvm_field_types(&self, ivars: &HashMap<String, SkIVar>) -> Vec<inkwell::types::BasicTypeEnum>
+    {
+        let mut values = ivars.values().collect::<Vec<_>>();
+        values.sort_by_key(|ivar| ivar.idx);
+        values.iter().map(|ivar| {
+            self.llvm_type(&ivar.ty)
+        }).collect::<Vec<_>>()
     }
 
     /// Generate llvm constants for string literals
@@ -606,21 +623,6 @@ impl<'hir> CodeGen<'hir> {
 
         // %foo = bitcast i8* %mem to %#{t}*",
         self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
-    }
-
-    fn llvm_struct_type(&self, name: &str, ivars: &HashMap<String, SkIVar>) -> inkwell::types::StructType {
-        let ret = self.context.opaque_struct_type(name);
-        ret.set_body(&self.llvm_field_types(ivars), false);
-        ret
-    }
-
-    fn llvm_field_types(&self, ivars: &HashMap<String, SkIVar>) -> Vec<inkwell::types::BasicTypeEnum>
-    {
-        let mut values = ivars.values().collect::<Vec<_>>();
-        values.sort_by_key(|ivar| ivar.idx);
-        values.iter().map(|ivar| {
-            self.llvm_type(&ivar.ty)
-        }).collect::<Vec<_>>()
     }
 
     fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
