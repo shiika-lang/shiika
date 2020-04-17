@@ -622,13 +622,7 @@ impl<'hir> CodeGen<'hir> {
 
     fn llvm_struct_type(&self, name: &str, ivars: &HashMap<String, SkIVar>) -> inkwell::types::StructType {
         let ret = self.context.opaque_struct_type(name);
-        if name == "String" {
-            // TODO: define as ivar
-            ret.set_body(&[self.i8ptr_type.into()], false);
-        }
-        else {
-            ret.set_body(&self.llvm_field_types(ivars), false);
-        }
+        ret.set_body(&self.llvm_field_types(ivars), false);
         ret
     }
 
