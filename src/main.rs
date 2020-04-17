@@ -23,8 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn compile(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let corelib = load_corelib()?;
-    let str = corelib + &fs::read_to_string(filepath)?;
+    let builtin = load_builtin()?;
+    let str = builtin + &fs::read_to_string(filepath)?;
     let ast = shiika::parser::Parser::parse(&str)?;
     let corelib = shiika::corelib::Corelib::create();
     let hir = shiika::hir::Hir::from_ast(ast, corelib)?;
@@ -34,9 +34,9 @@ fn compile(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn load_corelib() -> Result<String, Box<dyn std::error::Error>> {
+fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
-    for item in fs::read_dir("corelib")? {
+    for item in fs::read_dir("builtin")? {
         let pathbuf = item?.path();
         let path = pathbuf.to_str().expect("Filename not utf8");
         if path.ends_with(".sk") {
