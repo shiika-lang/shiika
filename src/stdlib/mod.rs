@@ -59,8 +59,7 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
                -> (HashMap<ClassFullname, SkClass>, HashMap<ClassFullname, Vec<SkMethod>>) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
-    for t in items.into_iter() {
-        let (name, imethods, cmethods, ivars) = t;
+    for (name, imethods, cmethods, ivars) in items {
         let super_name = if name == "Object" { None }
                          else { Some(ClassFullname("Object".to_string())) };
         sk_classes.insert(
@@ -88,16 +87,11 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
                 ).collect(),
             }
         );
-        sk_methods.insert(
-            ClassFullname(name.to_string()),
-            imethods.into_iter().chain(cmethods).collect()
-        );
+        sk_methods.insert(ClassFullname(name.to_string()), imethods);
+        sk_methods.insert(ClassFullname("Meta:".to_string() + name), cmethods);
     };
     (sk_classes, sk_methods)
 }
-
-//fn shiika_body_items() -> Vec<> {
-//}
 
 fn create_method(class_name: &str,
                       sig_str: &str,

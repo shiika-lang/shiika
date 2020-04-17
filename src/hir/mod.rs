@@ -358,10 +358,7 @@ pub fn create_signature(class_fullname: String, sig: &ast::AstMethodSignature) -
         first_name: sig.name.clone(),
     };
     let ret_ty = convert_typ(&sig.ret_typ);
-    let params = sig.params.iter().map(|param|
-        MethodParam { name: param.name.to_string(), ty: convert_typ(&param.typ) }
-    ).collect();
-
+    let params = convert_params(&sig.params);
     MethodSignature { fullname, ret_ty, params }
 }
 
@@ -369,14 +366,25 @@ fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
 }
 
+fn convert_params(params: &Vec<ast::Param>) -> Vec<MethodParam> {
+    params.iter().map(|param|
+        MethodParam {
+            name: param.name.to_string(),
+            ty: convert_typ(&param.typ),
+        }
+    ).collect()
+}
+
 /// Create a signature of `.new`
-fn signature_of_new(metaclass_fullname: &ClassFullname, instance_ty: &TermTy) -> MethodSignature {
+fn signature_of_new(metaclass_fullname: &ClassFullname,
+                    initialize_params: &Vec<ast::Param>,
+                    instance_ty: &TermTy) -> MethodSignature {
     MethodSignature {
         fullname: MethodFullname {
             full_name: metaclass_fullname.0.clone() + "#new",
             first_name: MethodFirstname("new".to_string()),
         },
         ret_ty: instance_ty.clone(),
-        params: vec![],
+        params: convert_params(initialize_params),
     }
 }

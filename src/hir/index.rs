@@ -92,6 +92,9 @@ impl Index {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
+        let new_sig = signature_of_new(&metaclass_fullname,
+                                       initializer_params(&defs).unwrap_or(&vec![]),
+                                       &instance_ty);
 
         defs.iter().for_each(|def| {
             match def {
@@ -115,10 +118,13 @@ impl Index {
                 let metaclass = self.classes.get_mut(&metaclass_fullname)
                     .expect("[BUG] Only class is indexed");
                 metaclass.method_sigs.extend(class_methods);
+                // Add `.new` to the metaclass
+                if !metaclass.method_sigs.contains_key(&MethodFirstname("new".to_string())) {
+                    metaclass.method_sigs.insert(new_sig.fullname.first_name.clone(), new_sig);
+                }
             },
             None => {
                 // Add `.new` to the metaclass
-                let new_sig = signature_of_new(&metaclass_fullname, &instance_ty);
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(IdxClass {
                     fullname: class_fullname,
@@ -135,5 +141,17 @@ impl Index {
                 });
             }
         }
+    }
+}
+
+/// Return parameters of `initialize`
+fn initializer_params(defs: &Vec<ast::Definition>) -> Option<&Vec<ast::Param>> {
+    match defs.iter().find(|d| d.is_initializer()) {
+        Some(ast::Definition::InstanceMethodDefinition { sig, .. }) => {
+            Some(&sig.params)
+        },
+        // `initialize` takes no args
+        // TODO: may be inheriting superclass's initialize
+        _ => None
     }
 }

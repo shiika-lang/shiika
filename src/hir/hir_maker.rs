@@ -2,6 +2,7 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::error;
 use crate::error::Error;
+use crate::hir;
 use crate::hir::*;
 use crate::hir::index::Index;
 use crate::hir::hir_maker_context::*;
@@ -22,9 +23,6 @@ pub struct HirMaker<'a> {
 
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
-        let mut constants = HashMap::new();
-        constants.insert(ConstFullname("::Void".to_string()), ty::raw("Void"));
-
         let mut class_ivars = HashMap::new();
         index.classes.iter().for_each(|(name, _)| {
             class_ivars.insert(name.clone(), Rc::new(HashMap::new()));
@@ -32,7 +30,7 @@ impl<'a> HirMaker<'a> {
 
         HirMaker {
             index: index,
-            constants: constants,
+            constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
             class_ivars: class_ivars,
@@ -41,7 +39,7 @@ impl<'a> HirMaker<'a> {
 
     pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
         let mut hir_maker = HirMaker::new(&index);
-
+        hir_maker.register_class_consts();
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
         let main_exprs =
@@ -93,6 +91,13 @@ impl<'a> HirMaker<'a> {
         sk_classes
     }
 
+    fn register_class_consts(&mut self) {
+        for (name, _idxclass) in &self.index.classes {
+            if !name.is_meta() {
+                self.register_class_const(&name);
+            }
+        }
+    }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
@@ -154,6 +159,7 @@ impl<'a> HirMaker<'a> {
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
         let mut ctx = HirMakerContext::class_ctx(&fullname);
+        let mut initialize_params = &vec![];
 
         match defs.iter().find(|d| d.is_initializer()) {
             Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
@@ -161,8 +167,13 @@ impl<'a> HirMaker<'a> {
                 ctx.ivars = Rc::new(collect_ivars(&method));
                 self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
                 instance_methods.push(method);
+
+                initialize_params = &sig.params;
             },
-            _ => (),
+            _ => {
+                // TODO: it may inherit `initialize`
+                ()
+            }
         };
 
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
@@ -187,7 +198,7 @@ impl<'a> HirMaker<'a> {
             }
         })?;
 
-        class_methods.push(self.create_new(&fullname));
+        class_methods.push(self.create_new(&fullname, initialize_params));
         Ok((fullname, instance_methods, meta_name, class_methods))
     }
 
@@ -205,17 +216,35 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Create .new
-    fn create_new(&self, fullname: &ClassFullname) -> SkMethod {
+    fn create_new(&self,
+                  fullname: &ClassFullname,
+                  initialize_params: &Vec<ast::Param>) -> SkMethod {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname;
+        let initialize_name = fullname.0.clone() + "#initialize";
+        let arity = initialize_params.len();
 
         SkMethod {
-            signature: signature_of_new(&meta_name, &instance_ty),
+            signature: hir::signature_of_new(&meta_name, initialize_params, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
-                boxed_gen: Box::new(move |code_gen, _| {
-                    let addr = code_gen.allocate_sk_obj(&class_fullname, "obj");
+                boxed_gen: Box::new(move |code_gen, function| {
+                    let addr = code_gen.allocate_sk_obj(&class_fullname, "addr");
+
+                    // Call initialize
+                    let initialize = code_gen.module.get_function(&initialize_name)
+                        .expect(&format!("[BUG] function `{}' not found", &initialize_name));
+                    let args = (0..=arity).map(|i| {
+                        if i == 0 {
+                            addr
+                        }
+                        else {
+                            function.get_params()[i]
+                        }
+                    }).collect::<Vec<_>>();
+                    code_gen.builder.build_call(initialize, &args, "");
+
                     code_gen.builder.build_return(Some(&addr));
                     Ok(())
                 })

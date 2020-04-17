@@ -13,7 +13,7 @@ use crate::hir::HirExpressionBase::*;
 use crate::names::*;
 use crate::code_gen::code_gen_context::*;
 
-pub struct CodeGen {
+pub struct CodeGen<'hir> {
     pub context: inkwell::context::Context,
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
@@ -25,12 +25,13 @@ pub struct CodeGen {
     pub f64_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    str_literals: &'hir Vec<String>,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum>,
 }
 
-impl CodeGen {
-    pub fn new() -> CodeGen {
+impl<'hir> CodeGen<'hir> {
+    pub fn new(hir: &'hir Hir) -> CodeGen<'hir> {
         let context = inkwell::context::Context::create();
         let module = context.create_module("main");
         let builder = context.create_builder();
@@ -46,11 +47,12 @@ impl CodeGen {
             f64_type: inkwell::types::FloatType::f64_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
+            str_literals: &hir.str_literals,
             the_main: None,
         }
     }
 
-    pub fn gen_program(&mut self, hir: Hir) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -130,9 +132,6 @@ impl CodeGen {
         let func = self.module.get_function("GC_init").unwrap();
         self.builder.build_call(func, &[], "");
 
-        // Create Void
-        self.gen_void();
-
         // Call init_constants, user_main
         let func = self.module.get_function("init_constants").unwrap();
         self.builder.build_call(func, &[], "");
@@ -142,15 +141,6 @@ impl CodeGen {
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
-    }
-
-    /// Create the Void object
-    fn gen_void(&mut self) {
-        let rhs = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "Void");
-        let ptr = self.module.get_global("::Void").
-            expect("[BUG] global for Constant `::Void' not created").
-            as_pointer_value();
-        self.builder.build_store(ptr, rhs);
     }
 
     /// Create llvm struct types for Shiika objects
@@ -211,7 +201,7 @@ impl CodeGen {
                         methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
-                let self_ty = ty::raw(&cname.0);
+                let self_ty = cname.to_ty();
                 let func_type = self.llvm_func_type(&self_ty, &method.signature);
                 self.module.add_function(&method.signature.fullname.full_name, func_type, None);
             })
@@ -564,14 +554,24 @@ impl CodeGen {
 
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
         let sk_str = self.allocate_sk_obj(&ClassFullname("String".to_string()), "str");
+
+        // Store ptr
         let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "")
+            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr")
         };
         let global = self.module.get_global(&format!("str_{}", idx)).
             expect(&format!("[BUG] global for str_{} not created", idx)).
             as_pointer_value();
         let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
         self.builder.build_store(loc, glob_i8);
+
+        // Store bytesize
+        let loc = unsafe {
+            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 1, "addr_@bytesize")
+        };
+        let bytesize = self.i32_type.const_int(self.str_literals[*idx].len() as u64, false);
+        self.builder.build_store(loc, bytesize);
+
         sk_str
     }
 
@@ -610,13 +610,7 @@ impl CodeGen {
 
     fn llvm_struct_type(&self, name: &str, ivars: &HashMap<String, SkIVar>) -> inkwell::types::StructType {
         let ret = self.context.opaque_struct_type(name);
-        if name == "String" {
-            // TODO: define as ivar
-            ret.set_body(&[self.i8ptr_type.into()], false);
-        }
-        else {
-            ret.set_body(&self.llvm_field_types(ivars), false);
-        }
+        ret.set_body(&self.llvm_field_types(ivars), false);
         ret
     }
 
