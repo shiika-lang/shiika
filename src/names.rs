@@ -28,6 +28,21 @@ impl ClassFullname {
     pub fn class_ty(&self) -> TermTy {
         ty::meta(&self.0)
     }
+
+    pub fn is_meta(&self) -> bool {
+        self.0.starts_with("Meta:")
+    }
+
+    pub fn to_ty(&self) -> TermTy {
+        if self.is_meta() {
+            let mut name = self.0.clone();
+            name.replace_range(0..=4, "");
+            ty::meta(&name)
+        }
+        else {
+            self.instance_ty()
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]

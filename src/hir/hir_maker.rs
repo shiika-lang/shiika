@@ -23,9 +23,6 @@ pub struct HirMaker<'a> {
 
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
-        let mut constants = HashMap::new();
-        constants.insert(ConstFullname("::Void".to_string()), ty::raw("Void"));
-
         let mut class_ivars = HashMap::new();
         index.classes.iter().for_each(|(name, _)| {
             class_ivars.insert(name.clone(), Rc::new(HashMap::new()));
@@ -33,7 +30,7 @@ impl<'a> HirMaker<'a> {
 
         HirMaker {
             index: index,
-            constants: constants,
+            constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
             class_ivars: class_ivars,
@@ -42,7 +39,7 @@ impl<'a> HirMaker<'a> {
 
     pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
         let mut hir_maker = HirMaker::new(&index);
-
+        hir_maker.register_class_consts();
         let sk_methods =
             hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
         let main_exprs =
@@ -94,6 +91,13 @@ impl<'a> HirMaker<'a> {
         sk_classes
     }
 
+    fn register_class_consts(&mut self) {
+        for (name, _idxclass) in &self.index.classes {
+            if !name.is_meta() {
+                self.register_class_const(&name);
+            }
+        }
+    }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {

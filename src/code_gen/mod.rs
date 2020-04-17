@@ -132,9 +132,6 @@ impl<'hir> CodeGen<'hir> {
         let func = self.module.get_function("GC_init").unwrap();
         self.builder.build_call(func, &[], "");
 
-        // Create Void
-        self.gen_void();
-
         // Call init_constants, user_main
         let func = self.module.get_function("init_constants").unwrap();
         self.builder.build_call(func, &[], "");
@@ -144,15 +141,6 @@ impl<'hir> CodeGen<'hir> {
         // ret i32 0
         self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
-    }
-
-    /// Create the Void object
-    fn gen_void(&mut self) {
-        let rhs = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "Void");
-        let ptr = self.module.get_global("::Void").
-            expect("[BUG] global for Constant `::Void' not created").
-            as_pointer_value();
-        self.builder.build_store(ptr, rhs);
     }
 
     /// Create llvm struct types for Shiika objects
@@ -213,7 +201,7 @@ impl<'hir> CodeGen<'hir> {
                         methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
-                let self_ty = ty::raw(&cname.0);
+                let self_ty = cname.to_ty();
                 let func_type = self.llvm_func_type(&self_ty, &method.signature);
                 self.module.add_function(&method.signature.fullname.full_name, func_type, None);
             })
