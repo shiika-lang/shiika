@@ -52,8 +52,8 @@ rule ".rs" => ".rs.erb" do |t|
 end
 
 LIBS = [
-  "src/stdlib/int.rs",
-  "src/stdlib/float.rs",
+  "src/corelib/int.rs",
+  "src/corelib/float.rs",
 ]
 
 task :build => LIBS do

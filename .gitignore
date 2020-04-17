@@ -4,5 +4,5 @@
 /examples/*.out
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
-/src/stdlib/int.rs
-/src/stdlib/float.rs
+/src/corelib/int.rs
+/src/corelib/float.rs
