@@ -7,7 +7,7 @@ use crate::ast;
 use crate::ty;
 use crate::ty::*;
 use crate::names::*;
-use crate::stdlib::Stdlib;
+use crate::corelib::Stdlib;
 
 #[derive(Debug)]
 pub struct Hir {

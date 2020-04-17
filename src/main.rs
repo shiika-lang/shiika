@@ -26,7 +26,7 @@ fn compile(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
     let corelib = load_corelib()?;
     let str = corelib + &fs::read_to_string(filepath)?;
     let ast = shiika::parser::Parser::parse(&str)?;
-    let stdlib = shiika::stdlib::Stdlib::create();
+    let stdlib = shiika::corelib::Stdlib::create();
     let hir = shiika::hir::Hir::from_ast(ast, stdlib)?;
     let mut code_gen = shiika::code_gen::CodeGen::new(&hir);
     code_gen.gen_program(&hir)?;
