@@ -88,10 +88,8 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
                 ).collect(),
             }
         );
-        sk_methods.insert(
-            ClassFullname(name.to_string()),
-            imethods.into_iter().chain(cmethods).collect()
-        );
+        sk_methods.insert(ClassFullname(name.to_string()), imethods);
+        sk_methods.insert(ClassFullname("Meta:".to_string() + name), cmethods);
     };
     (sk_classes, sk_methods)
 }
