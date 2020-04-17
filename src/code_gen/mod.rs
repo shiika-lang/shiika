@@ -13,7 +13,7 @@ use crate::hir::HirExpressionBase::*;
 use crate::names::*;
 use crate::code_gen::code_gen_context::*;
 
-pub struct CodeGen {
+pub struct CodeGen<'hir> {
     pub context: inkwell::context::Context,
     pub module: inkwell::module::Module,
     pub builder: inkwell::builder::Builder,
@@ -25,12 +25,13 @@ pub struct CodeGen {
     pub f64_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
     llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    str_literals: &'hir Vec<String>,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum>,
 }
 
-impl CodeGen {
-    pub fn new() -> CodeGen {
+impl<'hir> CodeGen<'hir> {
+    pub fn new(hir: &'hir Hir) -> CodeGen<'hir> {
         let context = inkwell::context::Context::create();
         let module = context.create_module("main");
         let builder = context.create_builder();
@@ -46,11 +47,12 @@ impl CodeGen {
             f64_type: inkwell::types::FloatType::f64_type(),
             void_type: inkwell::types::VoidType::void_type(),
             llvm_struct_types: HashMap::new(),
+            str_literals: &hir.str_literals,
             the_main: None,
         }
     }
 
-    pub fn gen_program(&mut self, hir: Hir) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -564,14 +566,24 @@ impl CodeGen {
 
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
         let sk_str = self.allocate_sk_obj(&ClassFullname("String".to_string()), "str");
+
+        // Store ptr
         let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "")
+            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr")
         };
         let global = self.module.get_global(&format!("str_{}", idx)).
             expect(&format!("[BUG] global for str_{} not created", idx)).
             as_pointer_value();
         let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
         self.builder.build_store(loc, glob_i8);
+
+        // Store bytesize
+        let loc = unsafe {
+            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 1, "addr_@bytesize")
+        };
+        let bytesize = self.i32_type.const_int(self.str_literals[*idx].len() as u64, false);
+        self.builder.build_store(loc, bytesize);
+
         sk_str
     }
 
