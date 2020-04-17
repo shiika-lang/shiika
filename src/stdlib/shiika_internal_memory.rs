@@ -14,7 +14,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
-    create_method("Shiika::Internal::Memory", "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr", |code_gen, function| {
+    create_method("Meta:Shiika::Internal::Memory", "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr", |code_gen, function| {
         let ptr = function.get_params()[1];
         let n_bytes = function.get_params()[2].into_int_value();
         let n_bytes_64 = code_gen.builder.build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
@@ -28,13 +28,13 @@ pub fn create_class_methods() -> Vec<SkMethod> {
 //    }),
 //
 //
-    create_method("Shiika::Internal::Memory", "memcpy(src: Shiika::Internal::Ptr, dst: Shiika::Internal::Ptr, n_bytes: Int) -> Void", |code_gen, function| {
-        let src = function.get_params()[1];
-        let dst = function.get_params()[2];
+    create_method("Meta:Shiika::Internal::Memory", "memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void", |code_gen, function| {
+        let dst = function.get_params()[1];
+        let src = function.get_params()[2];
         let n_bytes = function.get_params()[3].into_int_value();
         let n_bytes_64 = code_gen.builder.build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
         let func = code_gen.module.get_function("llvm.memcpy.p0i8.p0i8.i64").unwrap();
-        code_gen.builder.build_call(func, &[src.into(), dst.into(), n_bytes_64.into(),
+        code_gen.builder.build_call(func, &[dst.into(), src.into(), n_bytes_64.into(),
         code_gen.i32_type.const_int(0, false).into(),
         code_gen.i1_type.const_int(0, false).into(),
         ], "mem");
