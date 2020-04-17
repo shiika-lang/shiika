@@ -58,8 +58,8 @@ impl Index {
         self.classes.insert(class.fullname.clone(), class);
     }
 
-    pub fn index_stdlib(&mut self, stdlib_classes: HashMap<ClassFullname, SkClass>) {
-        stdlib_classes.into_iter().for_each(|(_, c)| {
+    pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
+        corelib.into_iter().for_each(|(_, c)| {
             self.add_class(IdxClass {
                 fullname: c.fullname,
                 superclass_fullname: c.superclass_fullname,

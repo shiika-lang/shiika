@@ -19,15 +19,15 @@ pub struct Hir {
     pub main_exprs: HirExpressions,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: Corelib) -> Result<Hir, crate::error::Error> {
+    pub fn from_ast(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
         let mut index = index::Index::new();
-        index.index_stdlib(stdlib.sk_classes);
+        index.index_corelib(corelib.sk_classes);
         index.index_program(&ast.toplevel_defs)?;
         let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
 
-        // While stdlib classes are included in `index`,
-        // stdlib methods are not. Here we need to add them manually
-        hir.add_methods(stdlib.sk_methods);
+        // While corelib classes are included in `index`,
+        // corelib methods are not. Here we need to add them manually
+        hir.add_methods(corelib.sk_methods);
 
         Ok(hir)
     }
