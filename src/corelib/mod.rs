@@ -14,24 +14,24 @@ use crate::names::*;
 use crate::ty;
 use crate::hir::*;
 
-pub struct Stdlib {
+pub struct Corelib {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
 }
 
-impl Stdlib {
-    /// Create empty Stdlib (for tests)
-    pub fn empty() -> Stdlib {
-        Stdlib { 
+impl Corelib {
+    /// Create empty Corelib (for tests)
+    pub fn empty() -> Corelib {
+        Corelib { 
             sk_classes: HashMap::new(),
             sk_methods: HashMap::new(),
         }
     }
 
-    pub fn create() -> Stdlib {
+    pub fn create() -> Corelib {
         let items = rust_body_items();
         let (sk_classes, sk_methods) = make_classes(items);
-        Stdlib { sk_classes, sk_methods }
+        Corelib { sk_classes, sk_methods }
     }
 }
 

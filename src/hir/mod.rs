@@ -7,7 +7,7 @@ use crate::ast;
 use crate::ty;
 use crate::ty::*;
 use crate::names::*;
-use crate::corelib::Stdlib;
+use crate::corelib::Corelib;
 
 #[derive(Debug)]
 pub struct Hir {
@@ -19,7 +19,7 @@ pub struct Hir {
     pub main_exprs: HirExpressions,
 }
 impl Hir {
-    pub fn from_ast(ast: ast::Program, stdlib: Stdlib) -> Result<Hir, crate::error::Error> {
+    pub fn from_ast(ast: ast::Program, stdlib: Corelib) -> Result<Hir, crate::error::Error> {
         let mut index = index::Index::new();
         index.index_stdlib(stdlib.sk_classes);
         index.index_program(&ast.toplevel_defs)?;
