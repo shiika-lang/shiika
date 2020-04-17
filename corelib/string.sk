@@ -1,0 +1,22 @@
+class String
+  def initialize(ptr: Shiika::Internal::Ptr, bytesize: Int)
+    @ptr = ptr
+    # Number of bytes of the content (does not include the last null)
+    @bytesize = bytesize
+  end
+
+  def ptr -> Shiika::Internal::Ptr
+    @ptr
+  end
+
+  def bytesize -> Int
+    @bytesize
+  end
+
+  def +(other: String) -> String
+    ret = MutableString.new(self.bytesize + other.bytesize)
+    ret.append(self)
+    ret.append(other)
+    ret._unsafe_to_s
+  end
+end

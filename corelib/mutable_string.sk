@@ -1,0 +1,40 @@
+class MutableString
+  # capa: Maximum number of bytes (does not included the last null)
+  def initialize(capa: Int)
+    @ptr = Shiika::Internal::Memory.gc_malloc(capa+1)
+    @capa = capa
+    @bytesize = 0
+  end
+
+  def ptr -> Shiika::Internal::Ptr
+    @ptr
+  end
+
+  def bytesize -> Int
+    @bytesize
+  end
+
+  def append(other: String) -> Void
+    new_bytesize = @bytesize + other.bytesize
+    if @capa < new_bytesize
+      @ptr = Shiika::Internal::Memory.gc_realloc(@ptr, new_bytesize+1)
+      @capa = new_bytesize
+    end
+    Shiika::Internal::Memory.memcpy(@ptr + @bytesize, other.ptr, other.bytesize)
+    @bytesize = new_bytesize
+  end
+
+  # Create a immutable clone of self. The contents of the returned string will not change
+  # even if this object is dectructively modified.
+  def to_s -> String
+    newptr = Shiika::Internal::Memory.gc_malloc(@bytesize + 1)
+    Shiika::Internal::Memory.memcpy(newptr, @ptr, @bytesize)
+    String.new(newptr, @bytesize)
+  end
+
+  # Create a immutable version of self without copying memory.
+  # Unsafe unless the original immediately gets GC'd
+  def _unsafe_to_s -> String
+    String.new(@ptr, @bytesize)
+  end
+end
