@@ -219,12 +219,28 @@ impl<'a> HirMaker<'a> {
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname;
+        let initialize_name = fullname.0.clone() + "#initialize";
+        let arity = initialize_params.len();
 
         SkMethod {
             signature: hir::signature_of_new(&meta_name, initialize_params, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
-                boxed_gen: Box::new(move |code_gen, _| {
-                    let addr = code_gen.allocate_sk_obj(&class_fullname, "obj");
+                boxed_gen: Box::new(move |code_gen, function| {
+                    let addr = code_gen.allocate_sk_obj(&class_fullname, "addr");
+
+                    // Call initialize
+                    let initialize = code_gen.module.get_function(&initialize_name)
+                        .expect(&format!("[BUG] function `{}' not found", &initialize_name));
+                    let args = (0..=arity).map(|i| {
+                        if i == 0 {
+                            addr
+                        }
+                        else {
+                            function.get_params()[i]
+                        }
+                    }).collect::<Vec<_>>();
+                    code_gen.builder.build_call(initialize, &args, "");
+
                     code_gen.builder.build_return(Some(&addr));
                     Ok(())
                 })
