@@ -92,6 +92,9 @@ impl Index {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
+        let new_sig = signature_of_new(&metaclass_fullname,
+                                       initializer_params(&defs).unwrap_or(&vec![]),
+                                       &instance_ty);
 
         defs.iter().for_each(|def| {
             match def {
@@ -115,12 +118,13 @@ impl Index {
                 let metaclass = self.classes.get_mut(&metaclass_fullname)
                     .expect("[BUG] Only class is indexed");
                 metaclass.method_sigs.extend(class_methods);
+                // Add `.new` to the metaclass
+                if !metaclass.method_sigs.contains_key(&MethodFirstname("new".to_string())) {
+                    metaclass.method_sigs.insert(new_sig.fullname.first_name.clone(), new_sig);
+                }
             },
             None => {
                 // Add `.new` to the metaclass
-                let new_sig = signature_of_new(&metaclass_fullname,
-                                               initializer_params(&defs).unwrap_or(&vec![]),
-                                               &instance_ty);
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(IdxClass {
                     fullname: class_fullname,
