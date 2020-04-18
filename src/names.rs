@@ -43,6 +43,10 @@ impl ClassFullname {
             self.instance_ty()
         }
     }
+
+    pub fn meta_name(&self) -> ClassFullname {
+        ClassFullname("Meta:".to_string() + &self.0)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]

@@ -194,6 +194,7 @@ pub enum HirExpressionBase {
     /// is never be shadowed)
     HirClassLiteral {
         fullname: ClassFullname,
+        str_literal_idx: usize,
     },
 }
 
@@ -343,10 +344,10 @@ impl Hir {
         }
     }
 
-    pub fn class_literal(fullname: ClassFullname) -> HirExpression {
+    pub fn class_literal(fullname: ClassFullname, str_literal_idx: usize) -> HirExpression {
         HirExpression {
             ty: ty::meta(&fullname.0),
-            node: HirExpressionBase::HirClassLiteral { fullname }
+            node: HirExpressionBase::HirClassLiteral { fullname, str_literal_idx }
         }
     }
 }

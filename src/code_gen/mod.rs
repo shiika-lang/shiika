@@ -6,7 +6,6 @@ use inkwell::values::*;
 use inkwell::types::*;
 use crate::error;
 use crate::error::Error;
-use crate::ty;
 use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
@@ -351,8 +350,8 @@ impl<'hir> CodeGen<'hir> {
             HirBitCast { expr: target } => {
                 self.gen_bitcast(ctx, target, &expr.ty)
             },
-            HirClassLiteral { fullname } => {
-                Ok(self.gen_class_literal(fullname))
+            HirClassLiteral { fullname, str_literal_idx } => {
+                Ok(self.gen_class_literal(fullname, str_literal_idx))
             }
 //            _ => {
 //                panic!("TODO: {:?}", expr.node) 
@@ -605,9 +604,17 @@ impl<'hir> CodeGen<'hir> {
         Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
     }
 
-    fn gen_class_literal(&self, fullname: &ClassFullname) -> inkwell::values::BasicValueEnum {
-        self.allocate_sk_obj(&ty::meta(&fullname.0).fullname, 
-                             &format!("class_{}", fullname.0))
+    fn gen_class_literal(&self, fullname: &ClassFullname, str_literal_idx: &usize) -> inkwell::values::BasicValueEnum {
+        let cls_obj = self.allocate_sk_obj(&fullname.meta_name(),
+                                           &format!("class_{}", fullname.0));
+        // Set @name
+        let ptr = unsafe {
+            self.builder.build_struct_gep(*cls_obj.as_pointer_value(), 0, &fullname.0)
+        };
+        let value = self.gen_string_literal(str_literal_idx);
+        self.builder.build_store(ptr, value);
+
+        cls_obj
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object

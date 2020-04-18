@@ -210,8 +210,10 @@ impl<'a> HirMaker<'a> {
 
         // eg. Constant `A` holds the class A
         self.constants.insert(const_name.clone(), class_ty.clone());
+        // eg. "A"
+        let idx = self.register_string_literal(&fullname.0);
         // eg. A = Meta:A.new
-        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone()));
+        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone(), idx));
         self.const_inits.push(op);
     }
 
@@ -617,9 +619,14 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
+        let idx = self.register_string_literal(content);
+        Ok(Hir::string_literal(idx))
+    }
+
+    fn register_string_literal(&mut self, content: &str) -> usize {
         let idx = self.str_literals.len();
         self.str_literals.push(content.to_string());
-        Ok(Hir::string_literal(idx))
+        idx
     }
 }
 
