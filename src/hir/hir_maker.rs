@@ -21,30 +21,35 @@ pub struct HirMaker<'a> {
     class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
 }
 
+pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
+    let mut hir_maker = HirMaker::new(&index);
+    hir_maker.init_class_ivars();
+    hir_maker.register_class_consts();
+    let sk_methods =
+        hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
+    let main_exprs =
+        hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
+    Ok(hir_maker.to_hir(sk_methods, main_exprs))
+}
+
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
-        let mut class_ivars = HashMap::new();
-        index.classes.iter().for_each(|(name, _)| {
-            class_ivars.insert(name.clone(), Rc::new(HashMap::new()));
-        });
-
         HirMaker {
             index: index,
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            class_ivars: class_ivars,
+            class_ivars: HashMap::new(),
         }
     }
 
-    pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
-        let mut hir_maker = HirMaker::new(&index);
-        hir_maker.register_class_consts();
-        let sk_methods =
-            hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-        let main_exprs =
-            hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
-        Ok(hir_maker.to_hir(sk_methods, main_exprs))
+    fn init_class_ivars(&mut self) {
+        for (name, idx_class) in self.index.classes.iter() {
+            self.class_ivars.insert(
+                name.clone(),
+                Rc::clone(&idx_class.ivars),
+            );
+        }
     }
 
     /// Destructively convert self to Hir
@@ -78,7 +83,8 @@ impl<'a> HirMaker<'a> {
 
         let mut sk_classes = HashMap::new();
         self.index.classes.iter().for_each(|(name, c)| {
-            let ivars = self.class_ivars.get(name).expect(&format!("[BUG] ivars for class {} not found", name));
+            let ivars = self.class_ivars.get(name)
+                .expect(&format!("[BUG] ivars for class {} not found", name));
             // PERF: How to avoid these clone's? Use Rc?
             sk_classes.insert(name.clone(), SkClass {
                 fullname: c.fullname.clone(),
@@ -154,7 +160,7 @@ impl<'a> HirMaker<'a> {
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname.clone();
 
-        self.register_class_const(&fullname);
+        self.register_meta_ivar(&fullname);
 
         let mut instance_methods = vec![];
         let mut class_methods = vec![];
@@ -210,9 +216,23 @@ impl<'a> HirMaker<'a> {
 
         // eg. Constant `A` holds the class A
         self.constants.insert(const_name.clone(), class_ty.clone());
+        // eg. "A"
+        let idx = self.register_string_literal(&fullname.0);
         // eg. A = Meta:A.new
-        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone()));
+        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone(), idx));
         self.const_inits.push(op);
+    }
+
+    fn register_meta_ivar(&mut self, name: &ClassFullname) {
+        let meta_name = name.meta_name();
+        let mut meta_ivars = HashMap::new();
+        meta_ivars.insert("@name".to_string(), SkIVar {
+            name: "@name".to_string(),
+            idx: 0,
+            ty: ty::raw("String"),
+            readonly: true,
+        });
+        self.class_ivars.insert(meta_name, Rc::new(meta_ivars));
     }
 
     /// Create .new
@@ -617,9 +637,14 @@ impl<'a> HirMaker<'a> {
     }
 
     fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
+        let idx = self.register_string_literal(content);
+        Ok(Hir::string_literal(idx))
+    }
+
+    fn register_string_literal(&mut self, content: &str) -> usize {
         let idx = self.str_literals.len();
         self.str_literals.push(content.to_string());
-        Ok(Hir::string_literal(idx))
+        idx
     }
 }
 

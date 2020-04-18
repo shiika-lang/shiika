@@ -23,7 +23,7 @@ impl Hir {
         let mut index = index::Index::new();
         index.index_corelib(corelib.sk_classes);
         index.index_program(&ast.toplevel_defs)?;
-        let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
+        let mut hir = hir_maker::convert_program(index, ast)?;
 
         // While corelib classes are included in `index`,
         // corelib methods are not. Here we need to add them manually
@@ -194,6 +194,7 @@ pub enum HirExpressionBase {
     /// is never be shadowed)
     HirClassLiteral {
         fullname: ClassFullname,
+        str_literal_idx: usize,
     },
 }
 
@@ -343,10 +344,10 @@ impl Hir {
         }
     }
 
-    pub fn class_literal(fullname: ClassFullname) -> HirExpression {
+    pub fn class_literal(fullname: ClassFullname, str_literal_idx: usize) -> HirExpression {
         HirExpression {
             ty: ty::meta(&fullname.0),
-            node: HirExpressionBase::HirClassLiteral { fullname }
+            node: HirExpressionBase::HirClassLiteral { fullname, str_literal_idx }
         }
     }
 }
