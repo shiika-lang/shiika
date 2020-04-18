@@ -160,7 +160,6 @@ impl<'a> HirMaker<'a> {
         let class_ty = instance_ty.meta_ty();
         let meta_name = class_ty.fullname.clone();
 
-        self.register_class_const(&fullname);
         self.register_meta_ivar(&fullname);
 
         let mut instance_methods = vec![];
