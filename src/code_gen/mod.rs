@@ -23,7 +23,7 @@ pub struct CodeGen<'hir> {
     pub i64_type: inkwell::types::IntType,
     pub f64_type: inkwell::types::FloatType,
     pub void_type: inkwell::types::VoidType,
-    llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
     str_literals: &'hir Vec<String>,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum>,

@@ -132,7 +132,7 @@ impl Index {
                 });
                 self.add_class(IdxClass {
                     fullname: metaclass_fullname,
-                    superclass_fullname: Some(ClassFullname("Object".to_string())),
+                    superclass_fullname: Some(ClassFullname("Class".to_string())),
                     instance_ty: class_ty,
                     ivars: Rc::new(HashMap::new()),
                     method_sigs: class_methods,

@@ -70,6 +70,14 @@ pub struct MethodFullname {
     pub first_name: MethodFirstname,
 }
 
+pub fn method_fullname(class_name: &ClassFullname,
+                       first_name: &str) -> MethodFullname {
+    MethodFullname {
+        full_name: class_name.0.clone() + "#" + first_name,
+        first_name: MethodFirstname(first_name.to_string()),
+    }
+}
+
 impl std::fmt::Display for MethodFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.full_name)

@@ -1,11 +1,13 @@
 use std::rc::Rc;
 use crate::ast::*;
+use crate::code_gen::CodeGen;
 use crate::error;
 use crate::error::Error;
 use crate::hir;
 use crate::hir::*;
 use crate::hir::index::Index;
 use crate::hir::hir_maker_context::*;
+use crate::names;
 use crate::type_checking;
 use crate::parser::token::Token;
 
@@ -204,7 +206,7 @@ impl<'a> HirMaker<'a> {
             }
         })?;
 
-        class_methods.push(self.create_new(&fullname, initialize_params));
+        class_methods.push(self.create_new(&fullname, initialize_params)?);
         Ok((fullname, instance_methods, meta_name, class_methods))
     }
 
@@ -238,38 +240,52 @@ impl<'a> HirMaker<'a> {
     /// Create .new
     fn create_new(&self,
                   fullname: &ClassFullname,
-                  initialize_params: &Vec<ast::Param>) -> SkMethod {
+                  initialize_params: &Vec<ast::Param>) -> Result<SkMethod, Error> {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
-        let class_ty = instance_ty.meta_ty();
-        let meta_name = class_ty.fullname;
-        let initialize_name = fullname.0.clone() + "#initialize";
+        let meta_name = class_fullname.meta_name();
+        let (initialize_name, init_cls_name) = self.find_initialize(&fullname)?;
+        let need_bitcast = init_cls_name != *fullname;
         let arity = initialize_params.len();
 
-        SkMethod {
+        let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
+            // Allocate memory 
+            let obj = code_gen.allocate_sk_obj(&class_fullname, "addr");
+
+            // Call initialize
+            let initialize = code_gen.module.get_function(&initialize_name.full_name)
+                .expect(&format!("[BUG] function `{}' not found", &initialize_name));
+            let mut addr = obj;
+            if need_bitcast {
+                let ances_type = code_gen.llvm_struct_types.get(&init_cls_name)
+                    .expect("ances_type not found")
+                    .ptr_type(inkwell::AddressSpace::Generic);
+                addr = code_gen.builder.build_bitcast(addr, ances_type, "obj_as_super");
+            }
+            let args = (0..=arity).map(|i| {
+                if i == 0 { addr }
+                else { function.get_params()[i] }
+            }).collect::<Vec<_>>();
+            code_gen.builder.build_call(initialize, &args, "");
+
+            code_gen.builder.build_return(Some(&obj));
+            Ok(())
+        };
+
+        Ok(SkMethod {
             signature: hir::signature_of_new(&meta_name, initialize_params, &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
-                boxed_gen: Box::new(move |code_gen, function| {
-                    let addr = code_gen.allocate_sk_obj(&class_fullname, "addr");
-
-                    // Call initialize
-                    let initialize = code_gen.module.get_function(&initialize_name)
-                        .expect(&format!("[BUG] function `{}' not found", &initialize_name));
-                    let args = (0..=arity).map(|i| {
-                        if i == 0 {
-                            addr
-                        }
-                        else {
-                            function.get_params()[i]
-                        }
-                    }).collect::<Vec<_>>();
-                    code_gen.builder.build_call(initialize, &args, "");
-
-                    code_gen.builder.build_return(Some(&addr));
-                    Ok(())
-                })
+                boxed_gen: Box::new(new_body),
             }
-        }
+        })
+    }
+
+    fn find_initialize(&self, class_fullname: &ClassFullname)
+                       -> Result<(MethodFullname, ClassFullname), Error> {
+        let (_sig, found_cls) =
+            self.lookup_method(&class_fullname, &class_fullname, 
+                               &MethodFirstname("initialize".to_string()))?;
+        Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
     /// Register a constant
