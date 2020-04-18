@@ -22,13 +22,8 @@ pub struct IdxClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
+    pub ivars: Rc<HashMap<String, SkIVar>>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct IdxIVar {
-    idx: usize,
-    name: String,
 }
 
 impl Index {
@@ -64,6 +59,7 @@ impl Index {
                 fullname: c.fullname,
                 superclass_fullname: c.superclass_fullname,
                 instance_ty: c.instance_ty,
+                ivars: c.ivars,
                 method_sigs: c.method_sigs
             })
         });
@@ -131,12 +127,14 @@ impl Index {
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(ClassFullname("Object".to_string())) },
                     instance_ty: instance_ty,
+                    ivars: Rc::new(HashMap::new()),
                     method_sigs: instance_methods,
                 });
                 self.add_class(IdxClass {
                     fullname: metaclass_fullname,
                     superclass_fullname: Some(ClassFullname("Object".to_string())),
                     instance_ty: class_ty,
+                    ivars: Rc::new(HashMap::new()),
                     method_sigs: class_methods,
                 });
             }

@@ -75,18 +75,26 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
             }
         );
 
+        let mut meta_ivars = HashMap::new();
+        meta_ivars.insert("@name".to_string(), SkIVar {
+            name: "@name".to_string(),
+            idx: 0,
+            ty: ty::raw("String"),
+            readonly: true,
+        });
         sk_classes.insert(
             ClassFullname("Meta:".to_string() + name),
             SkClass {
                 fullname: ClassFullname("Meta:".to_string() + name),
                 superclass_fullname: Some(ClassFullname("Class".to_string())),
                 instance_ty: ty::meta(name),
-                ivars: Rc::new(HashMap::new()),
+                ivars: Rc::new(meta_ivars),
                 method_sigs: cmethods.iter().map(|x|
                     (x.signature.first_name().clone(), x.signature.clone())
                 ).collect(),
             }
         );
+
         sk_methods.insert(ClassFullname(name.to_string()), imethods);
         sk_methods.insert(ClassFullname("Meta:".to_string() + name), cmethods);
     };

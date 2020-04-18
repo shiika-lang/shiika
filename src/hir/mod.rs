@@ -23,7 +23,7 @@ impl Hir {
         let mut index = index::Index::new();
         index.index_corelib(corelib.sk_classes);
         index.index_program(&ast.toplevel_defs)?;
-        let mut hir = hir_maker::HirMaker::convert_program(index, ast)?;
+        let mut hir = hir_maker::convert_program(index, ast)?;
 
         // While corelib classes are included in `index`,
         // corelib methods are not. Here we need to add them manually
