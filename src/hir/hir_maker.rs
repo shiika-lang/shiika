@@ -68,6 +68,9 @@ impl<'a> HirMaker<'a> {
         let mut const_inits = vec![];
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
+        // Register void
+        constants.insert(ConstFullname("::void".to_string()), ty::raw("Void"));
+
         Hir {
             sk_classes,
             sk_methods,

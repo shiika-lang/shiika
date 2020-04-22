@@ -208,6 +208,12 @@ impl<'hir> CodeGen<'hir> {
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
+
+        // Generate void
+        let ptr = self.module.get_global(&"::void").unwrap().as_pointer_value();
+        let value = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "void_obj");
+        self.builder.build_store(ptr, value);
+
         self.builder.build_return(None);
         Ok(())
     }
@@ -511,8 +517,7 @@ impl<'hir> CodeGen<'hir> {
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
             None => {
-                // Dummy value (TODO: replace with special value?)
-                Ok(self.gen_decimal_literal(42))
+                self.gen_const_ref(&ConstFullname("::void".to_string()))
             }
         }
     }
