@@ -105,6 +105,14 @@ pub fn create_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
+    create_method("Int", "-@ -> Int", |code_gen, function| {
+        let this = function.get_params()[0].into_int_value();
+        let zero = code_gen.i32_type.const_int(0, false);
+        let result = code_gen.builder.build_int_sub(zero, this, "result");
+        code_gen.builder.build_return(Some(&result));
+        Ok(())
+    }),
+
     ]
 }
 
