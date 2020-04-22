@@ -18,6 +18,15 @@ pub fn check_return_value(sig: &MethodSignature, ty: &TermTy) -> Result<(), Erro
     }
 }
 
+pub fn check_logical_operator_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
+    if *ty == ty::raw("Bool") {
+        Ok(())
+    }
+    else {
+        Err(type_error!("{} must be bool but got {:?}", on, ty.fullname))
+    }
+}
+
 pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     if *ty == ty::raw("Bool") {
         Ok(())

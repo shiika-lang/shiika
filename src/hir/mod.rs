@@ -129,6 +129,17 @@ pub struct HirExpression {
 
 #[derive(Debug, PartialEq)]
 pub enum HirExpressionBase {
+    HirLogicalNot {
+        expr: Box<HirExpression>,
+    },
+    HirLogicalAnd {
+        left: Box<HirExpression>,
+        right: Box<HirExpression>,
+    },
+    HirLogicalOr {
+        left: Box<HirExpression>,
+        right: Box<HirExpression>,
+    },
     HirIfExpression {
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
@@ -199,6 +210,37 @@ pub enum HirExpressionBase {
 }
 
 impl Hir {
+    pub fn logical_not(expr_hir: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Bool"),
+            node: HirExpressionBase::HirLogicalNot {
+                expr: Box::new(expr_hir),
+            }
+        }
+    }
+
+    pub fn logical_and(left_hir: HirExpression,
+                       right_hir: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Bool"),
+            node: HirExpressionBase::HirLogicalAnd {
+                left: Box::new(left_hir),
+                right: Box::new(right_hir),
+            }
+        }
+    }
+
+    pub fn logical_or(left_hir: HirExpression,
+                      right_hir: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Bool"),
+            node: HirExpressionBase::HirLogicalOr {
+                left: Box::new(left_hir),
+                right: Box::new(right_hir),
+            }
+        }
+    }
+
     pub fn if_expression(ty: TermTy,
                          cond_hir: HirExpression,
                          then_hir: HirExpressions,
