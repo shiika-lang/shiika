@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::hir;
 use crate::ty;
 use crate::ty::*;
 
@@ -45,9 +46,15 @@ pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Resu
     }
 }
 
-pub fn check_method_args(sig: &MethodSignature, arg_tys: &Vec<&TermTy>) -> Result<(), Error> {
+pub fn check_method_args(sig: &MethodSignature,
+                         arg_tys: &Vec<&TermTy>,
+                         receiver_hir: &hir::HirExpression,
+                         arg_hirs: &Vec<hir::HirExpression>) -> Result<(), Error> {
     if sig.params.len() != arg_tys.len() {
-        return Err(type_error!("{} takes {} args but got {}", sig.fullname, sig.params.len(), arg_tys.len()));
+        return Err(type_error!("{} takes {} args but got {} (receiver: {:?}, args: {:?})",
+                               sig.fullname, sig.params.len(), arg_tys.len(),
+                               receiver_hir, arg_hirs))
+
     }
 
     sig.params.iter().zip(arg_tys.iter()).try_for_each(|(param, arg_ty)| {
@@ -55,8 +62,9 @@ pub fn check_method_args(sig: &MethodSignature, arg_tys: &Vec<&TermTy>) -> Resul
             Ok(())
         }
         else {
-            Err(type_error!("{} takes {} but got {}",
-                            sig.fullname, param.ty.fullname, arg_ty.fullname))
+            Err(type_error!("{} takes {} but got {} (receiver: {:?}, args: {:?})",
+                            sig.fullname, param.ty.fullname, arg_ty.fullname,
+                            receiver_hir, arg_hirs))
         }
     })?;
 

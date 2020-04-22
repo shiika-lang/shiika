@@ -580,7 +580,8 @@ impl<'a> HirMaker<'a> {
         let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
-        type_checking::check_method_args(&sig, &param_tys)?;
+        type_checking::check_method_args(&sig, &param_tys,
+                                         &receiver_hir, &arg_hirs)?;
 
         let receiver = 
             if &found_class_name != class_fullname {
