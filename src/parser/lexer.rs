@@ -102,10 +102,14 @@ enum CharType {
 impl<'a> Lexer<'a> {
     /// Create lexer and get the first token
     pub fn new(src: &str) -> Lexer {
+        Lexer::new_with_state(src, LexerState::ExprBegin)
+    }
+
+    pub fn new_with_state(src: &str, state: LexerState) -> Lexer {
         let mut lexer = Lexer {
             src: src,
             cur: Cursor::new(),
-            state: LexerState::ExprBegin,
+            state: state,
             space_seen: false,
             next_cur: None,
             current_token: Token::Bof,

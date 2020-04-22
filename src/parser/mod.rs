@@ -18,6 +18,7 @@ mod expression_parser;
 use crate::ast;
 use crate::error::Error;
 use crate::parser::lexer::Lexer;
+use crate::parser::lexer::LexerState;
 pub use crate::parser::token::Token;
 
 pub struct Parser<'a> {
@@ -30,6 +31,13 @@ impl<'a> Parser<'a> {
     pub fn new(src: &str) -> Parser {
         Parser {
             lexer: Lexer::new(src),
+            lv: 0,
+        }
+    }
+
+    pub fn new_with_state(src: &str, state: LexerState) -> Parser {
+        Parser {
+            lexer: Lexer::new_with_state(src, state),
             lv: 0,
         }
     }
