@@ -46,6 +46,8 @@ pub enum Token {
     Xor,          //  ^
     LShift,       //  <<
     RShift,       //  >>
+    UPlusMethod,  //  +@
+    UMinusMethod, //  -@
     // Keywords
     KwClass,
     KwEnd,
@@ -121,6 +123,8 @@ impl Token {
             Token::Xor => false,       //  ^
             Token::LShift => false,    //  <<
             Token::RShift => false,    //  >>
+            Token::UPlusMethod => false,  //  +@
+            Token::UMinusMethod => false, //  -@
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,

@@ -62,6 +62,7 @@ impl<'a> Parser<'a> {
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
         self.debug_log("parse_method_definition"); self.lv += 1;
         // `def'
+        self.set_lexer_state(LexerState::MethodName);
         assert!(self.consume(Token::KwDef));
         self.skip_ws();
 
@@ -96,10 +97,13 @@ impl<'a> Parser<'a> {
 
         // `self.` (Optional)
         if self.consume(Token::KwSelf) {
-            if self.consume(Token::Dot) {
+            if self.current_token_is(Token::Dot) {
                 is_class_method = true;
+                self.set_lexer_state(LexerState::MethodName);
+                self.consume_token();
             }
             else {
+                // Defining a method named `self` :thinking_face:
                 name = Some(MethodFirstname("self".to_string()));
             }
         }
@@ -136,12 +140,13 @@ impl<'a> Parser<'a> {
         Ok((sig, is_class_method))
     }
 
-    fn get_method_name(&self) -> Result<&str, Error> {
+    fn get_method_name(&mut self) -> Result<&str, Error> {
         let name = match self.current_token() {
             Token::LowerWord(s) => { s },
-            // TODO: `+@`, `-@`
-            Token::UnaryPlus => { "+" },
-            Token::UnaryMinus => { "-" },
+            Token::UPlusMethod => { "+@" },
+            Token::UMinusMethod => { "-@" },
+            Token::BinaryPlus => { "+" },
+            Token::BinaryMinus => { "-" },
             Token::Mul => { "*" },
             Token::Div => { "/" },
             Token::Mod => { "%" },
