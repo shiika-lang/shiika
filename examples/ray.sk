@@ -152,11 +152,11 @@ class Plane
   end
 end
 
-PLANE = Plane.new(Vec.new(0, -1, 0), Vec.new(0, 1, 0), Vec.new(1, 1, 1))
-T = 10
-SPHERE1 = Sphere.new(0.5, Vec.new( 0.0, -0.5, Math.sin(0)), Vec.new(1, 0, 0))
-SPHERE2 = Sphere.new(1.0, Vec.new( 2.0,  0.0, Math.cos(T * 0.666)), Vec.new(0, 1, 0))
-SPHERE3 = Sphere.new(1.5, Vec.new(-2.0,  0.5, Math.cos(T * 0.333)), Vec.new(0, 0, 1))
+PLANE = Plane.new(Vec.new(0.0, -1.0, 0.0), Vec.new(0.0, 1.0, 0.0), Vec.new(1.0, 1.0, 1.0))
+T = 10.0
+SPHERE1 = Sphere.new(0.5, Vec.new( 0.0, -0.5, Math.sin(0.0)), Vec.new(1.0, 0.0, 0.0))
+SPHERE2 = Sphere.new(1.0, Vec.new( 2.0,  0.0, Math.cos(T * 0.666)), Vec.new(0.0, 1.0, 0.0))
+SPHERE3 = Sphere.new(1.5, Vec.new(-2.0,  0.5, Math.cos(T * 0.333)), Vec.new(0.0, 0.0, 1.0))
 
 class Util
   def self.clamp(t: Float, min: Float, max: Float) -> Float
@@ -192,23 +192,23 @@ end
 # P3\n
 puts "P3"
 # W H\n
-putd(IMAGE_WIDTH); print " "; putd(IMAGE_HEIGHT); puts ""
+putd(IMAGE_WIDTH); puts " "; putd(IMAGE_HEIGHT); puts ""
 # D
 puts "255"
 
 var row = 0; while row < IMAGE_HEIGHT
   var col = 0; while col < IMAGE_WIDTH 
-    x = col / (IMAGE_WIDTH / 2) - 1.0
-    y = (IMAGE_HEIGHT-row) / (IMAGE_HEIGHT / 2) - 1.0
+    x = col / (IMAGE_WIDTH / 2) - 1
+    y = (IMAGE_HEIGHT-row) / (IMAGE_HEIGHT / 2) - 1
 
     ray = Ray.new(Vec.new(0.0, 2.0, 6.0),
-                  Vec.new(x, y, -1.0).normalize)
-    i = Isect.new(0, Vec.new(0, 0, 0), Vec.new(0, 0, 0), Vec.new(0, 0, 0),
-                  1<<31, Vec.new(0, 0, 0))
+                  Vec.new(x.to_f, y.to_f, -1.0).normalize)
+    i = Isect.new(0, Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0),
+                  (1<<31).to_f, Vec.new(0.0, 0.0, 0.0))
     Util.intersect(ray, i)
     if i.hit > 0
       var dest_col = i.color
-      var temp_col = Vec.new(1, 1, 1).multi(i.color)
+      var temp_col = Vec.new(1.0, 1.0, 1.0).multi(i.color)
       var j = 1; while j < MAX_REF
         q = Ray.new(i.hit_point.add(i.normal.mul(EPS)),
                     i.ray_dir.reflect(i.normal))
