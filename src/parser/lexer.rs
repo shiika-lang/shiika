@@ -37,7 +37,7 @@ pub enum LexerState {
     MethodName,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Cursor {
     line: usize,
     col: usize,
@@ -238,23 +238,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_space(&mut self, next_cur: &mut Cursor) -> Token {
-        loop {
-            match self.char_type(next_cur.peek(self.src)) {
-                CharType::Space => next_cur.proceed(self.src),
-                _ => break
-            };
+        while let CharType::Space = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
         }
         Token::Space
     }
 
     fn read_separator(&mut self, next_cur: &mut Cursor) -> Token {
-        loop {
-            match self.char_type(next_cur.peek(self.src)) {
-                CharType::Space | CharType::Separator => {
-                    next_cur.proceed(self.src);
-                },
-                _ => break
-            };
+        while let CharType::Space | CharType::Separator = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
         }
         Token::Separator
     }
@@ -269,13 +261,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_upper_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
-        loop {
-            match self.char_type(next_cur.peek(self.src)) {
-                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
-                    next_cur.proceed(self.src);
-                },
-                _ => break
-            }
+        while let CharType::UpperWord | CharType::LowerWord | CharType::Number = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
         }
         let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
         Token::UpperWord(self.src[begin..next_cur.pos].to_string())
@@ -323,14 +310,9 @@ impl<'a> Lexer<'a> {
 
     fn read_ivar(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
         next_cur.proceed(self.src);  // Skip '@'
-        loop {
-            // TODO: First character must not be a number
-            match self.char_type(next_cur.peek(self.src)) {
-                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
-                    next_cur.proceed(self.src);
-                },
-                _ => break
-            }
+        // TODO: First character must not be a number
+        while let CharType::UpperWord | CharType::LowerWord | CharType::Number = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
         }
         // TODO: LexError if no word succeeds '@'
         let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
@@ -465,15 +447,14 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_unary(&self, next_char: Option<char>) -> bool {
-        let ret = match self.state {
+        match self.state {
             LexerState::ExprBegin => true,
             LexerState::ExprEnd => false,
             LexerState::ExprArg => {
                 self.current_token == Token::Space && next_char != Some(' ')
             },
             LexerState::MethodName => false,
-        };
-        ret
+        }
     }
 
     fn read_number(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {

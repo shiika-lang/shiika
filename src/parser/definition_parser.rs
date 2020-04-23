@@ -6,14 +6,9 @@ use crate::names::*;
 impl<'a> Parser<'a> {
     pub fn parse_definitions(&mut self) -> Result<Vec<ast::Definition>, Error> {
         let mut defs = vec![];
-        loop {
-            if let Some(def) = self.parse_definition()? {
-                defs.push(def);
-                self.skip_wsn()
-            }
-            else {
-                break
-            }
+        while let Some(def) = self.parse_definition()? {
+            defs.push(def);
+            self.skip_wsn();
         }
         Ok(defs)
     }
