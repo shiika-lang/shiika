@@ -36,7 +36,9 @@ impl Corelib {
     }
 }
 
-fn rust_body_items() -> Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<String, SkIVar>)> {
+type ClassItem = (&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<String, SkIVar>);
+
+fn rust_body_items() -> Vec<ClassItem> {
     vec![
         // Classes
         ("Bool"  , bool::create_methods()  , vec![]                      , HashMap::new()),
@@ -56,8 +58,7 @@ fn rust_body_items() -> Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap
     ]
 }
 
-fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<String, SkIVar>)>)
-               -> (HashMap<ClassFullname, SkClass>, HashMap<ClassFullname, Vec<SkMethod>>) {
+fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, HashMap<ClassFullname, Vec<SkMethod>>) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, imethods, cmethods, ivars) in items {
