@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::names::*;
 use crate::ty;
 use crate::hir::*;
+use crate::parser;
 
 pub struct Corelib {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
@@ -104,8 +105,9 @@ fn make_classes(items: Vec<(&'static str, Vec<SkMethod>, Vec<SkMethod>, HashMap<
 fn create_method(class_name: &str,
                       sig_str: &str,
                       gen: GenMethodBody) -> SkMethod {
-    let mut parser = crate::parser::Parser::new(sig_str);
+    let mut parser = parser::Parser::new_with_state(sig_str, parser::lexer::LexerState::MethodName);
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
+    parser.expect_eof().unwrap();
     let sig = crate::hir::create_signature(class_name.to_string(), &ast_sig);
 
     SkMethod {

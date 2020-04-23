@@ -68,6 +68,9 @@ impl<'a> HirMaker<'a> {
         let mut const_inits = vec![];
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
+        // Register void
+        constants.insert(ConstFullname("::void".to_string()), ty::raw("Void"));
+
         Hir {
             sk_classes,
             sk_methods,
@@ -343,6 +346,15 @@ impl<'a> HirMaker<'a> {
                     ctx: &mut HirMakerContext,
                     expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
+            AstExpressionBody::LogicalNot { expr } => {
+                self.convert_logical_not(ctx, expr)
+            },
+            AstExpressionBody::LogicalAnd { left, right } => {
+                self.convert_logical_and(ctx, left, right)
+            },
+            AstExpressionBody::LogicalOr { left, right } => {
+                self.convert_logical_or(ctx, left, right)
+            },
             AstExpressionBody::If { cond_expr, then_exprs, else_exprs } => {
                 self.convert_if_expr(ctx, cond_expr, then_exprs, else_exprs)
             },
@@ -399,8 +411,38 @@ impl<'a> HirMaker<'a> {
                 self.convert_string_literal(content)
             },
 
-            x => panic!("TODO: {:?}", x)
+            //x => panic!("TODO: {:?}", x)
         }
+    }
+
+    fn convert_logical_not(&mut self,
+                           ctx: &mut HirMakerContext,
+                           expr: &AstExpression) -> Result<HirExpression, Error> {
+        let expr_hir = self.convert_expr(ctx, expr)?;
+        type_checking::check_logical_operator_ty(&expr_hir.ty, "argument of logical not")?;
+        Ok(Hir::logical_not(expr_hir))
+    }
+
+    fn convert_logical_and(&mut self,
+                           ctx: &mut HirMakerContext,
+                           left: &AstExpression,
+                           right: &AstExpression) -> Result<HirExpression, Error> {
+        let left_hir = self.convert_expr(ctx, left)?;
+        let right_hir = self.convert_expr(ctx, right)?;
+        type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical and")?;
+        type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical and")?;
+        Ok(Hir::logical_and(left_hir, right_hir))
+    }
+
+    fn convert_logical_or(&mut self,
+                          ctx: &mut HirMakerContext,
+                          left: &AstExpression,
+                          right: &AstExpression) -> Result<HirExpression, Error> {
+        let left_hir = self.convert_expr(ctx, left)?;
+        let right_hir = self.convert_expr(ctx, right)?;
+        type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical or")?;
+        type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical or")?;
+        Ok(Hir::logical_or(left_hir, right_hir))
     }
 
     fn convert_if_expr(&mut self,
@@ -538,7 +580,8 @@ impl<'a> HirMaker<'a> {
         let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
-        type_checking::check_method_args(&sig, &param_tys)?;
+        type_checking::check_method_args(&sig, &param_tys,
+                                         &receiver_hir, &arg_hirs)?;
 
         let receiver = 
             if &found_class_name != class_fullname {

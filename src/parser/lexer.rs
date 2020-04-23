@@ -21,7 +21,7 @@ pub struct Lexer<'a> {
 /// - `p - x`  # binary minus            ExprArg
 /// - `p -x`   # unary minus             ExprArg
 /// - `1 -2`   # binary minus (unusual)  ExprArg  
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LexerState {
     /// A new expression begins here
     /// `+`/`-` is always unary
@@ -31,7 +31,10 @@ pub enum LexerState {
     ExprEnd,
     /// Beginning of a (possible) first paren-less arg of a method call.
     /// `+`/`-` is unary, if with space before it and no space after it (`p -x`)
-    ExprArg
+    ExprArg,
+    /// Expects a method name 
+    /// eg. `+@`, `-@` is allowed only in this state
+    MethodName,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -99,10 +102,14 @@ enum CharType {
 impl<'a> Lexer<'a> {
     /// Create lexer and get the first token
     pub fn new(src: &str) -> Lexer {
+        Lexer::new_with_state(src, LexerState::ExprBegin)
+    }
+
+    pub fn new_with_state(src: &str, state: LexerState) -> Lexer {
         let mut lexer = Lexer {
             src: src,
             cur: Cursor::new(),
-            state: LexerState::ExprBegin,
+            state: state,
             space_seen: false,
             next_cur: None,
             current_token: Token::Bof,
@@ -335,24 +342,36 @@ impl<'a> Lexer<'a> {
             '{' => (Token::LBrace, LexerState::ExprBegin),
             '}' => (Token::RBrace, LexerState::ExprEnd),
             '+' => {
-                if self.is_unary(c2) {
-                    (Token::UnaryPlus, LexerState::ExprBegin)
-                }
-                else {
-                    (Token::BinaryPlus, LexerState::ExprBegin)
-                }
-            }
-            '-' => {
-                if c2 == Some('>') {
+                if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
-                    (Token::RightArrow, LexerState::ExprBegin)
+                    (Token::UPlusMethod, LexerState::ExprBegin)
                 }
                 else {
                     if self.is_unary(c2) {
-                        (Token::UnaryMinus, LexerState::ExprBegin)
+                        (Token::UnaryPlus, LexerState::ExprBegin)
                     }
                     else {
-                        (Token::BinaryMinus, LexerState::ExprBegin)
+                        (Token::BinaryPlus, LexerState::ExprBegin)
+                    }
+                }
+            }
+            '-' => {
+                if self.state == LexerState::MethodName && c2 == Some('@') {
+                    next_cur.proceed(self.src);
+                    (Token::UMinusMethod, LexerState::ExprBegin)
+                }
+                else {
+                    if c2 == Some('>') {
+                        next_cur.proceed(self.src);
+                        (Token::RightArrow, LexerState::ExprBegin)
+                    }
+                    else {
+                        if self.is_unary(c2) {
+                            (Token::UnaryMinus, LexerState::ExprBegin)
+                        }
+                        else {
+                            (Token::BinaryMinus, LexerState::ExprBegin)
+                        }
                     }
                 }
             },
@@ -450,7 +469,8 @@ impl<'a> Lexer<'a> {
             LexerState::ExprEnd => false,
             LexerState::ExprArg => {
                 self.current_token == Token::Space && next_char != Some(' ')
-            }
+            },
+            LexerState::MethodName => false,
         };
         ret
     }

@@ -1,0 +1,231 @@
+# orig: http://qiita.com/doxas/items/477fda867da467116f8d
+
+IMAGE_WIDTH = 256
+IMAGE_HEIGHT = 256
+IMAGE_DEPTH = 256
+EPS = 0.0001
+MAX_REF = 4
+
+class Vec
+  def initialize(x: Float, y: Float, z: Float)
+    @x = x
+    @y = y
+    @z = z
+  end
+  def x -> Float; @x; end
+  def y -> Float; @y; end
+  def z -> Float; @z; end
+
+  def add(b: Vec) -> Vec
+    Vec.new(@x + b.x, @y + b.y, @z + b.z)
+  end
+
+  def sub(b: Vec) -> Vec
+    Vec.new(@x - b.x, @y - b.y, @z - b.z)
+  end
+
+  def mul(t: Float) -> Vec
+    Vec.new(@x * t, @y * t, @z * t)
+  end
+
+  def multi(b: Vec) -> Vec
+    Vec.new(@x * b.x, @y * b.y, @z * b.z)
+  end
+
+  def dot(b: Vec) -> Float
+    @x * b.x + @y * b.y + @z * b.z
+  end
+
+  def cross(b: Vec) -> Vec
+    Vec.new(@y * b.z - @z * b.y,
+            @z * b.x - @x * b.z,
+            @x * b.y - @y * b.x)
+  end
+ 
+  def length -> Float
+    Math.sqrt(@x * @x + @y * @y + @z * @z)
+  end
+ 
+  def normalize -> Vec
+    len = self.length()
+    if len > 0.00000000000000001
+      r_len = 1.0 / len
+      @x = @x * r_len
+      @y = @y * r_len
+      @z = @z * r_len
+    end
+    self
+  end
+
+  def reflect(normal: Vec) -> Vec
+    self.add(normal.mul(-2.0 * normal.dot(self)))
+  end
+end
+
+LIGHT = Vec.new(0.577, 0.577, 0.577)
+
+class Ray
+  def initialize(origin: Vec, dir: Vec)
+    @origin = origin
+    @dir = dir
+  end
+  def origin -> Vec; @origin; end
+  def dir -> Vec; @dir; end
+end
+
+class Isect
+  def initialize(hit: Int, hit_point: Vec, normal: Vec,
+                 color: Vec, distance: Float, ray_dir: Vec)
+    @hit = hit
+    @hit_point = hit_point
+    @normal = normal
+    @color = color
+    @distance = distance
+    @ray_dir = ray_dir
+  end
+  def hit -> Int; @hit; end
+  def hit_point -> Vec; @hit_point; end
+  def normal -> Vec; @normal; end
+  def color -> Vec; @color; end
+  def distance -> Float; @distance; end
+  def ray_dir -> Vec; @ray_dir; end
+end
+
+class Sphere
+  def initialize(radius: Float, position: Vec, color: Vec)
+    @radius = radius
+    @position = position
+    @color = color
+  end
+  def radius -> Float; @radius; end
+  def position -> Vec; @position; end
+  def color -> Vec; @color; end
+
+  def intersect(ray: Ray, isect: Isect) -> Void
+    rs = ray.origin.sub(@position)
+    b = rs.dot(ray.dir)
+    c = rs.dot(rs) - @radius * @radius
+    d = b * b - c
+    if d > 0.0 && (t = -b - Math.sqrt(d)) > EPS && t < isect.distance
+      isect.hit_point = ray.origin.add(ray.dir.mul(t))
+      isect.normal = isect.hit_point.sub(@position).normalize
+      isect.color = @color.mul(Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0))
+      isect.distance = t
+      isect.hit = isect.hit + 1
+      isect.ray_dir = ray.dir
+    end
+  end
+end
+
+class Plane
+  def initialize(position: Vec, normal: Vec, color: Vec)
+    @position = position
+    @normal = normal
+    @color = color
+  end
+  def position -> Vec; @position; end
+  def normal -> Vec; @normal; end
+  def color -> Vec; @color; end
+
+  def intersect(ray: Ray, isect: Isect) -> Void
+    d = -(@position.dot(@normal))
+    v = ray.dir.dot(@normal)
+    t = -(ray.origin.dot(@normal) + d) / v
+    if t > EPS && t < isect.distance
+      isect.hit_point = ray.origin.add(ray.dir.mul(t))
+      isect.normal = @normal
+      d2 = Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0)
+      m = isect.hit_point.x % 2
+      n = isect.hit_point.z % 2
+      d3 = if (m > 1 && n > 1) || (m < 1 && n < 1)
+             d2*0.5
+           else
+             d2
+           end
+      abs = Math.fabs(isect.hit_point.z)
+      f = 1.0 - (if abs < 25.0; abs; else 25.0; end) * 0.04
+      isect.color = @color.mul(d3 * f)
+      isect.distance = t
+      isect.hit = isect.hit + 1
+      isect.ray_dir = ray.dir
+    end
+  end
+end
+
+PLANE = Plane.new(Vec.new(0, -1, 0), Vec.new(0, 1, 0), Vec.new(1, 1, 1))
+T = 10
+SPHERE1 = Sphere.new(0.5, Vec.new( 0.0, -0.5, Math.sin(0)), Vec.new(1, 0, 0))
+SPHERE2 = Sphere.new(1.0, Vec.new( 2.0,  0.0, Math.cos(T * 0.666)), Vec.new(0, 1, 0))
+SPHERE3 = Sphere.new(1.5, Vec.new(-2.0,  0.5, Math.cos(T * 0.333)), Vec.new(0, 0, 1))
+
+class Util
+  def self.clamp(t: Float, min: Float, max: Float) -> Float
+    if t < min
+      min
+    elsif t > max
+      max
+    else
+      t
+    end
+  end
+
+  ## t: 0 ~ 1
+  def self.color(t: Float) -> Float
+    ret = IMAGE_DEPTH * clamp(t, 0, 1)
+    return(if ret == IMAGE_DEPTH then IMAGE_DEPTH-1 else ret end)
+  end
+
+  def self.print_col(c: Vec) -> Void
+    putd(color(c.x)); putchar(32)
+    putd(color(c.y)); putchar(32)
+    putd(color(c.z)); putchar(10)
+  end
+
+  def self.intersect(ray: Ray, i: Isect) -> Void
+    SPHERE1.intersect(ray, i) 
+    SPHERE2.intersect(ray, i) 
+    SPHERE3.intersect(ray, i) 
+    PLANE.intersect(ray, i)
+  end
+end
+
+# P3\n
+puts "P3"
+# W H\n
+putd(IMAGE_WIDTH); print " "; putd(IMAGE_HEIGHT); puts ""
+# D
+puts "255"
+
+var row = 0; while row < IMAGE_HEIGHT
+  var col = 0; while col < IMAGE_WIDTH 
+    x = col / (IMAGE_WIDTH / 2) - 1.0
+    y = (IMAGE_HEIGHT-row) / (IMAGE_HEIGHT / 2) - 1.0
+
+    ray = Ray.new(Vec.new(0.0, 2.0, 6.0),
+                  Vec.new(x, y, -1.0).normalize)
+    i = Isect.new(0, Vec.new(0, 0, 0), Vec.new(0, 0, 0), Vec.new(0, 0, 0),
+                  1<<31, Vec.new(0, 0, 0))
+    Util.intersect(ray, i)
+    if i.hit > 0
+      var dest_col = i.color
+      var temp_col = Vec.new(1, 1, 1).multi(i.color)
+      var j = 1; while j < MAX_REF
+        q = Ray.new(i.hit_point.add(i.normal.mul(EPS)),
+                    i.ray_dir.reflect(i.normal))
+        Util.intersect(q, i)
+        if i.hit > j
+          dest_col = dest_col.add(temp_col.multi(i.color))
+          temp_col = temp_col.multi(i.color)
+        end
+
+        j = j + 1
+      end
+      Util.print_col(dest_col)
+    else
+      Util.print_col(Vec.new(ray.dir.y, ray.dir.y, ray.dir.y))
+    end
+
+    col = col + 1
+  end
+  row = row + 1
+end

@@ -88,5 +88,13 @@ pub fn create_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
+    create_method("Float", "-@ -> Float", |code_gen, function| {
+        let this = function.get_params()[0].into_float_value();
+        let zero = code_gen.f64_type.const_float(0.0);
+        let result = code_gen.builder.build_float_sub(zero, this, "result");
+        code_gen.builder.build_return(Some(&result));
+        Ok(())
+    }),
+
     ]
 }

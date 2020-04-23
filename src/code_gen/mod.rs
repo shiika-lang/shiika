@@ -6,6 +6,7 @@ use inkwell::values::*;
 use inkwell::types::*;
 use crate::error;
 use crate::error::Error;
+use crate::ty;
 use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
@@ -208,6 +209,12 @@ impl<'hir> CodeGen<'hir> {
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
+
+        // Generate void
+        let ptr = self.module.get_global(&"::void").unwrap().as_pointer_value();
+        let value = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "void_obj");
+        self.builder.build_store(ptr, value);
+
         self.builder.build_return(None);
         Ok(())
     }
@@ -299,6 +306,15 @@ impl<'hir> CodeGen<'hir> {
                 ctx: &mut CodeGenContext,
                 expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         match &expr.node {
+            HirLogicalNot { expr } => {
+                self.gen_logical_not(ctx, &expr)
+            },
+            HirLogicalAnd { left, right } => {
+                self.gen_logical_and(ctx, &left, &right)
+            },
+            HirLogicalOr { left, right } => {
+                self.gen_logical_or(ctx, &left, &right)
+            },
             HirIfExpression { cond_expr, then_exprs, else_exprs } => {
                 self.gen_if_expr(ctx, &expr.ty, &cond_expr, &then_exprs, &else_exprs)
             },
@@ -357,6 +373,65 @@ impl<'hir> CodeGen<'hir> {
 //                panic!("TODO: {:?}", expr.node) 
 //            }
         }
+    }
+
+    fn gen_logical_not(&self, 
+                       ctx: &mut CodeGenContext,
+                       expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let value = self.gen_expr(ctx, expr)?.into_int_value();
+        let zero = self.i1_type.const_int(0, false);
+        let result = self.builder.build_int_sub(zero, value, "notResult");
+        Ok(result.into())
+    }
+    
+    fn gen_logical_and(&self, 
+                       ctx: &mut CodeGenContext,
+                       left: &HirExpression,
+                       right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let begin_block = ctx.function.append_basic_block(&"AndBegin");
+        let more_block = ctx.function.append_basic_block(&"AndMore");
+        let merge_block = ctx.function.append_basic_block(&"AndEnd");
+        // AndBegin:
+        self.builder.build_unconditional_branch(&begin_block);
+        self.builder.position_at_end(&begin_block);
+        let left_value = self.gen_expr(ctx, left)?.into_int_value();
+        self.builder.build_conditional_branch(left_value, &more_block, &merge_block);
+        // AndMore:
+        self.builder.position_at_end(&more_block);
+        let right_value = self.gen_expr(ctx, right)?;
+        self.builder.build_unconditional_branch(&merge_block);
+        let more_block = self.builder.get_insert_block().unwrap();
+        // AndEnd:
+        self.builder.position_at_end(&merge_block);
+
+        let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "AndResult");
+        phi_node.add_incoming(&[(&left_value, &begin_block), (&right_value, &more_block)]);
+        Ok(phi_node.as_basic_value())
+    }
+    
+    fn gen_logical_or(&self, 
+                      ctx: &mut CodeGenContext,
+                      left: &HirExpression,
+                      right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let begin_block = ctx.function.append_basic_block(&"OrBegin");
+        let else_block = ctx.function.append_basic_block(&"OrElse");
+        let merge_block = ctx.function.append_basic_block(&"OrEnd");
+        // OrBegin:
+        self.builder.build_unconditional_branch(&begin_block);
+        self.builder.position_at_end(&begin_block);
+        let left_value = self.gen_expr(ctx, left)?.into_int_value();
+        self.builder.build_conditional_branch(left_value, &merge_block, &else_block);
+        // OrElse:
+        self.builder.position_at_end(&else_block);
+        let right_value = self.gen_expr(ctx, right)?;
+        self.builder.build_unconditional_branch(&merge_block);
+        let else_block = self.builder.get_insert_block().unwrap();
+        // OrEnd:
+        self.builder.position_at_end(&merge_block);
+
+        let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "OrResult");
+        phi_node.add_incoming(&[(&left_value, &begin_block), (&right_value, &else_block)]);
+        Ok(phi_node.as_basic_value())
     }
 
     fn gen_if_expr(&self, 
@@ -511,8 +586,7 @@ impl<'hir> CodeGen<'hir> {
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
             None => {
-                // Dummy value (TODO: replace with special value?)
-                Ok(self.gen_decimal_literal(42))
+                self.gen_const_ref(&ConstFullname("::void".to_string()))
             }
         }
     }
