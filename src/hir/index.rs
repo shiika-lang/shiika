@@ -26,6 +26,13 @@ pub struct IdxClass {
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
 }
 
+pub fn create(ast: &ast::Program, corelib: HashMap<ClassFullname, SkClass>) -> Result<Index, Error> {
+    let mut index = Index::new();
+    index.index_corelib(corelib);
+    index.index_program(&ast.toplevel_defs)?;
+    Ok(index)
+}
+
 impl Index {
     pub fn new() -> Index {
         Index {
