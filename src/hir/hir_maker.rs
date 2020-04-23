@@ -31,13 +31,13 @@ pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, E
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
     let sk_methods =
         hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-    Ok(hir_maker.to_hir(sk_methods, main_exprs))
+    Ok(hir_maker.extract_hir(sk_methods, main_exprs))
 }
 
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
         HirMaker {
-            index: index,
+            index,
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
@@ -55,7 +55,7 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Destructively convert self to Hir
-    fn to_hir(&mut self,
+    fn extract_hir(&mut self,
            sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
            main_exprs: HirExpressions) -> Hir {
         let sk_classes = self.extract_classes();
@@ -89,7 +89,7 @@ impl<'a> HirMaker<'a> {
         let mut sk_classes = HashMap::new();
         self.index.classes.iter().for_each(|(name, c)| {
             let ivars = self.class_ivars.get(name)
-                .expect(&format!("[BUG] ivars for class {} not found", name));
+                .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
             // PERF: How to avoid these clone's? Use Rc?
             sk_classes.insert(name.clone(), SkClass {
                 fullname: c.fullname.clone(),
@@ -103,14 +103,14 @@ impl<'a> HirMaker<'a> {
     }
 
     fn register_class_consts(&mut self) {
-        for (name, _idxclass) in &self.index.classes {
+        for name in self.index.classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
         }
     }
 
-    fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
+    fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         let mut sk_methods = HashMap::new();
         let mut ctx = HirMakerContext::toplevel();
@@ -135,7 +135,7 @@ impl<'a> HirMaker<'a> {
 
     fn collect_sk_methods(&mut self,
                           firstname: &ClassFirstname,
-                          defs: &Vec<ast::Definition>,
+                          defs: &[ast::Definition],
                           sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
                          -> Result<(), Error> {
         let (fullname, mut instance_methods, meta_name, mut class_methods) =
@@ -156,14 +156,14 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Extract instance/class methods and constants
-    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &Vec<ast::Definition>)
+    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &[ast::Definition])
                         -> Result<(ClassFullname, Vec<SkMethod>,
                                    ClassFullname, Vec<SkMethod>), Error> {
         // TODO: nested class
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
-        let meta_name = class_ty.fullname.clone();
+        let meta_name = class_ty.fullname;
 
         self.register_meta_ivar(&fullname);
 
@@ -172,31 +172,26 @@ impl<'a> HirMaker<'a> {
         let mut ctx = HirMakerContext::class_ctx(&fullname);
         let mut initialize_params = &vec![];
 
-        match defs.iter().find(|d| d.is_initializer()) {
-            Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
-                let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, true)?;
-                ctx.ivars = Rc::new(collect_ivars(&method));
-                self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
-                instance_methods.push(method);
+        if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
+            let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, true)?;
+            ctx.ivars = Rc::new(collect_ivars(&method));
+            self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
+            instance_methods.push(method);
 
-                initialize_params = &sig.params;
-            },
-            _ => {
-                // TODO: it may inherit `initialize`
-                ()
-            }
-        };
+            initialize_params = &sig.params;
+        }
+        // TODO: it may inherit `initialize` from superclass
 
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, false) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &meta_name, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs, false) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
@@ -220,7 +215,7 @@ impl<'a> HirMaker<'a> {
         let const_name = ConstFullname("::".to_string() + &fullname.0);
 
         // eg. Constant `A` holds the class A
-        self.constants.insert(const_name.clone(), class_ty.clone());
+        self.constants.insert(const_name.clone(), class_ty);
         // eg. "A"
         let idx = self.register_string_literal(&fullname.0);
         // eg. A = Meta:A.new
@@ -243,7 +238,7 @@ impl<'a> HirMaker<'a> {
     /// Create .new
     fn create_new(&self,
                   fullname: &ClassFullname,
-                  initialize_params: &Vec<ast::Param>) -> Result<SkMethod, Error> {
+                  initialize_params: &[ast::Param]) -> Result<SkMethod, Error> {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
         let meta_name = class_fullname.meta_name();
@@ -257,7 +252,7 @@ impl<'a> HirMaker<'a> {
 
             // Call initialize
             let initialize = code_gen.module.get_function(&initialize_name.full_name)
-                .expect(&format!("[BUG] function `{}' not found", &initialize_name));
+                .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
             let mut addr = obj;
             if need_bitcast {
                 let ances_type = code_gen.llvm_struct_types.get(&init_cls_name)
@@ -310,7 +305,7 @@ impl<'a> HirMaker<'a> {
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
-                          body_exprs: &Vec<AstExpression>,
+                          body_exprs: &[AstExpression],
                           is_initializer: bool) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
@@ -327,7 +322,7 @@ impl<'a> HirMaker<'a> {
 
     fn convert_exprs(&mut self,
                      ctx: &mut HirMakerContext,
-                     exprs: &Vec<AstExpression>) -> Result<HirExpressions, Error> {
+                     exprs: &[AstExpression]) -> Result<HirExpressions, Error> {
         let mut hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
@@ -339,7 +334,7 @@ impl<'a> HirMaker<'a> {
         let last_expr = hir_exprs.last().unwrap();
         let ty = last_expr.ty.clone();
 
-        Ok(HirExpressions { ty: ty, exprs: hir_exprs })
+        Ok(HirExpressions { ty, exprs: hir_exprs })
     }
 
     fn convert_expr(&mut self,
@@ -448,7 +443,7 @@ impl<'a> HirMaker<'a> {
     fn convert_if_expr(&mut self,
                        ctx: &mut HirMakerContext,
                        cond_expr: &AstExpression,
-                       then_exprs: &Vec<AstExpression>,
+                       then_exprs: &[AstExpression],
                        else_exprs: &Option<Vec<AstExpression>>) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
@@ -469,7 +464,7 @@ impl<'a> HirMaker<'a> {
     fn convert_while_expr(&mut self,
                           ctx: &mut HirMakerContext,
                           cond_expr: &AstExpression,
-                          body_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
+                          body_exprs: &[AstExpression]) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
@@ -494,13 +489,11 @@ impl<'a> HirMaker<'a> {
                     return Err(error::program_error(&format!(
                       "cannot reassign to {} (Hint: declare it with `var')", name)))
                 }
+                else if *is_var {
+                    return Err(error::program_error(&format!("variable `{}' already exists", name)))
+                }
                 else {
-                    if *is_var {
-                        return Err(error::program_error(&format!("variable `{}' already exists", name)))
-                    }
-                    else {
-                        type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
-                    }
+                    type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
                 }
             },
             None => {
@@ -526,7 +519,7 @@ impl<'a> HirMaker<'a> {
             // TODO: check duplicates
             let idx = ctx.iivars.len();
             ctx.iivars.insert(name.to_string(), SkIVar {
-                idx: idx,
+                idx,
                 name: name.to_string(),
                 ty: expr.ty.clone(),
                 readonly: true,  // TODO: `var @foo`
@@ -551,7 +544,7 @@ impl<'a> HirMaker<'a> {
 
     fn convert_const_assign(&mut self,
                             ctx: &mut HirMakerContext,
-                            names: &Vec<String>,
+                            names: &[String],
                             rhs: &AstExpression) -> Result<HirExpression, Error> {
         let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(ctx, &name, &rhs)?;
@@ -562,7 +555,7 @@ impl<'a> HirMaker<'a> {
                             ctx: &mut HirMakerContext,
                             receiver_expr: &Option<Box<AstExpression>>,
                             method_name: &MethodFirstname,
-                            arg_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
+                            arg_exprs: &[AstExpression]) -> Result<HirExpression, Error> {
         let receiver_hir =
             match receiver_expr {
                 Some(expr) => self.convert_expr(ctx, &expr)?,
@@ -579,7 +572,7 @@ impl<'a> HirMaker<'a> {
         let class_fullname = &receiver_hir.ty.fullname;
         let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
-        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
+        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys,
                                          &receiver_hir, &arg_hirs)?;
 
@@ -605,7 +598,7 @@ impl<'a> HirMaker<'a> {
         else {
             // Look up in superclass
             let sk_class = self.index.find_class(class_fullname)
-                .expect("[BUG] lookup_method: class not found");
+                .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
                 self.lookup_method(receiver_class_fullname, super_name, method_name)
             }
@@ -655,7 +648,7 @@ impl<'a> HirMaker<'a> {
     /// Resolve constant name
     fn convert_const_ref(&self,
                          _ctx: &HirMakerContext,
-                         names: &Vec<String>) -> Result<HirExpression, Error> {
+                         names: &[String]) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
         let fullname = ConstFullname("::".to_string() + &names.join("::"));
         match self.constants.get(&fullname) {
@@ -713,18 +706,15 @@ fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
     match &method.body {
         SkMethodBody::ShiikaMethodBody { exprs } => {
             exprs.exprs.iter().for_each(|expr| {
-                match &expr.node {
-                    HirExpressionBase::HirIVarAssign { name, idx, rhs } => {
-                        ivars.insert(name.to_string(), SkIVar {
-                            idx: *idx,
-                            name: name.to_string(),
-                            ty: rhs.ty.clone(),
-                            readonly: true,  // TODO: `var @foo`
-                        });
-                    },
-                    // TODO: IVarAssign in `if'
-                    _ => (),
+                if let HirExpressionBase::HirIVarAssign { name, idx, rhs } = &expr.node {
+                    ivars.insert(name.to_string(), SkIVar {
+                        idx: *idx,
+                        name: name.to_string(),
+                        ty: rhs.ty.clone(),
+                        readonly: true,  // TODO: `var @foo`
+                    });
                 }
+                // TODO: IVarAssign in `if'
             });
             ivars
         },

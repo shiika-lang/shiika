@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
         if *self.current_token() != Token::Eof {
             return Err(parse_error!(self, "unexpected token: {:?}", self.current_token()))
         }
-        return Ok(())
+        Ok(())
     }
 
     fn parse_toplevel_items(&mut self) -> Result<(Vec<ast::Definition>, Vec<ast::AstExpression>), Error> {

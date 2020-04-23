@@ -658,7 +658,7 @@ impl<'a> Parser<'a> {
     fn parse_string(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_string");
         let expr = match self.consume_token() {
-            Token::Str(content) => ast::string_literal(content.to_string()),
+            Token::Str(content) => ast::string_literal(content),
             _ => panic!("parse_string called on non-string token"),
         };
         self.lv -= 1;

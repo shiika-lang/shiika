@@ -12,7 +12,7 @@ pub struct CodeGenContext {
 impl CodeGenContext {
     pub fn new(function: inkwell::values::FunctionValue) -> CodeGenContext {
         CodeGenContext {
-            function: function,
+            function,
             lvars: HashMap::new(),
             current_loop_end: None,
         }

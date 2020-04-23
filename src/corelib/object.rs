@@ -38,7 +38,7 @@ pub fn create_methods() -> Vec<SkMethod> {
         };
         let ptr = code_gen.builder.build_load(pptr, "");
         let func = code_gen.module.get_function("puts").unwrap();
-        code_gen.builder.build_call(func, &[ptr.into()], "");
+        code_gen.builder.build_call(func, &[ptr], "");
         code_gen.builder.build_return(None);
         Ok(())
     }),

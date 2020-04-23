@@ -2,7 +2,6 @@ use std::fs;
 use std::process::Command;
 #[macro_use]
 extern crate clap;
-use shiika;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let yaml = load_yaml!("cli.yml");

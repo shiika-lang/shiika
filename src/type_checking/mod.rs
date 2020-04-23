@@ -47,9 +47,9 @@ pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Resu
 }
 
 pub fn check_method_args(sig: &MethodSignature,
-                         arg_tys: &Vec<&TermTy>,
+                         arg_tys: &[&TermTy],
                          receiver_hir: &hir::HirExpression,
-                         arg_hirs: &Vec<hir::HirExpression>) -> Result<(), Error> {
+                         arg_hirs: &[hir::HirExpression]) -> Result<(), Error> {
     if sig.params.len() != arg_tys.len() {
         return Err(type_error!("{} takes {} args but got {} (receiver: {:?}, args: {:?})",
                                sig.fullname, sig.params.len(), arg_tys.len(),
