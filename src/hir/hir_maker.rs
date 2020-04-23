@@ -27,10 +27,10 @@ pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, E
     let mut hir_maker = HirMaker::new(&index);
     hir_maker.init_class_ivars();
     hir_maker.register_class_consts();
-    let sk_methods =
-        hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
+    let sk_methods =
+        hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
     Ok(hir_maker.to_hir(sk_methods, main_exprs))
 }
 
