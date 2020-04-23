@@ -146,7 +146,7 @@ impl<'hir> CodeGen<'hir> {
     /// Create llvm struct types for Shiika objects
     fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
         // 1. Create struct type for each class
-        for (name, _sk_class) in classes {
+        for name in classes.keys() {
             self.llvm_struct_types.insert(
                 name.clone(),
                 self.context.opaque_struct_type(&name.0)

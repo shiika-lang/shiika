@@ -31,7 +31,7 @@ pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, E
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
     let sk_methods =
         hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-    Ok(hir_maker.to_hir(sk_methods, main_exprs))
+    Ok(hir_maker.extract_hir(sk_methods, main_exprs))
 }
 
 impl<'a> HirMaker<'a> {
@@ -55,7 +55,7 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Destructively convert self to Hir
-    fn to_hir(&mut self,
+    fn extract_hir(&mut self,
            sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
            main_exprs: HirExpressions) -> Hir {
         let sk_classes = self.extract_classes();
@@ -103,7 +103,7 @@ impl<'a> HirMaker<'a> {
     }
 
     fn register_class_consts(&mut self) {
-        for (name, _idxclass) in &self.index.classes {
+        for name in self.index.classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
@@ -172,31 +172,26 @@ impl<'a> HirMaker<'a> {
         let mut ctx = HirMakerContext::class_ctx(&fullname);
         let mut initialize_params = &vec![];
 
-        match defs.iter().find(|d| d.is_initializer()) {
-            Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) => {
-                let method = self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, true)?;
-                ctx.ivars = Rc::new(collect_ivars(&method));
-                self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
-                instance_methods.push(method);
+        if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
+            let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, true)?;
+            ctx.ivars = Rc::new(collect_ivars(&method));
+            self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
+            instance_methods.push(method);
 
-                initialize_params = &sig.params;
-            },
-            _ => {
-                // TODO: it may inherit `initialize`
-                
-            }
-        };
+            initialize_params = &sig.params;
+        }
+        // TODO: it may inherit `initialize` from superclass
 
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &fullname, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, false) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&mut ctx, &meta_name, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs, false) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
@@ -711,18 +706,15 @@ fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
     match &method.body {
         SkMethodBody::ShiikaMethodBody { exprs } => {
             exprs.exprs.iter().for_each(|expr| {
-                match &expr.node {
-                    HirExpressionBase::HirIVarAssign { name, idx, rhs } => {
-                        ivars.insert(name.to_string(), SkIVar {
-                            idx: *idx,
-                            name: name.to_string(),
-                            ty: rhs.ty.clone(),
-                            readonly: true,  // TODO: `var @foo`
-                        });
-                    },
-                    // TODO: IVarAssign in `if'
-                    _ => (),
+                if let HirExpressionBase::HirIVarAssign { name, idx, rhs } = &expr.node {
+                    ivars.insert(name.to_string(), SkIVar {
+                        idx: *idx,
+                        name: name.to_string(),
+                        ty: rhs.ty.clone(),
+                        readonly: true,  // TODO: `var @foo`
+                    });
                 }
+                // TODO: IVarAssign in `if'
             });
             ivars
         },
