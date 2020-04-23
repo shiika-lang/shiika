@@ -72,7 +72,7 @@ impl Index {
         });
     }
 
-    pub fn index_program(&mut self, toplevel_defs: &Vec<ast::Definition>) -> Result<(), Error> {
+    pub fn index_program(&mut self, toplevel_defs: &[ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
@@ -87,7 +87,7 @@ impl Index {
         })
     }
 
-    fn index_class(&mut self, name: &ClassFirstname, defs: &Vec<ast::Definition>) {
+    fn index_class(&mut self, name: &ClassFirstname, defs: &[ast::Definition]) {
         let class_fullname = name.to_class_fullname(); // TODO: nested class
         let instance_ty = ty::raw(&class_fullname.0);
         let class_ty = instance_ty.meta_ty();
@@ -96,7 +96,7 @@ impl Index {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
         let new_sig = signature_of_new(&metaclass_fullname,
-                                       initializer_params(&defs).unwrap_or(&vec![]),
+                                       initializer_params(&defs).unwrap_or(&[]),
                                        &instance_ty);
 
         defs.iter().for_each(|def| {
@@ -150,7 +150,7 @@ impl Index {
 }
 
 /// Return parameters of `initialize`
-fn initializer_params(defs: &Vec<ast::Definition>) -> Option<&Vec<ast::Param>> {
+fn initializer_params(defs: &[ast::Definition]) -> Option<&[ast::Param]> {
     match defs.iter().find(|d| d.is_initializer()) {
         Some(ast::Definition::InstanceMethodDefinition { sig, .. }) => {
             Some(&sig.params)

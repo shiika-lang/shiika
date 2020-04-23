@@ -407,7 +407,7 @@ fn convert_typ(typ: &ast::Typ) -> TermTy {
     ty::raw(&typ.name)
 }
 
-fn convert_params(params: &Vec<ast::Param>) -> Vec<MethodParam> {
+fn convert_params(params: &[ast::Param]) -> Vec<MethodParam> {
     params.iter().map(|param|
         MethodParam {
             name: param.name.to_string(),
@@ -418,7 +418,7 @@ fn convert_params(params: &Vec<ast::Param>) -> Vec<MethodParam> {
 
 /// Create a signature of `.new`
 fn signature_of_new(metaclass_fullname: &ClassFullname,
-                    initialize_params: &Vec<ast::Param>,
+                    initialize_params: &[ast::Param],
                     instance_ty: &TermTy) -> MethodSignature {
     MethodSignature {
         fullname: MethodFullname {

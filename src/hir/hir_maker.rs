@@ -110,7 +110,7 @@ impl<'a> HirMaker<'a> {
         }
     }
 
-    fn convert_toplevel_defs(&mut self, toplevel_defs: &Vec<ast::Definition>)
+    fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
         let mut sk_methods = HashMap::new();
         let mut ctx = HirMakerContext::toplevel();
@@ -135,7 +135,7 @@ impl<'a> HirMaker<'a> {
 
     fn collect_sk_methods(&mut self,
                           firstname: &ClassFirstname,
-                          defs: &Vec<ast::Definition>,
+                          defs: &[ast::Definition],
                           sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
                          -> Result<(), Error> {
         let (fullname, mut instance_methods, meta_name, mut class_methods) =
@@ -156,7 +156,7 @@ impl<'a> HirMaker<'a> {
     }
 
     /// Extract instance/class methods and constants
-    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &Vec<ast::Definition>)
+    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &[ast::Definition])
                         -> Result<(ClassFullname, Vec<SkMethod>,
                                    ClassFullname, Vec<SkMethod>), Error> {
         // TODO: nested class
@@ -238,7 +238,7 @@ impl<'a> HirMaker<'a> {
     /// Create .new
     fn create_new(&self,
                   fullname: &ClassFullname,
-                  initialize_params: &Vec<ast::Param>) -> Result<SkMethod, Error> {
+                  initialize_params: &[ast::Param]) -> Result<SkMethod, Error> {
         let class_fullname = fullname.clone();
         let instance_ty = ty::raw(&class_fullname.0);
         let meta_name = class_fullname.meta_name();
@@ -305,7 +305,7 @@ impl<'a> HirMaker<'a> {
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
-                          body_exprs: &Vec<AstExpression>,
+                          body_exprs: &[AstExpression],
                           is_initializer: bool) -> Result<SkMethod, Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
@@ -322,7 +322,7 @@ impl<'a> HirMaker<'a> {
 
     fn convert_exprs(&mut self,
                      ctx: &mut HirMakerContext,
-                     exprs: &Vec<AstExpression>) -> Result<HirExpressions, Error> {
+                     exprs: &[AstExpression]) -> Result<HirExpressions, Error> {
         let mut hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
@@ -443,7 +443,7 @@ impl<'a> HirMaker<'a> {
     fn convert_if_expr(&mut self,
                        ctx: &mut HirMakerContext,
                        cond_expr: &AstExpression,
-                       then_exprs: &Vec<AstExpression>,
+                       then_exprs: &[AstExpression],
                        else_exprs: &Option<Vec<AstExpression>>) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
@@ -464,7 +464,7 @@ impl<'a> HirMaker<'a> {
     fn convert_while_expr(&mut self,
                           ctx: &mut HirMakerContext,
                           cond_expr: &AstExpression,
-                          body_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
+                          body_exprs: &[AstExpression]) -> Result<HirExpression, Error> {
         let cond_hir = self.convert_expr(ctx, cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
@@ -544,7 +544,7 @@ impl<'a> HirMaker<'a> {
 
     fn convert_const_assign(&mut self,
                             ctx: &mut HirMakerContext,
-                            names: &Vec<String>,
+                            names: &[String],
                             rhs: &AstExpression) -> Result<HirExpression, Error> {
         let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(ctx, &name, &rhs)?;
@@ -555,7 +555,7 @@ impl<'a> HirMaker<'a> {
                             ctx: &mut HirMakerContext,
                             receiver_expr: &Option<Box<AstExpression>>,
                             method_name: &MethodFirstname,
-                            arg_exprs: &Vec<AstExpression>) -> Result<HirExpression, Error> {
+                            arg_exprs: &[AstExpression]) -> Result<HirExpression, Error> {
         let receiver_hir =
             match receiver_expr {
                 Some(expr) => self.convert_expr(ctx, &expr)?,
@@ -572,7 +572,7 @@ impl<'a> HirMaker<'a> {
         let class_fullname = &receiver_hir.ty.fullname;
         let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
 
-        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect();
+        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys,
                                          &receiver_hir, &arg_hirs)?;
 
@@ -648,7 +648,7 @@ impl<'a> HirMaker<'a> {
     /// Resolve constant name
     fn convert_const_ref(&self,
                          _ctx: &HirMakerContext,
-                         names: &Vec<String>) -> Result<HirExpression, Error> {
+                         names: &[String]) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
         let fullname = ConstFullname("::".to_string() + &names.join("::"));
         match self.constants.get(&fullname) {

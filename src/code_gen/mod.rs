@@ -170,7 +170,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     /// Generate llvm constants for string literals
-    fn gen_string_literals(&self, str_literals: &Vec<String>) {
+    fn gen_string_literals(&self, str_literals: &[String]) {
         str_literals.iter().enumerate().for_each(|(i, s)| {
             // PERF: how to avoid .to_string?
             let s_with_null = s.to_string() + "\0";
@@ -198,7 +198,7 @@ impl<'hir> CodeGen<'hir> {
         }
     }
 
-    fn gen_const_inits(&self, const_inits: &Vec<HirExpression>) -> Result<(), Error> {
+    fn gen_const_inits(&self, const_inits: &[HirExpression]) -> Result<(), Error> {
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
@@ -573,7 +573,7 @@ impl<'hir> CodeGen<'hir> {
                        ctx: &mut CodeGenContext,
                        method_fullname: &MethodFullname,
                        receiver_expr: &HirExpression,
-                       arg_exprs: &Vec<HirExpression>) -> Result<inkwell::values::BasicValueEnum, Error> {
+                       arg_exprs: &[HirExpression]) -> Result<inkwell::values::BasicValueEnum, Error> {
         let receiver_value = self.gen_expr(ctx, receiver_expr)?;
         let mut arg_values = arg_exprs.iter().map(|arg_expr|
           self.gen_expr(ctx, arg_expr)
