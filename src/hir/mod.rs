@@ -244,7 +244,7 @@ impl Hir {
                          then_hir: HirExpressions,
                          else_hir: Option<HirExpressions>) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirIfExpression {
                 cond_expr: Box::new(cond_hir),
                 then_exprs: Box::new(then_hir),
@@ -286,7 +286,7 @@ impl Hir {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirIVarAssign {
                 name: name.to_string(),
-                idx: idx,
+                idx,
                 rhs: Box::new(rhs),
             }
         }
@@ -296,7 +296,7 @@ impl Hir {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirConstAssign {
-                fullname: fullname,
+                fullname,
                 rhs: Box::new(rhs),
             }
         }
@@ -307,7 +307,7 @@ impl Hir {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
                 receiver_expr: Box::new(receiver_hir),
-                method_fullname: method_fullname,
+                method_fullname,
                 arg_exprs: arg_hirs,
             }
         }
@@ -316,35 +316,35 @@ impl Hir {
     // REFACTOR: Remove `hir_`
     pub fn hir_arg_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
-            ty: ty,
-            node: HirExpressionBase::HirArgRef { idx: idx },
+            ty,
+            node: HirExpressionBase::HirArgRef { idx },
         }
     }
 
     pub fn lvar_ref(ty: TermTy, name: String) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirLVarRef { name },
         }
     }
 
     pub fn ivar_ref(ty: TermTy, name: String, idx: usize) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirIVarRef { name, idx },
         }
     }
 
     pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirConstRef { fullname },
         }
     }
 
     pub fn self_expression(ty: TermTy) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirSelfExpression,
         }
     }
@@ -379,7 +379,7 @@ impl Hir {
 
     pub fn bit_cast(ty: TermTy, expr: HirExpression) -> HirExpression {
         HirExpression {
-            ty: ty,
+            ty,
             node: HirExpressionBase::HirBitCast { expr: Box::new(expr) }
         }
     }

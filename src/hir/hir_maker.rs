@@ -37,7 +37,7 @@ pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, E
 impl<'a> HirMaker<'a> {
     fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
         HirMaker {
-            index: index,
+            index,
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
@@ -89,7 +89,7 @@ impl<'a> HirMaker<'a> {
         let mut sk_classes = HashMap::new();
         self.index.classes.iter().for_each(|(name, c)| {
             let ivars = self.class_ivars.get(name)
-                .expect(&format!("[BUG] ivars for class {} not found", name));
+                .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
             // PERF: How to avoid these clone's? Use Rc?
             sk_classes.insert(name.clone(), SkClass {
                 fullname: c.fullname.clone(),
@@ -163,7 +163,7 @@ impl<'a> HirMaker<'a> {
         let fullname = name.to_class_fullname();
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
-        let meta_name = class_ty.fullname.clone();
+        let meta_name = class_ty.fullname;
 
         self.register_meta_ivar(&fullname);
 
@@ -183,7 +183,7 @@ impl<'a> HirMaker<'a> {
             },
             _ => {
                 // TODO: it may inherit `initialize`
-                ()
+                
             }
         };
 
@@ -220,7 +220,7 @@ impl<'a> HirMaker<'a> {
         let const_name = ConstFullname("::".to_string() + &fullname.0);
 
         // eg. Constant `A` holds the class A
-        self.constants.insert(const_name.clone(), class_ty.clone());
+        self.constants.insert(const_name.clone(), class_ty);
         // eg. "A"
         let idx = self.register_string_literal(&fullname.0);
         // eg. A = Meta:A.new
@@ -257,7 +257,7 @@ impl<'a> HirMaker<'a> {
 
             // Call initialize
             let initialize = code_gen.module.get_function(&initialize_name.full_name)
-                .expect(&format!("[BUG] function `{}' not found", &initialize_name));
+                .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
             let mut addr = obj;
             if need_bitcast {
                 let ances_type = code_gen.llvm_struct_types.get(&init_cls_name)
@@ -339,7 +339,7 @@ impl<'a> HirMaker<'a> {
         let last_expr = hir_exprs.last().unwrap();
         let ty = last_expr.ty.clone();
 
-        Ok(HirExpressions { ty: ty, exprs: hir_exprs })
+        Ok(HirExpressions { ty, exprs: hir_exprs })
     }
 
     fn convert_expr(&mut self,
@@ -494,13 +494,11 @@ impl<'a> HirMaker<'a> {
                     return Err(error::program_error(&format!(
                       "cannot reassign to {} (Hint: declare it with `var')", name)))
                 }
+                else if *is_var {
+                    return Err(error::program_error(&format!("variable `{}' already exists", name)))
+                }
                 else {
-                    if *is_var {
-                        return Err(error::program_error(&format!("variable `{}' already exists", name)))
-                    }
-                    else {
-                        type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
-                    }
+                    type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
                 }
             },
             None => {
@@ -526,7 +524,7 @@ impl<'a> HirMaker<'a> {
             // TODO: check duplicates
             let idx = ctx.iivars.len();
             ctx.iivars.insert(name.to_string(), SkIVar {
-                idx: idx,
+                idx,
                 name: name.to_string(),
                 ty: expr.ty.clone(),
                 readonly: true,  // TODO: `var @foo`

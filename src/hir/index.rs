@@ -133,7 +133,7 @@ impl Index {
                     fullname: class_fullname,
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(ClassFullname("Object".to_string())) },
-                    instance_ty: instance_ty,
+                    instance_ty,
                     ivars: Rc::new(HashMap::new()),
                     method_sigs: instance_methods,
                 });

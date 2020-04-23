@@ -61,7 +61,7 @@ impl HirMakerContext {
             lvars: HashMap::new(),
             ivars: Rc::clone(&class_ctx.ivars),
             iivars: HashMap::new(),
-            is_initializer: is_initializer,
+            is_initializer,
         }
     }
 }

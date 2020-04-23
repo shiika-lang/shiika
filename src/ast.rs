@@ -176,8 +176,8 @@ pub fn if_expr(cond_expr: AstExpression, then_exprs: Vec<AstExpression>, else_ex
     non_primary_expression(
         AstExpressionBody::If {
             cond_expr: Box::new(cond_expr),
-            then_exprs: then_exprs,
-            else_exprs: else_exprs,
+            then_exprs,
+            else_exprs,
         }
     )
 }
@@ -186,7 +186,7 @@ pub fn while_expr(cond_expr: AstExpression, body_exprs: Vec<AstExpression>) -> A
     non_primary_expression(
         AstExpressionBody::While {
             cond_expr: Box::new(cond_expr),
-            body_exprs: body_exprs,
+            body_exprs,
         }
     )
 }
@@ -201,13 +201,13 @@ pub fn break_expr() -> AstExpression {
 pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     let body = match lhs.body {
         AstExpressionBody::BareName(s) =>  {
-            AstExpressionBody::LVarAssign { name: s.to_string(), rhs: Box::new(rhs), is_var: false } 
+            AstExpressionBody::LVarAssign { name: s, rhs: Box::new(rhs), is_var: false } 
         },
         AstExpressionBody::IVarRef(name) => {
-            AstExpressionBody::IVarAssign { name: name.to_string(), rhs: Box::new(rhs), is_var: false } 
+            AstExpressionBody::IVarAssign { name, rhs: Box::new(rhs), is_var: false } 
         },
         AstExpressionBody::ConstRef(names) => {
-            AstExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
+            AstExpressionBody::ConstAssign { names, rhs: Box::new(rhs) }
         },
         AstExpressionBody::MethodCall { receiver_expr, method_name, .. } => {
             AstExpressionBody::MethodCall {
@@ -224,7 +224,7 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
 
 pub fn var_decl(name: String, rhs: AstExpression) -> AstExpression {
     non_primary_expression(AstExpressionBody::LVarAssign {
-        name: name,
+        name,
         rhs: Box::new(rhs),
         is_var: true,
     })
@@ -236,9 +236,9 @@ pub fn method_call(receiver_expr: Option<AstExpression>,
                    primary: bool,
                    may_have_paren_wo_args: bool) -> AstExpression {
     AstExpression {
-        primary: primary,
+        primary,
         body: AstExpressionBody::MethodCall {
-            receiver_expr: receiver_expr.map(|e| Box::new(e)),
+            receiver_expr: receiver_expr.map(Box::new),
             method_name: MethodFirstname(method_name.to_string()),
             arg_exprs,
             may_have_paren_wo_args,
@@ -293,11 +293,11 @@ pub fn string_literal(content: String) -> AstExpression {
 }
 
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
-    AstExpression { primary: true, body: body }
+    AstExpression { primary: true, body }
 }
 
 pub fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
-    AstExpression { primary: false, body: body }
+    AstExpression { primary: false, body }
 }
 
 /// Extend `foo.bar` to `foo.bar args`
@@ -324,7 +324,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                 primary: false,
                 body: AstExpressionBody::MethodCall {
                     receiver_expr: None,
-                    method_name: MethodFirstname(s.to_string()),
+                    method_name: MethodFirstname(s),
                     arg_exprs: args,
                     may_have_paren_wo_args: false,
                 }

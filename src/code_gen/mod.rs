@@ -36,9 +36,9 @@ impl<'hir> CodeGen<'hir> {
         let module = context.create_module("main");
         let builder = context.create_builder();
         CodeGen {
-            context: context,
-            module: module,
-            builder: builder,
+            context,
+            module,
+            builder,
             i1_type: inkwell::types::IntType::bool_type(),
             i8_type: inkwell::types::IntType::i8_type(),
             i8ptr_type: inkwell::types::IntType::i8_type().ptr_type(AddressSpace::Generic),
@@ -242,7 +242,7 @@ impl<'hir> CodeGen<'hir> {
     fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
         // LLVM function
         let function = self.module.get_function(&method.signature.fullname.full_name)
-            .expect(&format!("[BUG] get_function not found: {:?}", method.signature));
+            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method.signature));
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
@@ -563,7 +563,7 @@ impl<'hir> CodeGen<'hir> {
                         rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
         let ptr = self.module.get_global(&fullname.0).
-            expect(&format!("[BUG] global for Constant `{}' not created", fullname.0)).
+            unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0)).
             as_pointer_value();
         self.builder.build_store(ptr, value);
         Ok(value)
@@ -580,7 +580,7 @@ impl<'hir> CodeGen<'hir> {
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
         let function = self.module.get_function(&method_fullname.full_name)
-            .expect(&format!("[BUG] get_function not found: {:?}", method_fullname));
+            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method_fullname));
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
@@ -619,7 +619,7 @@ impl<'hir> CodeGen<'hir> {
     fn gen_const_ref(&self,
                     fullname: &ConstFullname) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ptr = self.module.get_global(&fullname.0).
-            expect(&format!("[BUG] global for Constant `{}' not created", fullname.0));
+            unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0));
         Ok(self.builder.build_load(ptr.as_pointer_value(), &fullname.0))
     }
 
@@ -650,7 +650,7 @@ impl<'hir> CodeGen<'hir> {
             self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr")
         };
         let global = self.module.get_global(&format!("str_{}", idx)).
-            expect(&format!("[BUG] global for str_{} not created", idx)).
+            unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx)).
             as_pointer_value();
         let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
         self.builder.build_store(loc, glob_i8);
@@ -752,7 +752,7 @@ impl<'hir> CodeGen<'hir> {
 
     fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
         let struct_type = self.llvm_struct_types.get(&ty.fullname)
-            .expect(&format!("[BUG] struct_type not found: {:?}", ty.fullname));
+            .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
         struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()
     }
 }

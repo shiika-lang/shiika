@@ -107,9 +107,9 @@ impl<'a> Lexer<'a> {
 
     pub fn new_with_state(src: &str, state: LexerState) -> Lexer {
         let mut lexer = Lexer {
-            src: src,
+            src,
             cur: Cursor::new(),
-            state: state,
+            state,
             space_seen: false,
             next_cur: None,
             current_token: Token::Bof,
@@ -353,13 +353,11 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     (Token::UPlusMethod, LexerState::ExprBegin)
                 }
+                else if self.is_unary(c2) {
+                    (Token::UnaryPlus, LexerState::ExprBegin)
+                }
                 else {
-                    if self.is_unary(c2) {
-                        (Token::UnaryPlus, LexerState::ExprBegin)
-                    }
-                    else {
-                        (Token::BinaryPlus, LexerState::ExprBegin)
-                    }
+                    (Token::BinaryPlus, LexerState::ExprBegin)
                 }
             }
             '-' => {
@@ -367,19 +365,15 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     (Token::UMinusMethod, LexerState::ExprBegin)
                 }
+                else if c2 == Some('>') {
+                    next_cur.proceed(self.src);
+                    (Token::RightArrow, LexerState::ExprBegin)
+                }
+                else if self.is_unary(c2) {
+                    (Token::UnaryMinus, LexerState::ExprBegin)
+                }
                 else {
-                    if c2 == Some('>') {
-                        next_cur.proceed(self.src);
-                        (Token::RightArrow, LexerState::ExprBegin)
-                    }
-                    else {
-                        if self.is_unary(c2) {
-                            (Token::UnaryMinus, LexerState::ExprBegin)
-                        }
-                        else {
-                            (Token::BinaryMinus, LexerState::ExprBegin)
-                        }
-                    }
+                    (Token::BinaryMinus, LexerState::ExprBegin)
                 }
             },
             '*' => (Token::Mul, LexerState::ExprBegin),
