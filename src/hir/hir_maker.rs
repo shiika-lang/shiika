@@ -603,7 +603,7 @@ impl<'a> HirMaker<'a> {
         else {
             // Look up in superclass
             let sk_class = self.index.find_class(class_fullname)
-                .expect("[BUG] lookup_method: class not found");
+                .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
                 self.lookup_method(receiver_class_fullname, super_name, method_name)
             }
