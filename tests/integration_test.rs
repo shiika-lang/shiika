@@ -7,10 +7,10 @@ class A; def foo; end; end
 putchar 72
 putchar 100 + 5";
     let ast = shiika::parser::Parser::parse(src)?;
-    let stdlib = shiika::stdlib::Stdlib::create();
-    let hir = shiika::hir::Hir::from_ast(ast, stdlib)?;
-    let mut code_gen = shiika::code_gen::CodeGen::new();
-    code_gen.gen_program(hir)?;
+    let corelib = shiika::corelib::Corelib::create();
+    let hir = shiika::hir::Hir::from_ast(ast, corelib)?;
+    let mut code_gen = shiika::code_gen::CodeGen::new(&hir);
+    code_gen.gen_program(&hir)?;
     code_gen.module.print_to_file("tests/out.ll")?;
 
     let mut cmd = Command::new("llc");
