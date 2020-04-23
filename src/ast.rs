@@ -209,11 +209,11 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
         AstExpressionBody::ConstRef(names) => {
             AstExpressionBody::ConstAssign { names: names, rhs: Box::new(rhs) }
         },
-        AstExpressionBody::MethodCall { receiver_expr, method_name, arg_exprs, .. } => {
+        AstExpressionBody::MethodCall { receiver_expr, method_name, .. } => {
             AstExpressionBody::MethodCall {
                 receiver_expr,
                 method_name: method_name.append("="),
-                arg_exprs,
+                arg_exprs: vec![rhs],
                 may_have_paren_wo_args: false,
             }
         },

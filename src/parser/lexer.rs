@@ -283,9 +283,16 @@ impl<'a> Lexer<'a> {
 
     fn read_lower_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> (Token, Option<LexerState>) {
         loop {
-            match self.char_type(next_cur.peek(self.src)) {
+            let c = next_cur.peek(self.src);
+            match self.char_type(c) {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
                     next_cur.proceed(self.src);
+                },
+                CharType::Symbol if (c == Some('=')) => {
+                    if self.state == LexerState::MethodName {
+                        next_cur.proceed(self.src);
+                    }
+                    break;
                 },
                 _ => break
             }
