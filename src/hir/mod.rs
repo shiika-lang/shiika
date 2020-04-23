@@ -20,9 +20,7 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
-        let mut index = index::Index::new();
-        index.index_corelib(corelib.sk_classes);
-        index.index_program(&ast.toplevel_defs)?;
+        let index = index::create(&ast, corelib.sk_classes)?;
         let mut hir = hir_maker::convert_program(index, ast)?;
 
         // While corelib classes are included in `index`,
