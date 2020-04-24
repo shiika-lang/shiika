@@ -23,7 +23,18 @@ pub struct HirMaker<'a> {
     class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
 }
 
-pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
+pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
+    let index = index::create(&ast, corelib.sk_classes)?;
+    let mut hir = convert_program(index, ast)?;
+
+    // While corelib classes are included in `index`,
+    // corelib methods are not. Here we need to add them manually
+    hir.add_methods(corelib.sk_methods);
+
+    Ok(hir)
+}
+
+fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(&index);
     hir_maker.init_class_ivars();
     hir_maker.register_class_consts();

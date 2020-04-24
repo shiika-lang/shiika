@@ -21,14 +21,7 @@ pub struct Hir {
 }
 impl Hir {
     pub fn from_ast(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
-        let index = index::create(&ast, corelib.sk_classes)?;
-        let mut hir = hir_maker::convert_program(index, ast)?;
-
-        // While corelib classes are included in `index`,
-        // corelib methods are not. Here we need to add them manually
-        hir.add_methods(corelib.sk_methods);
-
-        Ok(hir)
+        hir_maker::make_hir(ast, corelib)
     }
 
     //pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
