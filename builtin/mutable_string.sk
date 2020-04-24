@@ -1,9 +1,9 @@
 class MutableString
   # capa: Maximum number of bytes (does not included the last null)
   def initialize(capa: Int)
-    @ptr = Shiika::Internal::Memory.gc_malloc(capa+1)
-    @capa = capa
-    @bytesize = 0
+    var @ptr = Shiika::Internal::Memory.gc_malloc(capa+1)
+    var @capa = capa
+    var @bytesize = 0
   end
 
   def ptr -> Shiika::Internal::Ptr
