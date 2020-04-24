@@ -26,7 +26,7 @@ fn compile(filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
     let str = builtin + &fs::read_to_string(filepath)?;
     let ast = shiika::parser::Parser::parse(&str)?;
     let corelib = shiika::corelib::Corelib::create();
-    let hir = shiika::hir::Hir::from_ast(ast, corelib)?;
+    let hir = shiika::hir::build(ast, corelib)?;
     let mut code_gen = shiika::code_gen::CodeGen::new(&hir);
     code_gen.gen_program(&hir)?;
     code_gen.module.print_to_file(filepath.to_string() + ".ll")?;

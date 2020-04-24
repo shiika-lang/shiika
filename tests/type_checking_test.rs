@@ -13,7 +13,7 @@ fn test_discarding_return_value() -> Result<(), Box<dyn std::error::Error>> {
       end
     ";
     let ast = shiika::parser::Parser::parse(src)?;
-    let hir = shiika::hir::Hir::from_ast(ast, Corelib::create())?;
+    let hir = shiika::hir::build(ast, Corelib::create())?;
     println!("sk_methods: {:?}", hir.sk_methods);
     let method = &hir.sk_methods.get(&ClassFullname("A".to_string())).unwrap()[0];
     assert_eq!(method.signature.ret_ty, ty::raw("Void"));
