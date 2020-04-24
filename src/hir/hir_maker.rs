@@ -12,8 +12,8 @@ use crate::type_checking;
 use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
-pub struct HirMaker<'a> {
-    pub index: &'a Index,
+pub struct HirMaker {
+    pub index: Index,
     // List of constants found so far
     pub constants: HashMap<ConstFullname, TermTy>,
     pub const_inits: Vec<HirExpression>,
@@ -35,7 +35,7 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 }
 
 fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(&index);
+    let mut hir_maker = HirMaker::new(index);
     hir_maker.init_class_ivars();
     hir_maker.register_class_consts();
     let main_exprs =
@@ -45,8 +45,8 @@ fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error
     Ok(hir_maker.extract_hir(sk_methods, main_exprs))
 }
 
-impl<'a> HirMaker<'a> {
-    fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
+impl HirMaker {
+    fn new(index: index::Index) -> HirMaker {
         HirMaker {
             index,
             constants: HashMap::new(),
@@ -93,32 +93,36 @@ impl<'a> HirMaker<'a> {
     }
 
     fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
-        // TODO: Extract index
-        //let mut index = Index::new();
-        //std::mem::swap(&mut index, &mut self.index);
+        let mut index = Index::new();
+        std::mem::swap(&mut index, &mut self.index);
 
         let mut sk_classes = HashMap::new();
-        self.index.classes.iter().for_each(|(name, c)| {
-            let ivars = self.class_ivars.get(name)
+        for (name, c) in index.classes.drain() {
+            let ivars = self.class_ivars.get(&name)
                 .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
-            // PERF: How to avoid these clone's? Use Rc?
-            sk_classes.insert(name.clone(), SkClass {
-                fullname: c.fullname.clone(),
-                superclass_fullname: c.superclass_fullname.clone(),
-                instance_ty: c.instance_ty.clone(),
+            sk_classes.insert(name, SkClass {
+                fullname: c.fullname,
+                superclass_fullname: c.superclass_fullname,
+                instance_ty: c.instance_ty,
                 ivars: Rc::clone(&ivars),
-                method_sigs: c.method_sigs.clone()
+                method_sigs: c.method_sigs,
             });
-        });
+        }
         sk_classes
     }
 
     fn register_class_consts(&mut self) {
-        for name in self.index.classes.keys() {
+        // Swap is needed to avoid compile error
+        let mut index = Index::new();
+        std::mem::swap(&mut index, &mut self.index);
+
+        for name in index.classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
         }
+
+        std::mem::swap(&mut index, &mut self.index);
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
