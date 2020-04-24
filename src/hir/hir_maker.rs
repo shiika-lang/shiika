@@ -513,8 +513,9 @@ impl<'a> HirMaker<'a> {
                             ctx: &mut HirMakerContext,
                             name: &str,
                             rhs: &AstExpression,
-                            _is_var: &bool) -> Result<HirExpression, Error> {
+                            is_var: &bool) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(ctx, rhs)?;
+
         if ctx.is_initializer {
             // TODO: check duplicates
             let idx = ctx.iivars.len();
@@ -522,10 +523,11 @@ impl<'a> HirMaker<'a> {
                 idx,
                 name: name.to_string(),
                 ty: expr.ty.clone(),
-                readonly: true,  // TODO: `var @foo`
+                readonly: !is_var,
             });
             return Ok(Hir::assign_ivar(name, idx, expr))
         }
+
         match ctx.ivars.get(name) {
             Some(ivar) => {
                 if ivar.ty.equals_to(&expr.ty) {
