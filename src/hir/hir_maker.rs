@@ -182,27 +182,22 @@ impl<'a> HirMaker<'a> {
         }
         // TODO: it may inherit `initialize` from superclass
 
-        defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
+        for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs) {
-                        Ok(method) => { instance_methods.push(method); Ok(()) },
-                        Err(err) => Err(err)
-                    }
+                    let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
+                    instance_methods.push(method);
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs) {
-                        Ok(method) => { class_methods.push(method); Ok(()) },
-                        Err(err) => Err(err)
-                    }
+                    let method = self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
+                    class_methods.push(method);
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
-                    Ok(())
                 }
-                _ => Ok(()),
+                _ => (),
             }
-        })?;
+        }
 
         class_methods.push(self.create_new(&fullname, initialize_params)?);
         Ok((fullname, instance_methods, meta_name, class_methods))
