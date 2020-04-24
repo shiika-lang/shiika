@@ -222,8 +222,16 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     non_primary_expression(body)
 }
 
-pub fn var_decl(name: String, rhs: AstExpression) -> AstExpression {
+pub fn lvar_decl(name: String, rhs: AstExpression) -> AstExpression {
     non_primary_expression(AstExpressionBody::LVarAssign {
+        name,
+        rhs: Box::new(rhs),
+        is_var: true,
+    })
+}
+
+pub fn ivar_decl(name: String, rhs: AstExpression) -> AstExpression {
+    non_primary_expression(AstExpressionBody::IVarAssign {
         name,
         rhs: Box::new(rhs),
         is_var: true,

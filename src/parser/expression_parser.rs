@@ -45,10 +45,17 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;  // TODO: `+=` etc.
                     self.skip_wsn();
                     let rhs = self.parse_operator_expr()?;
-                    expr = ast::var_decl(name, rhs);
-
+                    expr = ast::lvar_decl(name, rhs);
                 },
-                // TODO: Impl. `var @foo`
+                Token::IVar(s) => {
+                    let name = s.to_string();
+                    self.consume_token();
+                    self.skip_ws();
+                    self.expect(Token::Equal)?;  // TODO: `+=` etc.
+                    self.skip_wsn();
+                    let rhs = self.parse_operator_expr()?;
+                    expr = ast::ivar_decl(name, rhs);
+                },
                 token => {
                     return Err(parse_error!(self, "invalid var name: {:?}", token))
                 }
