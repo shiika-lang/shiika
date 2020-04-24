@@ -4,6 +4,7 @@
 /// may be wrong (eg. its return type does not exist).
 /// It is checked in `HirMaker`.
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::ast;
 use crate::error;
 use crate::error::*;

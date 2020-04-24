@@ -1,13 +1,14 @@
 mod hir_maker;
 mod hir_maker_context;
 mod index;
+mod sk_class;
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
 use crate::names::*;
 use crate::corelib::Corelib;
+pub use sk_class::SkClass;
 
 #[derive(Debug)]
 pub struct Hir {
@@ -45,20 +46,6 @@ impl Hir {
                 }
             }
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct SkClass {
-    pub fullname: ClassFullname,
-    pub superclass_fullname: Option<ClassFullname>,
-    pub instance_ty: TermTy,
-    pub ivars: Rc<HashMap<String, SkIVar>>,
-    pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
-}
-impl SkClass {
-    pub fn class_ty(&self) -> TermTy {
-        self.instance_ty.meta_ty()
     }
 }
 
