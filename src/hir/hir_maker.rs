@@ -173,8 +173,8 @@ impl<'a> HirMaker<'a> {
         let mut initialize_params = &vec![];
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, true)?;
-            ctx.ivars = Rc::new(collect_ivars(&method));
+            let (method, ivars) = self.convert_initializer(&ctx, &fullname, &sig.name, &body_exprs)?;
+            ctx.ivars = Rc::new(ivars);
             self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
             instance_methods.push(method);
 
@@ -185,13 +185,13 @@ impl<'a> HirMaker<'a> {
         defs.iter().filter(|d| !d.is_initializer()).try_for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs) {
                         Ok(method) => { instance_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs, false) {
+                    match self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs) {
                         Ok(method) => { class_methods.push(method); Ok(()) },
                         Err(err) => Err(err)
                     }
@@ -301,12 +301,29 @@ impl<'a> HirMaker<'a> {
     }
 
 
+    fn convert_initializer(&mut self,
+                           ctx: &HirMakerContext,
+                           class_fullname: &ClassFullname,
+                           name: &MethodFirstname,
+                           body_exprs: &[AstExpression]) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
+        self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)
+    }
+
     fn convert_method_def(&mut self,
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
+                          body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+        let (sk_method, _ivars) = self.convert_method_def_(ctx, class_fullname, name, body_exprs, false)?;
+        Ok(sk_method)
+    }
+
+    fn convert_method_def_(&mut self,
+                          ctx: &HirMakerContext,
+                          class_fullname: &ClassFullname,
+                          name: &MethodFirstname,
                           body_exprs: &[AstExpression],
-                          is_initializer: bool) -> Result<SkMethod, Error> {
+                          is_initializer: bool) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by index::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
         let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
@@ -317,7 +334,7 @@ impl<'a> HirMaker<'a> {
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
 
-        Ok(SkMethod { signature, body })
+        Ok((SkMethod { signature, body }, method_ctx.iivars))
     }
 
     fn convert_exprs(&mut self,
@@ -698,27 +715,5 @@ impl<'a> HirMaker<'a> {
         let idx = self.str_literals.len();
         self.str_literals.push(content.to_string());
         idx
-    }
-}
-
-fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
-{
-    let mut ivars = HashMap::new();
-    match &method.body {
-        SkMethodBody::ShiikaMethodBody { exprs } => {
-            exprs.exprs.iter().for_each(|expr| {
-                if let HirExpressionBase::HirIVarAssign { name, idx, rhs, writable } = &expr.node {
-                    ivars.insert(name.to_string(), SkIVar {
-                        idx: *idx,
-                        name: name.to_string(),
-                        ty: rhs.ty.clone(),
-                        readonly: !writable,
-                    });
-                }
-                // TODO: IVarAssign in `if'
-            });
-            ivars
-        },
-        _ => HashMap::new(),
     }
 }
