@@ -327,7 +327,7 @@ impl<'hir> CodeGen<'hir> {
             HirLVarAssign { name, rhs } => {
                 self.gen_lvar_assign(ctx, name, rhs)
             },
-            HirIVarAssign { name, idx, rhs } => {
+            HirIVarAssign { name, idx, rhs, .. } => {
                 self.gen_ivar_assign(ctx, name, idx, rhs)
             },
             HirConstAssign { fullname, rhs } => {

@@ -525,15 +525,18 @@ impl<'a> HirMaker<'a> {
                 ty: expr.ty.clone(),
                 readonly: !is_var,
             });
-            return Ok(Hir::assign_ivar(name, idx, expr))
+            return Ok(Hir::assign_ivar(name, idx, expr, *is_var))
         }
 
         if let Some(ivar) = ctx.ivars.get(name) {
+            if ivar.readonly {
+                return Err(error::program_error(&format!("instance variable `{}' is readonly", name)))
+            }
             if !ivar.ty.equals_to(&expr.ty) {
                 // TODO: Subtype (@obj = 1, etc.)
                 return Err(error::type_error(&format!("instance variable `{}' has type {:?} but tried to assign a {:?}", name, ivar.ty, expr.ty)))
             }
-            Ok(Hir::assign_ivar(name, ivar.idx, expr))
+            Ok(Hir::assign_ivar(name, ivar.idx, expr, false))
         }
         else {
             Err(error::program_error(&format!("instance variable `{}' not found", name)))
@@ -704,12 +707,12 @@ fn collect_ivars(method: &SkMethod) -> HashMap<String, SkIVar>
     match &method.body {
         SkMethodBody::ShiikaMethodBody { exprs } => {
             exprs.exprs.iter().for_each(|expr| {
-                if let HirExpressionBase::HirIVarAssign { name, idx, rhs } = &expr.node {
+                if let HirExpressionBase::HirIVarAssign { name, idx, rhs, writable } = &expr.node {
                     ivars.insert(name.to_string(), SkIVar {
                         idx: *idx,
                         name: name.to_string(),
                         ty: rhs.ty.clone(),
-                        readonly: true,  // TODO: `var @foo`
+                        readonly: !writable,
                     });
                 }
                 // TODO: IVarAssign in `if'
