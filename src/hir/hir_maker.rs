@@ -529,13 +529,11 @@ impl<'a> HirMaker<'a> {
         }
 
         if let Some(ivar) = ctx.ivars.get(name) {
-            if ivar.ty.equals_to(&expr.ty) {
-                Ok(Hir::assign_ivar(name, ivar.idx, expr))
-            }
-            else {
+            if !ivar.ty.equals_to(&expr.ty) {
                 // TODO: Subtype (@obj = 1, etc.)
-                Err(error::type_error(&format!("instance variable `{}' has type {:?} but tried to assign a {:?}", name, ivar.ty, expr.ty)))
+                return Err(error::type_error(&format!("instance variable `{}' has type {:?} but tried to assign a {:?}", name, ivar.ty, expr.ty)))
             }
+            Ok(Hir::assign_ivar(name, ivar.idx, expr))
         }
         else {
             Err(error::program_error(&format!("instance variable `{}' not found", name)))
