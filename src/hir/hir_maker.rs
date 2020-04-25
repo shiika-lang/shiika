@@ -12,8 +12,8 @@ use crate::type_checking;
 use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
-pub struct HirMaker<'a> {
-    pub index: &'a Index,
+pub struct HirMaker {
+    pub index: Index,
     // List of constants found so far
     pub constants: HashMap<ConstFullname, TermTy>,
     pub const_inits: Vec<HirExpression>,
@@ -23,8 +23,19 @@ pub struct HirMaker<'a> {
     class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
 }
 
-pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(&index);
+pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
+    let index = index::create(&ast, corelib.sk_classes)?;
+    let mut hir = convert_program(index, ast)?;
+
+    // While corelib classes are included in `index`,
+    // corelib methods are not. Here we need to add them manually
+    hir.add_methods(corelib.sk_methods);
+
+    Ok(hir)
+}
+
+fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
+    let mut hir_maker = HirMaker::new(index);
     hir_maker.init_class_ivars();
     hir_maker.register_class_consts();
     let main_exprs =
@@ -34,8 +45,8 @@ pub fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, E
     Ok(hir_maker.extract_hir(sk_methods, main_exprs))
 }
 
-impl<'a> HirMaker<'a> {
-    fn new(index: &'a crate::hir::index::Index) -> HirMaker<'a> {
+impl HirMaker {
+    fn new(index: index::Index) -> HirMaker {
         HirMaker {
             index,
             constants: HashMap::new(),
@@ -82,32 +93,24 @@ impl<'a> HirMaker<'a> {
     }
 
     fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
-        // TODO: Extract index
-        //let mut index = Index::new();
-        //std::mem::swap(&mut index, &mut self.index);
-
-        let mut sk_classes = HashMap::new();
-        self.index.classes.iter().for_each(|(name, c)| {
-            let ivars = self.class_ivars.get(name)
+        let mut sk_classes = std::mem::replace(&mut self.index.classes, HashMap::new());
+        for (name, c) in sk_classes.iter_mut() {
+            let ivars = self.class_ivars.get_mut(&name)
                 .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
-            // PERF: How to avoid these clone's? Use Rc?
-            sk_classes.insert(name.clone(), SkClass {
-                fullname: c.fullname.clone(),
-                superclass_fullname: c.superclass_fullname.clone(),
-                instance_ty: c.instance_ty.clone(),
-                ivars: Rc::clone(&ivars),
-                method_sigs: c.method_sigs.clone()
-            });
-        });
+            c.ivars = Rc::clone(&ivars);
+        }
         sk_classes
     }
 
     fn register_class_consts(&mut self) {
-        for name in self.index.classes.keys() {
+        // Replace is needed to avoid compile error
+        let classes = std::mem::replace(&mut self.index.classes, Default::default());
+        for name in classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
         }
+        self.index.classes = classes;
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])

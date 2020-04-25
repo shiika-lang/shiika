@@ -1,13 +1,14 @@
 mod hir_maker;
 mod hir_maker_context;
 mod index;
+mod sk_class;
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::ast;
 use crate::ty;
 use crate::ty::*;
 use crate::names::*;
 use crate::corelib::Corelib;
+pub use sk_class::SkClass;
 
 #[derive(Debug)]
 pub struct Hir {
@@ -18,22 +19,12 @@ pub struct Hir {
     pub const_inits: Vec<HirExpression>,
     pub main_exprs: HirExpressions,
 }
+
+pub fn build(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
+    hir_maker::make_hir(ast, corelib)
+}
+
 impl Hir {
-    pub fn from_ast(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
-        let index = index::create(&ast, corelib.sk_classes)?;
-        let mut hir = hir_maker::convert_program(index, ast)?;
-
-        // While corelib classes are included in `index`,
-        // corelib methods are not. Here we need to add them manually
-        hir.add_methods(corelib.sk_methods);
-
-        Ok(hir)
-    }
-
-    //pub fn add_classes(&mut self, sk_classes: HashMap<ClassFullname, SkClass>) {
-    //    self.sk_classes.extend(sk_classes)
-    //}
-
     pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
         for (classname, mut new_methods) in sk_methods {
             match self.sk_methods.get_mut(&classname) {
@@ -45,20 +36,6 @@ impl Hir {
                 }
             }
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct SkClass {
-    pub fullname: ClassFullname,
-    pub superclass_fullname: Option<ClassFullname>,
-    pub instance_ty: TermTy,
-    pub ivars: Rc<HashMap<String, SkIVar>>,
-    pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
-}
-impl SkClass {
-    pub fn class_ty(&self) -> TermTy {
-        self.instance_ty.meta_ty()
     }
 }
 

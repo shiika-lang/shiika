@@ -4,6 +4,7 @@
 /// may be wrong (eg. its return type does not exist).
 /// It is checked in `HirMaker`.
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::ast;
 use crate::error;
 use crate::error::*;
@@ -13,17 +14,10 @@ use crate::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Index {
-    // TODO: Rename to `idx_classes`
-    pub classes: HashMap<ClassFullname, IdxClass>
-}
-
-#[derive(Debug, PartialEq)]
-pub struct IdxClass {
-    pub fullname: ClassFullname,
-    pub superclass_fullname: Option<ClassFullname>,
-    pub instance_ty: TermTy,
-    pub ivars: Rc<HashMap<String, SkIVar>>,
-    pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
+    /// Indexed classes.
+    /// Note that .ivars are empty (because their types cannot be decided
+    /// while indexing)
+    pub classes: HashMap<ClassFullname, SkClass>
 }
 
 pub fn create(ast: &ast::Program, corelib: HashMap<ClassFullname, SkClass>) -> Result<Index, Error> {
@@ -46,7 +40,7 @@ impl Index {
     }
 
     /// Find a class
-    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&IdxClass> {
+    pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
         self.classes.get(class_fullname)
     }
 
@@ -56,13 +50,13 @@ impl Index {
     }
 
     /// Register a class
-    fn add_class(&mut self, class: IdxClass) {
+    fn add_class(&mut self, class: SkClass) {
         self.classes.insert(class.fullname.clone(), class);
     }
 
     pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
         corelib.into_iter().for_each(|(_, c)| {
-            self.add_class(IdxClass {
+            self.add_class(SkClass {
                 fullname: c.fullname,
                 superclass_fullname: c.superclass_fullname,
                 instance_ty: c.instance_ty,
@@ -129,7 +123,7 @@ impl Index {
             None => {
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
-                self.add_class(IdxClass {
+                self.add_class(SkClass {
                     fullname: class_fullname,
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(ClassFullname("Object".to_string())) },
@@ -137,7 +131,7 @@ impl Index {
                     ivars: Rc::new(HashMap::new()),
                     method_sigs: instance_methods,
                 });
-                self.add_class(IdxClass {
+                self.add_class(SkClass {
                     fullname: metaclass_fullname,
                     superclass_fullname: Some(ClassFullname("Class".to_string())),
                     instance_ty: class_ty,
