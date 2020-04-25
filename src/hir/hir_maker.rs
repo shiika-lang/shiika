@@ -114,6 +114,21 @@ impl HirMaker {
         self.index.classes = classes;
     }
 
+    /// Register a constant that holds a class
+    fn register_class_const(&mut self, fullname: &ClassFullname) {
+        let instance_ty = ty::raw(&fullname.0);
+        let class_ty = instance_ty.meta_ty();
+        let const_name = const_fullname(&format!("::{}", &fullname.0));
+
+        // eg. Constant `A` holds the class A
+        self.constants.insert(const_name.clone(), class_ty);
+        // eg. "A"
+        let idx = self.register_string_literal(&fullname.0);
+        // eg. A = Meta:A.new
+        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone(), idx));
+        self.const_inits.push(op);
+    }
+
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
                             -> Result<MethodDict, Error> {
         let mut method_dict = MethodDict::new();
@@ -182,21 +197,6 @@ impl HirMaker {
         method_dict.add_method(&meta_name,
                                self.create_new(&fullname, initialize_params)?);
         Ok(())
-    }
-
-    /// Register a constant that holds a class
-    fn register_class_const(&mut self, fullname: &ClassFullname) {
-        let instance_ty = ty::raw(&fullname.0);
-        let class_ty = instance_ty.meta_ty();
-        let const_name = const_fullname(&format!("::{}", &fullname.0));
-
-        // eg. Constant `A` holds the class A
-        self.constants.insert(const_name.clone(), class_ty);
-        // eg. "A"
-        let idx = self.register_string_literal(&fullname.0);
-        // eg. A = Meta:A.new
-        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone(), idx));
-        self.const_inits.push(op);
     }
 
     fn register_meta_ivar(&mut self, name: &ClassFullname) {
