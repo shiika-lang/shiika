@@ -109,19 +109,19 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
-    TermTy { fullname: ClassFullname(fullname.to_string()), body: TyRaw }
+    TermTy { fullname: class_fullname(fullname), body: TyRaw }
 }
 
 pub fn meta(base_fullname: &str) -> TermTy {
     TermTy {
-        fullname: ClassFullname("Meta:".to_string() + base_fullname),
+        fullname: metaclass_fullname(base_fullname),
         body: TyMeta { base_fullname: base_fullname.to_string() },
     }
 }
 
 pub fn class() -> TermTy {
     TermTy {
-        fullname: ClassFullname("Class".to_string()),
+        fullname: class_fullname("Class"),
         body: TyClass,
     }
 }

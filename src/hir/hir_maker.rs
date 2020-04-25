@@ -80,7 +80,7 @@ impl HirMaker {
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
         // Register void
-        constants.insert(ConstFullname("::void".to_string()), ty::raw("Void"));
+        constants.insert(const_fullname("::void"), ty::raw("Void"));
 
         Hir {
             sk_classes,
@@ -210,7 +210,7 @@ impl HirMaker {
     fn register_class_const(&mut self, fullname: &ClassFullname) {
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
-        let const_name = ConstFullname("::".to_string() + &fullname.0);
+        let const_name = const_fullname(&format!("::{}", &fullname.0));
 
         // eg. Constant `A` holds the class A
         self.constants.insert(const_name.clone(), class_ty);
@@ -280,7 +280,7 @@ impl HirMaker {
                        -> Result<(MethodFullname, ClassFullname), Error> {
         let (_sig, found_cls) =
             self.lookup_method(&class_fullname, &class_fullname, 
-                               &MethodFirstname("initialize".to_string()))?;
+                               &method_firstname("initialize"))?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
@@ -290,7 +290,7 @@ impl HirMaker {
                       name: &ConstFirstname,
                       expr: &AstExpression) -> Result<ConstFullname, Error> {
         // TODO: resolve name using ctx
-        let fullname = ConstFullname(ctx.namespace.0.clone() + "::" + &name.0);
+        let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
         let hir_expr = self.convert_expr(ctx, expr)?;
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::assign_const(fullname.clone(), hir_expr);
@@ -343,7 +343,7 @@ impl HirMaker {
         ).collect::<Result<Vec<_>, _>>()?;
 
         if hir_exprs.is_empty() {
-            hir_exprs.push(Hir::const_ref(ty::raw("Void"), ConstFullname("::Void".to_string())))
+            hir_exprs.push(Hir::const_ref(ty::raw("Void"), const_fullname("::Void")))
         }
 
         let last_expr = hir_exprs.last().unwrap();
@@ -562,7 +562,7 @@ impl HirMaker {
                             ctx: &mut HirMakerContext,
                             names: &[String],
                             rhs: &AstExpression) -> Result<HirExpression, Error> {
-        let name = ConstFirstname(names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
+        let name = const_firstname(&names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(ctx, &name, &rhs)?;
         Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
     }
@@ -672,7 +672,7 @@ impl HirMaker {
                 Ok(Hir::const_ref(ty.clone(), fullname))
             },
             None => {
-                let c = ClassFullname(names.join("::"));
+                let c = class_fullname(&names.join("::"));
                 if self.index.class_exists(&c.0) {
                     Ok(Hir::const_ref(c.class_ty(), fullname))
                 }

@@ -110,7 +110,7 @@ impl<'hir> CodeGen<'hir> {
 
         // CreateMain:
         self.builder.position_at_end(&create_main_block);
-        self.the_main = Some(self.allocate_sk_obj(&ClassFullname("Object".to_string()), "main"));
+        self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
         self.builder.build_unconditional_branch(&user_main_block);
 
         // UserMain:
@@ -212,7 +212,7 @@ impl<'hir> CodeGen<'hir> {
 
         // Generate void
         let ptr = self.module.get_global(&"::void").unwrap().as_pointer_value();
-        let value = self.allocate_sk_obj(&ClassFullname("Void".to_string()), "void_obj");
+        let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");
         self.builder.build_store(ptr, value);
 
         self.builder.build_return(None);
@@ -586,7 +586,7 @@ impl<'hir> CodeGen<'hir> {
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
             None => {
-                self.gen_const_ref(&ConstFullname("::void".to_string()))
+                self.gen_const_ref(&const_fullname("::void"))
             }
         }
     }
@@ -643,7 +643,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
-        let sk_str = self.allocate_sk_obj(&ClassFullname("String".to_string()), "str");
+        let sk_str = self.allocate_sk_obj(&class_fullname("String"), "str");
 
         // Store ptr
         let loc = unsafe {

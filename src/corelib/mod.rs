@@ -67,7 +67,7 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
         sk_classes.insert(
             ClassFullname(name.to_string()),
             SkClass {
-                fullname: ClassFullname(name.to_string()),
+                fullname: class_fullname(name),
                 superclass_fullname: super_name,
                 instance_ty: ty::raw(name),
                 ivars: Rc::new(ivars),
@@ -85,10 +85,10 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
             readonly: true,
         });
         sk_classes.insert(
-            ClassFullname("Meta:".to_string() + name),
+            metaclass_fullname(name),
             SkClass {
-                fullname: ClassFullname("Meta:".to_string() + name),
-                superclass_fullname: Some(ClassFullname("Class".to_string())),
+                fullname: metaclass_fullname(name),
+                superclass_fullname: Some(class_fullname("Class")),
                 instance_ty: ty::meta(name),
                 ivars: Rc::new(meta_ivars),
                 method_sigs: cmethods.iter().map(|x|
@@ -97,8 +97,8 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
             }
         );
 
-        sk_methods.insert(ClassFullname(name.to_string()), imethods);
-        sk_methods.insert(ClassFullname("Meta:".to_string() + name), cmethods);
+        sk_methods.insert(class_fullname(name), imethods);
+        sk_methods.insert(metaclass_fullname(name), cmethods);
     };
     (sk_classes, sk_methods)
 }
