@@ -189,8 +189,8 @@ impl HirMaker {
         let mut initialize_params = &vec![];
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            let method = self.convert_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?;
-            method_dict.add_method(&fullname, method);
+            method_dict.add_method(&fullname,
+                                   self.convert_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
             initialize_params = &sig.params;
         }
         // TODO: it may inherit `initialize` from superclass
@@ -198,12 +198,12 @@ impl HirMaker {
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
-                    method_dict.add_method(&fullname, method);
+                    method_dict.add_method(&fullname, 
+                                           self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?);
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    let method = self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
-                    method_dict.add_method(&meta_name, method);
+                    method_dict.add_method(&meta_name,
+                                           self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?);
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
