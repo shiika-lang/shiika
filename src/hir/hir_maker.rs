@@ -189,7 +189,7 @@ impl HirMaker {
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             method_dict.add_method(&fullname,
-                                   self.convert_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
+                                   self.process_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
             method_dict.add_method(&meta_name,
                                    self.create_new(&fullname, &sig.params)?);
         }
@@ -279,8 +279,7 @@ impl HirMaker {
         Ok(fullname)
     }
 
-
-    fn convert_initializer(&mut self,
+    fn process_initializer(&mut self,
                            ctx: &mut HirMakerContext,
                            class_fullname: &ClassFullname,
                            name: &MethodFirstname,
