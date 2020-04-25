@@ -1,6 +1,6 @@
 mod hir_maker;
 mod hir_maker_context;
-mod index;
+mod class_dict;
 mod method_dict;
 mod sk_class;
 use std::collections::HashMap;
