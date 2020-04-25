@@ -103,17 +103,14 @@ impl HirMaker {
     }
 
     fn register_class_consts(&mut self) {
-        // Swap is needed to avoid compile error
-        let mut index = Index::new();
-        std::mem::swap(&mut index, &mut self.index);
-
-        for name in index.classes.keys() {
+        // Replace is needed to avoid compile error
+        let classes = std::mem::replace(&mut self.index.classes, Default::default());
+        for name in classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
         }
-
-        std::mem::swap(&mut index, &mut self.index);
+        self.index.classes = classes;
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
