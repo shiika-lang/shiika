@@ -40,9 +40,9 @@ fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error
     hir_maker.register_class_consts();
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
-    let sk_methods =
+    let all_sk_methods =
         hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-    Ok(hir_maker.extract_hir(sk_methods, main_exprs))
+    Ok(hir_maker.extract_hir(all_sk_methods, main_exprs))
 }
 
 impl HirMaker {
@@ -115,14 +115,14 @@ impl HirMaker {
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
                             -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
-        let mut sk_methods = HashMap::new();
+        let mut all_sk_methods = HashMap::new();
         let mut ctx = HirMakerContext::toplevel();
 
         toplevel_defs.iter().try_for_each(|def|
             match def {
                 // Extract instance/class methods
                 ast::Definition::ClassDefinition { name, defs } => {
-                    self.collect_sk_methods(name, defs, &mut sk_methods)?;
+                    self.collect_sk_methods(name, defs, &mut all_sk_methods)?;
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
@@ -133,26 +133,26 @@ impl HirMaker {
             }
         )?;
 
-        Ok(sk_methods)
+        Ok(all_sk_methods)
     }
 
     fn collect_sk_methods(&mut self,
                           firstname: &ClassFirstname,
                           defs: &[ast::Definition],
-                          sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
+                          all_sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
                          -> Result<(), Error> {
         let (fullname, mut instance_methods, meta_name, mut class_methods) =
             self.convert_class_def(firstname, defs)?;
-        match sk_methods.get_mut(&fullname) {
+        match all_sk_methods.get_mut(&fullname) {
             Some(imethods) => {
                 // Merge methods to existing class (Class is reopened)
                 imethods.append(&mut instance_methods);
-                let cmethods = sk_methods.get_mut(&meta_name).expect("[BUG] meta not found");
+                let cmethods = all_sk_methods.get_mut(&meta_name).expect("[BUG] meta not found");
                 cmethods.append(&mut class_methods);
             },
             None => {
-                sk_methods.insert(fullname, instance_methods);
-                sk_methods.insert(meta_name, class_methods);
+                all_sk_methods.insert(fullname, instance_methods);
+                all_sk_methods.insert(meta_name, class_methods);
             }
         }
         Ok(())
