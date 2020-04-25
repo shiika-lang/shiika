@@ -186,12 +186,12 @@ impl HirMaker {
                    -> Result<(), Error> {
         let meta_name = fullname.meta_name();
         let mut ctx = HirMakerContext::class_ctx(&fullname);
-        let mut initialize_params = &vec![];
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             method_dict.add_method(&fullname,
                                    self.convert_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
-            initialize_params = &sig.params;
+            method_dict.add_method(&meta_name,
+                                   self.create_new(&fullname, &sig.params)?);
         }
         // TODO: it may inherit `initialize` from superclass
 
@@ -211,9 +211,6 @@ impl HirMaker {
                 _ => (),
             }
         }
-
-        method_dict.add_method(&meta_name,
-                               self.create_new(&fullname, initialize_params)?);
         Ok(())
     }
 
