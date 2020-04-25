@@ -7,6 +7,7 @@ use crate::hir;
 use crate::hir::*;
 use crate::hir::index::Index;
 use crate::hir::hir_maker_context::*;
+use crate::hir::method_dict::*;
 use crate::names;
 use crate::type_checking;
 use crate::parser::token::Token;
@@ -67,7 +68,7 @@ impl HirMaker {
 
     /// Destructively convert self to Hir
     fn extract_hir(&mut self,
-           sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+           all_sk_methods: MethodDict,
            main_exprs: HirExpressions) -> Hir {
         let sk_classes = self.extract_classes();
 
@@ -84,7 +85,7 @@ impl HirMaker {
 
         Hir {
             sk_classes,
-            sk_methods,
+            sk_methods: all_sk_methods.sk_methods,
             constants,
             str_literals,
             const_inits,
@@ -114,8 +115,8 @@ impl HirMaker {
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
-                            -> Result<HashMap<ClassFullname, Vec<SkMethod>>, Error> {
-        let mut all_sk_methods = HashMap::new();
+                            -> Result<MethodDict, Error> {
+        let mut all_sk_methods = MethodDict::new();
         let mut ctx = HirMakerContext::toplevel();
 
         toplevel_defs.iter().try_for_each(|def|
@@ -136,42 +137,18 @@ impl HirMaker {
         Ok(all_sk_methods)
     }
 
+    /// Extract instance/class methods and constants
     fn collect_sk_methods(&mut self,
                           firstname: &ClassFirstname,
                           defs: &[ast::Definition],
-                          all_sk_methods: &mut HashMap<ClassFullname, Vec<SkMethod>>)
+                          all_sk_methods: &mut MethodDict)
                          -> Result<(), Error> {
-        let (fullname, mut instance_methods, meta_name, mut class_methods) =
-            self.convert_class_def(firstname, defs)?;
-        match all_sk_methods.get_mut(&fullname) {
-            Some(imethods) => {
-                // Merge methods to existing class (Class is reopened)
-                imethods.append(&mut instance_methods);
-                let cmethods = all_sk_methods.get_mut(&meta_name).expect("[BUG] meta not found");
-                cmethods.append(&mut class_methods);
-            },
-            None => {
-                all_sk_methods.insert(fullname, instance_methods);
-                all_sk_methods.insert(meta_name, class_methods);
-            }
-        }
-        Ok(())
-    }
-
-    /// Extract instance/class methods and constants
-    fn convert_class_def(&mut self, name: &ClassFirstname, defs: &[ast::Definition])
-                        -> Result<(ClassFullname, Vec<SkMethod>,
-                                   ClassFullname, Vec<SkMethod>), Error> {
         // TODO: nested class
-        let fullname = name.to_class_fullname();
-        let instance_ty = ty::raw(&fullname.0);
-        let class_ty = instance_ty.meta_ty();
-        let meta_name = class_ty.fullname;
+        let fullname = firstname.to_class_fullname();
+        let meta_name = fullname.meta_name();
 
         self.register_meta_ivar(&fullname);
 
-        let mut instance_methods = vec![];
-        let mut class_methods = vec![];
         let mut ctx = HirMakerContext::class_ctx(&fullname);
         let mut initialize_params = &vec![];
 
@@ -179,7 +156,7 @@ impl HirMaker {
             let (method, ivars) = self.convert_initializer(&ctx, &fullname, &sig.name, &body_exprs)?;
             ctx.ivars = Rc::new(ivars);
             self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
-            instance_methods.push(method);
+            all_sk_methods.add_method(&fullname, method);
 
             initialize_params = &sig.params;
         }
@@ -189,11 +166,11 @@ impl HirMaker {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
                     let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
-                    instance_methods.push(method);
+                    all_sk_methods.add_method(&fullname, method);
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
                     let method = self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
-                    class_methods.push(method);
+                    all_sk_methods.add_method(&meta_name, method);
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
@@ -202,8 +179,9 @@ impl HirMaker {
             }
         }
 
-        class_methods.push(self.create_new(&fullname, initialize_params)?);
-        Ok((fullname, instance_methods, meta_name, class_methods))
+        all_sk_methods.add_method(&meta_name,
+                                  self.create_new(&fullname, initialize_params)?);
+        Ok(())
     }
 
     /// Register a constant that holds a class
