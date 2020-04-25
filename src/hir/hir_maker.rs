@@ -93,20 +93,11 @@ impl HirMaker {
     }
 
     fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
-        let mut index = Index::new();
-        std::mem::swap(&mut index, &mut self.index);
-
-        let mut sk_classes = HashMap::new();
-        for (name, c) in index.classes.drain() {
-            let ivars = self.class_ivars.get(&name)
+        let mut sk_classes = std::mem::replace(&mut self.index.classes, HashMap::new());
+        for (name, c) in sk_classes.iter_mut() {
+            let ivars = self.class_ivars.get_mut(&name)
                 .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
-            sk_classes.insert(name, SkClass {
-                fullname: c.fullname,
-                superclass_fullname: c.superclass_fullname,
-                instance_ty: c.instance_ty,
-                ivars: Rc::clone(&ivars),
-                method_sigs: c.method_sigs,
-            });
+            c.ivars = Rc::clone(&ivars);
         }
         sk_classes
     }
