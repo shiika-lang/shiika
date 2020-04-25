@@ -160,10 +160,31 @@ impl HirMaker {
                          -> Result<(), Error> {
         // TODO: nested class
         let fullname = firstname.to_class_fullname();
-        let meta_name = fullname.meta_name();
 
         self.register_meta_ivar(&fullname);
+        self.process_defs(defs, method_dict, &fullname)?;
+        Ok(())
+    }
 
+    fn register_meta_ivar(&mut self, name: &ClassFullname) {
+        let meta_name = name.meta_name();
+        let mut meta_ivars = HashMap::new();
+        meta_ivars.insert("@name".to_string(), SkIVar {
+            name: "@name".to_string(),
+            idx: 0,
+            ty: ty::raw("String"),
+            readonly: true,
+        });
+        self.class_ivars.insert(meta_name, Rc::new(meta_ivars));
+    }
+
+    /// Process each method def and const def
+    fn process_defs(&mut self,
+                    defs: &[ast::Definition],
+                    method_dict: &mut MethodDict,
+                    fullname: &ClassFullname)
+                   -> Result<(), Error> {
+        let meta_name = fullname.meta_name();
         let mut ctx = HirMakerContext::class_ctx(&fullname);
         let mut initialize_params = &vec![];
 
@@ -172,7 +193,6 @@ impl HirMaker {
             ctx.ivars = Rc::new(ivars);
             self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
             method_dict.add_method(&fullname, method);
-
             initialize_params = &sig.params;
         }
         // TODO: it may inherit `initialize` from superclass
@@ -197,18 +217,6 @@ impl HirMaker {
         method_dict.add_method(&meta_name,
                                self.create_new(&fullname, initialize_params)?);
         Ok(())
-    }
-
-    fn register_meta_ivar(&mut self, name: &ClassFullname) {
-        let meta_name = name.meta_name();
-        let mut meta_ivars = HashMap::new();
-        meta_ivars.insert("@name".to_string(), SkIVar {
-            name: "@name".to_string(),
-            idx: 0,
-            ty: ty::raw("String"),
-            readonly: true,
-        });
-        self.class_ivars.insert(meta_name, Rc::new(meta_ivars));
     }
 
     /// Create .new
