@@ -247,7 +247,7 @@ pub fn method_call(receiver_expr: Option<AstExpression>,
         primary,
         body: AstExpressionBody::MethodCall {
             receiver_expr: receiver_expr.map(Box::new),
-            method_name: MethodFirstname(method_name.to_string()),
+            method_name: method_firstname(method_name),
             arg_exprs,
             may_have_paren_wo_args,
         }
@@ -269,7 +269,7 @@ pub fn const_ref(names: Vec<String>) -> AstExpression {
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
     primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),
-        method_name: MethodFirstname(op.to_string()),
+        method_name: method_firstname(op),
         arg_exprs: vec![],
         may_have_paren_wo_args: false,
     })
@@ -278,7 +278,7 @@ pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
 pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstExpression {
     non_primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(left)),
-        method_name: MethodFirstname(op.to_string()),
+        method_name: method_firstname(op),
         arg_exprs: vec![right],
         may_have_paren_wo_args: false,
     })
@@ -332,7 +332,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                 primary: false,
                 body: AstExpressionBody::MethodCall {
                     receiver_expr: None,
-                    method_name: MethodFirstname(s),
+                    method_name: method_firstname(&s),
                     arg_exprs: args,
                     may_have_paren_wo_args: false,
                 }

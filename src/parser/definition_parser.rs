@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
         // Class name
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = ClassFirstname(s.to_string());
+                name = class_firstname(s);
                 self.consume_token();
             },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
@@ -99,13 +99,13 @@ impl<'a> Parser<'a> {
             }
             else {
                 // Defining a method named `self` :thinking_face:
-                name = Some(MethodFirstname("self".to_string()));
+                name = Some(method_firstname("self"));
             }
         }
 
         // Method name
         if name == None {
-            name = Some(MethodFirstname(self.get_method_name()?.to_string()));
+            name = Some(method_firstname(self.get_method_name()?));
             self.consume_token();
         }
         self.skip_ws();
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
         let name;
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = ConstFirstname(s.to_string());
+                name = const_firstname(s);
             },
             _ => panic!("must be called on an UpperWord"),
         }

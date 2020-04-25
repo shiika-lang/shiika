@@ -400,10 +400,7 @@ fn signature_of_new(metaclass_fullname: &ClassFullname,
                     initialize_params: &[ast::Param],
                     instance_ty: &TermTy) -> MethodSignature {
     MethodSignature {
-        fullname: MethodFullname {
-            full_name: metaclass_fullname.0.clone() + "#new",
-            first_name: MethodFirstname("new".to_string()),
-        },
+        fullname: method_fullname(metaclass_fullname, "new"),
         ret_ty: instance_ty.clone(),
         params: convert_params(initialize_params),
     }

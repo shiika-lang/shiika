@@ -82,8 +82,8 @@ impl Index {
     }
 
     fn index_class(&mut self, name: &ClassFirstname, defs: &[ast::Definition]) {
-        let class_fullname = name.to_class_fullname(); // TODO: nested class
-        let instance_ty = ty::raw(&class_fullname.0);
+        let fullname = name.to_class_fullname(); // TODO: nested class
+        let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
 
         let metaclass_fullname = class_ty.fullname.clone();
@@ -96,7 +96,7 @@ impl Index {
         defs.iter().for_each(|def| {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = crate::hir::create_signature(class_fullname.to_string(), sig);
+                    let hir_sig = crate::hir::create_signature(fullname.to_string(), sig);
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
@@ -108,7 +108,7 @@ impl Index {
             }
         });
 
-        match self.classes.get_mut(&class_fullname) {
+        match self.classes.get_mut(&fullname) {
             Some(class) => {
                 // Merge methods to existing class (Class is reopened)
                 class.method_sigs.extend(instance_methods);
@@ -116,7 +116,7 @@ impl Index {
                     .expect("[BUG] Only class is indexed");
                 metaclass.method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
-                if !metaclass.method_sigs.contains_key(&MethodFirstname("new".to_string())) {
+                if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
                     metaclass.method_sigs.insert(new_sig.fullname.first_name.clone(), new_sig);
                 }
             },
@@ -124,16 +124,16 @@ impl Index {
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(SkClass {
-                    fullname: class_fullname,
+                    fullname: fullname,
                     superclass_fullname: if name.0 == "Object" { None }
-                                         else { Some(ClassFullname("Object".to_string())) },
+                                         else { Some(class_fullname("Object")) },
                     instance_ty,
                     ivars: Rc::new(HashMap::new()),
                     method_sigs: instance_methods,
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
-                    superclass_fullname: Some(ClassFullname("Class".to_string())),
+                    superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
                     ivars: Rc::new(HashMap::new()),
                     method_sigs: class_methods,

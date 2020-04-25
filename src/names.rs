@@ -11,6 +11,11 @@ impl ClassFirstname {
     }
 }
 
+pub fn class_firstname(s: &str) -> ClassFirstname
+{
+    ClassFirstname(s.to_string())
+}
+
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ClassFullname(pub String);
 
@@ -18,6 +23,16 @@ impl std::fmt::Display for ClassFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+pub fn class_fullname(s: &str) -> ClassFullname
+{
+    ClassFullname(s.to_string())
+}
+
+pub fn metaclass_fullname(base: &str) -> ClassFullname
+{
+    ClassFullname("Meta:".to_string() + base)
 }
 
 impl ClassFullname {
@@ -58,6 +73,11 @@ impl std::fmt::Display for MethodFirstname {
     }
 }
 
+pub fn method_firstname(s: &str) -> MethodFirstname
+{
+    MethodFirstname(s.to_string())
+}
+
 impl MethodFirstname {
     pub fn append(&self, suffix: &str) -> MethodFirstname {
         MethodFirstname(self.0.clone() + suffix)
@@ -93,6 +113,11 @@ impl std::fmt::Display for ConstFirstname {
     }
 }
 
+pub fn const_firstname(s: &str) -> ConstFirstname
+{
+    ConstFirstname(s.to_string())
+}
+
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ConstFullname(pub String);
 
@@ -100,4 +125,9 @@ impl std::fmt::Display for ConstFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+pub fn const_fullname(s: &str) -> ConstFullname
+{
+    ConstFullname(s.to_string())
 }
