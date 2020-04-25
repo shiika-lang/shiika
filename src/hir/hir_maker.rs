@@ -14,14 +14,14 @@ use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
-    pub index: Index,
-    // List of constants found so far
-    pub constants: HashMap<ConstFullname, TermTy>,
-    pub const_inits: Vec<HirExpression>,
-    // List of string literals found so far
-    pub str_literals: Vec<String>,
-    // List of ivars of the classes
-    class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
+    index: Index,
+    /// List of constants found so far
+    constants: HashMap<ConstFullname, TermTy>,
+    const_inits: Vec<HirExpression>,
+    /// List of string literals found so far
+    str_literals: Vec<String>,
+    /// List of ivars of the classes
+    class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
