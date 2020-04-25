@@ -189,9 +189,7 @@ impl HirMaker {
         let mut initialize_params = &vec![];
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            let (method, ivars) = self.convert_initializer(&ctx, &fullname, &sig.name, &body_exprs)?;
-            ctx.ivars = Rc::new(ivars);
-            self.class_ivars.insert(fullname.clone(), Rc::clone(&ctx.ivars));
+            let method = self.convert_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?;
             method_dict.add_method(&fullname, method);
             initialize_params = &sig.params;
         }
@@ -286,11 +284,15 @@ impl HirMaker {
 
 
     fn convert_initializer(&mut self,
-                           ctx: &HirMakerContext,
+                           ctx: &mut HirMakerContext,
                            class_fullname: &ClassFullname,
                            name: &MethodFirstname,
-                           body_exprs: &[AstExpression]) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
-        self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)
+                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+        let (sk_method, ivars) =
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
+        ctx.ivars = Rc::new(ivars);
+        self.class_ivars.insert(class_fullname.clone(), Rc::clone(&ctx.ivars));
+        Ok(sk_method)
     }
 
     fn convert_method_def(&mut self,
@@ -298,7 +300,8 @@ impl HirMaker {
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
-        let (sk_method, _ivars) = self.convert_method_def_(ctx, class_fullname, name, body_exprs, false)?;
+        let (sk_method, _ivars) =
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, false)?;
         Ok(sk_method)
     }
 
