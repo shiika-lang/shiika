@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::ast;
 use crate::error;
 use crate::error::*;
@@ -42,6 +41,22 @@ impl ClassDict {
     /// Return true if there is a class of the name
     pub fn class_exists(&self, class_fullname: &str) -> bool {
         self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+    }
+
+    pub fn find_ivar(&self,
+                     classname: &ClassFullname,
+                     ivar_name: &str) -> Option<&SkIVar> {
+        let class = self.sk_classes.get(&classname)
+            .unwrap_or_else(|| panic!("[BUG] ClassDict::find_ivar: class `{}' not found", &classname));
+        class.ivars.get(ivar_name)
+    }
+
+    pub fn define_ivars(&mut self,
+                        classname: &ClassFullname,
+                        ivars: HashMap<String, SkIVar>) {
+        let class = self.sk_classes.get_mut(&classname)
+            .unwrap_or_else(|| panic!("[BUG] ClassDict::define_ivars: class `{}' not found", &classname));
+        std::mem::replace(&mut class.ivars, ivars);
     }
 
     /// Register a class
@@ -123,14 +138,14 @@ impl ClassDict {
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(class_fullname("Object")) },
                     instance_ty,
-                    ivars: Rc::new(HashMap::new()),
+                    ivars: HashMap::new(),
                     method_sigs: instance_methods,
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
-                    ivars: Rc::new(HashMap::new()),
+                    ivars: HashMap::new(),
                     method_sigs: class_methods,
                 });
             }

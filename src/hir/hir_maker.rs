@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::ast::*;
 use crate::code_gen::CodeGen;
 use crate::error;
@@ -20,8 +19,6 @@ pub struct HirMaker {
     const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     str_literals: Vec<String>,
-    /// List of ivars of the classes
-    class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
@@ -37,7 +34,6 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 
 fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict);
-    hir_maker.init_class_ivars();
     hir_maker.register_class_consts();
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
@@ -53,16 +49,6 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            class_ivars: HashMap::new(),
-        }
-    }
-
-    fn init_class_ivars(&mut self) {
-        for (name, idx_class) in self.class_dict.sk_classes.iter() {
-            self.class_ivars.insert(
-                name.clone(),
-                Rc::clone(&idx_class.ivars),
-            );
         }
     }
 
@@ -70,9 +56,8 @@ impl HirMaker {
     fn extract_hir(&mut self,
            method_dict: MethodDict,
            main_exprs: HirExpressions) -> Hir {
-        let sk_classes = self.extract_classes();
-
         // Extract data from self
+        let sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
         let mut str_literals = vec![];
@@ -91,16 +76,6 @@ impl HirMaker {
             const_inits,
             main_exprs,
         }
-    }
-
-    fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
-        let mut sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
-        for (name, c) in sk_classes.iter_mut() {
-            let ivars = self.class_ivars.get_mut(&name)
-                .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
-            c.ivars = Rc::clone(&ivars);
-        }
-        sk_classes
     }
 
     fn register_class_consts(&mut self) {
@@ -167,7 +142,6 @@ impl HirMaker {
     }
 
     fn register_meta_ivar(&mut self, name: &ClassFullname) {
-        let meta_name = name.meta_name();
         let mut meta_ivars = HashMap::new();
         meta_ivars.insert("@name".to_string(), SkIVar {
             name: "@name".to_string(),
@@ -175,7 +149,7 @@ impl HirMaker {
             ty: ty::raw("String"),
             readonly: true,
         });
-        self.class_ivars.insert(meta_name, Rc::new(meta_ivars));
+        self.class_dict.define_ivars(&name.meta_name(), meta_ivars);
     }
 
     /// Process each method def and const def
@@ -286,8 +260,8 @@ impl HirMaker {
                            body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
         let (sk_method, ivars) =
             self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
-        ctx.ivars = Rc::new(ivars);
-        self.class_ivars.insert(class_fullname.clone(), Rc::clone(&ctx.ivars));
+        self.class_dict.define_ivars(class_fullname, ivars);
+        //??ctx.ivars = self.class_dict.get_ivars(class_fullname);
         Ok(sk_method)
     }
 
@@ -528,7 +502,7 @@ impl HirMaker {
             return Ok(Hir::assign_ivar(name, idx, expr, *is_var))
         }
 
-        if let Some(ivar) = ctx.ivars.get(name) {
+        if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!("instance variable `{}' is readonly", name)))
             }
@@ -636,7 +610,7 @@ impl HirMaker {
     fn convert_ivar_ref(&self,
                         ctx: &HirMakerContext,
                         name: &str) -> Result<HirExpression, Error> {
-        match ctx.ivars.get(name) {
+        match self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
             Some(ivar) => {
                 Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx))
             },
