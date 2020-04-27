@@ -9,7 +9,6 @@ mod string;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::names::*;
 use crate::ty;
 use crate::hir::*;
@@ -70,7 +69,7 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
                 fullname: class_fullname(name),
                 superclass_fullname: super_name,
                 instance_ty: ty::raw(name),
-                ivars: Rc::new(ivars),
+                ivars,
                 method_sigs: imethods.iter().map(|x|
                     (x.signature.first_name().clone(), x.signature.clone())
                 ).collect(),
@@ -90,7 +89,7 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
                 fullname: metaclass_fullname(name),
                 superclass_fullname: Some(class_fullname("Class")),
                 instance_ty: ty::meta(name),
-                ivars: Rc::new(meta_ivars),
+                ivars: meta_ivars,
                 method_sigs: cmethods.iter().map(|x|
                     (x.signature.first_name().clone(), x.signature.clone())
                 ).collect(),

@@ -1,43 +1,39 @@
-use std::rc::Rc;
 use crate::ast::*;
 use crate::code_gen::CodeGen;
 use crate::error;
 use crate::error::Error;
 use crate::hir;
 use crate::hir::*;
-use crate::hir::index::Index;
+use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
-use crate::hir::method_dict::*;
+use crate::hir::method_dict::MethodDict;
 use crate::names;
 use crate::type_checking;
 use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
-    pub index: Index,
-    // List of constants found so far
-    pub constants: HashMap<ConstFullname, TermTy>,
-    pub const_inits: Vec<HirExpression>,
-    // List of string literals found so far
-    pub str_literals: Vec<String>,
-    // List of ivars of the classes
-    class_ivars: HashMap<ClassFullname, Rc<HashMap<String, SkIVar>>>
+    class_dict: ClassDict,
+    /// List of constants found so far
+    constants: HashMap<ConstFullname, TermTy>,
+    const_inits: Vec<HirExpression>,
+    /// List of string literals found so far
+    str_literals: Vec<String>,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
-    let index = index::create(&ast, corelib.sk_classes)?;
-    let mut hir = convert_program(index, ast)?;
+    let class_dict = class_dict::create(&ast, corelib.sk_classes)?;
+    let mut hir = convert_program(class_dict, ast)?;
 
-    // While corelib classes are included in `index`,
+    // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
     hir.add_methods(corelib.sk_methods);
 
     Ok(hir)
 }
 
-fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(index);
-    hir_maker.init_class_ivars();
+fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
+    let mut hir_maker = HirMaker::new(class_dict);
     hir_maker.register_class_consts();
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
@@ -47,22 +43,12 @@ fn convert_program(index: index::Index, prog: ast::Program) -> Result<Hir, Error
 }
 
 impl HirMaker {
-    fn new(index: index::Index) -> HirMaker {
+    fn new(class_dict: ClassDict) -> HirMaker {
         HirMaker {
-            index,
+            class_dict,
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            class_ivars: HashMap::new(),
-        }
-    }
-
-    fn init_class_ivars(&mut self) {
-        for (name, idx_class) in self.index.classes.iter() {
-            self.class_ivars.insert(
-                name.clone(),
-                Rc::clone(&idx_class.ivars),
-            );
         }
     }
 
@@ -70,9 +56,8 @@ impl HirMaker {
     fn extract_hir(&mut self,
            method_dict: MethodDict,
            main_exprs: HirExpressions) -> Hir {
-        let sk_classes = self.extract_classes();
-
         // Extract data from self
+        let sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
         let mut str_literals = vec![];
@@ -93,25 +78,15 @@ impl HirMaker {
         }
     }
 
-    fn extract_classes(&mut self) -> HashMap<ClassFullname, SkClass> {
-        let mut sk_classes = std::mem::replace(&mut self.index.classes, HashMap::new());
-        for (name, c) in sk_classes.iter_mut() {
-            let ivars = self.class_ivars.get_mut(&name)
-                .unwrap_or_else(|| panic!("[BUG] ivars for class {} not found", name));
-            c.ivars = Rc::clone(&ivars);
-        }
-        sk_classes
-    }
-
     fn register_class_consts(&mut self) {
         // Replace is needed to avoid compile error
-        let classes = std::mem::replace(&mut self.index.classes, Default::default());
+        let classes = std::mem::replace(&mut self.class_dict.sk_classes, Default::default());
         for name in classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
             }
         }
-        self.index.classes = classes;
+        self.class_dict.sk_classes = classes;
     }
 
     /// Register a constant that holds a class
@@ -145,7 +120,7 @@ impl HirMaker {
                     self.register_const(&mut ctx, name, expr)?;
                     Ok(())
                 }
-                _ => panic!("should be checked in hir::index")
+                _ => panic!("should be checked in hir::class_dict")
             }
         )?;
 
@@ -167,7 +142,6 @@ impl HirMaker {
     }
 
     fn register_meta_ivar(&mut self, name: &ClassFullname) {
-        let meta_name = name.meta_name();
         let mut meta_ivars = HashMap::new();
         meta_ivars.insert("@name".to_string(), SkIVar {
             name: "@name".to_string(),
@@ -175,7 +149,7 @@ impl HirMaker {
             ty: ty::raw("String"),
             readonly: true,
         });
-        self.class_ivars.insert(meta_name, Rc::new(meta_ivars));
+        self.class_dict.define_ivars(&name.meta_name(), meta_ivars);
     }
 
     /// Process each method def and const def
@@ -286,8 +260,8 @@ impl HirMaker {
                            body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
         let (sk_method, ivars) =
             self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
-        ctx.ivars = Rc::new(ivars);
-        self.class_ivars.insert(class_fullname.clone(), Rc::clone(&ctx.ivars));
+        self.class_dict.define_ivars(class_fullname, ivars);
+        //??ctx.ivars = self.class_dict.get_ivars(class_fullname);
         Ok(sk_method)
     }
 
@@ -307,9 +281,9 @@ impl HirMaker {
                           name: &MethodFirstname,
                           body_exprs: &[AstExpression],
                           is_initializer: bool) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
-        // MethodSignature is built beforehand by index::new
-        let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.index);
-        let signature = self.index.find_method(class_fullname, name).expect(&err).clone();
+        // MethodSignature is built beforehand by class_dict::new
+        let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.class_dict);
+        let signature = self.class_dict.find_method(class_fullname, name).expect(&err).clone();
 
         let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature, is_initializer);
         let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
@@ -528,7 +502,7 @@ impl HirMaker {
             return Ok(Hir::assign_ivar(name, idx, expr, *is_var))
         }
 
-        if let Some(ivar) = ctx.ivars.get(name) {
+        if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!("instance variable `{}' is readonly", name)))
             }
@@ -592,13 +566,13 @@ impl HirMaker {
                      receiver_class_fullname: &ClassFullname,
                      class_fullname: &ClassFullname,
                      method_name: &MethodFirstname) -> Result<(&MethodSignature, ClassFullname), Error> {
-        let found = self.index.find_method(class_fullname, method_name);
+        let found = self.class_dict.find_method(class_fullname, method_name);
         if let Some(sig) = found {
             Ok((sig, class_fullname.clone()))
         }
         else {
             // Look up in superclass
-            let sk_class = self.index.find_class(class_fullname)
+            let sk_class = self.class_dict.find_class(class_fullname)
                 .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
                 self.lookup_method(receiver_class_fullname, super_name, method_name)
@@ -636,7 +610,7 @@ impl HirMaker {
     fn convert_ivar_ref(&self,
                         ctx: &HirMakerContext,
                         name: &str) -> Result<HirExpression, Error> {
-        match ctx.ivars.get(name) {
+        match self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
             Some(ivar) => {
                 Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx))
             },
@@ -658,7 +632,7 @@ impl HirMaker {
             },
             None => {
                 let c = class_fullname(&names.join("::"));
-                if self.index.class_exists(&c.0) {
+                if self.class_dict.class_exists(&c.0) {
                     Ok(Hir::const_ref(c.class_ty(), fullname))
                 }
                 else {

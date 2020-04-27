@@ -1,10 +1,4 @@
-/// Index of all the classes and method signatures
-///
-/// Note: `MethodSignature` contained in `Index` is "as is" and
-/// may be wrong (eg. its return type does not exist).
-/// It is checked in `HirMaker`.
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::ast;
 use crate::error;
 use crate::error::*;
@@ -13,45 +7,61 @@ use crate::ty::*;
 use crate::names::*;
 
 #[derive(Debug, PartialEq)]
-pub struct Index {
+pub struct ClassDict {
     /// Indexed classes.
-    /// Note that .ivars are empty (because their types cannot be decided
+    /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub classes: HashMap<ClassFullname, SkClass>
+    pub sk_classes: HashMap<ClassFullname, SkClass>
 }
 
-pub fn create(ast: &ast::Program, corelib: HashMap<ClassFullname, SkClass>) -> Result<Index, Error> {
-    let mut index = Index::new();
-    index.index_corelib(corelib);
-    index.index_program(&ast.toplevel_defs)?;
-    Ok(index)
+pub fn create(ast: &ast::Program, corelib: HashMap<ClassFullname, SkClass>) -> Result<ClassDict, Error> {
+    let mut dict = ClassDict::new();
+    dict.index_corelib(corelib);
+    dict.index_program(&ast.toplevel_defs)?;
+    Ok(dict)
 }
 
-impl Index {
-    pub fn new() -> Index {
-        Index {
-            classes: HashMap::new()
+impl ClassDict {
+    pub fn new() -> ClassDict {
+        ClassDict {
+            sk_classes: HashMap::new()
         }
     }
 
     /// Find a method from class name and first name
     pub fn find_method(&self, class_fullname: &ClassFullname, method_name: &MethodFirstname) -> Option<&MethodSignature> {
-        self.classes.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
+        self.sk_classes.get(class_fullname).and_then(|class| class.method_sigs.get(method_name))
     }
 
     /// Find a class
     pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.classes.get(class_fullname)
+        self.sk_classes.get(class_fullname)
     }
 
     /// Return true if there is a class of the name
     pub fn class_exists(&self, class_fullname: &str) -> bool {
-        self.classes.contains_key(&ClassFullname(class_fullname.to_string()))
+        self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+    }
+
+    pub fn find_ivar(&self,
+                     classname: &ClassFullname,
+                     ivar_name: &str) -> Option<&SkIVar> {
+        let class = self.sk_classes.get(&classname)
+            .unwrap_or_else(|| panic!("[BUG] ClassDict::find_ivar: class `{}' not found", &classname));
+        class.ivars.get(ivar_name)
+    }
+
+    pub fn define_ivars(&mut self,
+                        classname: &ClassFullname,
+                        ivars: HashMap<String, SkIVar>) {
+        let class = self.sk_classes.get_mut(&classname)
+            .unwrap_or_else(|| panic!("[BUG] ClassDict::define_ivars: class `{}' not found", &classname));
+        std::mem::replace(&mut class.ivars, ivars);
     }
 
     /// Register a class
     fn add_class(&mut self, class: SkClass) {
-        self.classes.insert(class.fullname.clone(), class);
+        self.sk_classes.insert(class.fullname.clone(), class);
     }
 
     pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
@@ -108,11 +118,11 @@ impl Index {
             }
         });
 
-        match self.classes.get_mut(&fullname) {
+        match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
                 // Merge methods to existing class (Class is reopened)
                 class.method_sigs.extend(instance_methods);
-                let metaclass = self.classes.get_mut(&metaclass_fullname)
+                let metaclass = self.sk_classes.get_mut(&metaclass_fullname)
                     .expect("[BUG] Only class is indexed");
                 metaclass.method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
@@ -128,14 +138,14 @@ impl Index {
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(class_fullname("Object")) },
                     instance_ty,
-                    ivars: Rc::new(HashMap::new()),
+                    ivars: HashMap::new(),
                     method_sigs: instance_methods,
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
-                    ivars: Rc::new(HashMap::new()),
+                    ivars: HashMap::new(),
                     method_sigs: class_methods,
                 });
             }

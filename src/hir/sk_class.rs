@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 use crate::ty::*;
 use crate::names::*;
 
@@ -8,7 +7,7 @@ pub struct SkClass {
     pub fullname: ClassFullname,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
-    pub ivars: Rc<HashMap<String, super::SkIVar>>,
+    pub ivars: HashMap<String, super::SkIVar>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
 }
 
