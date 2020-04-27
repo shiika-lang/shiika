@@ -261,7 +261,6 @@ impl HirMaker {
         let (sk_method, ivars) =
             self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
         self.class_dict.define_ivars(class_fullname, ivars);
-        //??ctx.ivars = self.class_dict.get_ivars(class_fullname);
         Ok(sk_method)
     }
 
