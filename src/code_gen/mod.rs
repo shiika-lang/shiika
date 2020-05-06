@@ -100,7 +100,15 @@ impl<'hir> CodeGen<'hir> {
         global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
                                                            self.i8_type.const_int(100, false), // d
                                                            self.i8_type.const_int(  0, false)]));
-        global.set_constant(true)
+        global.set_constant(true);
+
+        let str_type = self.i8_type.array_type(3);
+        let global = self.module.add_global(str_type, None, "putf_tmpl");
+        global.set_linkage(inkwell::module::Linkage::Internal);
+        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
+                                                           self.i8_type.const_int(102, false), // f
+                                                           self.i8_type.const_int(  0, false)]));
+        global.set_constant(true);
     }
 
     fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
