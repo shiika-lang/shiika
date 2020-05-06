@@ -1,0 +1,14 @@
+class Int
+  def %(other: Int) -> Int
+    if (self ^ other) >= 0
+      self.reminder(other)
+    else
+      me = self.reminder(other)
+      me == 0 ? me : me + other
+    end
+  end
+
+  def to_i -> Int
+    self
+  end
+end
