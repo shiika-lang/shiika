@@ -525,7 +525,7 @@ impl<'a> Lexer<'a> {
             '0'..='9' => CharType::Number,
             '@' => CharType::IVar,
             '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
-            '+' | '-' | '*' | '/' | '%' | '=' | '!' |
+            '+' | '-' | '*' | '/' | '%' | '=' | '!' | '^' |
             '.' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
             'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,

@@ -1,16 +1,16 @@
 # orig: http://qiita.com/doxas/items/477fda867da467116f8d
 
-IMAGE_WIDTH = 256
-IMAGE_HEIGHT = 256
+IMAGE_WIDTH = 512
+IMAGE_HEIGHT = 512
 IMAGE_DEPTH = 256
 EPS = 0.0001
 MAX_REF = 4
 
 class Vec
   def initialize(x: Float, y: Float, z: Float)
-    @x = x
-    @y = y
-    @z = z
+    var @x = x
+    var @y = y
+    var @z = z
   end
   def x -> Float; @x; end
   def y -> Float; @y; end
@@ -76,19 +76,25 @@ end
 class Isect
   def initialize(hit: Int, hit_point: Vec, normal: Vec,
                  color: Vec, distance: Float, ray_dir: Vec)
-    @hit = hit
-    @hit_point = hit_point
-    @normal = normal
-    @color = color
-    @distance = distance
-    @ray_dir = ray_dir
+    var @hit = hit
+    var @hit_point = hit_point
+    var @normal = normal
+    var @color = color
+    var @distance = distance
+    var @ray_dir = ray_dir
   end
   def hit -> Int; @hit; end
+  def hit=(v: Int); @hit=v; end
   def hit_point -> Vec; @hit_point; end
+  def hit_point=(v: Vec); @hit_point=v; end
   def normal -> Vec; @normal; end
+  def normal=(v: Vec); @normal=v; end
   def color -> Vec; @color; end
+  def color=(v: Vec); @color=v; end
   def distance -> Float; @distance; end
+  def distance=(v: Float); @distance=v; end
   def ray_dir -> Vec; @ray_dir; end
+  def ray_dir=(v: Vec); @ray_dir=v; end
 end
 
 class Sphere
@@ -106,7 +112,8 @@ class Sphere
     b = rs.dot(ray.dir)
     c = rs.dot(rs) - @radius * @radius
     d = b * b - c
-    if d > 0.0 && (t = -b - Math.sqrt(d)) > EPS && t < isect.distance
+    t = -b - Math.sqrt(d)
+    if d > 0.0 && t > EPS && t < isect.distance
       isect.hit_point = ray.origin.add(ray.dir.mul(t))
       isect.normal = isect.hit_point.sub(@position).normalize
       isect.color = @color.mul(Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0))
@@ -137,12 +144,12 @@ class Plane
       d2 = Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0)
       m = isect.hit_point.x % 2
       n = isect.hit_point.z % 2
-      d3 = if (m > 1 && n > 1) || (m < 1 && n < 1)
+      d3 = if (m > 1.0 && n > 1.0) || (m < 1.0 && n < 1.0)
              d2*0.5
            else
              d2
            end
-      abs = Math.fabs(isect.hit_point.z)
+      abs = isect.hit_point.z.abs
       f = 1.0 - (if abs < 25.0; abs; else 25.0; end) * 0.04
       isect.color = @color.mul(d3 * f)
       isect.distance = t
@@ -162,23 +169,25 @@ class Util
   def self.clamp(t: Float, min: Float, max: Float) -> Float
     if t < min
       min
-    elsif t > max
-      max
     else
-      t
+      if t > max
+        max
+      else
+        t
+      end
     end
   end
 
   ## t: 0 ~ 1
-  def self.color(t: Float) -> Float
-    ret = IMAGE_DEPTH * clamp(t, 0, 1)
-    return(if ret == IMAGE_DEPTH then IMAGE_DEPTH-1 else ret end)
+  def self.color(t: Float) -> Int
+    ret = (IMAGE_DEPTH.to_f * Util.clamp(t, 0.0, 1.0)).to_i
+    if ret == IMAGE_DEPTH then (IMAGE_DEPTH-1) else ret end
   end
 
   def self.print_col(c: Vec) -> Void
-    putd(color(c.x)); putchar(32)
-    putd(color(c.y)); putchar(32)
-    putd(color(c.z)); putchar(10)
+    putd(Util.color(c.x)); putchar(32)
+    putd(Util.color(c.y)); putchar(32)
+    putd(Util.color(c.z)); putchar(10)
   end
 
   def self.intersect(ray: Ray, i: Isect) -> Void
@@ -198,13 +207,13 @@ puts "255"
 
 var row = 0; while row < IMAGE_HEIGHT
   var col = 0; while col < IMAGE_WIDTH 
-    x = col / (IMAGE_WIDTH / 2) - 1
-    y = (IMAGE_HEIGHT-row) / (IMAGE_HEIGHT / 2) - 1
+    x = col.to_f / (IMAGE_WIDTH.to_f / 2.0) - 1.0
+    y = (IMAGE_HEIGHT-row).to_f / (IMAGE_HEIGHT.to_f / 2.0) - 1.0
 
     ray = Ray.new(Vec.new(0.0, 2.0, 6.0),
-                  Vec.new(x.to_f, y.to_f, -1.0).normalize)
+                  Vec.new(x, y, -1.0).normalize)
     i = Isect.new(0, Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0),
-                  (1<<31).to_f, Vec.new(0.0, 0.0, 0.0))
+                  1000000000000000000000000000000.0, Vec.new(0.0, 0.0, 0.0))
     Util.intersect(ray, i)
     if i.hit > 0
       var dest_col = i.color

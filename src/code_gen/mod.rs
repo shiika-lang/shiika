@@ -91,6 +91,8 @@ impl<'hir> CodeGen<'hir> {
         self.module.add_function("sqrt", fn_type, None);
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("fabs", fn_type, None);
+        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
+        self.module.add_function("floor", fn_type, None);
 
         let str_type = self.i8_type.array_type(3);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
@@ -98,7 +100,15 @@ impl<'hir> CodeGen<'hir> {
         global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
                                                            self.i8_type.const_int(100, false), // d
                                                            self.i8_type.const_int(  0, false)]));
-        global.set_constant(true)
+        global.set_constant(true);
+
+        let str_type = self.i8_type.array_type(3);
+        let global = self.module.add_global(str_type, None, "putf_tmpl");
+        global.set_linkage(inkwell::module::Linkage::Internal);
+        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
+                                                           self.i8_type.const_int(102, false), // f
+                                                           self.i8_type.const_int(  0, false)]));
+        global.set_constant(true);
     }
 
     fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
@@ -396,16 +406,17 @@ impl<'hir> CodeGen<'hir> {
         self.builder.position_at_end(&begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
         self.builder.build_conditional_branch(left_value, &more_block, &merge_block);
+        let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
         self.builder.position_at_end(&more_block);
         let right_value = self.gen_expr(ctx, right)?;
         self.builder.build_unconditional_branch(&merge_block);
-        let more_block = self.builder.get_insert_block().unwrap();
+        let more_block_end = self.builder.get_insert_block().unwrap();
         // AndEnd:
         self.builder.position_at_end(&merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "AndResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block), (&right_value, &more_block)]);
+        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &more_block_end)]);
         Ok(phi_node.as_basic_value())
     }
     
@@ -421,16 +432,17 @@ impl<'hir> CodeGen<'hir> {
         self.builder.position_at_end(&begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
         self.builder.build_conditional_branch(left_value, &merge_block, &else_block);
+        let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
         self.builder.position_at_end(&else_block);
         let right_value = self.gen_expr(ctx, right)?;
         self.builder.build_unconditional_branch(&merge_block);
-        let else_block = self.builder.get_insert_block().unwrap();
+        let else_block_end = self.builder.get_insert_block().unwrap();
         // OrEnd:
         self.builder.position_at_end(&merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "OrResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block), (&right_value, &else_block)]);
+        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &else_block_end)]);
         Ok(phi_node.as_basic_value())
     }
 
@@ -455,17 +467,17 @@ impl<'hir> CodeGen<'hir> {
                 self.builder.position_at_end(&then_block);
                 let then_value: &dyn inkwell::values::BasicValue = &self.gen_exprs(ctx, then_exprs)?;
                 self.builder.build_unconditional_branch(&merge_block);
-                let then_block = self.builder.get_insert_block().unwrap();
+                let then_block_end = self.builder.get_insert_block().unwrap();
                 // IfElse:
                 self.builder.position_at_end(&else_block);
                 let else_value = self.gen_exprs(ctx, else_exprs)?;
                 self.builder.build_unconditional_branch(&merge_block);
-                let else_block = self.builder.get_insert_block().unwrap();
+                let else_block_end = self.builder.get_insert_block().unwrap();
                 // IfEnd:
                 self.builder.position_at_end(&merge_block);
 
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-                phi_node.add_incoming(&[(then_value, &then_block), (&else_value, &else_block)]);
+                phi_node.add_incoming(&[(then_value, &then_block_end), (&else_value, &else_block_end)]);
                 Ok(phi_node.as_basic_value())
             },
             None => {

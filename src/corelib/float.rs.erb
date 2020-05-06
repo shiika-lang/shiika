@@ -71,11 +71,17 @@ pub fn create_methods() -> Vec<SkMethod> {
           'code_gen.builder.build_float_div(val1, val2, "div")'
     ) %>
 
-    // TODO: %
-
     create_method("Float", "abs -> Float", |code_gen, function| {
         let x = function.get_params()[0].into_float_value();
         let func = code_gen.module.get_function("fabs").unwrap();
+        let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
+        code_gen.builder.build_return(Some(&result));
+        Ok(())
+    }),
+
+    create_method("Float", "floor -> Float", |code_gen, function| {
+        let x = function.get_params()[0].into_float_value();
+        let func = code_gen.module.get_function("floor").unwrap();
         let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
         code_gen.builder.build_return(Some(&result));
         Ok(())

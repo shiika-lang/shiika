@@ -1,0 +1,5 @@
+class Float
+  def %(other: Int) -> Float
+    self - other.to_f * (self / other.to_f).floor
+  end
+end

@@ -31,6 +31,19 @@ pub fn create_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
+    create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
+        let n = function.get_params()[1].into_float_value();
+        let printf = code_gen.module.get_function("printf").unwrap();
+        let tmpl = code_gen.module.get_global("putf_tmpl").unwrap().as_pointer_value();
+        let tmpl_ptr = unsafe {
+            tmpl.const_in_bounds_gep(&[code_gen.i32_type.const_int(0, false),
+                                       code_gen.i32_type.const_int(0, false)])
+        };
+        code_gen.builder.build_call(printf, &[tmpl_ptr.into(), n.into()], "");
+        code_gen.builder.build_return(None);
+        Ok(())
+    }),
+
     create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
         let s = function.get_params()[1].into_pointer_value();
         let pptr = unsafe {
