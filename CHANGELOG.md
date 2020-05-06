@@ -1,3 +1,11 @@
+## v0.2.4 (2020-05-06)
+
+- New example: ray
+- feat: Mutable ivar (#45)
+- feat: Class#name (#33)
+- feat: Logical operators (#16)
+- Bug fixes, add some methods
+
 ## v0.2.3 (2020-03-19)
 
 - New examples: mandel, hello
