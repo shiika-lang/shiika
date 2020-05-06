@@ -71,7 +71,15 @@ pub fn create_methods() -> Vec<SkMethod> {
           'code_gen.builder.build_int_signed_div(val1, val2, "div")'
     ) %>
 
-    // TODO: %
+    <%= create_bin_method(
+          "/(other: Int) -> Int",
+          'code_gen.builder.build_int_signed_div(val1, val2, "div")'
+    ) %>
+
+    <%= create_bin_method(
+          "reminder(other: Int) -> Int",
+          'code_gen.builder.build_int_signed_rem(val1, val2, "rem")'
+    ) %>
 
     <%= create_bin_method(
           "&(other: Int) -> Int",
