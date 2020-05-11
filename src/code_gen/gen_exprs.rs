@@ -102,8 +102,8 @@ impl<'hir> CodeGen<'hir> {
                        ctx: &mut CodeGenContext,
                        expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, expr)?.into_int_value();
-        let zero = self.i1_type.const_int(0, false);
-        let result = self.builder.build_int_sub(zero, value, "notResult");
+        let one = self.i1_type.const_int(1, false);
+        let result = self.builder.build_int_sub(one, value, "notResult");
         Ok(result.into())
     }
     
