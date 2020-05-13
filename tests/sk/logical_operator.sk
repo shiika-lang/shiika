@@ -1,0 +1,19 @@
+if false then puts "ng 1" end
+if not true then puts "ng 2" end
+if !true then puts "ng 2.5" end
+if not (true && true) then puts "ng 3" end
+if     (true && false) then puts "ng 4" end
+if     (false && true) then puts "ng 5" end
+if     (false && false) then puts "ng 6" end
+if not (true and true) then puts "ng 7" end
+if     (true and false) then puts "ng 8" end
+if     (false and true) then puts "ng 9" end
+if     (false and false) then puts "ng 10" end
+if not (true || true) then puts "ng 11" end
+if not (true || false) then puts "ng 12" end
+if not (false || true) then puts "ng 13" end
+if     (false || false) then puts "ng 14" end
+if not (true or true) then puts "ng 15" end
+if not (true or false) then puts "ng 16" end
+if not (false or true) then puts "ng 17" end
+if     (false or false) then puts "ng 18" end

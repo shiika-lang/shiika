@@ -95,12 +95,14 @@ impl<'a> Parser<'a> {
     fn parse_not_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1; self.debug_log("parse_not_expr");
         let expr = match self.current_token() {
-            Token::KwOr => {
+            Token::KwNot => {
+                self.consume_token();
                 self.skip_ws();
                 let inner = self.parse_not_expr()?;
                 ast::logical_not(inner)
             },
             Token::Bang => {
+                self.consume_token();
                 self.skip_ws();
                 let inner = self.parse_call_wo_paren()?;
                 ast::logical_not(inner)
