@@ -6,3 +6,4 @@
 /lib/shiika/parser.rb
 /src/corelib/int.rs
 /src/corelib/float.rs
+/tests/tmp.*

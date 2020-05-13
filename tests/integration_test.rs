@@ -22,21 +22,21 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let hir = shiika::hir::build(ast, corelib)?;
     let mut code_gen = shiika::code_gen::CodeGen::new(&hir);
     code_gen.gen_program(&hir)?;
-    code_gen.module.print_to_file("tests/out.ll")?;
+    code_gen.module.print_to_file("tests/tmp.ll")?;
 
     let mut cmd = Command::new("llc");
-    cmd.arg("tests/out.ll");
+    cmd.arg("tests/tmp.ll");
     cmd.output().unwrap();
 
     let mut cmd = Command::new("cc");
     cmd.arg("-I/usr/local/Cellar/bdw-gc/7.6.0/include/");
     cmd.arg("-L/usr/local/Cellar/bdw-gc/7.6.0/lib/");
     cmd.arg("-lgc");
-    cmd.arg("-otests/out");
-    cmd.arg("tests/out.s");
+    cmd.arg("-otests/tmp.out");
+    cmd.arg("tests/tmp.s");
     cmd.output().unwrap();
 
-    let mut cmd = Command::new("tests/out");
+    let mut cmd = Command::new("tests/tmp.out");
     let output = cmd.output().expect("failed to execute process");
     let stdout = String::from_utf8(output.stdout).expect("invalid utf8 in stdout");
     let stderr = String::from_utf8(output.stderr).expect("invalid utf8 in stderr");
