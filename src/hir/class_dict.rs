@@ -134,7 +134,7 @@ impl ClassDict {
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(SkClass {
-                    fullname: fullname,
+                    fullname,
                     superclass_fullname: if name.0 == "Object" { None }
                                          else { Some(class_fullname("Object")) },
                     instance_ty,

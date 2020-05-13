@@ -79,8 +79,8 @@ impl HirMaker {
     }
 
     fn register_class_consts(&mut self) {
-        // Replace is needed to avoid compile error
-        let classes = std::mem::replace(&mut self.class_dict.sk_classes, Default::default());
+        // mem::take is needed to avoid compile error
+        let classes = std::mem::take(&mut self.class_dict.sk_classes);
         for name in classes.keys() {
             if !name.is_meta() {
                 self.register_class_const(&name);
