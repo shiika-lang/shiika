@@ -115,21 +115,21 @@ impl<'hir> CodeGen<'hir> {
         let more_block = ctx.function.append_basic_block(&"AndMore");
         let merge_block = ctx.function.append_basic_block(&"AndEnd");
         // AndBegin:
-        self.builder.build_unconditional_branch(&begin_block);
-        self.builder.position_at_end(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, &more_block, &merge_block);
+        self.builder.build_conditional_branch(left_value, more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
-        self.builder.position_at_end(&more_block);
+        self.builder.position_at_end(more_block);
         let right_value = self.gen_expr(ctx, right)?;
-        self.builder.build_unconditional_branch(&merge_block);
+        self.builder.build_unconditional_branch(merge_block);
         let more_block_end = self.builder.get_insert_block().unwrap();
         // AndEnd:
-        self.builder.position_at_end(&merge_block);
+        self.builder.position_at_end(merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "AndResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &more_block_end)]);
+        phi_node.add_incoming(&[(&left_value, begin_block_end), (&right_value, more_block_end)]);
         Ok(phi_node.as_basic_value())
     }
     
@@ -141,21 +141,21 @@ impl<'hir> CodeGen<'hir> {
         let else_block = ctx.function.append_basic_block(&"OrElse");
         let merge_block = ctx.function.append_basic_block(&"OrEnd");
         // OrBegin:
-        self.builder.build_unconditional_branch(&begin_block);
-        self.builder.position_at_end(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, &merge_block, &else_block);
+        self.builder.build_conditional_branch(left_value, merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
-        self.builder.position_at_end(&else_block);
+        self.builder.position_at_end(else_block);
         let right_value = self.gen_expr(ctx, right)?;
-        self.builder.build_unconditional_branch(&merge_block);
+        self.builder.build_unconditional_branch(merge_block);
         let else_block_end = self.builder.get_insert_block().unwrap();
         // OrEnd:
-        self.builder.position_at_end(&merge_block);
+        self.builder.position_at_end(merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "OrResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &else_block_end)]);
+        phi_node.add_incoming(&[(&left_value, begin_block_end), (&right_value, else_block_end)]);
         Ok(phi_node.as_basic_value())
     }
 
@@ -172,38 +172,38 @@ impl<'hir> CodeGen<'hir> {
                 let else_block = ctx.function.append_basic_block(&"IfElse");
                 let merge_block = ctx.function.append_basic_block(&"IfEnd");
                 // IfBegin:
-                self.builder.build_unconditional_branch(&begin_block);
-                self.builder.position_at_end(&begin_block);
+                self.builder.build_unconditional_branch(begin_block);
+                self.builder.position_at_end(begin_block);
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-                self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
+                self.builder.build_conditional_branch(cond_value, then_block, else_block);
                 // IfThen:
-                self.builder.position_at_end(&then_block);
+                self.builder.position_at_end(then_block);
                 let then_value: &dyn inkwell::values::BasicValue = &self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 let then_block_end = self.builder.get_insert_block().unwrap();
                 // IfElse:
-                self.builder.position_at_end(&else_block);
+                self.builder.position_at_end(else_block);
                 let else_value = self.gen_exprs(ctx, else_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 let else_block_end = self.builder.get_insert_block().unwrap();
                 // IfEnd:
-                self.builder.position_at_end(&merge_block);
+                self.builder.position_at_end(merge_block);
 
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-                phi_node.add_incoming(&[(then_value, &then_block_end), (&else_value, &else_block_end)]);
+                phi_node.add_incoming(&[(then_value, then_block_end), (&else_value, else_block_end)]);
                 Ok(phi_node.as_basic_value())
             },
             None => {
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
                 let then_block = ctx.function.append_basic_block(&"IfThen");
                 let merge_block = ctx.function.append_basic_block(&"IfEnd");
-                self.builder.build_conditional_branch(cond_value, &then_block, &merge_block);
+                self.builder.build_conditional_branch(cond_value, then_block, merge_block);
                 // IfThen:
-                self.builder.position_at_end(&then_block);
+                self.builder.position_at_end(then_block);
                 self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 // IfEnd:
-                self.builder.position_at_end(&merge_block);
+                self.builder.position_at_end(merge_block);
                 Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
             }
         }
@@ -215,32 +215,32 @@ impl<'hir> CodeGen<'hir> {
                       body_exprs: &HirExpressions) -> Result<inkwell::values::BasicValueEnum, Error> {
 
         let begin_block = ctx.function.append_basic_block(&"WhileBegin");
-        self.builder.build_unconditional_branch(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
-        self.builder.position_at_end(&begin_block);
+        self.builder.position_at_end(begin_block);
         let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
         let body_block = ctx.function.append_basic_block(&"WhileBody");
         let end_block = ctx.function.append_basic_block(&"WhileEnd");
-        self.builder.build_conditional_branch(cond_value, &body_block, &end_block);
+        self.builder.build_conditional_branch(cond_value, body_block, end_block);
         // WhileBody:
-        self.builder.position_at_end(&body_block);
+        self.builder.position_at_end(body_block);
         let rc1 = Rc::new(end_block);
         let rc2 = Rc::clone(&rc1);
         ctx.current_loop_end = Some(rc1);
         self.gen_exprs(ctx, body_exprs)?;
         ctx.current_loop_end = None;
-        self.builder.build_unconditional_branch(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
 
         // WhileEnd:
-        self.builder.position_at_end(&rc2);
+        self.builder.position_at_end(*rc2);
         Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
     }
 
     fn gen_break_expr(&self, 
                       ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match &ctx.current_loop_end {
+        match ctx.current_loop_end {
             Some(b) => {
-                self.builder.build_unconditional_branch(&b);
+                self.builder.build_unconditional_branch(b);
                 Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
             },
             None => {

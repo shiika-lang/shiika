@@ -3,7 +3,6 @@ mod gen_exprs;
 use std::collections::HashMap;
 use inkwell::AddressSpace;
 use inkwell::values::*;
-use inkwell::types::*;
 use crate::error::Error;
 use crate::ty::*;
 use crate::hir::*;
@@ -112,16 +111,16 @@ impl<'hir> CodeGen<'hir> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
-        let create_main_block = self.context.append_basic_block(&function, "CreateMain");
-        let user_main_block = self.context.append_basic_block(&function, "UserMain");
+        let create_main_block = self.context.append_basic_block(function, "CreateMain");
+        let user_main_block = self.context.append_basic_block(function, "UserMain");
 
         // CreateMain:
-        self.builder.position_at_end(&create_main_block);
+        self.builder.position_at_end(create_main_block);
         self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
-        self.builder.build_unconditional_branch(&user_main_block);
+        self.builder.build_unconditional_branch(user_main_block);
 
         // UserMain:
-        self.builder.position_at_end(&user_main_block);
+        self.builder.position_at_end(user_main_block);
         let mut ctx = CodeGenContext::new(function);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
@@ -132,8 +131,8 @@ impl<'hir> CodeGen<'hir> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         // Call GC_init
         let func = self.module.get_function("GC_init").unwrap();
@@ -209,8 +208,8 @@ impl<'hir> CodeGen<'hir> {
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         let mut ctx = CodeGenContext::new(function);
         for expr in const_inits {
@@ -262,8 +261,8 @@ impl<'hir> CodeGen<'hir> {
         }
 
         // Main basic block
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         // Method body
         match &method.body {
