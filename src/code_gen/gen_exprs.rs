@@ -238,9 +238,9 @@ impl<'hir> CodeGen<'hir> {
 
     fn gen_break_expr(&self, 
                       ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match &ctx.current_loop_end {
+        match ctx.current_loop_end {
             Some(b) => {
-                self.builder.build_unconditional_branch(b);
+                self.builder.build_unconditional_branch(*b);
                 Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
             },
             None => {
