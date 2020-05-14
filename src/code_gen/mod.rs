@@ -12,19 +12,19 @@ use crate::code_gen::code_gen_context::*;
 
 pub struct CodeGen<'hir> {
     pub context: inkwell::context::Context,
-    pub module: inkwell::module::Module,
-    pub builder: inkwell::builder::Builder,
-    pub i1_type: inkwell::types::IntType,
-    pub i8_type: inkwell::types::IntType,
-    pub i8ptr_type: inkwell::types::PointerType,
-    pub i32_type: inkwell::types::IntType,
-    pub i64_type: inkwell::types::IntType,
-    pub f64_type: inkwell::types::FloatType,
-    pub void_type: inkwell::types::VoidType,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+    pub module: inkwell::module::Module<'hir>,
+    pub builder: inkwell::builder::Builder<'hir>,
+    pub i1_type: inkwell::types::IntType<'hir>,
+    pub i8_type: inkwell::types::IntType<'hir>,
+    pub i8ptr_type: inkwell::types::PointerType<'hir>,
+    pub i32_type: inkwell::types::IntType<'hir>,
+    pub i64_type: inkwell::types::IntType<'hir>,
+    pub f64_type: inkwell::types::FloatType<'hir>,
+    pub void_type: inkwell::types::VoidType<'hir>,
+    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'hir>>,
     str_literals: &'hir Vec<String>,
     /// Toplevel `self`
-    the_main: Option<inkwell::values::BasicValueEnum>,
+    the_main: Option<inkwell::values::BasicValueEnum<'hir>>,
 }
 
 impl<'hir> CodeGen<'hir> {
