@@ -111,9 +111,9 @@ impl<'hir> CodeGen<'hir> {
                        ctx: &mut CodeGenContext,
                        left: &HirExpression,
                        right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let begin_block = ctx.function.append_basic_block(&"AndBegin");
-        let more_block = ctx.function.append_basic_block(&"AndMore");
-        let merge_block = ctx.function.append_basic_block(&"AndEnd");
+        let begin_block = self.context.append_basic_block(ctx.function, "AndBegin");
+        let more_block = self.context.append_basic_block(ctx.function, "AndMore");
+        let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
         // AndBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
@@ -137,9 +137,9 @@ impl<'hir> CodeGen<'hir> {
                       ctx: &mut CodeGenContext,
                       left: &HirExpression,
                       right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let begin_block = ctx.function.append_basic_block(&"OrBegin");
-        let else_block = ctx.function.append_basic_block(&"OrElse");
-        let merge_block = ctx.function.append_basic_block(&"OrEnd");
+        let begin_block = self.context.append_basic_block(ctx.function, "OrBegin");
+        let else_block = self.context.append_basic_block(ctx.function, "OrElse");
+        let merge_block = self.context.append_basic_block(ctx.function, "OrEnd");
         // OrBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
@@ -167,10 +167,10 @@ impl<'hir> CodeGen<'hir> {
                    opt_else_exprs: &Option<HirExpressions>) -> Result<inkwell::values::BasicValueEnum, Error> {
         match opt_else_exprs {
             Some(else_exprs) => {
-                let begin_block = ctx.function.append_basic_block(&"IfBegin");
-                let then_block = ctx.function.append_basic_block(&"IfThen");
-                let else_block = ctx.function.append_basic_block(&"IfElse");
-                let merge_block = ctx.function.append_basic_block(&"IfEnd");
+                let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
+                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+                let else_block = self.context.append_basic_block(ctx.function, "IfElse");
+                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
                 // IfBegin:
                 self.builder.build_unconditional_branch(begin_block);
                 self.builder.position_at_end(begin_block);
@@ -195,8 +195,8 @@ impl<'hir> CodeGen<'hir> {
             },
             None => {
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-                let then_block = ctx.function.append_basic_block(&"IfThen");
-                let merge_block = ctx.function.append_basic_block(&"IfEnd");
+                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
                 self.builder.build_conditional_branch(cond_value, then_block, merge_block);
                 // IfThen:
                 self.builder.position_at_end(then_block);
@@ -214,13 +214,13 @@ impl<'hir> CodeGen<'hir> {
                       cond_expr: &HirExpression,
                       body_exprs: &HirExpressions) -> Result<inkwell::values::BasicValueEnum, Error> {
 
-        let begin_block = ctx.function.append_basic_block(&"WhileBegin");
+        let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
         self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
         self.builder.position_at_end(begin_block);
         let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-        let body_block = ctx.function.append_basic_block(&"WhileBody");
-        let end_block = ctx.function.append_basic_block(&"WhileEnd");
+        let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
+        let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
         self.builder.build_conditional_branch(cond_value, body_block, end_block);
         // WhileBody:
         self.builder.position_at_end(body_block);
@@ -238,7 +238,7 @@ impl<'hir> CodeGen<'hir> {
 
     fn gen_break_expr(&self, 
                       ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match ctx.current_loop_end {
+        match &ctx.current_loop_end {
             Some(b) => {
                 self.builder.build_unconditional_branch(b);
                 Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
