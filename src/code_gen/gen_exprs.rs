@@ -275,9 +275,7 @@ impl<'hir> CodeGen<'hir> {
                        rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
         let theself = self.gen_self_expression(ctx)?;
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
-        };
+        let ptr = self.builder.build_struct_gep(theself.as_pointer_value(), *idx as u32, name).unwrap();
         self.builder.build_store(ptr, value);
         Ok(value)
     }
@@ -335,9 +333,7 @@ impl<'hir> CodeGen<'hir> {
                     name: &str,
                     idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
         let theself = self.gen_self_expression(ctx)?;
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, &format!("addr_{}", name))
-        };
+        let ptr = self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, &format!("addr_{}", name)).unwrap();
         Ok(self.builder.build_load(ptr, name))
     }
 
@@ -371,9 +367,7 @@ impl<'hir> CodeGen<'hir> {
         let sk_str = self.allocate_sk_obj(&class_fullname("String"), "str");
 
         // Store ptr
-        let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr")
-        };
+        let loc = self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr").unwrap();
         let global = self.module.get_global(&format!("str_{}", idx)).
             unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx)).
             as_pointer_value();
@@ -381,9 +375,7 @@ impl<'hir> CodeGen<'hir> {
         self.builder.build_store(loc, glob_i8);
 
         // Store bytesize
-        let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 1, "addr_@bytesize")
-        };
+        let loc = self.builder.build_struct_gep(*sk_str.as_pointer_value(), 1, "addr_@bytesize").unwrap();
         let bytesize = self.i32_type.const_int(self.str_literals[*idx].len() as u64, false);
         self.builder.build_store(loc, bytesize);
 
@@ -407,9 +399,7 @@ impl<'hir> CodeGen<'hir> {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(),
                                            &format!("class_{}", fullname.0));
         // Set @name
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*cls_obj.as_pointer_value(), 0, &fullname.0)
-        };
+        let ptr = self.builder.build_struct_gep(*cls_obj.as_pointer_value(), 0, &fullname.0).unwrap();
         let value = self.gen_string_literal(str_literal_idx);
         self.builder.build_store(ptr, value);
 
