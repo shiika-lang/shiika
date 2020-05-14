@@ -36,13 +36,13 @@ impl<'hir> CodeGen<'hir> {
             context,
             module,
             builder,
-            i1_type: inkwell::types::IntType::bool_type(),
-            i8_type: inkwell::types::IntType::i8_type(),
-            i8ptr_type: inkwell::types::IntType::i8_type().ptr_type(AddressSpace::Generic),
-            i32_type: inkwell::types::IntType::i32_type(),
-            i64_type: inkwell::types::IntType::i64_type(),
-            f64_type: inkwell::types::FloatType::f64_type(),
-            void_type: inkwell::types::VoidType::void_type(),
+            i1_type: context.bool_type(),
+            i8_type: context.i8_type(),
+            i8ptr_type: context.i8_type().ptr_type(AddressSpace::Generic),
+            i32_type: context.i32_type(),
+            i64_type: context.i64_type(),
+            f64_type: context.f64_type(),
+            void_type: context.void_type(),
             llvm_struct_types: HashMap::new(),
             str_literals: &hir.str_literals,
             the_main: None,
@@ -72,11 +72,11 @@ impl<'hir> CodeGen<'hir> {
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[IntType::i64_type().into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), IntType::i64_type().into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("GC_realloc", fn_type, None);
-        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), IntType::i64_type().into(),
+        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), self.i64_type.into(),
                                                self.i32_type.into(), self.i1_type.into()], false);
         self.module.add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
 
