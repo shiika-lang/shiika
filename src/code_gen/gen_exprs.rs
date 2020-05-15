@@ -12,9 +12,9 @@ use crate::names::*;
 use crate::code_gen::CodeGen;
 use crate::code_gen::code_gen_context::*;
 
-impl<'hir> CodeGen<'hir> {
+impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(&self,
-                ctx: &mut CodeGenContext,
+                ctx: &mut CodeGenContext<'run>,
                 exprs: &HirExpressions) -> Result<inkwell::values::BasicValueEnum, Error> {
         let mut last_value = None;
         exprs.exprs.iter().try_for_each(|expr| {
@@ -26,7 +26,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     pub fn gen_expr(&self,
-                ctx: &mut CodeGenContext,
+                ctx: &mut CodeGenContext<'run>,
                 expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         match &expr.node {
             HirLogicalNot { expr } => {
@@ -99,7 +99,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_logical_not(&self, 
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, expr)?.into_int_value();
         let one = self.i1_type.const_int(1, false);
@@ -108,139 +108,139 @@ impl<'hir> CodeGen<'hir> {
     }
     
     fn gen_logical_and(&self, 
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        left: &HirExpression,
                        right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let begin_block = ctx.function.append_basic_block(&"AndBegin");
-        let more_block = ctx.function.append_basic_block(&"AndMore");
-        let merge_block = ctx.function.append_basic_block(&"AndEnd");
+        let begin_block = self.context.append_basic_block(ctx.function, "AndBegin");
+        let more_block = self.context.append_basic_block(ctx.function, "AndMore");
+        let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
         // AndBegin:
-        self.builder.build_unconditional_branch(&begin_block);
-        self.builder.position_at_end(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, &more_block, &merge_block);
+        self.builder.build_conditional_branch(left_value, more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
-        self.builder.position_at_end(&more_block);
+        self.builder.position_at_end(more_block);
         let right_value = self.gen_expr(ctx, right)?;
-        self.builder.build_unconditional_branch(&merge_block);
+        self.builder.build_unconditional_branch(merge_block);
         let more_block_end = self.builder.get_insert_block().unwrap();
         // AndEnd:
-        self.builder.position_at_end(&merge_block);
+        self.builder.position_at_end(merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "AndResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &more_block_end)]);
+        phi_node.add_incoming(&[(&left_value, begin_block_end), (&right_value, more_block_end)]);
         Ok(phi_node.as_basic_value())
     }
     
     fn gen_logical_or(&self, 
-                      ctx: &mut CodeGenContext,
+                      ctx: &mut CodeGenContext<'run>,
                       left: &HirExpression,
                       right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let begin_block = ctx.function.append_basic_block(&"OrBegin");
-        let else_block = ctx.function.append_basic_block(&"OrElse");
-        let merge_block = ctx.function.append_basic_block(&"OrEnd");
+        let begin_block = self.context.append_basic_block(ctx.function, "OrBegin");
+        let else_block = self.context.append_basic_block(ctx.function, "OrElse");
+        let merge_block = self.context.append_basic_block(ctx.function, "OrEnd");
         // OrBegin:
-        self.builder.build_unconditional_branch(&begin_block);
-        self.builder.position_at_end(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, &merge_block, &else_block);
+        self.builder.build_conditional_branch(left_value, merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
-        self.builder.position_at_end(&else_block);
+        self.builder.position_at_end(else_block);
         let right_value = self.gen_expr(ctx, right)?;
-        self.builder.build_unconditional_branch(&merge_block);
+        self.builder.build_unconditional_branch(merge_block);
         let else_block_end = self.builder.get_insert_block().unwrap();
         // OrEnd:
-        self.builder.position_at_end(&merge_block);
+        self.builder.position_at_end(merge_block);
 
         let phi_node = self.builder.build_phi(self.llvm_type(&ty::raw("Bool")), "OrResult");
-        phi_node.add_incoming(&[(&left_value, &begin_block_end), (&right_value, &else_block_end)]);
+        phi_node.add_incoming(&[(&left_value, begin_block_end), (&right_value, else_block_end)]);
         Ok(phi_node.as_basic_value())
     }
 
     fn gen_if_expr(&self, 
-                   ctx: &mut CodeGenContext,
+                   ctx: &mut CodeGenContext<'run>,
                    ty: &TermTy,
                    cond_expr: &HirExpression,
                    then_exprs: &HirExpressions,
                    opt_else_exprs: &Option<HirExpressions>) -> Result<inkwell::values::BasicValueEnum, Error> {
         match opt_else_exprs {
             Some(else_exprs) => {
-                let begin_block = ctx.function.append_basic_block(&"IfBegin");
-                let then_block = ctx.function.append_basic_block(&"IfThen");
-                let else_block = ctx.function.append_basic_block(&"IfElse");
-                let merge_block = ctx.function.append_basic_block(&"IfEnd");
+                let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
+                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+                let else_block = self.context.append_basic_block(ctx.function, "IfElse");
+                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
                 // IfBegin:
-                self.builder.build_unconditional_branch(&begin_block);
-                self.builder.position_at_end(&begin_block);
+                self.builder.build_unconditional_branch(begin_block);
+                self.builder.position_at_end(begin_block);
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-                self.builder.build_conditional_branch(cond_value, &then_block, &else_block);
+                self.builder.build_conditional_branch(cond_value, then_block, else_block);
                 // IfThen:
-                self.builder.position_at_end(&then_block);
+                self.builder.position_at_end(then_block);
                 let then_value: &dyn inkwell::values::BasicValue = &self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 let then_block_end = self.builder.get_insert_block().unwrap();
                 // IfElse:
-                self.builder.position_at_end(&else_block);
+                self.builder.position_at_end(else_block);
                 let else_value = self.gen_exprs(ctx, else_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 let else_block_end = self.builder.get_insert_block().unwrap();
                 // IfEnd:
-                self.builder.position_at_end(&merge_block);
+                self.builder.position_at_end(merge_block);
 
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-                phi_node.add_incoming(&[(then_value, &then_block_end), (&else_value, &else_block_end)]);
+                phi_node.add_incoming(&[(then_value, then_block_end), (&else_value, else_block_end)]);
                 Ok(phi_node.as_basic_value())
             },
             None => {
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-                let then_block = ctx.function.append_basic_block(&"IfThen");
-                let merge_block = ctx.function.append_basic_block(&"IfEnd");
-                self.builder.build_conditional_branch(cond_value, &then_block, &merge_block);
+                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
+                self.builder.build_conditional_branch(cond_value, then_block, merge_block);
                 // IfThen:
-                self.builder.position_at_end(&then_block);
+                self.builder.position_at_end(then_block);
                 self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(&merge_block);
+                self.builder.build_unconditional_branch(merge_block);
                 // IfEnd:
-                self.builder.position_at_end(&merge_block);
+                self.builder.position_at_end(merge_block);
                 Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
             }
         }
     }
 
     fn gen_while_expr(&self, 
-                      ctx: &mut CodeGenContext,
+                      ctx: &mut CodeGenContext<'run>,
                       cond_expr: &HirExpression,
                       body_exprs: &HirExpressions) -> Result<inkwell::values::BasicValueEnum, Error> {
 
-        let begin_block = ctx.function.append_basic_block(&"WhileBegin");
-        self.builder.build_unconditional_branch(&begin_block);
+        let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
+        self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
-        self.builder.position_at_end(&begin_block);
+        self.builder.position_at_end(begin_block);
         let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-        let body_block = ctx.function.append_basic_block(&"WhileBody");
-        let end_block = ctx.function.append_basic_block(&"WhileEnd");
-        self.builder.build_conditional_branch(cond_value, &body_block, &end_block);
+        let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
+        let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
+        self.builder.build_conditional_branch(cond_value, body_block, end_block);
         // WhileBody:
-        self.builder.position_at_end(&body_block);
+        self.builder.position_at_end(body_block);
         let rc1 = Rc::new(end_block);
         let rc2 = Rc::clone(&rc1);
         ctx.current_loop_end = Some(rc1);
         self.gen_exprs(ctx, body_exprs)?;
         ctx.current_loop_end = None;
-        self.builder.build_unconditional_branch(&begin_block);
+        self.builder.build_unconditional_branch(begin_block);
 
         // WhileEnd:
-        self.builder.position_at_end(&rc2);
+        self.builder.position_at_end(*rc2);
         Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
     }
 
     fn gen_break_expr(&self, 
-                      ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
+                      ctx: &mut CodeGenContext<'run>) -> Result<inkwell::values::BasicValueEnum, Error> {
         match &ctx.current_loop_end {
             Some(b) => {
-                self.builder.build_unconditional_branch(&b);
+                self.builder.build_unconditional_branch(*Rc::clone(b));
                 Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
             },
             None => {
@@ -250,7 +250,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_lvar_assign(&self,
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        name: &str,
                        rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
@@ -269,21 +269,19 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_ivar_assign(&self,
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        name: &str,
                        idx: &usize,
                        rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
         let theself = self.gen_self_expression(ctx)?;
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, name)
-        };
+        let ptr = self.builder.build_struct_gep(theself.into_pointer_value(), *idx as u32, name).unwrap();
         self.builder.build_store(ptr, value);
         Ok(value)
     }
 
     fn gen_const_assign(&self,
-                        ctx: &mut CodeGenContext,
+                        ctx: &mut CodeGenContext<'run>,
                         fullname: &ConstFullname,
                         rhs: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
@@ -295,7 +293,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_method_call(&self,
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        method_fullname: &MethodFullname,
                        receiver_expr: &HirExpression,
                        arg_exprs: &[HirExpression]) -> Result<inkwell::values::BasicValueEnum, Error> {
@@ -317,13 +315,13 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_arg_ref(&self,
-                       ctx: &mut CodeGenContext,
+                       ctx: &mut CodeGenContext<'run>,
                        idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
         Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self 
     }
 
     fn gen_lvar_ref(&self,
-                    ctx: &mut CodeGenContext,
+                    ctx: &mut CodeGenContext<'run>,
                     name: &str) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ptr = ctx.lvars.get(name)
             .expect("[BUG] lvar not declared");
@@ -331,13 +329,11 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_ivar_ref(&self,
-                    ctx: &mut CodeGenContext,
+                    ctx: &mut CodeGenContext<'run>,
                     name: &str,
                     idx: &usize) -> Result<inkwell::values::BasicValueEnum, Error> {
         let theself = self.gen_self_expression(ctx)?;
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*theself.as_pointer_value(), *idx as u32, &format!("addr_{}", name))
-        };
+        let ptr = self.builder.build_struct_gep(theself.into_pointer_value(), *idx as u32, &format!("addr_{}", name)).unwrap();
         Ok(self.builder.build_load(ptr, name))
     }
 
@@ -349,7 +345,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_self_expression(&self,
-                    ctx: &mut CodeGenContext) -> Result<inkwell::values::BasicValueEnum, Error> {
+                    ctx: &mut CodeGenContext<'run>) -> Result<inkwell::values::BasicValueEnum, Error> {
         if ctx.function.get_name().to_str().unwrap() == "user_main" {
             Ok(self.the_main.expect("[BUG] self.the_main is None"))
         }
@@ -371,9 +367,7 @@ impl<'hir> CodeGen<'hir> {
         let sk_str = self.allocate_sk_obj(&class_fullname("String"), "str");
 
         // Store ptr
-        let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 0, "addr_@ptr")
-        };
+        let loc = self.builder.build_struct_gep(sk_str.into_pointer_value(), 0, "addr_@ptr").unwrap();
         let global = self.module.get_global(&format!("str_{}", idx)).
             unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx)).
             as_pointer_value();
@@ -381,9 +375,7 @@ impl<'hir> CodeGen<'hir> {
         self.builder.build_store(loc, glob_i8);
 
         // Store bytesize
-        let loc = unsafe {
-            self.builder.build_struct_gep(*sk_str.as_pointer_value(), 1, "addr_@bytesize")
-        };
+        let loc = self.builder.build_struct_gep(sk_str.into_pointer_value(), 1, "addr_@bytesize").unwrap();
         let bytesize = self.i32_type.const_int(self.str_literals[*idx].len() as u64, false);
         self.builder.build_store(loc, bytesize);
 
@@ -396,7 +388,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_bitcast(&self,
-                   ctx: &mut CodeGenContext,
+                   ctx: &mut CodeGenContext<'run>,
                    expr: &HirExpression,
                    ty: &TermTy) -> Result<inkwell::values::BasicValueEnum, Error> {
         let obj = self.gen_expr(ctx, expr)?;
@@ -407,9 +399,7 @@ impl<'hir> CodeGen<'hir> {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(),
                                            &format!("class_{}", fullname.0));
         // Set @name
-        let ptr = unsafe {
-            self.builder.build_struct_gep(*cls_obj.as_pointer_value(), 0, &fullname.0)
-        };
+        let ptr = self.builder.build_struct_gep(cls_obj.into_pointer_value(), 0, &fullname.0).unwrap();
         let value = self.gen_string_literal(str_literal_idx);
         self.builder.build_store(ptr, value);
 
@@ -417,7 +407,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     // Generate call of GC_malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> inkwell::values::BasicValueEnum {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> inkwell::values::BasicValueEnum<'ictx> {
         let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type.size_of()
@@ -431,21 +421,7 @@ impl<'hir> CodeGen<'hir> {
         self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
     }
 
-    pub (in super) fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType {
-        let self_type = self.llvm_type(self_ty);
-        let mut arg_types = signature.params.iter().map(|param| self.llvm_type(&param.ty)).collect::<Vec<_>>();
-        arg_types.insert(0, self_type);
-
-        if signature.ret_ty.is_void_type() {
-            self.void_type.fn_type(&arg_types, false)
-        }
-        else {
-            let result_type = self.llvm_type(&signature.ret_ty);
-            result_type.fn_type(&arg_types, false)
-        }
-    }
-
-    pub (in super) fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
+    pub (in super) fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty.body {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
@@ -475,7 +451,7 @@ impl<'hir> CodeGen<'hir> {
         }
     }
 
-    fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum {
+    fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let struct_type = self.llvm_struct_types.get(&ty.fullname)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
         struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()

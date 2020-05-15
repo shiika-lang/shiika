@@ -20,9 +20,7 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let ast = shiika::parser::Parser::parse(&src)?;
     let corelib = shiika::corelib::Corelib::create();
     let hir = shiika::hir::build(ast, corelib)?;
-    let mut code_gen = shiika::code_gen::CodeGen::new(&hir);
-    code_gen.gen_program(&hir)?;
-    code_gen.module.print_to_file("tests/tmp.ll")?;
+    shiika::code_gen::run(&hir, "tests/tmp")?;
 
     let mut cmd = Command::new("llc");
     cmd.arg("tests/tmp.ll");
