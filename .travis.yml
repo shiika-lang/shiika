@@ -1,4 +1,4 @@
-language: rust
+language: rust, ruby
 
 os:
   - linux
@@ -12,14 +12,9 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
- 
 
- 
- 
+jobs:
+  include:
+    - stage: Rake
+      script: rake test
 
- 
-
- 
- 
-
- 
