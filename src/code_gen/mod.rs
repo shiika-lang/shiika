@@ -10,39 +10,50 @@ use crate::hir::*;
 use crate::names::*;
 use crate::code_gen::code_gen_context::*;
 
-pub struct CodeGen<'hir> {
-    pub context: inkwell::context::Context,
-    pub module: inkwell::module::Module,
-    pub builder: inkwell::builder::Builder,
-    pub i1_type: inkwell::types::IntType,
-    pub i8_type: inkwell::types::IntType,
-    pub i8ptr_type: inkwell::types::PointerType,
-    pub i32_type: inkwell::types::IntType,
-    pub i64_type: inkwell::types::IntType,
-    pub f64_type: inkwell::types::FloatType,
-    pub void_type: inkwell::types::VoidType,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType>,
+pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
+    pub context: &'ictx inkwell::context::Context,
+    pub module: &'run inkwell::module::Module<'ictx>,
+    pub builder: &'run inkwell::builder::Builder<'ictx>,
+    pub i1_type: inkwell::types::IntType<'ictx>,
+    pub i8_type: inkwell::types::IntType<'ictx>,
+    pub i8ptr_type: inkwell::types::PointerType<'ictx>,
+    pub i32_type: inkwell::types::IntType<'ictx>,
+    pub i64_type: inkwell::types::IntType<'ictx>,
+    pub f64_type: inkwell::types::FloatType<'ictx>,
+    pub void_type: inkwell::types::VoidType<'ictx>,
+    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     /// Toplevel `self`
-    the_main: Option<inkwell::values::BasicValueEnum>,
+    the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
 
-impl<'hir> CodeGen<'hir> {
-    pub fn new(hir: &'hir Hir) -> CodeGen<'hir> {
-        let context = inkwell::context::Context::create();
-        let module = context.create_module("main");
-        let builder = context.create_builder();
+pub fn run(hir: &Hir, filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let context = inkwell::context::Context::create();
+    let module = context.create_module("main");
+    let builder = context.create_builder();
+    let mut code_gen = CodeGen::new(&hir, &context, &module, &builder);
+    code_gen.gen_program(&hir)?;
+    code_gen.module.print_to_file(filepath.to_string() + ".ll")?;
+    Ok(())
+}
+
+impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
+    pub fn new(hir: &'hir Hir,
+               context: &'ictx inkwell::context::Context,
+               module: &'run inkwell::module::Module<'ictx>,
+               builder: &'run inkwell::builder::Builder<'ictx>)
+              -> CodeGen<'hir, 'run, 'ictx> {
         CodeGen {
             context,
             module,
             builder,
-            i1_type: inkwell::types::IntType::bool_type(),
-            i8_type: inkwell::types::IntType::i8_type(),
-            i8ptr_type: inkwell::types::IntType::i8_type().ptr_type(AddressSpace::Generic),
-            i32_type: inkwell::types::IntType::i32_type(),
-            i64_type: inkwell::types::IntType::i64_type(),
-            f64_type: inkwell::types::FloatType::f64_type(),
-            void_type: inkwell::types::VoidType::void_type(),
+            i1_type: context.bool_type(),
+            i8_type: context.i8_type(),
+            i8ptr_type: context.i8_type().ptr_type(AddressSpace::Generic),
+            i32_type: context.i32_type(),
+            i64_type: context.i64_type(),
+            f64_type: context.f64_type(),
+            void_type: context.void_type(),
             llvm_struct_types: HashMap::new(),
             str_literals: &hir.str_literals,
             the_main: None,
@@ -72,11 +83,11 @@ impl<'hir> CodeGen<'hir> {
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[IntType::i64_type().into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), IntType::i64_type().into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("GC_realloc", fn_type, None);
-        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), IntType::i64_type().into(),
+        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), self.i64_type.into(),
                                                self.i32_type.into(), self.i1_type.into()], false);
         self.module.add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
 
@@ -112,16 +123,16 @@ impl<'hir> CodeGen<'hir> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
-        let create_main_block = self.context.append_basic_block(&function, "CreateMain");
-        let user_main_block = self.context.append_basic_block(&function, "UserMain");
+        let create_main_block = self.context.append_basic_block(function, "CreateMain");
+        let user_main_block = self.context.append_basic_block(function, "UserMain");
 
         // CreateMain:
-        self.builder.position_at_end(&create_main_block);
+        self.builder.position_at_end(create_main_block);
         self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
-        self.builder.build_unconditional_branch(&user_main_block);
+        self.builder.build_unconditional_branch(user_main_block);
 
         // UserMain:
-        self.builder.position_at_end(&user_main_block);
+        self.builder.position_at_end(user_main_block);
         let mut ctx = CodeGenContext::new(function);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
@@ -132,8 +143,8 @@ impl<'hir> CodeGen<'hir> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         // Call GC_init
         let func = self.module.get_function("GC_init").unwrap();
@@ -209,8 +220,8 @@ impl<'hir> CodeGen<'hir> {
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         let mut ctx = CodeGenContext::new(function);
         for expr in const_inits {
@@ -238,6 +249,20 @@ impl<'hir> CodeGen<'hir> {
         })
     }
 
+    fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType<'ictx> {
+        let self_type = self.llvm_type(self_ty);
+        let mut arg_types = signature.params.iter().map(|param| self.llvm_type(&param.ty)).collect::<Vec<_>>();
+        arg_types.insert(0, self_type);
+
+        if signature.ret_ty.is_void_type() {
+            self.void_type.fn_type(&arg_types, false)
+        }
+        else {
+            let result_type = self.llvm_type(&signature.ret_ty);
+            result_type.fn_type(&arg_types, false)
+        }
+    }
+
     fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods.iter().try_for_each(|method|
@@ -262,8 +287,8 @@ impl<'hir> CodeGen<'hir> {
         }
 
         // Main basic block
-        let basic_block = self.context.append_basic_block(&function, "");
-        self.builder.position_at_end(&basic_block);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
 
         // Method body
         match &method.body {
@@ -283,7 +308,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_shiika_method_body(&self,
-                              function: inkwell::values::FunctionValue,
+                              function: inkwell::values::FunctionValue<'run>,
                               void_method: bool,
                               exprs: &HirExpressions) -> Result<(), Error> {
         let mut ctx = CodeGenContext::new(function);
