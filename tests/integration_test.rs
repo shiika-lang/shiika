@@ -25,7 +25,7 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("tests/tmp.ll");
     cmd.output().unwrap();
 
-    let mut cmd = Command::new("cc");
+    let mut cmd = Command::new("gcc");
     cmd.arg("-I/usr/local/Cellar/bdw-gc/7.6.0/include/");
     cmd.arg("-L/usr/local/Cellar/bdw-gc/7.6.0/lib/");
     cmd.arg("-lgc");
