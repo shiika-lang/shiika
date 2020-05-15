@@ -1,20 +1,18 @@
-language: rust, ruby
+language: rust, cpp
 
 os:
   - linux
   - osx
 
 rust:
-  - stable
-  - beta
   - nightly
 
-matrix:
-  allow_failures:
-    - rust: nightly
+#matrix:
+#  allow_failures:
+#    - rust: nightly
 
-jobs:
-  include:
-    - stage: Rake
-      script: rake test
+#jobs:
+#  include:
+#    - stage: Rake
+#      script: rake test
 

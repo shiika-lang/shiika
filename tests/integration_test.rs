@@ -14,7 +14,6 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
 /// Execute tests/sk/x.sk
 /// Fail if it prints something
 fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        dbg!(&path);
     let src = fs::read_to_string(path)?;
 
     let ast = shiika::parser::Parser::parse(&src)?;
