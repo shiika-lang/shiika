@@ -3,34 +3,46 @@ mod gen_exprs;
 use std::collections::HashMap;
 use inkwell::AddressSpace;
 use inkwell::values::*;
+use inkwell::types::*;
 use crate::error::Error;
 use crate::ty::*;
 use crate::hir::*;
 use crate::names::*;
 use crate::code_gen::code_gen_context::*;
 
-pub struct CodeGen<'hir> {
-    pub context: inkwell::context::Context,
-    pub module: inkwell::module::Module<'hir>,
-    pub builder: inkwell::builder::Builder<'hir>,
-    pub i1_type: inkwell::types::IntType<'hir>,
-    pub i8_type: inkwell::types::IntType<'hir>,
-    pub i8ptr_type: inkwell::types::PointerType<'hir>,
-    pub i32_type: inkwell::types::IntType<'hir>,
-    pub i64_type: inkwell::types::IntType<'hir>,
-    pub f64_type: inkwell::types::FloatType<'hir>,
-    pub void_type: inkwell::types::VoidType<'hir>,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'hir>>,
+pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
+    pub context: &'ictx inkwell::context::Context,
+    pub module: &'run inkwell::module::Module<'ictx>,
+    pub builder: &'run inkwell::builder::Builder<'ictx>,
+    pub i1_type: inkwell::types::IntType<'ictx>,
+    pub i8_type: inkwell::types::IntType<'ictx>,
+    pub i8ptr_type: inkwell::types::PointerType<'ictx>,
+    pub i32_type: inkwell::types::IntType<'ictx>,
+    pub i64_type: inkwell::types::IntType<'ictx>,
+    pub f64_type: inkwell::types::FloatType<'ictx>,
+    pub void_type: inkwell::types::VoidType<'ictx>,
+    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     /// Toplevel `self`
-    the_main: Option<inkwell::values::BasicValueEnum<'hir>>,
+    the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
 
-impl<'hir> CodeGen<'hir> {
-    pub fn new(hir: &'hir Hir) -> CodeGen<'hir> {
-        let context = inkwell::context::Context::create();
-        let module = context.create_module("main");
-        let builder = context.create_builder();
+pub fn run(hir: &Hir, filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let context = inkwell::context::Context::create();
+    let module = context.create_module("main");
+    let builder = context.create_builder();
+    let mut code_gen = CodeGen::new(&hir, &context, &module, &builder);
+    code_gen.gen_program(&hir)?;
+    code_gen.module.print_to_file(filepath.to_string() + ".ll")?;
+    Ok(())
+}
+
+impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
+    pub fn new(hir: &'hir Hir,
+               context: &'ictx inkwell::context::Context,
+               module: &'run inkwell::module::Module<'ictx>,
+               builder: &'run inkwell::builder::Builder<'ictx>)
+              -> CodeGen<'hir, 'run, 'ictx> {
         CodeGen {
             context,
             module,
@@ -237,6 +249,20 @@ impl<'hir> CodeGen<'hir> {
         })
     }
 
+    fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType<'ictx> {
+        let self_type = self.llvm_type(self_ty);
+        let mut arg_types = signature.params.iter().map(|param| self.llvm_type(&param.ty)).collect::<Vec<_>>();
+        arg_types.insert(0, self_type);
+
+        if signature.ret_ty.is_void_type() {
+            self.void_type.fn_type(&arg_types, false)
+        }
+        else {
+            let result_type = self.llvm_type(&signature.ret_ty);
+            result_type.fn_type(&arg_types, false)
+        }
+    }
+
     fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods.iter().try_for_each(|method|
@@ -282,7 +308,7 @@ impl<'hir> CodeGen<'hir> {
     }
 
     fn gen_shiika_method_body(&self,
-                              function: inkwell::values::FunctionValue,
+                              function: inkwell::values::FunctionValue<'run>,
                               void_method: bool,
                               exprs: &HirExpressions) -> Result<(), Error> {
         let mut ctx = CodeGenContext::new(function);
