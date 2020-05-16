@@ -1,0 +1,7 @@
+var i = 0
+while i < 3
+  i = i + 1
+end
+unless i == 3 then puts "ng 1" end
+
+
