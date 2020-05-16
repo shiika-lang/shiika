@@ -12,4 +12,4 @@ class A
   end
 end
 a = A.new
-if a.i != 1; puts "ng 1"; end
+unless a.i == 1 then puts "ng 1" end
