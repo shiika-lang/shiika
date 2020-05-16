@@ -429,6 +429,7 @@ impl<'a> Parser<'a> {
         let expr = match self.current_token() {
             Token::KwBreak => self.parse_break_expr(),
             Token::KwIf => self.parse_if_expr(),
+            Token::KwUnless => self.parse_unless_expr(),
             Token::KwWhile => self.parse_while_expr(),
             _ => self.parse_primary_expr()
         }?;
@@ -468,6 +469,30 @@ impl<'a> Parser<'a> {
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
             Ok(ast::if_expr(cond_expr, then_exprs, None))
+        }
+    }
+
+    fn parse_unless_expr(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_unlessif_expr");
+        assert!(self.consume(Token::KwUnless));
+        self.skip_ws();
+        let cond_expr = self.parse_expr()?;
+        self.skip_ws();
+        if self.consume(Token::KwThen) {
+            self.skip_wsn();
+        }
+        else {
+            self.expect(Token::Separator)?;
+        }
+        let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
+        self.skip_wsn();
+        if self.consume(Token::KwElse) {
+            Err(parse_error!(self, "unless cannot have a else clause"))
+        }
+        else {
+            self.expect(Token::KwEnd)?;
+            self.lv -= 1;
+            Ok(ast::if_expr(ast::logical_not(cond_expr), then_exprs, None))
         }
     }
 
