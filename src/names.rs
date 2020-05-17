@@ -5,9 +5,13 @@ use crate::ty::*;
 pub struct ClassFirstname(pub String);
 
 impl ClassFirstname {
-    // TODO: remove this after nested class is supported
-    pub fn to_class_fullname(&self) -> ClassFullname {
-        ClassFullname(self.0.clone())
+    pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
+        if namespace == "" {
+            ClassFullname(self.0.clone())
+        }
+        else {
+            ClassFullname(namespace.to_string() + "::" + &self.0)
+        }
     }
 }
 
