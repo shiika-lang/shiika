@@ -80,7 +80,7 @@ impl ClassDict {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, defs } => {
-                    self.index_class(&name, &defs);
+                    self.index_class(&name, &name.add_namespace(""), &defs);
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { .. } => Ok(()),
@@ -91,8 +91,10 @@ impl ClassDict {
         })
     }
 
-    fn index_class(&mut self, name: &ClassFirstname, defs: &[ast::Definition]) {
-        let fullname = name.to_class_fullname(); // TODO: nested class
+    fn index_class(&mut self,
+                   firstname: &ClassFirstname,
+                   fullname: &ClassFullname,
+                   defs: &[ast::Definition]) {
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
 
@@ -114,7 +116,10 @@ impl ClassDict {
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),
-                _ => panic!("TODO")
+                ast::Definition::ClassDefinition { name, defs } => {
+                    let full = name.add_namespace(&fullname.0);
+                    self.index_class(&name, &full, &defs);
+                }
             }
         });
 
@@ -134,8 +139,8 @@ impl ClassDict {
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 self.add_class(SkClass {
-                    fullname,
-                    superclass_fullname: if name.0 == "Object" { None }
+                    fullname: fullname.clone(),
+                    superclass_fullname: if firstname.0 == "Object" { None }
                                          else { Some(class_fullname("Object")) },
                     instance_ty,
                     ivars: HashMap::new(),

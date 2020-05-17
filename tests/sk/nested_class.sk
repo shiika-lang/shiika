@@ -1,0 +1,12 @@
+class A
+  class B
+    def initialize
+    end
+
+    def foo -> Int
+      1
+    end
+  end
+end
+b = A::B.new
+unless b.foo == 1 then puts "ng 1" end

@@ -113,7 +113,8 @@ impl HirMaker {
             match def {
                 // Extract instance/class methods
                 ast::Definition::ClassDefinition { name, defs } => {
-                    self.collect_sk_methods(name, defs, &mut method_dict)?;
+                    let full = name.add_namespace("");
+                    self.collect_sk_methods(&full, defs, &mut method_dict)?;
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
@@ -129,13 +130,10 @@ impl HirMaker {
 
     /// Extract instance/class methods and constants
     fn collect_sk_methods(&mut self,
-                          firstname: &ClassFirstname,
+                          fullname: &ClassFullname,
                           defs: &[ast::Definition],
                           method_dict: &mut MethodDict)
                          -> Result<(), Error> {
-        // TODO: nested class
-        let fullname = firstname.to_class_fullname();
-
         self.register_meta_ivar(&fullname);
         self.process_defs(defs, method_dict, &fullname)?;
         Ok(())
@@ -155,7 +153,7 @@ impl HirMaker {
     /// Process each method def and const def
     fn process_defs(&mut self,
                     defs: &[ast::Definition],
-                    method_dict: &mut MethodDict,
+                    mut method_dict: &mut MethodDict,
                     fullname: &ClassFullname)
                    -> Result<(), Error> {
         let meta_name = fullname.meta_name();
@@ -181,8 +179,11 @@ impl HirMaker {
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
-                }
-                _ => (),
+                },
+                ast::Definition::ClassDefinition { name, defs } => {
+                    let full = name.add_namespace(&fullname.0);
+                    self.collect_sk_methods(&full, defs, &mut method_dict)?;
+                },
             }
         }
         Ok(())
