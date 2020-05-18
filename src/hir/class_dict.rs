@@ -56,7 +56,7 @@ impl ClassDict {
                         ivars: HashMap<String, SkIVar>) {
         let class = self.sk_classes.get_mut(&classname)
             .unwrap_or_else(|| panic!("[BUG] ClassDict::define_ivars: class `{}' not found", &classname));
-        std::mem::replace(&mut class.ivars, ivars);
+        class.ivars = ivars;
     }
 
     /// Register a class
