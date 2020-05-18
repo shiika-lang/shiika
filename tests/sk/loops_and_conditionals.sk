@@ -1,7 +1,17 @@
+# while
 var i = 0
 while i < 3
   i = i + 1
 end
 unless i == 3 then puts "ng 1" end
+
+# break
+i = 0
+while i < 3
+  if i == 3 then break end
+  if i == 2 then break end
+  i = i + 1
+end
+unless i == 2 then puts "ng 2" end
 
 
