@@ -16,6 +16,8 @@ pub enum ErrorDetails {
     SyntaxError,
     // Errors related to types
     TypeError,
+    // Invalid name
+    NameError,
     // Syntactically correct but not a valid program (eg. "no such method")
     ProgramError,
     // Not an user-error
@@ -42,6 +44,14 @@ pub fn type_error(msg: &str) -> Error {
         msg: msg.to_string(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::TypeError,
+    }
+}
+
+pub fn name_error(msg: &str) -> Error {
+    Error {
+        msg: msg.to_string(),
+        backtrace: backtrace::Backtrace::new(),
+        details: ErrorDetails::NameError,
     }
 }
 

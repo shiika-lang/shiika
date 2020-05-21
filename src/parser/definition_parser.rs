@@ -39,6 +39,22 @@ impl<'a> Parser<'a> {
             },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
         }
+
+        // Superclass name (optional)
+        let mut super_name = class_fullname("Object");
+        self.skip_ws();
+        if self.current_token_is(Token::Colon) {
+            self.consume_token();
+            self.skip_wsn();
+            match self.current_token() {
+                Token::UpperWord(s) => {
+                    super_name = class_fullname(s);
+                    self.consume_token();
+                },
+                token => return Err(parse_error!(self, "superclass name must start with A-Z but got {:?}", token))
+            }
+        }
+
         self.expect_sep()?;
 
         // Internal definitions
@@ -51,7 +67,7 @@ impl<'a> Parser<'a> {
         }
         
         self.lv -= 1;
-        Ok(ast::Definition::ClassDefinition { name, defs })
+        Ok(ast::Definition::ClassDefinition { name, super_name, defs })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {

@@ -11,6 +11,7 @@ pub struct Program {
 pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
+        super_name: ClassFullname,
         defs: Vec<Definition>,
     },
     InstanceMethodDefinition {

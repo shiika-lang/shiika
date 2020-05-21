@@ -110,7 +110,7 @@ impl HirMaker {
         toplevel_defs.iter().try_for_each(|def|
             match def {
                 // Extract instance/class methods
-                ast::Definition::ClassDefinition { name, defs } => {
+                ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace("");
                     self.collect_sk_methods(&full, defs, &mut method_dict)?;
                     Ok(())
@@ -178,7 +178,7 @@ impl HirMaker {
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
                 },
-                ast::Definition::ClassDefinition { name, defs } => {
+                ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
                     self.collect_sk_methods(&full, defs, &mut method_dict)?;
                 },
