@@ -1,0 +1,22 @@
+class Base
+  def initialize
+    @a = 1
+  end
+
+  def foo -> Int
+    2
+  end
+end
+
+class Sub : Base
+  def initialize
+  end
+
+  #def a -> Int
+  #  @a
+  #end
+end
+
+sub = Sub.new
+#unless sub.a == 1 then puts "ng 1" end
+unless sub.foo == 2 then puts "ng 2" end

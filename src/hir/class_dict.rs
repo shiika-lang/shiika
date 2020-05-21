@@ -79,8 +79,8 @@ impl ClassDict {
     pub fn index_program(&mut self, toplevel_defs: &[ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
-                ast::Definition::ClassDefinition { name, defs } => {
-                    self.index_class(&name, &name.add_namespace(""), &defs);
+                ast::Definition::ClassDefinition { name, super_name, defs } => {
+                    self.index_class(&name.add_namespace(""), &super_name, &defs)?;
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { .. } => Ok(()),
@@ -92,9 +92,9 @@ impl ClassDict {
     }
 
     fn index_class(&mut self,
-                   firstname: &ClassFirstname,
                    fullname: &ClassFullname,
-                   defs: &[ast::Definition]) {
+                   super_name: &ClassFullname,
+                   defs: &[ast::Definition]) -> Result<(), Error> {
         let instance_ty = ty::raw(&fullname.0);
         let class_ty = instance_ty.meta_ty();
 
@@ -105,7 +105,7 @@ impl ClassDict {
                                        initializer_params(&defs).unwrap_or(&[]),
                                        &instance_ty);
 
-        defs.iter().for_each(|def| {
+        for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
                     let hir_sig = crate::hir::create_signature(fullname.to_string(), sig);
@@ -116,12 +116,12 @@ impl ClassDict {
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),
-                ast::Definition::ClassDefinition { name, defs } => {
+                ast::Definition::ClassDefinition { name, super_name, defs } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.index_class(&name, &full, &defs);
+                    self.index_class(&full, &super_name, &defs)?;
                 }
             }
-        });
+        }
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
@@ -138,10 +138,12 @@ impl ClassDict {
             None => {
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+                if !self.class_exists(&super_name.0) {
+                    return Err(error::name_error(&format!("unknown superclass: {:?}", super_name)))
+                }
                 self.add_class(SkClass {
                     fullname: fullname.clone(),
-                    superclass_fullname: if firstname.0 == "Object" { None }
-                                         else { Some(class_fullname("Object")) },
+                    superclass_fullname: Some(super_name.clone()),
                     instance_ty,
                     ivars: HashMap::new(),
                     method_sigs: instance_methods,
@@ -155,6 +157,7 @@ impl ClassDict {
                 });
             }
         }
+        Ok(())
     }
 }
 
