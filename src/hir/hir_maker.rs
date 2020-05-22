@@ -157,13 +157,15 @@ impl HirMaker {
         let meta_name = fullname.meta_name();
         let mut ctx = HirMakerContext::class_ctx(&fullname);
 
+        // Add `#initialize`
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             method_dict.add_method(&fullname,
-                                   self.process_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
-            method_dict.add_method(&meta_name,
-                                   self.create_new(&fullname, &sig.params)?);
+                                   self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?);
         }
-        // TODO: it may inherit `initialize` from superclass
+        // Add `.new`
+        if has_new(&fullname) {
+            method_dict.add_method(&meta_name, self.create_new(&fullname)?);
+        }
 
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
@@ -187,14 +189,25 @@ impl HirMaker {
         Ok(())
     }
 
+    /// Create the `initialize` method
+    /// Also, define ivars
+    fn create_initialize(&mut self,
+                         ctx: &mut HirMakerContext,
+                         class_fullname: &ClassFullname,
+                         name: &MethodFirstname,
+                         body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+        let (sk_method, ivars) =
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
+        self.class_dict.define_ivars(class_fullname, ivars);
+        Ok(sk_method)
+    }
+
     /// Create .new
-    fn create_new(&self,
-                  fullname: &ClassFullname,
-                  initialize_params: &[ast::Param]) -> Result<SkMethod, Error> {
+    fn create_new(&self, fullname: &ClassFullname) -> Result<SkMethod, Error> {
         let class_fullname = fullname.clone();
+        let (initialize_name, initialize_params, init_cls_name) = self.find_initialize(&fullname)?;
         let instance_ty = ty::raw(&class_fullname.0);
         let meta_name = class_fullname.meta_name();
-        let (initialize_name, init_cls_name) = self.find_initialize(&fullname)?;
         let need_bitcast = init_cls_name != *fullname;
         let arity = initialize_params.len();
 
@@ -223,7 +236,7 @@ impl HirMaker {
         };
 
         Ok(SkMethod {
-            signature: hir::signature_of_new(&meta_name, initialize_params, &instance_ty),
+            signature: hir::signature_of_new(&meta_name, initialize_params.clone(), &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
             }
@@ -231,11 +244,11 @@ impl HirMaker {
     }
 
     fn find_initialize(&self, class_fullname: &ClassFullname)
-                       -> Result<(MethodFullname, ClassFullname), Error> {
-        let (_sig, found_cls) =
-            self.lookup_method(&class_fullname, &class_fullname, 
-                               &method_firstname("initialize"))?;
-        Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
+                       -> Result<(MethodFullname, &Vec<MethodParam>, ClassFullname), Error> {
+        let (sig, found_cls) =
+            self.class_dict.lookup_method(&class_fullname,
+                                          &method_firstname("initialize"))?;
+        Ok((names::method_fullname(&found_cls, "initialize"), &sig.params, found_cls))
     }
 
     /// Register a constant
@@ -250,17 +263,6 @@ impl HirMaker {
         let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);
         Ok(fullname)
-    }
-
-    fn process_initializer(&mut self,
-                           ctx: &mut HirMakerContext,
-                           class_fullname: &ClassFullname,
-                           name: &MethodFirstname,
-                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
-        let (sk_method, ivars) =
-            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
-        self.class_dict.define_ivars(class_fullname, ivars);
-        Ok(sk_method)
     }
 
     fn convert_method_def(&mut self,
@@ -291,4 +293,14 @@ impl HirMaker {
 
         Ok((SkMethod { signature, body }, method_ctx.iivars))
     }
+}
+
+// Whether the class has .new
+fn has_new(fullname: &ClassFullname) -> bool {
+    // TODO: maybe more?
+    // At least these two must be excluded (otherwise wrong .ll is generated)
+    if fullname.0 == "Int" || fullname.0 == "Float" {
+        return false
+    }
+    true
 }

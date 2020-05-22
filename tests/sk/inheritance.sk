@@ -1,6 +1,6 @@
 class Base
-  def initialize
-    @a = 1
+  def initialize(i: Int)
+    @a = i
   end
 
   def foo -> Int
@@ -9,14 +9,11 @@ class Base
 end
 
 class Sub : Base
-  def initialize
-  end
-
   #def a -> Int
   #  @a
   #end
 end
 
-sub = Sub.new
+sub = Sub.new(1)
 #unless sub.a == 1 then puts "ng 1" end
 unless sub.foo == 2 then puts "ng 2" end

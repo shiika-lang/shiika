@@ -259,7 +259,7 @@ impl HirMaker {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let class_fullname = &receiver_hir.ty.fullname;
-        let (sig, found_class_name) = self.lookup_method(class_fullname, class_fullname, method_name)?;
+        let (sig, found_class_name) = self.class_dict.lookup_method(class_fullname, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys,
@@ -274,27 +274,6 @@ impl HirMaker {
                 receiver_hir
             };
         Ok(Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs))
-    }
-
-    pub (in super) fn lookup_method(&self, 
-                     receiver_class_fullname: &ClassFullname,
-                     class_fullname: &ClassFullname,
-                     method_name: &MethodFirstname) -> Result<(&MethodSignature, ClassFullname), Error> {
-        let found = self.class_dict.find_method(class_fullname, method_name);
-        if let Some(sig) = found {
-            Ok((sig, class_fullname.clone()))
-        }
-        else {
-            // Look up in superclass
-            let sk_class = self.class_dict.find_class(class_fullname)
-                .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
-            if let Some(super_name) = &sk_class.superclass_fullname {
-                self.lookup_method(receiver_class_fullname, super_name, method_name)
-            }
-            else {
-                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
-            }
-        }
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)

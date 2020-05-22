@@ -397,13 +397,12 @@ fn convert_params(params: &[ast::Param]) -> Vec<MethodParam> {
     ).collect()
 }
 
-/// Create a signature of `.new`
 fn signature_of_new(metaclass_fullname: &ClassFullname,
-                    initialize_params: &[ast::Param],
+                    initialize_params: Vec<MethodParam>,
                     instance_ty: &TermTy) -> MethodSignature {
     MethodSignature {
         fullname: method_fullname(metaclass_fullname, "new"),
         ret_ty: instance_ty.clone(),
-        params: convert_params(initialize_params),
+        params: initialize_params,
     }
 }

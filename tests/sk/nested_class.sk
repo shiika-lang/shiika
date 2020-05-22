@@ -1,8 +1,5 @@
 class A
   class B
-    def initialize
-    end
-
     def foo -> Int
       1
     end

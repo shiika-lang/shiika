@@ -303,7 +303,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
 
         let function = self.module.get_function(&method_fullname.full_name)
-            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method_fullname));
+            .unwrap_or_else(|| panic!("[BUG] get_function not found (check gen_method_funcs): {:?}", method_fullname));
         let mut llvm_args = vec!(receiver_value);
         llvm_args.append(&mut arg_values);
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
