@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::ast;
 use crate::error;
 use crate::error::*;
+use crate::hir;
 use crate::hir::*;
 use crate::ty::*;
 use crate::names::*;
@@ -52,7 +53,7 @@ impl ClassDict {
         else {
             // Look up in superclass
             let sk_class = self.find_class(class_fullname)
-                .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
+                .unwrap_or_else(|| panic!("[BUG] lookup_method: asked to find `{}' but class `{}' not found", &method_name.0, &class_fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
                 self.lookup_method_(receiver_class_fullname, super_name, method_name)
             }
@@ -131,8 +132,8 @@ impl ClassDict {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
         let new_sig = signature_of_new(&metaclass_fullname,
-                                       initializer_params(&defs).unwrap_or(&[]),
-                                       &instance_ty);
+                                      self.initializer_params(&super_name, &defs),
+                                      &instance_ty);
 
         for def in defs {
             match def {
@@ -188,16 +189,19 @@ impl ClassDict {
         }
         Ok(())
     }
-}
 
-/// Return parameters of `initialize`
-fn initializer_params(defs: &[ast::Definition]) -> Option<&[ast::Param]> {
-    match defs.iter().find(|d| d.is_initializer()) {
-        Some(ast::Definition::InstanceMethodDefinition { sig, .. }) => {
-            Some(&sig.params)
-        },
-        // `initialize` takes no args
-        // TODO: may be inheriting superclass's initialize
-        _ => None
+    /// Return parameters of `initialize`
+    fn initializer_params(&self,
+                          clsname: &ClassFullname,
+                          defs: &[ast::Definition]) -> Vec<MethodParam> {
+        if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) = defs.iter().find(|d| d.is_initializer()) {
+            hir::convert_params(&sig.params)
+        }
+        else {
+            let (sig, _found_cls) = 
+                self.lookup_method(&clsname, &method_firstname("initialize"))
+                    .expect("[BUG] initialize not found");
+            sig.params.clone()
+        }
     }
 }

@@ -236,7 +236,7 @@ impl HirMaker {
         };
 
         Ok(SkMethod {
-            signature: hir::signature_of_new2(&meta_name, initialize_params.clone(), &instance_ty),
+            signature: hir::signature_of_new(&meta_name, initialize_params.clone(), &instance_ty),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
             }
