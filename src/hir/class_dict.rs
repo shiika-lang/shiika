@@ -36,9 +36,15 @@ impl ClassDict {
     /// Similar to find_method, but lookup into superclass if not in the class.
     /// Returns Err if not found.
     pub fn lookup_method(&self,
-                         receiver_class_fullname: &ClassFullname,
                          class_fullname: &ClassFullname,
                          method_name: &MethodFirstname)
+                         -> Result<(&MethodSignature, ClassFullname), Error> {
+        self.lookup_method_(class_fullname, class_fullname, method_name)
+    }
+    fn lookup_method_(&self,
+                      receiver_class_fullname: &ClassFullname,
+                      class_fullname: &ClassFullname,
+                      method_name: &MethodFirstname)
                          -> Result<(&MethodSignature, ClassFullname), Error> {
         if let Some(sig) = self.find_method(class_fullname, method_name) {
             Ok((sig, class_fullname.clone()))
@@ -48,7 +54,7 @@ impl ClassDict {
             let sk_class = self.find_class(class_fullname)
                 .unwrap_or_else(|| panic!("[BUG] lookup_method: class `{}' not found", &class_fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
-                self.lookup_method(receiver_class_fullname, super_name, method_name)
+                self.lookup_method_(receiver_class_fullname, super_name, method_name)
             }
             else {
                 Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
