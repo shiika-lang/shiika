@@ -407,3 +407,14 @@ fn signature_of_new(metaclass_fullname: &ClassFullname,
         params: convert_params(initialize_params),
     }
 }
+
+/// TODO: better name
+fn signature_of_new2(metaclass_fullname: &ClassFullname,
+                    initialize_params: Vec<MethodParam>,
+                    instance_ty: &TermTy) -> MethodSignature {
+    MethodSignature {
+        fullname: method_fullname(metaclass_fullname, "new"),
+        ret_ty: instance_ty.clone(),
+        params: initialize_params,
+    }
+}

@@ -9,9 +9,6 @@ class Base
 end
 
 class Sub : Base
-  def initialize
-  end
-
   #def a -> Int
   #  @a
   #end
