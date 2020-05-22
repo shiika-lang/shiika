@@ -187,6 +187,17 @@ impl HirMaker {
         Ok(())
     }
 
+    fn process_initializer(&mut self,
+                           ctx: &mut HirMakerContext,
+                           class_fullname: &ClassFullname,
+                           name: &MethodFirstname,
+                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+        let (sk_method, ivars) =
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
+        self.class_dict.define_ivars(class_fullname, ivars);
+        Ok(sk_method)
+    }
+
     /// Create .new
     fn create_new(&self,
                   fullname: &ClassFullname,
@@ -250,17 +261,6 @@ impl HirMaker {
         let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);
         Ok(fullname)
-    }
-
-    fn process_initializer(&mut self,
-                           ctx: &mut HirMakerContext,
-                           class_fullname: &ClassFullname,
-                           name: &MethodFirstname,
-                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
-        let (sk_method, ivars) =
-            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
-        self.class_dict.define_ivars(class_fullname, ivars);
-        Ok(sk_method)
     }
 
     fn convert_method_def(&mut self,
