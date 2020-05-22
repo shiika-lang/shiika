@@ -246,8 +246,8 @@ impl HirMaker {
     fn find_initialize(&self, class_fullname: &ClassFullname)
                        -> Result<(MethodFullname, &Vec<MethodParam>, ClassFullname), Error> {
         let (sig, found_cls) =
-            self.lookup_method(&class_fullname, &class_fullname, 
-                               &method_firstname("initialize"))?;
+            self.class_dict.lookup_method(&class_fullname, &class_fullname, 
+                                          &method_firstname("initialize"))?;
         Ok((names::method_fullname(&found_cls, "initialize"), &sig.params, found_cls))
     }
 
