@@ -159,7 +159,7 @@ impl HirMaker {
 
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             method_dict.add_method(&fullname,
-                                   self.process_initializer(&mut ctx, &fullname, &sig.name, &body_exprs)?);
+                                   self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?);
             method_dict.add_method(&meta_name,
                                    self.create_new(&fullname, &sig.params)?);
         }
@@ -187,11 +187,13 @@ impl HirMaker {
         Ok(())
     }
 
-    fn process_initializer(&mut self,
-                           ctx: &mut HirMakerContext,
-                           class_fullname: &ClassFullname,
-                           name: &MethodFirstname,
-                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+    /// Create the `initialize` method
+    /// Also, define ivars
+    fn create_initialize(&mut self,
+                         ctx: &mut HirMakerContext,
+                         class_fullname: &ClassFullname,
+                         name: &MethodFirstname,
+                         body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
         let (sk_method, ivars) =
             self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
         self.class_dict.define_ivars(class_fullname, ivars);
