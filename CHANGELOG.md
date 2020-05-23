@@ -1,3 +1,12 @@
+## HEAD
+
+- feat: Specify superclass (#70)
+  - Inherit superclass ivars (#73)
+- feat: Inner class definition (#69)
+- feat: `unless` (#66)
+- fixes: #68 #62 #55
+- chore: Update inkwell (#65)
+
 ## v0.2.4 (2020-05-06)
 
 - New example: ray
