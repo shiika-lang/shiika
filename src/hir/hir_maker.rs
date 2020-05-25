@@ -132,12 +132,12 @@ impl HirMaker {
                           defs: &[ast::Definition],
                           method_dict: &mut MethodDict)
                          -> Result<(), Error> {
-        self.register_meta_ivar(&fullname);
+        self.register_meta_ivar(&fullname)?;
         self.process_defs(defs, method_dict, &fullname)?;
         Ok(())
     }
 
-    fn register_meta_ivar(&mut self, name: &ClassFullname) {
+    fn register_meta_ivar(&mut self, name: &ClassFullname) -> Result<(), Error> {
         let mut meta_ivars = HashMap::new();
         meta_ivars.insert("@name".to_string(), SkIVar {
             name: "@name".to_string(),
@@ -145,7 +145,8 @@ impl HirMaker {
             ty: ty::raw("String"),
             readonly: true,
         });
-        self.class_dict.define_ivars(&name.meta_name(), meta_ivars);
+        self.class_dict.define_ivars(&name.meta_name(), meta_ivars)?;
+        Ok(())
     }
 
     /// Process each method def and const def
@@ -161,6 +162,9 @@ impl HirMaker {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             method_dict.add_method(&fullname,
                                    self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?);
+        }
+        else {
+            self.class_dict.define_ivars(fullname, HashMap::new())?;
         }
         // Add `.new`
         if has_new(&fullname) {
@@ -196,9 +200,11 @@ impl HirMaker {
                          class_fullname: &ClassFullname,
                          name: &MethodFirstname,
                          body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+        let super_ivars = self.class_dict.get_superclass(class_fullname)
+            .map(|super_cls| super_cls.ivars.clone());
         let (sk_method, ivars) =
-            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true)?;
-        self.class_dict.define_ivars(class_fullname, ivars);
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true, super_ivars)?;
+        self.class_dict.define_ivars(class_fullname, ivars)?;
         Ok(sk_method)
     }
 
@@ -271,21 +277,28 @@ impl HirMaker {
                           name: &MethodFirstname,
                           body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(ctx, class_fullname, name, body_exprs, false)?;
+            self.convert_method_def_(ctx, class_fullname, name, body_exprs, false, None)?;
         Ok(sk_method)
     }
 
+    /// Create a SkMethod and return it with ctx.iivars
     fn convert_method_def_(&mut self,
                           ctx: &HirMakerContext,
                           class_fullname: &ClassFullname,
                           name: &MethodFirstname,
                           body_exprs: &[AstExpression],
-                          is_initializer: bool) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
+                          is_initializer: bool,
+                          super_ivars: Option<SkIVars>)
+                          -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by class_dict::new
         let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.class_dict);
         let signature = self.class_dict.find_method(class_fullname, name).expect(&err).clone();
 
         let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature, is_initializer);
+        if let Some(x) = super_ivars {
+            method_ctx.super_ivars = x;
+        }
+
         let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 

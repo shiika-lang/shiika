@@ -399,7 +399,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(),
                                            &format!("class_{}", fullname.0));
         // Set @name
-        let ptr = self.builder.build_struct_gep(cls_obj.into_pointer_value(), 0, &fullname.0).unwrap();
+        let ptr = self.builder.build_struct_gep(cls_obj.into_pointer_value(), 0, &fullname.0)
+            .unwrap_or_else(|_| panic!("[BUG] failed to define @name of metaclass"));
         let value = self.gen_string_literal(str_literal_idx);
         self.builder.build_store(ptr, value);
 
