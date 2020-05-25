@@ -205,14 +205,7 @@ impl HirMaker {
         let expr = self.convert_expr(ctx, rhs)?;
 
         if ctx.is_initializer {
-            // TODO: check duplicates
-            let idx = ctx.iivars.len();
-            ctx.iivars.insert(name.to_string(), SkIVar {
-                idx,
-                name: name.to_string(),
-                ty: expr.ty.clone(),
-                readonly: !is_var,
-            });
+            let idx = self.declare_ivar(ctx, name, &expr.ty, !is_var)?;
             return Ok(Hir::assign_ivar(name, idx, expr, *is_var))
         }
 
@@ -229,6 +222,38 @@ impl HirMaker {
         else {
             Err(error::program_error(&format!("instance variable `{}' not found", name)))
         }
+    }
+
+    /// Declare a new ivar
+    fn declare_ivar(&self,
+                    ctx: &mut HirMakerContext,
+                    name: &str,
+                    ty: &TermTy,
+                    readonly: bool)
+                    -> Result<usize, Error> {
+        if let Some(super_ivar) = ctx.super_ivars.get(name) {
+            if super_ivar.ty != *ty {
+                return Err(error::type_error(&format!(
+                    "type of {} of {:?} is {:?} but it is defined as {:?} in the superclass",
+                    &name, &ctx.self_ty, ty, super_ivar.ty)))
+            }
+            if super_ivar.readonly != readonly {
+                return Err(error::type_error(&format!(
+                    "mutability of {} of {:?} differs from the inherited one",
+                    &name, &ctx.self_ty)))
+            }
+            // This is not a declaration (assigning to an ivar defined in superclass)
+            return Ok(super_ivar.idx)
+        }
+        // TODO: check duplicates
+        let idx = ctx.super_ivars.len() + ctx.iivars.len();
+        ctx.iivars.insert(name.to_string(), SkIVar {
+            idx,
+            name: name.to_string(),
+            ty: ty.clone(),
+            readonly,
+        });
+        Ok(idx)
     }
 
     fn convert_const_assign(&mut self,

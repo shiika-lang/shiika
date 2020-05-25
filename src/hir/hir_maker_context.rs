@@ -16,10 +16,16 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
+
+    //
+    // ivar-related stuffs
+    //
     /// List of instance variables in an initializer found so far
-    pub iivars: HashMap<String, SkIVar>,
+    pub iivars: SkIVars,
     /// Whether we are in an initializer
     pub is_initializer: bool,
+    /// Number of inherited ivars. Only used when is_initializer is true
+    pub super_ivars: SkIVars,  // TODO: this can be just &'a SkIVars
 }
 
 impl HirMakerContext {
@@ -32,6 +38,7 @@ impl HirMakerContext {
             lvars: HashMap::new(),
             iivars: HashMap::new(),
             is_initializer: false,
+            super_ivars: HashMap::new(),
         }
     }
 
@@ -44,6 +51,7 @@ impl HirMakerContext {
             lvars: HashMap::new(),
             iivars: HashMap::new(),
             is_initializer: false,
+            super_ivars: HashMap::new(),
         }
     }
 
@@ -56,6 +64,7 @@ impl HirMakerContext {
             lvars: HashMap::new(),
             iivars: HashMap::new(),
             is_initializer,
+            super_ivars: HashMap::new(),
         }
     }
 }

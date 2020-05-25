@@ -49,6 +49,8 @@ pub struct SkIVar {
     pub readonly: bool,
 }
 
+type SkIVars = HashMap<String, SkIVar>;
+
 #[derive(Debug, PartialEq)]
 pub struct SkMethod {
     pub signature: MethodSignature,
