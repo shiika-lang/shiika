@@ -159,13 +159,14 @@ impl HirMaker {
         let mut ctx = HirMakerContext::class_ctx(&fullname);
 
         // Add `#initialize`
+        let mut own_ivars = HashMap::default();
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            method_dict.add_method(&fullname,
-                                   self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?);
+            let (sk_method, found_ivars) = self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?;
+            method_dict.add_method(&fullname, sk_method);
+            own_ivars = found_ivars;
         }
-        else {
-            self.class_dict.define_ivars(fullname, HashMap::new())?;
-        }
+        self.class_dict.define_ivars(fullname, own_ivars)?;
+
         // Add `.new`
         if has_new(&fullname) {
             method_dict.add_method(&meta_name, self.create_new(&fullname)?);
@@ -199,13 +200,10 @@ impl HirMaker {
                          ctx: &mut HirMakerContext,
                          class_fullname: &ClassFullname,
                          name: &MethodFirstname,
-                         body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+                         body_exprs: &[AstExpression]) -> Result<(SkMethod, SkIVars), Error> {
         let super_ivars = self.class_dict.get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
-        let (sk_method, ivars) =
-            self.convert_method_def_(ctx, class_fullname, name, body_exprs, true, super_ivars)?;
-        self.class_dict.define_ivars(class_fullname, ivars)?;
-        Ok(sk_method)
+        self.convert_method_def_(ctx, class_fullname, name, body_exprs, true, super_ivars)
     }
 
     /// Create .new
