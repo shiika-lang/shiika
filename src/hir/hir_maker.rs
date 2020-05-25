@@ -11,7 +11,10 @@ use crate::type_checking;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
+    /// List of classes found so far
     pub (in super) class_dict: ClassDict,
+    /// List of methods found so far
+    pub (in super) method_dict: MethodDict,
     /// List of constants found so far
     pub (in super) constants: HashMap<ConstFullname, TermTy>,
     pub (in super) const_inits: Vec<HirExpression>,
@@ -35,15 +38,15 @@ fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Err
     hir_maker.register_class_consts();
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
-    let method_dict =
-        hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-    Ok(hir_maker.extract_hir(method_dict, main_exprs))
+    hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
+    Ok(hir_maker.extract_hir(main_exprs))
 }
 
 impl HirMaker {
     fn new(class_dict: ClassDict) -> HirMaker {
         HirMaker {
             class_dict,
+            method_dict: MethodDict::new(),
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
@@ -51,11 +54,10 @@ impl HirMaker {
     }
 
     /// Destructively convert self to Hir
-    fn extract_hir(&mut self,
-           method_dict: MethodDict,
-           main_exprs: HirExpressions) -> Hir {
+    fn extract_hir(&mut self, main_exprs: HirExpressions) -> Hir {
         // Extract data from self
         let sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
+        let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
         let mut str_literals = vec![];
@@ -68,7 +70,7 @@ impl HirMaker {
 
         Hir {
             sk_classes,
-            sk_methods: method_dict.sk_methods,
+            sk_methods,
             constants,
             str_literals,
             const_inits,
@@ -103,8 +105,7 @@ impl HirMaker {
     }
 
     fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
-                            -> Result<MethodDict, Error> {
-        let mut method_dict = MethodDict::new();
+                            -> Result<(), Error> {
         let mut ctx = HirMakerContext::toplevel();
 
         toplevel_defs.iter().try_for_each(|def|
@@ -112,7 +113,7 @@ impl HirMaker {
                 // Extract instance/class methods
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace("");
-                    self.collect_sk_methods(&full, defs, &mut method_dict)?;
+                    self.collect_sk_methods(&full, defs)?;
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
@@ -122,18 +123,16 @@ impl HirMaker {
                 _ => panic!("should be checked in hir::class_dict")
             }
         )?;
-
-        Ok(method_dict)
+        Ok(())
     }
 
     /// Extract instance/class methods and constants
     fn collect_sk_methods(&mut self,
                           fullname: &ClassFullname,
-                          defs: &[ast::Definition],
-                          method_dict: &mut MethodDict)
+                          defs: &[ast::Definition])
                          -> Result<(), Error> {
         self.register_meta_ivar(&fullname)?;
-        self.process_defs(defs, method_dict, &fullname)?;
+        self.process_defs(defs, &fullname)?;
         Ok(())
     }
 
@@ -152,7 +151,6 @@ impl HirMaker {
     /// Process each method def and const def
     fn process_defs(&mut self,
                     defs: &[ast::Definition],
-                    mut method_dict: &mut MethodDict,
                     fullname: &ClassFullname)
                    -> Result<(), Error> {
         let meta_name = fullname.meta_name();
@@ -162,32 +160,32 @@ impl HirMaker {
         let mut own_ivars = HashMap::default();
         if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
             let (sk_method, found_ivars) = self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?;
-            method_dict.add_method(&fullname, sk_method);
+            self.method_dict.add_method(&fullname, sk_method);
             own_ivars = found_ivars;
         }
         self.class_dict.define_ivars(fullname, own_ivars)?;
 
         // Add `.new`
         if has_new(&fullname) {
-            method_dict.add_method(&meta_name, self.create_new(&fullname)?);
+            self.method_dict.add_method(&meta_name, self.create_new(&fullname)?);
         }
 
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    method_dict.add_method(&fullname, 
-                                           self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?);
+                    let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
+                    self.method_dict.add_method(&fullname, method);
                 },
                 ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    method_dict.add_method(&meta_name,
-                                           self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?);
+                    let method = self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
+                    self.method_dict.add_method(&meta_name, method);
                 },
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
                 },
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.collect_sk_methods(&full, defs, &mut method_dict)?;
+                    self.collect_sk_methods(&full, defs)?;
                 },
             }
         }
