@@ -68,9 +68,34 @@ impl ClassDict {
         self.sk_classes.get(class_fullname)
     }
 
+    /// Find a class. Panic if not found
+    pub fn get_class(&self,
+                     class_fullname: &ClassFullname,
+                     dbg_name: &str) -> &SkClass {
+        self.find_class(class_fullname)
+            .unwrap_or_else(|| panic!("[BUG] {}: class `{}' not found", &dbg_name, &class_fullname.0))
+    }
+
+    /// Find a class. Panic if not found
+    pub fn get_class_mut(&mut self,
+                         class_fullname: &ClassFullname,
+                         dbg_name: &str) -> &mut SkClass {
+        self.sk_classes.get_mut(&class_fullname)
+            .unwrap_or_else(|| panic!("[BUG] {}: class `{}' not found", &dbg_name, &class_fullname.0))
+    }
+
     /// Return true if there is a class of the name
     pub fn class_exists(&self, class_fullname: &str) -> bool {
         self.sk_classes.contains_key(&ClassFullname(class_fullname.to_string()))
+    }
+
+    /// Find the superclass
+    /// Return None if the class is `Object`
+    pub fn get_superclass(&self, classname: &ClassFullname) -> Option<&SkClass> {
+        let cls = self.get_class(&classname, "ClassDict::get_superclass");
+        cls.superclass_fullname.as_ref().map(|super_name| {
+            self.get_class(&super_name, "ClassDict::get_superclass")
+        })
     }
 
     pub fn find_ivar(&self,
