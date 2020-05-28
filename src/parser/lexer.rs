@@ -92,7 +92,7 @@ enum CharType {
     Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
     LowerWord, // Keyword or identifier which starts with lower-case letter
-    IVar, // Instance variable (`@foo`)
+    IVar, // Instance variable (eg. "foo" for @foo)
     Symbol, // '+', '(', etc.
     Number, // '0'~'9'
     Str, // '"'
@@ -316,7 +316,7 @@ impl<'a> Lexer<'a> {
         }
         // TODO: LexError if no word succeeds '@'
         let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
-        let s = &self.src[begin..next_cur.pos];
+        let s = &self.src[(begin+1)..next_cur.pos];
         Token::IVar(s.to_string())
     }
 

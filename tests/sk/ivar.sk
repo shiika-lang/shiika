@@ -3,10 +3,6 @@ class A
     var @i = 1
   end
 
-  def i -> Int
-    @i
-  end
-
   def i=(i: Int)
     @i = i
   end
