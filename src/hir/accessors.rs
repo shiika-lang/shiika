@@ -20,7 +20,7 @@ impl HirMaker {
             // Already has it
             if method_names.iter().find(|x| ***x == name).is_some() { continue; }
             // Getter
-            let getter = create_getter(&clsname, &method_firstname(&name), &ivar);
+            let getter = create_getter(&clsname, &ivar);
             let sig = getter.signature.clone();
             self.method_dict.add_method(&clsname, getter);
             self.class_dict.add_method(&clsname, sig);
@@ -30,14 +30,13 @@ impl HirMaker {
 }
 
 fn create_getter(clsname: &ClassFullname,
-                 method_name: &MethodFirstname,
                  ivar: &SkIVar) -> SkMethod {
     let sig = MethodSignature {
-        fullname: method_fullname(clsname, &method_name.0),
+        fullname: method_fullname(clsname, &ivar.name),
         ret_ty: ivar.ty.clone(),
         params: vec![],
     };
-    let name = method_name.0.clone();
+    let name = ivar.name.clone(); // Clone to embed into the closure
     let idx = ivar.idx;
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
         let this = function.get_params()[0];
