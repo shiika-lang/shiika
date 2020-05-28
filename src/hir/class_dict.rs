@@ -125,6 +125,14 @@ impl ClassDict {
         self.sk_classes.insert(class.fullname.clone(), class);
     }
 
+    /// Add a method
+    /// Used to add auto-defined accessors
+    pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
+        let sk_class = self.sk_classes.get_mut(&clsname).unwrap();
+        sk_class.method_sigs.insert(sig.fullname.first_name.clone(),
+                                    sig);
+    }
+
     pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
         corelib.into_iter().for_each(|(_, c)| {
             self.add_class(SkClass {

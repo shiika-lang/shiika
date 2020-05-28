@@ -36,9 +36,9 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict);
     hir_maker.register_class_consts();
+    hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
     let main_exprs =
         hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
-    hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
     Ok(hir_maker.extract_hir(main_exprs))
 }
 
@@ -144,7 +144,7 @@ impl HirMaker {
             ty: ty::raw("String"),
             readonly: true,
         });
-        self.class_dict.define_ivars(&name.meta_name(), meta_ivars)?;
+        self.define_ivars(&name.meta_name(), meta_ivars, &[])?;
         Ok(())
     }
 
@@ -163,7 +163,7 @@ impl HirMaker {
             self.method_dict.add_method(&fullname, sk_method);
             own_ivars = found_ivars;
         }
-        self.class_dict.define_ivars(fullname, own_ivars)?;
+        self.define_ivars(fullname, own_ivars, defs)?;
 
         // Add `.new`
         if has_new(&fullname) {
@@ -202,6 +202,17 @@ impl HirMaker {
         let super_ivars = self.class_dict.get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
         self.convert_method_def_(ctx, class_fullname, name, body_exprs, true, super_ivars)
+    }
+
+    /// Define ivars of a class
+    /// Also, define accessors
+    fn define_ivars(&mut self,
+                    clsname: &ClassFullname,
+                    own_ivars: SkIVars,
+                    defs: &[ast::Definition]) -> Result<(), Error> {
+        self.class_dict.define_ivars(clsname, own_ivars.clone())?;
+        self.define_accessors(clsname, own_ivars, defs);
+        Ok(())
     }
 
     /// Create .new

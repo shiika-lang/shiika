@@ -1,3 +1,4 @@
+mod accessors;
 mod hir_maker;
 mod hir_maker_context;
 mod class_dict;
