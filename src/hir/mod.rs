@@ -45,7 +45,7 @@ impl Hir {
 #[derive(Debug, PartialEq, Clone)]
 pub struct SkIVar {
     pub idx: usize,
-    pub name: String,  // Starts with `@`
+    pub name: String,  // Without `@`
     pub ty: TermTy,
     pub readonly: bool,
 }
