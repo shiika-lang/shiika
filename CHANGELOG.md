@@ -1,5 +1,6 @@
-## HEAD
+## v0.2.5 (2020-05-29)
 
+- feat: Automatically define getters/setters for instance variables (#44)
 - feat: Specify superclass (#70)
   - Inherit superclass ivars (#73)
 - feat: Inner class definition (#69)
