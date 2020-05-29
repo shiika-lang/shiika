@@ -24,7 +24,11 @@ impl HirMaker {
             let sig = getter.signature.clone();
             self.method_dict.add_method(&clsname, getter);
             self.class_dict.add_method(&clsname, sig);
-            // TODO: Setter
+            //  Setter
+            let setter = create_setter(&clsname, &ivar);
+            let sig = setter.signature.clone();
+            self.method_dict.add_method(&clsname, setter);
+            self.class_dict.add_method(&clsname, sig);
         }
     }
 }
@@ -44,6 +48,37 @@ fn create_getter(clsname: &ClassFullname,
                                                     idx as u32,
                                                     &format!("addr_{}", name)).unwrap();
         let val = code_gen.builder.build_load(ptr, &name);
+        code_gen.builder.build_return(Some(&val));
+        Ok(())
+    };
+
+    SkMethod {
+        signature: sig,
+        body: SkMethodBody::RustClosureMethodBody {
+            boxed_gen: Box::new(getter_body),
+        }
+    }
+}
+
+fn create_setter(clsname: &ClassFullname,
+                 ivar: &SkIVar) -> SkMethod {
+    let name = format!("{}=", ivar.name);
+    let sig = MethodSignature {
+        fullname: method_fullname(clsname, &name),
+        ret_ty: ivar.ty.clone(),
+        params: vec![MethodParam{
+            name: ivar.name.clone(),
+            ty: ivar.ty.clone(),
+        }],
+    };
+    let idx = ivar.idx;
+    let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
+        let this = function.get_params()[0];
+        let val = function.get_params()[1];
+        let ptr = code_gen.builder.build_struct_gep(this.into_pointer_value(),
+                                                    idx as u32,
+                                                    &format!("addr_{}", name)).unwrap();
+        code_gen.builder.build_store(ptr, val);
         code_gen.builder.build_return(Some(&val));
         Ok(())
     };
