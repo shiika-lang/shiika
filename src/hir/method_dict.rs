@@ -3,7 +3,7 @@ use crate::hir::*;
 use crate::names::*;
 
 /// Contains all the methods
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MethodDict {
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>
 }

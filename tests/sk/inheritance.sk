@@ -22,7 +22,6 @@ class Mid2 : Base2
 end
 
 class Sub2 : Mid2
-  def a -> Int; @a; end
 end
 
 sub2 = Sub2.new
@@ -40,9 +39,6 @@ class Sub3 : Base3
     @a = 2
     @b = 2.0
   end
-
-  def a -> Int; @a; end
-  def b -> Float; @b; end
 end
 
 sub3 = Sub3.new

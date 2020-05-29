@@ -1,3 +1,4 @@
+mod accessors;
 mod hir_maker;
 mod hir_maker_context;
 mod class_dict;
@@ -44,7 +45,7 @@ impl Hir {
 #[derive(Debug, PartialEq, Clone)]
 pub struct SkIVar {
     pub idx: usize,
-    pub name: String,  // Starts with `@`
+    pub name: String,  // Without `@`
     pub ty: TermTy,
     pub readonly: bool,
 }
@@ -98,6 +99,20 @@ pub type ClosureMethodBody = dyn Fn(&crate::code_gen::CodeGen, &inkwell::values:
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,
+}
+
+impl HirExpressions {
+    // Destructively convert Vec<HirExpression> into HirExpressions
+    pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
+        if exprs.is_empty() {
+            exprs.push(Hir::const_ref(ty::raw("Void"), const_fullname("::Void")))
+        }
+
+        let last_expr = exprs.last().unwrap();
+        let ty = last_expr.ty.clone();
+
+        HirExpressions { ty, exprs }
+    }
 }
 
 #[derive(Debug, PartialEq)]

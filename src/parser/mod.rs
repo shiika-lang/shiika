@@ -49,9 +49,9 @@ impl<'a> Parser<'a> {
 
     fn parse_program(&mut self) -> Result<ast::Program, Error> {
         self.skip_wsn();
-        let (toplevel_defs, exprs) = self.parse_toplevel_items()?;
+        let toplevel_items = self.parse_toplevel_items()?;
         self.expect_eof()?;
-        Ok(ast::Program { toplevel_defs, exprs })
+        Ok(ast::Program { toplevel_items })
     }
 
     pub fn expect_eof(&self) -> Result<(), Error> {
@@ -61,18 +61,23 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_toplevel_items(&mut self) -> Result<(Vec<ast::Definition>, Vec<ast::AstExpression>), Error> {
-        let mut defs = vec![];
-        let mut exprs = vec![];
+    fn parse_toplevel_items(&mut self) -> Result<Vec<ast::TopLevelItem>, Error> {
+        let mut items = vec![];
         loop {
             match self.current_token() {
-                Token::KwClass => defs.push(self.parse_class_definition()?),
-                Token::KwDef => defs.push(self.parse_method_definition()?),
+                Token::KwClass => {
+                    items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
+                },
+                Token::KwDef => {
+                    items.push(ast::TopLevelItem::Def(self.parse_method_definition()?));
+                },
                 Token::Eof | Token::KwEnd => break,
-                _ => exprs.push(self.parse_expr()?),
+                _ => {
+                    items.push(ast::TopLevelItem::Expr(self.parse_expr()?));
+                }
             }
             self.skip_wsn();
         }
-        Ok((defs, exprs))
+        Ok(items)
     }
 }

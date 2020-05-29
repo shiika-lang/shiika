@@ -3,8 +3,13 @@ use crate::parser::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
-    pub toplevel_defs: Vec<Definition>,
-    pub exprs: Vec<AstExpression>,
+    pub toplevel_items: Vec<TopLevelItem>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TopLevelItem {
+    Def(Definition),
+    Expr(AstExpression),
 }
 
 #[derive(Debug, PartialEq)]
