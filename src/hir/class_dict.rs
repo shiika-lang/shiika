@@ -18,7 +18,13 @@ pub struct ClassDict {
 pub fn create(ast: &ast::Program, corelib: HashMap<ClassFullname, SkClass>) -> Result<ClassDict, Error> {
     let mut dict = ClassDict::new();
     dict.index_corelib(corelib);
-    dict.index_program(&ast.toplevel_defs)?;
+    let defs = ast.toplevel_items.iter().filter_map(|item| {
+        match item {
+            ast::TopLevelItem::Def(x) => Some(x),
+            ast::TopLevelItem::Expr(_) => None,
+        }
+    }).collect::<Vec<_>>();
+    dict.index_program(&defs)?;
     Ok(dict)
 }
 
@@ -145,7 +151,7 @@ impl ClassDict {
         });
     }
 
-    pub fn index_program(&mut self, toplevel_defs: &[ast::Definition]) -> Result<(), Error> {
+    pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
                 ast::Definition::ClassDefinition { name, super_name, defs } => {

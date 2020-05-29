@@ -11,18 +11,11 @@ impl HirMaker {
     pub (in super) fn convert_exprs(&mut self,
                      ctx: &mut HirMakerContext,
                      exprs: &[AstExpression]) -> Result<HirExpressions, Error> {
-        let mut hir_exprs = exprs.iter().map(|expr|
+        let hir_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
 
-        if hir_exprs.is_empty() {
-            hir_exprs.push(Hir::const_ref(ty::raw("Void"), const_fullname("::Void")))
-        }
-
-        let last_expr = hir_exprs.last().unwrap();
-        let ty = last_expr.ty.clone();
-
-        Ok(HirExpressions { ty, exprs: hir_exprs })
+        Ok(HirExpressions::new(hir_exprs))
     }
 
     pub (in super) fn convert_expr(&mut self,

@@ -101,6 +101,20 @@ pub struct HirExpressions {
     pub exprs: Vec<HirExpression>,
 }
 
+impl HirExpressions {
+    // Destructively convert Vec<HirExpression> into HirExpressions
+    pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
+        if exprs.is_empty() {
+            exprs.push(Hir::const_ref(ty::raw("Void"), const_fullname("::Void")))
+        }
+
+        let last_expr = exprs.last().unwrap();
+        let ty = last_expr.ty.clone();
+
+        HirExpressions { ty, exprs }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct HirExpression {
     pub ty: TermTy,

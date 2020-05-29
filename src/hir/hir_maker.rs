@@ -36,9 +36,7 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict);
     hir_maker.register_class_consts();
-    hir_maker.convert_toplevel_defs(&prog.toplevel_defs)?;
-    let main_exprs =
-        hir_maker.convert_exprs(&mut HirMakerContext::toplevel(), &prog.exprs)?;
+    let main_exprs = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
     Ok(hir_maker.extract_hir(main_exprs))
 }
 
@@ -104,25 +102,39 @@ impl HirMaker {
         self.const_inits.push(op);
     }
 
-    fn convert_toplevel_defs(&mut self, toplevel_defs: &[ast::Definition])
-                            -> Result<(), Error> {
-        let mut ctx = HirMakerContext::toplevel();
-
-        toplevel_defs.iter().try_for_each(|def|
-            match def {
-                // Extract instance/class methods
-                ast::Definition::ClassDefinition { name, defs, .. } => {
-                    let full = name.add_namespace("");
-                    self.collect_sk_methods(&full, defs)?;
-                    Ok(())
+    fn convert_toplevel_items(&mut self, items: &[ast::TopLevelItem])
+                            -> Result<HirExpressions, Error> {
+        let mut main_exprs = vec![];
+        // Contains local vars defined at toplevel
+        let mut top_ctx = HirMakerContext::toplevel();
+        for item in items {
+            match item {
+                ast::TopLevelItem::Def(def) => {
+                    self.process_toplevel_def(&mut top_ctx, &def)?;
                 },
-                ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&mut ctx, name, expr)?;
-                    Ok(())
+                ast::TopLevelItem::Expr(expr) => {
+                    main_exprs.push(self.convert_expr(&mut top_ctx, &expr)?);
                 }
-                _ => panic!("should be checked in hir::class_dict")
             }
-        )?;
+        }
+        Ok(HirExpressions::new(main_exprs))
+    }
+
+    fn process_toplevel_def(&mut self,
+                            ctx: &mut HirMakerContext,
+                            def: &ast::Definition)
+                            -> Result<(), Error> {
+        match def {
+            // Extract instance/class methods
+            ast::Definition::ClassDefinition { name, defs, .. } => {
+                let full = name.add_namespace("");
+                self.collect_sk_methods(&full, defs)?;
+            },
+            ast::Definition::ConstDefinition { name, expr } => {
+                self.register_const(ctx, name, expr)?;
+            }
+            _ => panic!("should be checked in hir::class_dict")
+        }
         Ok(())
     }
 
