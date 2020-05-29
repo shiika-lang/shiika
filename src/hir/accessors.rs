@@ -17,18 +17,20 @@ impl HirMaker {
             }
         }).collect::<Vec<_>>();
         for (name, ivar) in ivars {
-            // Already has it
-            if method_names.iter().find(|x| ***x == name).is_some() { continue; }
-            // Getter
-            let getter = create_getter(&clsname, &ivar);
-            let sig = getter.signature.clone();
-            self.method_dict.add_method(&clsname, getter);
-            self.class_dict.add_method(&clsname, sig);
-            //  Setter
-            let setter = create_setter(&clsname, &ivar);
-            let sig = setter.signature.clone();
-            self.method_dict.add_method(&clsname, setter);
-            self.class_dict.add_method(&clsname, sig);
+            if !method_names.iter().any(|x| ***x == name) { 
+                let getter = create_getter(&clsname, &ivar);
+                let sig = getter.signature.clone();
+                self.method_dict.add_method(&clsname, getter);
+                self.class_dict.add_method(&clsname, sig);
+            }
+
+            let setter_name = format!("{}=", name);
+            if !method_names.iter().any(|x| ***x == setter_name) { 
+                let setter = create_setter(&clsname, &ivar);
+                let sig = setter.signature.clone();
+                self.method_dict.add_method(&clsname, setter);
+                self.class_dict.add_method(&clsname, sig);
+            }
         }
     }
 }
