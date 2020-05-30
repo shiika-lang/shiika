@@ -60,6 +60,13 @@ task :build => LIBS do
   sh "cargo build"
 end
 
+task :clean do
+  files = `git status -sz --untracked-files=normal --ignored`.
+            lines("\0", chomp: true).
+            filter_map { |l| /\A!! /.match(l)&.post_match }
+  rm_rf files
+end
+
 task :test => LIBS do
   sh "cargo test"
 end
