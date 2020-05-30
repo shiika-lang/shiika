@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::process::Command;
 use std::path::Path;
@@ -9,6 +10,12 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
         run_sk_test(&item.unwrap().path())?;
     }
     Ok(())
+}
+
+fn add_args_from_env(cmd: &mut Command, key: &str) {
+    for arg in env::var(key).unwrap_or("".to_string()).split_ascii_whitespace() {
+        cmd.arg(arg);
+    }
 }
 
 /// Execute tests/sk/x.sk
@@ -26,9 +33,11 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("tests/tmp.ll");
     cmd.output().unwrap();
 
-    let mut cmd = Command::new("clang");
-    cmd.arg("-lm");
+    let mut cmd = Command::new(env::var("CC").unwrap_or("cc".to_string()));
+    add_args_from_env(&mut cmd, "CFLAGS");
+    add_args_from_env(&mut cmd, "LDFLAGS");
     cmd.arg("-lgc");
+    add_args_from_env(&mut cmd, "LDLIBS");
     cmd.arg("-otests/tmp.out");
     cmd.arg("tests/tmp.s");
     cmd.output().unwrap();
