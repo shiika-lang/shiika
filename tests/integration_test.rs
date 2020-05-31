@@ -29,7 +29,7 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let hir = shiika::hir::build(ast, corelib)?;
     shiika::code_gen::run(&hir, "tests/tmp")?;
 
-    let mut cmd = Command::new("llc");
+    let mut cmd = Command::new(env::var("LLC").unwrap_or("llc".to_string()));
     cmd.arg("tests/tmp.ll");
     cmd.output().unwrap();
 
