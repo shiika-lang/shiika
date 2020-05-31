@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::process::Command;
 use std::path::Path;
@@ -11,6 +12,12 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn add_args_from_env(cmd: &mut Command, key: &str) {
+    for arg in env::var(key).unwrap_or("".to_string()).split_ascii_whitespace() {
+        cmd.arg(arg);
+    }
+}
+
 /// Execute tests/sk/x.sk
 /// Fail if it prints something
 fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -22,14 +29,15 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let hir = shiika::hir::build(ast, corelib)?;
     shiika::code_gen::run(&hir, "tests/tmp")?;
 
-    let mut cmd = Command::new("llc");
+    let mut cmd = Command::new(env::var("LLC").unwrap_or("llc".to_string()));
     cmd.arg("tests/tmp.ll");
     cmd.output().unwrap();
 
-    let mut cmd = Command::new("cc");
-    cmd.arg("-I/usr/local/Cellar/bdw-gc/7.6.0/include/");
-    cmd.arg("-L/usr/local/Cellar/bdw-gc/7.6.0/lib/");
+    let mut cmd = Command::new(env::var("CC").unwrap_or("cc".to_string()));
+    add_args_from_env(&mut cmd, "CFLAGS");
+    add_args_from_env(&mut cmd, "LDFLAGS");
     cmd.arg("-lgc");
+    add_args_from_env(&mut cmd, "LDLIBS");
     cmd.arg("-otests/tmp.out");
     cmd.arg("tests/tmp.s");
     cmd.output().unwrap();

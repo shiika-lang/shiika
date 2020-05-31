@@ -1,0 +1,39 @@
+name: ubuntu
+
+on:
+  - push
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.7.x
+      - name: Install other dependencies
+        run: |
+          set -eux
+          sudo apt install -y llvm-7 clang-7 libgc-dev
+          gem install --no-document bundler
+          bundle install --jobs $(nproc) --retry 3
+      - name: Output versions
+        run: |
+          set -eux
+          rustc --version
+          cargo --version
+          llc-7 --version
+          clang-7 --version
+          ruby --version
+          gem --version
+          bundle --version
+      - name: Build and test
+        run: |
+          set -eux
+          bundle exec rake build
+          env -- LLC=llc-7 CC=clang-7 LDLIBS=-lm bundle exec rake test
