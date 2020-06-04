@@ -33,6 +33,21 @@ pub enum TyBody {
     TyMeta { base_fullname: String },
     // This object belongs to the class `Class` (i.e. this is a class object)
     TyClass,
+    // Types for generic metaclass eg. `Meta:Pair<S, T>`
+    TyGenMeta {
+        base_name: String, // eg. "Pair"
+        typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
+    },
+    // Types for specialized class eg. `Pair<Int, Bool>`
+    TySpe {
+        base_name: String, // eg. "Pair"
+        type_args: Vec<TermTy>,
+    },
+    // Types for specialized metaclass eg. `Meta:Pair<Int, Bool>`
+    TySpeMeta {
+        base_name: String, // eg. "Pair"
+        type_args: Vec<TermTy>,
+    },
 }
 
 use TyBody::*;
@@ -46,65 +61,23 @@ impl TermTy {
         }
     }
 
-    pub fn is_nonmeta(&self) -> bool {
-        match self.body {
-            TyRaw => true,
-            _ => false,
-        }
-    }
-
     pub fn meta_ty(&self) -> TermTy {
         match self.body {
             TyRaw => ty::meta(&self.fullname.0),
             TyMeta { .. } => ty::class(),
             TyClass => ty::class(),
+            _ => panic!("TODO"),
         }
     }
 
     pub fn conforms_to(&self, other: &TermTy) -> bool {
-        match self.body {
-            TyRaw => {
-                match other.body {
-                    TyRaw => (self.fullname == other.fullname),
-                    _ => false,
-                }
-            },
-            TyMeta { .. } => {
-                match other.body  {
-                    TyMeta { .. } => (self.fullname == other.fullname),
-                    _ => false,
-                }
-            },
-            TyClass => {
-                match other.body {
-                    TyClass => true,
-                    _ => false,
-                }
-            }
-        }
+        // TODO: Should respect class hierarchy
+        self.equals_to(other)
     }
 
+    /// Return true if two types are identical
     pub fn equals_to(&self, other: &TermTy) -> bool {
-        match self.body {
-            TyRaw => {
-                match other.body {
-                    TyRaw => (self.fullname == other.fullname),
-                    _ => false,
-                }
-            },
-            TyMeta { .. } => {
-                match other.body  {
-                    TyMeta { .. } => (self.fullname == other.fullname),
-                    _ => false,
-                }
-            },
-            TyClass => {
-                match other.body {
-                    TyClass => true,
-                    _ => false,
-                }
-            }
-        }
+        self == other
     }
 }
 
@@ -123,6 +96,19 @@ pub fn class() -> TermTy {
     TermTy {
         fullname: class_fullname("Class"),
         body: TyClass,
+    }
+}
+
+pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+    let tyarg_names = type_args.iter().map(|x| {
+        x.fullname.0.to_string()
+    }).collect::<Vec<_>>();
+    TermTy {
+        fullname: class_fullname(&format!("{}<{}>", &base_name, &tyarg_names.join(","))),
+        body: TySpe {
+            base_name: base_name.to_string(),
+            type_args
+        }
     }
 }
 

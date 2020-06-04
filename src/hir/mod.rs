@@ -177,6 +177,9 @@ pub enum HirExpressionBase {
         fullname: ConstFullname,
     },
     HirSelfExpression,
+    HirArrayLiteral {
+        exprs: Vec<HirExpression>,
+    },
     HirFloatLiteral {
         value: f64,
     },
@@ -347,6 +350,14 @@ impl Hir {
         }
     }
 
+    pub fn array_literal(exprs: Vec<HirExpression>) -> HirExpression {
+        HirExpression {
+            // TODO: infer more specific type from the elements
+            ty: ty::spe("Array", vec![ty::raw("Object")]),
+            node: HirExpressionBase::HirArrayLiteral { exprs }
+        }
+    }
+    
     pub fn float_literal(value: f64) -> HirExpression {
         HirExpression {
             ty: ty::raw("Float"),
