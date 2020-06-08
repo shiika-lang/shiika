@@ -107,6 +107,7 @@ pub enum AstExpressionBody {
     IVarRef(String),
     ConstRef(Vec<String>),
     PseudoVariable(Token),
+    ArrayLiteral(Vec<AstExpression>),
     FloatLiteral {
         value: f64,
     },
@@ -292,6 +293,10 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
 
 pub fn pseudo_variable(token: Token) -> AstExpression {
     primary_expression(AstExpressionBody::PseudoVariable(token))
+}
+
+pub fn array_literal(exprs: Vec<AstExpression>) -> AstExpression {
+    primary_expression(AstExpressionBody::ArrayLiteral(exprs))
 }
 
 pub fn float_literal(value: f64) -> AstExpression {

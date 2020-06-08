@@ -599,6 +599,9 @@ impl<'a> Parser<'a> {
                 self.consume_token();
                 Ok(ast::ivar_ref(name))
             },
+            Token::LSqBracket => {
+                self.parse_array_literal()
+            },
             Token::Number(_) => {
                 self.parse_decimal_literal()
             },
@@ -660,15 +663,47 @@ impl<'a> Parser<'a> {
         self.lv += 1; self.debug_log("parse_parenthesized_expr");
         assert!(self.consume(Token::LParen));
         self.skip_wsn();
-        let expr = self.parse_expr()?; // Should be parse_stmts() ?
+        let expr = self.parse_expr()?; // Should be parse_exprs() ?
         self.skip_wsn();
         self.expect(Token::RParen)?;
         self.lv -= 1;
         Ok(expr)
     }
 
+    fn parse_array_literal(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1; self.debug_log("parse_array_literal");
+        assert!(self.consume(Token::LSqBracket));
+        let mut exprs = vec![];
+        self.skip_wsn();
+        loop {
+            match self.current_token() {
+                Token::RSqBracket => {
+                    self.consume_token();
+                    break
+                },
+                Token::Comma => {
+                    return Err(parse_error!(self, "unexpected comma in an array literal"))
+                },
+                _ => {
+                    let expr = self.parse_expr()?;
+                    exprs.push(expr);
+                    self.skip_wsn();
+                    match self.current_token() {
+                        Token::Comma => { self.consume_token(); },
+                        Token::RSqBracket => (),
+                        token => {
+                            return Err(parse_error!(self, "unexpected token `{:?}' in an array literal", token))
+                        }
+                    }
+                }
+            }
+        }
+        self.lv -= 1;
+        Ok(ast::array_literal(exprs))
+    }
+
     fn parse_decimal_literal(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1; self.debug_log("parse_parenthesized_expr");
+        self.lv += 1; self.debug_log("parse_decimal_literal");
         let expr = match self.consume_token() {
             Token::Number(s) => {
                 if s.contains('.') {

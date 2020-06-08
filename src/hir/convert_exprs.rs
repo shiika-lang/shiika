@@ -75,6 +75,10 @@ impl HirMaker {
                 self.convert_pseudo_variable(ctx, token)
             },
 
+            AstExpressionBody::ArrayLiteral(exprs) => {
+                self.convert_array_literal(ctx, exprs)
+            },
+
             AstExpressionBody::FloatLiteral {value} => {
                 Ok(Hir::float_literal(*value))
             },
@@ -368,6 +372,16 @@ impl HirMaker {
             },
             _ => panic!("[BUG] not a pseudo variable token: {:?}", token)
         }
+    }
+
+    fn convert_array_literal(&mut self,
+                             ctx: &mut HirMakerContext,
+                             exprs: &[AstExpression]) -> Result<HirExpression, Error> {
+        let hir_exprs = exprs.iter().map(|expr|
+            self.convert_expr(ctx, expr)
+        ).collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Hir::array_literal(hir_exprs))
     }
 
     fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {

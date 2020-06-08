@@ -74,6 +74,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirSelfExpression => {
                 self.gen_self_expression(ctx)
             },
+            HirArrayLiteral { exprs: _ } => {
+                panic!("TODO")
+            }
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
             },
@@ -92,9 +95,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral { fullname, str_literal_idx } => {
                 Ok(self.gen_class_literal(fullname, str_literal_idx))
             }
-//            _ => {
-//                panic!("TODO: {:?}", expr.node) 
-//            }
         }
     }
 
