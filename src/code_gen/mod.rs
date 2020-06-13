@@ -1,3 +1,4 @@
+mod boxing;
 mod code_gen_context;
 mod gen_exprs;
 use std::collections::HashMap;
@@ -174,7 +175,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // 2. Set ivars
         for (name, sk_class) in classes {
             let struct_type = self.llvm_struct_types.get(&name).unwrap();
-            if name.0 == "Float" {
+            if name.0 == "Int" {
+                struct_type.set_body(&[self.i32_type.into()], false);
+            }
+            else if name.0 == "Float" {
                 struct_type.set_body(&[self.f64_type.into()], false);
             }
             else {
