@@ -360,7 +360,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
-        self.i32_type.const_int(value as u64, false).as_basic_value_enum()
+        self.box_int(&self.i32_type.const_int(value as u64, false))
     }
 
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
@@ -427,7 +427,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
                     "Bool" => self.i1_type.as_basic_type_enum(),
-                    "Int" => self.i32_type.as_basic_type_enum(),
                     "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
                     _ => self.sk_obj_llvm_type(ty)
                 }
@@ -442,7 +441,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
                     "Bool" => Some(self.i1_type.const_int(0, false).as_basic_value_enum()),
-                    "Int" => Some(self.i32_type.const_int(0, false).as_basic_value_enum()),
                     _ => None,
                 }
             },
