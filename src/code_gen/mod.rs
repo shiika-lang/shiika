@@ -1,3 +1,4 @@
+mod boxing;
 mod code_gen_context;
 mod gen_exprs;
 use std::collections::HashMap;
