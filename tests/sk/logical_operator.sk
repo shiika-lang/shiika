@@ -17,3 +17,5 @@ if not (true or true) then puts "ng 15" end
 if not (true or false) then puts "ng 16" end
 if not (false or true) then puts "ng 17" end
 if     (false or false) then puts "ng 18" end
+
+puts "ok"

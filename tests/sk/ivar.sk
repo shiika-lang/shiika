@@ -7,3 +7,5 @@ a = A.new
 unless a.i == 1 then puts "ng 1" end
 a.i = 2
 unless a.i == 2 then puts "ng 2" end
+
+puts "ok"
