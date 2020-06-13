@@ -6,12 +6,24 @@ use crate::corelib::create_method;
 <%
 # Macro to define binary operator method
 def create_bin_method(sig, body)
+    ret_type = sig.split(/->\s*/).last
     <<-EOD
     create_method("Float", "#{sig}", |code_gen, function| {
-        let val1 = function.get_params()[0].into_float_value();
-        let val2 = function.get_params()[1].into_float_value();
+        let this = function.get_params()[0];
+        let val1 = code_gen.unbox_float(&this);
+        let that = function.get_params()[1];
+        let val2 = code_gen.unbox_float(&that);
         let result = #{body};
-        code_gen.builder.build_return(Some(&result));
+        #{
+            case ret_type
+            when "Bool"
+                "let sk_result = result;"
+            when "Float"
+                "let sk_result = code_gen.box_float(&result);"
+            else raise
+            end
+        }
+        code_gen.builder.build_return(Some(&sk_result));
         Ok(())
     }),
     EOD
@@ -72,33 +84,40 @@ pub fn create_methods() -> Vec<SkMethod> {
     ) %>
 
     create_method("Float", "abs -> Float", |code_gen, function| {
-        let x = function.get_params()[0].into_float_value();
+        let this = function.get_params()[0];
+        let x = code_gen.unbox_float(&this);
         let func = code_gen.module.get_function("fabs").unwrap();
         let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
-        code_gen.builder.build_return(Some(&result));
+        let sk_result = code_gen.box_float(&result.into_float_value());
+        code_gen.builder.build_return(Some(&sk_result));
         Ok(())
     }),
 
     create_method("Float", "floor -> Float", |code_gen, function| {
-        let x = function.get_params()[0].into_float_value();
+        let this = function.get_params()[0];
+        let x = code_gen.unbox_float(&this);
         let func = code_gen.module.get_function("floor").unwrap();
         let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
-        code_gen.builder.build_return(Some(&result));
+        let sk_result = code_gen.box_float(&result.into_float_value());
+        code_gen.builder.build_return(Some(&sk_result));
         Ok(())
     }),
 
     create_method("Float", "to_i() -> Int", |code_gen, function| {
-        let float = function.get_params()[0].into_float_value();
+        let this = function.get_params()[0];
+        let float = code_gen.unbox_float(&this);
         let int = code_gen.builder.build_float_to_signed_int(float, code_gen.i32_type, "int");
         code_gen.builder.build_return(Some(&int));
         Ok(())
     }),
 
     create_method("Float", "-@ -> Float", |code_gen, function| {
-        let this = function.get_params()[0].into_float_value();
+        let this = function.get_params()[0];
+        let float = code_gen.unbox_float(&this);
         let zero = code_gen.f64_type.const_float(0.0);
-        let result = code_gen.builder.build_float_sub(zero, this, "result");
-        code_gen.builder.build_return(Some(&result));
+        let result = code_gen.builder.build_float_sub(zero, float, "result");
+        let sk_result = code_gen.box_float(&result);
+        code_gen.builder.build_return(Some(&sk_result));
         Ok(())
     }),
 
