@@ -377,7 +377,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Store bytesize
         let loc = self.builder.build_struct_gep(sk_str.into_pointer_value(), 1, "addr_@bytesize").unwrap();
         let bytesize = self.i32_type.const_int(self.str_literals[*idx].len() as u64, false);
-        self.builder.build_store(loc, bytesize);
+        let sk_int = self.box_int(&bytesize);
+        self.builder.build_store(loc, sk_int);
 
         sk_str
     }
