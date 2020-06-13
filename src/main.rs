@@ -73,9 +73,9 @@ fn run(sk_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", String::from_utf8(output.stderr)?);
     }
 
-    let mut cmd = Command::new("cc");
-    cmd.arg("-I/usr/local/Cellar/bdw-gc/7.6.0/include/");
-    cmd.arg("-L/usr/local/Cellar/bdw-gc/7.6.0/lib/");
+    let mut cmd = Command::new("clang");
+    cmd.arg("-no-pie");
+    cmd.arg("-lm");
     cmd.arg("-lgc");
     cmd.arg("-o");
     cmd.arg(out_path.clone());
