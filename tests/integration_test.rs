@@ -47,7 +47,6 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let stdout = String::from_utf8(output.stdout).expect("invalid utf8 in stdout");
     let stderr = String::from_utf8(output.stderr).expect("invalid utf8 in stderr");
     assert_eq!(stderr, "");
-    assert_eq!(stdout, "");
+    assert_eq!(stdout, "ok\n");
     Ok(())
 }
-

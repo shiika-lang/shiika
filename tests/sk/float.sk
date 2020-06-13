@@ -9,3 +9,5 @@ unless Helper.eq(3.0 - 2.0, 1.0) then puts "ng 2" end
 unless Helper.eq(3.0 * 2.0, 6.0) then puts "ng 3" end
 unless Helper.eq(3.0 / 2.0, 1.5) then puts "ng 4" end
 #unless Helper.eq(3.0 % 2,   1.0) then puts "ng 5" end
+
+puts "ok"

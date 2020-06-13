@@ -7,3 +7,5 @@ class A
 end
 b = A::B.new
 unless b.foo == 1 then puts "ng 1" end
+
+puts "ok"
