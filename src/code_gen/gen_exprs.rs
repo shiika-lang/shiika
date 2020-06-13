@@ -356,7 +356,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
-        self.f64_type.const_float(value).as_basic_value_enum()
+        self.box_float(&self.f64_type.const_float(value))
     }
 
     fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
@@ -428,7 +428,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 match ty.fullname.0.as_str() {
                     "Bool" => self.i1_type.as_basic_type_enum(),
                     "Int" => self.i32_type.as_basic_type_enum(),
-                    "Float" => self.f64_type.as_basic_type_enum(),
                     "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
                     _ => self.sk_obj_llvm_type(ty)
                 }
@@ -444,7 +443,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 match ty.fullname.0.as_str() {
                     "Bool" => Some(self.i1_type.const_int(0, false).as_basic_value_enum()),
                     "Int" => Some(self.i32_type.const_int(0, false).as_basic_value_enum()),
-                    "Float" => Some(self.f64_type.const_float(0.0).as_basic_value_enum()),
                     _ => None,
                 }
             },
@@ -456,5 +454,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let struct_type = self.llvm_struct_types.get(&ty.fullname)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
         struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()
+    }
+
+    /// Convert LLVM float into Shiika Float
+    pub fn box_float(&self, float: &inkwell::values::FloatValue) -> inkwell::values::BasicValueEnum {
+        let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "float");
+        let ptr = self.builder.build_struct_gep(
+            sk_float.into_pointer_value(),
+            0,
+            &"float_content"
+        ).unwrap();
+        self.builder.build_store(ptr, float.as_basic_value_enum());
+        sk_float
+    }
+
+    /// Convert Shiika Float into LLVM float
+    pub fn unbox_float<'a>(&'a self, sk_float: &'a inkwell::values::BasicValueEnum)
+                      -> inkwell::values::FloatValue {
+        let ptr = self.builder.build_struct_gep(
+            sk_float.into_pointer_value(),
+            0,
+            &"float_content"
+        ).unwrap();
+        self.builder.build_load(ptr, "float_value").into_float_value()
     }
 }

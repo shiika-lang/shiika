@@ -32,7 +32,8 @@ pub fn create_methods() -> Vec<SkMethod> {
     }),
 
     create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
-        let n = function.get_params()[1].into_float_value();
+        let arg = function.get_params()[1];
+        let n = code_gen.unbox_float(&arg);
         let printf = code_gen.module.get_function("printf").unwrap();
         let tmpl = code_gen.module.get_global("putf_tmpl").unwrap().as_pointer_value();
         let tmpl_ptr = unsafe {

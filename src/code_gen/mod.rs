@@ -174,7 +174,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // 2. Set ivars
         for (name, sk_class) in classes {
             let struct_type = self.llvm_struct_types.get(&name).unwrap();
-            struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
+            if name.0 == "Float" {
+                struct_type.set_body(&[self.f64_type.into()], false);
+            }
+            else {
+                struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
+            }
         }
     }
 
