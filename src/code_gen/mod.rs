@@ -11,6 +11,17 @@ use crate::hir::*;
 use crate::names::*;
 use crate::code_gen::code_gen_context::*;
 
+// 0bxx1 is for integers (future plan)
+const SK_FALSE: u64 = 0b010;
+const SK_TRUE:  u64 = 0b110;
+
+/// CodeGen
+///
+/// 'hir > 'ictx >= 'run
+///
+/// 'hir: the Hir
+/// 'ictx: inkwell context
+/// 'run: code_gen::run()
 pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
     pub module: &'run inkwell::module::Module<'ictx>,
