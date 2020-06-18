@@ -22,7 +22,8 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
 /// Fail if it prints something
 fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         dbg!(&path);
-    let src = fs::read_to_string(path)?;
+    let builtin = load_builtin()?;
+    let src = builtin + &fs::read_to_string(path)?;
 
     let ast = shiika::parser::Parser::parse(&src)?;
     let corelib = shiika::corelib::Corelib::create();
@@ -49,4 +50,16 @@ fn run_sk_test(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(stderr, "");
     assert_eq!(stdout, "ok\n");
     Ok(())
+}
+
+fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
+    let mut s = String::new();
+    for item in fs::read_dir("builtin")? {
+        let pathbuf = item?.path();
+        let path = pathbuf.to_str().expect("Filename not utf8");
+        if path.ends_with(".sk") {
+            s += &fs::read_to_string(path)?;
+        }
+    }
+    Ok(s)
 }
