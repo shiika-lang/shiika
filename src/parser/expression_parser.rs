@@ -689,7 +689,10 @@ impl<'a> Parser<'a> {
                     exprs.push(expr);
                     self.skip_wsn();
                     match self.current_token() {
-                        Token::Comma => { self.consume_token(); },
+                        Token::Comma => { 
+                            self.consume_token();
+                            self.skip_wsn();
+                        },
                         Token::RSqBracket => (),
                         token => {
                             return Err(parse_error!(self, "unexpected token `{:?}' in an array literal", token))
