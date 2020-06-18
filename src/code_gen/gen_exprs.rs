@@ -74,8 +74,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirSelfExpression => {
                 self.gen_self_expression(ctx)
             },
-            HirArrayLiteral { exprs: _ } => {
-                panic!("TODO")
+            HirArrayLiteral { exprs } => {
+                self.gen_array_literal(ctx, exprs) //, expr.ty)
             }
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -295,12 +295,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                        ctx: &mut CodeGenContext<'run>,
                        method_fullname: &MethodFullname,
                        receiver_expr: &HirExpression,
-                       arg_exprs: &[HirExpression]) -> Result<inkwell::values::BasicValueEnum, Error> {
+                       arg_exprs: &[HirExpression])
+                      -> Result<inkwell::values::BasicValueEnum, Error> {
         let receiver_value = self.gen_expr(ctx, receiver_expr)?;
-        let mut arg_values = arg_exprs.iter().map(|arg_expr|
+        let arg_values = arg_exprs.iter().map(|arg_expr|
           self.gen_expr(ctx, arg_expr)
-        ).collect::<Result<Vec<_>,_>>()?; // https://github.com/rust-lang/rust/issues/49391
+        ).collect::<Result<Vec<_>,_>>()?;
+        self.gen_method_call_(method_fullname, receiver_value, arg_values)
+    }
 
+    fn gen_method_call_<'a>(&'a self,
+                            method_fullname: &MethodFullname,
+                            receiver_value: inkwell::values::BasicValueEnum<'a>,
+                            mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>)
+                           -> Result<inkwell::values::BasicValueEnum, Error> {
         let function = self.module.get_function(&method_fullname.full_name)
             .unwrap_or_else(|| panic!("[BUG] get_function not found (check gen_method_funcs): {:?}", method_fullname));
         let mut llvm_args = vec!(receiver_value);
@@ -354,6 +362,31 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    fn gen_array_literal(&self,
+                         ctx: &mut CodeGenContext<'run>,
+                         exprs: &[HirExpression])
+                        -> Result<inkwell::values::BasicValueEnum, Error> {
+        let n_items = exprs.len();
+        let sk_ary = self.gen_method_call(
+            ctx,
+            //method_fullname("Meta:Array<Object>#new"),
+            &method_fullname(&class_fullname("Meta:Array"), "new"),
+            &Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
+            &[Hir::decimal_literal(n_items as i32)]
+        )?;
+        //let sk_ary = self.allocate_sk_obj(&class_fullname("Array<Object>"), "array");
+        for item in exprs {
+            let value = self.gen_expr(ctx, item)?;
+            self.gen_method_call_(
+                //method_fullname("Meta:Array<Object>#push"),
+                &method_fullname(&class_fullname("Array"), "push"),
+                sk_ary,
+                vec![value],
+            )?;
+        }
+        Ok(sk_ary)
+    }
+
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
         self.box_float(&self.f64_type.const_float(value))
     }
@@ -363,6 +396,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
+        // REFACTOR: Just call `new` to do this
+
         let sk_str = self.allocate_sk_obj(&class_fullname("String"), "str");
 
         // Store ptr
@@ -433,7 +468,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
     }
 
-    pub (in super) fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+    pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty.body {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
