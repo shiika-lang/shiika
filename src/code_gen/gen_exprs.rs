@@ -9,7 +9,7 @@ use crate::ty::*;
 use crate::hir::*;
 use crate::hir::HirExpressionBase::*;
 use crate::names::*;
-use crate::code_gen::CodeGen;
+use crate::code_gen::*;
 use crate::code_gen::code_gen_context::*;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
@@ -69,7 +69,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_ivar_ref(ctx, name, idx)
             },
             HirConstRef { fullname } => {
-                self.gen_const_ref(fullname)
+                Ok(self.gen_const_ref(fullname))
             },
             HirSelfExpression => {
                 self.gen_self_expression(ctx)
@@ -101,16 +101,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_logical_not(&self, 
                        ctx: &mut CodeGenContext<'run>,
                        expr: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let value = self.gen_expr(ctx, expr)?.into_int_value();
-        let one = self.i1_type.const_int(1, false);
-        let result = self.builder.build_int_sub(one, value, "notResult");
-        Ok(result.into())
+        let value = self.gen_expr(ctx, expr)?;
+        Ok(self.invert_sk_bool(value).as_basic_value_enum())
     }
     
     fn gen_logical_and(&self, 
                        ctx: &mut CodeGenContext<'run>,
                        left: &HirExpression,
                        right: &HirExpression) -> Result<inkwell::values::BasicValueEnum, Error> {
+        // REFACTOR: use `and` of LLVM
         let begin_block = self.context.append_basic_block(ctx.function, "AndBegin");
         let more_block = self.context.append_basic_block(ctx.function, "AndMore");
         let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
@@ -118,7 +117,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, more_block, merge_block);
+        self.gen_conditional_branch(left_value, more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
         self.builder.position_at_end(more_block);
@@ -144,7 +143,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.into_int_value();
-        self.builder.build_conditional_branch(left_value, merge_block, else_block);
+        self.gen_conditional_branch(left_value, merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
         self.builder.position_at_end(else_block);
@@ -175,7 +174,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.builder.build_unconditional_branch(begin_block);
                 self.builder.position_at_end(begin_block);
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
-                self.builder.build_conditional_branch(cond_value, then_block, else_block);
+                self.gen_conditional_branch(cond_value, then_block, else_block);
                 // IfThen:
                 self.builder.position_at_end(then_block);
                 let then_value: &dyn inkwell::values::BasicValue = &self.gen_exprs(ctx, then_exprs)?;
@@ -197,7 +196,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
                 let then_block = self.context.append_basic_block(ctx.function, "IfThen");
                 let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
-                self.builder.build_conditional_branch(cond_value, then_block, merge_block);
+                self.gen_conditional_branch(cond_value, then_block, merge_block);
                 // IfThen:
                 self.builder.position_at_end(then_block);
                 self.gen_exprs(ctx, then_exprs)?;
@@ -221,7 +220,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
         let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
-        self.builder.build_conditional_branch(cond_value, body_block, end_block);
+        self.gen_conditional_branch(cond_value, body_block, end_block);
         // WhileBody:
         self.builder.position_at_end(body_block);
         let rc1 = Rc::new(end_block);
@@ -309,7 +308,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         match self.builder.build_call(function, &llvm_args, "result").try_as_basic_value().left() {
             Some(result_value) => Ok(result_value),
             None => {
-                self.gen_const_ref(&const_fullname("::void"))
+                Ok(self.gen_const_ref(&const_fullname("::void")))
             }
         }
     }
@@ -338,10 +337,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_const_ref(&self,
-                    fullname: &ConstFullname) -> Result<inkwell::values::BasicValueEnum, Error> {
+                    fullname: &ConstFullname) -> inkwell::values::BasicValueEnum {
         let ptr = self.module.get_global(&fullname.0).
             unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0));
-        Ok(self.builder.build_load(ptr.as_pointer_value(), &fullname.0))
+        self.builder.build_load(ptr.as_pointer_value(), &fullname.0)
     }
 
     fn gen_self_expression(&self,
@@ -384,9 +383,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
-        let i = if value { 1 } else { 0 };
-        self.i1_type.const_int(i, false).as_basic_value_enum()
+        let i = if value { SK_TRUE } else { SK_FALSE };
+        self.i64_type.const_int(i, false).as_basic_value_enum()
     }
+
+    fn gen_conditional_branch(&self,
+                              cond: inkwell::values::IntValue,
+                              then_block: inkwell::basic_block::BasicBlock,
+                              else_block: inkwell::basic_block::BasicBlock) {
+        let t = self.gen_boolean_literal(true);
+        let istrue = self.builder.build_int_compare(inkwell::IntPredicate::EQ,
+                                       cond, t.into_int_value(), "istrue").into();
+        self.builder.build_conditional_branch(istrue, then_block, else_block);
+    }
+                             
 
     fn gen_bitcast(&self,
                    ctx: &mut CodeGenContext<'run>,
@@ -427,7 +437,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         match ty.body {
             TyBody::TyRaw => {
                 match ty.fullname.0.as_str() {
-                    "Bool" => self.i1_type.as_basic_type_enum(),
+                    "Bool" => self.i64_type.as_basic_type_enum(),
                     "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
                     _ => self.sk_obj_llvm_type(ty)
                 }

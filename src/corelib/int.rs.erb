@@ -17,7 +17,7 @@ def create_bin_method(sig, body)
         #{
             case ret_type
             when "Bool"
-                "let sk_result = result;"
+                "let sk_result = code_gen.box_bool(&result);"
             when "Int"
                 "let sk_result = code_gen.box_int(&result);"
             else raise
