@@ -93,6 +93,16 @@ pub fn run<P: AsRef<Path>>(sk_path: P) -> Result<(String, String), Box<dyn std::
     Ok((stdout, stderr))
 }
 
+/// Remove .ll and .out
+pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Error>> {
+    let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
+    let ll_path = s.to_string() + ".ll";
+    let out_path = s.to_string() + ".out";
+    fs::remove_file(ll_path)?;
+    fs::remove_file(out_path)?;
+    Ok(())
+}
+
 fn add_args_from_env(cmd: &mut Command, key: &str) {
     for arg in env::var(key).unwrap_or("".to_string()).split_ascii_whitespace() {
         cmd.arg(arg);

@@ -23,5 +23,6 @@ fn run_sk_test(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let (stdout, stderr) = shiika::runner::run(path)?;
     assert_eq!(stderr, "");
     assert_eq!(stdout, "ok\n");
+    shiika::runner::cleanup(path)?;
     Ok(())
 }
