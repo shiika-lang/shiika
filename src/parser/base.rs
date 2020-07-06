@@ -116,7 +116,8 @@ impl<'a> Parser<'a> {
             backtrace: backtrace::Backtrace::new(),
             details: ErrorDetails::ParseError {
                 location: self.lexer.cur.clone(),
-            }
+            },
+            source: None,
         }
     }
 

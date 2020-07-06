@@ -6,23 +6,28 @@ use crate::error::*;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Box<dyn std::error::Error>> {
-    let s = filepath.as_ref().to_str().expect("failed to unwrap filepath").to_string();
+    let path = filepath.as_ref().to_str().expect("failed to unwrap filepath").to_string();
     let builtin = load_builtin()?;
-    let str = builtin + &fs::read_to_string(filepath)?;
+    let str = builtin + &fs::read_to_string(filepath)
+        .map_err(|e| runner_error(format!("{} is not utf8", path), e))?;
     let ast = crate::parser::Parser::parse(&str)?;
     let corelib = crate::corelib::Corelib::create();
     let hir = crate::hir::build(ast, corelib)?;
-    crate::code_gen::run(&hir, &(s + ".ll"))?;
+    crate::code_gen::run(&hir, &(path + ".ll"))?;
     Ok(())
 }
 
 fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
-    for item in fs::read_dir("builtin")? {
+    let dir = fs::read_dir("builtin")
+        .map_err(|e| runner_error("./builtin not found", e))?;
+    for item in dir {
         let pathbuf = item?.path();
-        let path = pathbuf.to_str().expect("Filename not utf8");
+        let path = pathbuf.to_str()
+            .ok_or(plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
-            s += &fs::read_to_string(path)?;
+            s += &fs::read_to_string(path)
+                .map_err(|e| runner_error(format!("failed to load {}", path), e))?;
         }
     }
     Ok(s)
@@ -55,9 +60,12 @@ pub fn run<P: AsRef<Path>>(sk_path: P) -> Result<(String, String), Box<dyn std::
 
     let mut cmd = Command::new(env::var("LLC").unwrap_or("llc".to_string()));
     cmd.arg(ll_path.clone());
-    let output = cmd.output()?;
+    let output = cmd.output()
+        .map_err(|e| runner_error("failed to run llc", e))?;
     if !output.stderr.is_empty() {
-        println!("{}", String::from_utf8(output.stderr)?);
+        let s = String::from_utf8(output.stderr)
+            .map_err(|e| runner_error("llc output is not utf8", e))?;
+        println!("{}", s);
     }
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or("clang".to_string()));
@@ -70,10 +78,12 @@ pub fn run<P: AsRef<Path>>(sk_path: P) -> Result<(String, String), Box<dyn std::
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg(asm_path.clone());
-    cmd.output()?;
+    cmd.output()
+        .map_err(|e| runner_error("failed to run clang", e))?;
 
     //fs::remove_file(bc_path)?;
-    fs::remove_file(asm_path)?;
+    fs::remove_file(asm_path)
+        .map_err(|e| runner_error("failed to remove .s", e))?;
 
     let mut cmd = Command::new(out_path);
     let output = cmd.output().expect("failed to execute process");
