@@ -36,4 +36,4 @@ jobs:
         run: |
           set -eux
           bundle exec rake build
-          env -- LLC=llc-7 CC=clang-7 LDLIBS=-lm bundle exec rake test
+          env -- LLC=llc-7 CLANG=clang-7 bundle exec rake test
