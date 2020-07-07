@@ -39,13 +39,14 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
 
-pub fn run(hir: &Hir, filepath: &str) -> Result<(), Box<dyn std::error::Error>> {
+/// Compile hir and dump it to `outpath`
+pub fn run(hir: &Hir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&hir, &context, &module, &builder);
     code_gen.gen_program(&hir)?;
-    code_gen.module.print_to_file(filepath.to_string() + ".ll")?;
+    code_gen.module.print_to_file(outpath)?;
     Ok(())
 }
 

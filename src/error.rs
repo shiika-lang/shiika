@@ -5,6 +5,7 @@ pub struct Error {
     pub msg: String,
     pub backtrace: Backtrace,
     pub details: ErrorDetails,
+    pub source: Option<Box<dyn std::error::Error>>,
 }
 #[derive(Debug)]
 pub enum ErrorDetails {
@@ -20,6 +21,8 @@ pub enum ErrorDetails {
     NameError,
     // Syntactically correct but not a valid program (eg. "no such method")
     ProgramError,
+    // Errors from crate::runner
+    RunnerError,
     // Not an user-error
     Bug,
 }
@@ -36,6 +39,7 @@ pub fn syntax_error(msg: &str) -> Error {
         msg: msg.to_string(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::SyntaxError,
+        source: None,
     }
 }
 
@@ -44,6 +48,7 @@ pub fn type_error(msg: &str) -> Error {
         msg: msg.to_string(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::TypeError,
+        source: None,
     }
 }
 
@@ -52,6 +57,7 @@ pub fn name_error(msg: &str) -> Error {
         msg: msg.to_string(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::NameError,
+        source: None,
     }
 }
 
@@ -60,5 +66,24 @@ pub fn program_error(msg: &str) -> Error {
         msg: msg.to_string(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::ProgramError,
+        source: None,
+    }
+}
+
+pub fn runner_error(msg: impl Into<String>, source: impl std::error::Error + 'static) -> Error {
+    Error {
+        msg: msg.into(),
+        backtrace: backtrace::Backtrace::new(),
+        details: ErrorDetails::RunnerError,
+        source: Some(Box::new(source)),
+    }
+}
+
+pub fn plain_runner_error(msg: impl Into<String>) -> Error {
+    Error {
+        msg: msg.into(),
+        backtrace: backtrace::Backtrace::new(),
+        details: ErrorDetails::RunnerError,
+        source: None,
     }
 }
