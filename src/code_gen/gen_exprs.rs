@@ -362,26 +362,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    /// Generate code for creating an array
     fn gen_array_literal(&self,
                          ctx: &mut CodeGenContext<'run>,
                          exprs: &[HirExpression])
                         -> Result<inkwell::values::BasicValueEnum, Error> {
         let n_items = exprs.len();
+        // Call Array.new
         let sk_ary = self.gen_method_call(
             ctx,
-            //method_fullname("Meta:Array<Object>#new"),
+            // TODO: should be `Meta:Array<Int>`, etc.
             &method_fullname(&class_fullname("Meta:Array"), "new"),
             &Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
             &[Hir::decimal_literal(n_items as i32)]
         )?;
-        //let sk_ary = self.allocate_sk_obj(&class_fullname("Array<Object>"), "array");
+        // Call Array#push for each element
         for item in exprs {
-            let value = self.gen_expr(ctx, item)?;
+            let cast_value = self.gen_bitcast(ctx, item, &ty::raw("Object"))?;
             self.gen_method_call_(
-                //method_fullname("Meta:Array<Object>#push"),
+                // TODO: should be `Array<Int>`, etc.
                 &method_fullname(&class_fullname("Array"), "push"),
                 sk_ary,
-                vec![value],
+                vec![cast_value],
             )?;
         }
         Ok(sk_ary)
