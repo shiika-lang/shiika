@@ -381,7 +381,13 @@ impl HirMaker {
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Hir::array_literal(hir_exprs))
+        // TODO #102: Support empty array literal
+        let mut ty = hir_exprs[0].ty.clone();
+        for expr in &hir_exprs {
+            ty = self.nearest_common_ancestor_type(&ty, &expr.ty)
+        }
+        
+        Ok(Hir::array_literal(hir_exprs, ty::spe("Array", vec![ty.clone()])))
     }
 
     fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {

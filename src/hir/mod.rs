@@ -350,10 +350,9 @@ impl Hir {
         }
     }
 
-    pub fn array_literal(exprs: Vec<HirExpression>) -> HirExpression {
+    pub fn array_literal(exprs: Vec<HirExpression>, ty: TermTy) -> HirExpression {
         HirExpression {
-            // TODO: infer more specific type from the elements
-            ty: ty::spe("Array", vec![ty::raw("Object")]),
+            ty,
             node: HirExpressionBase::HirArrayLiteral { exprs }
         }
     }
