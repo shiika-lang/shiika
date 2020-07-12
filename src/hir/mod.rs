@@ -1,7 +1,7 @@
 mod accessors;
 mod hir_maker;
 mod hir_maker_context;
-mod class_dict;
+pub mod class_dict;
 mod method_dict;
 mod sk_class;
 mod convert_exprs;
@@ -350,10 +350,9 @@ impl Hir {
         }
     }
 
-    pub fn array_literal(exprs: Vec<HirExpression>) -> HirExpression {
+    pub fn array_literal(exprs: Vec<HirExpression>, ty: TermTy) -> HirExpression {
         HirExpression {
-            // TODO: infer more specific type from the elements
-            ty: ty::spe("Array", vec![ty::raw("Object")]),
+            ty,
             node: HirExpressionBase::HirArrayLiteral { exprs }
         }
     }

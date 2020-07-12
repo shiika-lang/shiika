@@ -15,6 +15,7 @@
 ///
 use crate::names::*;
 use crate::ty;
+use crate::hir::class_dict::ClassDict;
 
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
@@ -78,6 +79,27 @@ impl TermTy {
     /// Return true if two types are identical
     pub fn equals_to(&self, other: &TermTy) -> bool {
         self == other
+    }
+
+    /// Return the supertype of self
+    pub fn supertype(&self, class_dict: &ClassDict) -> Option<TermTy> {
+        match &self.body {
+            TyRaw => {
+                class_dict.get_superclass(&self.fullname).map(|scls| {
+                    ty::raw(&scls.fullname.0)
+                })
+            },
+            TyMeta { base_fullname} => {
+                match class_dict.get_superclass(&class_fullname(base_fullname)) {
+                    Some(scls) => {
+                        Some(ty::meta(&scls.fullname.0))
+                    },
+                    None => Some(ty::class())  // Meta:Object < Class
+                }
+            },
+            TyClass => Some(ty::raw("Object")),
+            _ => panic!("TODO"),
+        }
     }
 }
 
