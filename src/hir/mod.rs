@@ -1,7 +1,7 @@
 mod accessors;
 mod hir_maker;
 mod hir_maker_context;
-mod class_dict;
+pub mod class_dict;
 mod method_dict;
 mod sk_class;
 mod convert_exprs;
