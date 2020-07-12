@@ -104,6 +104,22 @@ impl ClassDict {
         })
     }
 
+    /// Return supertype of `ty`
+    pub fn supertype_of(&self, ty: &TermTy) -> Option<TermTy> {
+        ty.supertype(self)
+    }
+
+    /// Return ancestor types of `ty`, including itself.
+    pub fn ancestor_types(&self, ty: &TermTy) -> Vec<TermTy> {
+        let mut v = vec![];
+        let mut t = Some(ty.clone());
+        while t.is_some() {
+            v.push(t.unwrap());
+            t = self.supertype_of(&v.last().unwrap())
+        }
+        v
+     }
+
     pub fn find_ivar(&self,
                      classname: &ClassFullname,
                      ivar_name: &str) -> Option<&SkIVar> {
