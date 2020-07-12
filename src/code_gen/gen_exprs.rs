@@ -434,7 +434,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_conditional_branch(istrue, then_block, else_block);
     }
                              
-
     fn gen_bitcast(&self,
                    ctx: &mut CodeGenContext<'run>,
                    expr: &HirExpression,
