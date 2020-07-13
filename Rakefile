@@ -13,7 +13,9 @@ end
 task :parser => 'lib/shiika/parser.rb'
 
 task :doc do
-  sh "gitbook build book doc"
+  chdidr "doc/shg" do
+    sh "mdbook build"
+  end
 end
 
 #require_relative 'lib/shiika/version'
