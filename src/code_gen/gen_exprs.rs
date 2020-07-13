@@ -75,7 +75,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_self_expression(ctx)
             },
             HirArrayLiteral { exprs } => {
-                self.gen_array_literal(ctx, exprs) //, expr.ty)
+                self.gen_array_literal(ctx, exprs, &expr.ty)
             }
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -365,20 +365,30 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Generate code for creating an array
     fn gen_array_literal(&self,
                          ctx: &mut CodeGenContext<'run>,
-                         exprs: &[HirExpression])
+                         exprs: &[HirExpression],
+                         ty: &TermTy)
                         -> Result<inkwell::values::BasicValueEnum, Error> {
+        let elem_ty = match &ty.body {
+            ty::TyBody::TySpe { type_args, .. } => type_args[0].clone(),
+            _ => panic!("[BUG] gen_array_literal: expected Array<XXX>")
+        };
         let n_items = exprs.len();
         // Call Array.new
         let sk_ary = self.gen_method_call(
             ctx,
             // TODO: should be `Meta:Array<Int>`, etc.
-            &method_fullname(&class_fullname("Meta:Array"), "new"),
+            &method_fullname(&ty.fullname, "new"),
             &Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
             &[Hir::decimal_literal(n_items as i32)]
         )?;
         // Call Array#push for each element
         for item in exprs {
-            let cast_value = self.gen_bitcast(ctx, item, &ty::raw("Object"))?;
+            let cast_value = if item.ty.equals_to(&elem_ty) {
+                self.gen_expr(ctx, item)?
+            }
+            else {
+                self.gen_bitcast(ctx, item, &elem_ty)?
+            };
             self.gen_method_call_(
                 // TODO: should be `Array<Int>`, etc.
                 &method_fullname(&class_fullname("Array"), "push"),
