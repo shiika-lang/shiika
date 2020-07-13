@@ -20,6 +20,7 @@ pub struct HirMaker {
     pub (in super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub (in super) str_literals: Vec<String>,
+    gensym_ct: usize,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
@@ -48,6 +49,7 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
+            gensym_ct: 0,
         }
     }
 
@@ -324,6 +326,13 @@ impl HirMaker {
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
 
         Ok((SkMethod { signature, body }, method_ctx.iivars))
+    }
+
+    /// Generate unique variable name
+    pub (in super) fn gensym(&mut self) -> String {
+        self.gensym_ct += 1;
+        // Start from space so that it won't collide with user vars
+        format!(" tmp{}", self.gensym_ct)
     }
 }
 
