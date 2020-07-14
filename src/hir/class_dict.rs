@@ -159,6 +159,7 @@ impl ClassDict {
         corelib.into_iter().for_each(|(_, c)| {
             self.add_class(SkClass {
                 fullname: c.fullname,
+                typarams: vec![],
                 superclass_fullname: c.superclass_fullname,
                 instance_ty: c.instance_ty,
                 ivars: c.ivars,
@@ -234,6 +235,7 @@ impl ClassDict {
                 }
                 self.add_class(SkClass {
                     fullname: fullname.clone(),
+                    typarams: vec![],
                     superclass_fullname: Some(super_name.clone()),
                     instance_ty,
                     ivars: HashMap::new(),
@@ -241,6 +243,7 @@ impl ClassDict {
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
+                    typarams: vec![],
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
                     ivars: HashMap::new(),

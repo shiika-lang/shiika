@@ -134,16 +134,12 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
-// Types corresponds to (non-specialized) generic class
-//pub struct TyGen {}
-// Note: TyGen does not implement TermTy (Generic class itself cannot have an instance)
-
-// Types corresponds to specialized generic class
-//pub struct TySpe {}
-//impl TermTy for TySpe {}
-// Types corresponds to specialized generic metaclass
-//pub struct TySpeMeta {}
-//impl TermTy for TySpeMeta {}
+/// A type parameter
+/// In the future, may have something like +T/-T or in/out 
+#[derive(Debug, PartialEq, Clone)]
+pub struct TyParam {
+    pub name: String,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodSignature {
