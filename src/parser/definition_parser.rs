@@ -25,6 +25,7 @@ impl<'a> Parser<'a> {
     pub fn parse_class_definition(&mut self) -> Result<ast::Definition, Error> {
         self.debug_log("parse_class_definition"); self.lv += 1;
         let name;
+        let mut typarams = vec![];
         let defs;
 
         // `class'
@@ -38,6 +39,26 @@ impl<'a> Parser<'a> {
                 self.consume_token();
             },
             token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
+        }
+
+        // Type parameters (optional)
+        if self.current_token_is(Token::LessThan) {
+            self.consume_token();
+            self.skip_wsn();
+            loop {
+                match self.current_token() {
+                    Token::GreaterThan => {
+                        self.consume_token();
+                        break;
+                    },
+                    Token::UpperWord(s) => {
+                        typarams.push(s.to_string());
+                        self.consume_token();
+                        self.skip_wsn();
+                    },
+                    token => return Err(parse_error!(self, "unexpected token `{:?}' in type parameter definition", token))
+                }
+            }
         }
 
         // Superclass name (optional)
