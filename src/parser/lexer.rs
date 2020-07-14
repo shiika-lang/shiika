@@ -395,14 +395,14 @@ impl<'a> Lexer<'a> {
             '>' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::GraterEq, LexerState::ExprBegin)
+                    (Token::GreaterEq, LexerState::ExprBegin)
                 }
                 else if c2 == Some('>') {
                     next_cur.proceed(self.src);
                     (Token::RShift, LexerState::ExprBegin)
                 }
                 else {
-                    (Token::GraterThan, LexerState::ExprBegin)
+                    (Token::GreaterThan, LexerState::ExprBegin)
                 }
             },
             '.' => (Token::Dot, LexerState::ExprBegin),

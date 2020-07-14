@@ -168,8 +168,8 @@ impl<'a> Parser<'a> {
             Token::RShift => { ">>" },
             Token::LessThan => { "<" },
             Token::LessEq => { "<=" },
-            Token::GraterThan => { ">" },
-            Token::GraterEq => { ">=" },
+            Token::GreaterThan => { ">" },
+            Token::GreaterEq => { ">=" },
             Token::EqEq => { "==" },
             Token::NotEq => { "!=" },
             token => {
