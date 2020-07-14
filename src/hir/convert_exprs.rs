@@ -374,20 +374,46 @@ impl HirMaker {
         }
     }
 
+    /// Generate HIR for an array literal
+    /// `[x,y]` is expanded into `tmp = Array<Object>.new; tmp.push(x); tmp.push(y)`
     fn convert_array_literal(&mut self,
                              ctx: &mut HirMakerContext,
                              exprs: &[AstExpression]) -> Result<HirExpression, Error> {
-        let hir_exprs = exprs.iter().map(|expr|
+        let item_exprs = exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
 
         // TODO #102: Support empty array literal
-        let mut ty = hir_exprs[0].ty.clone();
-        for expr in &hir_exprs {
-            ty = self.nearest_common_ancestor_type(&ty, &expr.ty)
+        let mut item_ty = item_exprs[0].ty.clone();
+        for expr in &item_exprs {
+            item_ty = self.nearest_common_ancestor_type(&item_ty, &expr.ty)
         }
+        let ary_ty = ty::spe("Array", vec![item_ty.clone()]);
+        let upper_bound_ty = ty::raw("Object");
+
+        let tmp = self.gensym();
+        let mut exprs = vec![];
+
+        // `tmp = Array.new`
+        exprs.push(
+            Hir::assign_lvar(&tmp,
+                Hir::method_call(ary_ty.clone(),
+                    Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
+                    method_fullname(&class_fullname("Meta:Array"), "new"),
+                    vec![ Hir::decimal_literal(exprs.len() as i32) ]))
+        );
+        // `tmp.push(item)`
+        for expr in item_exprs {
+            exprs.push(
+                Hir::method_call(ty::raw("Void"),
+                    Hir::lvar_ref(ary_ty.clone(), tmp.clone()),
+                    method_fullname(&class_fullname("Array"), "push"),
+                    vec![ Hir::bit_cast(upper_bound_ty.clone(), expr) ]),
+            )
+        }
+        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp.clone()));
         
-        Ok(Hir::array_literal(hir_exprs, ty::spe("Array", vec![ty.clone()])))
+        Ok(Hir::array_literal(exprs, ary_ty))
     }
 
     fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {

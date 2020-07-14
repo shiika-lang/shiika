@@ -75,7 +75,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_self_expression(ctx)
             },
             HirArrayLiteral { exprs } => {
-                self.gen_array_literal(ctx, exprs) //, expr.ty)
+                self.gen_array_literal(ctx, exprs)
             }
             HirFloatLiteral { value } => {
                 Ok(self.gen_float_literal(*value))
@@ -365,28 +365,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Generate code for creating an array
     fn gen_array_literal(&self,
                          ctx: &mut CodeGenContext<'run>,
-                         exprs: &[HirExpression])
+                         exprs: &HirExpressions)
                         -> Result<inkwell::values::BasicValueEnum, Error> {
-        let n_items = exprs.len();
-        // Call Array.new
-        let sk_ary = self.gen_method_call(
-            ctx,
-            // TODO: should be `Meta:Array<Int>`, etc.
-            &method_fullname(&class_fullname("Meta:Array"), "new"),
-            &Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
-            &[Hir::decimal_literal(n_items as i32)]
-        )?;
-        // Call Array#push for each element
-        for item in exprs {
-            let cast_value = self.gen_bitcast(ctx, item, &ty::raw("Object"))?;
-            self.gen_method_call_(
-                // TODO: should be `Array<Int>`, etc.
-                &method_fullname(&class_fullname("Array"), "push"),
-                sk_ary,
-                vec![cast_value],
-            )?;
-        }
-        Ok(sk_ary)
+        self.gen_exprs(ctx, exprs)
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {
@@ -496,7 +477,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        let struct_type = self.llvm_struct_types.get(&ty.fullname)
+        let s = match &ty.body {
+            TyBody::TySpe { base_name, .. } => &base_name,
+            _ => &ty.fullname.0,
+        };
+        let struct_type = self.llvm_struct_types.get(&class_fullname(s))
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
         struct_type.ptr_type(AddressSpace::Generic).as_basic_type_enum()
     }
