@@ -11,7 +11,7 @@ class Array # TODO: typaram
 
   def push(value: Object)
     if @n_items == @capa
-      puts "TODO: resize"
+      puts "TODO #107: resize"
     end
     ptr = @items + @n_items * BYTES_OF_PTR
     ptr.store(value)
