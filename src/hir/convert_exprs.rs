@@ -378,8 +378,8 @@ impl HirMaker {
     /// `[x,y]` is expanded into `tmp = Array<Object>.new; tmp.push(x); tmp.push(y)`
     fn convert_array_literal(&mut self,
                              ctx: &mut HirMakerContext,
-                             exprs: &[AstExpression]) -> Result<HirExpression, Error> {
-        let item_exprs = exprs.iter().map(|expr|
+                             item_exprs: &[AstExpression]) -> Result<HirExpression, Error> {
+        let item_exprs = item_exprs.iter().map(|expr|
             self.convert_expr(ctx, expr)
         ).collect::<Result<Vec<_>, _>>()?;
 
@@ -400,7 +400,7 @@ impl HirMaker {
                 Hir::method_call(ary_ty.clone(),
                     Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
                     method_fullname(&class_fullname("Meta:Array"), "new"),
-                    vec![ Hir::decimal_literal(exprs.len() as i32) ]))
+                    vec![ Hir::decimal_literal(item_exprs.len() as i32) ]))
         );
         // `tmp.push(item)`
         for expr in item_exprs {
