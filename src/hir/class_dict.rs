@@ -171,7 +171,7 @@ impl ClassDict {
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
-                ast::Definition::ClassDefinition { name, super_name, defs } => {
+                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
                     self.index_class(&name.add_namespace(""), &super_name, &defs)?;
                     Ok(())
                 },
@@ -208,7 +208,7 @@ impl ClassDict {
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),
-                ast::Definition::ClassDefinition { name, super_name, defs } => {
+                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
                     self.index_class(&full, &super_name, &defs)?;
                 }

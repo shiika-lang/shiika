@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         }
         
         self.lv -= 1;
-        Ok(ast::Definition::ClassDefinition { name, super_name, defs })
+        Ok(ast::Definition::ClassDefinition { name, typarams, super_name, defs })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
