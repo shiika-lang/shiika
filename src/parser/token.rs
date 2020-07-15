@@ -27,9 +27,9 @@ pub enum Token {
     EqEq,         //  ==
     NotEq,        //  !=
     LessThan,     //  < 
-    GraterThan,   //  > 
+    GreaterThan,  //  > 
     LessEq,       //  <=
-    GraterEq,     //  >=
+    GreaterEq,    //  >=
     Equal,        //  = 
     Bang,         //  ! 
     Dot,          //  . 
@@ -104,9 +104,9 @@ impl Token {
             Token::EqEq => false,         //  ==
             Token::NotEq => false,        //  !=
             Token::LessThan => false,     //  < 
-            Token::GraterThan => false,   //  > 
+            Token::GreaterThan => false,  //  > 
             Token::LessEq => false,       //  <=
-            Token::GraterEq => false,     //  >=
+            Token::GreaterEq => false,    //  >=
             Token::Equal => false,        //  = 
             Token::Bang => true,          //  ! 
             Token::Dot => false,          //  . 

@@ -16,6 +16,7 @@ pub enum TopLevelItem {
 pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
+        typarams: Vec<String>,
         super_name: ClassFullname,
         defs: Vec<Definition>,
     },

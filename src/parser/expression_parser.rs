@@ -329,9 +329,9 @@ impl<'a> Parser<'a> {
         loop {
             let op = match self.next_nonspace_token() {
                 Token::LessThan => "<",
-                Token::GraterThan => ">",
+                Token::GreaterThan => ">",
                 Token::LessEq => "<=",
-                Token::GraterEq => "<=",
+                Token::GreaterEq => "<=",
                 _ => break,
             };
             self.skip_ws();

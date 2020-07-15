@@ -67,6 +67,7 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
             ClassFullname(name.to_string()),
             SkClass {
                 fullname: class_fullname(name),
+                typarams: vec![],
                 superclass_fullname: super_name,
                 instance_ty: ty::raw(name),
                 ivars,
@@ -87,6 +88,7 @@ fn make_classes(items: Vec<ClassItem>) -> (HashMap<ClassFullname, SkClass>, Hash
             metaclass_fullname(name),
             SkClass {
                 fullname: metaclass_fullname(name),
+                typarams: vec![],
                 superclass_fullname: Some(class_fullname("Class")),
                 instance_ty: ty::meta(name),
                 ivars: meta_ivars,

@@ -159,6 +159,7 @@ impl ClassDict {
         corelib.into_iter().for_each(|(_, c)| {
             self.add_class(SkClass {
                 fullname: c.fullname,
+                typarams: vec![],
                 superclass_fullname: c.superclass_fullname,
                 instance_ty: c.instance_ty,
                 ivars: c.ivars,
@@ -170,7 +171,7 @@ impl ClassDict {
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
-                ast::Definition::ClassDefinition { name, super_name, defs } => {
+                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
                     self.index_class(&name.add_namespace(""), &super_name, &defs)?;
                     Ok(())
                 },
@@ -207,7 +208,7 @@ impl ClassDict {
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),
-                ast::Definition::ClassDefinition { name, super_name, defs } => {
+                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
                     self.index_class(&full, &super_name, &defs)?;
                 }
@@ -234,6 +235,7 @@ impl ClassDict {
                 }
                 self.add_class(SkClass {
                     fullname: fullname.clone(),
+                    typarams: vec![],
                     superclass_fullname: Some(super_name.clone()),
                     instance_ty,
                     ivars: HashMap::new(),
@@ -241,6 +243,7 @@ impl ClassDict {
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
+                    typarams: vec![],
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
                     ivars: HashMap::new(),

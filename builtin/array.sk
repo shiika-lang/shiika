@@ -1,15 +1,14 @@
 # TODO: Move to Array::
 BYTES_OF_PTR = 8  # Assuming 64bit env
 
-class Array # TODO: typaram
-
+class Array<T>
   def initialize(capa: Int)
     var @capa = capa
     var @n_items = 0
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * capa)
   end
 
-  def push(value: Object)
+  def push(value: Object)  # TODO: value is T
     if @n_items == @capa
       puts "TODO #107: resize"
     end

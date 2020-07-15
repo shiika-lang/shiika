@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use crate::ty::*;
 use crate::names::*;
 
+/// A Shiika class, possibly generic
 #[derive(Debug, PartialEq, Clone)]
 pub struct SkClass {
     pub fullname: ClassFullname,
+    pub typarams: Vec<TyParam>,
     pub superclass_fullname: Option<ClassFullname>,
     pub instance_ty: TermTy,
     pub ivars: HashMap<String, super::SkIVar>,
@@ -16,4 +18,3 @@ impl SkClass {
         self.instance_ty.meta_ty()
     }
 }
-
