@@ -1,4 +1,5 @@
-pub mod class_dict;
+mod class_dict;
+pub use crate::hir::class_dict::class_dict::ClassDict;
 mod indexing;
 mod query;
 use std::collections::HashMap;
@@ -6,7 +7,6 @@ use crate::ast;
 use crate::error::*;
 use crate::hir;
 use crate::hir::*;
-use crate::hir::class_dict::class_dict::ClassDict;
 use crate::ty::*;
 use crate::names::*;
 

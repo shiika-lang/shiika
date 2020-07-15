@@ -15,7 +15,7 @@
 ///
 use crate::names::*;
 use crate::ty;
-use crate::hir::class_dict::class_dict::ClassDict;
+use crate::hir::class_dict::ClassDict;
 
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
