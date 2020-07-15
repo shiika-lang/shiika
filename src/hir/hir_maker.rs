@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::hir;
 use crate::hir::*;
 use crate::hir::hir_maker_context::*;
-use crate::hir::class_dict::ClassDict;
+use crate::hir::class_dict::class_dict::ClassDict;
 use crate::hir::method_dict::MethodDict;
 use crate::names;
 use crate::type_checking;
