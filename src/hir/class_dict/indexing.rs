@@ -4,6 +4,7 @@ use crate::error;
 use crate::error::*;
 use crate::hir::*;
 use crate::hir::class_dict::class_dict::ClassDict;
+use crate::hir::signature;
 use crate::ty::*;
 use crate::names::*;
 
@@ -73,18 +74,18 @@ impl ClassDict {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
-        let new_sig = signature_of_new(&metaclass_fullname,
+        let new_sig = signature::signature_of_new(&metaclass_fullname,
                                       self.initializer_params(&super_name, &defs),
                                       &instance_ty);
 
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = crate::hir::create_signature(fullname.to_string(), sig);
+                    let hir_sig = crate::hir::signature::create_signature(fullname.to_string(), sig);
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
+                    let hir_sig = crate::hir::signature::create_signature(metaclass_fullname.to_string(), sig);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),

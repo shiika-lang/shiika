@@ -4,6 +4,7 @@ mod hir_maker_context;
 pub mod class_dict;
 mod method_dict;
 mod sk_class;
+pub mod signature;
 mod convert_exprs;
 use std::collections::HashMap;
 use crate::ast;
@@ -397,39 +398,5 @@ impl Hir {
             ty: ty::meta(&fullname.0),
             node: HirExpressionBase::HirClassLiteral { fullname, str_literal_idx }
         }
-    }
-}
-
-/// Create `hir::MethodSignature` from `ast::MethodSignature`
-pub fn create_signature(class_fullname: String, sig: &ast::AstMethodSignature) -> MethodSignature {
-    let fullname = MethodFullname {
-        full_name: (class_fullname + "#" + &sig.name.0),
-        first_name: sig.name.clone(),
-    };
-    let ret_ty = convert_typ(&sig.ret_typ);
-    let params = convert_params(&sig.params);
-    MethodSignature { fullname, ret_ty, params }
-}
-
-fn convert_typ(typ: &ast::Typ) -> TermTy {
-    ty::raw(&typ.name)
-}
-
-fn convert_params(params: &[ast::Param]) -> Vec<MethodParam> {
-    params.iter().map(|param|
-        MethodParam {
-            name: param.name.to_string(),
-            ty: convert_typ(&param.typ),
-        }
-    ).collect()
-}
-
-fn signature_of_new(metaclass_fullname: &ClassFullname,
-                    initialize_params: Vec<MethodParam>,
-                    instance_ty: &TermTy) -> MethodSignature {
-    MethodSignature {
-        fullname: method_fullname(metaclass_fullname, "new"),
-        ret_ty: instance_ty.clone(),
-        params: initialize_params,
     }
 }
