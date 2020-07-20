@@ -4,6 +4,7 @@ use crate::error;
 use crate::error::*;
 use crate::hir::*;
 use crate::hir::class_dict::class_dict::ClassDict;
+use crate::hir::signature;
 use crate::ty::*;
 use crate::names::*;
 
@@ -51,8 +52,8 @@ impl ClassDict {
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
         toplevel_defs.iter().try_for_each(|def| {
             match def {
-                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
-                    self.index_class(&name.add_namespace(""), &super_name, &defs)?;
+                ast::Definition::ClassDefinition { name, typarams, super_name, defs } => {
+                    self.index_class(&name.add_namespace(""), &typarams, &super_name, &defs)?;
                     Ok(())
                 },
                 ast::Definition::ConstDefinition { .. } => Ok(()),
@@ -65,6 +66,7 @@ impl ClassDict {
 
     fn index_class(&mut self,
                    fullname: &ClassFullname,
+                   typarams: &Vec<String>,
                    super_name: &ClassFullname,
                    defs: &[ast::Definition]) -> Result<(), Error> {
         let instance_ty = ty::raw(&fullname.0);
@@ -73,24 +75,24 @@ impl ClassDict {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
-        let new_sig = signature_of_new(&metaclass_fullname,
+        let new_sig = signature::signature_of_new(&metaclass_fullname,
                                       self.initializer_params(&super_name, &defs),
                                       &instance_ty);
 
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = crate::hir::create_signature(fullname.to_string(), sig);
+                    let hir_sig = signature::create_signature(&fullname, sig, typarams);
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = crate::hir::create_signature(metaclass_fullname.to_string(), sig);
+                    let hir_sig = signature::create_signature(&metaclass_fullname, sig, &vec![]);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 },
                 ast::Definition::ConstDefinition { .. } => (),
-                ast::Definition::ClassDefinition { name, super_name, defs, .. } => {
+                ast::Definition::ClassDefinition { name, typarams, super_name, defs } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.index_class(&full, &super_name, &defs)?;
+                    self.index_class(&full, &typarams, &super_name, &defs)?;
                 }
             }
         }

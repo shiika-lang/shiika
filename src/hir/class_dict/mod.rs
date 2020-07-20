@@ -35,7 +35,8 @@ impl ClassDict {
                           clsname: &ClassFullname,
                           defs: &[ast::Definition]) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            hir::convert_params(&sig.params)
+            // TODO: Support typarams in initializer params
+            hir::signature::convert_params(&sig.params, &vec![])
         }
         else {
             let (sig, _found_cls) = 

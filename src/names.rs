@@ -29,9 +29,9 @@ impl std::fmt::Display for ClassFullname {
     }
 }
 
-pub fn class_fullname(s: &str) -> ClassFullname
+pub fn class_fullname(s: impl Into<String>) -> ClassFullname
 {
-    ClassFullname(s.to_string())
+    ClassFullname(s.into())
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname

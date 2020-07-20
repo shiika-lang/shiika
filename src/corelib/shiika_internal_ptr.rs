@@ -29,6 +29,16 @@ pub fn create_methods() -> Vec<SkMethod> {
         Ok(())
     }),
 
+    create_method("Shiika::Internal::Ptr", "load -> Object", |code_gen, function| {
+        let i8ptr = function.get_params()[0].into_pointer_value();
+        let obj_ptr_type = code_gen.llvm_type(&ty::raw("Object")).into_pointer_type();
+        let obj_ptrptr_type = obj_ptr_type.ptr_type(inkwell::AddressSpace::Generic);
+        let obj_ptr = code_gen.builder.build_bitcast(i8ptr, obj_ptrptr_type, "").into_pointer_value();
+        let loaded = code_gen.builder.build_load(obj_ptr, "object");
+        code_gen.builder.build_return(Some(&loaded));
+        Ok(())
+    }),
+
     ]
 }
 
