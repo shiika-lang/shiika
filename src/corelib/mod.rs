@@ -110,7 +110,7 @@ fn create_method(class_name: &str,
     let mut parser = parser::Parser::new_with_state(sig_str, parser::lexer::LexerState::MethodName);
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
     parser.expect_eof().unwrap();
-    let sig = crate::hir::create_signature(class_name.to_string(), &ast_sig);
+    let sig = crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, &vec![]);
 
     SkMethod {
         signature: sig,
