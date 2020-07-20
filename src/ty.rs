@@ -76,6 +76,9 @@ impl TermTy {
     }
 
     pub fn conforms_to(&self, other: &TermTy) -> bool {
+        if let TyParamRef { .. } = other.body {
+            return self == &ty::raw("Object") // The upper bound
+        }
         // TODO: Should respect class hierarchy
         self.equals_to(other)
     }

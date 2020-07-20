@@ -16,4 +16,9 @@ class Array<T>
     ptr.store(value)
     @n_items = @n_items + 1
   end
+
+  def first -> T
+    ptr = @items
+    ptr.load
+  end
 end
