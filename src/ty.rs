@@ -49,6 +49,10 @@ pub enum TyBody {
         base_name: String, // eg. "Pair"
         type_args: Vec<TermTy>,
     },
+    // Type parameter reference eg. `T`
+    TyParamRef {
+        name: String
+    }
 }
 
 use TyBody::*;
@@ -133,6 +137,17 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
         }
     }
 }
+
+pub fn typaram(name: impl Into<String>) -> TermTy {
+    let s = name.into();
+    TermTy {
+        fullname: class_fullname(&s),
+        body: TyParamRef {
+            name: s
+        }
+    }
+}
+
 
 /// A type parameter
 /// In the future, may have something like +T/-T or in/out 

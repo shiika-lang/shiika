@@ -479,7 +479,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {
             TyBody::TySpe { base_name, .. } => &base_name,
-            _ => &ty.fullname.0,
+            TyBody::TyParamRef { .. } => "Object", // its upper bound
+            _ => &ty.fullname.0
         };
         let struct_type = self.llvm_struct_types.get(&class_fullname(s))
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
