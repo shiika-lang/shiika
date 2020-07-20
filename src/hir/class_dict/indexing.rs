@@ -76,7 +76,7 @@ impl ClassDict {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
         let new_sig = signature::signature_of_new(&metaclass_fullname,
-                                      self.initializer_params(&super_name, &defs),
+                                      self.initializer_params(&super_name.instance_ty(), &defs),
                                       &instance_ty);
 
         for def in defs {

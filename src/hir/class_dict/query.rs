@@ -14,28 +14,30 @@ impl ClassDict {
     /// Similar to find_method, but lookup into superclass if not in the class.
     /// Returns Err if not found.
     pub fn lookup_method(&self,
-                         class_fullname: &ClassFullname,
+                         class: &TermTy,
                          method_name: &MethodFirstname)
                          -> Result<(&MethodSignature, ClassFullname), Error> {
-        self.lookup_method_(class_fullname, class_fullname, method_name)
+        self.lookup_method_(class, class, method_name)
     }
     fn lookup_method_(&self,
-                      receiver_class_fullname: &ClassFullname,
-                      class_fullname: &ClassFullname,
+                      receiver_class: &TermTy,
+                      class: &TermTy,
                       method_name: &MethodFirstname)
                          -> Result<(&MethodSignature, ClassFullname), Error> {
-        if let Some(sig) = self.find_method(class_fullname, method_name) {
-            Ok((sig, class_fullname.clone()))
+        if let Some(sig) = self.find_method(&class.fullname, method_name) {
+            Ok((sig, class.fullname.clone()))
         }
         else {
             // Look up in superclass
-            let sk_class = self.find_class(class_fullname)
-                .unwrap_or_else(|| panic!("[BUG] lookup_method: asked to find `{}' but class `{}' not found", &method_name.0, &class_fullname.0));
+            let sk_class = self.find_class(&class.fullname)
+                .unwrap_or_else(|| panic!("[BUG] lookup_method: asked to find `{}' but class `{}' not found", &method_name.0, &class.fullname.0));
             if let Some(super_name) = &sk_class.superclass_fullname {
-                self.lookup_method_(receiver_class_fullname, super_name, method_name)
+                // TODO #115: super may not be a ty::raw
+                let super_class = ty::raw(&super_name.0);
+                self.lookup_method_(receiver_class, &super_class, method_name)
             }
             else {
-                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class_fullname)))
+                Err(error::program_error(&format!("method {:?} not found on {:?}", method_name, receiver_class.fullname)))
             }
         }
     }

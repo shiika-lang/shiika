@@ -230,12 +230,12 @@ impl HirMaker {
     }
 
     /// Create .new
-    fn create_new(&self, fullname: &ClassFullname) -> Result<SkMethod, Error> {
-        let class_fullname = fullname.clone();
-        let (initialize_name, initialize_params, init_cls_name) = self.find_initialize(&fullname)?;
+    fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
+        let class_fullname = class_fullname.clone();
+        let (initialize_name, initialize_params, init_cls_name) = self.find_initialize(&class_fullname.instance_ty())?;
         let instance_ty = ty::raw(&class_fullname.0);
         let meta_name = class_fullname.meta_name();
-        let need_bitcast = init_cls_name != *fullname;
+        let need_bitcast = init_cls_name != class_fullname;
         let arity = initialize_params.len();
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
@@ -270,10 +270,10 @@ impl HirMaker {
         })
     }
 
-    fn find_initialize(&self, class_fullname: &ClassFullname)
+    fn find_initialize(&self, class: &TermTy)
                        -> Result<(MethodFullname, &Vec<MethodParam>, ClassFullname), Error> {
         let (sig, found_cls) =
-            self.class_dict.lookup_method(&class_fullname,
+            self.class_dict.lookup_method(&class,
                                           &method_firstname("initialize"))?;
         Ok((names::method_fullname(&found_cls, "initialize"), &sig.params, found_cls))
     }

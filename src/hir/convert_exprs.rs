@@ -281,7 +281,7 @@ impl HirMaker {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let class_fullname = &receiver_hir.ty.fullname;
-        let (sig, found_class_name) = self.class_dict.lookup_method(class_fullname, method_name)?;
+        let (sig, found_class_name) = self.class_dict.lookup_method(&receiver_hir.ty, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys,
