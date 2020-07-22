@@ -281,11 +281,12 @@ impl HirMaker {
 
     fn make_method_call(&self, receiver_hir: HirExpression, method_name: &MethodFirstname, arg_hirs: Vec<HirExpression>) -> Result<HirExpression, Error> {
         let class_fullname = &receiver_hir.ty.fullname;
-        let (sig, found_class_name) = self.class_dict.lookup_method(class_fullname, method_name)?;
+        let (sig, found_class_name) = self.class_dict.lookup_method(&receiver_hir.ty, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys,
                                          &receiver_hir, &arg_hirs)?;
+        let bitcast_needed = receiver_hir.ty.is_specialized();
 
         let receiver = 
             if &found_class_name != class_fullname {
@@ -295,7 +296,11 @@ impl HirMaker {
             else {
                 receiver_hir
             };
-        Ok(Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs))
+        let mut ret = Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs);
+        if bitcast_needed {
+            ret = Hir::bit_cast(sig.ret_ty.clone(), ret)
+        }
+        Ok(ret)
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)

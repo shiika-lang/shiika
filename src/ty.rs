@@ -51,7 +51,8 @@ pub enum TyBody {
     },
     // Type parameter reference eg. `T`
     TyParamRef {
-        name: String
+        name: String,
+        idx: usize,
     }
 }
 
@@ -108,6 +109,23 @@ impl TermTy {
             _ => panic!("TODO"),
         }
     }
+
+    /// Apply type argments into type parameters
+    pub fn substitute(&self, type_args: &[TermTy]) -> TermTy {
+        match &self.body {
+            TyParamRef { idx, .. } => {
+                type_args[*idx].clone()
+            },
+            _ => self.clone(),
+        }
+    }
+
+    pub fn is_specialized(&self) -> bool {
+        match self.body {
+            TySpe { .. } | TySpeMeta { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 pub fn raw(fullname: &str) -> TermTy {
@@ -141,12 +159,13 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
-pub fn typaram(name: impl Into<String>) -> TermTy {
+pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
         fullname: class_fullname(&s),
         body: TyParamRef {
-            name: s
+            name: s,
+            idx
         }
     }
 }
@@ -175,10 +194,28 @@ impl MethodSignature {
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
     }
+
+    /// Substitute type parameters with type arguments
+    pub fn specialize(&self, type_args: &[TermTy]) -> MethodSignature {
+        MethodSignature {
+            fullname: self.fullname.clone(),
+            ret_ty: self.ret_ty.substitute(&type_args),
+            params: self.params.iter().map(|param| param.substitute(&type_args)).collect(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,
+}
+
+impl MethodParam {
+    pub fn substitute(&self, type_args: &[TermTy]) -> MethodParam {
+        MethodParam {
+            name: self.name.clone(),
+            ty: self.ty.substitute(&type_args),
+        }
+    }
 }
