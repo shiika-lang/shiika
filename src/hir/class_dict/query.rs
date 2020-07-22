@@ -16,16 +16,26 @@ impl ClassDict {
     pub fn lookup_method(&self,
                          class: &TermTy,
                          method_name: &MethodFirstname)
-                         -> Result<(&MethodSignature, ClassFullname), Error> {
-        self.lookup_method_(class, class, method_name)
+                         -> Result<(MethodSignature, ClassFullname), Error> {
+        if let TyBody::TySpe {base_name, type_args} = &class.body {
+            let base_cls = &self.find_class(&class_fullname(base_name))
+                .expect("[BUG] base_cls not found")
+                .instance_ty;
+            let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
+            Ok((base_sig.specialize(&type_args), found_cls))
+        }
+        else {
+            self.lookup_method_(class, class, method_name)
+        }
     }
+
     fn lookup_method_(&self,
                       receiver_class: &TermTy,
                       class: &TermTy,
                       method_name: &MethodFirstname)
-                         -> Result<(&MethodSignature, ClassFullname), Error> {
+                         -> Result<(MethodSignature, ClassFullname), Error> {
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig, class.fullname.clone()))
+            Ok((sig.clone(), class.fullname.clone()))
         }
         else {
             // Look up in superclass

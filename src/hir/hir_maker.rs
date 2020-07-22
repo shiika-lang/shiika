@@ -271,11 +271,11 @@ impl HirMaker {
     }
 
     fn find_initialize(&self, class: &TermTy)
-                       -> Result<(MethodFullname, &Vec<MethodParam>, ClassFullname), Error> {
+                       -> Result<(MethodFullname, Vec<MethodParam>, ClassFullname), Error> {
         let (sig, found_cls) =
             self.class_dict.lookup_method(&class,
                                           &method_firstname("initialize"))?;
-        Ok((names::method_fullname(&found_cls, "initialize"), &sig.params, found_cls))
+        Ok((names::method_fullname(&found_cls, "initialize"), sig.params, found_cls))
     }
 
     /// Register a constant
