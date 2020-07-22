@@ -20,7 +20,7 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
 fn run_sk_test(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     dbg!(&path);
     shiika::runner::compile(path)?;
-    let (stdout, stderr) = shiika::runner::run(path)?;
+    let (stdout, stderr) = shiika::runner::run_and_capture(path)?;
     assert_eq!(stderr, "");
     assert_eq!(stdout, "ok\n");
     shiika::runner::cleanup(path)?;
