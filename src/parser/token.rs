@@ -89,7 +89,7 @@ impl Token {
             // Symbols
             Token::LParen => true,        //  ( 
             Token::RParen => false,       //  ) 
-            Token::LSqBracket => false,   //  [ 
+            Token::LSqBracket => true,    //  [ 
             Token::RSqBracket => false,   //  ] 
             Token::LBrace => false,       //  { 
             Token::RBrace => false,       //  } 
