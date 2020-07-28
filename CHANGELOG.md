@@ -1,3 +1,7 @@
+## HEAD
+
+- fixes: #113 #114
+
 ## v0.3.0 (2020-07-28)
 
 - feat: Array literal (#84)
