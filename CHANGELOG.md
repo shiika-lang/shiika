@@ -1,3 +1,8 @@
+## v0.3.0 (2020-07-28)
+
+- feat: Array literal (#84)
+- feat: Basic generics like Array#first (#101)
+
 ## v0.2.5 (2020-05-29)
 
 - feat: Automatically define getters/setters for instance variables (#44)

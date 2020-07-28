@@ -21,12 +21,12 @@ end
 #require_relative 'lib/shiika/version'
 desc "git ci, git tag and git push"
 task :release do
-  sh "git diff HEAD"
+  sh "git diff"
   v = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
-  sh "git ci -am '#{v}'"
+  sh "git ci -m '#{v}'"
   sh "git tag '#{v}'"
   sh "git push origin master --tags"
 end
