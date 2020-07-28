@@ -14,7 +14,7 @@ pub fn create(
     ast: &ast::Program,
     corelib: HashMap<ClassFullname, SkClass>,
 ) -> Result<ClassDict, Error> {
-    let mut dict = ClassDict::new();
+    let mut dict = ClassDict::default();
     dict.index_corelib(corelib);
     let defs = ast
         .toplevel_items
@@ -29,12 +29,6 @@ pub fn create(
 }
 
 impl ClassDict {
-    pub fn new() -> ClassDict {
-        ClassDict {
-            sk_classes: HashMap::new(),
-        }
-    }
-
     /// Return parameters of `initialize`
     fn initializer_params(&self, class: &TermTy, defs: &[ast::Definition]) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =

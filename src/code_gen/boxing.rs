@@ -11,7 +11,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_left_shift(b, self.i64_type.const_int(2, false), "");
         self.builder
-            .build_or(b, self.i64_type.const_int(0b10, false).into(), "sk_bool")
+            .build_or(b, self.i64_type.const_int(0b10, false), "sk_bool")
     }
 
     /// Convert Shiika Bool into LLVM bool(i1)

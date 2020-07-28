@@ -140,7 +140,7 @@ fn create_method(class_name: &str, sig_str: &str, gen: GenMethodBody) -> SkMetho
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
     parser.expect_eof().unwrap();
     let sig =
-        crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, &vec![]);
+        crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, &[]);
 
     SkMethod {
         signature: sig,

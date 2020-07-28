@@ -466,8 +466,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 cond,
                 t.into_int_value(),
                 "istrue",
-            )
-            .into();
+            );
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }

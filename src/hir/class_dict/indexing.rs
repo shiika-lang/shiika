@@ -76,7 +76,7 @@ impl ClassDict {
     fn index_class(
         &mut self,
         fullname: &ClassFullname,
-        typarams: &Vec<String>,
+        typarams: &[String],
         super_name: &ClassFullname,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
@@ -99,7 +99,7 @@ impl ClassDict {
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&metaclass_fullname, sig, &vec![]);
+                    let hir_sig = signature::create_signature(&metaclass_fullname, sig, &[]);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ConstDefinition { .. } => (),
