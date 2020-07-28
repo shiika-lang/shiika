@@ -24,6 +24,12 @@ pub struct TermTy {
     pub body: TyBody,
 }
 
+impl std::fmt::Display for TermTy {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.fullname)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyBody {
     // Types corresponds to non-generic class
