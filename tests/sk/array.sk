@@ -1,3 +1,6 @@
-[Object.new, Object.new]
+a = [123]
+if a.first != 123
+  puts "ng"
+end
 
 puts "ok"
