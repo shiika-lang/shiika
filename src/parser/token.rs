@@ -104,8 +104,8 @@ impl Token {
             Token::RightArrow => false,   //  ->
             Token::UnaryMinus => true,    //  -
             Token::BinaryMinus => false,  //  -
-            Token::Mul => true,           //  *
-            Token::Div => true,           //  /
+            Token::Mul => false,          //  *
+            Token::Div => false,          //  /
             Token::Mod => false,          //  %
             Token::EqEq => false,         //  ==
             Token::NotEq => false,        //  !=
