@@ -302,7 +302,7 @@ impl HirMaker {
         Ok(SkMethod {
             signature: hir::signature::signature_of_new(
                 &meta_name,
-                initialize_params.clone(),
+                initialize_params,
                 &instance_ty,
             ),
             body: SkMethodBody::RustClosureMethodBody {

@@ -29,7 +29,7 @@ fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
         let pathbuf = item?.path();
         let path = pathbuf
             .to_str()
-            .ok_or(plain_runner_error("Filename not utf8"))?;
+            .ok_or_else(|| plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
             s += &fs::read_to_string(path)
                 .map_err(|e| runner_error(format!("failed to load {}", path), e))?;
@@ -78,8 +78,8 @@ fn run_<P: AsRef<Path>>(
     //    cmd.arg(opt_ll_path);
     //    cmd.output()?;
 
-    let mut cmd = Command::new(env::var("LLC").unwrap_or("llc".to_string()));
-    cmd.arg(ll_path.clone());
+    let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
+    cmd.arg(ll_path);
     let output = cmd
         .output()
         .map_err(|e| runner_error("failed to run llc", e))?;
@@ -89,7 +89,7 @@ fn run_<P: AsRef<Path>>(
         println!("{}", s);
     }
 
-    let mut cmd = Command::new(env::var("CLANG").unwrap_or("clang".to_string()));
+    let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
     add_args_from_env(&mut cmd, "LDFLAGS");
     add_args_from_env(&mut cmd, "LDLIBS");
@@ -131,7 +131,7 @@ pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Err
 
 fn add_args_from_env(cmd: &mut Command, key: &str) {
     for arg in env::var(key)
-        .unwrap_or("".to_string())
+        .unwrap_or_else(|_| "".to_string())
         .split_ascii_whitespace()
     {
         cmd.arg(arg);

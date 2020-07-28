@@ -36,13 +36,13 @@ impl ClassDict {
         {
             // Has explicit initializer definition
             // TODO: Support typarams in initializer params
-            hir::signature::convert_params(&sig.params, &vec![])
+            hir::signature::convert_params(&sig.params, &[])
         } else {
             // Inherit #initialize from superclass
             let (sig, _found_cls) = self
                 .lookup_method(&class, &method_firstname("initialize"))
                 .expect("[BUG] initialize not found");
-            sig.params.clone()
+            sig.params
         }
     }
 }

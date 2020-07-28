@@ -334,7 +334,7 @@ impl HirMaker {
         let mut ret =
             Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs);
         if bitcast_needed {
-            ret = Hir::bit_cast(sig.ret_ty.clone(), ret)
+            ret = Hir::bit_cast(sig.ret_ty, ret)
         }
         Ok(ret)
     }
@@ -429,7 +429,7 @@ impl HirMaker {
         for expr in &item_exprs {
             item_ty = self.nearest_common_ancestor_type(&item_ty, &expr.ty)
         }
-        let ary_ty = ty::spe("Array", vec![item_ty.clone()]);
+        let ary_ty = ty::spe("Array", vec![item_ty]);
         let upper_bound_ty = ty::raw("Object");
 
         let tmp = self.gensym();
@@ -454,7 +454,7 @@ impl HirMaker {
                 vec![Hir::bit_cast(upper_bound_ty.clone(), expr)],
             ))
         }
-        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp.clone()));
+        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp));
 
         Ok(Hir::array_literal(exprs, ary_ty))
     }
