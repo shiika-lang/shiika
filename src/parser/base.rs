@@ -2,18 +2,20 @@
 pub use crate::ast;
 pub use crate::ast::*;
 pub use crate::error::*;
-pub use crate::parser::Parser;
-pub use crate::parser::token::Token;
 pub use crate::parser::lexer;
 pub use crate::parser::lexer::*;
+pub use crate::parser::token::Token;
+pub use crate::parser::Parser;
 
 impl<'a> Parser<'a> {
     // Consume a separator and its surrounding spaces
-    pub (in super) fn expect_sep(&mut self) -> Result<(), Error> {
+    pub(super) fn expect_sep(&mut self) -> Result<(), Error> {
         match self.current_token() {
-            Token::Separator => { self.consume_token(); },
+            Token::Separator => {
+                self.consume_token();
+            }
             Token::Eof => (),
-            token => return Err(parse_error!(self, "expected separator but got {:?}", token))
+            token => return Err(parse_error!(self, "expected separator but got {:?}", token)),
         }
         self.skip_wsn();
         Ok(())
@@ -22,36 +24,35 @@ impl<'a> Parser<'a> {
     /// Generates error if the current token does not equal to `token`.
     ///
     /// Note: Takes `Token` rather than `&Token` for convenience.
-    pub (in super) fn expect(&mut self, token: Token) -> Result<Token, Error> {
+    pub(super) fn expect(&mut self, token: Token) -> Result<Token, Error> {
         if *self.current_token() == token {
             Ok(self.consume_token())
-        }
-        else {
+        } else {
             let msg = format!("expected {:?} but got {:?}", token, self.current_token());
             Err(self.parseerror(&msg))
         }
     }
 
-    pub (in super) fn skip_wsn(&mut self) {
+    pub(super) fn skip_wsn(&mut self) {
         loop {
             match self.current_token() {
                 Token::Space | Token::Separator => self.consume_token(),
-                _ => return
+                _ => return,
             };
         }
     }
 
-    pub (in super) fn skip_ws(&mut self) {
+    pub(super) fn skip_ws(&mut self) {
         loop {
             match self.current_token() {
                 Token::Space => self.consume_token(),
-                _ => return
+                _ => return,
             };
         }
     }
 
     /// Consume the current token and return it
-    pub (in super) fn consume_token(&mut self) -> Token {
+    pub(super) fn consume_token(&mut self) -> Token {
         let tok = self.current_token();
         self.debug_log(&format!("consume_token {:?}", &tok));
         self.lexer.consume_token()
@@ -59,12 +60,11 @@ impl<'a> Parser<'a> {
 
     /// Consume the current token if it equals to `token`.
     /// Return whether matched and consumed
-    pub (in super) fn consume(&mut self, token: Token) -> bool {
+    pub(super) fn consume(&mut self, token: Token) -> bool {
         if self.current_token_is(token) {
             self.consume_token();
             true
-        }
-        else {
+        } else {
             false
         }
     }
@@ -72,45 +72,44 @@ impl<'a> Parser<'a> {
     /// Return true if the current token is `token`
     ///
     /// Note: Takes `Token` rather than `&Token` for convenience.
-    pub (in super) fn current_token_is(&mut self, token: Token) -> bool {
+    pub(super) fn current_token_is(&mut self, token: Token) -> bool {
         *self.current_token() == token
     }
 
-    pub (in super) fn current_token(&self) -> &Token {
+    pub(super) fn current_token(&self) -> &Token {
         &self.lexer.current_token
     }
 
     /// Return next token
-    pub (in super) fn peek_next_token(&mut self) -> Token {
+    pub(super) fn peek_next_token(&mut self) -> Token {
         self.lexer.peek_next()
     }
 
     /// Return next token which is not `Token::Space`
     /// Note: newlines are not skipped. (i.e. this function may return Token::Newline)
-    pub (in super) fn next_nonspace_token(&mut self) -> Token {
+    pub(super) fn next_nonspace_token(&mut self) -> Token {
         if self.current_token_is(Token::Space) {
             self.lexer.peek_next()
-        }
-        else {
+        } else {
             self.current_token().clone()
         }
     }
 
     /// Get the lexer position
-    pub (in super) fn current_position(&self) -> Cursor {
+    pub(super) fn current_position(&self) -> Cursor {
         self.lexer.cur.clone()
     }
 
     /// Rewind lexer position (backtrack)
-    pub (in super) fn rewind_to(&mut self, cur: Cursor) {
+    pub(super) fn rewind_to(&mut self, cur: Cursor) {
         self.lexer.set_position(cur);
     }
 
-    pub (in super) fn set_lexer_state(&mut self, state: LexerState) {
+    pub(super) fn set_lexer_state(&mut self, state: LexerState) {
         self.lexer.set_state(state);
     }
 
-    pub (in super) fn parseerror(&self, msg: &str) -> Error {
+    pub(super) fn parseerror(&self, msg: &str) -> Error {
         Error {
             msg: msg.to_string(),
             backtrace: backtrace::Backtrace::new(),
@@ -122,7 +121,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Print parser debug log (uncomment to enable)
-    pub (in super) fn debug_log(&self, _msg: &str) {
+    pub(super) fn debug_log(&self, _msg: &str) {
         //println!("{}{} {}", self.lv_space(), _msg, self.lexer.debug_info());
     }
     #[allow(dead_code)]

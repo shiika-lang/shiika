@@ -8,15 +8,13 @@ impl ClassFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
         if namespace == "" {
             ClassFullname(self.0.clone())
-        }
-        else {
+        } else {
             ClassFullname(namespace.to_string() + "::" + &self.0)
         }
     }
 }
 
-pub fn class_firstname(s: &str) -> ClassFirstname
-{
+pub fn class_firstname(s: &str) -> ClassFirstname {
     ClassFirstname(s.to_string())
 }
 
@@ -29,13 +27,11 @@ impl std::fmt::Display for ClassFullname {
     }
 }
 
-pub fn class_fullname(s: impl Into<String>) -> ClassFullname
-{
+pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
     ClassFullname(s.into())
 }
 
-pub fn metaclass_fullname(base: &str) -> ClassFullname
-{
+pub fn metaclass_fullname(base: &str) -> ClassFullname {
     ClassFullname("Meta:".to_string() + base)
 }
 
@@ -57,8 +53,7 @@ impl ClassFullname {
             let mut name = self.0.clone();
             name.replace_range(0..=4, "");
             ty::meta(&name)
-        }
-        else {
+        } else {
             self.instance_ty()
         }
     }
@@ -77,8 +72,7 @@ impl std::fmt::Display for MethodFirstname {
     }
 }
 
-pub fn method_firstname(s: &str) -> MethodFirstname
-{
+pub fn method_firstname(s: &str) -> MethodFirstname {
     MethodFirstname(s.to_string())
 }
 
@@ -94,8 +88,7 @@ pub struct MethodFullname {
     pub first_name: MethodFirstname,
 }
 
-pub fn method_fullname(class_name: &ClassFullname,
-                       first_name: &str) -> MethodFullname {
+pub fn method_fullname(class_name: &ClassFullname, first_name: &str) -> MethodFullname {
     MethodFullname {
         full_name: class_name.0.clone() + "#" + first_name,
         first_name: MethodFirstname(first_name.to_string()),
@@ -117,8 +110,7 @@ impl std::fmt::Display for ConstFirstname {
     }
 }
 
-pub fn const_firstname(s: &str) -> ConstFirstname
-{
+pub fn const_firstname(s: &str) -> ConstFirstname {
     ConstFirstname(s.to_string())
 }
 
@@ -131,7 +123,6 @@ impl std::fmt::Display for ConstFullname {
     }
 }
 
-pub fn const_fullname(s: &str) -> ConstFullname
-{
+pub fn const_fullname(s: &str) -> ConstFullname {
     ConstFullname(s.to_string())
 }

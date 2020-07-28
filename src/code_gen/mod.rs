@@ -1,19 +1,19 @@
 mod boxing;
 mod code_gen_context;
 mod gen_exprs;
-use std::collections::HashMap;
-use inkwell::AddressSpace;
-use inkwell::values::*;
-use inkwell::types::*;
+use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
-use crate::ty::*;
 use crate::hir::*;
 use crate::names::*;
-use crate::code_gen::code_gen_context::*;
+use crate::ty::*;
+use inkwell::types::*;
+use inkwell::values::*;
+use inkwell::AddressSpace;
+use std::collections::HashMap;
 
 // 0bxx1 is for integers (future plan)
 const SK_FALSE: u64 = 0b010;
-const SK_TRUE:  u64 = 0b110;
+const SK_TRUE: u64 = 0b110;
 
 /// CodeGen
 ///
@@ -51,11 +51,12 @@ pub fn run(hir: &Hir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
-    pub fn new(hir: &'hir Hir,
-               context: &'ictx inkwell::context::Context,
-               module: &'run inkwell::module::Module<'ictx>,
-               builder: &'run inkwell::builder::Builder<'ictx>)
-              -> CodeGen<'hir, 'run, 'ictx> {
+    pub fn new(
+        hir: &'hir Hir,
+        context: &'ictx inkwell::context::Context,
+        module: &'run inkwell::module::Module<'ictx>,
+        builder: &'run inkwell::builder::Builder<'ictx>,
+    ) -> CodeGen<'hir, 'run, 'ictx> {
         CodeGen {
             context,
             module,
@@ -98,11 +99,22 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("GC_init", fn_type, None);
         let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
         self.module.add_function("GC_malloc", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
+        let fn_type = self
+            .i8ptr_type
+            .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("GC_realloc", fn_type, None);
-        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into(), self.i8ptr_type.into(), self.i64_type.into(),
-                                               self.i32_type.into(), self.i1_type.into()], false);
-        self.module.add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
+        let fn_type = self.void_type.fn_type(
+            &[
+                self.i8ptr_type.into(),
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+                self.i32_type.into(),
+                self.i1_type.into(),
+            ],
+            false,
+        );
+        self.module
+            .add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
 
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("sin", fn_type, None);
@@ -118,17 +130,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let str_type = self.i8_type.array_type(3);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
         global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
-                                                           self.i8_type.const_int(100, false), // d
-                                                           self.i8_type.const_int(  0, false)]));
+        global.set_initializer(&self.i8_type.const_array(&[
+            self.i8_type.const_int(37, false),  // %
+            self.i8_type.const_int(100, false), // d
+            self.i8_type.const_int(0, false),
+        ]));
         global.set_constant(true);
 
         let str_type = self.i8_type.array_type(3);
         let global = self.module.add_global(str_type, None, "putf_tmpl");
         global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[self.i8_type.const_int(37, false), // %
-                                                           self.i8_type.const_int(102, false), // f
-                                                           self.i8_type.const_int(  0, false)]));
+        global.set_initializer(&self.i8_type.const_array(&[
+            self.i8_type.const_int(37, false),  // %
+            self.i8_type.const_int(102, false), // f
+            self.i8_type.const_int(0, false),
+        ]));
         global.set_constant(true);
     }
 
@@ -170,7 +186,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_call(func, &[], "");
 
         // ret i32 0
-        self.builder.build_return(Some(&self.i32_type.const_int(0, false)));
+        self.builder
+            .build_return(Some(&self.i32_type.const_int(0, false)));
         Ok(())
     }
 
@@ -178,10 +195,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
         // 1. Create struct type for each class
         for name in classes.keys() {
-            self.llvm_struct_types.insert(
-                name.clone(),
-                self.context.opaque_struct_type(&name.0)
-            );
+            self.llvm_struct_types
+                .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
 
         // 2. Set ivars
@@ -189,23 +204,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let struct_type = self.llvm_struct_types.get(&name).unwrap();
             if name.0 == "Int" {
                 struct_type.set_body(&[self.i32_type.into()], false);
-            }
-            else if name.0 == "Float" {
+            } else if name.0 == "Float" {
                 struct_type.set_body(&[self.f64_type.into()], false);
-            }
-            else {
+            } else {
                 struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
             }
         }
     }
 
-    fn llvm_field_types(&self, ivars: &HashMap<String, SkIVar>) -> Vec<inkwell::types::BasicTypeEnum>
-    {
+    fn llvm_field_types(
+        &self,
+        ivars: &HashMap<String, SkIVar>,
+    ) -> Vec<inkwell::types::BasicTypeEnum> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
-        values.iter().map(|ivar| {
-            self.llvm_type(&ivar.ty)
-        }).collect::<Vec<_>>()
+        values
+            .iter()
+            .map(|ivar| self.llvm_type(&ivar.ty))
+            .collect::<Vec<_>>()
     }
 
     /// Generate llvm constants for string literals
@@ -215,11 +231,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let s_with_null = s.to_string() + "\0";
             let bytesize = s_with_null.len();
             let str_type = self.i8_type.array_type(bytesize as u32);
-            let global = self.module.add_global(str_type, None, &format!("str_{}", i));
+            let global = self
+                .module
+                .add_global(str_type, None, &format!("str_{}", i));
             global.set_linkage(inkwell::module::Linkage::Internal);
-            let content = s_with_null.into_bytes().iter().map(|byte| {
-                self.i8_type.const_int((*byte).into(), false)
-            }).collect::<Vec<_>>();
+            let content = s_with_null
+                .into_bytes()
+                .iter()
+                .map(|byte| self.i8_type.const_int((*byte).into(), false))
+                .collect::<Vec<_>>();
             global.set_initializer(&self.i8_type.const_array(&content))
         })
     }
@@ -232,7 +252,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
             match self.llvm_zero_value(ty) {
                 Some(zero) => global.set_initializer(&zero),
-                None       => global.set_initializer(&null),
+                None => global.set_initializer(&null),
             }
         }
     }
@@ -250,7 +270,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // Generate void
-        let ptr = self.module.get_global(&"::void").unwrap().as_pointer_value();
+        let ptr = self
+            .module
+            .get_global(&"::void")
+            .unwrap()
+            .as_pointer_value();
         let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");
         self.builder.build_store(ptr, value);
 
@@ -259,26 +283,33 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create inkwell functions
-    fn gen_method_funcs(&self,
-                        methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
+    fn gen_method_funcs(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
                 let func_type = self.llvm_func_type(&self_ty, &method.signature);
-                self.module.add_function(&method.signature.fullname.full_name, func_type, None);
+                self.module
+                    .add_function(&method.signature.fullname.full_name, func_type, None);
             })
         })
     }
 
-    fn llvm_func_type(&self, self_ty: &TermTy, signature: &MethodSignature) -> inkwell::types::FunctionType<'ictx> {
+    fn llvm_func_type(
+        &self,
+        self_ty: &TermTy,
+        signature: &MethodSignature,
+    ) -> inkwell::types::FunctionType<'ictx> {
         let self_type = self.llvm_type(self_ty);
-        let mut arg_types = signature.params.iter().map(|param| self.llvm_type(&param.ty)).collect::<Vec<_>>();
+        let mut arg_types = signature
+            .params
+            .iter()
+            .map(|param| self.llvm_type(&param.ty))
+            .collect::<Vec<_>>();
         arg_types.insert(0, self_type);
 
         if signature.ret_ty.is_void_type() {
             self.void_type.fn_type(&arg_types, false)
-        }
-        else {
+        } else {
             let result_type = self.llvm_type(&signature.ret_ty);
             result_type.fn_type(&arg_types, false)
         }
@@ -286,24 +317,25 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
-            sk_methods.iter().try_for_each(|method|
-                self.gen_method(&method)
-            )
+            sk_methods
+                .iter()
+                .try_for_each(|method| self.gen_method(&method))
         })
     }
 
     fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
         // LLVM function
-        let function = self.module.get_function(&method.signature.fullname.full_name)
+        let function = self
+            .module
+            .get_function(&method.signature.fullname.full_name)
             .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method.signature));
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
             if i == 0 {
                 inkwell_set_name(param, "self")
-            }
-            else {
-                inkwell_set_name(param, &method.signature.params[i-1].name)
+            } else {
+                inkwell_set_name(param, &method.signature.params[i - 1].name)
             }
         }
 
@@ -313,31 +345,28 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Method body
         match &method.body {
-            SkMethodBody::RustMethodBody { gen } => {
-                gen(self, &function)?
-            },
-            SkMethodBody::RustClosureMethodBody { boxed_gen } => {
-                boxed_gen(self, &function)?
-            },
-            SkMethodBody::ShiikaMethodBody { exprs }=> {
-                self.gen_shiika_method_body(function,
-                                            method.signature.ret_ty.is_void_type(),
-                                            &exprs)?
-            }
+            SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
+            SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
+            SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
+                function,
+                method.signature.ret_ty.is_void_type(),
+                &exprs,
+            )?,
         }
         Ok(())
     }
 
-    fn gen_shiika_method_body(&self,
-                              function: inkwell::values::FunctionValue<'run>,
-                              void_method: bool,
-                              exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_shiika_method_body(
+        &self,
+        function: inkwell::values::FunctionValue<'run>,
+        void_method: bool,
+        exprs: &HirExpressions,
+    ) -> Result<(), Error> {
         let mut ctx = CodeGenContext::new(function);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
-        }
-        else {
+        } else {
             self.builder.build_return(Some(&last_value));
         }
         Ok(())

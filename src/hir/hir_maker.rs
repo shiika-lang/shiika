@@ -2,24 +2,24 @@ use crate::ast::*;
 use crate::code_gen::CodeGen;
 use crate::error::Error;
 use crate::hir;
-use crate::hir::*;
-use crate::hir::hir_maker_context::*;
 use crate::hir::class_dict::ClassDict;
+use crate::hir::hir_maker_context::*;
 use crate::hir::method_dict::MethodDict;
+use crate::hir::*;
 use crate::names;
 use crate::type_checking;
 
 #[derive(Debug, PartialEq)]
 pub struct HirMaker {
     /// List of classes found so far
-    pub (in super) class_dict: ClassDict,
+    pub(super) class_dict: ClassDict,
     /// List of methods found so far
-    pub (in super) method_dict: MethodDict,
+    pub(super) method_dict: MethodDict,
     /// List of constants found so far
-    pub (in super) constants: HashMap<ConstFullname, TermTy>,
-    pub (in super) const_inits: Vec<HirExpression>,
+    pub(super) constants: HashMap<ConstFullname, TermTy>,
+    pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
-    pub (in super) str_literals: Vec<String>,
+    pub(super) str_literals: Vec<String>,
     gensym_ct: usize,
 }
 
@@ -104,8 +104,10 @@ impl HirMaker {
         self.const_inits.push(op);
     }
 
-    fn convert_toplevel_items(&mut self, items: &[ast::TopLevelItem])
-                            -> Result<HirExpressions, Error> {
+    fn convert_toplevel_items(
+        &mut self,
+        items: &[ast::TopLevelItem],
+    ) -> Result<HirExpressions, Error> {
         let mut main_exprs = vec![];
         // Contains local vars defined at toplevel
         let mut top_ctx = HirMakerContext::toplevel();
@@ -113,7 +115,7 @@ impl HirMaker {
             match item {
                 ast::TopLevelItem::Def(def) => {
                     self.process_toplevel_def(&mut top_ctx, &def)?;
-                },
+                }
                 ast::TopLevelItem::Expr(expr) => {
                     main_exprs.push(self.convert_expr(&mut top_ctx, &expr)?);
                 }
@@ -122,29 +124,31 @@ impl HirMaker {
         Ok(HirExpressions::new(main_exprs))
     }
 
-    fn process_toplevel_def(&mut self,
-                            ctx: &mut HirMakerContext,
-                            def: &ast::Definition)
-                            -> Result<(), Error> {
+    fn process_toplevel_def(
+        &mut self,
+        ctx: &mut HirMakerContext,
+        def: &ast::Definition,
+    ) -> Result<(), Error> {
         match def {
             // Extract instance/class methods
             ast::Definition::ClassDefinition { name, defs, .. } => {
                 let full = name.add_namespace("");
                 self.collect_sk_methods(&full, defs)?;
-            },
+            }
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_const(ctx, name, expr)?;
             }
-            _ => panic!("should be checked in hir::class_dict")
+            _ => panic!("should be checked in hir::class_dict"),
         }
         Ok(())
     }
 
     /// Extract instance/class methods and constants
-    fn collect_sk_methods(&mut self,
-                          fullname: &ClassFullname,
-                          defs: &[ast::Definition])
-                         -> Result<(), Error> {
+    fn collect_sk_methods(
+        &mut self,
+        fullname: &ClassFullname,
+        defs: &[ast::Definition],
+    ) -> Result<(), Error> {
         self.register_meta_ivar(&fullname)?;
         self.process_defs(defs, &fullname)?;
         Ok(())
@@ -152,28 +156,36 @@ impl HirMaker {
 
     fn register_meta_ivar(&mut self, name: &ClassFullname) -> Result<(), Error> {
         let mut meta_ivars = HashMap::new();
-        meta_ivars.insert("@name".to_string(), SkIVar {
-            name: "@name".to_string(),
-            idx: 0,
-            ty: ty::raw("String"),
-            readonly: true,
-        });
+        meta_ivars.insert(
+            "@name".to_string(),
+            SkIVar {
+                name: "@name".to_string(),
+                idx: 0,
+                ty: ty::raw("String"),
+                readonly: true,
+            },
+        );
         self.define_ivars(&name.meta_name(), meta_ivars, &[])?;
         Ok(())
     }
 
     /// Process each method def and const def
-    fn process_defs(&mut self,
-                    defs: &[ast::Definition],
-                    fullname: &ClassFullname)
-                   -> Result<(), Error> {
+    fn process_defs(
+        &mut self,
+        defs: &[ast::Definition],
+        fullname: &ClassFullname,
+    ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
         let mut ctx = HirMakerContext::class_ctx(&fullname);
 
         // Add `#initialize`
         let mut own_ivars = HashMap::default();
-        if let Some(ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. }) = defs.iter().find(|d| d.is_initializer()) {
-            let (sk_method, found_ivars) = self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?;
+        if let Some(ast::Definition::InstanceMethodDefinition {
+            sig, body_exprs, ..
+        }) = defs.iter().find(|d| d.is_initializer())
+        {
+            let (sk_method, found_ivars) =
+                self.create_initialize(&mut ctx, &fullname, &sig.name, &body_exprs)?;
             self.method_dict.add_method(&fullname, sk_method);
             own_ivars = found_ivars;
         }
@@ -181,26 +193,33 @@ impl HirMaker {
 
         // Add `.new`
         if has_new(&fullname) {
-            self.method_dict.add_method(&meta_name, self.create_new(&fullname)?);
+            self.method_dict
+                .add_method(&meta_name, self.create_new(&fullname)?);
         }
 
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
-                ast::Definition::InstanceMethodDefinition { sig, body_exprs, .. } => {
-                    let method = self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
+                ast::Definition::InstanceMethodDefinition {
+                    sig, body_exprs, ..
+                } => {
+                    let method =
+                        self.convert_method_def(&ctx, &fullname, &sig.name, &body_exprs)?;
                     self.method_dict.add_method(&fullname, method);
-                },
-                ast::Definition::ClassMethodDefinition { sig, body_exprs, .. } => {
-                    let method = self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
+                }
+                ast::Definition::ClassMethodDefinition {
+                    sig, body_exprs, ..
+                } => {
+                    let method =
+                        self.convert_method_def(&ctx, &meta_name, &sig.name, &body_exprs)?;
                     self.method_dict.add_method(&meta_name, method);
-                },
+                }
                 ast::Definition::ConstDefinition { name, expr } => {
                     self.register_const(&mut ctx, name, expr)?;
-                },
+                }
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
                     self.collect_sk_methods(&full, defs)?;
-                },
+                }
             }
         }
         Ok(())
@@ -208,22 +227,28 @@ impl HirMaker {
 
     /// Create the `initialize` method
     /// Also, define ivars
-    fn create_initialize(&mut self,
-                         ctx: &mut HirMakerContext,
-                         class_fullname: &ClassFullname,
-                         name: &MethodFirstname,
-                         body_exprs: &[AstExpression]) -> Result<(SkMethod, SkIVars), Error> {
-        let super_ivars = self.class_dict.get_superclass(class_fullname)
+    fn create_initialize(
+        &mut self,
+        ctx: &mut HirMakerContext,
+        class_fullname: &ClassFullname,
+        name: &MethodFirstname,
+        body_exprs: &[AstExpression],
+    ) -> Result<(SkMethod, SkIVars), Error> {
+        let super_ivars = self
+            .class_dict
+            .get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
         self.convert_method_def_(ctx, class_fullname, name, body_exprs, true, super_ivars)
     }
 
     /// Define ivars of a class
     /// Also, define accessors
-    fn define_ivars(&mut self,
-                    clsname: &ClassFullname,
-                    own_ivars: SkIVars,
-                    defs: &[ast::Definition]) -> Result<(), Error> {
+    fn define_ivars(
+        &mut self,
+        clsname: &ClassFullname,
+        own_ivars: SkIVars,
+        defs: &[ast::Definition],
+    ) -> Result<(), Error> {
         self.class_dict.define_ivars(clsname, own_ivars.clone())?;
         self.define_accessors(clsname, own_ivars, defs);
         Ok(())
@@ -232,30 +257,42 @@ impl HirMaker {
     /// Create .new
     fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
         let class_fullname = class_fullname.clone();
-        let (initialize_name, initialize_params, init_cls_name) = self.find_initialize(&class_fullname.instance_ty())?;
+        let (initialize_name, initialize_params, init_cls_name) =
+            self.find_initialize(&class_fullname.instance_ty())?;
         let instance_ty = ty::raw(&class_fullname.0);
         let meta_name = class_fullname.meta_name();
         let need_bitcast = init_cls_name != class_fullname;
         let arity = initialize_params.len();
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-            // Allocate memory 
+            // Allocate memory
             let obj = code_gen.allocate_sk_obj(&class_fullname, "addr");
 
             // Call initialize
-            let initialize = code_gen.module.get_function(&initialize_name.full_name)
+            let initialize = code_gen
+                .module
+                .get_function(&initialize_name.full_name)
                 .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
             let mut addr = obj;
             if need_bitcast {
-                let ances_type = code_gen.llvm_struct_types.get(&init_cls_name)
+                let ances_type = code_gen
+                    .llvm_struct_types
+                    .get(&init_cls_name)
                     .expect("ances_type not found")
                     .ptr_type(inkwell::AddressSpace::Generic);
-                addr = code_gen.builder.build_bitcast(addr, ances_type, "obj_as_super");
+                addr = code_gen
+                    .builder
+                    .build_bitcast(addr, ances_type, "obj_as_super");
             }
-            let args = (0..=arity).map(|i| {
-                if i == 0 { addr }
-                else { function.get_params()[i] }
-            }).collect::<Vec<_>>();
+            let args = (0..=arity)
+                .map(|i| {
+                    if i == 0 {
+                        addr
+                    } else {
+                        function.get_params()[i]
+                    }
+                })
+                .collect::<Vec<_>>();
             code_gen.builder.build_call(initialize, &args, "");
 
             code_gen.builder.build_return(Some(&obj));
@@ -263,26 +300,38 @@ impl HirMaker {
         };
 
         Ok(SkMethod {
-            signature: hir::signature::signature_of_new(&meta_name, initialize_params.clone(), &instance_ty),
+            signature: hir::signature::signature_of_new(
+                &meta_name,
+                initialize_params.clone(),
+                &instance_ty,
+            ),
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
-            }
+            },
         })
     }
 
-    fn find_initialize(&self, class: &TermTy)
-                       -> Result<(MethodFullname, Vec<MethodParam>, ClassFullname), Error> {
-        let (sig, found_cls) =
-            self.class_dict.lookup_method(&class,
-                                          &method_firstname("initialize"))?;
-        Ok((names::method_fullname(&found_cls, "initialize"), sig.params, found_cls))
+    fn find_initialize(
+        &self,
+        class: &TermTy,
+    ) -> Result<(MethodFullname, Vec<MethodParam>, ClassFullname), Error> {
+        let (sig, found_cls) = self
+            .class_dict
+            .lookup_method(&class, &method_firstname("initialize"))?;
+        Ok((
+            names::method_fullname(&found_cls, "initialize"),
+            sig.params,
+            found_cls,
+        ))
     }
 
     /// Register a constant
-    pub (in super) fn register_const(&mut self,
-                      ctx: &mut HirMakerContext,
-                      name: &ConstFirstname,
-                      expr: &AstExpression) -> Result<ConstFullname, Error> {
+    pub(super) fn register_const(
+        &mut self,
+        ctx: &mut HirMakerContext,
+        name: &ConstFirstname,
+        expr: &AstExpression,
+    ) -> Result<ConstFullname, Error> {
         // TODO: resolve name using ctx
         let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
         let hir_expr = self.convert_expr(ctx, expr)?;
@@ -292,28 +341,38 @@ impl HirMaker {
         Ok(fullname)
     }
 
-    fn convert_method_def(&mut self,
-                          ctx: &HirMakerContext,
-                          class_fullname: &ClassFullname,
-                          name: &MethodFirstname,
-                          body_exprs: &[AstExpression]) -> Result<SkMethod, Error> {
+    fn convert_method_def(
+        &mut self,
+        ctx: &HirMakerContext,
+        class_fullname: &ClassFullname,
+        name: &MethodFirstname,
+        body_exprs: &[AstExpression],
+    ) -> Result<SkMethod, Error> {
         let (sk_method, _ivars) =
             self.convert_method_def_(ctx, class_fullname, name, body_exprs, false, None)?;
         Ok(sk_method)
     }
 
     /// Create a SkMethod and return it with ctx.iivars
-    fn convert_method_def_(&mut self,
-                          ctx: &HirMakerContext,
-                          class_fullname: &ClassFullname,
-                          name: &MethodFirstname,
-                          body_exprs: &[AstExpression],
-                          is_initializer: bool,
-                          super_ivars: Option<SkIVars>)
-                          -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
+    fn convert_method_def_(
+        &mut self,
+        ctx: &HirMakerContext,
+        class_fullname: &ClassFullname,
+        name: &MethodFirstname,
+        body_exprs: &[AstExpression],
+        is_initializer: bool,
+        super_ivars: Option<SkIVars>,
+    ) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by class_dict::new
-        let err = format!("[BUG] signature not found ({}/{}/{:?})", class_fullname, name, self.class_dict);
-        let signature = self.class_dict.find_method(class_fullname, name).expect(&err).clone();
+        let err = format!(
+            "[BUG] signature not found ({}/{}/{:?})",
+            class_fullname, name, self.class_dict
+        );
+        let signature = self
+            .class_dict
+            .find_method(class_fullname, name)
+            .expect(&err)
+            .clone();
 
         let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature, is_initializer);
         if let Some(x) = super_ivars {
@@ -329,7 +388,7 @@ impl HirMaker {
     }
 
     /// Generate unique variable name
-    pub (in super) fn gensym(&mut self) -> String {
+    pub(super) fn gensym(&mut self) -> String {
         self.gensym_ct += 1;
         // Start from space so that it won't collide with user vars
         format!(" tmp{}", self.gensym_ct)
@@ -341,7 +400,7 @@ fn has_new(fullname: &ClassFullname) -> bool {
     // TODO: maybe more?
     // At least these two must be excluded (otherwise wrong .ll is generated)
     if fullname.0 == "Int" || fullname.0 == "Float" {
-        return false
+        return false;
     }
     true
 }

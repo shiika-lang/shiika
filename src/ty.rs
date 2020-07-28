@@ -1,3 +1,4 @@
+use crate::hir::class_dict::ClassDict;
 /// Shiika types
 ///
 /// ```text
@@ -15,28 +16,29 @@
 ///
 use crate::names::*;
 use crate::ty;
-use crate::hir::class_dict::ClassDict;
 
 // Types for a term (types of Shiika values)
 #[derive(Debug, PartialEq, Clone)]
 pub struct TermTy {
     pub fullname: ClassFullname,
-    pub body: TyBody
+    pub body: TyBody,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyBody {
-    // Types corresponds to non-generic class 
+    // Types corresponds to non-generic class
     // eg. "Int", "String", "Object"
     TyRaw,
     // Types corresponds to (non-generic) metaclass
     // eg. "Meta:Int", "Meta:String", "Meta:Object"
-    TyMeta { base_fullname: String },
+    TyMeta {
+        base_fullname: String,
+    },
     // This object belongs to the class `Class` (i.e. this is a class object)
     TyClass,
     // Types for generic metaclass eg. `Meta:Pair<S, T>`
     TyGenMeta {
-        base_name: String, // eg. "Pair"
+        base_name: String,          // eg. "Pair"
         typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
     },
     // Types for specialized class eg. `Pair<Int, Bool>`
@@ -53,7 +55,7 @@ pub enum TyBody {
     TyParamRef {
         name: String,
         idx: usize,
-    }
+    },
 }
 
 use TyBody::*;
@@ -63,7 +65,7 @@ impl TermTy {
     pub fn is_void_type(&self) -> bool {
         match self.body {
             TyRaw => (self.fullname.0 == "Void"),
-            _ => false
+            _ => false,
         }
     }
 
@@ -78,7 +80,7 @@ impl TermTy {
 
     pub fn conforms_to(&self, other: &TermTy) -> bool {
         if let TyParamRef { .. } = other.body {
-            return self == &ty::raw("Object") // The upper bound
+            return self == &ty::raw("Object"); // The upper bound
         }
         // TODO: Should respect class hierarchy
         self.equals_to(other)
@@ -92,19 +94,15 @@ impl TermTy {
     /// Return the supertype of self
     pub fn supertype(&self, class_dict: &ClassDict) -> Option<TermTy> {
         match &self.body {
-            TyRaw => {
-                class_dict.get_superclass(&self.fullname).map(|scls| {
-                    ty::raw(&scls.fullname.0)
-                })
-            },
-            TyMeta { base_fullname} => {
+            TyRaw => class_dict
+                .get_superclass(&self.fullname)
+                .map(|scls| ty::raw(&scls.fullname.0)),
+            TyMeta { base_fullname } => {
                 match class_dict.get_superclass(&class_fullname(base_fullname)) {
-                    Some(scls) => {
-                        Some(ty::meta(&scls.fullname.0))
-                    },
-                    None => Some(ty::class())  // Meta:Object < Class
+                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
+                    None => Some(ty::class()), // Meta:Object < Class
                 }
-            },
+            }
             TyClass => Some(ty::raw("Object")),
             _ => panic!("TODO"),
         }
@@ -113,9 +111,7 @@ impl TermTy {
     /// Apply type argments into type parameters
     pub fn substitute(&self, type_args: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { idx, .. } => {
-                type_args[*idx].clone()
-            },
+            TyParamRef { idx, .. } => type_args[*idx].clone(),
             _ => self.clone(),
         }
     }
@@ -129,13 +125,18 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
-    TermTy { fullname: class_fullname(fullname), body: TyRaw }
+    TermTy {
+        fullname: class_fullname(fullname),
+        body: TyRaw,
+    }
 }
 
 pub fn meta(base_fullname: &str) -> TermTy {
     TermTy {
         fullname: metaclass_fullname(base_fullname),
-        body: TyMeta { base_fullname: base_fullname.to_string() },
+        body: TyMeta {
+            base_fullname: base_fullname.to_string(),
+        },
     }
 }
 
@@ -147,15 +148,16 @@ pub fn class() -> TermTy {
 }
 
 pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
-    let tyarg_names = type_args.iter().map(|x| {
-        x.fullname.0.to_string()
-    }).collect::<Vec<_>>();
+    let tyarg_names = type_args
+        .iter()
+        .map(|x| x.fullname.0.to_string())
+        .collect::<Vec<_>>();
     TermTy {
         fullname: class_fullname(&format!("{}<{}>", &base_name, &tyarg_names.join(","))),
         body: TySpe {
             base_name: base_name.to_string(),
-            type_args
-        }
+            type_args,
+        },
     }
 }
 
@@ -163,16 +165,12 @@ pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
         fullname: class_fullname(&s),
-        body: TyParamRef {
-            name: s,
-            idx
-        }
+        body: TyParamRef { name: s, idx },
     }
 }
 
-
 /// A type parameter
-/// In the future, may have something like +T/-T or in/out 
+/// In the future, may have something like +T/-T or in/out
 #[derive(Debug, PartialEq, Clone)]
 pub struct TyParam {
     pub name: String,
@@ -188,7 +186,10 @@ pub struct MethodSignature {
 impl MethodSignature {
     /// Return a param of the given name and its index
     pub fn find_param(&self, name: &str) -> Option<(usize, &MethodParam)> {
-        self.params.iter().enumerate().find(|(_, param)| param.name == name)
+        self.params
+            .iter()
+            .enumerate()
+            .find(|(_, param)| param.name == name)
     }
 
     pub fn first_name(&self) -> &MethodFirstname {
@@ -200,7 +201,11 @@ impl MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
             ret_ty: self.ret_ty.substitute(&type_args),
-            params: self.params.iter().map(|param| param.substitute(&type_args)).collect(),
+            params: self
+                .params
+                .iter()
+                .map(|param| param.substitute(&type_args))
+                .collect(),
         }
     }
 }

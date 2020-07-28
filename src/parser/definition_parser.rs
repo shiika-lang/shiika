@@ -1,6 +1,6 @@
-use super::Parser; // REFACTOR: use crate:: instead of super
-use super::base::*;
 use super::super::ast;
+use super::base::*;
+use super::Parser; // REFACTOR: use crate:: instead of super
 use crate::names::*;
 
 impl<'a> Parser<'a> {
@@ -23,7 +23,8 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_class_definition(&mut self) -> Result<ast::Definition, Error> {
-        self.debug_log("parse_class_definition"); self.lv += 1;
+        self.debug_log("parse_class_definition");
+        self.lv += 1;
         let name;
         let mut typarams = vec![];
         let defs;
@@ -37,8 +38,14 @@ impl<'a> Parser<'a> {
             Token::UpperWord(s) => {
                 name = class_firstname(s);
                 self.consume_token();
-            },
-            token => return Err(parse_error!(self, "class name must start with A-Z but got {:?}", token))
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "class name must start with A-Z but got {:?}",
+                    token
+                ))
+            }
         }
 
         // Type parameters (optional)
@@ -50,13 +57,19 @@ impl<'a> Parser<'a> {
                     Token::GreaterThan => {
                         self.consume_token();
                         break;
-                    },
+                    }
                     Token::UpperWord(s) => {
                         typarams.push(s.to_string());
                         self.consume_token();
                         self.skip_wsn();
-                    },
-                    token => return Err(parse_error!(self, "unexpected token `{:?}' in type parameter definition", token))
+                    }
+                    token => {
+                        return Err(parse_error!(
+                            self,
+                            "unexpected token `{:?}' in type parameter definition",
+                            token
+                        ))
+                    }
                 }
             }
         }
@@ -71,8 +84,14 @@ impl<'a> Parser<'a> {
                 Token::UpperWord(s) => {
                     super_name = class_fullname(s);
                     self.consume_token();
-                },
-                token => return Err(parse_error!(self, "superclass name must start with A-Z but got {:?}", token))
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "superclass name must start with A-Z but got {:?}",
+                        token
+                    ))
+                }
             }
         }
 
@@ -83,16 +102,31 @@ impl<'a> Parser<'a> {
 
         // `end'
         match self.current_token() {
-            Token::KwEnd => { self.consume_token(); },
-            token => return Err(parse_error!(self, "missing `end' for class {:?}; got {:?}", name, token))
+            Token::KwEnd => {
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for class {:?}; got {:?}",
+                    name,
+                    token
+                ))
+            }
         }
-        
+
         self.lv -= 1;
-        Ok(ast::Definition::ClassDefinition { name, typarams, super_name, defs })
+        Ok(ast::Definition::ClassDefinition {
+            name,
+            typarams,
+            super_name,
+            defs,
+        })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
-        self.debug_log("parse_method_definition"); self.lv += 1;
+        self.debug_log("parse_method_definition");
+        self.lv += 1;
         // `def'
         self.set_lexer_state(LexerState::MethodName);
         assert!(self.consume(Token::KwDef));
@@ -108,15 +142,23 @@ impl<'a> Parser<'a> {
         // `end'
         self.skip_wsn();
         match self.current_token() {
-            Token::KwEnd => { self.consume_token(); },
-            token => return Err(parse_error!(self, "missing `end' of method {:?}; got {:?}", sig.name, token))
+            Token::KwEnd => {
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' of method {:?}; got {:?}",
+                    sig.name,
+                    token
+                ))
+            }
         }
 
         self.lv -= 1;
         if is_class_method {
             Ok(ast::Definition::ClassMethodDefinition { sig, body_exprs })
-        }
-        else {
+        } else {
             Ok(ast::Definition::InstanceMethodDefinition { sig, body_exprs })
         }
     }
@@ -133,8 +175,7 @@ impl<'a> Parser<'a> {
                 is_class_method = true;
                 self.set_lexer_state(LexerState::MethodName);
                 self.consume_token();
-            }
-            else {
+            } else {
                 // Defining a method named `self` :thinking_face:
                 name = Some(method_firstname("self"));
             }
@@ -149,9 +190,11 @@ impl<'a> Parser<'a> {
 
         // Params (optional)
         match self.current_token() {
-            Token::LParen => { params = self.parse_params()? },
+            Token::LParen => params = self.parse_params()?,
             // Has no params
-            _ => { params = vec![]; },
+            _ => {
+                params = vec![];
+            }
         }
         self.skip_ws();
 
@@ -161,62 +204,87 @@ impl<'a> Parser<'a> {
                 self.consume_token();
                 self.skip_ws();
                 ret_typ = self.parse_ty()?;
-            },
+            }
             _ => {
-                ret_typ = ast::Typ { name: "Void".to_string() };
+                ret_typ = ast::Typ {
+                    name: "Void".to_string(),
+                };
                 self.skip_ws();
             }
         }
 
-        let sig = ast::AstMethodSignature { name: name.unwrap(), params, ret_typ };
+        let sig = ast::AstMethodSignature {
+            name: name.unwrap(),
+            params,
+            ret_typ,
+        };
         Ok((sig, is_class_method))
     }
 
     fn get_method_name(&mut self) -> Result<&str, Error> {
         let name = match self.current_token() {
-            Token::LowerWord(s) => { s },
-            Token::UPlusMethod => { "+@" },
-            Token::UMinusMethod => { "-@" },
-            Token::BinaryPlus => { "+" },
-            Token::BinaryMinus => { "-" },
-            Token::Mul => { "*" },
-            Token::Div => { "/" },
-            Token::Mod => { "%" },
-            Token::And => { "&" },
-            Token::Or => { "|" },
-            Token::Xor => { "^" },
-            Token::LShift => { "<<" },
-            Token::RShift => { ">>" },
-            Token::LessThan => { "<" },
-            Token::LessEq => { "<=" },
-            Token::GreaterThan => { ">" },
-            Token::GreaterEq => { ">=" },
-            Token::EqEq => { "==" },
-            Token::NotEq => { "!=" },
-            token => {
-                return Err(parse_error!(self, "invalid method name {:?}", token))
-            }
+            Token::LowerWord(s) => s,
+            Token::UPlusMethod => "+@",
+            Token::UMinusMethod => "-@",
+            Token::BinaryPlus => "+",
+            Token::BinaryMinus => "-",
+            Token::Mul => "*",
+            Token::Div => "/",
+            Token::Mod => "%",
+            Token::And => "&",
+            Token::Or => "|",
+            Token::Xor => "^",
+            Token::LShift => "<<",
+            Token::RShift => ">>",
+            Token::LessThan => "<",
+            Token::LessEq => "<=",
+            Token::GreaterThan => ">",
+            Token::GreaterEq => ">=",
+            Token::EqEq => "==",
+            Token::NotEq => "!=",
+            token => return Err(parse_error!(self, "invalid method name {:?}", token)),
         };
         Ok(name)
     }
 
     fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
-        let mut params = vec!();
+        let mut params = vec![];
 
         assert!(self.consume(Token::LParen));
 
         loop {
             // Param
             match self.current_token() {
-                Token::LowerWord(_) => { params.push(self.parse_param()?) },
-                Token::RParen       => { self.consume_token(); break },
-                token => return Err(parse_error!(self, "invalid token in method arguments: {:?}", token))
+                Token::LowerWord(_) => params.push(self.parse_param()?),
+                Token::RParen => {
+                    self.consume_token();
+                    break;
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "invalid token in method arguments: {:?}",
+                        token
+                    ))
+                }
             }
             self.skip_wsn();
             match self.current_token() {
-                Token::Comma => { self.consume_token(); self.skip_wsn(); },
-                Token::RParen => { self.consume_token(); break }
-                token => return Err(parse_error!(self, "invalid token in method arguments: {:?}", token))
+                Token::Comma => {
+                    self.consume_token();
+                    self.skip_wsn();
+                }
+                Token::RParen => {
+                    self.consume_token();
+                    break;
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "invalid token in method arguments: {:?}",
+                        token
+                    ))
+                }
             }
         }
         Ok(params)
@@ -227,8 +295,17 @@ impl<'a> Parser<'a> {
 
         // Name
         match self.current_token() {
-            Token::LowerWord(s) => { name = s.to_string(); self.consume_token(); },
-            token => return Err(parse_error!(self, "invalid token as method param: {:?}", token))
+            Token::LowerWord(s) => {
+                name = s.to_string();
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "invalid token as method param: {:?}",
+                    token
+                ))
+            }
         }
         self.skip_ws();
 
@@ -249,17 +326,16 @@ impl<'a> Parser<'a> {
                 Token::UpperWord(s) => {
                     name += s;
                     self.consume_token();
-                },
+                }
                 Token::ColonColon => {
                     name += "::";
                     self.consume_token();
                 }
                 token => {
                     if name.is_empty() {
-                        return Err(parse_error!(self, "invalid token as type: {:?}", token))
-                    }
-                    else {
-                        return Ok(ast::Typ{ name })
+                        return Err(parse_error!(self, "invalid token as type: {:?}", token));
+                    } else {
+                        return Ok(ast::Typ { name });
                     }
                 }
             }
@@ -267,12 +343,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
-        self.debug_log("parse_const_definition"); self.lv += 1;
+        self.debug_log("parse_const_definition");
+        self.lv += 1;
         let name;
         match self.current_token() {
             Token::UpperWord(s) => {
                 name = const_firstname(s);
-            },
+            }
             _ => panic!("must be called on an UpperWord"),
         }
         self.consume_token();

@@ -32,7 +32,7 @@ pub enum LexerState {
     /// Beginning of a (possible) first paren-less arg of a method call.
     /// `+`/`-` is unary, if with space before it and no space after it (`p -x`)
     ExprArg,
-    /// Expects a method name 
+    /// Expects a method name
     /// eg. `+@`, `-@` is allowed only in this state
     MethodName,
 }
@@ -64,8 +64,7 @@ impl Cursor {
         if let Some(c) = self.peek(src) {
             let pos = self.pos + c.len_utf8();
             src[pos..].chars().next()
-        }
-        else {
+        } else {
             panic!("peek2 must not be called on EOF")
         }
     }
@@ -76,8 +75,7 @@ impl Cursor {
         if c == '\n' {
             self.line += 1;
             self.col = 0
-        }
-        else {
+        } else {
             self.col += 1
         }
         self.pos += c.len_utf8();
@@ -92,10 +90,10 @@ enum CharType {
     Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
     LowerWord, // Keyword or identifier which starts with lower-case letter
-    IVar, // Instance variable (eg. "foo" for @foo)
-    Symbol, // '+', '(', etc.
-    Number, // '0'~'9'
-    Str, // '"'
+    IVar,      // Instance variable (eg. "foo" for @foo)
+    Symbol,    // '+', '(', etc.
+    Number,    // '0'~'9'
+    Str,       // '"'
     Eof,
 }
 
@@ -200,16 +198,19 @@ impl<'a> Lexer<'a> {
         let c = next_cur.peek(self.src);
         let mut next_next_cur = next_cur.clone();
         let (token, _) = match self.char_type(c) {
-            CharType::Space     => (self.read_space(&mut next_next_cur), None),
+            CharType::Space => (self.read_space(&mut next_next_cur), None),
             CharType::Separator => (self.read_separator(&mut next_next_cur), None),
-            CharType::Comment   => (self.read_comment(&mut next_next_cur), None),
-            CharType::UpperWord => (self.read_upper_word(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Comment => (self.read_comment(&mut next_next_cur), None),
+            CharType::UpperWord => (
+                self.read_upper_word(&mut next_next_cur, Some(&next_cur)),
+                None,
+            ),
             CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
-            CharType::IVar      => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Symbol    => self.read_symbol(&mut next_next_cur),
-            CharType::Number    => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Str       => (self.read_str(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Eof       => (self.read_eof(), None),
+            CharType::IVar => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Symbol => self.read_symbol(&mut next_next_cur),
+            CharType::Number => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Str => (self.read_str(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Eof => (self.read_eof(), None),
         };
         token
     }
@@ -219,16 +220,28 @@ impl<'a> Lexer<'a> {
         let c = self.cur.peek(self.src);
         let mut next_cur = self.cur.clone();
         let (token, new_state) = match self.char_type(c) {
-            CharType::Space     => (self.read_space(&mut next_cur),            None),
-            CharType::Separator => (self.read_separator(&mut next_cur),        None),
-            CharType::Comment   => (self.read_comment(&mut next_cur), None),
-            CharType::UpperWord => (self.read_upper_word(&mut next_cur, None), Some(LexerState::ExprEnd)),
+            CharType::Space => (self.read_space(&mut next_cur), None),
+            CharType::Separator => (self.read_separator(&mut next_cur), None),
+            CharType::Comment => (self.read_comment(&mut next_cur), None),
+            CharType::UpperWord => (
+                self.read_upper_word(&mut next_cur, None),
+                Some(LexerState::ExprEnd),
+            ),
             CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
-            CharType::IVar      => (self.read_ivar(&mut next_cur, None),       Some(LexerState::ExprEnd)),
-            CharType::Symbol    => self.read_symbol(&mut next_cur),
-            CharType::Number    => (self.read_number(&mut next_cur, None),     Some(LexerState::ExprEnd)),
-            CharType::Str       => (self.read_str(&mut next_cur, None),        Some(LexerState::ExprEnd)),
-            CharType::Eof       => (self.read_eof(),                           None),
+            CharType::IVar => (
+                self.read_ivar(&mut next_cur, None),
+                Some(LexerState::ExprEnd),
+            ),
+            CharType::Symbol => self.read_symbol(&mut next_cur),
+            CharType::Number => (
+                self.read_number(&mut next_cur, None),
+                Some(LexerState::ExprEnd),
+            ),
+            CharType::Str => (
+                self.read_str(&mut next_cur, None),
+                Some(LexerState::ExprEnd),
+            ),
+            CharType::Eof => (self.read_eof(), None),
         };
         self.set_current_token(token);
         if let Some(state) = new_state {
@@ -255,36 +268,50 @@ impl<'a> Lexer<'a> {
         next_cur.proceed(self.src); // Skip the `#'
         loop {
             let c = next_cur.proceed(self.src);
-            if c == '\n' { break }
+            if c == '\n' {
+                break;
+            }
         }
         Token::Separator
     }
 
     fn read_upper_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
-        while let CharType::UpperWord | CharType::LowerWord | CharType::Number = self.char_type(next_cur.peek(self.src)) {
+        while let CharType::UpperWord | CharType::LowerWord | CharType::Number =
+            self.char_type(next_cur.peek(self.src))
+        {
             next_cur.proceed(self.src);
         }
-        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        let begin = match cur {
+            Some(c) => c.pos,
+            None => self.cur.pos,
+        };
         Token::UpperWord(self.src[begin..next_cur.pos].to_string())
     }
 
-    fn read_lower_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> (Token, Option<LexerState>) {
+    fn read_lower_word(
+        &mut self,
+        next_cur: &mut Cursor,
+        cur: Option<&Cursor>,
+    ) -> (Token, Option<LexerState>) {
         loop {
             let c = next_cur.peek(self.src);
             match self.char_type(c) {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
                     next_cur.proceed(self.src);
-                },
+                }
                 CharType::Symbol if (c == Some('=')) => {
                     if self.state == LexerState::MethodName {
                         next_cur.proceed(self.src);
                     }
                     break;
-                },
-                _ => break
+                }
+                _ => break,
             }
         }
-        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        let begin = match cur {
+            Some(c) => c.pos,
+            None => self.cur.pos,
+        };
         let s = &self.src[begin..next_cur.pos];
         let (token, state) = match s {
             "class" => (Token::KwClass, LexerState::ExprBegin),
@@ -309,14 +336,19 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_ivar(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
-        next_cur.proceed(self.src);  // Skip '@'
-        // TODO: First character must not be a number
-        while let CharType::UpperWord | CharType::LowerWord | CharType::Number = self.char_type(next_cur.peek(self.src)) {
+        next_cur.proceed(self.src); // Skip '@'
+                                    // TODO: First character must not be a number
+        while let CharType::UpperWord | CharType::LowerWord | CharType::Number =
+            self.char_type(next_cur.peek(self.src))
+        {
             next_cur.proceed(self.src);
         }
         // TODO: LexError if no word succeeds '@'
-        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
-        let s = &self.src[(begin+1)..next_cur.pos];
+        let begin = match cur {
+            Some(c) => c.pos,
+            None => self.cur.pos,
+        };
+        let s = &self.src[(begin + 1)..next_cur.pos];
         Token::IVar(s.to_string())
     }
 
@@ -334,11 +366,9 @@ impl<'a> Lexer<'a> {
                 if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
                     (Token::UPlusMethod, LexerState::ExprBegin)
-                }
-                else if self.is_unary(c2) {
+                } else if self.is_unary(c2) {
                     (Token::UnaryPlus, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::BinaryPlus, LexerState::ExprBegin)
                 }
             }
@@ -346,18 +376,15 @@ impl<'a> Lexer<'a> {
                 if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
                     (Token::UMinusMethod, LexerState::ExprBegin)
-                }
-                else if c2 == Some('>') {
+                } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
                     (Token::RightArrow, LexerState::ExprBegin)
-                }
-                else if self.is_unary(c2) {
+                } else if self.is_unary(c2) {
                     (Token::UnaryMinus, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::BinaryMinus, LexerState::ExprBegin)
                 }
-            },
+            }
             '*' => (Token::Mul, LexerState::ExprBegin),
             '/' => (Token::Div, LexerState::ExprBegin),
             '%' => (Token::Mod, LexerState::ExprBegin),
@@ -365,46 +392,40 @@ impl<'a> Lexer<'a> {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::EqEq, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::Equal, LexerState::ExprBegin)
                 }
-            },
+            }
             '!' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::NotEq, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::Bang, LexerState::ExprBegin)
                 }
-            },
+            }
             '<' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::LessEq, LexerState::ExprBegin)
-                }
-                else if c2 == Some('<') {
+                } else if c2 == Some('<') {
                     next_cur.proceed(self.src);
                     (Token::LShift, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::LessThan, LexerState::ExprBegin)
                 }
-            },
+            }
             '>' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::GreaterEq, LexerState::ExprBegin)
-                }
-                else if c2 == Some('>') {
+                } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
                     (Token::RShift, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::GreaterThan, LexerState::ExprBegin)
                 }
-            },
+            }
             '.' => (Token::Dot, LexerState::ExprBegin),
             '@' => (Token::At, LexerState::ExprBegin),
             '~' => (Token::Tilde, LexerState::ExprBegin),
@@ -414,34 +435,31 @@ impl<'a> Lexer<'a> {
                 if c2 == Some(':') {
                     next_cur.proceed(self.src);
                     (Token::ColonColon, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::Colon, LexerState::ExprBegin)
                 }
-            },
+            }
             '&' => {
                 if c2 == Some('&') {
                     next_cur.proceed(self.src);
                     (Token::AndAnd, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::And, LexerState::ExprBegin)
                 }
-            },
+            }
             '|' => {
                 if c2 == Some('|') {
                     next_cur.proceed(self.src);
                     (Token::OrOr, LexerState::ExprBegin)
-                }
-                else {
+                } else {
                     (Token::Or, LexerState::ExprBegin)
                 }
-            },
+            }
             '^' => (Token::Xor, LexerState::ExprBegin),
             c => {
                 // TODO: this should be lexing error
                 panic!("unknown symbol: {}", c)
-            },
+            }
         };
         (token, Some(state))
     }
@@ -450,9 +468,7 @@ impl<'a> Lexer<'a> {
         match self.state {
             LexerState::ExprBegin => true,
             LexerState::ExprEnd => false,
-            LexerState::ExprArg => {
-                self.current_token == Token::Space && next_char != Some(' ')
-            },
+            LexerState::ExprArg => self.current_token == Token::Space && next_char != Some(' '),
             LexerState::MethodName => false,
         }
     }
@@ -462,29 +478,30 @@ impl<'a> Lexer<'a> {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Number => {
                     next_cur.proceed(self.src);
-                },
+                }
                 CharType::UpperWord | CharType::LowerWord => {
                     // TODO: this should be lexing error
                     panic!("need space after a number")
-                },
+                }
                 CharType::Symbol => {
                     if next_cur.peek(self.src) == Some('.') {
                         if self.char_type(next_cur.peek2(self.src)) == CharType::Number {
                             next_cur.proceed(self.src);
                             next_cur.proceed(self.src);
+                        } else {
+                            break;
                         }
-                        else {
-                            break
-                        }
-                    }
-                    else {
-                        break
+                    } else {
+                        break;
                     }
                 }
-                _ => break
+                _ => break,
             }
         }
-        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
+        let begin = match cur {
+            Some(c) => c.pos,
+            None => self.cur.pos,
+        };
         Token::Number(self.src[begin..next_cur.pos].to_string())
     }
 
@@ -495,18 +512,21 @@ impl<'a> Lexer<'a> {
                 None => {
                     // TODO: should be a LexError
                     panic!("found unterminated string");
-                },
-                Some('"') =>{
+                }
+                Some('"') => {
                     next_cur.proceed(self.src);
-                    break
-                },
+                    break;
+                }
                 _ => {
                     next_cur.proceed(self.src);
                 }
             }
         }
-        let begin = match cur { Some(c) => c.pos, None => self.cur.pos };
-        Token::Str(self.src[(begin+1)..(next_cur.pos-1)].to_string())
+        let begin = match cur {
+            Some(c) => c.pos,
+            None => self.cur.pos,
+        };
+        Token::Str(self.src[(begin + 1)..(next_cur.pos - 1)].to_string())
     }
 
     fn read_eof(&mut self) -> Token {
@@ -515,7 +535,7 @@ impl<'a> Lexer<'a> {
 
     fn char_type(&self, cc: Option<char>) -> CharType {
         if cc == None {
-            return CharType::Eof
+            return CharType::Eof;
         }
         match cc.unwrap() {
             ' ' | '\t' => CharType::Space,
@@ -524,9 +544,8 @@ impl<'a> Lexer<'a> {
             '"' => CharType::Str,
             '0'..='9' => CharType::Number,
             '@' => CharType::IVar,
-            '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' |
-            '+' | '-' | '*' | '/' | '%' | '=' | '!' | '^' |
-            '.' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
+            '(' | ')' | '[' | ']' | '<' | '>' | '{' | '}' | '+' | '-' | '*' | '/' | '%' | '='
+            | '!' | '^' | '.' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
             'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
         }

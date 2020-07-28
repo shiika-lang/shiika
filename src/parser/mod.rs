@@ -11,10 +11,10 @@ macro_rules! parse_error {
 }
 
 mod base;
-pub mod token;
-pub mod lexer;
 mod definition_parser;
 mod expression_parser;
+pub mod lexer;
+pub mod token;
 use crate::ast;
 use crate::error::Error;
 use crate::parser::lexer::Lexer;
@@ -56,7 +56,11 @@ impl<'a> Parser<'a> {
 
     pub fn expect_eof(&self) -> Result<(), Error> {
         if *self.current_token() != Token::Eof {
-            return Err(parse_error!(self, "unexpected token: {:?}", self.current_token()))
+            return Err(parse_error!(
+                self,
+                "unexpected token: {:?}",
+                self.current_token()
+            ));
         }
         Ok(())
     }
@@ -67,10 +71,10 @@ impl<'a> Parser<'a> {
             match self.current_token() {
                 Token::KwClass => {
                     items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
-                },
+                }
                 Token::KwDef => {
                     items.push(ast::TopLevelItem::Def(self.parse_method_definition()?));
-                },
+                }
                 Token::Eof | Token::KwEnd => break,
                 _ => {
                     items.push(ast::TopLevelItem::Expr(self.parse_expr()?));

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use crate::hir::*;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-use crate::hir::*;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct HirMakerContext {
@@ -25,7 +25,7 @@ pub struct HirMakerContext {
     /// Whether we are in an initializer
     pub is_initializer: bool,
     /// Number of inherited ivars. Only used when is_initializer is true
-    pub super_ivars: SkIVars,  // TODO: this can be just &'a SkIVars
+    pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 }
 
 impl HirMakerContext {
@@ -56,7 +56,11 @@ impl HirMakerContext {
     }
 
     /// Create a method context
-    pub fn method_ctx(class_ctx: &HirMakerContext, method_sig: &MethodSignature, is_initializer: bool) -> HirMakerContext {
+    pub fn method_ctx(
+        class_ctx: &HirMakerContext,
+        method_sig: &MethodSignature,
+        is_initializer: bool,
+    ) -> HirMakerContext {
         HirMakerContext {
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),

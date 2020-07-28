@@ -10,34 +10,34 @@ pub enum Token {
     Number(String),
     Str(String),
     // Symbols
-    LParen,       //  ( 
-    RParen,       //  ) 
-    LSqBracket,   //  [ 
-    RSqBracket,   //  ] 
-    LBrace,       //  { 
-    RBrace,       //  } 
+    LParen,       //  (
+    RParen,       //  )
+    LSqBracket,   //  [
+    RSqBracket,   //  ]
+    LBrace,       //  {
+    RBrace,       //  }
     UnaryPlus,    //  +a
     BinaryPlus,   //  a + b
     RightArrow,   //  ->
     UnaryMinus,   //  -a
     BinaryMinus,  //  a - b
-    Mul,          //  * 
-    Div,          //  / 
-    Mod,          //  % 
+    Mul,          //  *
+    Div,          //  /
+    Mod,          //  %
     EqEq,         //  ==
     NotEq,        //  !=
-    LessThan,     //  < 
-    GreaterThan,  //  > 
+    LessThan,     //  <
+    GreaterThan,  //  >
     LessEq,       //  <=
     GreaterEq,    //  >=
-    Equal,        //  = 
-    Bang,         //  ! 
-    Dot,          //  . 
-    At,           //  @ 
-    Tilde,        //  ~ 
-    Question,     //  ? 
-    Comma,        //  , 
-    Colon,        //  :      
+    Equal,        //  =
+    Bang,         //  !
+    Dot,          //  .
+    At,           //  @
+    Tilde,        //  ~
+    Question,     //  ?
+    Comma,        //  ,
+    Colon,        //  :
     ColonColon,   //  ::
     AndAnd,       //  &&
     OrOr,         //  ||
@@ -68,9 +68,15 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn upper_word(s: &str) -> Token { Token::UpperWord(s.to_string()) }
-    pub fn lower_word(s: &str) -> Token { Token::LowerWord(s.to_string()) }
-    pub fn number(s: &str) -> Token { Token::Number(s.to_string()) }
+    pub fn upper_word(s: &str) -> Token {
+        Token::UpperWord(s.to_string())
+    }
+    pub fn lower_word(s: &str) -> Token {
+        Token::LowerWord(s.to_string())
+    }
+    pub fn number(s: &str) -> Token {
+        Token::Number(s.to_string())
+    }
 
     /// Return true if a value may start with this token
     ///
@@ -87,42 +93,42 @@ impl Token {
             Token::Number(_) => true,
             Token::Str(_) => true,
             // Symbols
-            Token::LParen => true,        //  ( 
-            Token::RParen => false,       //  ) 
-            Token::LSqBracket => true,    //  [ 
-            Token::RSqBracket => false,   //  ] 
-            Token::LBrace => false,       //  { 
-            Token::RBrace => false,       //  } 
-            Token::UnaryPlus => true,     //  + 
-            Token::BinaryPlus => false,   //  + 
+            Token::LParen => true,        //  (
+            Token::RParen => false,       //  )
+            Token::LSqBracket => true,    //  [
+            Token::RSqBracket => false,   //  ]
+            Token::LBrace => false,       //  {
+            Token::RBrace => false,       //  }
+            Token::UnaryPlus => true,     //  +
+            Token::BinaryPlus => false,   //  +
             Token::RightArrow => false,   //  ->
             Token::UnaryMinus => true,    //  -
             Token::BinaryMinus => false,  //  -
-            Token::Mul => true,           //  * 
-            Token::Div => true,           //  / 
-            Token::Mod => false,          //  % 
+            Token::Mul => true,           //  *
+            Token::Div => true,           //  /
+            Token::Mod => false,          //  %
             Token::EqEq => false,         //  ==
             Token::NotEq => false,        //  !=
-            Token::LessThan => false,     //  < 
-            Token::GreaterThan => false,  //  > 
+            Token::LessThan => false,     //  <
+            Token::GreaterThan => false,  //  >
             Token::LessEq => false,       //  <=
             Token::GreaterEq => false,    //  >=
-            Token::Equal => false,        //  = 
-            Token::Bang => true,          //  ! 
-            Token::Dot => false,          //  . 
-            Token::At => true,            //  @ 
-            Token::Tilde => true,         //  ~ 
-            Token::Question => false,     //  ? 
-            Token::Comma => false,        //  , 
-            Token::Colon => true,         //  :      
+            Token::Equal => false,        //  =
+            Token::Bang => true,          //  !
+            Token::Dot => false,          //  .
+            Token::At => true,            //  @
+            Token::Tilde => true,         //  ~
+            Token::Question => false,     //  ?
+            Token::Comma => false,        //  ,
+            Token::Colon => true,         //  :
             Token::ColonColon => true,    //  ::
             Token::AndAnd => false,       //  &&
             Token::OrOr => false,         //  ||
-            Token::And => false,       //  &
-            Token::Or => false,        //  |
-            Token::Xor => false,       //  ^
-            Token::LShift => false,    //  <<
-            Token::RShift => false,    //  >>
+            Token::And => false,          //  &
+            Token::Or => false,           //  |
+            Token::Xor => false,          //  ^
+            Token::LShift => false,       //  <<
+            Token::RShift => false,       //  >>
             Token::UPlusMethod => false,  //  +@
             Token::UMinusMethod => false, //  -@
             // Keywords

@@ -1,18 +1,18 @@
 mod accessors;
+pub mod class_dict;
+mod convert_exprs;
 mod hir_maker;
 mod hir_maker_context;
-pub mod class_dict;
 mod method_dict;
-mod sk_class;
 pub mod signature;
-mod convert_exprs;
-use std::collections::HashMap;
+mod sk_class;
 use crate::ast;
+use crate::corelib::Corelib;
+use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-use crate::names::*;
-use crate::corelib::Corelib;
 pub use sk_class::SkClass;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Hir {
@@ -34,7 +34,7 @@ impl Hir {
             match self.sk_methods.get_mut(&classname) {
                 Some(methods) => {
                     methods.append(&mut new_methods);
-                },
+                }
                 None => {
                     self.sk_methods.insert(classname, new_methods);
                 }
@@ -46,7 +46,7 @@ impl Hir {
 #[derive(Debug, PartialEq, Clone)]
 pub struct SkIVar {
     pub idx: usize,
-    pub name: String,  // Without `@`
+    pub name: String, // Without `@`
     pub ty: TermTy,
     pub readonly: bool,
 }
@@ -60,15 +60,9 @@ pub struct SkMethod {
 }
 
 pub enum SkMethodBody {
-    ShiikaMethodBody {
-        exprs: HirExpressions
-    },
-    RustMethodBody {
-        gen: GenMethodBody
-    },
-    RustClosureMethodBody {
-        boxed_gen: Box<ClosureMethodBody>
-    }
+    ShiikaMethodBody { exprs: HirExpressions },
+    RustMethodBody { gen: GenMethodBody },
+    RustClosureMethodBody { boxed_gen: Box<ClosureMethodBody> },
 }
 // Manually deriving because GenMethodBody is a function (auto-deriving seems unsupported)
 impl std::fmt::Debug for SkMethodBody {
@@ -79,12 +73,10 @@ impl std::fmt::Debug for SkMethodBody {
 impl std::cmp::PartialEq for SkMethodBody {
     fn eq(&self, other: &SkMethodBody) -> bool {
         match self {
-            SkMethodBody::ShiikaMethodBody { exprs } => {
-                match other {
-                    SkMethodBody::ShiikaMethodBody { exprs: exprs2 } => return exprs == exprs2,
-                    SkMethodBody::RustMethodBody { .. } => (),
-                    SkMethodBody::RustClosureMethodBody { .. } => (),
-                }
+            SkMethodBody::ShiikaMethodBody { exprs } => match other {
+                SkMethodBody::ShiikaMethodBody { exprs: exprs2 } => return exprs == exprs2,
+                SkMethodBody::RustMethodBody { .. } => (),
+                SkMethodBody::RustClosureMethodBody { .. } => (),
             },
             SkMethodBody::RustMethodBody { .. } => (),
             SkMethodBody::RustClosureMethodBody { .. } => (),
@@ -93,8 +85,14 @@ impl std::cmp::PartialEq for SkMethodBody {
     }
 }
 
-pub type GenMethodBody = fn(code_gen: &crate::code_gen::CodeGen, function: &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
-pub type ClosureMethodBody = dyn Fn(&crate::code_gen::CodeGen, &inkwell::values::FunctionValue) -> Result<(), crate::error::Error>;
+pub type GenMethodBody = fn(
+    code_gen: &crate::code_gen::CodeGen,
+    function: &inkwell::values::FunctionValue,
+) -> Result<(), crate::error::Error>;
+pub type ClosureMethodBody = dyn Fn(
+    &crate::code_gen::CodeGen,
+    &inkwell::values::FunctionValue,
+) -> Result<(), crate::error::Error>;
 
 #[derive(Debug, PartialEq)]
 pub struct HirExpressions {
@@ -214,61 +212,60 @@ impl Hir {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalNot {
                 expr: Box::new(expr_hir),
-            }
+            },
         }
     }
 
-    pub fn logical_and(left_hir: HirExpression,
-                       right_hir: HirExpression) -> HirExpression {
+    pub fn logical_and(left_hir: HirExpression, right_hir: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalAnd {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
-            }
+            },
         }
     }
 
-    pub fn logical_or(left_hir: HirExpression,
-                      right_hir: HirExpression) -> HirExpression {
+    pub fn logical_or(left_hir: HirExpression, right_hir: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalOr {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
-            }
+            },
         }
     }
 
-    pub fn if_expression(ty: TermTy,
-                         cond_hir: HirExpression,
-                         then_hir: HirExpressions,
-                         else_hir: Option<HirExpressions>) -> HirExpression {
+    pub fn if_expression(
+        ty: TermTy,
+        cond_hir: HirExpression,
+        then_hir: HirExpressions,
+        else_hir: Option<HirExpressions>,
+    ) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirIfExpression {
                 cond_expr: Box::new(cond_hir),
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
-            }
+            },
         }
     }
 
-    pub fn while_expression(cond_hir: HirExpression,
-                            body_hirs: HirExpressions) -> HirExpression {
+    pub fn while_expression(cond_hir: HirExpression, body_hirs: HirExpressions) -> HirExpression {
         HirExpression {
             ty: ty::raw("Void"),
             node: HirExpressionBase::HirWhileExpression {
                 cond_expr: Box::new(cond_hir),
                 body_exprs: Box::new(body_hirs),
-            }
+            },
         }
     }
 
     pub fn break_expression() -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
-            node: HirExpressionBase::HirBreakExpression {}
+            node: HirExpressionBase::HirBreakExpression {},
         }
     }
 
@@ -278,11 +275,16 @@ impl Hir {
             node: HirExpressionBase::HirLVarAssign {
                 name: name.to_string(),
                 rhs: Box::new(rhs),
-            }
+            },
         }
     }
 
-    pub fn assign_ivar(name: &str, idx: usize, rhs: HirExpression, writable: bool) -> HirExpression {
+    pub fn assign_ivar(
+        name: &str,
+        idx: usize,
+        rhs: HirExpression,
+        writable: bool,
+    ) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirIVarAssign {
@@ -290,7 +292,7 @@ impl Hir {
                 idx,
                 rhs: Box::new(rhs),
                 writable,
-            }
+            },
         }
     }
 
@@ -300,18 +302,23 @@ impl Hir {
             node: HirExpressionBase::HirConstAssign {
                 fullname,
                 rhs: Box::new(rhs),
-            }
+            },
         }
     }
 
-    pub fn method_call(result_ty: TermTy, receiver_hir: HirExpression, method_fullname: MethodFullname, arg_hirs: Vec<HirExpression>) -> HirExpression {
+    pub fn method_call(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        method_fullname: MethodFullname,
+        arg_hirs: Vec<HirExpression>,
+    ) -> HirExpression {
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
                 receiver_expr: Box::new(receiver_hir),
                 method_fullname,
                 arg_exprs: arg_hirs,
-            }
+            },
         }
     }
 
@@ -354,49 +361,56 @@ impl Hir {
     pub fn array_literal(exprs: Vec<HirExpression>, ty: TermTy) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirArrayLiteral { exprs: HirExpressions::new(exprs) }
+            node: HirExpressionBase::HirArrayLiteral {
+                exprs: HirExpressions::new(exprs),
+            },
         }
     }
-    
+
     pub fn float_literal(value: f64) -> HirExpression {
         HirExpression {
             ty: ty::raw("Float"),
-            node: HirExpressionBase::HirFloatLiteral { value }
+            node: HirExpressionBase::HirFloatLiteral { value },
         }
     }
-    
+
     pub fn decimal_literal(value: i32) -> HirExpression {
         HirExpression {
             ty: ty::raw("Int"),
-            node: HirExpressionBase::HirDecimalLiteral { value }
+            node: HirExpressionBase::HirDecimalLiteral { value },
         }
     }
-    
+
     pub fn string_literal(idx: usize) -> HirExpression {
         HirExpression {
             ty: ty::raw("String"),
-            node: HirExpressionBase::HirStringLiteral { idx }
+            node: HirExpressionBase::HirStringLiteral { idx },
         }
     }
 
     pub fn boolean_literal(value: bool) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
-            node: HirExpressionBase::HirBooleanLiteral { value }
+            node: HirExpressionBase::HirBooleanLiteral { value },
         }
     }
 
     pub fn bit_cast(ty: TermTy, expr: HirExpression) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirBitCast { expr: Box::new(expr) }
+            node: HirExpressionBase::HirBitCast {
+                expr: Box::new(expr),
+            },
         }
     }
 
     pub fn class_literal(fullname: ClassFullname, str_literal_idx: usize) -> HirExpression {
         HirExpression {
             ty: ty::meta(&fullname.0),
-            node: HirExpressionBase::HirClassLiteral { fullname, str_literal_idx }
+            node: HirExpressionBase::HirClassLiteral {
+                fullname,
+                str_literal_idx,
+            },
         }
     }
 }

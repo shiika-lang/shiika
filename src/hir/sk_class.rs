@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use crate::ty::*;
 use crate::names::*;
+use crate::ty::*;
+use std::collections::HashMap;
 
 /// A Shiika class, possibly generic
 #[derive(Debug, PartialEq, Clone)]

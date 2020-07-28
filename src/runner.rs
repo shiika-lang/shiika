@@ -1,15 +1,20 @@
+use crate::error::*;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use crate::error::*;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Box<dyn std::error::Error>> {
-    let path = filepath.as_ref().to_str().expect("failed to unwrap filepath").to_string();
+    let path = filepath
+        .as_ref()
+        .to_str()
+        .expect("failed to unwrap filepath")
+        .to_string();
     let builtin = load_builtin()?;
-    let str = builtin + &fs::read_to_string(filepath)
-        .map_err(|e| runner_error(format!("{} is not utf8", path), e))?;
+    let str = builtin
+        + &fs::read_to_string(filepath)
+            .map_err(|e| runner_error(format!("{} is not utf8", path), e))?;
     let ast = crate::parser::Parser::parse(&str)?;
     let corelib = crate::corelib::Corelib::create();
     let hir = crate::hir::build(ast, corelib)?;
@@ -19,11 +24,11 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Box<dyn std::error::Er
 
 fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
-    let dir = fs::read_dir("builtin")
-        .map_err(|e| runner_error("./builtin not found", e))?;
+    let dir = fs::read_dir("builtin").map_err(|e| runner_error("./builtin not found", e))?;
     for item in dir {
         let pathbuf = item?.path();
-        let path = pathbuf.to_str()
+        let path = pathbuf
+            .to_str()
             .ok_or(plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
             s += &fs::read_to_string(path)
@@ -40,7 +45,9 @@ pub fn run<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Error>>
 }
 
 /// Execute compiled .ll and return the outputs
-pub fn run_and_capture<P: AsRef<Path>>(sk_path: P) -> Result<(String, String), Box<dyn std::error::Error>> {
+pub fn run_and_capture<P: AsRef<Path>>(
+    sk_path: P,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
     run_(sk_path, true)
 }
 
@@ -55,25 +62,26 @@ fn run_<P: AsRef<Path>>(
     let asm_path = s.to_string() + ".s";
     let out_path = s.to_string() + ".out";
 
-//    let mut cmd = Command::new("opt");
-//    cmd.arg("-O3");
-//    cmd.arg(ll_path);
-//    cmd.arg("-o");
-//    cmd.arg(bc_path.clone());
-//    let output = cmd.output()?;
-//    if !output.stderr.is_empty() {
-//        println!("{}", String::from_utf8(output.stderr)?);
-//    }
-//
-//    let mut cmd = Command::new("llvm-dis");
-//    cmd.arg(bc_path.clone());
-//    cmd.arg("-o");
-//    cmd.arg(opt_ll_path);
-//    cmd.output()?;
+    //    let mut cmd = Command::new("opt");
+    //    cmd.arg("-O3");
+    //    cmd.arg(ll_path);
+    //    cmd.arg("-o");
+    //    cmd.arg(bc_path.clone());
+    //    let output = cmd.output()?;
+    //    if !output.stderr.is_empty() {
+    //        println!("{}", String::from_utf8(output.stderr)?);
+    //    }
+    //
+    //    let mut cmd = Command::new("llvm-dis");
+    //    cmd.arg(bc_path.clone());
+    //    cmd.arg("-o");
+    //    cmd.arg(opt_ll_path);
+    //    cmd.output()?;
 
     let mut cmd = Command::new(env::var("LLC").unwrap_or("llc".to_string()));
     cmd.arg(ll_path.clone());
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .map_err(|e| runner_error("failed to run llc", e))?;
     if !output.stderr.is_empty() {
         let s = String::from_utf8(output.stderr)
@@ -95,18 +103,17 @@ fn run_<P: AsRef<Path>>(
         .map_err(|e| runner_error("failed to run clang", e))?;
 
     //fs::remove_file(bc_path)?;
-    fs::remove_file(asm_path)
-        .map_err(|e| runner_error("failed to remove .s", e))?;
+    fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", e))?;
 
     let mut cmd = Command::new(out_path);
     if capture_out {
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| runner_error("failed to execute process", e))?;
         let stdout = String::from_utf8(output.stdout).expect("invalid utf8 in stdout");
         let stderr = String::from_utf8(output.stderr).expect("invalid utf8 in stderr");
         Ok((stdout, stderr))
-    }
-    else {
+    } else {
         cmd.status()?;
         Ok(("".to_string(), "".to_string()))
     }
@@ -123,7 +130,10 @@ pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Err
 }
 
 fn add_args_from_env(cmd: &mut Command, key: &str) {
-    for arg in env::var(key).unwrap_or("".to_string()).split_ascii_whitespace() {
+    for arg in env::var(key)
+        .unwrap_or("".to_string())
+        .split_ascii_whitespace()
+    {
         cmd.arg(arg);
     }
 }
