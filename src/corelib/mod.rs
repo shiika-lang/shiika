@@ -56,6 +56,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ("Never", never::create_methods(), vec![], HashMap::new()),
         ("String", string::create_methods(), vec![], string::ivars()),
         ("Class", vec![], vec![], HashMap::new()),
+        ( "Fn1", lambda::create_methods_1(), vec![], lambda::ivars_1()),
         (
             "Shiika::Internal::Ptr",
             shiika_internal_ptr::create_methods(),
