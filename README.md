@@ -1,6 +1,19 @@
-# Shiika
+# Shiika is ...
 
-A statically-typed programming language.
+a statically-typed programming language.
+
+It looks like Ruby, but has explicit type annotation.
+Aims to be Kotlin or Swift in Rubyish style.
+
+The name "Shiika" comes from Japanese word "詩歌"(poetry).
+It should be pleasant to read Shiika programs, not only to write them.
+
+## Key features
+
+- Ruby-like syntax
+- Compiles to LLVM IR
+- Static type checking
+- Consistency: everything is object
 
 ## Example
 
@@ -15,18 +28,20 @@ A statically-typed programming language.
         end
         A.new.fib(34)
 
+See `examples/*.sk` for more.
+
 ## Status
 
 Early-alpha
 
-### Implementation (Rust, src/*)
+### Implementation
 
 - [x] Implement class method (eg. `Math.pow`)
 - [x] Implement .new
 - [x] Local variables
+- [x] String
+- [x] Array
 - [ ] `break`
-- [ ] String
-- [ ] Array
 - [ ] Instance variables
 - [ ] Blocks
 - Constant
@@ -34,37 +49,10 @@ Early-alpha
   - [ ] Namespaced (eg. `A::FOO`)
 - [ ] Modules
 - [ ] Enums
+- [ ] Lambda
 - ...
 
-#### TODO
-
-- lambda/function(block)
-- Module (like Ruby's `Module`)
-- Enum
-- Constants
-- Check all ivars will be initialized (like Swift)
-- ...
-
-### Type system (Prototype in Ruby, lib/*)
-
-- [x] Class method, instance method
-- [x] Basic generics
-- [x] Variable-length arguments
-- [x] Array literal
-- [x] Inheritance
-
-#### Example
-
-        class Pair<S, T>
-          def initialize(@a: S, @b: T)
-          end
-
-          def fst -> S; @a; end
-          def snd -> T; @b; end
-        end
-        Pair<Int, Bool>.new(1, true).fst
-
-## Development
+## Hacking
 
 ### Prerequisits
 
@@ -89,7 +77,7 @@ $ rake test
 ### How to run a Shiika program
 
 ```
-$ ./build/debug/shiika run examples/fib.sk
+$ ./build/debug/shiika run examples/hello.sk
 ```
 
 ## License
