@@ -371,7 +371,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
         Ok(())
     }
-}
+
+    fn build_ivar_load<'a>(
+        &'a self,
+        object: &'a inkwell::values::BasicValueEnum<'a>,
+        idx: &usize
+    ) -> inkwell::values::BasicValueEnum<'a> {
+        let ptr = self
+            .builder
+            .build_struct_gep(
+                object.into_pointer_value(),
+                *idx as u32,
+                &format!("addr_ivar_{}", idx),
+            )
+            .unwrap();
+        self.builder.build_load(ptr, &format!("ivar_{}", idx))
+    }
+ }
 
 // Question: is there a better way to do this?
 fn inkwell_set_name(val: BasicValueEnum, name: &str) {

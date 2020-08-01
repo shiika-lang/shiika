@@ -363,16 +363,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         name: &str,
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let theself = self.gen_self_expression(ctx)?;
-        let ptr = self
-            .builder
-            .build_struct_gep(
-                theself.into_pointer_value(),
-                *idx as u32,
-                &format!("addr_{}", name),
-            )
-            .unwrap();
-        Ok(self.builder.build_load(ptr, name))
+        let object = self.gen_self_expression(ctx)?;
+        Ok(self.build_ivar_load(&object, idx))
     }
 
     fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum {
