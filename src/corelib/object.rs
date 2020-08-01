@@ -13,7 +13,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             "putchar(ord: Int) -> Void",
             |code_gen, function| {
                 let sk_int = function.get_params()[1];
-                let n = code_gen.unbox_int(&sk_int);
+                let n = code_gen.unbox_int(sk_int);
                 let func = code_gen.module.get_function("putchar").unwrap();
                 code_gen
                     .builder
@@ -24,7 +24,7 @@ pub fn create_methods() -> Vec<SkMethod> {
         ),
         create_method("Object", "putd(n: Int) -> Void", |code_gen, function| {
             let sk_int = function.get_params()[1];
-            let n = code_gen.unbox_int(&sk_int);
+            let n = code_gen.unbox_int(sk_int);
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module
@@ -45,7 +45,7 @@ pub fn create_methods() -> Vec<SkMethod> {
         }),
         create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
             let arg = function.get_params()[1];
-            let n = code_gen.unbox_float(&arg);
+            let n = code_gen.unbox_float(arg);
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module

@@ -9,7 +9,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr",
             |code_gen, function| {
                 let sk_int = function.get_params()[1];
-                let n_bytes = code_gen.unbox_int(&sk_int);
+                let n_bytes = code_gen.unbox_int(sk_int);
                 let n_bytes_64 =
                     code_gen
                         .builder
@@ -31,7 +31,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let ptr = function.get_params()[1];
                 let sk_int = function.get_params()[2];
-                let n_bytes = code_gen.unbox_int(&sk_int);
+                let n_bytes = code_gen.unbox_int(sk_int);
                 let n_bytes_64 =
                     code_gen
                         .builder
@@ -58,7 +58,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                 let dst = function.get_params()[1];
                 let src = function.get_params()[2];
                 let sk_int = function.get_params()[3];
-                let n_bytes = code_gen.unbox_int(&sk_int);
+                let n_bytes = code_gen.unbox_int(sk_int);
                 let n_bytes_64 =
                     code_gen
                         .builder

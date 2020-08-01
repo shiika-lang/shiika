@@ -10,9 +10,9 @@ def create_bin_method(sig, body)
     <<-EOD
     create_method("Float", "#{sig}", |code_gen, function| {
         let this = function.get_params()[0];
-        let val1 = code_gen.unbox_float(&this);
+        let val1 = code_gen.unbox_float(this);
         let that = function.get_params()[1];
-        let val2 = code_gen.unbox_float(&that);
+        let val2 = code_gen.unbox_float(that);
         let result = #{body};
         #{
             case ret_type
@@ -85,7 +85,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Float", "abs -> Float", |code_gen, function| {
         let this = function.get_params()[0];
-        let x = code_gen.unbox_float(&this);
+        let x = code_gen.unbox_float(this);
         let func = code_gen.module.get_function("fabs").unwrap();
         let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
         let sk_result = code_gen.box_float(&result.into_float_value());
@@ -95,7 +95,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Float", "floor -> Float", |code_gen, function| {
         let this = function.get_params()[0];
-        let x = code_gen.unbox_float(&this);
+        let x = code_gen.unbox_float(this);
         let func = code_gen.module.get_function("floor").unwrap();
         let result = code_gen.builder.build_call(func, &[x.into()], "result").try_as_basic_value().left().unwrap();
         let sk_result = code_gen.box_float(&result.into_float_value());
@@ -105,7 +105,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Float", "to_i() -> Int", |code_gen, function| {
         let this = function.get_params()[0];
-        let float = code_gen.unbox_float(&this);
+        let float = code_gen.unbox_float(this);
         let int = code_gen.builder.build_float_to_signed_int(float, code_gen.i32_type, "int");
         let sk_int = code_gen.box_int(&int);
         code_gen.builder.build_return(Some(&sk_int));
@@ -114,7 +114,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Float", "-@ -> Float", |code_gen, function| {
         let this = function.get_params()[0];
-        let float = code_gen.unbox_float(&this);
+        let float = code_gen.unbox_float(this);
         let zero = code_gen.f64_type.const_float(0.0);
         let result = code_gen.builder.build_float_sub(zero, float, "result");
         let sk_result = code_gen.box_float(&result);
