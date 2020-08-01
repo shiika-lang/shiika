@@ -54,11 +54,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_int: &'a inkwell::values::BasicValueEnum,
     ) -> inkwell::values::IntValue {
-        let ptr = self
-            .builder
-            .build_struct_gep(sk_int.into_pointer_value(), 0, &"int_content")
-            .unwrap();
-        self.builder.build_load(ptr, "int_value").into_int_value()
+        self.build_ivar_load(sk_int, &0).into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
@@ -80,12 +76,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_float: &'a inkwell::values::BasicValueEnum,
     ) -> inkwell::values::FloatValue {
-        let ptr = self
-            .builder
-            .build_struct_gep(sk_float.into_pointer_value(), 0, &"float_content")
-            .unwrap();
-        self.builder
-            .build_load(ptr, "float_value")
-            .into_float_value()
+        self.build_ivar_load(sk_float, &0).into_float_value()
     }
 }

@@ -372,7 +372,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
-    fn build_ivar_load<'a>(
+    pub fn build_ivar_load<'a>(
         &'a self,
         object: &'a inkwell::values::BasicValueEnum<'a>,
         idx: &usize
