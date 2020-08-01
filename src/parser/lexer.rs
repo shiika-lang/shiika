@@ -327,6 +327,7 @@ impl<'a> Lexer<'a> {
             "break" => (Token::KwBreak, LexerState::ExprEnd),
             "then" => (Token::KwThen, LexerState::ExprBegin),
             "else" => (Token::KwElse, LexerState::ExprBegin),
+            "fn" => (Token::KwFn, LexerState::ExprBegin),
             "self" => (Token::KwSelf, LexerState::ExprEnd),
             "true" => (Token::KwTrue, LexerState::ExprEnd),
             "false" => (Token::KwFalse, LexerState::ExprEnd),

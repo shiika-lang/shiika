@@ -594,6 +594,9 @@ impl<'a> Parser<'a> {
                 let name = s.to_string();
                 self.parse_const_ref(name)
             }
+            Token::KwFn => {
+                self.parse_lambda()
+            }
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
                 self.consume_token();
@@ -651,6 +654,21 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(ast::const_ref(names))
+    }
+
+    fn parse_lambda(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_lambda");
+        assert!(self.consume(Token::KwFn));
+        self.expect(Token::LParen)?;
+        let params = self.parse_params()?;
+        self.skip_ws();
+        self.expect(Token::LBrace)?;
+        self.consume_token();
+        let exprs = self.parse_exprs(vec![Token::RBrace])?;
+        assert!(self.consume(Token::RBrace));
+        self.lv -= 1;
+        Ok(ast::lambda_expr(params, exprs))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
