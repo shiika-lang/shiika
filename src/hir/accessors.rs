@@ -49,7 +49,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let idx = ivar.idx;
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
         let this = function.get_params()[0];
-        let val = code_gen.build_ivar_load(&this, &idx);
+        let val = code_gen.build_ivar_load(&this, idx);
         code_gen.builder.build_return(Some(&val));
         Ok(())
     };

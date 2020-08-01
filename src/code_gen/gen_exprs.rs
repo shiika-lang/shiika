@@ -360,7 +360,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let object = self.gen_self_expression(ctx)?;
-        Ok(self.build_ivar_load(&object, idx))
+        Ok(self.build_ivar_load(&object, *idx))
     }
 
     fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum {

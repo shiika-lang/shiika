@@ -375,13 +375,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn build_ivar_load<'a>(
         &'a self,
         object: &'a inkwell::values::BasicValueEnum<'a>,
-        idx: &usize
+        idx: usize
     ) -> inkwell::values::BasicValueEnum<'a> {
         let ptr = self
             .builder
             .build_struct_gep(
                 object.into_pointer_value(),
-                *idx as u32,
+                idx as u32,
                 &format!("addr_ivar_{}", idx),
             )
             .unwrap();
