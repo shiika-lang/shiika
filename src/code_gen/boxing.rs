@@ -41,7 +41,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Convert LLVM int into Shiika Int
     pub fn box_int(&self, int: &inkwell::values::IntValue) -> inkwell::values::BasicValueEnum {
         let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "int");
-        self.build_ivar_store(&sk_int, 0, int.as_basic_value_enum());
+        self.build_ivar_store(&sk_int, 0, int.as_basic_value_enum(), "int");
         sk_int
     }
 
@@ -50,7 +50,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_int: &'a inkwell::values::BasicValueEnum,
     ) -> inkwell::values::IntValue {
-        self.build_ivar_load(sk_int, 0).into_int_value()
+        self.build_ivar_load(sk_int, 0, "int").into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
@@ -59,7 +59,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         float: &inkwell::values::FloatValue,
     ) -> inkwell::values::BasicValueEnum {
         let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "float");
-        self.build_ivar_store(&sk_float, 0, float.as_basic_value_enum());
+        self.build_ivar_store(&sk_float, 0, float.as_basic_value_enum(), "float");
         sk_float
     }
 
@@ -68,6 +68,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_float: &'a inkwell::values::BasicValueEnum,
     ) -> inkwell::values::FloatValue {
-        self.build_ivar_load(sk_float, 0).into_float_value()
+        self.build_ivar_load(sk_float, 0, "float").into_float_value()
     }
 }

@@ -273,7 +273,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let theself = self.gen_self_expression(ctx)?;
         let value = self.gen_expr(ctx, rhs)?;
-        self.build_ivar_store(&theself, *idx, value);
+        self.build_ivar_store(&theself, *idx, value, name);
         Ok(value)
     }
 
@@ -360,7 +360,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let object = self.gen_self_expression(ctx)?;
-        Ok(self.build_ivar_load(&object, *idx))
+        Ok(self.build_ivar_load(&object, *idx, name))
     }
 
     fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum {
@@ -415,14 +415,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
         let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
-        self.build_ivar_store(&sk_str, 0, glob_i8);
+        self.build_ivar_store(&sk_str, 0, glob_i8, "@ptr");
 
         // Store bytesize
         let bytesize = self
             .i32_type
             .const_int(self.str_literals[*idx].len() as u64, false);
         let sk_int = self.box_int(&bytesize);
-        self.build_ivar_store(&sk_str, 1, sk_int);
+        self.build_ivar_store(&sk_str, 1, sk_int, "@bytesize");
 
         sk_str
     }
@@ -468,7 +468,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(), &format!("class_{}", fullname.0));
         // Set @name
-        self.build_ivar_store(&cls_obj, 0, self.gen_string_literal(str_literal_idx));
+        self.build_ivar_store(&cls_obj, 0, self.gen_string_literal(str_literal_idx), "@name");
 
         cls_obj
     }
