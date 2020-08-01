@@ -7,13 +7,13 @@ pub fn create_methods_1() -> Vec<SkMethod> {
     vec![
         create_method_generic(
             "Fn1",
-            "call(arg1: T) -> T",
+            "call(arg1: A) -> Z",
             |code_gen, function| {
                 //    let receiver = function.get_params()[0];
                 code_gen.builder.build_return(None);
                 Ok(())
             },
-            &vec!["T".to_string()]
+            &vec!["A".to_string(), "Z".to_string()]
         )
     ]
 }
