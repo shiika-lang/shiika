@@ -66,6 +66,10 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs),
 
+            AstExpressionBody::Lambda { .. } => { 
+                panic!("TODO")
+            }
+
             AstExpressionBody::BareName(name) => self.convert_bare_name(ctx, name),
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(ctx, names),

@@ -190,7 +190,10 @@ impl<'a> Parser<'a> {
 
         // Params (optional)
         match self.current_token() {
-            Token::LParen => params = self.parse_params()?,
+            Token::LParen => {
+                self.consume_token();
+                params = self.parse_params()?;
+            }
             // Has no params
             _ => {
                 params = vec![];
@@ -247,11 +250,10 @@ impl<'a> Parser<'a> {
         Ok(name)
     }
 
-    fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
+    // Parse parameters
+    // The `(` should be consumed beforehand
+    pub (in super) fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
         let mut params = vec![];
-
-        assert!(self.consume(Token::LParen));
-
         loop {
             // Param
             match self.current_token() {

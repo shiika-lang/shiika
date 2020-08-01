@@ -41,13 +41,13 @@ pub struct AstMethodSignature {
     pub ret_typ: Typ,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Param {
     pub name: String,
     pub typ: Typ,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Typ {
     pub name: String,
 }
@@ -102,6 +102,10 @@ pub enum AstExpressionBody {
         method_name: MethodFirstname,
         arg_exprs: Vec<AstExpression>,
         may_have_paren_wo_args: bool,
+    },
+    Lambda {
+        params: Vec<Param>,
+        exprs: Vec<AstExpression>,
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
@@ -292,6 +296,10 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
         arg_exprs: vec![right],
         may_have_paren_wo_args: false,
     })
+}
+
+pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>) -> AstExpression {
+    primary_expression(AstExpressionBody::Lambda { params, exprs })
 }
 
 pub fn pseudo_variable(token: Token) -> AstExpression {

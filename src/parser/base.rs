@@ -22,6 +22,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Generates error if the current token does not equal to `token`.
+    /// Consumes the token if succeed.
     ///
     /// Note: Takes `Token` rather than `&Token` for convenience.
     pub(super) fn expect(&mut self, token: Token) -> Result<Token, Error> {
