@@ -520,7 +520,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+    pub fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {
             TyBody::TySpe { base_name, .. } => &base_name,
             TyBody::TyParamRef { .. } => "Object", // its upper bound
