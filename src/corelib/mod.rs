@@ -141,11 +141,20 @@ fn make_classes(
 }
 
 fn create_method(class_name: &str, sig_str: &str, gen: GenMethodBody) -> SkMethod {
+    create_method_generic(class_name, sig_str, gen, &[])
+}
+
+fn create_method_generic(
+    class_name: &str,
+    sig_str: &str,
+    gen: GenMethodBody,
+    typaram_names: &[String],
+) -> SkMethod {
     let mut parser = parser::Parser::new_with_state(sig_str, parser::lexer::LexerState::MethodName);
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
     parser.expect_eof().unwrap();
     let sig =
-        crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, &[]);
+        crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, typaram_names);
 
     SkMethod {
         signature: sig,

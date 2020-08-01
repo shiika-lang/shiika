@@ -1,15 +1,19 @@
 use std::collections::HashMap;
-use crate::corelib::create_method;
+use crate::corelib::*;
 use crate::hir::*;
 use crate::ty;
 
 pub fn create_methods_1() -> Vec<SkMethod> {
     vec![
-        create_method(
+        create_method_generic(
             "Fn1",
-            "call(T) -> T",
+            "call(arg1: T) -> T",
             |code_gen, function| {
-            }
+                //    let receiver = function.get_params()[0];
+                code_gen.builder.build_return(None);
+                Ok(())
+            },
+            &vec!["T".to_string()]
         )
     ]
 }
