@@ -387,6 +387,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .unwrap();
         self.builder.build_load(ptr, &format!("ivar_{}", idx))
     }
+
+    pub fn build_ivar_store<'a>(
+        &'a self,
+        object: &'a inkwell::values::BasicValueEnum<'a>,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'a>,
+    ) {
+        let ptr = self
+            .builder
+            .build_struct_gep(
+                object.into_pointer_value(),
+                idx as u32,
+                &format!("addr_ivar_{}", idx),
+            )
+            .unwrap();
+        self.builder.build_store(ptr, value);
+    }
  }
 
 // Question: is there a better way to do this?

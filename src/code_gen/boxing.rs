@@ -41,11 +41,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Convert LLVM int into Shiika Int
     pub fn box_int(&self, int: &inkwell::values::IntValue) -> inkwell::values::BasicValueEnum {
         let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "int");
-        let ptr = self
-            .builder
-            .build_struct_gep(sk_int.into_pointer_value(), 0, &"int_content")
-            .unwrap();
-        self.builder.build_store(ptr, int.as_basic_value_enum());
+        self.build_ivar_store(&sk_int, 0, int.as_basic_value_enum());
         sk_int
     }
 
@@ -63,11 +59,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         float: &inkwell::values::FloatValue,
     ) -> inkwell::values::BasicValueEnum {
         let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "float");
-        let ptr = self
-            .builder
-            .build_struct_gep(sk_float.into_pointer_value(), 0, &"float_content")
-            .unwrap();
-        self.builder.build_store(ptr, float.as_basic_value_enum());
+        self.build_ivar_store(&sk_float, 0, float.as_basic_value_enum());
         sk_float
     }
 
