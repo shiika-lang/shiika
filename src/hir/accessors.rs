@@ -49,15 +49,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let idx = ivar.idx;
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
         let this = function.get_params()[0];
-        let ptr = code_gen
-            .builder
-            .build_struct_gep(
-                this.into_pointer_value(),
-                idx as u32,
-                &format!("addr_{}", name),
-            )
-            .unwrap();
-        let val = code_gen.builder.build_load(ptr, &name);
+        let val = code_gen.build_ivar_load(this, idx, &name);
         code_gen.builder.build_return(Some(&val));
         Ok(())
     };
@@ -84,15 +76,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
         let this = function.get_params()[0];
         let val = function.get_params()[1];
-        let ptr = code_gen
-            .builder
-            .build_struct_gep(
-                this.into_pointer_value(),
-                idx as u32,
-                &format!("addr_{}", name),
-            )
-            .unwrap();
-        code_gen.builder.build_store(ptr, val);
+        code_gen.build_ivar_store(&this, idx, val, &name);
         code_gen.builder.build_return(Some(&val));
         Ok(())
     };

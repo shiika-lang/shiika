@@ -11,7 +11,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let ptr = function.get_params()[0];
                 let sk_int = function.get_params()[1];
-                let n_bytes = code_gen.unbox_int(&sk_int);
+                let n_bytes = code_gen.unbox_int(sk_int);
                 let newptr = unsafe {
                     code_gen
                         .builder

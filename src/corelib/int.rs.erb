@@ -10,9 +10,9 @@ def create_bin_method(sig, body)
     <<-EOD
     create_method("Int", "#{sig}", |code_gen, function| {
         let this = function.get_params()[0];
-        let val1 = code_gen.unbox_int(&this);
+        let val1 = code_gen.unbox_int(this);
         let that = function.get_params()[1];
-        let val2 = code_gen.unbox_int(&that);
+        let val2 = code_gen.unbox_int(that);
         let result = #{body};
         #{
             case ret_type
@@ -120,7 +120,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Int", "to_f() -> Float", |code_gen, function| {
         let this = function.get_params()[0];
-        let int = code_gen.unbox_int(&this);
+        let int = code_gen.unbox_int(this);
         let float = code_gen.builder.build_signed_int_to_float(int, code_gen.f64_type, "float");
         let sk_result = code_gen.box_float(&float);
         code_gen.builder.build_return(Some(&sk_result));
@@ -129,7 +129,7 @@ pub fn create_methods() -> Vec<SkMethod> {
 
     create_method("Int", "-@ -> Int", |code_gen, function| {
         let sk_int = function.get_params()[0];
-        let this = code_gen.unbox_int(&sk_int);
+        let this = code_gen.unbox_int(sk_int);
         let zero = code_gen.i32_type.const_int(0, false);
         let result = code_gen.builder.build_int_sub(zero, this, "result");
         let sk_result = code_gen.box_int(&result);
