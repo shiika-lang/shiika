@@ -9,10 +9,7 @@ pub fn create_signature(
     sig: &ast::AstMethodSignature,
     typarams: &[String],
 ) -> MethodSignature {
-    let fullname = MethodFullname {
-        full_name: (class_fullname.0.to_string() + "#" + &sig.name.0),
-        first_name: sig.name.clone(),
-    };
+    let fullname = method_fullname(class_fullname, &sig.name.0);
     let ret_ty = convert_typ(&sig.ret_typ, typarams);
     let params = convert_params(&sig.params, typarams);
     MethodSignature {
