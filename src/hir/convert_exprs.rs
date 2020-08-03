@@ -348,9 +348,15 @@ impl HirMaker {
         exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
         let hir_params = signature::convert_params(params, &[]);
+        let sig = MethodSignature {
+            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
+            ret_ty: ty::raw("(dummy)"),
+            params: hir_params.clone(),
+        };
+        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, sig);
         let hir_exprs = exprs
             .iter()
-            .map(|expr| self.convert_expr(ctx, expr))
+            .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Hir::lambda(hir_params, HirExpressions::new(hir_exprs)))
     }
