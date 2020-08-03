@@ -348,6 +348,8 @@ impl HirMaker {
         exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
         let hir_params = signature::convert_params(params, &[]);
+        // REFACTOR: consider changing ctx.method_sig to just ctx.method_params
+        // (because properties other than `params` are not used)
         let sig = MethodSignature {
             fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
             ret_ty: ty::raw("(dummy)"),
