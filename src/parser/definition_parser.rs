@@ -63,6 +63,10 @@ impl<'a> Parser<'a> {
                         self.consume_token();
                         self.skip_wsn();
                     }
+                    Token::Comma => {
+                        self.consume_token();
+                        self.skip_wsn();
+                    }
                     token => {
                         return Err(parse_error!(
                             self,
