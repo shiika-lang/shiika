@@ -196,6 +196,7 @@ impl<'a> Parser<'a> {
         match self.current_token() {
             Token::LParen => {
                 self.consume_token();
+                self.skip_wsn();
                 params = self.parse_params()?;
             }
             // Has no params
