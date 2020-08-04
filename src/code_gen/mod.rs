@@ -287,30 +287,42 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
-                let func_type = self.llvm_func_type(&self_ty, &method.signature);
+                let func_type = self.method_llvm_func_type(&self_ty, &method.signature);
                 self.module
                     .add_function(&method.signature.fullname.full_name, func_type, None);
             })
         })
     }
 
-    fn llvm_func_type(
+    /// Return llvm funcion type of a method
+    fn method_llvm_func_type(
         &self,
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let self_type = self.llvm_type(self_ty);
-        let mut arg_types = signature
-            .params
+        self.llvm_func_type(Some(self_ty), &signature.params, &signature.ret_ty)
+    }
+
+    /// Return llvm funcion type
+    fn llvm_func_type(
+        &self,
+        self_ty: Option<&TermTy>,
+        params: &[MethodParam],
+        ret_ty: &TermTy,
+    ) -> inkwell::types::FunctionType<'ictx> {
+        let mut arg_types = params
             .iter()
             .map(|param| self.llvm_type(&param.ty))
             .collect::<Vec<_>>();
-        arg_types.insert(0, self_type);
+        // Methods takes the self as the first argument
+        if let Some(ty) = self_ty {
+            arg_types.insert(0, self.llvm_type(ty));
+        }
 
-        if signature.ret_ty.is_void_type() {
+        if ret_ty.is_void_type() {
             self.void_type.fn_type(&arg_types, false)
         } else {
-            let result_type = self.llvm_type(&signature.ret_ty);
+            let result_type = self.llvm_type(&ret_ty);
             result_type.fn_type(&arg_types, false)
         }
     }
