@@ -9,6 +9,7 @@ use crate::ty::*;
 use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
+use either::*;
 use std::collections::HashMap;
 
 // 0bxx1 is for integers (future plan)
@@ -336,19 +337,20 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
-        let func_name = method.signature.fullname.full_name;
+        let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(&func_name,
-                                &param_names,
-                                &method.body,
+                                &method.signature.params,
+                                Left(&method.body),
                                 &method.signature.ret_ty)
     }
 
     /// Generate body of a llvm function
     /// Used for methods and lambdas
     fn gen_llvm_func_body(
+        &self,
         func_name: &str,
-        param_names: &[&str],
-        body: &SkMethodBody,
+        params: &[MethodParam],
+        body: Either<&SkMethodBody, &HirExpressions>,
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
         // LLVM function
@@ -362,7 +364,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             if i == 0 {
                 inkwell_set_name(param, "self")
             } else {
-                inkwell_set_name(param, &params_names[i - 1])
+                inkwell_set_name(param, &params[i - 1].name)
             }
         }
 
@@ -372,13 +374,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Method body
         match body {
-            SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
-            SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-            SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                function,
-                ret_ty.is_void_type(),
-                &exprs,
-            )?,
+            Left(method_body) => {
+                match method_body {
+                    SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
+                    SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
+                    SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
+                        function,
+                        ret_ty.is_void_type(),
+                        &exprs,
+                        )?,
+                }
+            }
+            Right(exprs) => {
+                self.gen_shiika_method_body(
+                    function,
+                    ret_ty.is_void_type(),
+                    &exprs,
+                    )?;
+            }
         }
         Ok(())
     }
