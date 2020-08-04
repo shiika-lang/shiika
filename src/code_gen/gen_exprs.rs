@@ -294,6 +294,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(value)
     }
 
+    /// Generate method call
     fn gen_method_call(
         &self,
         ctx: &mut CodeGenContext<'run>,
@@ -306,22 +307,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .iter()
             .map(|arg_expr| self.gen_expr(ctx, arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
-        self.gen_method_call_(method_fullname, receiver_value, arg_values)
+        self.gen_llvm_func_call(&method_fullname.full_name, receiver_value, arg_values)
     }
 
-    fn gen_method_call_<'a>(
+    /// Generate llvm function call
+    fn gen_llvm_func_call<'a>(
         &'a self,
-        method_fullname: &MethodFullname,
+        func_name: &str,
         receiver_value: inkwell::values::BasicValueEnum<'a>,
         mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let function = self
             .module
-            .get_function(&method_fullname.full_name)
+            .get_function(func_name)
             .unwrap_or_else(|| {
                 panic!(
                     "[BUG] get_function not found (check gen_method_funcs): {:?}",
-                    method_fullname
+                    func_name
                 )
             });
         let mut llvm_args = vec![receiver_value];
