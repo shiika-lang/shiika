@@ -324,18 +324,33 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
+        let func_name = method.signature.fullname.full_name;
+        self.gen_llvm_func_body(&func_name,
+                                &param_names,
+                                &method.body,
+                                &method.signature.ret_ty)
+    }
+
+    /// Generate body of a llvm function
+    /// Used for methods and lambdas
+    fn gen_llvm_func_body(
+        func_name: &str,
+        param_names: &[&str],
+        body: &SkMethodBody,
+        ret_ty: &TermTy,
+    ) -> Result<(), Error> {
         // LLVM function
         let function = self
             .module
-            .get_function(&method.signature.fullname.full_name)
-            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method.signature));
+            .get_function(func_name)
+            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", func_name));
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
             if i == 0 {
                 inkwell_set_name(param, "self")
             } else {
-                inkwell_set_name(param, &method.signature.params[i - 1].name)
+                inkwell_set_name(param, &params_names[i - 1])
             }
         }
 
@@ -344,12 +359,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Method body
-        match &method.body {
+        match body {
             SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
             SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
             SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                 function,
-                method.signature.ret_ty.is_void_type(),
+                ret_ty.is_void_type(),
                 &exprs,
             )?,
         }
