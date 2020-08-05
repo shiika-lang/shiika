@@ -317,15 +317,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_value: inkwell::values::BasicValueEnum<'a>,
         mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let function = self
-            .module
-            .get_function(func_name)
-            .unwrap_or_else(|| {
-                panic!(
-                    "[BUG] get_function not found (check gen_method_funcs): {:?}",
-                    func_name
-                )
-            });
+        let function = self.get_llvm_func(func_name);
         let mut llvm_args = vec![receiver_value];
         llvm_args.append(&mut arg_values);
         match self
