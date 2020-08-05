@@ -58,7 +58,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx } => self.gen_ivar_ref(ctx, name, idx),
             HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
-            HirLambda { .. } => panic!("TODO"),
+            HirLambda { params, exprs } => self.gen_lambda(ctx, params, exprs),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -364,6 +364,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&fullname.0)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0));
         self.builder.build_load(ptr.as_pointer_value(), &fullname.0)
+    }
+
+    fn gen_lambda(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        params: &[MethodParam],
+        exprs: &HirExpressions,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let func_name = ctx.new_lambda_name();
+        let ret_ty = &exprs.ty;
+        let func_type = self.llvm_func_type(None, &params, &ret_ty);
+        self.module.add_function(&func_name, func_type, None);
+        self.gen_llvm_func_body(&func_name,
+                                params,
+                                Right(exprs),
+                                ret_ty)?;
+
+        // Fn1.new(fnptr, freevars)
+        let meta = self.gen_const_ref(&const_fullname("Meta:Fn1"));
+        let fnptr = self.get_llvm_func(&func_name).as_global_value().as_basic_value_enum();
+        let arg_values = vec![fnptr];
+        self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
     }
 
     fn gen_self_expression(
