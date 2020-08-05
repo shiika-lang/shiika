@@ -164,7 +164,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // UserMain:
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
         Ok(())
@@ -266,7 +266,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
@@ -378,6 +378,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                     SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                         function,
+                        FunctionOrigin::Method,
                         ret_ty.is_void_type(),
                         &exprs,
                         )?,
@@ -386,6 +387,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Right(exprs) => {
                 self.gen_shiika_method_body(
                     function,
+                    FunctionOrigin::Lambda,
                     ret_ty.is_void_type(),
                     &exprs,
                     )?;
@@ -397,10 +399,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_shiika_method_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
+        function_origin: code_gen_context::FunctionOrigin,
         void_method: bool,
         exprs: &HirExpressions,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, function_origin);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);

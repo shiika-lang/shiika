@@ -336,7 +336,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
+        let plus = match ctx.function_origin {
+            FunctionOrigin::Method => 1,  // +1 for the first %self
+            _ => 0
+        };
+        Ok(ctx.function.get_nth_param((*idx as u32) + plus).unwrap())
     }
 
     fn gen_lvar_ref(
@@ -382,7 +386,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                                 ret_ty)?;
 
         // Fn1.new(fnptr, freevars)
-        let meta = self.gen_const_ref(&const_fullname("Meta:Fn1"));
+        let meta = self.gen_const_ref(&const_fullname("::Fn1"));
         let fnptr = self.get_llvm_func(&func_name).as_global_value().as_basic_value_enum();
         let arg_values = vec![fnptr];
         self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
