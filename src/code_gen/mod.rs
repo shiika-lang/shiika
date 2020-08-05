@@ -178,13 +178,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Call GC_init
-        let func = self.module.get_function("GC_init").unwrap();
+        let func = self.get_llvm_func("GC_init");
         self.builder.build_call(func, &[], "");
 
         // Call init_constants, user_main
-        let func = self.module.get_function("init_constants").unwrap();
+        let func = self.get_llvm_func("init_constants");
         self.builder.build_call(func, &[], "");
-        let func = self.module.get_function("user_main").unwrap();
+        let func = self.get_llvm_func("user_main");
         self.builder.build_call(func, &[], "");
 
         // ret i32 0
@@ -355,10 +355,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
         // LLVM function
-        let function = self
-            .module
-            .get_function(func_name)
-            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", func_name));
+        let function = self.get_llvm_func(func_name);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {

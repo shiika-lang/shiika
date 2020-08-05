@@ -481,7 +481,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .expect("[BUG] object_type has no size");
 
         // %mem = call i8* @GC_malloc(i64 %size)",
-        let func = self.module.get_function("GC_malloc").unwrap();
+        let func = self.get_llvm_func("GC_malloc");
         let raw_addr = self
             .builder
             .build_call(func, &[size.as_basic_value_enum()], "mem")

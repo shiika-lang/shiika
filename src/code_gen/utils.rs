@@ -7,7 +7,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub (in super) fn get_llvm_func(
         &self,
         name: &str
-    ) -> inkwell::values::FunctionValue {
+    ) -> inkwell::values::FunctionValue<'ictx> {
         self.module
             .get_function(name)
             .unwrap_or_else(|| {
