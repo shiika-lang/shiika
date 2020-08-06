@@ -386,8 +386,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Fn1.new(fnptr, freevars)
         let meta = self.gen_const_ref(&const_fullname("::Fn1"));
         let fnptr = self.get_llvm_func(&func_name).as_global_value().as_basic_value_enum();
-        // TODO: bitcast to i8*
-        let arg_values = vec![fnptr];
+        let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
+        let arg_values = vec![fnptr_i8];
         self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
     }
 
