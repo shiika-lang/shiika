@@ -76,7 +76,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &Hir) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &'hir Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -150,7 +150,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
-    fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
@@ -167,6 +167,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
+
+        // Lambdas
+        self.gen_lambda_funcs(&mut ctx)?;
+
         Ok(())
     }
 
@@ -190,6 +194,19 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // ret i32 0
         self.builder
             .build_return(Some(&self.i32_type.const_int(0, false)));
+        Ok(())
+    }
+
+    /// Create llvm functions for lambdas
+    fn gen_lambda_funcs(&mut self, ctx: &mut CodeGenContext<'hir, 'run>) -> Result<(), Error> {
+        // We need a queue because a lambda may have another lambda inside
+        while let Some(l) = ctx.lambdas.pop_front() {
+            let ret_ty = &l.exprs.ty;
+            self.gen_llvm_func_body(&l.func_name,
+                                    l.params,
+                                    Right(l.exprs),
+                                    &ret_ty)?;
+        }
         Ok(())
     }
 
@@ -259,7 +276,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_const_inits(&self, const_inits: &[HirExpression]) -> Result<(), Error> {
+    fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<(), Error> {
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
@@ -329,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
+    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -337,7 +354,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         })
     }
 
-    fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
+    fn gen_method(&self, method: &'hir SkMethod) -> Result<(), Error> {
         let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(&func_name,
                                 &method.signature.params,
@@ -351,7 +368,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         func_name: &str,
         params: &[MethodParam],
-        body: Either<&SkMethodBody, &HirExpressions>,
+        body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
         // LLVM function
@@ -401,7 +418,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         function: inkwell::values::FunctionValue<'run>,
         function_origin: code_gen_context::FunctionOrigin,
         void_method: bool,
-        exprs: &HirExpressions,
+        exprs: &'hir HirExpressions,
     ) -> Result<(), Error> {
         let mut ctx = CodeGenContext::new(function, function_origin);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
