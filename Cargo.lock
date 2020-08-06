@@ -342,6 +342,7 @@ version = "0.0.1"
 dependencies = [
  "backtrace 0.3.47 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 3.0.0-beta.1 (git+https://github.com/clap-rs/clap)",
+ "either 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "inkwell 0.1.0 (git+https://github.com/TheDan64/inkwell?branch=llvm7-0)",
  "llvm-sys 70.2.1 (registry+https://github.com/rust-lang/crates.io-index)",

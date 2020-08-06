@@ -71,6 +71,22 @@ impl HirMakerContext {
             super_ivars: HashMap::new(),
         }
     }
+
+    /// Create a ctx for lambda
+    pub fn lambda_ctx(
+        method_ctx: &HirMakerContext,
+        lambda_sig: MethodSignature,
+    ) -> HirMakerContext {
+        HirMakerContext {
+            method_sig: Some(lambda_sig),
+            self_ty: method_ctx.self_ty.clone(),
+            namespace: method_ctx.namespace.clone(),
+            lvars: HashMap::new(),
+            iivars: HashMap::new(),
+            is_initializer: false,
+            super_ivars: HashMap::new(),
+        }
+    }
 }
 
 /// A local variable

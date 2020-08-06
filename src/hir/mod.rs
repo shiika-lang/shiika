@@ -175,6 +175,10 @@ pub enum HirExpressionBase {
     HirConstRef {
         fullname: ConstFullname,
     },
+    HirLambda {
+        params: Vec<MethodParam>,
+        exprs: HirExpressions,
+    },
     HirSelfExpression,
     HirArrayLiteral {
         exprs: HirExpressions,
@@ -351,6 +355,14 @@ impl Hir {
         }
     }
 
+    pub fn lambda(params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
+        let ty = lambda_ty(&params, &exprs.ty);
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirLambda { params, exprs },
+        }
+    }
+
     pub fn self_expression(ty: TermTy) -> HirExpression {
         HirExpression {
             ty,
@@ -413,4 +425,11 @@ impl Hir {
             },
         }
     }
+}
+
+fn lambda_ty(params: &Vec<MethodParam>, ret_ty: &TermTy) -> TermTy {
+    if params.len() != 1 {
+        panic!("TODO")
+    }
+    ty::spe("Fn1", vec![params[0].ty.clone(), ret_ty.clone()])
 }

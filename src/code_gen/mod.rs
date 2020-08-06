@@ -1,6 +1,7 @@
 mod boxing;
 mod code_gen_context;
 mod gen_exprs;
+mod utils;
 use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
 use crate::hir::*;
@@ -9,6 +10,7 @@ use crate::ty::*;
 use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
+use either::*;
 use std::collections::HashMap;
 
 // 0bxx1 is for integers (future plan)
@@ -74,7 +76,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &Hir) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &'hir Hir) -> Result<(), Error> {
         self.gen_declares();
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -148,7 +150,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
-    fn gen_user_main(&mut self, main_exprs: &HirExpressions) -> Result<(), Error> {
+    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
@@ -162,9 +164,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // UserMain:
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
+
+        // Lambdas
+        self.gen_lambda_funcs(&mut ctx)?;
+
         Ok(())
     }
 
@@ -176,18 +182,31 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Call GC_init
-        let func = self.module.get_function("GC_init").unwrap();
+        let func = self.get_llvm_func("GC_init");
         self.builder.build_call(func, &[], "");
 
         // Call init_constants, user_main
-        let func = self.module.get_function("init_constants").unwrap();
+        let func = self.get_llvm_func("init_constants");
         self.builder.build_call(func, &[], "");
-        let func = self.module.get_function("user_main").unwrap();
+        let func = self.get_llvm_func("user_main");
         self.builder.build_call(func, &[], "");
 
         // ret i32 0
         self.builder
             .build_return(Some(&self.i32_type.const_int(0, false)));
+        Ok(())
+    }
+
+    /// Create llvm functions for lambdas
+    fn gen_lambda_funcs(&mut self, ctx: &mut CodeGenContext<'hir, 'run>) -> Result<(), Error> {
+        // We need a queue because a lambda may have another lambda inside
+        while let Some(l) = ctx.lambdas.pop_front() {
+            let ret_ty = &l.exprs.ty;
+            self.gen_llvm_func_body(&l.func_name,
+                                    l.params,
+                                    Right(l.exprs),
+                                    &ret_ty)?;
+        }
         Ok(())
     }
 
@@ -257,14 +276,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_const_inits(&self, const_inits: &[HirExpression]) -> Result<(), Error> {
+    fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<(), Error> {
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
@@ -287,35 +306,47 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
-                let func_type = self.llvm_func_type(&self_ty, &method.signature);
+                let func_type = self.method_llvm_func_type(&self_ty, &method.signature);
                 self.module
                     .add_function(&method.signature.fullname.full_name, func_type, None);
             })
         })
     }
 
-    fn llvm_func_type(
+    /// Return llvm funcion type of a method
+    fn method_llvm_func_type(
         &self,
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let self_type = self.llvm_type(self_ty);
-        let mut arg_types = signature
-            .params
+        self.llvm_func_type(Some(self_ty), &signature.params, &signature.ret_ty)
+    }
+
+    /// Return llvm funcion type
+    fn llvm_func_type(
+        &self,
+        self_ty: Option<&TermTy>,
+        params: &[MethodParam],
+        ret_ty: &TermTy,
+    ) -> inkwell::types::FunctionType<'ictx> {
+        let mut arg_types = params
             .iter()
             .map(|param| self.llvm_type(&param.ty))
             .collect::<Vec<_>>();
-        arg_types.insert(0, self_type);
+        // Methods takes the self as the first argument
+        if let Some(ty) = self_ty {
+            arg_types.insert(0, self.llvm_type(ty));
+        }
 
-        if signature.ret_ty.is_void_type() {
+        if ret_ty.is_void_type() {
             self.void_type.fn_type(&arg_types, false)
         } else {
-            let result_type = self.llvm_type(&signature.ret_ty);
+            let result_type = self.llvm_type(&ret_ty);
             result_type.fn_type(&arg_types, false)
         }
     }
 
-    fn gen_methods(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
+    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -323,19 +354,32 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         })
     }
 
-    fn gen_method(&self, method: &SkMethod) -> Result<(), Error> {
+    fn gen_method(&self, method: &'hir SkMethod) -> Result<(), Error> {
+        let func_name = &method.signature.fullname.full_name;
+        self.gen_llvm_func_body(&func_name,
+                                &method.signature.params,
+                                Left(&method.body),
+                                &method.signature.ret_ty)
+    }
+
+    /// Generate body of a llvm function
+    /// Used for methods and lambdas
+    fn gen_llvm_func_body(
+        &self,
+        func_name: &str,
+        params: &[MethodParam],
+        body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
+        ret_ty: &TermTy,
+    ) -> Result<(), Error> {
         // LLVM function
-        let function = self
-            .module
-            .get_function(&method.signature.fullname.full_name)
-            .unwrap_or_else(|| panic!("[BUG] get_function not found: {:?}", method.signature));
+        let function = self.get_llvm_func(func_name);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
             if i == 0 {
                 inkwell_set_name(param, "self")
             } else {
-                inkwell_set_name(param, &method.signature.params[i - 1].name)
+                inkwell_set_name(param, &params[i - 1].name)
             }
         }
 
@@ -344,14 +388,27 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Method body
-        match &method.body {
-            SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
-            SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-            SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                function,
-                method.signature.ret_ty.is_void_type(),
-                &exprs,
-            )?,
+        match body {
+            Left(method_body) => {
+                match method_body {
+                    SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
+                    SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
+                    SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
+                        function,
+                        FunctionOrigin::Method,
+                        ret_ty.is_void_type(),
+                        &exprs,
+                        )?,
+                }
+            }
+            Right(exprs) => {
+                self.gen_shiika_method_body(
+                    function,
+                    FunctionOrigin::Lambda,
+                    ret_ty.is_void_type(),
+                    &exprs,
+                    )?;
+            }
         }
         Ok(())
     }
@@ -359,10 +416,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_shiika_method_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
+        function_origin: code_gen_context::FunctionOrigin,
         void_method: bool,
-        exprs: &HirExpressions,
+        exprs: &'hir HirExpressions,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function);
+        let mut ctx = CodeGenContext::new(function, function_origin);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);

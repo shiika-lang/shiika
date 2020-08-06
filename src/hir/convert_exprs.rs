@@ -66,9 +66,7 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs),
 
-            AstExpressionBody::Lambda { .. } => { 
-                panic!("TODO")
-            }
+            AstExpressionBody::Lambda { params, exprs } => self.convert_lambda(ctx, params, exprs),
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(ctx, name),
 
@@ -341,6 +339,28 @@ impl HirMaker {
             ret = Hir::bit_cast(sig.ret_ty, ret)
         }
         Ok(ret)
+    }
+
+    fn convert_lambda(
+        &mut self,
+        ctx: &mut HirMakerContext,
+        params: &[ast::Param],
+        exprs: &[AstExpression],
+    ) -> Result<HirExpression, Error> {
+        let hir_params = signature::convert_params(params, &[]);
+        // REFACTOR: consider changing ctx.method_sig to just ctx.method_params
+        // (because properties other than `params` are not used)
+        let sig = MethodSignature {
+            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
+            ret_ty: ty::raw("(dummy)"),
+            params: hir_params.clone(),
+        };
+        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, sig);
+        let hir_exprs = exprs
+            .iter()
+            .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Hir::lambda(hir_params, HirExpressions::new(hir_exprs)))
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)

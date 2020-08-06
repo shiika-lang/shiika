@@ -1,7 +1,7 @@
 mod bool;
 mod float;
+mod fn_x;
 mod int;
-mod lambda;
 mod math;
 mod never;
 mod object;
@@ -58,7 +58,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ("Never", never::create_methods(), vec![], HashMap::new(), vec![]),
         ("String", string::create_methods(), vec![], string::ivars(), vec![]),
         ("Class", vec![], vec![], HashMap::new(), vec![]),
-        ( "Fn1", lambda::create_methods_1(), vec![], lambda::ivars(), vec!["T".to_string()]),
+        ( "Fn1", fn_x::create_methods_1(), vec![], fn_x::ivars(), vec!["T".to_string()]),
         (
             "Shiika::Internal::Ptr",
             shiika_internal_ptr::create_methods(),

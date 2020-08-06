@@ -1,0 +1,4 @@
+f = fn(x: Int){ x + 1 }
+# f.call(1)
+
+puts "ok"
