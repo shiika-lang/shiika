@@ -164,7 +164,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // UserMain:
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
 
@@ -280,7 +280,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
@@ -369,7 +369,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_llvm_func_body(
         &self,
         func_name: &str,
-        params: &[MethodParam],
+        params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
@@ -397,6 +397,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                     function,
                     FunctionOrigin::Method,
+                    None,
                     ret_ty.is_void_type(),
                     &exprs,
                 )?,
@@ -405,6 +406,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_shiika_method_body(
                     function,
                     FunctionOrigin::Lambda,
+                    Some(params),
                     ret_ty.is_void_type(),
                     &exprs,
                 )?;
@@ -417,10 +419,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_origin: code_gen_context::FunctionOrigin,
+        function_params: Option<&'hir [MethodParam]>,
         void_method: bool,
         exprs: &'hir HirExpressions,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, function_origin);
+        let mut ctx = CodeGenContext::new(function, function_origin, function_params);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
