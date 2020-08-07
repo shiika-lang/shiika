@@ -336,11 +336,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let plus = match ctx.function_origin {
-            FunctionOrigin::Method => 1, // +1 for the first %self
-            _ => 0,
-        };
-        Ok(ctx.function.get_nth_param((*idx as u32) + plus).unwrap())
+        match ctx.function_origin {
+            FunctionOrigin::Method => {
+                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
+            }
+            FunctionOrigin::Lambda => {
+                // Bitcast is needed because lambda params are always `%Object*`
+                let obj = ctx.function.get_nth_param(*idx as u32).unwrap();
+                let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
+                let value = self.builder.build_bitcast(obj, llvm_type, "");
+                Ok(value)
+            }
+            _ => panic!("[BUG] arg ref in invalid place"),
+        }
     }
 
     fn gen_lvar_ref(
