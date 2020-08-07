@@ -396,16 +396,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                     function,
-                    FunctionOrigin::Method,
                     None,
                     ret_ty.is_void_type(),
                     &exprs,
                 )?,
             },
             Right(exprs) => {
-                self.gen_shiika_method_body(
+                self.gen_shiika_lambda_body(
                     function,
-                    FunctionOrigin::Lambda,
                     Some(params),
                     ret_ty.is_void_type(),
                     &exprs,
@@ -415,20 +413,40 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
+    /// Generate body of llvm function of Shiika method
     fn gen_shiika_method_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
-        function_origin: code_gen_context::FunctionOrigin,
         function_params: Option<&'hir [MethodParam]>,
         void_method: bool,
         exprs: &'hir HirExpressions,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, function_origin, function_params);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
         } else {
             self.builder.build_return(Some(&last_value));
+        }
+        Ok(())
+    }
+
+    /// Generate body of llvm function of Shiika lambda
+    fn gen_shiika_lambda_body(
+        &self,
+        function: inkwell::values::FunctionValue<'run>,
+        function_params: Option<&'hir [MethodParam]>,
+        void_method: bool,
+        exprs: &'hir HirExpressions,
+    ) -> Result<(), Error> {
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params);
+        let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        if void_method {
+            self.builder.build_return(None);
+        } else {
+            let llvm_type = self.llvm_type(&exprs.ty);
+            let v = self.builder.build_bitcast(last_value, llvm_type, "");
+            self.builder.build_return(Some(&v));
         }
         Ok(())
     }
