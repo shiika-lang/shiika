@@ -316,19 +316,20 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        self.llvm_func_type(Some(self_ty), &signature.params, &signature.ret_ty)
+        let param_tys = signature.params.iter().map(|p| &p.ty).collect::<Vec<_>>();
+        self.llvm_func_type(Some(self_ty), &param_tys, &signature.ret_ty)
     }
 
     /// Return llvm funcion type
     fn llvm_func_type(
         &self,
         self_ty: Option<&TermTy>,
-        params: &[MethodParam],
+        param_tys: &[&TermTy],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let mut arg_types = params
+        let mut arg_types = param_tys
             .iter()
-            .map(|param| self.llvm_type(&param.ty))
+            .map(|ty| self.llvm_type(ty))
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {
