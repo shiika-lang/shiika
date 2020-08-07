@@ -337,8 +337,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let plus = match ctx.function_origin {
-            FunctionOrigin::Method => 1,  // +1 for the first %self
-            _ => 0
+            FunctionOrigin::Method => 1, // +1 for the first %self
+            _ => 0,
         };
         Ok(ctx.function.get_nth_param((*idx as u32) + plus).unwrap())
     }
@@ -385,7 +385,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Fn1.new(fnptr, freevars)
         let meta = self.gen_const_ref(&const_fullname("::Fn1"));
-        let fnptr = self.get_llvm_func(&func_name).as_global_value().as_basic_value_enum();
+        let fnptr = self
+            .get_llvm_func(&func_name)
+            .as_global_value()
+            .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let arg_values = vec![fnptr_i8];
         self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
@@ -459,14 +462,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         else_block: inkwell::basic_block::BasicBlock,
     ) {
         let t = self.gen_boolean_literal(true);
-        let istrue = self
-            .builder
-            .build_int_compare(
-                inkwell::IntPredicate::EQ,
-                cond,
-                t.into_int_value(),
-                "istrue",
-            );
+        let istrue = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            cond,
+            t.into_int_value(),
+            "istrue",
+        );
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }
@@ -488,7 +489,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(), &format!("class_{}", fullname.0));
         // Set @name
-        self.build_ivar_store(&cls_obj, 0, self.gen_string_literal(str_literal_idx), "@name");
+        self.build_ivar_store(
+            &cls_obj,
+            0,
+            self.gen_string_literal(str_literal_idx),
+            "@name",
+        );
 
         cls_obj
     }

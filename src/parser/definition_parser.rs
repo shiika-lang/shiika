@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
 
     // Parse parameters
     // The `(` should be consumed beforehand
-    pub (in super) fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
+    pub(super) fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
         let mut params = vec![];
         loop {
             // Param

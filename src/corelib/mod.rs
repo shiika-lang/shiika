@@ -50,15 +50,57 @@ type ClassItem = (
 fn rust_body_items() -> Vec<ClassItem> {
     vec![
         // Classes
-        ("Bool", bool::create_methods(), vec![], HashMap::new(), vec![]),
-        ("Float", float::create_methods(), vec![], HashMap::new(), vec![]),
+        (
+            "Bool",
+            bool::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
+        (
+            "Float",
+            float::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
         ("Int", int::create_methods(), vec![], HashMap::new(), vec![]),
-        ("Object", object::create_methods(), vec![], HashMap::new(), vec![]),
-        ("Void", void::create_methods(), vec![], HashMap::new(), vec![]),
-        ("Never", never::create_methods(), vec![], HashMap::new(), vec![]),
-        ("String", string::create_methods(), vec![], string::ivars(), vec![]),
+        (
+            "Object",
+            object::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
+        (
+            "Void",
+            void::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
+        (
+            "Never",
+            never::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
+        (
+            "String",
+            string::create_methods(),
+            vec![],
+            string::ivars(),
+            vec![],
+        ),
         ("Class", vec![], vec![], HashMap::new(), vec![]),
-        ( "Fn1", fn_x::create_methods_1(), vec![], fn_x::ivars(), vec!["T".to_string()]),
+        (
+            "Fn1",
+            fn_x::create_methods_1(),
+            vec![],
+            fn_x::ivars(),
+            vec!["T".to_string()],
+        ),
         (
             "Shiika::Internal::Ptr",
             shiika_internal_ptr::create_methods(),
@@ -67,7 +109,13 @@ fn rust_body_items() -> Vec<ClassItem> {
             vec![],
         ),
         // Modules
-        ("Math", vec![], math::create_class_methods(), HashMap::new(), vec![]),
+        (
+            "Math",
+            vec![],
+            math::create_class_methods(),
+            HashMap::new(),
+            vec![],
+        ),
         ("Shiika", vec![], vec![], HashMap::new(), vec![]),
         ("Shiika::Internal", vec![], vec![], HashMap::new(), vec![]),
         (
@@ -98,7 +146,10 @@ fn make_classes(
             ClassFullname(name.to_string()),
             SkClass {
                 fullname: class_fullname(name),
-                typarams: typarams.into_iter().map(|s| ty::TyParam { name: s }).collect(),
+                typarams: typarams
+                    .into_iter()
+                    .map(|s| ty::TyParam { name: s })
+                    .collect(),
                 superclass_fullname: super_name,
                 instance_ty: ty::raw(name),
                 ivars,
@@ -153,8 +204,11 @@ fn create_method_generic(
     let mut parser = parser::Parser::new_with_state(sig_str, parser::lexer::LexerState::MethodName);
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
     parser.expect_eof().unwrap();
-    let sig =
-        crate::hir::signature::create_signature(&class_fullname(class_name), &ast_sig, typaram_names);
+    let sig = crate::hir::signature::create_signature(
+        &class_fullname(class_name),
+        &ast_sig,
+        typaram_names,
+    );
 
     SkMethod {
         signature: sig,

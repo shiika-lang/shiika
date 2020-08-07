@@ -594,9 +594,7 @@ impl<'a> Parser<'a> {
                 let name = s.to_string();
                 self.parse_const_ref(name)
             }
-            Token::KwFn => {
-                self.parse_lambda()
-            }
+            Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
                 self.consume_token();

@@ -68,6 +68,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_float: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::FloatValue {
-        self.build_ivar_load(sk_float, 0, "float").into_float_value()
+        self.build_ivar_load(sk_float, 0, "float")
+            .into_float_value()
     }
 }

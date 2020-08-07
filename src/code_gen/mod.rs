@@ -7,10 +7,10 @@ use crate::error::Error;
 use crate::hir::*;
 use crate::names::*;
 use crate::ty::*;
+use either::*;
 use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
-use either::*;
 use std::collections::HashMap;
 
 // 0bxx1 is for integers (future plan)
@@ -202,10 +202,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // We need a queue because a lambda may have another lambda inside
         while let Some(l) = ctx.lambdas.pop_front() {
             let ret_ty = &l.exprs.ty;
-            self.gen_llvm_func_body(&l.func_name,
-                                    l.params,
-                                    Right(l.exprs),
-                                    &ret_ty)?;
+            self.gen_llvm_func_body(&l.func_name, l.params, Right(l.exprs), &ret_ty)?;
         }
         Ok(())
     }
@@ -346,7 +343,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<(), Error> {
+    fn gen_methods(
+        &self,
+        methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>,
+    ) -> Result<(), Error> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -356,10 +356,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_method(&self, method: &'hir SkMethod) -> Result<(), Error> {
         let func_name = &method.signature.fullname.full_name;
-        self.gen_llvm_func_body(&func_name,
-                                &method.signature.params,
-                                Left(&method.body),
-                                &method.signature.ret_ty)
+        self.gen_llvm_func_body(
+            &func_name,
+            &method.signature.params,
+            Left(&method.body),
+            &method.signature.ret_ty,
+        )
     }
 
     /// Generate body of a llvm function
@@ -389,25 +391,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Method body
         match body {
-            Left(method_body) => {
-                match method_body {
-                    SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
-                    SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                    SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                        function,
-                        FunctionOrigin::Method,
-                        ret_ty.is_void_type(),
-                        &exprs,
-                        )?,
-                }
-            }
+            Left(method_body) => match method_body {
+                SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
+                SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
+                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
+                    function,
+                    FunctionOrigin::Method,
+                    ret_ty.is_void_type(),
+                    &exprs,
+                )?,
+            },
             Right(exprs) => {
                 self.gen_shiika_method_body(
                     function,
                     FunctionOrigin::Lambda,
                     ret_ty.is_void_type(),
                     &exprs,
-                    )?;
+                )?;
             }
         }
         Ok(())
@@ -464,7 +464,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .unwrap();
         self.builder.build_store(ptr, value);
     }
- }
+}
 
 // Question: is there a better way to do this?
 fn inkwell_set_name(val: BasicValueEnum, name: &str) {

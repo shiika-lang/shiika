@@ -1,12 +1,12 @@
+use crate::hir::*;
+use crate::ty::*;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::rc::Rc;
-use crate::ty::*;
-use crate::hir::*;
 
 #[derive(Debug)]
 pub struct CodeGenContext<'hir: 'run, 'run> {
-    /// Current llvm function 
+    /// Current llvm function
     pub function: inkwell::values::FunctionValue<'run>,
     /// If `function` corresponds to a lambda or a method
     /// (llvm func of methods takes `self` as the first arg but lambdas do not)
@@ -18,7 +18,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// Used for naming their llvm functions
     pub last_lambda_id: usize,
     /// Lambdas to be compiled
-    pub lambdas: VecDeque<CodeGenLambda<'hir>>
+    pub lambdas: VecDeque<CodeGenLambda<'hir>>,
 }
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
 
     /// Push a lambda into the queue
     pub fn push_lambda(
-        &mut self, 
+        &mut self,
         func_name: String,
         params: &'hir [MethodParam],
         exprs: &'hir HirExpressions,
@@ -66,7 +66,7 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
         let l = CodeGenLambda {
             func_name,
             params,
-            exprs
+            exprs,
         };
         self.lambdas.push_back(l);
     }
