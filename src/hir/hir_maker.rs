@@ -9,7 +9,7 @@ use crate::hir::*;
 use crate::names;
 use crate::type_checking;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct HirMaker {
     /// List of classes found so far
     pub(super) class_dict: ClassDict,

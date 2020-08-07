@@ -53,7 +53,7 @@ pub struct SkIVar {
 
 type SkIVars = HashMap<String, SkIVar>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct SkMethod {
     pub signature: MethodSignature,
     pub body: SkMethodBody,
@@ -68,20 +68,6 @@ pub enum SkMethodBody {
 impl std::fmt::Debug for SkMethodBody {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "#<SkMethodBody>")
-    }
-}
-impl std::cmp::PartialEq for SkMethodBody {
-    fn eq(&self, other: &SkMethodBody) -> bool {
-        match self {
-            SkMethodBody::ShiikaMethodBody { exprs } => match other {
-                SkMethodBody::ShiikaMethodBody { exprs: exprs2 } => return exprs == exprs2,
-                SkMethodBody::RustMethodBody { .. } => (),
-                SkMethodBody::RustClosureMethodBody { .. } => (),
-            },
-            SkMethodBody::RustMethodBody { .. } => (),
-            SkMethodBody::RustClosureMethodBody { .. } => (),
-        }
-        panic!("cannot compare RustMethodBody");
     }
 }
 

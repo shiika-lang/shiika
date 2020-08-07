@@ -3,7 +3,7 @@ use crate::names::*;
 use std::collections::HashMap;
 
 /// Contains all the methods
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct MethodDict {
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
 }
