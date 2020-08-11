@@ -2,7 +2,7 @@
 
 a statically-typed programming language.
 
-It looks like Ruby, but has explicit type annotation.
+It looks like Ruby, but has explicit type annotations.
 Aims to be Kotlin or Swift in Rubyish style.
 
 The name "Shiika" comes from Japanese word "詩歌"(poetry).
@@ -11,9 +11,9 @@ It should be pleasant to read Shiika programs, not only to write them.
 ## Key features
 
 - Ruby-like syntax
-- Compiles to LLVM IR
+- Compiles to LLVM IRs
 - Static type checking
-- Consistency: everything is object
+- Consistency: everything is an object
 
 ## Example
 
@@ -57,7 +57,7 @@ Early-alpha
 ### Prerequisits
 
 - Rust
-- LLVM (`brew intall llvm@7`)
+- LLVM (`brew install llvm@7`)
 - bdw-gc 7.6.0 (Currently the path is hardcorded in src/main.rs. PR welcome)
 - Ruby (used to generate boiler-plate library definitions)
 
