@@ -11,6 +11,9 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// If `function` corresponds to a lambda or a method
     /// (llvm func of methods takes `self` as the first arg but lambdas do not)
     pub function_origin: FunctionOrigin,
+    /// Parameters of `function`
+    /// Only used for lambdas
+    pub function_params: Option<&'hir[MethodParam]>,
     /// Ptr of local variables
     pub lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     pub current_loop_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
@@ -39,10 +42,12 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
     pub fn new(
         function: inkwell::values::FunctionValue<'run>,
         function_origin: FunctionOrigin,
+        function_params: Option<&'hir [MethodParam]>,
     ) -> CodeGenContext<'hir, 'run> {
         CodeGenContext {
             function,
             function_origin,
+            function_params,
             lvars: HashMap::new(),
             current_loop_end: None,
             last_lambda_id: 0,

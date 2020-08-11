@@ -164,7 +164,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // UserMain:
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
 
@@ -280,7 +280,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
         for expr in const_inits {
             self.gen_expr(&mut ctx, &expr)?;
         }
@@ -316,19 +316,20 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        self.llvm_func_type(Some(self_ty), &signature.params, &signature.ret_ty)
+        let param_tys = signature.params.iter().map(|p| &p.ty).collect::<Vec<_>>();
+        self.llvm_func_type(Some(self_ty), &param_tys, &signature.ret_ty)
     }
 
     /// Return llvm funcion type
     fn llvm_func_type(
         &self,
         self_ty: Option<&TermTy>,
-        params: &[MethodParam],
+        param_tys: &[&TermTy],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let mut arg_types = params
+        let mut arg_types = param_tys
             .iter()
-            .map(|param| self.llvm_type(&param.ty))
+            .map(|ty| self.llvm_type(ty))
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {
@@ -369,7 +370,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_llvm_func_body(
         &self,
         func_name: &str,
-        params: &[MethodParam],
+        params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
@@ -396,15 +397,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                     function,
-                    FunctionOrigin::Method,
+                    None,
                     ret_ty.is_void_type(),
                     &exprs,
                 )?,
             },
             Right(exprs) => {
-                self.gen_shiika_method_body(
+                self.gen_shiika_lambda_body(
                     function,
-                    FunctionOrigin::Lambda,
+                    Some(params),
                     ret_ty.is_void_type(),
                     &exprs,
                 )?;
@@ -413,19 +414,40 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
+    /// Generate body of llvm function of Shiika method
     fn gen_shiika_method_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
-        function_origin: code_gen_context::FunctionOrigin,
+        function_params: Option<&'hir [MethodParam]>,
         void_method: bool,
         exprs: &'hir HirExpressions,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, function_origin);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
         } else {
             self.builder.build_return(Some(&last_value));
+        }
+        Ok(())
+    }
+
+    /// Generate body of llvm function of Shiika lambda
+    fn gen_shiika_lambda_body(
+        &self,
+        function: inkwell::values::FunctionValue<'run>,
+        function_params: Option<&'hir [MethodParam]>,
+        void_method: bool,
+        exprs: &'hir HirExpressions,
+    ) -> Result<(), Error> {
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params);
+        let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        if void_method {
+            self.builder.build_return(None);
+        } else {
+            let llvm_type = self.llvm_type(&exprs.ty);
+            let v = self.builder.build_bitcast(last_value, llvm_type, "");
+            self.builder.build_return(Some(&v));
         }
         Ok(())
     }
