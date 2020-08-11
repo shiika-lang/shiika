@@ -99,8 +99,9 @@ fn run_<P: AsRef<Path>>(
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg(asm_path.clone());
-    cmd.output()
-        .map_err(|e| runner_error("failed to run clang", e))?;
+    if !cmd.status()?.success() {
+        return Err(Box::new(plain_runner_error("failed to run clang")));
+    }
 
     //fs::remove_file(bc_path)?;
     fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", e))?;
