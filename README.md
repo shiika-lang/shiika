@@ -1,5 +1,3 @@
-# Shiika is ...
-
 a statically-typed programming language.
 
 It looks like Ruby, but has explicit type annotations.
@@ -14,6 +12,16 @@ It should be pleasant to read Shiika programs, not only to write them.
 - Compiles to LLVM IRs
 - Static type checking
 - Consistency: everything is an object
+- Is a "scripting" language (prefer easiness over performance; use C or Rust for performance-critical parts and load it as a library)
+  - This does not mean Shiika is only for small programs. You know, Ruby is designed as a scripting language but it is considered "production-ready" nowadays
+
+### Why not [Crystal](https://crystal-lang.org/)?
+
+Shiika has lots in common with Crystal. However:
+
+- In Shiika, type annotation of method parameters are mandatory. This helps reading programs written by others
+- Shiika has only one class `Int` for integers (cf. `Int8`, `Int16`, `Int32` in Crystal)
+- Shiika does not have union types. The type system is more similar to languages such as Rust, Java or Swift (this isn't good or bad; just a difference)
 
 ## Example
 
