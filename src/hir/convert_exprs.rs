@@ -318,6 +318,7 @@ impl HirMaker {
         method_name: &MethodFirstname,
         arg_hirs: Vec<HirExpression>,
     ) -> Result<HirExpression, Error> {
+        let specialized = receiver_hir.ty.is_specialized();
         let class_fullname = &receiver_hir.ty.fullname;
         let (sig, found_class_name) = self
             .class_dict
@@ -325,7 +326,6 @@ impl HirMaker {
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(&sig, &param_tys, &receiver_hir, &arg_hirs)?;
-        let bitcast_needed = receiver_hir.ty.is_specialized();
 
         let receiver = if &found_class_name != class_fullname {
             // Upcast needed
@@ -333,9 +333,20 @@ impl HirMaker {
         } else {
             receiver_hir
         };
+
+        let args;
+        if specialized {
+            args = arg_hirs.into_iter().map(|expr| {
+                Hir::bit_cast(ty::raw("Object"), expr)
+            }).collect::<Vec<_>>();
+        }
+        else {
+            args = arg_hirs;
+        }
+
         let mut ret =
-            Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), arg_hirs);
-        if bitcast_needed {
+            Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), args);
+        if specialized {
             ret = Hir::bit_cast(sig.ret_ty, ret)
         }
         Ok(ret)
