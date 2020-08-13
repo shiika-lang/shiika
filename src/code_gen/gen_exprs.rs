@@ -7,9 +7,7 @@ use crate::hir::*;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-use inkwell::types::*;
 use inkwell::values::*;
-use inkwell::AddressSpace;
 use std::rc::Rc;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
@@ -505,67 +503,5 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
 
         cls_obj
-    }
-
-    // Generate call of GC_malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(
-        &self,
-        class_fullname: &ClassFullname,
-        reg_name: &str,
-    ) -> inkwell::values::BasicValueEnum<'ictx> {
-        let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
-        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let size = object_type
-            .size_of()
-            .expect("[BUG] object_type has no size");
-
-        // %mem = call i8* @GC_malloc(i64 %size)",
-        let func = self.get_llvm_func("GC_malloc");
-        let raw_addr = self
-            .builder
-            .build_call(func, &[size.as_basic_value_enum()], "mem")
-            .try_as_basic_value()
-            .left()
-            .unwrap();
-
-        // %foo = bitcast i8* %mem to %#{t}*",
-        self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
-    }
-
-    pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        match ty.body {
-            TyBody::TyRaw => match ty.fullname.0.as_str() {
-                "Bool" => self.i64_type.as_basic_type_enum(),
-                "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
-                _ => self.sk_obj_llvm_type(ty),
-            },
-            _ => self.sk_obj_llvm_type(ty),
-        }
-    }
-
-    /// Return zero value in LLVM. None if it is a pointer
-    pub(super) fn llvm_zero_value(&self, ty: &TermTy) -> Option<inkwell::values::BasicValueEnum> {
-        match ty.body {
-            TyBody::TyRaw => match ty.fullname.0.as_str() {
-                "Bool" => Some(self.i1_type.const_int(0, false).as_basic_value_enum()),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
-    pub fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        let s = match &ty.body {
-            TyBody::TySpe { base_name, .. } => &base_name,
-            TyBody::TyParamRef { .. } => "Object", // its upper bound
-            _ => &ty.fullname.0,
-        };
-        let struct_type = self
-            .llvm_struct_types
-            .get(&class_fullname(s))
-            .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
-        struct_type
-            .ptr_type(AddressSpace::Generic)
-            .as_basic_type_enum()
     }
 }
