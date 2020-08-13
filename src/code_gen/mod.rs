@@ -395,20 +395,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                    function,
-                    None,
-                    ret_ty.is_void_type(),
-                    &exprs,
-                )?,
+                SkMethodBody::ShiikaMethodBody { exprs } => {
+                    self.gen_shiika_method_body(function, None, ret_ty.is_void_type(), &exprs)?
+                }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(
-                    function,
-                    Some(params),
-                    ret_ty.is_void_type(),
-                    &exprs,
-                )?;
+                self.gen_shiika_lambda_body(function, Some(params), ret_ty.is_void_type(), &exprs)?;
             }
         }
         Ok(())

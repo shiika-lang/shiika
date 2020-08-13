@@ -336,16 +336,15 @@ impl HirMaker {
 
         let args;
         if specialized {
-            args = arg_hirs.into_iter().map(|expr| {
-                Hir::bit_cast(ty::raw("Object"), expr)
-            }).collect::<Vec<_>>();
-        }
-        else {
+            args = arg_hirs
+                .into_iter()
+                .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
+                .collect::<Vec<_>>();
+        } else {
             args = arg_hirs;
         }
 
-        let mut ret =
-            Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), args);
+        let mut ret = Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), args);
         if specialized {
             ret = Hir::bit_cast(sig.ret_ty, ret)
         }

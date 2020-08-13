@@ -13,7 +13,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     pub function_origin: FunctionOrigin,
     /// Parameters of `function`
     /// Only used for lambdas
-    pub function_params: Option<&'hir[MethodParam]>,
+    pub function_params: Option<&'hir [MethodParam]>,
     /// Ptr of local variables
     pub lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     pub current_loop_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,

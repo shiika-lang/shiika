@@ -386,7 +386,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx.push_lambda(func_name.clone(), params, exprs);
 
         let ret_ty = &exprs.ty;
-        let func_type = self.llvm_func_type(None, &[&ty::raw("Object"), &ty::raw("Object")], &ret_ty);
+        let func_type =
+            self.llvm_func_type(None, &[&ty::raw("Object"), &ty::raw("Object")], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, freevars)
