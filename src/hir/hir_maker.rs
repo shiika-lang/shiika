@@ -20,7 +20,10 @@ pub struct HirMaker {
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
+    /// Gensym (currently used by array literals)
     gensym_ct: usize,
+    /// Counter to give unique name for lambdas
+    lambda_ct: usize,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
@@ -50,6 +53,7 @@ impl HirMaker {
             const_inits: vec![],
             str_literals: vec![],
             gensym_ct: 0,
+            lambda_ct: 0,
         }
     }
 
