@@ -397,6 +397,12 @@ impl HirMaker {
         // Start from space so that it won't collide with user vars
         format!(" tmp{}", self.gensym_ct)
     }
+
+    /// Create unique integer for naming lambdas
+    pub(super) fn new_lambda_id(&mut self) -> usize {
+        self.lambda_ct += 1;
+        self.lambda_ct
+    }
 }
 
 // Whether the class has .new

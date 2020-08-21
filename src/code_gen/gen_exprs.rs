@@ -56,7 +56,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx } => self.gen_ivar_ref(ctx, name, idx),
             HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
-            HirLambdaExpr { params, exprs } => self.gen_lambda(ctx, params, exprs),
+            HirLambdaExpr { name, params, exprs } => self.gen_lambda(ctx, name, params, exprs),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -379,6 +379,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_lambda(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        name: &str,
         params: &'hir [MethodParam],
         exprs: &'hir HirExpressions,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
