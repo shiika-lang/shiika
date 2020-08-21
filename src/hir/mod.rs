@@ -347,7 +347,11 @@ impl Hir {
         let ty = lambda_ty(&params, &exprs.ty);
         HirExpression {
             ty,
-            node: HirExpressionBase::HirLambdaExpr { name, params, exprs },
+            node: HirExpressionBase::HirLambdaExpr {
+                name,
+                params,
+                exprs,
+            },
         }
     }
 

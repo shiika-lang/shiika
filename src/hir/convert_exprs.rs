@@ -371,7 +371,11 @@ impl HirMaker {
             .iter()
             .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Hir::lambda(lambda_id, hir_params, HirExpressions::new(hir_exprs)))
+        Ok(Hir::lambda(
+            lambda_id,
+            hir_params,
+            HirExpressions::new(hir_exprs),
+        ))
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
