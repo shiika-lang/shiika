@@ -1,6 +1,7 @@
 mod boxing;
 mod code_gen_context;
 mod gen_exprs;
+mod lambda;
 mod utils;
 use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
@@ -84,6 +85,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
+        self.gen_lambda_funcs(&hir)?;
         self.gen_user_main(&hir.main_exprs)?;
         self.gen_main()?;
         Ok(())
@@ -168,9 +170,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
 
-        // Lambdas
-        self.gen_lambda_funcs(&mut ctx)?;
-
         Ok(())
     }
 
@@ -194,16 +193,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // ret i32 0
         self.builder
             .build_return(Some(&self.i32_type.const_int(0, false)));
-        Ok(())
-    }
-
-    /// Create llvm functions for lambdas
-    fn gen_lambda_funcs(&mut self, ctx: &mut CodeGenContext<'hir, 'run>) -> Result<(), Error> {
-        // We need a queue because a lambda may have another lambda inside
-        while let Some(l) = ctx.lambdas.pop_front() {
-            let ret_ty = &l.exprs.ty;
-            self.gen_llvm_func_body(&l.func_name, l.params, Right(l.exprs), &ret_ty)?;
-        }
         Ok(())
     }
 
