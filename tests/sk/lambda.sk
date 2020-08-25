@@ -1,4 +1,13 @@
+# Basic
 f = fn(x: Int){ x + 1 }
-if f.call(1) != 2; puts "ng"; end
+if f.call(1) != 2; puts "ng 1"; end
+
+# Lambda in a method
+class A
+  def self.foo -> Int
+    fn(x: Int){ x + 1 }.call(1)
+  end
+end
+if A.foo != 2; puts "ng 2"; end
 
 puts "ok"
