@@ -357,6 +357,7 @@ impl HirMaker {
         params: &[ast::Param],
         exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
+        let lambda_id = self.new_lambda_id();
         let hir_params = signature::convert_params(params, &[]);
         // REFACTOR: consider changing ctx.method_sig to just ctx.method_params
         // (because properties other than `params` are not used)
@@ -370,7 +371,11 @@ impl HirMaker {
             .iter()
             .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Hir::lambda(hir_params, HirExpressions::new(hir_exprs)))
+        Ok(Hir::lambda(
+            lambda_id,
+            hir_params,
+            HirExpressions::new(hir_exprs),
+        ))
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)

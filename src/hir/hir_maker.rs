@@ -20,7 +20,10 @@ pub struct HirMaker {
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
+    /// Gensym (currently used by array literals)
     gensym_ct: usize,
+    /// Counter to give unique name for lambdas
+    lambda_ct: usize,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
@@ -50,6 +53,7 @@ impl HirMaker {
             const_inits: vec![],
             str_literals: vec![],
             gensym_ct: 0,
+            lambda_ct: 0,
         }
     }
 
@@ -157,9 +161,9 @@ impl HirMaker {
     fn register_meta_ivar(&mut self, name: &ClassFullname) -> Result<(), Error> {
         let mut meta_ivars = HashMap::new();
         meta_ivars.insert(
-            "@name".to_string(),
+            "name".to_string(),
             SkIVar {
-                name: "@name".to_string(),
+                name: "name".to_string(),
                 idx: 0,
                 ty: ty::raw("String"),
                 readonly: true,
@@ -392,6 +396,12 @@ impl HirMaker {
         self.gensym_ct += 1;
         // Start from space so that it won't collide with user vars
         format!(" tmp{}", self.gensym_ct)
+    }
+
+    /// Create unique integer for naming lambdas
+    pub(super) fn new_lambda_id(&mut self) -> usize {
+        self.lambda_ct += 1;
+        self.lambda_ct
     }
 }
 

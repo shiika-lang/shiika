@@ -161,7 +161,8 @@ pub enum HirExpressionBase {
     HirConstRef {
         fullname: ConstFullname,
     },
-    HirLambda {
+    HirLambdaExpr {
+        name: String,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
     },
@@ -341,11 +342,16 @@ impl Hir {
         }
     }
 
-    pub fn lambda(params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
+    pub fn lambda(n: usize, params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
+        let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
         HirExpression {
             ty,
-            node: HirExpressionBase::HirLambda { params, exprs },
+            node: HirExpressionBase::HirLambdaExpr {
+                name,
+                params,
+                exprs,
+            },
         }
     }
 

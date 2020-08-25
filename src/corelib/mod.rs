@@ -162,9 +162,9 @@ fn make_classes(
 
         let mut meta_ivars = HashMap::new();
         meta_ivars.insert(
-            "@name".to_string(),
+            "name".to_string(),
             SkIVar {
-                name: "@name".to_string(),
+                name: "name".to_string(),
                 idx: 0,
                 ty: ty::raw("String"),
                 readonly: true,
