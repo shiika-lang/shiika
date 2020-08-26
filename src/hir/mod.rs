@@ -80,7 +80,7 @@ pub type ClosureMethodBody = dyn Fn(
     &inkwell::values::FunctionValue,
 ) -> Result<(), crate::error::Error>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,
@@ -100,13 +100,13 @@ impl HirExpressions {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum HirExpressionBase {
     HirLogicalNot {
         expr: Box<HirExpression>,
