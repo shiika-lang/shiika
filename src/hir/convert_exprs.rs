@@ -380,28 +380,33 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {
-        // It is a local variable
-        if let Some(lvar) = ctx.lvars.get(name) {
-            return Ok(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
+        if let Some(expr) = self.lookup_var(ctx, name) {
+            Ok(expr)
         }
-        // It is a method parameter
-        let method_sig = match &ctx.method_sig {
-            Some(x) => x,
-            None => {
-                return Err(error::program_error(&format!(
-                    "variable not found: `{}'",
-                    name
-                )))
-            }
-        };
-        match &method_sig.find_param(name) {
-            Some((idx, param)) => Ok(Hir::hir_arg_ref(param.ty.clone(), *idx)),
-            None => Err(error::program_error(&format!(
+        else {
+            Err(error::program_error(&format!(
                 "variable `{}' was not found",
                 name
-            ))),
+            )))
         }
+    }
+
+    fn lookup_var(
+        &self,
+        ctx: &HirMakerContext, 
+        name: &str,
+    ) -> Option<HirExpression> {
+        // It is a local variable
+        if let Some(lvar) = ctx.lvars.get(name) {
+            return Some(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
+        }
+        // It is a method parameter
         // TODO: It may be a nullary method call
+        ctx.method_sig.as_ref().map(|method_sig| {
+            method_sig.find_param(name)
+        }).flatten().map(|(idx, param)| {
+            Hir::hir_arg_ref(param.ty.clone(), idx)
+        })
     }
 
     fn convert_ivar_ref(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {
