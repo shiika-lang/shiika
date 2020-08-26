@@ -4,8 +4,12 @@ use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
+static mut LAST_CTX_ID: usize = 0;
+
 #[derive(Debug)]
 pub struct HirMakerContext {
+    /// Unique number to denote this ctx
+    pub id: usize,
     /// Signature of the current method (Used to get the list of parameters)
     /// None if out of a method
     pub method_sig: Option<MethodSignature>,
@@ -32,6 +36,7 @@ impl HirMakerContext {
     /// Create a ctx for toplevel
     pub fn toplevel() -> HirMakerContext {
         HirMakerContext {
+            id: new_id(),
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
@@ -45,6 +50,7 @@ impl HirMakerContext {
     /// Create a class context
     pub fn class_ctx(fullname: &ClassFullname) -> HirMakerContext {
         HirMakerContext {
+            id: new_id(),
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
@@ -62,6 +68,7 @@ impl HirMakerContext {
         is_initializer: bool,
     ) -> HirMakerContext {
         HirMakerContext {
+            id: new_id(),
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
@@ -78,6 +85,7 @@ impl HirMakerContext {
         lambda_sig: MethodSignature,
     ) -> HirMakerContext {
         HirMakerContext {
+            id: new_id(),
             method_sig: Some(lambda_sig),
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
@@ -86,6 +94,14 @@ impl HirMakerContext {
             is_initializer: false,
             super_ivars: HashMap::new(),
         }
+    }
+}
+
+/// Return a newly created ctx id
+fn new_id() -> usize {
+    unsafe {
+        LAST_CTX_ID += 1;
+        LAST_CTX_ID
     }
 }
 
