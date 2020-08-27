@@ -365,6 +365,7 @@ impl HirMaker {
             lambda_id,
             hir_params,
             hir_exprs,
+            lambda_ctx.captures,
         ))
     }
 
