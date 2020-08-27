@@ -99,12 +99,17 @@ impl<'make> HirMakerContext<'make> {
     /// Create a ctx for lambda
     pub fn lambda_ctx(
         method_ctx: &'make HirMakerContext,
-        lambda_sig: MethodSignature,
+        params: Vec<MethodParam>,
     ) -> HirMakerContext<'make> {
+        let sig = MethodSignature {
+            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
+            ret_ty: ty::raw("(dummy)"),
+            params,
+        };
         HirMakerContext {
             outer_ctx: Some(method_ctx),
             id: new_id(),
-            method_sig: Some(lambda_sig),
+            method_sig: Some(sig),
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),

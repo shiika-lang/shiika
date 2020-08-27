@@ -359,14 +359,7 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         let lambda_id = self.new_lambda_id();
         let hir_params = signature::convert_params(params, &[]);
-        // REFACTOR: consider changing ctx.method_sig to just ctx.method_params
-        // (because properties other than `params` are not used)
-        let sig = MethodSignature {
-            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
-            ret_ty: ty::raw("(dummy)"),
-            params: hir_params.clone(),
-        };
-        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, sig);
+        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, hir_params.clone());
         let hir_exprs = exprs
             .iter()
             .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
