@@ -7,7 +7,8 @@ use std::collections::HashMap;
 static mut LAST_CTX_ID: usize = 0;
 
 #[derive(Debug)]
-pub struct HirMakerContext {
+pub struct HirMakerContext<'make> {
+    pub outer_ctx: Option<&'make HirMakerContext<'make>>,
     /// Unique number to denote this ctx
     pub id: usize,
     /// Signature of the current method (Used to get the list of parameters)
@@ -32,10 +33,11 @@ pub struct HirMakerContext {
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 }
 
-impl HirMakerContext {
+impl<'make> HirMakerContext<'make> {
     /// Create a ctx for toplevel
-    pub fn toplevel() -> HirMakerContext {
+    pub fn toplevel() -> HirMakerContext<'static> { // REVIEW: not sure this 'static is the right way
         HirMakerContext {
+            outer_ctx: None,
             id: new_id(),
             method_sig: None,
             self_ty: ty::raw("Object"),
@@ -50,6 +52,7 @@ impl HirMakerContext {
     /// Create a class context
     pub fn class_ctx(fullname: &ClassFullname) -> HirMakerContext {
         HirMakerContext {
+            outer_ctx: None,
             id: new_id(),
             method_sig: None,
             self_ty: ty::raw("Object"),
@@ -63,11 +66,12 @@ impl HirMakerContext {
 
     /// Create a method context
     pub fn method_ctx(
-        class_ctx: &HirMakerContext,
+        class_ctx: &'make HirMakerContext,
         method_sig: &MethodSignature,
         is_initializer: bool,
-    ) -> HirMakerContext {
+    ) -> HirMakerContext<'make> {
         HirMakerContext {
+            outer_ctx: Some(class_ctx),
             id: new_id(),
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
@@ -81,10 +85,11 @@ impl HirMakerContext {
 
     /// Create a ctx for lambda
     pub fn lambda_ctx(
-        method_ctx: &HirMakerContext,
+        method_ctx: &'make HirMakerContext,
         lambda_sig: MethodSignature,
-    ) -> HirMakerContext {
+    ) -> HirMakerContext<'make> {
         HirMakerContext {
+            outer_ctx: Some(method_ctx),
             id: new_id(),
             method_sig: Some(lambda_sig),
             self_ty: method_ctx.self_ty.clone(),
