@@ -360,14 +360,11 @@ impl HirMaker {
         let lambda_id = self.new_lambda_id();
         let hir_params = signature::convert_params(params, &[]);
         let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, hir_params.clone());
-        let hir_exprs = exprs
-            .iter()
-            .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
-            .collect::<Result<Vec<_>, _>>()?;
+        let hir_exprs = self.convert_exprs(&mut lambda_ctx, exprs)?;
         Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
-            HirExpressions::new(hir_exprs),
+            hir_exprs,
         ))
     }
 
