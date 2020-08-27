@@ -66,7 +66,7 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs),
 
-            AstExpressionBody::Lambda { params, exprs } => self.convert_lambda(ctx, params, exprs),
+            AstExpressionBody::LambdaExpr { params, exprs } => self.convert_lambda_expr(ctx, params, exprs),
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(ctx, name),
 
@@ -351,7 +351,7 @@ impl HirMaker {
         Ok(ret)
     }
 
-    fn convert_lambda(
+    fn convert_lambda_expr(
         &mut self,
         ctx: &mut HirMakerContext,
         params: &[ast::Param],
@@ -371,7 +371,7 @@ impl HirMaker {
             .iter()
             .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Hir::lambda(
+        Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
             HirExpressions::new(hir_exprs),

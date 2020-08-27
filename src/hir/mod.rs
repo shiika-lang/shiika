@@ -356,7 +356,7 @@ impl Hir {
         }
     }
 
-    pub fn lambda(n: usize, params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
+    pub fn lambda_expr(n: usize, params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
         HirExpression {
