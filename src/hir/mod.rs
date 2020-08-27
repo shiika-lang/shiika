@@ -82,9 +82,8 @@ pub type ClosureMethodBody = dyn Fn(
 
 #[derive(Debug)]
 pub enum LambdaCapture {
-    CapLVar { ctx_id: usize, name: String  },
+    CapLVar { ctx_id: usize, name: String },
     CapFnArg { ctx_id: usize, idx: usize },
-    CapFwd { idx: usize },
 }
 
 #[derive(Debug)]
@@ -192,6 +191,13 @@ pub enum HirExpressionBase {
         value: bool,
     },
 
+    //
+    // Special opecodes (does not appear in a source program directly)
+    //
+    /// Variable lookup from lambda capture
+    HirLambdaCaptureRef {
+        idx: usize,
+    },
     /// Represents bitcast of an object
     HirBitCast {
         expr: Box<HirExpression>,
@@ -405,6 +411,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value },
+        }
+    }
+
+    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirLambdaCaptureRef { idx },
         }
     }
 

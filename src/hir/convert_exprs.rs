@@ -379,11 +379,14 @@ impl HirMaker {
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
-    fn convert_bare_name(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {
+    fn convert_bare_name(
+        &self,
+        ctx: &mut HirMakerContext,
+        name: &str,
+    ) -> Result<HirExpression, Error> {
         if let Some(expr) = self.lookup_var(ctx, name) {
             Ok(expr)
-        }
-        else {
+        } else {
             Err(error::program_error(&format!(
                 "variable `{}' was not found",
                 name
@@ -391,22 +394,48 @@ impl HirMaker {
         }
     }
 
-    fn lookup_var(
-        &self,
-        ctx: &HirMakerContext, 
-        name: &str,
-    ) -> Option<HirExpression> {
-        // It is a local variable
-        if let Some(lvar) = ctx.lvars.get(name) {
+    fn lookup_var(&self, ctx: &mut HirMakerContext, name: &str) -> Option<HirExpression> {
+        if let Some(lvar) = ctx.find_lvar(name) {
             return Some(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
         }
-        // It is a method parameter
+        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+            return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
+        }
+        if let Some(outer_ctx) = ctx.outer_ctx {
+            return self.lookup_var_in_outer_scope(&mut ctx.captures, outer_ctx, name);
+        }
+        None
+    }
+
+    fn lookup_var_in_outer_scope(
+        &self,
+        origin_captures: &mut Vec<LambdaCapture>,
+        ctx: &HirMakerContext,
+        name: &str,
+    ) -> Option<HirExpression> {
+        if let Some(lvar) = ctx.find_lvar(name) {
+            origin_captures.push(LambdaCapture::CapLVar {
+                ctx_id: ctx.id,
+                name: name.to_string(),
+            });
+            let cidx = origin_captures.len() - 1;
+            return Some(Hir::lambda_capture_ref(lvar.ty.clone(), cidx));
+        }
+        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+            origin_captures.push(LambdaCapture::CapFnArg {
+                ctx_id: ctx.id,
+                idx,
+            });
+            let cidx = origin_captures.len() - 1;
+            return Some(Hir::lambda_capture_ref(param.ty.clone(), cidx));
+        }
+
         // TODO: It may be a nullary method call
-        ctx.method_sig.as_ref().map(|method_sig| {
-            method_sig.find_param(name)
-        }).flatten().map(|(idx, param)| {
-            Hir::hir_arg_ref(param.ty.clone(), idx)
-        })
+
+        // Lookup in the next surrounding context
+        ctx.outer_ctx
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(origin_captures, outer_ctx, name))
+            .flatten()
     }
 
     fn convert_ivar_ref(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {

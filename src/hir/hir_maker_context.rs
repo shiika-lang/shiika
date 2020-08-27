@@ -8,9 +8,10 @@ static mut LAST_CTX_ID: usize = 0;
 
 #[derive(Debug)]
 pub struct HirMakerContext<'make> {
-    pub outer_ctx: Option<&'make HirMakerContext<'make>>,
     /// Unique number to denote this ctx
     pub id: usize,
+    /// Next surrounding ctx (if any)
+    pub outer_ctx: Option<&'make HirMakerContext<'make>>,
     /// Signature of the current method (Used to get the list of parameters)
     /// None if out of a method
     pub method_sig: Option<MethodSignature>,
@@ -21,6 +22,8 @@ pub struct HirMakerContext<'make> {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
+    /// List of free variables captured in this context
+    pub captures: Vec<LambdaCapture>,
 
     //
     // ivar-related stuffs
@@ -33,9 +36,16 @@ pub struct HirMakerContext<'make> {
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 }
 
+impl<'make> PartialEq for HirMakerContext<'make> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl<'make> HirMakerContext<'make> {
     /// Create a ctx for toplevel
-    pub fn toplevel() -> HirMakerContext<'static> { // REVIEW: not sure this 'static is the right way
+    pub fn toplevel() -> HirMakerContext<'static> {
+        // REVIEW: not sure this 'static is the right way
         HirMakerContext {
             outer_ctx: None,
             id: new_id(),
@@ -43,6 +53,7 @@ impl<'make> HirMakerContext<'make> {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
+            captures: vec![],
             iivars: HashMap::new(),
             is_initializer: false,
             super_ivars: HashMap::new(),
@@ -58,6 +69,7 @@ impl<'make> HirMakerContext<'make> {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
+            captures: vec![],
             iivars: HashMap::new(),
             is_initializer: false,
             super_ivars: HashMap::new(),
@@ -77,6 +89,7 @@ impl<'make> HirMakerContext<'make> {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
+            captures: vec![],
             iivars: HashMap::new(),
             is_initializer,
             super_ivars: HashMap::new(),
@@ -95,10 +108,24 @@ impl<'make> HirMakerContext<'make> {
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
+            captures: vec![],
             iivars: HashMap::new(),
             is_initializer: false,
             super_ivars: HashMap::new(),
         }
+    }
+
+    /// Return local variable of given name, if any
+    pub fn find_lvar(&self, name: &str) -> Option<&CtxLVar> {
+        self.lvars.get(name)
+    }
+
+    /// Return method/lambda argument of given name, if any
+    pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
+        self.method_sig
+            .as_ref()
+            .map(|sig| sig.find_param(name))
+            .flatten()
     }
 }
 
