@@ -81,9 +81,16 @@ pub type ClosureMethodBody = dyn Fn(
 ) -> Result<(), crate::error::Error>;
 
 #[derive(Debug)]
-pub enum LambdaCapture {
-    CapLVar { ctx_id: usize, name: String },
-    CapFnArg { ctx_id: usize, idx: usize },
+pub struct LambdaCapture {
+    ctx_id: usize,
+    ty: TermTy,
+    detail: LambdaCaptureDetail,
+}
+
+#[derive(Debug)]
+pub enum LambdaCaptureDetail {
+    CapLVar { name: String },
+    CapFnArg { idx: usize },
 }
 
 #[derive(Debug)]
@@ -171,7 +178,7 @@ pub enum HirExpressionBase {
         name: String,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures: Vec<LambdaCapture>,
+        captures: HirExpressions,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -212,6 +219,10 @@ pub enum HirExpressionBase {
 }
 
 impl Hir {
+    pub fn expressions(exprs: Vec<HirExpression>) -> HirExpressions {
+        HirExpressions::new(exprs)
+    }
+
     pub fn logical_not(expr_hir: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
@@ -360,7 +371,7 @@ impl Hir {
         n: usize,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures: Vec<LambdaCapture>,
+        captures: HirExpressions,
     ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);

@@ -363,12 +363,36 @@ impl HirMaker {
         let hir_params = signature::convert_params(params, &[]);
         let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, hir_params.clone());
         let hir_exprs = self.convert_exprs(&mut lambda_ctx, exprs)?;
+        let capture_exprs = Hir::expressions(HirMaker::resolve_lambda_captures(lambda_ctx));
         Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
             hir_exprs,
-            lambda_ctx.captures,
+            capture_exprs,
         ))
+    }
+
+    /// Resolve LambdaCapture into HirExpression
+    /// Also, concat lambda_captures to outer_captures
+    fn resolve_lambda_captures(lambda_ctx: HirMakerContext) -> Vec<HirExpression> {
+        let ctx = lambda_ctx.outer_ctx.take().unwrap();
+        lambda_ctx
+            .captures
+            .into_iter()
+            .map(|cap| {
+                if cap.ctx_id == ctx.id {
+                    match cap.detail {
+                        LambdaCaptureDetail::CapLVar { name } => Hir::lvar_ref(cap.ty, name),
+                        LambdaCaptureDetail::CapFnArg { idx } => Hir::hir_arg_ref(cap.ty, idx),
+                    }
+                } else {
+                    let ty = cap.ty.clone();
+                    ctx.captures.push(cap);
+                    let cidx = ctx.captures.len() - 1;
+                    Hir::lambda_capture_ref(ty, cidx)
+                }
+            })
+            .collect()
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
@@ -407,17 +431,21 @@ impl HirMaker {
         name: &str,
     ) -> Option<HirExpression> {
         if let Some(lvar) = ctx.find_lvar(name) {
-            origin_captures.push(LambdaCapture::CapLVar {
+            origin_captures.push(LambdaCapture {
                 ctx_id: ctx.id,
-                name: name.to_string(),
+                ty: lvar.ty.clone(),
+                detail: LambdaCaptureDetail::CapLVar {
+                    name: name.to_string(),
+                },
             });
             let cidx = origin_captures.len() - 1;
             return Some(Hir::lambda_capture_ref(lvar.ty.clone(), cidx));
         }
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            origin_captures.push(LambdaCapture::CapFnArg {
+            origin_captures.push(LambdaCapture {
                 ctx_id: ctx.id,
-                idx,
+                ty: param.ty.clone(),
+                detail: LambdaCaptureDetail::CapFnArg { idx },
             });
             let cidx = origin_captures.len() - 1;
             return Some(Hir::lambda_capture_ref(param.ty.clone(), cidx));
