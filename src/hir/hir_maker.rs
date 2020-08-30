@@ -132,10 +132,7 @@ impl HirMaker {
         Ok(HirExpressions::new(main_exprs))
     }
 
-    fn process_toplevel_def(
-        &mut self,
-        def: &ast::Definition,
-    ) -> Result<(), Error> {
+    fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
         match def {
             // Extract instance/class methods
             ast::Definition::ClassDefinition { name, defs, .. } => {
@@ -382,10 +379,11 @@ impl HirMaker {
             .clone();
 
         self.push_ctx(HirMakerContext::method_ctx(
-            ctx, 
+            ctx,
             &signature,
             is_initializer,
-            super_ivars.unwrap_or_else(|| HashMap::new())));
+            super_ivars.unwrap_or_else(|| HashMap::new()),
+        ));
         let body_exprs = self.convert_exprs(body_exprs)?;
         self.pop_ctx();
         type_checking::check_return_value(&signature, &body_exprs.ty)?;

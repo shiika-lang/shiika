@@ -1,5 +1,5 @@
-use crate::hir::*;
 use crate::hir::hir_maker::HirMaker;
+use crate::hir::*;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
@@ -180,7 +180,7 @@ impl HirMaker {
         if l < 2 {
             return None;
         }
-        Some(&self.ctx_stack[l-2])
+        Some(&self.ctx_stack[l - 2])
     }
 
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
@@ -191,7 +191,7 @@ impl HirMaker {
         if ctx.depth == 0 {
             return None;
         }
-        let outer_ctx = &self.ctx_stack[ctx.depth-1];
+        let outer_ctx = &self.ctx_stack[ctx.depth - 1];
         Some(outer_ctx)
     }
 }

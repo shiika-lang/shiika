@@ -20,18 +20,11 @@ impl HirMaker {
         Ok(HirExpressions::new(hir_exprs))
     }
 
-    pub(super) fn convert_expr(
-        &mut self,
-        expr: &AstExpression,
-    ) -> Result<HirExpression, Error> {
+    pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
             AstExpressionBody::LogicalNot { expr } => self.convert_logical_not(expr),
-            AstExpressionBody::LogicalAnd { left, right } => {
-                self.convert_logical_and(left, right)
-            }
-            AstExpressionBody::LogicalOr { left, right } => {
-                self.convert_logical_or(left, right)
-            }
+            AstExpressionBody::LogicalAnd { left, right } => self.convert_logical_and(left, right),
+            AstExpressionBody::LogicalOr { left, right } => self.convert_logical_or(left, right),
             AstExpressionBody::If {
                 cond_expr,
                 then_exprs,
@@ -87,10 +80,7 @@ impl HirMaker {
         }
     }
 
-    fn convert_logical_not(
-        &mut self,
-        expr: &AstExpression,
-    ) -> Result<HirExpression, Error> {
+    fn convert_logical_not(&mut self, expr: &AstExpression) -> Result<HirExpression, Error> {
         let expr_hir = self.convert_expr(expr)?;
         type_checking::check_logical_operator_ty(&expr_hir.ty, "argument of logical not")?;
         Ok(Hir::logical_not(expr_hir))
@@ -238,12 +228,7 @@ impl HirMaker {
     }
 
     /// Declare a new ivar
-    fn declare_ivar(
-        &mut self,
-        name: &str,
-        ty: &TermTy,
-        readonly: bool,
-    ) -> Result<usize, Error> {
+    fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
         let ctx = self.ctx_mut();
         if let Some(super_ivar) = ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
@@ -353,9 +338,11 @@ impl HirMaker {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
         let hir_params = signature::convert_params(params, &[]);
-        self.push_ctx(
-            HirMakerContext::lambda_ctx(ctx.depth+1, ctx, hir_params.clone())
-            );
+        self.push_ctx(HirMakerContext::lambda_ctx(
+            ctx.depth + 1,
+            ctx,
+            hir_params.clone(),
+        ));
         let hir_exprs = self.convert_exprs(exprs)?;
         // This pops ctx
         let capture_exprs = Hir::expressions(self.resolve_lambda_captures());
@@ -369,7 +356,7 @@ impl HirMaker {
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn resolve_lambda_captures(&mut self)-> Vec<HirExpression> {
+    fn resolve_lambda_captures(&mut self) -> Vec<HirExpression> {
         let lambda_ctx = self.pop_ctx();
         let ctx = self.ctx_mut();
         lambda_ctx
@@ -392,10 +379,7 @@ impl HirMaker {
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
-    fn convert_bare_name(
-        &mut self,
-        name: &str,
-    ) -> Result<HirExpression, Error> {
+    fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
         if let Some(expr) = self.lookup_var(name) {
             Ok(expr)
         } else {
@@ -469,10 +453,7 @@ impl HirMaker {
     }
 
     /// Resolve constant name
-    fn convert_const_ref(
-        &self,
-        names: &[String],
-    ) -> Result<HirExpression, Error> {
+    fn convert_const_ref(&self, names: &[String]) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
         let fullname = ConstFullname("::".to_string() + &names.join("::"));
         match self.constants.get(&fullname) {
@@ -491,10 +472,7 @@ impl HirMaker {
         }
     }
 
-    fn convert_pseudo_variable(
-        &self,
-        token: &Token,
-    ) -> Result<HirExpression, Error> {
+    fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {
         match token {
             Token::KwSelf => self.convert_self_expr(),
             Token::KwTrue => Ok(Hir::boolean_literal(true)),
