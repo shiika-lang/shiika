@@ -120,11 +120,7 @@ impl HirMakerContext {
     }
 
     /// Create a ctx for lambda
-    pub fn lambda_ctx(
-        depth: usize,
-        method_ctx: &HirMakerContext,
-        params: Vec<MethodParam>,
-    ) -> HirMakerContext {
+    pub fn lambda_ctx(method_ctx: &HirMakerContext, params: Vec<MethodParam>) -> HirMakerContext {
         let sig = MethodSignature {
             fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
             ret_ty: ty::raw("(dummy)"),
@@ -132,7 +128,7 @@ impl HirMakerContext {
         };
         HirMakerContext {
             kind: CtxKind::Lambda,
-            depth,
+            depth: method_ctx.depth + 1,
             method_sig: Some(sig),
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),

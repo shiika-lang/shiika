@@ -336,13 +336,8 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
-        let ctx = self.ctx();
         let hir_params = signature::convert_params(params, &[]);
-        self.push_ctx(HirMakerContext::lambda_ctx(
-            ctx.depth + 1,
-            ctx,
-            hir_params.clone(),
-        ));
+        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         // This pops ctx
         let capture_exprs = Hir::expressions(self.resolve_lambda_captures());
@@ -404,7 +399,7 @@ impl HirMaker {
             let cidx = ctx.captures.len() - 1;
             if let Some((cap, expr)) = self.lookup_var_in_outer_scope(cidx, outer_ctx, name) {
                 self.ctx_mut().captures.push(cap);
-                return Some(expr)
+                return Some(expr);
             }
         }
         None
