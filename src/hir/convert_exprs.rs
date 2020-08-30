@@ -393,7 +393,7 @@ impl HirMaker {
     /// Lookup variable of the name.
     /// If it is a free variable, ctx.captures will be modified
     fn lookup_var(&mut self, name: &str) -> Option<HirExpression> {
-        let ctx = self.ctx_mut();
+        let ctx = self.ctx();
         if let Some(lvar) = ctx.find_lvar(name) {
             return Some(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
         }
@@ -401,43 +401,45 @@ impl HirMaker {
             return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
         }
         if let Some(outer_ctx) = self.outer_ctx() {
-            return self.lookup_var_in_outer_scope(&mut ctx.captures, outer_ctx, name);
+            let cidx = ctx.captures.len() - 1;
+            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(cidx, outer_ctx, name) {
+                self.ctx_mut().captures.push(cap);
+                return Some(expr)
+            }
         }
         None
     }
 
     fn lookup_var_in_outer_scope(
         &self,
-        origin_captures: &mut Vec<LambdaCapture>,
+        cidx: usize,
         ctx: &HirMakerContext,
         name: &str,
-    ) -> Option<HirExpression> {
+    ) -> Option<(LambdaCapture, HirExpression)> {
         if let Some(lvar) = ctx.find_lvar(name) {
-            origin_captures.push(LambdaCapture {
+            let cap = LambdaCapture {
                 ctx_depth: ctx.depth,
                 ty: lvar.ty.clone(),
                 detail: LambdaCaptureDetail::CapLVar {
                     name: name.to_string(),
                 },
-            });
-            let cidx = origin_captures.len() - 1;
-            return Some(Hir::lambda_capture_ref(lvar.ty.clone(), cidx));
+            };
+            return Some((cap, Hir::lambda_capture_ref(lvar.ty.clone(), cidx)));
         }
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            origin_captures.push(LambdaCapture {
+            let cap = LambdaCapture {
                 ctx_depth: ctx.depth,
                 ty: param.ty.clone(),
                 detail: LambdaCaptureDetail::CapFnArg { idx },
-            });
-            let cidx = origin_captures.len() - 1;
-            return Some(Hir::lambda_capture_ref(param.ty.clone(), cidx));
+            };
+            return Some((cap, Hir::lambda_capture_ref(param.ty.clone(), cidx)));
         }
 
         // TODO: It may be a nullary method call
 
         // Lookup in the next surrounding context
         self.outer_lvar_scope_of(ctx)
-            .map(|outer_ctx| self.lookup_var_in_outer_scope(origin_captures, &*outer_ctx, name))
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(cidx, &*outer_ctx, name))
             .flatten()
     }
 
