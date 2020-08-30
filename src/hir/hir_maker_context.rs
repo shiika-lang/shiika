@@ -35,7 +35,7 @@ pub struct HirMakerContext {
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CtxKind {
     Toplevel,
     Class,
@@ -177,6 +177,18 @@ impl HirMaker {
             return None;
         }
         Some(&self.ctx_stack[l - 2])
+    }
+
+    pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
+        let mut i = (self.ctx_stack.len() as isize) - 1;
+        while i >= 0 {
+            let ctx = &self.ctx_stack[i as usize];
+            if ctx.kind == CtxKind::Method {
+                return Some(ctx);
+            }
+            i -= 1
+        }
+        None
     }
 
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {

@@ -439,8 +439,13 @@ impl HirMaker {
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
-        let ctx = self.ctx();
-        match self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
+        let method_ctx = self.method_ctx().ok_or_else(|| {
+            error::program_error(&format!("referring ivar `{}' out of a method", name))
+        })?;
+        match self
+            .class_dict
+            .find_ivar(&method_ctx.self_ty.fullname, name)
+        {
             Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx)),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
