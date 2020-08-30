@@ -334,9 +334,9 @@ impl HirMaker {
         params: &[ast::Param],
         exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
-        let ctx = self.ctx();
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
+        let ctx = self.ctx();
         let hir_params = signature::convert_params(params, &[]);
         self.push_ctx(HirMakerContext::lambda_ctx(
             ctx.depth + 1,
