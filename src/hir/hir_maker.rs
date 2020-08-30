@@ -20,6 +20,8 @@ pub struct HirMaker {
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
+    /// Stack of ctx
+    pub(super) ctx_stack: Vec<HirMakerContext>,
     /// Gensym (currently used by array literals)
     gensym_ct: usize,
     /// Counter to give unique name for lambdas
@@ -52,6 +54,7 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
+            ctx_stack: vec![],
             gensym_ct: 0,
             lambda_ct: 0,
         }
@@ -382,13 +385,17 @@ impl HirMaker {
         if let Some(x) = super_ivars {
             method_ctx.super_ivars = x;
         }
+        self.ctx_stack.push(method_ctx);
+        let mut method_ctx = self.ctx_stack.last_mut().unwrap();
 
         let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
+        self.ctx_stack.pop();
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
 
-        Ok((SkMethod { signature, body }, method_ctx.iivars))
+        let iivars = self.ctx_stack[0].iivars.clone();
+        Ok((SkMethod { signature, body }, iivars))
     }
 
     /// Generate unique variable name

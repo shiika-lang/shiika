@@ -4,14 +4,10 @@ use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
-static mut LAST_CTX_ID: usize = 0;
-
 #[derive(Debug)]
-pub struct HirMakerContext<'make> {
-    /// Unique number to denote this ctx
-    pub id: usize,
-    /// Next surrounding ctx (if any)
-    pub outer_ctx: Option<&'make HirMakerContext<'make>>,
+pub struct HirMakerContext {
+    /// Where this ctx is in the ctx_stack
+    pub depth: isize,
     /// Signature of the current method (Used to get the list of parameters)
     /// None if out of a method
     pub method_sig: Option<MethodSignature>,
@@ -36,19 +32,33 @@ pub struct HirMakerContext<'make> {
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 }
 
-impl<'make> PartialEq for HirMakerContext<'make> {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
+/// A local variable
+#[derive(Debug)]
+pub struct CtxLVar {
+    pub name: String,
+    pub ty: TermTy,
+    pub readonly: bool,
 }
 
-impl<'make> HirMakerContext<'make> {
+#[derive(Debug)]
+pub struct LambdaCapture {
+    pub ctx_depth: isize,
+    pub ty: TermTy,
+    pub detail: LambdaCaptureDetail,
+}
+
+#[derive(Debug)]
+pub enum LambdaCaptureDetail {
+    CapLVar { name: String },
+    CapFnArg { idx: usize },
+}
+
+impl HirMakerContext {
     /// Create a ctx for toplevel
-    pub fn toplevel() -> HirMakerContext<'static> {
+    pub fn toplevel() -> HirMakerContext {
         // REVIEW: not sure this 'static is the right way
         HirMakerContext {
-            outer_ctx: None,
-            id: new_id(),
+            depth: -1,
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
@@ -63,8 +73,7 @@ impl<'make> HirMakerContext<'make> {
     /// Create a class context
     pub fn class_ctx(fullname: &ClassFullname) -> HirMakerContext {
         HirMakerContext {
-            outer_ctx: None,
-            id: new_id(),
+            depth: -1,
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
@@ -78,13 +87,12 @@ impl<'make> HirMakerContext<'make> {
 
     /// Create a method context
     pub fn method_ctx(
-        class_ctx: &'make HirMakerContext,
+        class_ctx: &HirMakerContext,
         method_sig: &MethodSignature,
         is_initializer: bool,
-    ) -> HirMakerContext<'make> {
+    ) -> HirMakerContext {
         HirMakerContext {
-            outer_ctx: Some(class_ctx),
-            id: new_id(),
+            depth: 0,
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
@@ -98,17 +106,17 @@ impl<'make> HirMakerContext<'make> {
 
     /// Create a ctx for lambda
     pub fn lambda_ctx(
-        method_ctx: &'make HirMakerContext,
+        depth: isize,
+        method_ctx: &HirMakerContext,
         params: Vec<MethodParam>,
-    ) -> HirMakerContext<'make> {
+    ) -> HirMakerContext {
         let sig = MethodSignature {
             fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
             ret_ty: ty::raw("(dummy)"),
             params,
         };
         HirMakerContext {
-            outer_ctx: Some(method_ctx),
-            id: new_id(),
+            depth,
             method_sig: Some(sig),
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
@@ -132,20 +140,4 @@ impl<'make> HirMakerContext<'make> {
             .map(|sig| sig.find_param(name))
             .flatten()
     }
-}
-
-/// Return a newly created ctx id
-fn new_id() -> usize {
-    unsafe {
-        LAST_CTX_ID += 1;
-        LAST_CTX_ID
-    }
-}
-
-/// A local variable
-#[derive(Debug)]
-pub struct CtxLVar {
-    pub name: String,
-    pub ty: TermTy,
-    pub readonly: bool,
 }

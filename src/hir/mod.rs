@@ -81,19 +81,6 @@ pub type ClosureMethodBody = dyn Fn(
 ) -> Result<(), crate::error::Error>;
 
 #[derive(Debug)]
-pub struct LambdaCapture {
-    ctx_id: usize,
-    ty: TermTy,
-    detail: LambdaCaptureDetail,
-}
-
-#[derive(Debug)]
-pub enum LambdaCaptureDetail {
-    CapLVar { name: String },
-    CapFnArg { idx: usize },
-}
-
-#[derive(Debug)]
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,

@@ -361,9 +361,13 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         let lambda_id = self.new_lambda_id();
         let hir_params = signature::convert_params(params, &[]);
-        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, hir_params.clone());
+        let lambda_ctx = HirMakerContext::lambda_ctx(ctx.depth+1, ctx, hir_params.clone());
+        self.ctx_stack.push(lambda_ctx);
+        let mut lambda_ctx = self.ctx_stack.last_mut().unwrap();
         let hir_exprs = self.convert_exprs(&mut lambda_ctx, exprs)?;
-        let capture_exprs = Hir::expressions(HirMaker::resolve_lambda_captures(lambda_ctx));
+        let capture_exprs = Hir::expressions(
+            self.resolve_lambda_captures(ctx)
+        );
         Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
@@ -374,13 +378,14 @@ impl HirMaker {
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn resolve_lambda_captures(lambda_ctx: HirMakerContext) -> Vec<HirExpression> {
-        let ctx = lambda_ctx.outer_ctx.take().unwrap();
+    fn resolve_lambda_captures(&mut self,
+                               ctx: &mut HirMakerContext)-> Vec<HirExpression> {
+        let lambda_ctx = self.ctx_stack.pop().unwrap();
         lambda_ctx
             .captures
             .into_iter()
             .map(|cap| {
-                if cap.ctx_id == ctx.id {
+                if cap.ctx_depth == ctx.depth {
                     match cap.detail {
                         LambdaCaptureDetail::CapLVar { name } => Hir::lvar_ref(cap.ty, name),
                         LambdaCaptureDetail::CapFnArg { idx } => Hir::hir_arg_ref(cap.ty, idx),
@@ -418,7 +423,7 @@ impl HirMaker {
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
             return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
         }
-        if let Some(outer_ctx) = ctx.outer_ctx {
+        if let Some(outer_ctx) = self.outer_ctx(ctx) {
             return self.lookup_var_in_outer_scope(&mut ctx.captures, outer_ctx, name);
         }
         None
@@ -432,7 +437,7 @@ impl HirMaker {
     ) -> Option<HirExpression> {
         if let Some(lvar) = ctx.find_lvar(name) {
             origin_captures.push(LambdaCapture {
-                ctx_id: ctx.id,
+                ctx_depth: ctx.depth,
                 ty: lvar.ty.clone(),
                 detail: LambdaCaptureDetail::CapLVar {
                     name: name.to_string(),
@@ -443,7 +448,7 @@ impl HirMaker {
         }
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
             origin_captures.push(LambdaCapture {
-                ctx_id: ctx.id,
+                ctx_depth: ctx.depth,
                 ty: param.ty.clone(),
                 detail: LambdaCaptureDetail::CapFnArg { idx },
             });
@@ -454,8 +459,8 @@ impl HirMaker {
         // TODO: It may be a nullary method call
 
         // Lookup in the next surrounding context
-        ctx.outer_ctx
-            .map(|outer_ctx| self.lookup_var_in_outer_scope(origin_captures, outer_ctx, name))
+        self.outer_ctx(ctx)
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(origin_captures, &*outer_ctx, name))
             .flatten()
     }
 
@@ -467,6 +472,19 @@ impl HirMaker {
                 name
             ))),
         }
+    }
+
+    fn outer_ctx(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
+        if ctx.depth <= 0 {
+            return None;
+        }
+        Some(&self.ctx_stack[(ctx.depth-1) as usize])
+    }
+    fn outer_ctx_mut(&mut self, ctx: &HirMakerContext) -> Option<&mut HirMakerContext> {
+        if ctx.depth <= 0 {
+            return None;
+        }
+        Some(&mut self.ctx_stack[(ctx.depth-1) as usize])
     }
 
     /// Resolve constant name
