@@ -25,7 +25,7 @@ pub struct HirMaker {
     /// Gensym (currently used by array literals)
     gensym_ct: usize,
     /// Counter to give unique name for lambdas
-    lambda_ct: usize,
+    pub(super) lambda_ct: usize,
 }
 
 pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
@@ -117,23 +117,23 @@ impl HirMaker {
     ) -> Result<HirExpressions, Error> {
         let mut main_exprs = vec![];
         // Contains local vars defined at toplevel
-        let mut top_ctx = HirMakerContext::toplevel();
+        self.push_ctx(HirMakerContext::toplevel());
         for item in items {
             match item {
                 ast::TopLevelItem::Def(def) => {
-                    self.process_toplevel_def(&mut top_ctx, &def)?;
+                    self.process_toplevel_def(&def)?;
                 }
                 ast::TopLevelItem::Expr(expr) => {
-                    main_exprs.push(self.convert_expr(&mut top_ctx, &expr)?);
+                    main_exprs.push(self.convert_expr(&expr)?);
                 }
             }
         }
+        self.pop_ctx();
         Ok(HirExpressions::new(main_exprs))
     }
 
     fn process_toplevel_def(
         &mut self,
-        ctx: &mut HirMakerContext,
         def: &ast::Definition,
     ) -> Result<(), Error> {
         match def {
@@ -143,7 +143,7 @@ impl HirMaker {
                 self.collect_sk_methods(&full, defs)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
-                self.register_const(ctx, name, expr)?;
+                self.register_const(name, expr)?;
             }
             _ => panic!("should be checked in hir::class_dict"),
         }
@@ -221,7 +221,7 @@ impl HirMaker {
                     self.method_dict.add_method(&meta_name, method);
                 }
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(&mut ctx, name, expr)?;
+                    self.register_const(name, expr)?;
                 }
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
@@ -335,13 +335,13 @@ impl HirMaker {
     /// Register a constant
     pub(super) fn register_const(
         &mut self,
-        ctx: &mut HirMakerContext,
         name: &ConstFirstname,
         expr: &AstExpression,
     ) -> Result<ConstFullname, Error> {
+        let ctx = self.ctx();
         // TODO: resolve name using ctx
         let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
-        let hir_expr = self.convert_expr(ctx, expr)?;
+        let hir_expr = self.convert_expr(expr)?;
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);
@@ -381,15 +381,13 @@ impl HirMaker {
             .expect(&err)
             .clone();
 
-        let mut method_ctx = HirMakerContext::method_ctx(ctx, &signature, is_initializer);
-        if let Some(x) = super_ivars {
-            method_ctx.super_ivars = x;
-        }
-        self.ctx_stack.push(method_ctx);
-        let mut method_ctx = self.ctx_stack.last_mut().unwrap();
-
-        let body_exprs = self.convert_exprs(&mut method_ctx, body_exprs)?;
-        self.ctx_stack.pop();
+        self.push_ctx(HirMakerContext::method_ctx(
+            ctx, 
+            &signature,
+            is_initializer,
+            super_ivars.unwrap_or_else(|| HashMap::new())));
+        let body_exprs = self.convert_exprs(body_exprs)?;
+        self.pop_ctx();
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
@@ -403,12 +401,6 @@ impl HirMaker {
         self.gensym_ct += 1;
         // Start from space so that it won't collide with user vars
         format!(" tmp{}", self.gensym_ct)
-    }
-
-    /// Create unique integer for naming lambdas
-    pub(super) fn new_lambda_id(&mut self) -> usize {
-        self.lambda_ct += 1;
-        self.lambda_ct
     }
 }
 
