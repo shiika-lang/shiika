@@ -398,8 +398,8 @@ impl HirMaker {
             return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
         }
         if let Some(outer_ctx) = self.outer_ctx() {
-            let cidx = ctx.captures.len() - 1;
-            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(cidx, outer_ctx, name) {
+            let l = ctx.captures.len();
+            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(l, outer_ctx, name) {
                 self.ctx_mut().captures.push(cap);
                 return Some(expr);
             }
