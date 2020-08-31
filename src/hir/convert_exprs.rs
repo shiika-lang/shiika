@@ -342,7 +342,7 @@ impl HirMaker {
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         // This pops ctx
-        let capture_exprs = Hir::expressions(self.resolve_lambda_captures());
+        let capture_exprs = self.resolve_lambda_captures();
         Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
