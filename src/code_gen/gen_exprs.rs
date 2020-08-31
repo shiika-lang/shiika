@@ -63,6 +63,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirDecimalLiteral { value } => Ok(self.gen_decimal_literal(*value)),
             HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
             HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
+            HirLambdaCaptureRef { .. } => panic!("TODO"),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,

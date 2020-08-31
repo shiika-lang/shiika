@@ -103,7 +103,7 @@ pub enum AstExpressionBody {
         arg_exprs: Vec<AstExpression>,
         may_have_paren_wo_args: bool,
     },
-    Lambda {
+    LambdaExpr {
         params: Vec<Param>,
         exprs: Vec<AstExpression>,
     },
@@ -299,7 +299,7 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
 }
 
 pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::Lambda { params, exprs })
+    primary_expression(AstExpressionBody::LambdaExpr { params, exprs })
 }
 
 pub fn pseudo_variable(token: Token) -> AstExpression {

@@ -10,53 +10,44 @@ use crate::type_checking;
 impl HirMaker {
     pub(super) fn convert_exprs(
         &mut self,
-        ctx: &mut HirMakerContext,
         exprs: &[AstExpression],
     ) -> Result<HirExpressions, Error> {
         let hir_exprs = exprs
             .iter()
-            .map(|expr| self.convert_expr(ctx, expr))
+            .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(HirExpressions::new(hir_exprs))
     }
 
-    pub(super) fn convert_expr(
-        &mut self,
-        ctx: &mut HirMakerContext,
-        expr: &AstExpression,
-    ) -> Result<HirExpression, Error> {
+    pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression, Error> {
         match &expr.body {
-            AstExpressionBody::LogicalNot { expr } => self.convert_logical_not(ctx, expr),
-            AstExpressionBody::LogicalAnd { left, right } => {
-                self.convert_logical_and(ctx, left, right)
-            }
-            AstExpressionBody::LogicalOr { left, right } => {
-                self.convert_logical_or(ctx, left, right)
-            }
+            AstExpressionBody::LogicalNot { expr } => self.convert_logical_not(expr),
+            AstExpressionBody::LogicalAnd { left, right } => self.convert_logical_and(left, right),
+            AstExpressionBody::LogicalOr { left, right } => self.convert_logical_or(left, right),
             AstExpressionBody::If {
                 cond_expr,
                 then_exprs,
                 else_exprs,
-            } => self.convert_if_expr(ctx, cond_expr, then_exprs, else_exprs),
+            } => self.convert_if_expr(cond_expr, then_exprs, else_exprs),
 
             AstExpressionBody::While {
                 cond_expr,
                 body_exprs,
-            } => self.convert_while_expr(ctx, cond_expr, body_exprs),
+            } => self.convert_while_expr(cond_expr, body_exprs),
 
             AstExpressionBody::Break => self.convert_break_expr(),
 
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
-                self.convert_lvar_assign(ctx, name, &*rhs, is_var)
+                self.convert_lvar_assign(name, &*rhs, is_var)
             }
 
             AstExpressionBody::IVarAssign { name, rhs, is_var } => {
-                self.convert_ivar_assign(ctx, name, &*rhs, is_var)
+                self.convert_ivar_assign(name, &*rhs, is_var)
             }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
-                self.convert_const_assign(ctx, names, &*rhs)
+                self.convert_const_assign(names, &*rhs)
             }
 
             AstExpressionBody::MethodCall {
@@ -64,19 +55,21 @@ impl HirMaker {
                 method_name,
                 arg_exprs,
                 ..
-            } => self.convert_method_call(ctx, receiver_expr, method_name, arg_exprs),
+            } => self.convert_method_call(receiver_expr, method_name, arg_exprs),
 
-            AstExpressionBody::Lambda { params, exprs } => self.convert_lambda(ctx, params, exprs),
+            AstExpressionBody::LambdaExpr { params, exprs } => {
+                self.convert_lambda_expr(params, exprs)
+            }
 
-            AstExpressionBody::BareName(name) => self.convert_bare_name(ctx, name),
+            AstExpressionBody::BareName(name) => self.convert_bare_name(name),
 
-            AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(ctx, names),
+            AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::ConstRef(names) => self.convert_const_ref(ctx, names),
+            AstExpressionBody::ConstRef(names) => self.convert_const_ref(names),
 
-            AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(ctx, token),
+            AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
 
-            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(ctx, exprs),
+            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs),
 
             AstExpressionBody::FloatLiteral { value } => Ok(Hir::float_literal(*value)),
 
@@ -87,24 +80,19 @@ impl HirMaker {
         }
     }
 
-    fn convert_logical_not(
-        &mut self,
-        ctx: &mut HirMakerContext,
-        expr: &AstExpression,
-    ) -> Result<HirExpression, Error> {
-        let expr_hir = self.convert_expr(ctx, expr)?;
+    fn convert_logical_not(&mut self, expr: &AstExpression) -> Result<HirExpression, Error> {
+        let expr_hir = self.convert_expr(expr)?;
         type_checking::check_logical_operator_ty(&expr_hir.ty, "argument of logical not")?;
         Ok(Hir::logical_not(expr_hir))
     }
 
     fn convert_logical_and(
         &mut self,
-        ctx: &mut HirMakerContext,
         left: &AstExpression,
         right: &AstExpression,
     ) -> Result<HirExpression, Error> {
-        let left_hir = self.convert_expr(ctx, left)?;
-        let right_hir = self.convert_expr(ctx, right)?;
+        let left_hir = self.convert_expr(left)?;
+        let right_hir = self.convert_expr(right)?;
         type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical and")?;
         type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical and")?;
         Ok(Hir::logical_and(left_hir, right_hir))
@@ -112,12 +100,11 @@ impl HirMaker {
 
     fn convert_logical_or(
         &mut self,
-        ctx: &mut HirMakerContext,
         left: &AstExpression,
         right: &AstExpression,
     ) -> Result<HirExpression, Error> {
-        let left_hir = self.convert_expr(ctx, left)?;
-        let right_hir = self.convert_expr(ctx, right)?;
+        let left_hir = self.convert_expr(left)?;
+        let right_hir = self.convert_expr(right)?;
         type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical or")?;
         type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical or")?;
         Ok(Hir::logical_or(left_hir, right_hir))
@@ -125,17 +112,16 @@ impl HirMaker {
 
     fn convert_if_expr(
         &mut self,
-        ctx: &mut HirMakerContext,
         cond_expr: &AstExpression,
         then_exprs: &[AstExpression],
         else_exprs: &Option<Vec<AstExpression>>,
     ) -> Result<HirExpression, Error> {
-        let cond_hir = self.convert_expr(ctx, cond_expr)?;
+        let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
-        let then_hirs = self.convert_exprs(ctx, then_exprs)?;
+        let then_hirs = self.convert_exprs(then_exprs)?;
         let else_hirs = match else_exprs {
-            Some(exprs) => Some(self.convert_exprs(ctx, exprs)?),
+            Some(exprs) => Some(self.convert_exprs(exprs)?),
             None => None,
         };
         // TODO: then and else must have conpatible type
@@ -149,14 +135,13 @@ impl HirMaker {
 
     fn convert_while_expr(
         &mut self,
-        ctx: &mut HirMakerContext,
         cond_expr: &AstExpression,
         body_exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
-        let cond_hir = self.convert_expr(ctx, cond_expr)?;
+        let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
-        let body_hirs = self.convert_exprs(ctx, body_exprs)?;
+        let body_hirs = self.convert_exprs(body_exprs)?;
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
 
@@ -166,12 +151,12 @@ impl HirMaker {
 
     fn convert_lvar_assign(
         &mut self,
-        ctx: &mut HirMakerContext,
         name: &str,
         rhs: &AstExpression,
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
-        let expr = self.convert_expr(ctx, rhs)?;
+        let expr = self.convert_expr(rhs)?;
+        let ctx = self.ctx_mut();
         match ctx.lvars.get(name) {
             Some(lvar) => {
                 // Reassigning
@@ -207,15 +192,17 @@ impl HirMaker {
 
     fn convert_ivar_assign(
         &mut self,
-        ctx: &mut HirMakerContext,
         name: &str,
         rhs: &AstExpression,
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
-        let expr = self.convert_expr(ctx, rhs)?;
+        let expr = self.convert_expr(rhs)?;
+        let ctx = self.method_ctx().ok_or_else(|| {
+            error::program_error(&format!("cannot assign ivar `{}' out of a method", name))
+        })?;
 
         if ctx.is_initializer {
-            let idx = self.declare_ivar(ctx, name, &expr.ty, !is_var)?;
+            let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
             return Ok(Hir::assign_ivar(name, idx, expr, *is_var));
         }
 
@@ -243,13 +230,8 @@ impl HirMaker {
     }
 
     /// Declare a new ivar
-    fn declare_ivar(
-        &self,
-        ctx: &mut HirMakerContext,
-        name: &str,
-        ty: &TermTy,
-        readonly: bool,
-    ) -> Result<usize, Error> {
+    fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
+        let ctx = self.method_ctx_mut().unwrap();
         if let Some(super_ivar) = ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(
@@ -282,31 +264,29 @@ impl HirMaker {
 
     fn convert_const_assign(
         &mut self,
-        ctx: &mut HirMakerContext,
         names: &[String],
         rhs: &AstExpression,
     ) -> Result<HirExpression, Error> {
         let name = const_firstname(&names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
-        let fullname = self.register_const(ctx, &name, &rhs)?;
-        Ok(Hir::assign_const(fullname, self.convert_expr(ctx, rhs)?))
+        let fullname = self.register_const(&name, &rhs)?;
+        Ok(Hir::assign_const(fullname, self.convert_expr(rhs)?))
     }
 
     fn convert_method_call(
         &mut self,
-        ctx: &mut HirMakerContext,
         receiver_expr: &Option<Box<AstExpression>>,
         method_name: &MethodFirstname,
         arg_exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
         let receiver_hir = match receiver_expr {
-            Some(expr) => self.convert_expr(ctx, &expr)?,
+            Some(expr) => self.convert_expr(&expr)?,
             // Implicit self
-            _ => self.convert_self_expr(ctx)?,
+            _ => self.convert_self_expr()?,
         };
         // TODO: arg types must match with method signature
         let arg_hirs = arg_exprs
             .iter()
-            .map(|arg_expr| self.convert_expr(ctx, arg_expr))
+            .map(|arg_expr| self.convert_expr(arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
 
         self.make_method_call(receiver_hir, &method_name, arg_hirs)
@@ -351,61 +331,123 @@ impl HirMaker {
         Ok(ret)
     }
 
-    fn convert_lambda(
+    fn convert_lambda_expr(
         &mut self,
-        ctx: &mut HirMakerContext,
         params: &[ast::Param],
         exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
-        let lambda_id = self.new_lambda_id();
+        self.lambda_ct += 1;
+        let lambda_id = self.lambda_ct;
         let hir_params = signature::convert_params(params, &[]);
-        // REFACTOR: consider changing ctx.method_sig to just ctx.method_params
-        // (because properties other than `params` are not used)
-        let sig = MethodSignature {
-            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
-            ret_ty: ty::raw("(dummy)"),
-            params: hir_params.clone(),
-        };
-        let mut lambda_ctx = HirMakerContext::lambda_ctx(ctx, sig);
-        let hir_exprs = exprs
-            .iter()
-            .map(|expr| self.convert_expr(&mut lambda_ctx, expr))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Hir::lambda(
+        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
+        let hir_exprs = self.convert_exprs(exprs)?;
+        // This pops ctx
+        let capture_exprs = self.resolve_lambda_captures();
+        Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
-            HirExpressions::new(hir_exprs),
+            hir_exprs,
+            capture_exprs,
         ))
     }
 
-    /// Generate local variable reference or method call with implicit receiver(self)
-    fn convert_bare_name(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {
-        // It is a local variable
-        if let Some(lvar) = ctx.lvars.get(name) {
-            return Ok(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
-        }
-        // It is a method parameter
-        let method_sig = match &ctx.method_sig {
-            Some(x) => x,
-            None => {
-                return Err(error::program_error(&format!(
-                    "variable not found: `{}'",
-                    name
-                )))
-            }
-        };
-        match &method_sig.find_param(name) {
-            Some((idx, param)) => Ok(Hir::hir_arg_ref(param.ty.clone(), *idx)),
-            None => Err(error::program_error(&format!(
-                "variable `{}' was not found",
-                name
-            ))),
-        }
-        // TODO: It may be a nullary method call
+    /// Resolve LambdaCapture into HirExpression
+    /// Also, concat lambda_captures to outer_captures
+    fn resolve_lambda_captures(&mut self) -> Vec<HirExpression> {
+        let lambda_ctx = self.pop_ctx();
+        let ctx = self.ctx_mut();
+        lambda_ctx
+            .captures
+            .into_iter()
+            .map(|cap| {
+                if cap.ctx_depth == ctx.depth {
+                    match cap.detail {
+                        LambdaCaptureDetail::CapLVar { name } => Hir::lvar_ref(cap.ty, name),
+                        LambdaCaptureDetail::CapFnArg { idx } => Hir::hir_arg_ref(cap.ty, idx),
+                    }
+                } else {
+                    let ty = cap.ty.clone();
+                    ctx.captures.push(cap);
+                    let cidx = ctx.captures.len() - 1;
+                    Hir::lambda_capture_ref(ty, cidx)
+                }
+            })
+            .collect()
     }
 
-    fn convert_ivar_ref(&self, ctx: &HirMakerContext, name: &str) -> Result<HirExpression, Error> {
-        match self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
+    /// Generate local variable reference or method call with implicit receiver(self)
+    fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
+        if let Some(expr) = self.lookup_var(name) {
+            Ok(expr)
+        } else {
+            Err(error::program_error(&format!(
+                "variable `{}' was not found",
+                name
+            )))
+        }
+    }
+
+    /// Lookup variable of the name.
+    /// If it is a free variable, ctx.captures will be modified
+    fn lookup_var(&mut self, name: &str) -> Option<HirExpression> {
+        let ctx = self.ctx();
+        if let Some(lvar) = ctx.find_lvar(name) {
+            return Some(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
+        }
+        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+            return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
+        }
+        if let Some(outer_ctx) = self.outer_ctx() {
+            let l = ctx.captures.len();
+            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(l, outer_ctx, name) {
+                self.ctx_mut().captures.push(cap);
+                return Some(expr);
+            }
+        }
+        None
+    }
+
+    fn lookup_var_in_outer_scope(
+        &self,
+        cidx: usize,
+        ctx: &HirMakerContext,
+        name: &str,
+    ) -> Option<(LambdaCapture, HirExpression)> {
+        if let Some(lvar) = ctx.find_lvar(name) {
+            let cap = LambdaCapture {
+                ctx_depth: ctx.depth,
+                ty: lvar.ty.clone(),
+                detail: LambdaCaptureDetail::CapLVar {
+                    name: name.to_string(),
+                },
+            };
+            return Some((cap, Hir::lambda_capture_ref(lvar.ty.clone(), cidx)));
+        }
+        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+            let cap = LambdaCapture {
+                ctx_depth: ctx.depth,
+                ty: param.ty.clone(),
+                detail: LambdaCaptureDetail::CapFnArg { idx },
+            };
+            return Some((cap, Hir::lambda_capture_ref(param.ty.clone(), cidx)));
+        }
+
+        // TODO: It may be a nullary method call
+
+        // Lookup in the next surrounding context
+        self.outer_lvar_scope_of(ctx)
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(cidx, &*outer_ctx, name))
+            .flatten()
+    }
+
+    fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
+        let method_ctx = self.method_ctx().ok_or_else(|| {
+            error::program_error(&format!("referring ivar `{}' out of a method", name))
+        })?;
+        match self
+            .class_dict
+            .find_ivar(&method_ctx.self_ty.fullname, name)
+        {
             Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx)),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
@@ -415,11 +457,7 @@ impl HirMaker {
     }
 
     /// Resolve constant name
-    fn convert_const_ref(
-        &self,
-        _ctx: &HirMakerContext,
-        names: &[String],
-    ) -> Result<HirExpression, Error> {
+    fn convert_const_ref(&self, names: &[String]) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
         let fullname = ConstFullname("::".to_string() + &names.join("::"));
         match self.constants.get(&fullname) {
@@ -438,13 +476,9 @@ impl HirMaker {
         }
     }
 
-    fn convert_pseudo_variable(
-        &self,
-        ctx: &HirMakerContext,
-        token: &Token,
-    ) -> Result<HirExpression, Error> {
+    fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {
         match token {
-            Token::KwSelf => self.convert_self_expr(ctx),
+            Token::KwSelf => self.convert_self_expr(),
             Token::KwTrue => Ok(Hir::boolean_literal(true)),
             Token::KwFalse => Ok(Hir::boolean_literal(false)),
             _ => panic!("[BUG] not a pseudo variable token: {:?}", token),
@@ -455,12 +489,11 @@ impl HirMaker {
     /// `[x,y]` is expanded into `tmp = Array<Object>.new; tmp.push(x); tmp.push(y)`
     fn convert_array_literal(
         &mut self,
-        ctx: &mut HirMakerContext,
         item_exprs: &[AstExpression],
     ) -> Result<HirExpression, Error> {
         let item_exprs = item_exprs
             .iter()
-            .map(|expr| self.convert_expr(ctx, expr))
+            .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
 
         // TODO #102: Support empty array literal
@@ -498,7 +531,8 @@ impl HirMaker {
         Ok(Hir::array_literal(exprs, ary_ty))
     }
 
-    fn convert_self_expr(&self, ctx: &HirMakerContext) -> Result<HirExpression, Error> {
+    fn convert_self_expr(&self) -> Result<HirExpression, Error> {
+        let ctx = self.ctx();
         Ok(Hir::self_expression(ctx.self_ty.clone()))
     }
 

@@ -82,6 +82,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 name,
                 params,
                 exprs,
+                ..
             } => {
                 self.gen_lambda_func(name, params, exprs)?;
                 self.gen_lambda_funcs_in_exprs(exprs)?;
@@ -92,6 +93,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirDecimalLiteral { .. } => (),
             HirStringLiteral { .. } => (),
             HirBooleanLiteral { .. } => (),
+            HirLambdaCaptureRef { .. } => (),
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
         }

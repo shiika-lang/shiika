@@ -80,7 +80,7 @@ pub type ClosureMethodBody = dyn Fn(
     &inkwell::values::FunctionValue,
 ) -> Result<(), crate::error::Error>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,
@@ -100,13 +100,13 @@ impl HirExpressions {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum HirExpressionBase {
     HirLogicalNot {
         expr: Box<HirExpression>,
@@ -165,6 +165,7 @@ pub enum HirExpressionBase {
         name: String,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
+        captures: Vec<HirExpression>,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -184,6 +185,13 @@ pub enum HirExpressionBase {
         value: bool,
     },
 
+    //
+    // Special opecodes (does not appear in a source program directly)
+    //
+    /// Variable lookup from lambda capture
+    HirLambdaCaptureRef {
+        idx: usize,
+    },
     /// Represents bitcast of an object
     HirBitCast {
         expr: Box<HirExpression>,
@@ -198,6 +206,10 @@ pub enum HirExpressionBase {
 }
 
 impl Hir {
+    pub fn expressions(exprs: Vec<HirExpression>) -> HirExpressions {
+        HirExpressions::new(exprs)
+    }
+
     pub fn logical_not(expr_hir: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
@@ -342,7 +354,12 @@ impl Hir {
         }
     }
 
-    pub fn lambda(n: usize, params: Vec<MethodParam>, exprs: HirExpressions) -> HirExpression {
+    pub fn lambda_expr(
+        n: usize,
+        params: Vec<MethodParam>,
+        exprs: HirExpressions,
+        captures: Vec<HirExpression>,
+    ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
         HirExpression {
@@ -351,6 +368,7 @@ impl Hir {
                 name,
                 params,
                 exprs,
+                captures,
             },
         }
     }
@@ -396,6 +414,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value },
+        }
+    }
+
+    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirLambdaCaptureRef { idx },
         }
     }
 
