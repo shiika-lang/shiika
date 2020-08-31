@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
             Token::RightArrow => {
                 self.consume_token();
                 self.skip_ws();
-                ret_typ = self.parse_ty()?;
+                ret_typ = self.parse_typ()?;
             }
             _ => {
                 ret_typ = ast::Typ {
@@ -321,12 +321,12 @@ impl<'a> Parser<'a> {
         self.skip_ws();
 
         // Type
-        let typ = self.parse_ty()?;
+        let typ = self.parse_typ()?;
 
         Ok(ast::Param { name, typ })
     }
 
-    fn parse_ty(&mut self) -> Result<ast::Typ, Error> {
+    fn parse_typ(&mut self) -> Result<ast::Typ, Error> {
         let mut name = String::new();
         loop {
             match self.current_token() {
