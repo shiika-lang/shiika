@@ -106,7 +106,7 @@ fn run_<P: AsRef<Path>>(
     //fs::remove_file(bc_path)?;
     fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", e))?;
 
-    let mut cmd = Command::new(out_path);
+    let mut cmd = Command::new(format!("./{}", out_path.to_string()));
     if capture_out {
         let output = cmd
             .output()
