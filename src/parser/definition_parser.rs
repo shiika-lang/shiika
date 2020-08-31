@@ -216,6 +216,7 @@ impl<'a> Parser<'a> {
             _ => {
                 ret_typ = ast::Typ {
                     name: "Void".to_string(),
+                    typ_args: vec![],
                 };
                 self.skip_ws();
             }
@@ -338,12 +339,38 @@ impl<'a> Parser<'a> {
                     name += "::";
                     self.consume_token();
                 }
+                Token::LessThan => {
+                    self.consume_token();
+                    let typ_args = self.parse_typ_args()?;
+                    return Ok(ast::Typ { name, typ_args });
+                }
                 token => {
                     if name.is_empty() {
                         return Err(parse_error!(self, "invalid token as type: {:?}", token));
                     } else {
-                        return Ok(ast::Typ { name });
+                        return Ok(ast::Typ { name, typ_args: vec![] });
                     }
+                }
+            }
+        }
+    }
+
+    fn parse_typ_args(&mut self) -> Result<Vec<ast::Typ>, Error> {
+        let mut typ_args = vec![];
+        loop {
+            self.skip_wsn();
+            typ_args.push(self.parse_typ()?);
+            self.skip_wsn();
+            match self.current_token() {
+                Token::Comma => {
+                    self.consume_token();
+                }
+                Token::GreaterThan => {
+                    self.consume_token();
+                    return Ok(typ_args);
+                }
+                token => {
+                    return Err(parse_error!(self, "invalid token in type args: {:?}", token));
                 }
             }
         }
