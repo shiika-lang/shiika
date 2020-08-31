@@ -50,6 +50,7 @@ pub struct Param {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Typ {
     pub name: String,
+    pub typ_args: Vec<Typ>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -1,0 +1,8 @@
+class Foo
+  def self.bar(a: Array<Int>) -> Int
+    a.first
+  end
+end
+if Foo.bar([99]) != 99; puts "ng 1"; end
+
+puts "ok"
