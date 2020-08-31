@@ -197,7 +197,9 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let ctx = self.ctx();
+        let ctx = self.method_ctx().ok_or_else(|| {
+            error::program_error(&format!("cannot assign ivar `{}' out of a method", name))
+        })?;
 
         if ctx.is_initializer {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
@@ -229,7 +231,7 @@ impl HirMaker {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let ctx = self.ctx_mut();
+        let ctx = self.method_ctx_mut().unwrap();
         if let Some(super_ivar) = ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(

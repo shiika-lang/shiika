@@ -191,6 +191,18 @@ impl HirMaker {
         None
     }
 
+    pub(super) fn method_ctx_mut(&mut self) -> Option<&mut HirMakerContext> {
+        let mut i = (self.ctx_stack.len() as isize) - 1;
+        while i >= 0 {
+            let ctx = &self.ctx_stack[i as usize];
+            if ctx.kind == CtxKind::Method {
+                return Some(&mut self.ctx_stack[i as usize]);
+            }
+            i -= 1
+        }
+        None
+    }
+
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
         match ctx.kind {
             CtxKind::Method | CtxKind::Toplevel => return None,

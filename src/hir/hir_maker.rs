@@ -385,12 +385,10 @@ impl HirMaker {
             super_ivars.unwrap_or_else(|| HashMap::new()),
         ));
         let body_exprs = self.convert_exprs(body_exprs)?;
-        self.pop_ctx();
+        let iivars = self.pop_ctx().iivars;
         type_checking::check_return_value(&signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
-
-        let iivars = self.ctx_stack[0].iivars.clone();
         Ok((SkMethod { signature, body }, iivars))
     }
 
