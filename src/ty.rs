@@ -18,7 +18,7 @@ use crate::names::*;
 use crate::ty;
 
 // Types for a term (types of Shiika values)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct TermTy {
     pub fullname: ClassFullname,
     pub body: TyBody,
@@ -27,6 +27,12 @@ pub struct TermTy {
 impl std::fmt::Display for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.fullname)
+    }
+}
+
+impl std::fmt::Debug for TermTy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TermTy(\"{}\")", self.fullname)
     }
 }
 
