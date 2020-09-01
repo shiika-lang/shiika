@@ -348,7 +348,10 @@ impl<'a> Parser<'a> {
                     if name.is_empty() {
                         return Err(parse_error!(self, "invalid token as type: {:?}", token));
                     } else {
-                        return Ok(ast::Typ { name, typ_args: vec![] });
+                        return Ok(ast::Typ {
+                            name,
+                            typ_args: vec![],
+                        });
                     }
                 }
             }
@@ -370,7 +373,11 @@ impl<'a> Parser<'a> {
                     return Ok(typ_args);
                 }
                 token => {
-                    return Err(parse_error!(self, "invalid token in type args: {:?}", token));
+                    return Err(parse_error!(
+                        self,
+                        "invalid token in type args: {:?}",
+                        token
+                    ));
                 }
             }
         }

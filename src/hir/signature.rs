@@ -28,7 +28,11 @@ fn convert_typ(typ: &ast::Typ, typarams: &[String]) -> TermTy {
         if typ.typ_args.len() == 0 {
             ty::raw(&typ.name)
         } else {
-            let tyargs = typ.typ_args.iter().map(|t| convert_typ(t, typarams)).collect();
+            let tyargs = typ
+                .typ_args
+                .iter()
+                .map(|t| convert_typ(t, typarams))
+                .collect();
             ty::spe(&typ.name, tyargs)
         }
     }
