@@ -1,8 +1,6 @@
 use crate::corelib::*;
 use crate::hir::*;
-use crate::ty;
 use inkwell::AddressSpace;
-use std::collections::HashMap;
 
 pub fn create_methods_1() -> Vec<SkMethod> {
     vec![create_method_generic(
@@ -36,27 +34,4 @@ pub fn create_methods_1() -> Vec<SkMethod> {
         },
         &vec!["S1".to_string(), "T".to_string()],
     )]
-}
-
-pub fn ivars() -> HashMap<String, SkIVar> {
-    let mut ivars = HashMap::new();
-    ivars.insert(
-        "@func".to_string(),
-        SkIVar {
-            name: "@func".to_string(),
-            idx: 0,
-            ty: ty::raw("Shiika::Internal::Ptr"),
-            readonly: true,
-        },
-    );
-    ivars.insert(
-        "@freevars".to_string(),
-        SkIVar {
-            name: "@freevars".to_string(),
-            idx: 1,
-            ty: ty::spe("Array", vec![ty::raw("Shiika::Internal::Ptr")]),
-            readonly: true,
-        },
-    );
-    ivars
 }

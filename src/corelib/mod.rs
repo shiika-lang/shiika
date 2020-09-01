@@ -98,7 +98,7 @@ fn rust_body_items() -> Vec<ClassItem> {
             "Fn1",
             fn_x::create_methods_1(),
             vec![],
-            fn_x::ivars(),
+            HashMap::new(),
             vec!["T".to_string()],
         ),
         (
