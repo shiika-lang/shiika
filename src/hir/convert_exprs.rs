@@ -343,11 +343,12 @@ impl HirMaker {
         let hir_exprs = self.convert_exprs(exprs)?;
         // This pops ctx
         let capture_exprs = self.resolve_lambda_captures();
+        let captures_ary = self.convert_array_literal_(capture_exprs)?;
         Ok(Hir::lambda_expr(
             lambda_id,
             hir_params,
             hir_exprs,
-            capture_exprs,
+            captures_ary,
         ))
     }
 
@@ -495,9 +496,20 @@ impl HirMaker {
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
+        self.convert_array_literal_(item_exprs)
+    }
 
+    fn convert_array_literal_(
+        &mut self,
+        item_exprs: Vec<HirExpression>,
+    ) -> Result<HirExpression, Error> {
         // TODO #102: Support empty array literal
-        let mut item_ty = item_exprs[0].ty.clone();
+        let mut item_ty = if item_exprs.len() == 0 {
+            ty::raw("Object")
+        } else {
+            item_exprs[0].ty.clone()
+        };
+
         for expr in &item_exprs {
             item_ty = self.nearest_common_ancestor_type(&item_ty, &expr.ty)
         }
