@@ -445,12 +445,13 @@ impl Hir {
             ty::spe("Array", vec![ty::raw("Object")]),
             IDX_LAMBDA_CAPTURES,
         );
-        Hir::method_call(
-            ty,
+        let nth_obj = Hir::method_call(
+            ty.clone(),
             ary,
             method_fullname(&class_fullname("Array"), "nth"),
             vec![Hir::decimal_literal(idx as i32)],
-        )
+        );
+        Hir::bit_cast(ty, nth_obj)
     }
 }
 
