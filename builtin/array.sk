@@ -17,6 +17,12 @@ class Array<T>
     @n_items = @n_items + 1
   end
 
+  # TODO: rename to `#[]`
+  # TODO: error checking
+  def nth(i: Int) -> T
+    (@items + i).load 
+  end
+
   def first -> T
     ptr = @items
     ptr.load

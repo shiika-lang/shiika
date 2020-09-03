@@ -68,7 +68,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirDecimalLiteral { value } => Ok(self.gen_decimal_literal(*value)),
             HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
             HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
-            HirLambdaCaptureRef { .. } => panic!("TODO"),
+
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,
@@ -389,9 +389,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         captures_ary: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let self_type = ty::raw("Object");
+        let arg_type = ty::raw("Object");
+        let captures_type = ty::ary(ty::raw("Object"));
         let ret_ty = &exprs.ty;
         let func_type =
-            self.llvm_func_type(None, &[&ty::raw("Object"), &ty::raw("Object")], &ret_ty);
+            self.llvm_func_type(None, &[&self_type, &arg_type, &captures_type], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, captures)
