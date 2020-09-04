@@ -173,6 +173,11 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
+/// Shortcut for Array<T>
+pub fn ary(type_arg: TermTy) -> TermTy {
+    spe("Array", vec![type_arg])
+}
+
 pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {

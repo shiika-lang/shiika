@@ -1,9 +1,9 @@
 class Fn1<S1, T>
   def initialize(
-    func: Shiika::Internal::Ptr
+    func: Shiika::Internal::Ptr,
+    captures: Array<Shiika::Internal::Ptr>,
   )
-    #freevars: Array<Shiika::Internal::Ptr>
     @func = func
-    #@freevars = freevars
+    @captures = captures
   end
 end

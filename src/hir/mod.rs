@@ -14,6 +14,9 @@ use crate::ty::*;
 pub use sk_class::SkClass;
 use std::collections::HashMap;
 
+// TODO: This is not true for Fn2, Fn3, ...
+const IDX_LAMBDA_CAPTURES: usize = 1;
+
 #[derive(Debug)]
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
@@ -165,7 +168,7 @@ pub enum HirExpressionBase {
         name: String,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures: Vec<HirExpression>,
+        captures_ary: Box<HirExpression>,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -188,10 +191,6 @@ pub enum HirExpressionBase {
     //
     // Special opecodes (does not appear in a source program directly)
     //
-    /// Variable lookup from lambda capture
-    HirLambdaCaptureRef {
-        idx: usize,
-    },
     /// Represents bitcast of an object
     HirBitCast {
         expr: Box<HirExpression>,
@@ -356,19 +355,23 @@ impl Hir {
 
     pub fn lambda_expr(
         n: usize,
-        params: Vec<MethodParam>,
+        mut params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures: Vec<HirExpression>,
+        captures_ary: HirExpression,
     ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
+        params.push(MethodParam {
+            name: "(captures)".to_string(),
+            ty: ty::ary(ty::raw("Object")),
+        });
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {
                 name,
                 params,
                 exprs,
-                captures,
+                captures_ary: Box::new(captures_ary),
             },
         }
     }
@@ -417,13 +420,6 @@ impl Hir {
         }
     }
 
-    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
-        HirExpression {
-            ty,
-            node: HirExpressionBase::HirLambdaCaptureRef { idx },
-        }
-    }
-
     pub fn bit_cast(ty: TermTy, expr: HirExpression) -> HirExpression {
         HirExpression {
             ty,
@@ -441,6 +437,21 @@ impl Hir {
                 str_literal_idx,
             },
         }
+    }
+
+    // HirArgRef + Array#[]
+    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
+        let ary = Hir::hir_arg_ref(
+            ty::spe("Array", vec![ty::raw("Object")]),
+            IDX_LAMBDA_CAPTURES,
+        );
+        let nth_obj = Hir::method_call(
+            ty.clone(),
+            ary,
+            method_fullname(&class_fullname("Array"), "nth"),
+            vec![Hir::decimal_literal(idx as i32)],
+        );
+        Hir::bit_cast(ty, nth_obj)
     }
 }
 

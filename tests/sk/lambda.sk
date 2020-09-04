@@ -10,4 +10,15 @@ class A
 end
 if A.foo != 2; puts "ng 2"; end
 
+# Capturing free vars
+a = 1
+g = fn(x: Int){
+  b = 2
+  h = fn(y: Int) {
+    a + b + x + y
+  }
+  h.call(3)
+}
+unless g.call(4) == 10; puts "ng 3"; end
+
 puts "ok"

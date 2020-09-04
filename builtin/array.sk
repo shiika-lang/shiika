@@ -17,6 +17,17 @@ class Array<T>
     @n_items = @n_items + 1
   end
 
+  # TODO: rename to `#[]`
+  def nth(i: Int) -> T
+    if i < 0
+      puts "[Array#nth: index less than zero]"
+    end
+    if i >= @n_items
+      puts "[Array#nth: index too large]"
+    end
+    (@items + i * BYTES_OF_PTR).load 
+  end
+
   def first -> T
     ptr = @items
     ptr.load

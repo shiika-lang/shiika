@@ -56,14 +56,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx } => self.gen_ivar_ref(ctx, name, idx),
             HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
-            HirLambdaExpr { name, exprs, .. } => self.gen_lambda(name, exprs),
+            HirLambdaExpr {
+                name,
+                exprs,
+                captures_ary,
+                ..
+            } => self.gen_lambda(ctx, name, exprs, captures_ary),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
             HirDecimalLiteral { value } => Ok(self.gen_decimal_literal(*value)),
             HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
             HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
-            HirLambdaCaptureRef { .. } => panic!("TODO"),
+
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,
@@ -379,23 +384,38 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_lambda(
         &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
         func_name: &str,
         exprs: &'hir HirExpressions,
+        captures_ary: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let arg_type = ty::raw("Object");
+        let captures_type = ty::ary(ty::raw("Object"));
         let ret_ty = &exprs.ty;
         let func_type =
-            self.llvm_func_type(None, &[&ty::raw("Object"), &ty::raw("Object")], &ret_ty);
+            self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
-        // Fn1.new(fnptr, freevars)
+        // Fn1.new(fnptr, captures)
         let meta = self.gen_const_ref(&const_fullname("::Fn1"));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
-        let arg_values = vec![fnptr_i8];
+        let arg_values = vec![fnptr_i8, self.gen_lambda_captures(ctx, captures_ary)?];
         self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
+    }
+
+    fn gen_lambda_captures(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        captures_ary: &'hir HirExpression,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        match &captures_ary.node {
+            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
+            _ => panic!("captures_ary not Array"),
+        }
     }
 
     fn gen_self_expression(
