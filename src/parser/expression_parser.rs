@@ -334,7 +334,7 @@ impl<'a> Parser<'a> {
                 Token::LessThan => "<",
                 Token::GreaterThan => ">",
                 Token::LessEq => "<=",
-                Token::GreaterEq => "<=",
+                Token::GreaterEq => ">=",
                 _ => break,
             };
             self.skip_ws();
