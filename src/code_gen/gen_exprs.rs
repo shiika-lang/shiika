@@ -346,7 +346,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
-                let obj = ctx.function.get_nth_param(*idx as u32).unwrap();
+                let obj = ctx.function.get_nth_param((*idx as u32) + 1).unwrap();
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
                 let value = self.builder.build_bitcast(obj, llvm_type, "");
                 Ok(value)

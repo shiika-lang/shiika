@@ -20,7 +20,13 @@ class Array<T>
   # TODO: rename to `#[]`
   # TODO: error checking
   def nth(i: Int) -> T
-    (@items + i).load 
+    if i < 0
+      puts "[Array#nth: index less than zero]"
+    end
+    if i >= @n_items
+      puts "[Array#nth: index too large]"
+    end
+    (@items + i * BYTES_OF_PTR).load 
   end
 
   def first -> T
