@@ -8,29 +8,21 @@ pub fn create_methods_1() -> Vec<SkMethod> {
         "Fn1",
         "call(arg1: S1) -> T",
         |code_gen, function| {
-            let receiver = function.get_params()[0];
-            let ptr = code_gen.build_ivar_load(receiver, 0, "func");
-            let capary = code_gen.build_ivar_load(receiver, 1, "captures");
-            let args = vec![
-                receiver,
-                function.get_params()[1],
-                capary
-            ];
+            let fn_obj = function.get_params()[0];
+            let fnptr = code_gen.build_ivar_load(fn_obj, 0, "func");
+            let capary = code_gen.build_ivar_load(fn_obj, 1, "captures");
+            let args = vec![function.get_params()[1], capary];
 
             // Create the type of lambda_xx()
-            let fn_type = code_gen.llvm_type(&ty::raw("Fn1"));
             let obj_type = code_gen.llvm_type(&ty::raw("Object"));
             let ary_type = code_gen.llvm_type(&ty::raw("Array"));
-            let fntype = obj_type.fn_type(&[
-                                          fn_type.into(),
-                                          obj_type.into(),
-                                          ary_type.into()], false);
+            let fntype = obj_type.fn_type(&[obj_type.into(), ary_type.into()], false);
             let fnptype = fntype.ptr_type(AddressSpace::Generic);
 
-            // Cast `ptr` to that type
+            // Cast `fnptr` to that type
             let func = code_gen
                 .builder
-                .build_bitcast(ptr, fnptype, "")
+                .build_bitcast(fnptr, fnptype, "")
                 .into_pointer_value();
 
             // Generate function call

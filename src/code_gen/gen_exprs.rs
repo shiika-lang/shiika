@@ -346,7 +346,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
-                let obj = ctx.function.get_nth_param((*idx as u32) + 1).unwrap();
+                let obj = ctx.function.get_nth_param(*idx as u32).unwrap();
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
                 let value = self.builder.build_bitcast(obj, llvm_type, "");
                 Ok(value)
@@ -389,12 +389,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         captures_ary: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let self_type = ty::raw("Object");
         let arg_type = ty::raw("Object");
         let captures_type = ty::ary(ty::raw("Object"));
         let ret_ty = &exprs.ty;
         let func_type =
-            self.llvm_func_type(None, &[&self_type, &arg_type, &captures_type], &ret_ty);
+            self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, captures)
