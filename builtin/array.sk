@@ -18,7 +18,6 @@ class Array<T>
   end
 
   # TODO: rename to `#[]`
-  # TODO: error checking
   def nth(i: Int) -> T
     if i < 0
       puts "[Array#nth: index less than zero]"
