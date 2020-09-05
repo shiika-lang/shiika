@@ -66,25 +66,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        match ty.body {
-            TyBody::TyRaw => match ty.fullname.0.as_str() {
-                "Bool" => self.i64_type.as_basic_type_enum(),
-                "Shiika::Internal::Ptr" => self.i8ptr_type.as_basic_type_enum(),
-                _ => self.sk_obj_llvm_type(ty),
-            },
-            _ => self.sk_obj_llvm_type(ty),
+        if ty.body == TyBody::TyRaw && ty.fullname.0 == "Shiika::Internal::Ptr" {
+            self.i8ptr_type.as_basic_type_enum()
+        } else {
+            self.sk_obj_llvm_type(ty)
         }
     }
 
     /// Return zero value in LLVM. None if it is a pointer
-    pub(super) fn llvm_zero_value(&self, ty: &TermTy) -> Option<inkwell::values::BasicValueEnum> {
-        match ty.body {
-            TyBody::TyRaw => match ty.fullname.0.as_str() {
-                "Bool" => Some(self.i1_type.const_int(0, false).as_basic_value_enum()),
-                _ => None,
-            },
-            _ => None,
-        }
+    pub(super) fn llvm_zero_value(&self, _ty: &TermTy) -> Option<inkwell::values::BasicValueEnum> {
+        // Currently all values are pointer
+        None
     }
 
     /// Helper func for self.llvm_type()
