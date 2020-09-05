@@ -456,8 +456,8 @@ impl Hir {
 }
 
 fn lambda_ty(params: &Vec<MethodParam>, ret_ty: &TermTy) -> TermTy {
-    if params.len() != 1 {
-        panic!("TODO")
-    }
-    ty::spe("Fn1", vec![params[0].ty.clone(), ret_ty.clone()])
+    let i = params.len();
+    let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
+    tyargs.push(ret_ty.clone());
+    ty::spe(&format!("Fn{}", i), tyargs)
 }

@@ -58,10 +58,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
             HirLambdaExpr {
                 name,
+                params,
                 exprs,
                 captures_ary,
-                ..
-            } => self.gen_lambda(ctx, name, exprs, captures_ary),
+            } => self.gen_lambda(ctx, name, params, exprs, captures_ary),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -389,25 +389,27 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         func_name: &str,
+        params: &[MethodParam],
         exprs: &'hir HirExpressions,
         captures_ary: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let arg_type = ty::raw("Object");
         let captures_type = ty::ary(ty::raw("Object"));
         let ret_ty = &exprs.ty;
-        let func_type =
-            self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
+        let func_type = self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, captures)
-        let meta = self.gen_const_ref(&const_fullname("::Fn1"));
+        let cls_name = format!("Fn{}", params.len() - 1); // -1 for the last `captures` ary
+        let const_name = format!("::{}", cls_name);
+        let meta = self.gen_const_ref(&const_fullname(&const_name));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let arg_values = vec![fnptr_i8, self.gen_lambda_captures(ctx, captures_ary)?];
-        self.gen_llvm_func_call("Meta:Fn1#new", meta, arg_values)
+        self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 
     fn gen_lambda_captures(
@@ -491,12 +493,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) {
         let i = self.unbox_bool(cond);
         let one = self.i1_type.const_int(1, false);
-        let istrue = self.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            i,
-            one,
-            "istrue",
-        );
+        let istrue = self
+            .builder
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }

@@ -40,7 +40,7 @@ impl Corelib {
 }
 
 type ClassItem = (
-    &'static str,
+    String,
     Vec<SkMethod>,
     Vec<SkMethod>,
     HashMap<String, SkIVar>,
@@ -48,61 +48,54 @@ type ClassItem = (
 );
 
 fn rust_body_items() -> Vec<ClassItem> {
-    vec![
+    let mut ret = vec![
         // Classes
         (
-            "Bool",
+            "Bool".to_string(),
             bool::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
         (
-            "Float",
+            "Float".to_string(),
             float::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
-        ("Int", int::create_methods(), vec![], HashMap::new(), vec![]),
+        ("Int".to_string(), int::create_methods(), vec![], HashMap::new(), vec![]),
         (
-            "Object",
+            "Object".to_string(),
             object::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
         (
-            "Void",
+            "Void".to_string(),
             void::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
         (
-            "Never",
+            "Never".to_string(),
             never::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
         (
-            "String",
+            "String".to_string(),
             string::create_methods(),
             vec![],
             string::ivars(),
             vec![],
         ),
-        ("Class", vec![], vec![], HashMap::new(), vec![]),
+        ("Class".to_string(), vec![], vec![], HashMap::new(), vec![]),
         (
-            "Fn1",
-            fn_x::create_methods_1(),
-            vec![],
-            HashMap::new(),
-            vec!["T".to_string()],
-        ),
-        (
-            "Shiika::Internal::Ptr",
+            "Shiika::Internal::Ptr".to_string(),
             shiika_internal_ptr::create_methods(),
             vec![],
             HashMap::new(),
@@ -110,22 +103,24 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         // Modules
         (
-            "Math",
+            "Math".to_string(),
             vec![],
             math::create_class_methods(),
             HashMap::new(),
             vec![],
         ),
-        ("Shiika", vec![], vec![], HashMap::new(), vec![]),
-        ("Shiika::Internal", vec![], vec![], HashMap::new(), vec![]),
+        ("Shiika".to_string(), vec![], vec![], HashMap::new(), vec![]),
+        ("Shiika::Internal".to_string(), vec![], vec![], HashMap::new(), vec![]),
         (
-            "Shiika::Internal::Memory",
+            "Shiika::Internal::Memory".to_string(),
             vec![],
             shiika_internal_memory::create_class_methods(),
             HashMap::new(),
             vec![],
         ),
-    ]
+    ];
+    ret.append(&mut fn_x::fn_items());
+    ret
 }
 
 fn make_classes(
@@ -145,13 +140,13 @@ fn make_classes(
         sk_classes.insert(
             ClassFullname(name.to_string()),
             SkClass {
-                fullname: class_fullname(name),
+                fullname: class_fullname(&name),
                 typarams: typarams
                     .into_iter()
                     .map(|s| ty::TyParam { name: s })
                     .collect(),
                 superclass_fullname: super_name,
-                instance_ty: ty::raw(name),
+                instance_ty: ty::raw(&name),
                 ivars,
                 method_sigs: imethods
                     .iter()
@@ -171,12 +166,12 @@ fn make_classes(
             },
         );
         sk_classes.insert(
-            metaclass_fullname(name),
+            metaclass_fullname(&name),
             SkClass {
-                fullname: metaclass_fullname(name),
+                fullname: metaclass_fullname(&name),
                 typarams: vec![],
                 superclass_fullname: Some(class_fullname("Class")),
-                instance_ty: ty::meta(name),
+                instance_ty: ty::meta(&name),
                 ivars: meta_ivars,
                 method_sigs: cmethods
                     .iter()
@@ -185,8 +180,8 @@ fn make_classes(
             },
         );
 
-        sk_methods.insert(class_fullname(name), imethods);
-        sk_methods.insert(metaclass_fullname(name), cmethods);
+        sk_methods.insert(class_fullname(&name), imethods);
+        sk_methods.insert(metaclass_fullname(&name), cmethods);
     }
     (sk_classes, sk_methods)
 }
