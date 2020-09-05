@@ -395,8 +395,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let arg_type = ty::raw("Object");
         let captures_type = ty::ary(ty::raw("Object"));
         let ret_ty = &exprs.ty;
-        let func_type =
-            self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
+        let func_type = self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, captures)
@@ -491,12 +490,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) {
         let i = self.unbox_bool(cond);
         let one = self.i1_type.const_int(1, false);
-        let istrue = self.builder.build_int_compare(
-            inkwell::IntPredicate::EQ,
-            i,
-            one,
-            "istrue",
-        );
+        let istrue = self
+            .builder
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }
