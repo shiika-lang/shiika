@@ -14,10 +14,6 @@ use inkwell::values::*;
 use inkwell::AddressSpace;
 use std::collections::HashMap;
 
-// 0bxx1 is for integers (future plan)
-const SK_FALSE: u64 = 0b010;
-const SK_TRUE: u64 = 0b110;
-
 /// CodeGen
 ///
 /// 'hir > 'ictx >= 'run
@@ -211,6 +207,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 struct_type.set_body(&[self.i32_type.into()], false);
             } else if name.0 == "Float" {
                 struct_type.set_body(&[self.f64_type.into()], false);
+            } else if name.0 == "Bool" {
+                struct_type.set_body(&[self.i1_type.into()], false);
             } else {
                 struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
             }

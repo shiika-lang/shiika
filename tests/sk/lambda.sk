@@ -21,4 +21,9 @@ g = fn(x: Int){
 }
 unless g.call(4) == 10; puts "ng 3"; end
 
+# Capturing bool
+t = true
+f2 = fn(x: Int) { t }
+unless f2.call(0); puts "ng 4"; end
+
 puts "ok"

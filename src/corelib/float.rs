@@ -15,7 +15,7 @@ macro_rules! create_comparison_method {
                 let val2 = code_gen.unbox_float(that);
                 $body;
                 let result = f(code_gen, val1, val2);
-                let sk_result = code_gen.box_bool(&result);
+                let sk_result = code_gen.box_bool(result);
                 code_gen.builder.build_return(Some(&sk_result));
                 Ok(())
             },

@@ -82,8 +82,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let value = self.gen_expr(ctx, expr)?;
-        Ok(self.invert_sk_bool(value).as_basic_value_enum())
+        let b = self.gen_expr(ctx, expr)?;
+        let i = self.unbox_bool(b);
+        let one = self.i1_type.const_int(1, false);
+        let b2 = self.builder.build_int_sub(one, i, "");
+        Ok(self.box_bool(b2))
     }
 
     fn gen_logical_and(
@@ -99,7 +102,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // AndBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
-        let left_value = self.gen_expr(ctx, left)?.into_int_value();
+        let left_value = self.gen_expr(ctx, left)?;
         self.gen_conditional_branch(left_value, more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
@@ -132,7 +135,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // OrBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
-        let left_value = self.gen_expr(ctx, left)?.into_int_value();
+        let left_value = self.gen_expr(ctx, left)?;
         self.gen_conditional_branch(left_value, merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
@@ -170,7 +173,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // IfBegin:
                 self.builder.build_unconditional_branch(begin_block);
                 self.builder.position_at_end(begin_block);
-                let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+                let cond_value = self.gen_expr(ctx, cond_expr)?;
                 self.gen_conditional_branch(cond_value, then_block, else_block);
                 // IfThen:
                 self.builder.position_at_end(then_block);
@@ -192,7 +195,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 Ok(phi_node.as_basic_value())
             }
             None => {
-                let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+                let cond_value = self.gen_expr(ctx, cond_expr)?;
                 let then_block = self.context.append_basic_block(ctx.function, "IfThen");
                 let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
                 self.gen_conditional_branch(cond_value, then_block, merge_block);
@@ -217,7 +220,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
         self.builder.position_at_end(begin_block);
-        let cond_value = self.gen_expr(ctx, cond_expr)?.into_int_value();
+        let cond_value = self.gen_expr(ctx, cond_expr)?;
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
         let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
         self.gen_conditional_branch(cond_value, body_block, end_block);
@@ -475,21 +478,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
-        let i = if value { SK_TRUE } else { SK_FALSE };
-        self.i64_type.const_int(i, false).as_basic_value_enum()
+        let n = if value { 1 } else { 0 };
+        let i = self.i1_type.const_int(n, false);
+        self.box_bool(i)
     }
 
     fn gen_conditional_branch(
         &self,
-        cond: inkwell::values::IntValue,
+        cond: inkwell::values::BasicValueEnum,
         then_block: inkwell::basic_block::BasicBlock,
         else_block: inkwell::basic_block::BasicBlock,
     ) {
-        let t = self.gen_boolean_literal(true);
+        let i = self.unbox_bool(cond);
+        let one = self.i1_type.const_int(1, false);
         let istrue = self.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
-            cond,
-            t.into_int_value(),
+            i,
+            one,
             "istrue",
         );
         self.builder

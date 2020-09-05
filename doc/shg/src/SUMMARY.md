@@ -9,3 +9,4 @@
 * [Tests](tests.md)
 * Design Notes
   * [Enum](design_notes/enum.md)
+  * [Performance](perf.md)
