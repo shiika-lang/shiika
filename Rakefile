@@ -1,16 +1,7 @@
-require 'bundler/setup'
-
-file 'lib/shiika/parser.ry' => 'lib/shiika/parser.ry.erb' do
-  sh "erb lib/shiika/parser.ry.erb > lib/shiika/parser.ry"
-end
-
-file 'lib/shiika/parser.rb' => 'lib/shiika/parser.ry' do
-  debug = (ENV["DEBUG"] == "1")
-  cmd = "racc #{'--verbose --debug' if debug} -o lib/shiika/parser.rb lib/shiika/parser.ry"
-  sh cmd
-end
-
-task :parser => 'lib/shiika/parser.rb'
+#
+# Rakefile
+#
+# Basically you don't need to run this. Miscellaneous tasks
 
 task :doc do
   chdidr "doc/shg" do
@@ -18,7 +9,6 @@ task :doc do
   end
 end
 
-#require_relative 'lib/shiika/version'
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff --cached"
@@ -31,7 +21,7 @@ task :release do
   sh "git push origin master --tags"
 end
 
-task :default => [:parser, :test]
+task :default => :test
 
 task :run do
   sh "cargo run"
@@ -49,16 +39,7 @@ task :opt do
   sh "./a.out"
 end
 
-rule ".rs" => ".rs.erb" do |t|
-  sh "erb #{t.source} > #{t.name}"
-end
-
-LIBS = [
-  "src/corelib/int.rs",
-  "src/corelib/float.rs",
-]
-
-task :build => LIBS do
+task :build do
   sh "cargo build"
 end
 
@@ -69,6 +50,6 @@ task :clean do
   rm_rf files
 end
 
-task :test => LIBS do
+task :test do
   sh "cargo test"
 end

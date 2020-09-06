@@ -1,4 +1,6 @@
-a statically-typed programming language.
+# Shiika
+
+is a statically-typed programming language.
 
 It looks like Ruby, but has explicit type annotations.
 Aims to be Kotlin or Swift in Rubyish style.
@@ -42,23 +44,14 @@ See `examples/*.sk` for more.
 
 Early-alpha
 
-### Implementation
+### Features already implemented
 
-- [x] Implement class method (eg. `Math.pow`)
-- [x] Implement .new
-- [x] Local variables
-- [x] String
-- [x] Array
-- [ ] `break`
-- [ ] Instance variables
-- [ ] Blocks
-- Constant
-  - [x] Toplevel
-  - [ ] Namespaced (eg. `A::FOO`)
-- [ ] Modules
-- [ ] Enums
-- [ ] Lambda
-- ...
+see [tests/sk/](https://github.com/yhara/shiika/tree/master/tests/sk) and
+[examples/](https://github.com/yhara/shiika/tree/master/examples)
+
+### Features not yet implemented
+
+see [Issues](https://github.com/yhara/shiika/issues)
 
 ## Hacking
 
@@ -66,26 +59,24 @@ Early-alpha
 
 - Rust
 - LLVM (`brew install llvm@7`)
-- bdw-gc 7.6.0 (Currently the path is hardcorded in src/main.rs. PR welcome)
-- Ruby (used to generate boiler-plate library definitions)
+- bdw-gc (`brew install bdw-gc`)
 
 ### Compile
 
 ```
-$ bundle install
-$ rake build
+$ cargo build
 ```
 
 ### Run tests
 
 ```
-$ rake test
+$ cargo test
 ```
 
 ### How to run a Shiika program
 
 ```
-$ ./build/debug/shiika run examples/hello.sk
+$ cargo run -- run examples/hello.sk
 ```
 
 ## License
