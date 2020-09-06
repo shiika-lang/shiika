@@ -12,7 +12,7 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff --cached"
-  v = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
+  v = File.read('CHANGELOG.md')[/v([\d\.]+) /]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
