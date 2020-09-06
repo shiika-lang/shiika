@@ -1,11 +1,14 @@
-## HEAD
+## v0.4.0 (2020-09-06)
 
-- fixes: #113 #114
+- feat: [Anonymous function](https://github.com/yhara/shiika/projects/2)
+- feat: Now you don't need Ruby to build shiika (#148)
+- fixes: #130 #138
 
 ## v0.3.0 (2020-07-28)
 
 - feat: Array literal (#84)
 - feat: Basic generics like Array#first (#101)
+- fixes: #113 #114 #118
 
 ## v0.2.5 (2020-05-29)
 
