@@ -171,14 +171,6 @@ impl HirMaker {
         self.ctx_stack.pop().unwrap()
     }
 
-    pub(super) fn outer_ctx(&self) -> Option<&HirMakerContext> {
-        let l = self.ctx_stack.len();
-        if l < 2 {
-            return None;
-        }
-        Some(&self.ctx_stack[l - 2])
-    }
-
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
         let mut i = (self.ctx_stack.len() as isize) - 1;
         while i >= 0 {

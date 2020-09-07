@@ -398,7 +398,7 @@ impl HirMaker {
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
             return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
         }
-        if let Some(outer_ctx) = self.outer_ctx() {
+        if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
             let l = ctx.captures.len();
             if let Some((cap, expr)) = self.lookup_var_in_outer_scope(l, outer_ctx, name) {
                 self.ctx_mut().captures.push(cap);
