@@ -14,9 +14,6 @@ use crate::ty::*;
 pub use sk_class::SkClass;
 use std::collections::HashMap;
 
-// TODO: This is not true for Fn2, Fn3, ...
-const IDX_LAMBDA_CAPTURES: usize = 1;
-
 #[derive(Debug)]
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
@@ -191,6 +188,10 @@ pub enum HirExpressionBase {
     //
     // Special opecodes (does not appear in a source program directly)
     //
+    /// Refer a variable in `captures`
+    HirLambdaCaptureRef {
+        idx: usize,
+    },
     /// Represents bitcast of an object
     HirBitCast {
         expr: Box<HirExpression>,
@@ -439,19 +440,11 @@ impl Hir {
         }
     }
 
-    // HirArgRef + Array#[]
-    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
-        let ary = Hir::hir_arg_ref(
-            ty::spe("Array", vec![ty::raw("Object")]),
-            IDX_LAMBDA_CAPTURES,
-        );
-        let nth_obj = Hir::method_call(
-            ty.clone(),
-            ary,
-            method_fullname(&class_fullname("Array"), "nth"),
-            vec![Hir::decimal_literal(idx as i32)],
-        );
-        Hir::bit_cast(ty, nth_obj)
+    pub fn lambda_capture_ref(ty: TermTy, _arity: usize, idx: usize) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirLambdaCaptureRef { idx },
+        }
     }
 }
 

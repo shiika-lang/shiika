@@ -17,12 +17,12 @@ if A.foo != 2; puts "ng 2"; end
 a = 1
 g = fn(x: Int){
   b = 2
-  h = fn(y: Int) {
-    a + b + x + y
+  h = fn(y: Int, z: Int) {
+    a + b + x + y + z
   }
-  h.call(3)
+  h.call(3, 4)
 }
-unless g.call(4) == 10; puts "ng 3"; end
+unless g.call(5) == 15; puts "ng 3"; end
 
 # Capturing bool
 t = true

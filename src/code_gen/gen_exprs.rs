@@ -61,7 +61,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 params,
                 exprs,
                 captures_ary,
-            } => self.gen_lambda(ctx, name, params, exprs, captures_ary),
+            } => self.gen_lambda_expr(ctx, name, params, exprs, captures_ary),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -69,6 +69,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
             HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
 
+            HirLambdaCaptureRef { idx } => self.gen_lambda_capture_ref(ctx, idx, &expr.ty),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,
@@ -338,6 +339,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    /// Generate IR for HirArgRef.
     fn gen_arg_ref(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
@@ -349,7 +351,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
-                let obj = ctx.function.get_nth_param(*idx as u32).unwrap();
+                let obj = ctx.function.get_nth_param(*idx as u32).unwrap_or_else(|| {
+                    panic!(format!(
+                        "{:?}\ngen_arg_ref: no param of idx={}",
+                        &ctx.function, idx
+                    ))
+                });
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
                 let value = self.builder.build_bitcast(obj, llvm_type, "");
                 Ok(value)
@@ -385,7 +392,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_load(ptr.as_pointer_value(), &fullname.0)
     }
 
-    fn gen_lambda(
+    fn gen_lambda_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         func_name: &str,
@@ -393,10 +400,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         captures_ary: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let arg_type = ty::raw("Object");
+        let obj_type = ty::raw("Object");
+        let mut arg_types = (1..params.len()).map(|_| &obj_type).collect::<Vec<_>>();
         let captures_type = ty::ary(ty::raw("Object"));
+        arg_types.push(&captures_type);
         let ret_ty = &exprs.ty;
-        let func_type = self.llvm_func_type(None, &[&arg_type, &captures_type], &ret_ty);
+        let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // Fn1.new(fnptr, captures)
@@ -498,6 +507,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
+    }
+
+    fn gen_lambda_capture_ref(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        idx_in_captures: &usize,
+        ty: &TermTy,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let idx_of_captures = ctx.function_params.unwrap().len() - 1;
+        let captures = self.gen_arg_ref(ctx, &idx_of_captures)?;
+        let obj = self.gen_llvm_func_call(
+            "Array#nth",
+            captures,
+            vec![self.gen_decimal_literal(*idx_in_captures as i32)],
+        )?;
+        Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), ""))
     }
 
     fn gen_bitcast(
