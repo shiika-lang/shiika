@@ -356,21 +356,24 @@ impl HirMaker {
     /// Also, concat lambda_captures to outer_captures
     fn resolve_lambda_captures(&mut self) -> Vec<HirExpression> {
         let lambda_ctx = self.pop_ctx();
+        let arity = lambda_ctx.method_sig.as_ref().unwrap().params.len();
         let ctx = self.ctx_mut();
         lambda_ctx
             .captures
             .into_iter()
             .map(|cap| {
                 if cap.ctx_depth == ctx.depth {
+                    // The variable is in this scope
                     match cap.detail {
                         LambdaCaptureDetail::CapLVar { name } => Hir::lvar_ref(cap.ty, name),
                         LambdaCaptureDetail::CapFnArg { idx } => Hir::hir_arg_ref(cap.ty, idx),
                     }
                 } else {
+                    // The variable is in outer scope
                     let ty = cap.ty.clone();
                     ctx.captures.push(cap);
                     let cidx = ctx.captures.len() - 1;
-                    Hir::lambda_capture_ref(ty, cidx)
+                    Hir::lambda_capture_ref(ty, arity, cidx)
                 }
             })
             .collect()
@@ -388,7 +391,7 @@ impl HirMaker {
         }
     }
 
-    /// Lookup variable of the name.
+    /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
     fn lookup_var(&mut self, name: &str) -> Option<HirExpression> {
         let ctx = self.ctx();
@@ -399,8 +402,11 @@ impl HirMaker {
             return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
         }
         if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
-            let l = ctx.captures.len();
-            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(l, outer_ctx, name) {
+            // The `ctx` has outer scope == `ctx` is a lambda
+            let arity = ctx.method_sig.as_ref().unwrap().params.len();
+            let cidx = ctx.captures.len();
+            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name)
+            {
                 self.ctx_mut().captures.push(cap);
                 return Some(expr);
             }
@@ -408,8 +414,12 @@ impl HirMaker {
         None
     }
 
+    /// Lookup variable of the given name in the outer scopes.
+    /// Return a `LambdaCapture` (which variable is captured) and a
+    /// `HirExpression` (how it can be retrieved from `captures`).
     fn lookup_var_in_outer_scope(
         &self,
+        arity: usize,
         cidx: usize,
         ctx: &HirMakerContext,
         name: &str,
@@ -422,7 +432,7 @@ impl HirMaker {
                     name: name.to_string(),
                 },
             };
-            return Some((cap, Hir::lambda_capture_ref(lvar.ty.clone(), cidx)));
+            return Some((cap, Hir::lambda_capture_ref(lvar.ty.clone(), arity, cidx)));
         }
         if let Some((idx, param)) = ctx.find_fn_arg(name) {
             let cap = LambdaCapture {
@@ -430,14 +440,14 @@ impl HirMaker {
                 ty: param.ty.clone(),
                 detail: LambdaCaptureDetail::CapFnArg { idx },
             };
-            return Some((cap, Hir::lambda_capture_ref(param.ty.clone(), cidx)));
+            return Some((cap, Hir::lambda_capture_ref(param.ty.clone(), arity, cidx)));
         }
 
         // TODO: It may be a nullary method call
 
         // Lookup in the next surrounding context
         self.outer_lvar_scope_of(ctx)
-            .map(|outer_ctx| self.lookup_var_in_outer_scope(cidx, &*outer_ctx, name))
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name))
             .flatten()
     }
 

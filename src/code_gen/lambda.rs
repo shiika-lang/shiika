@@ -6,7 +6,9 @@ use crate::ty::*;
 use either::Either::*;
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
-    /// Create llvm functions for lambdas
+    /// Find all lambdas in a hir and create the body of the corresponding llvm function
+    /// PERF: Ideally they should be created during gen_methods but I couldn't
+    /// avoid borrow checker errors.
     pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<(), Error> {
         for (_, methods) in &hir.sk_methods {
             for method in methods {
@@ -93,6 +95,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirDecimalLiteral { .. } => (),
             HirStringLiteral { .. } => (),
             HirBooleanLiteral { .. } => (),
+
+            HirLambdaCaptureRef { .. } => (),
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
         }
