@@ -64,7 +64,13 @@ fn rust_body_items() -> Vec<ClassItem> {
             HashMap::new(),
             vec![],
         ),
-        ("Int".to_string(), int::create_methods(), vec![], HashMap::new(), vec![]),
+        (
+            "Int".to_string(),
+            int::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
         (
             "Object".to_string(),
             object::create_methods(),
@@ -110,7 +116,13 @@ fn rust_body_items() -> Vec<ClassItem> {
             vec![],
         ),
         ("Shiika".to_string(), vec![], vec![], HashMap::new(), vec![]),
-        ("Shiika::Internal".to_string(), vec![], vec![], HashMap::new(), vec![]),
+        (
+            "Shiika::Internal".to_string(),
+            vec![],
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
         (
             "Shiika::Internal::Memory".to_string(),
             vec![],

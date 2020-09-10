@@ -3,14 +3,13 @@ use inkwell::types::*;
 use inkwell::AddressSpace;
 
 macro_rules! create_fn_call {
-    ($i:expr) => { {
-        let args_str = (1..=$i).map(|i| {
-            format!("arg{}: S{}", i, i)
-        }).collect::<Vec<_>>().join(", ");
+    ($i:expr) => {{
+        let args_str = (1..=$i)
+            .map(|i| format!("arg{}: S{}", i, i))
+            .collect::<Vec<_>>()
+            .join(", ");
 
-        let mut typarams = (1..=$i).map(|i| {
-            format!("S{}", i)
-        }).collect::<Vec<_>>();
+        let mut typarams = (1..=$i).map(|i| format!("S{}", i)).collect::<Vec<_>>();
         typarams.push("T".to_string());
 
         create_method_generic(
@@ -56,14 +55,12 @@ macro_rules! create_fn_call {
             },
             &typarams,
         )
-    } };
+    }};
 }
 
 macro_rules! fn_item {
-    ($i:expr) => { {
-        let mut typarams = (1..=$i).map(|i| {
-            format!("S{}", i)
-        }).collect::<Vec<_>>();
+    ($i:expr) => {{
+        let mut typarams = (1..=$i).map(|i| format!("S{}", i)).collect::<Vec<_>>();
         typarams.push("T".to_string());
 
         (
@@ -73,7 +70,7 @@ macro_rules! fn_item {
             HashMap::new(),
             typarams,
         )
-    } }
+    }};
 }
 
 pub fn fn_items() -> Vec<ClassItem> {
