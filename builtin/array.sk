@@ -8,6 +8,14 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * capa)
   end
 
+# TODO #147: Generic methods
+#  def each<U>(f: Fn1<T, U>)
+#    var i = 0; while i < @n_items
+#      f.call(nth(i))
+#      i = i + 1
+#    end
+#  end
+
   def push(value: Object)  # TODO: value is T
     if @n_items == @capa
       puts "TODO #107: resize"
@@ -17,7 +25,7 @@ class Array<T>
     @n_items = @n_items + 1
   end
 
-  # TODO: rename to `#[]`
+  # TODO #155: rename to `#[]`
   def nth(i: Int) -> T
     if i < 0
       puts "[Array#nth: index less than zero]"
