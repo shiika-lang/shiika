@@ -8,7 +8,7 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * capa)
   end
 
-  def push(value: Object)  # TODO: value is T
+  def push(value: T)
     if @n_items == @capa
       puts "TODO #107: resize"
     end

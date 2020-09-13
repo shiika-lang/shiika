@@ -134,6 +134,14 @@ impl TermTy {
             _ => false,
         }
     }
+
+    pub fn upper_bound<'a>(&'a self, obj: &'a TermTy) -> &'a TermTy {
+        // TODO: what is the upper bound of [T]?
+        match self.body {
+            TyParamRef { .. } => obj,
+            _ => self,
+        }
+    }
 }
 
 pub fn raw(fullname: &str) -> TermTy {
@@ -181,7 +189,8 @@ pub fn ary(type_arg: TermTy) -> TermTy {
 pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
-        fullname: class_fullname(&s),
+        // TODO: s is not a class name. `fullname` should be just a String
+        fullname: class_fullname(format!("TyParamRef({})", &s)),
         body: TyParamRef { name: s, idx },
     }
 }
