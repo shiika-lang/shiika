@@ -16,7 +16,7 @@ class Array<T>
 #    end
 #  end
 
-  def push(value: Object)  # TODO: value is T
+  def push(value: T)
     if @n_items == @capa
       puts "TODO #107: resize"
     end

@@ -76,7 +76,9 @@ pub fn check_method_args(
         .iter()
         .zip(arg_tys.iter())
         .try_for_each(|(param, arg_ty)| {
-            if arg_ty.conforms_to(&param.ty) {
+            let a = arg_ty.upper_bound();
+            let p = param.ty.upper_bound();
+            if a.conforms_to(&p) {
                 Ok(())
             } else {
                 Err(type_error!(

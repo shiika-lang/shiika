@@ -134,6 +134,19 @@ impl TermTy {
             _ => false,
         }
     }
+
+    pub fn upper_bound(&self) -> TermTy {
+        match &self.body {
+            TyParamRef { .. } => ty::raw("Object"),
+            TySpe { base_name, type_args } => {
+                ty::spe(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
+            }
+            TySpeMeta { base_name, type_args } => {
+                ty::spe_meta(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
+            }
+            _ => self.clone(),
+        }
+    }
 }
 
 pub fn raw(fullname: &str) -> TermTy {
@@ -173,6 +186,20 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
+pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+    let tyarg_names = type_args
+        .iter()
+        .map(|x| x.fullname.0.to_string())
+        .collect::<Vec<_>>();
+    TermTy {
+        fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
+        body: TySpe {
+            base_name: base_name.to_string(),
+            type_args,
+        },
+    }
+}
+
 /// Shortcut for Array<T>
 pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
@@ -181,7 +208,8 @@ pub fn ary(type_arg: TermTy) -> TermTy {
 pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
-        fullname: class_fullname(&s),
+        // TODO: s is not a class name. `fullname` should be just a String
+        fullname: class_fullname(format!("TyParamRef({})", &s)),
         body: TyParamRef { name: s, idx },
     }
 }
