@@ -8,6 +8,35 @@ class Int
     end
   end
 
+  # Returns the absolute value of `self`.
+  def abs -> Int
+    if self >= 0
+      self
+    else
+      -self
+    end
+  end
+
+# TODO: Allow `?` in the end of method name
+#  # Returns true if `self` is even.
+#  def even? -> Bool
+#    self / 2 == 0.0
+#  end
+#
+#  # Returns true if `self` is odd.
+#  def odd? -> Bool
+#    self / 2 != 0.0
+#  end
+
+  # Calls the given function `self` times, passing in values from zero to `self - 1`.
+  def times(f: Fn1<Int, Void>)
+    var i = 0; while i < self
+      f.call(i)
+      i = i + 1
+    end
+  end
+
+  # Returns `self`.
   def to_i -> Int
     self
   end
