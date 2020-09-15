@@ -135,11 +135,16 @@ impl TermTy {
         }
     }
 
-    pub fn upper_bound<'a>(&'a self, obj: &'a TermTy) -> &'a TermTy {
-        // TODO: what is the upper bound of [T]?
-        match self.body {
-            TyParamRef { .. } => obj,
-            _ => self,
+    pub fn upper_bound(&self) -> TermTy {
+        match &self.body {
+            TyParamRef { .. } => ty::raw("Object"),
+            TySpe { base_name, type_args } => {
+                ty::spe(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
+            }
+            TySpeMeta { base_name, type_args } => {
+                ty::spe_meta(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
+            }
+            _ => self.clone(),
         }
     }
 }
@@ -174,6 +179,20 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
         .collect::<Vec<_>>();
     TermTy {
         fullname: class_fullname(&format!("{}<{}>", &base_name, &tyarg_names.join(","))),
+        body: TySpe {
+            base_name: base_name.to_string(),
+            type_args,
+        },
+    }
+}
+
+pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+    let tyarg_names = type_args
+        .iter()
+        .map(|x| x.fullname.0.to_string())
+        .collect::<Vec<_>>();
+    TermTy {
+        fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
         body: TySpe {
             base_name: base_name.to_string(),
             type_args,
