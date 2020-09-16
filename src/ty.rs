@@ -138,12 +138,20 @@ impl TermTy {
     pub fn upper_bound(&self) -> TermTy {
         match &self.body {
             TyParamRef { .. } => ty::raw("Object"),
-            TySpe { base_name, type_args } => {
-                ty::spe(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
-            }
-            TySpeMeta { base_name, type_args } => {
-                ty::spe_meta(base_name, type_args.iter().map(|t| t.upper_bound()).collect())
-            }
+            TySpe {
+                base_name,
+                type_args,
+            } => ty::spe(
+                base_name,
+                type_args.iter().map(|t| t.upper_bound()).collect(),
+            ),
+            TySpeMeta {
+                base_name,
+                type_args,
+            } => ty::spe_meta(
+                base_name,
+                type_args.iter().map(|t| t.upper_bound()).collect(),
+            ),
             _ => self.clone(),
         }
     }
