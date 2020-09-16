@@ -80,13 +80,10 @@ fn run_<P: AsRef<Path>>(
 
     let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
     cmd.arg(ll_path);
-    let output = cmd
-        .output()
+    cmd.output()
         .map_err(|e| runner_error("failed to run llc", e))?;
-    if !output.stderr.is_empty() {
-        let s = String::from_utf8(output.stderr)
-            .map_err(|e| runner_error("llc output is not utf8", e))?;
-        println!("{}", s);
+    if !cmd.status()?.success() {
+        return Err(Box::new(plain_runner_error("llc failed")));
     }
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
@@ -100,7 +97,7 @@ fn run_<P: AsRef<Path>>(
     cmd.arg(out_path.clone());
     cmd.arg(asm_path.clone());
     if !cmd.status()?.success() {
-        return Err(Box::new(plain_runner_error("failed to run clang")));
+        return Err(Box::new(plain_runner_error("clang failed")));
     }
 
     //fs::remove_file(bc_path)?;
