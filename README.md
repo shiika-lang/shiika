@@ -46,12 +46,36 @@ Early-alpha
 
 ### Features already implemented
 
-see [tests/sk/](https://github.com/yhara/shiika/tree/master/tests/sk) and
+See [tests/sk/](https://github.com/yhara/shiika/tree/master/tests/sk) and
 [examples/](https://github.com/yhara/shiika/tree/master/examples)
 
 ### Features not yet implemented
 
-see [Issues](https://github.com/yhara/shiika/issues)
+See [Issues](https://github.com/yhara/shiika/issues)
+
+### Roadmap (tentative)
+
+- [x] v0.1.0 - Type system POC
+- [x] v0.2.0 - Start writing with Rust
+- [x] v0.3.0 - Generics
+- [x] v0.4.0 - Anonymous function (lambda)
+- [ ] - Enums
+- [ ] - Generic methods
+- [ ] - Virtual methods
+- [ ] - Modules (like Ruby's `module`)
+- [ ] - Something like Ruby's `require`
+- After v1.0.0
+  - Language enhancement
+    - Default arguments
+    - Keyword arguments passing
+    - Pattern matching
+    - Exceptions?
+  - Built-in library
+    - Bignum, Hash, etc
+  - Standard library?
+    - Http, etc?
+  - Package system
+  - Some meta-programming feature (but not AST macro, sorry lisp fans)
 
 ## Hacking
 
