@@ -50,6 +50,7 @@ impl ClassDict {
                 instance_ty: c.instance_ty,
                 ivars: c.ivars,
                 method_sigs: c.method_sigs,
+                const_is_obj: c.const_is_obj,
             })
         });
     }
@@ -147,6 +148,7 @@ impl ClassDict {
                     instance_ty,
                     ivars: HashMap::new(),
                     method_sigs: instance_methods,
+                    const_is_obj: false,
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
@@ -155,6 +157,7 @@ impl ClassDict {
                     instance_ty: class_ty,
                     ivars: HashMap::new(),
                     method_sigs: class_methods,
+                    const_is_obj: false,
                 });
             }
         }

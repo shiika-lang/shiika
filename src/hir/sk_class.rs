@@ -11,6 +11,8 @@ pub struct SkClass {
     pub instance_ty: TermTy,
     pub ivars: HashMap<String, super::SkIVar>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
+    /// eg. `Void` is an instance, not the class
+    pub const_is_obj: bool,
 }
 
 impl SkClass {
