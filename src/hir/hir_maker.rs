@@ -73,7 +73,7 @@ impl HirMaker {
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
         // Register void
-        constants.insert(const_fullname("::void"), ty::raw("Void"));
+        constants.insert(const_fullname("::Void"), ty::raw("Void"));
 
         Hir {
             sk_classes,
@@ -88,9 +88,9 @@ impl HirMaker {
     fn register_class_consts(&mut self) {
         // mem::take is needed to avoid compile error
         let classes = std::mem::take(&mut self.class_dict.sk_classes);
-        for name in classes.keys() {
-            if !name.is_meta() {
-                self.register_class_const(&name);
+        for (name, class) in &classes {
+            if !name.is_meta() && !class.const_is_obj {
+                self.register_class_const(name);
             }
         }
         self.class_dict.sk_classes = classes;

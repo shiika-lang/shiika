@@ -275,7 +275,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Generate void
         let ptr = self
             .module
-            .get_global(&"::void")
+            .get_global(&"::Void")
             .unwrap()
             .as_pointer_value();
         let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");

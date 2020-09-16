@@ -335,7 +335,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .left()
         {
             Some(result_value) => Ok(result_value),
-            None => Ok(self.gen_const_ref(&const_fullname("::void"))),
+            None => Ok(self.gen_const_ref(&const_fullname("::Void"))),
         }
     }
 
