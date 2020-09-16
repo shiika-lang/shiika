@@ -53,3 +53,10 @@ end
 task :test do
   sh "cargo test"
 end
+
+task :tmp do
+  #sh "cargo run"
+  sh "llc examples/a.sk.ll"
+  sh "cc -lgc -o examples/a.sk.out examples/a.sk.s"
+  sh "./examples/a.sk.out"
+end
