@@ -5,7 +5,7 @@
 ```
   def foo -> Option<Int>
     if bar
-      None.instance
+      None
     else
       Some.new(123)
     end
@@ -23,7 +23,7 @@ class MyLib
 
   def foo -> Expr<Int>
     if bar
-      Nil.instance   # or Expr::Nil<Int>.instance, an instance of Expr::Nil<Int>
+      Nil
     elsif baz
       Value.new(99)
     else
@@ -33,22 +33,18 @@ class MyLib
 end
 ```
 
-## Why .instance is needed
-
-If this is allowed, `Nil` is a short notaiton of `Nil<Int>`, but `Nil` is not a class, so we need to introduce something like "type-parameterized constant".
+## Enum cases
 
 ```
-class MyLib
-  enum Expr<T>
-    case Nil
-    case Value(v: T)
-    case Cons(car: Expr<T>, cdr: Expr<T>)
-  end
-
-  def foo -> Expr<Int>
-    Nil            
-  end
+enum E
+  # Defines a class E::A and its instance ::E::A
+  case A
+  # Defines a class E::B
+  case B(x: Int)
 end
+
+A  #=> ::E::A
+B  #=> ::E::B
 ```
 
 ## Why .new is needed
