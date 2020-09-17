@@ -261,18 +261,40 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<(), Error> {
+        // define void @"init_::XX"
+        for expr in const_inits {
+            match &expr.node {
+                HirExpressionBase::HirConstAssign { fullname, .. } => {
+                    let fn_type = self.void_type.fn_type(&[], false);
+                    let function = self.module.add_function(&format!("init_{}", fullname.0), fn_type, None);
+                    let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
+                    let basic_block = self.context.append_basic_block(function, "");
+                    self.builder.position_at_end(basic_block);
+                    self.gen_expr(&mut ctx, &expr)?;
+                    self.builder.build_return(None);
+                }
+                _ => panic!("gen_const_inits: Not a HirConstAssign")
+            }
+        }
+
         // define void @init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("init_constants", fn_type, None);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
+        // call void @"init_::XX"()
         for expr in const_inits {
-            self.gen_expr(&mut ctx, &expr)?;
+            match &expr.node {
+                HirExpressionBase::HirConstAssign { fullname, .. } => {
+                    let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+                    self.builder.build_call(func, &[], "");
+                }
+                _ => panic!("gen_const_inits: Not a HirConstAssign")
+            }
         }
 
-        // Generate void
+        // Generate ::Void
         let ptr = self
             .module
             .get_global(&"::Void")
