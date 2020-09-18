@@ -18,7 +18,12 @@ class Array<T>
 
   def push(value: T)
     if @n_items == @capa
-      puts "TODO #107: resize"
+      if @capa < 1024
+        @capa = @capa * 2
+      else
+        @capa= @capa + 256
+      end
+      @items = Shiika::Internal::Memory.gc_realloc(@items, BYTES_OF_PTR * @capa + 1)
     end
     ptr = @items + @n_items * BYTES_OF_PTR
     ptr.store(value)
