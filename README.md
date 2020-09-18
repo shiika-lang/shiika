@@ -27,16 +27,18 @@ Shiika has lots in common with Crystal. However:
 
 ## Example
 
-        class A
-          def fib(n: Int) -> Int
-            if n < 3
-              1
-            else
-              fib(n-1) + fib(n-2)
-            end
-          end
-        end
-        A.new.fib(34)
+```crystal
+class A
+  def fib(n: Int) -> Int
+    if n < 3
+      1
+    else
+      fib(n-1) + fib(n-2)
+    end
+  end
+end
+A.new.fib(34)
+```
 
 See `examples/*.sk` for more.
 
