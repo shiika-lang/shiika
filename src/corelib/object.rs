@@ -73,7 +73,6 @@ pub fn create_methods() -> Vec<SkMethod> {
             code_gen.builder.build_return(None);
             Ok(())
         }),
-
         create_method("Object", "exit(status: Int) -> Void", |code_gen, function| {
             let sk_int = function.get_params()[1];
             let status = code_gen.unbox_int(sk_int);
