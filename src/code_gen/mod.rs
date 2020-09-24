@@ -94,6 +94,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("printf", fn_type, None);
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], false);
         self.module.add_function("puts", fn_type, None);
+        let fn_type = self.void_type.fn_type(&[self.i32_type.into()], false);
+        self.module.add_function("exit", fn_type, None);
 
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);

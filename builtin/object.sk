@@ -3,4 +3,9 @@ class Object
     # "#<" + self.class.name + ">"
     "#<Something>"
   end
+
+  def panic(msg: String)
+    puts msg
+    exit 1
+  end
 end
