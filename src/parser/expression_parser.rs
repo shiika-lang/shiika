@@ -185,7 +185,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_operator_expr");
         let expr = self.parse_conditional_expr()?;
-        if expr.is_lhs() && self.next_nonspace_token() == Token::Equal {
+        if expr.is_lhs() && self.next_nonspace_token().is_assignment_token() {
             self.parse_assignment_expr(expr)
         } else {
             self.lv -= 1;
@@ -202,12 +202,18 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_assignment_expr");
 
         self.skip_ws();
-        assert!(self.consume(Token::Equal)); // TODO: `+=` etc.
+        let op = self.next_nonspace_token();
+        self.consume_token();
         self.skip_wsn();
         let rhs = self.parse_operator_expr()?;
 
         self.lv -= 1;
-        Ok(ast::assignment(lhs, rhs))
+
+        Ok(match op {
+            Token::Equal => ast::assignment(lhs, rhs),
+            Token::PlusEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "+", rhs)),
+            _unexpected => unimplemented!(),
+        })
     }
 
     /// `a ? b : c`
