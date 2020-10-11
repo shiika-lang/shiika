@@ -367,6 +367,9 @@ impl<'a> Lexer<'a> {
                 if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
                     (Token::UPlusMethod, LexerState::ExprBegin)
+                } else if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::PlusEq, LexerState::ExprBegin)
                 } else if self.is_unary(c2) {
                     (Token::UnaryPlus, LexerState::ExprBegin)
                 } else {

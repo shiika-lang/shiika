@@ -48,6 +48,7 @@ pub enum Token {
     RShift,       //  >>
     UPlusMethod,  //  +@
     UMinusMethod, //  -@
+    PlusEq,       //  +=
     // Keywords
     KwClass,
     KwEnd,
@@ -77,6 +78,13 @@ impl Token {
     }
     pub fn number(s: &str) -> Token {
         Token::Number(s.to_string())
+    }
+
+    pub fn is_assignment_token(&self) -> bool {
+        match self {
+            Token::Equal | Token::PlusEq => true,
+            _ => false,
+        }
     }
 
     /// Return true if a value may start with this token
@@ -132,6 +140,7 @@ impl Token {
             Token::RShift => false,       //  >>
             Token::UPlusMethod => false,  //  +@
             Token::UMinusMethod => false, //  -@
+            Token::PlusEq => false,       //  +=
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,
