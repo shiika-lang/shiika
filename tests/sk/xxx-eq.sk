@@ -1,0 +1,29 @@
+var a = 1
+
+a += 2
+if a != 3 then puts "ng" end
+a -= 2
+if a != 1 then puts "ng" end
+a *= 60
+if a != 60 then puts "ng" end
+a /= 5
+if a != 12 then puts "ng" end
+a %= 5
+if a != 2 then puts "ng" end
+a <<= 4
+if a != 32 then puts "ng" end
+a >>= 1
+if a != 16 then puts "ng" end
+a -= 1
+a &= 9
+if a != 8 then puts "ng" end
+a |= 15
+if a != 15 then puts "ng" end
+
+var b = false
+b &&= true
+if b then puts "ng" end
+b ||= true
+if not b then puts "ng" end
+
+puts "ok"
