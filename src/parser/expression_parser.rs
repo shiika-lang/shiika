@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
                     let name = s.to_string();
                     self.consume_token();
                     self.skip_ws();
-                    self.expect(Token::Equal)?; // TODO: `+=` etc.
+                    self.expect(Token::Equal)?;
                     self.skip_wsn();
                     let rhs = self.parse_operator_expr()?;
                     expr = ast::lvar_decl(name, rhs);
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
                     let name = s.to_string();
                     self.consume_token();
                     self.skip_ws();
-                    self.expect(Token::Equal)?; // TODO: `+=` etc.
+                    self.expect(Token::Equal)?;
                     self.skip_wsn();
                     let rhs = self.parse_operator_expr()?;
                     expr = ast::ivar_decl(name, rhs);
