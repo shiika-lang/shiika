@@ -6,6 +6,8 @@ mod utils;
 use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
 use crate::hir::*;
+use crate::mir;
+use crate::mir::*;
 use crate::names::*;
 use crate::ty::*;
 use either::*;
@@ -34,24 +36,25 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub void_type: inkwell::types::VoidType<'ictx>,
     pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
+    vtables: &'hir mir::VTables,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(hir: &Hir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(mir: &Mir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
-    let mut code_gen = CodeGen::new(&hir, &context, &module, &builder);
-    code_gen.gen_program(&hir)?;
+    let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
+    code_gen.gen_program(&mir.hir)?;
     code_gen.module.print_to_file(outpath)?;
     Ok(())
 }
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn new(
-        hir: &'hir Hir,
+        mir: &'hir Mir,
         context: &'ictx inkwell::context::Context,
         module: &'run inkwell::module::Module<'ictx>,
         builder: &'run inkwell::builder::Builder<'ictx>,
@@ -68,7 +71,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             f64_type: context.f64_type(),
             void_type: context.void_type(),
             llvm_struct_types: HashMap::new(),
-            str_literals: &hir.str_literals,
+            str_literals: &mir.hir.str_literals,
+            vtables: &mir.vtables,
             the_main: None,
         }
     }

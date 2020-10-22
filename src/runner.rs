@@ -18,7 +18,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Box<dyn std::error::Er
     let ast = crate::parser::Parser::parse(&str)?;
     let corelib = crate::corelib::Corelib::create();
     let hir = crate::hir::build(ast, corelib)?;
-    crate::code_gen::run(&hir, &(path + ".ll"))?;
+    let mir = crate::mir::build(hir);
+    crate::code_gen::run(&mir, &(path + ".ll"))?;
     Ok(())
 }
 

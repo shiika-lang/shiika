@@ -5,6 +5,7 @@ pub mod corelib;
 pub mod error;
 pub mod hir;
 pub mod names;
+pub mod mir;
 pub mod parser;
 pub mod runner;
 pub mod ty;
