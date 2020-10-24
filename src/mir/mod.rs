@@ -9,6 +9,6 @@ pub struct Mir {
 }
 
 pub fn build(hir: Hir) -> Mir {
-    let vtables = vtable::build_vtables(&hir.sk_classes);
+    let vtables = VTables::build(&hir.sk_classes);
     Mir { hir, vtables }
 }
