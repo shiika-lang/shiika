@@ -83,6 +83,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_method_funcs(&hir.sk_methods);
+        self.gen_vtables();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         self.gen_user_main(&hir.main_exprs)?;
@@ -152,6 +153,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.i8_type.const_int(0, false),
         ]));
         global.set_constant(true);
+    }
+
+    // Generate vtable constants
+    fn gen_vtables(&self) {
+        for (class_fullname, vtable) in self.vtables.iter() {
+            let method_names = vtable.to_vec();
+            let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
+            let global = self.module.add_global(ary_type, None, &format!("vtable_{}", class_fullname));
+            global.set_constant(true);
+            global.set_linkage(inkwell::module::Linkage::Internal);
+            let func_ptrs = method_names.iter().map(|name| {
+                self.get_llvm_func(&name.full_name).as_any_value_enum().into_pointer_value()
+            }).collect::<Vec<_>>();
+            global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+        }
     }
 
     fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
