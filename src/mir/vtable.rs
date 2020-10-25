@@ -49,7 +49,7 @@ impl VTables {
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if contents.contains(name) { continue }
+            if contents.contains_key(name) { continue }
 
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
