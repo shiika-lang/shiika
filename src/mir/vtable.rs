@@ -48,6 +48,9 @@ impl VTables {
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
+            // Check if already processed
+            if contents.contains(name) { continue }
+
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
             if let Some(super_name) = &class.superclass_fullname {
