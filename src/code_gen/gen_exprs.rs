@@ -51,7 +51,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 receiver_expr,
                 method_fullname,
                 arg_exprs,
-            } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs),
+            } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => self.gen_arg_ref(ctx, idx),
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx } => self.gen_ivar_ref(ctx, name, idx),
@@ -306,16 +306,35 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_method_call(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        method_fullname: &MethodFullname,
+        method_fullname: &MethodFullname, // TODO: this should be MethodFirstname
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let method_name = &method_fullname.first_name;
         let receiver_value = self.gen_expr(ctx, receiver_expr)?;
         let arg_values = arg_exprs
             .iter()
             .map(|arg_expr| self.gen_expr(ctx, arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
-        self.gen_llvm_func_call(&method_fullname.full_name, receiver_value, arg_values)
+
+        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}", method_name.0));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
+    
+        let vtable = self.build_ivar_load(receiver_value, 0, "vtable");
+        let idx = self.vtables.method_idx(&receiver_expr.ty, &method_name);
+        let func = self.build_ivar_load(vtable, idx, "func");
+
+        let func_type = self.llvm_func_type(
+            Some(&receiver_expr.ty),
+            &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
+            ret_ty)
+            .ptr_type(AddressSpace::Generic);
+        let func2 = self.builder.build_bitcast(func, func_type, "")
+            .into_pointer_value();
+
+        self.gen_llvm_function_call(func2, receiver_value, arg_values)
     }
 
     /// Generate llvm function call
@@ -323,9 +342,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         func_name: &str,
         receiver_value: inkwell::values::BasicValueEnum<'a>,
-        mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
+        arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let function = self.get_llvm_func(func_name);
+        self.gen_llvm_function_call(function, receiver_value, arg_values)
+    }
+
+    fn gen_llvm_function_call<'a, F>(
+        &'a self,
+        function: F,
+        receiver_value: inkwell::values::BasicValueEnum<'a>,
+        mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> 
+    where
+        F: Into<either::Either<inkwell::values::FunctionValue<'a>, inkwell::values::PointerValue<'a>>>,
+    {
         let mut llvm_args = vec![receiver_value];
         llvm_args.append(&mut arg_values);
         match self
