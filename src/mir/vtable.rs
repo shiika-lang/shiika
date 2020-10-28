@@ -41,7 +41,8 @@ impl VTable {
 
     fn update(&mut self, name: MethodFullname) {
         let i = self.index.get(&name.first_name).unwrap();
-        self.fullnames.insert(*i, name);
+        let elem = self.fullnames.get_mut(*i).unwrap();
+        *elem = name;
     }
 
     fn push(&mut self, name: MethodFullname) {
