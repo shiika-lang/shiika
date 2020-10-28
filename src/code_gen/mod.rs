@@ -223,30 +223,34 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // 2. Set ivars
+        let vt = self.llvm_vtable_ref_type().into();
         for (name, sk_class) in classes {
             let struct_type = self.llvm_struct_types.get(&name).unwrap();
             if name.0 == "Int" {
-                struct_type.set_body(&[self.i32_type.into()], false);
+                struct_type.set_body(&[vt, self.i32_type.into()], false);
             } else if name.0 == "Float" {
-                struct_type.set_body(&[self.f64_type.into()], false);
+                struct_type.set_body(&[vt, self.f64_type.into()], false);
             } else if name.0 == "Bool" {
-                struct_type.set_body(&[self.i1_type.into()], false);
+                struct_type.set_body(&[vt, self.i1_type.into()], false);
             } else {
                 struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
             }
         }
     }
 
+    /// List of fields of a class struct
     fn llvm_field_types(
         &self,
         ivars: &HashMap<String, SkIVar>,
     ) -> Vec<inkwell::types::BasicTypeEnum> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
-        values
+        let mut types = values
             .iter()
             .map(|ivar| self.llvm_type(&ivar.ty))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        types.insert(0, self.llvm_vtable_ref_type().into());
+        types
     }
 
     /// Generate llvm constants for string literals
@@ -473,6 +477,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_return(Some(&v));
         }
         Ok(())
+    }
+
+    /// LLVM type of a reference to a vtable
+    fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
+        self.i8ptr_type
     }
 }
 

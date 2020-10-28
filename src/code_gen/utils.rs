@@ -4,6 +4,10 @@ use crate::code_gen::*;
 use inkwell::types::*;
 use inkwell::AddressSpace;
 
+/// Number of elements before ivars
+/// - 0th: reference to vtable
+const HEADER_SIZE: u32 = 1;
+
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn build_ivar_load<'a>(
         &'a self,
@@ -15,7 +19,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_struct_gep(
                 object.into_pointer_value(),
-                idx as u32,
+                HEADER_SIZE + (idx as u32),
                 &format!("addr_{}", name),
             )
             .unwrap();
@@ -33,7 +37,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_struct_gep(
                 object.into_pointer_value(),
-                idx as u32,
+                HEADER_SIZE + (idx as u32),
                 &format!("addr_{}", name),
             )
             .unwrap();
