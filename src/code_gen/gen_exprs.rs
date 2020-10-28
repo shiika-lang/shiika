@@ -324,7 +324,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     
         let vtable = self.build_ivar_load(receiver_value, 0, "vtable");
         let idx = self.vtables.method_idx(&receiver_expr.ty, &method_name);
-        let func = self.build_ivar_load(vtable, idx, "func");
+        let func = self.build_ivar_load(vtable, *idx, "func");
 
         let func_type = self.llvm_func_type(
             Some(&receiver_expr.ty),

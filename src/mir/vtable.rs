@@ -50,6 +50,11 @@ impl VTable {
         self.fullnames.push(name);
     }
 
+    /// Returns the index of the method
+    pub fn get(&self, name: &MethodFirstname) -> &usize {
+        self.index.get(name).unwrap()
+    }
+
     /// Returns the list of method names, ordered by the index.
     pub fn to_vec(&self) -> &Vec<MethodFullname> {
         &self.fullnames
@@ -94,8 +99,9 @@ impl VTables {
     }
 
     // Return the index of the method when invoking it on the object
-    pub fn method_idx(&self, _obj_ty: &TermTy, _method_name: &MethodFirstname) -> usize {
-        0
+    pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> &usize {
+        let vtable = self.contents.get(&obj_ty.fullname).unwrap();
+        vtable.get(&method_name)
     }
 
     // REFACTOR: it's better to implement Iterator (I just don't know how to)
