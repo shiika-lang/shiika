@@ -51,6 +51,11 @@ impl VTable {
         self.fullnames.push(name);
     }
 
+    /// Returns the size
+    pub fn len(&self) -> usize {
+        self.fullnames.len()
+    }
+
     /// Returns the index of the method
     pub fn get(&self, name: &MethodFirstname) -> &usize {
         self.index.get(name).unwrap()
@@ -100,9 +105,9 @@ impl VTables {
     }
 
     // Return the index of the method when invoking it on the object
-    pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> &usize {
+    pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
         let vtable = self.contents.get(&obj_ty.fullname).unwrap();
-        vtable.get(&method_name)
+        (vtable.get(&method_name), vtable.len())
     }
 
     // REFACTOR: it's better to implement Iterator (I just don't know how to)

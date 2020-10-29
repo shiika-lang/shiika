@@ -3,6 +3,7 @@ mod code_gen_context;
 mod gen_exprs;
 mod lambda;
 mod utils;
+use crate::code_gen::utils::llvm_vtable_name;
 use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
 use crate::hir::*;
@@ -160,7 +161,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
             let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-            let global = self.module.add_global(ary_type, None, &format!("vtable_{}", class_fullname));
+            let global = self.module.add_global(ary_type, None, &llvm_vtable_name(class_fullname));
             global.set_constant(true);
             global.set_linkage(inkwell::module::Linkage::Internal);
             let func_ptrs = method_names.iter().map(|name| {

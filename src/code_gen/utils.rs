@@ -5,11 +5,56 @@ use inkwell::types::*;
 use inkwell::AddressSpace;
 
 /// Number of elements before ivars
-/// - 0th: reference to vtable
-const HEADER_SIZE: u32 = 1;
+const OBJ_HEADER_SIZE: usize = 1;
+/// 0th: reference to vtable
+const OBJ_VTABLE_IDX: usize = 0;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
+    /// Load value of an instance variable
     pub fn build_ivar_load<'a>(
+        &'a self,
+        object: inkwell::values::BasicValueEnum<'a>,
+        idx: usize,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'a> {
+        self.build_llvm_struct_ref(object, OBJ_HEADER_SIZE + idx, name)
+    }
+
+    /// Store value into an instance variable
+    pub fn build_ivar_store<'a>(
+        &'a self,
+        object: &'a inkwell::values::BasicValueEnum<'a>,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'a>,
+        name: &str,
+    ) {
+        self.build_llvm_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
+    }
+
+    /// Lookup llvm func from vtable of an object
+    pub fn build_vtable_ref<'a>(
+        &'a self,
+        object: inkwell::values::BasicValueEnum<'a>,
+        idx: usize,
+        size: usize
+    ) -> inkwell::values::BasicValueEnum<'a> {
+        let vtable_ref = self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable_ref");
+        let ary_type = self.i8ptr_type.array_type(size as u32);
+        let vtable = self.builder.build_bitcast(vtable_ref, ary_type, "vtable").into_array_value();
+        self.builder.build_extract_value(vtable, idx as u32, "func").unwrap()
+    }
+
+    /// Store reference to vtable into an object
+    pub fn build_store_vtable<'a>(
+        &'a self,
+        object: inkwell::values::BasicValueEnum<'a>,
+        vtable_ref: inkwell::values::BasicValueEnum<'a>,
+    ) {
+        self.build_llvm_struct_set(&object, OBJ_VTABLE_IDX, vtable_ref, "")
+    }
+
+    /// Load value of nth element of llvm struct
+    fn build_llvm_struct_ref<'a>(
         &'a self,
         object: inkwell::values::BasicValueEnum<'a>,
         idx: usize,
@@ -19,14 +64,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_struct_gep(
                 object.into_pointer_value(),
-                HEADER_SIZE + (idx as u32),
+                idx as u32,
                 &format!("addr_{}", name),
             )
             .unwrap();
         self.builder.build_load(ptr, name)
     }
 
-    pub fn build_ivar_store<'a>(
+    /// Set value to nth element of llvm struct
+    fn build_llvm_struct_set<'a>(
         &'a self,
         object: &'a inkwell::values::BasicValueEnum<'a>,
         idx: usize,
@@ -37,7 +83,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_struct_gep(
                 object.into_pointer_value(),
-                HEADER_SIZE + (idx as u32),
+                idx as u32,
                 &format!("addr_{}", name),
             )
             .unwrap();
@@ -66,7 +112,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap();
 
         // %foo = bitcast i8* %mem to %#{t}*",
-        self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name)
+        let obj = self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name);
+
+        // Store reference to vtable
+        let vtable_ref = self.module.get_global(&llvm_vtable_name(class_fullname)).unwrap().as_pointer_value();
+        self.build_store_vtable(obj, vtable_ref.into());
+
+        obj
     }
 
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
@@ -106,4 +158,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_function(name)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))
     }
+}
+
+/// Name of llvm constant of a vtable
+pub(super) fn llvm_vtable_name(classname: &ClassFullname) -> String {
+    format!("vtable_{}", classname)
 }

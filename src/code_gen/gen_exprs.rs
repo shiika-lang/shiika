@@ -322,9 +322,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
     
-        let vtable = self.build_ivar_load(receiver_value, 0, "vtable");
-        let idx = self.vtables.method_idx(&receiver_expr.ty, &method_name);
-        let func = self.build_ivar_load(vtable, *idx, "func");
+        let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
+        let func = self.build_vtable_ref(receiver_value, *idx, size);
 
         let func_type = self.llvm_func_type(
             Some(&receiver_expr.ty),
