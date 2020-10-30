@@ -165,7 +165,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             global.set_constant(true);
             global.set_linkage(inkwell::module::Linkage::Internal);
             let func_ptrs = method_names.iter().map(|name| {
-                self.get_llvm_func(&name.full_name).as_any_value_enum().into_pointer_value()
+                let func = self.get_llvm_func(&name.full_name).as_any_value_enum().into_pointer_value();
+                self.builder.build_bitcast(func, self.i8ptr_type, "").into_pointer_value()
             }).collect::<Vec<_>>();
             global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
         }
