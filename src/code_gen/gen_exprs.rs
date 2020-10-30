@@ -347,6 +347,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.gen_llvm_function_call(function, receiver_value, arg_values)
     }
 
+    // REFACTOR: why returns Result?
     fn gen_llvm_function_call<'a, F>(
         &'a self,
         function: F,
@@ -494,28 +495,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.box_int(&self.i32_type.const_int(value as u64, false))
     }
 
+    /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
-        // REFACTOR: Just call `new` to do this
-
-        let sk_str = self.allocate_sk_obj(&class_fullname("String"), "str");
-
-        // Store ptr
+        let func = self.get_llvm_func(&"Meta:String#new");
+        let receiver_value = self.gen_const_ref(&const_fullname("::String"));
         let global = self
             .module
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "");
-        self.build_ivar_store(&sk_str, 0, glob_i8, "@ptr");
-
-        // Store bytesize
+        let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "").into_pointer_value();
         let bytesize = self
             .i32_type
             .const_int(self.str_literals[*idx].len() as u64, false);
-        let sk_int = self.box_int(&bytesize);
-        self.build_ivar_store(&sk_str, 1, sk_int, "@bytesize");
+        let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
-        sk_str
+        self.gen_llvm_function_call(func, receiver_value, arg_values).unwrap()
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {
