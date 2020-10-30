@@ -104,7 +104,7 @@ fn rust_body_items() -> Vec<ClassItem> {
             "Shiika::Internal::Ptr".to_string(),
             shiika_internal_ptr::create_methods(),
             vec![],
-            HashMap::new(),
+            shiika_internal_ptr::ivars(),
             vec![],
         ),
         // Modules

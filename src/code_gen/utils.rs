@@ -96,7 +96,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_fullname: &ClassFullname,
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'ictx> {
-        let object_type = self.llvm_struct_types.get(&class_fullname).unwrap();
+        let object_type = self.llvm_struct_type(&class_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
             .size_of()
@@ -121,34 +121,29 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         obj
     }
 
-    pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        if ty.body == TyBody::TyRaw && ty.fullname.0 == "Shiika::Internal::Ptr" {
-            self.i8ptr_type.as_basic_type_enum()
-        } else {
-            self.sk_obj_llvm_type(ty)
-        }
-    }
-
     /// Return zero value in LLVM. None if it is a pointer
     pub(super) fn llvm_zero_value(&self, _ty: &TermTy) -> Option<inkwell::values::BasicValueEnum> {
         // Currently all values are pointer
         None
     }
 
-    /// Helper func for self.llvm_type()
-    fn sk_obj_llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+    /// LLVM type of a Shiika object
+    pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {
             TyBody::TySpe { base_name, .. } => &base_name,
             TyBody::TyParamRef { .. } => "Object", // its upper bound
             _ => &ty.fullname.0,
         };
-        let struct_type = self
-            .llvm_struct_types
-            .get(&class_fullname(s))
-            .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", ty.fullname));
-        struct_type
+        self.llvm_struct_type(&class_fullname(s))
             .ptr_type(AddressSpace::Generic)
             .as_basic_type_enum()
+    }
+
+    /// Get the llvm struct type for a class
+    fn llvm_struct_type(&self, name: &ClassFullname) -> &inkwell::types::StructType<'ictx> {
+        self.llvm_struct_types
+            .get(&name)
+            .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", name))
     }
 
     /// Return the llvm func

@@ -21,7 +21,8 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     .try_as_basic_value()
                     .left()
                     .unwrap();
-                code_gen.builder.build_return(Some(&mem));
+                let skptr = code_gen.box_i8ptr(mem.into_pointer_value());
+                code_gen.builder.build_return(Some(&skptr));
                 Ok(())
             },
         ),
@@ -29,7 +30,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Shiika::Internal::Memory",
             "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr",
             |code_gen, function| {
-                let ptr = function.get_params()[1];
+                let ptr = code_gen.unbox_i8ptr(function.get_params()[1]);
                 let sk_int = function.get_params()[2];
                 let n_bytes = code_gen.unbox_int(sk_int);
                 let n_bytes_64 =
@@ -39,11 +40,12 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                 let func = code_gen.module.get_function("GC_realloc").unwrap();
                 let mem = code_gen
                     .builder
-                    .build_call(func, &[ptr, n_bytes_64.into()], "mem")
+                    .build_call(func, &[ptr.into(), n_bytes_64.into()], "mem")
                     .try_as_basic_value()
                     .left()
                     .unwrap();
-                code_gen.builder.build_return(Some(&mem));
+                let skptr = code_gen.box_i8ptr(mem.into_pointer_value());
+                code_gen.builder.build_return(Some(&skptr));
                 Ok(())
             },
         ),
@@ -55,10 +57,9 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Shiika::Internal::Memory",
             "memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void",
             |code_gen, function| {
-                let dst = function.get_params()[1];
-                let src = function.get_params()[2];
-                let sk_int = function.get_params()[3];
-                let n_bytes = code_gen.unbox_int(sk_int);
+                let dst = code_gen.unbox_i8ptr(function.get_params()[1]);
+                let src = code_gen.unbox_i8ptr(function.get_params()[2]);
+                let n_bytes = code_gen.unbox_int(function.get_params()[3]);
                 let n_bytes_64 =
                     code_gen
                         .builder
@@ -70,8 +71,8 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                 code_gen.builder.build_call(
                     func,
                     &[
-                        dst,
-                        src,
+                        dst.into(),
+                        src.into(),
                         n_bytes_64.into(),
                         code_gen.i32_type.const_int(0, false).into(),
                         code_gen.i1_type.const_int(0, false).into(),
