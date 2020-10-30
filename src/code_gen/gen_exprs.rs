@@ -439,7 +439,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
-        // Fn1.new(fnptr, captures)
+        // eg. Fn1.new(fnptr, captures)
         let cls_name = format!("Fn{}", params.len() - 1); // -1 for the last `captures` ary
         let const_name = format!("::{}", cls_name);
         let meta = self.gen_const_ref(&const_fullname(&const_name));
@@ -448,7 +448,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
-        let arg_values = vec![fnptr_i8, self.gen_lambda_captures(ctx, captures_ary)?];
+        let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
+        let arg_values = vec![sk_ptr, self.gen_lambda_captures(ctx, captures_ary)?];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 

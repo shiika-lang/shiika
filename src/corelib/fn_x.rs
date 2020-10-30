@@ -17,7 +17,7 @@ macro_rules! create_fn_call {
             &format!("call({}) -> T", args_str),
             |code_gen, function| {
                 let fn_obj = function.get_params()[0];
-                let fnptr = code_gen.build_ivar_load(fn_obj, 0, "func");
+                let sk_ptr = code_gen.build_ivar_load(fn_obj, 0, "func");
                 let capary = code_gen.build_ivar_load(fn_obj, 1, "captures");
 
                 let mut args = vec![];
@@ -38,6 +38,7 @@ macro_rules! create_fn_call {
                 let fnptype = fntype.ptr_type(AddressSpace::Generic);
 
                 // Cast `fnptr` to that type
+                let fnptr = code_gen.unbox_i8ptr(sk_ptr);
                 let func = code_gen
                     .builder
                     .build_bitcast(fnptr, fnptype, "")
