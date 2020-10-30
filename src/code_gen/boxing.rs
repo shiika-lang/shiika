@@ -54,8 +54,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
     pub fn box_i8ptr<'a>(&'a self, p: inkwell::values::PointerValue) -> inkwell::values::BasicValueEnum {
-        let sk_obj = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "skptr");
-        self.build_ivar_store(&sk_obj, 0, p.as_basic_value_enum(), "skptr");
+        let sk_obj = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "sk_ptr");
+        self.build_ivar_store(&sk_obj, 0, p.as_basic_value_enum(), "@llvm_ptr");
         sk_obj
     }
 
@@ -64,6 +64,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_obj: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::PointerValue {
-        self.build_ivar_load(sk_obj, 0, "skptr").into_pointer_value()
+        self.build_ivar_load(sk_obj, 0, "@llvm_ptr").into_pointer_value()
     }
 }

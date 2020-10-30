@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::corelib::create_method;
 use crate::hir::*;
 use crate::ty;
@@ -56,18 +55,4 @@ pub fn create_methods() -> Vec<SkMethod> {
             },
         ),
     ]
-}
-
-pub fn ivars() -> HashMap<String, SkIVar> {
-    let mut ivars = HashMap::new();
-    ivars.insert(
-        "@ptr".to_string(),
-        SkIVar {
-            name: "@ptr".to_string(),
-            idx: 0,
-            ty: ty::raw("Shiika::Internal::Ptr"),
-            readonly: true,
-        },
-    );
-    ivars
 }

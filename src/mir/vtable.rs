@@ -104,7 +104,7 @@ impl VTables {
         VTables { contents }
     }
 
-    // Return the index of the method when invoking it on the object
+    /// Return the index of the method when invoking it on the object
     pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
         let vtable = self.contents.get(&obj_ty.fullname).unwrap();
         (vtable.get(&method_name), vtable.len())

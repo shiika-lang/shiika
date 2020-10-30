@@ -234,6 +234,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 struct_type.set_body(&[vt, self.f64_type.into()], false);
             } else if name.0 == "Bool" {
                 struct_type.set_body(&[vt, self.i1_type.into()], false);
+            } else if name.0 == "Shiika::Internal::Ptr" {
+                struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
             } else {
                 struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
             }
