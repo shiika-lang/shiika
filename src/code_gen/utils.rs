@@ -42,7 +42,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ary_type = self.i8ptr_type.array_type(size as u32);
         let vtable_ptr = self.builder.build_bitcast(vtable_ref, ary_type.ptr_type(AddressSpace::Generic), "vtable_ptr").into_pointer_value();
         let vtable = self.builder.build_load(vtable_ptr, "vtable").into_array_value();
-        self.builder.build_extract_value(vtable, idx as u32, "func").unwrap()
+        self.builder.build_extract_value(vtable, idx as u32, "func_raw").unwrap()
     }
 
     /// Store reference to vtable into an object

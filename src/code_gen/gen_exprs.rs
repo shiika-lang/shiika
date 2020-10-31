@@ -86,7 +86,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let b = self.gen_expr(ctx, expr)?;
         let i = self.unbox_bool(b);
         let one = self.i1_type.const_int(1, false);
-        let b2 = self.builder.build_int_sub(one, i, "");
+        let b2 = self.builder.build_int_sub(one, i, "b2");
         Ok(self.box_bool(b2))
     }
 
@@ -318,22 +318,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .map(|arg_expr| self.gen_expr(ctx, arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}", method_name.0));
+        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}", method_fullname));
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
     
         let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
-        let func = self.build_vtable_ref(receiver_value, *idx, size);
+        let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
 
         let func_type = self.llvm_func_type(
             Some(&receiver_expr.ty),
             &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
             ret_ty)
             .ptr_type(AddressSpace::Generic);
-        let func2 = self.builder.build_bitcast(func, func_type, "")
+        let func = self.builder.build_bitcast(func_raw, func_type, "func")
             .into_pointer_value();
 
-        self.gen_llvm_function_call(func2, receiver_value, arg_values)
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+
+        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
+
+        result
     }
 
     /// Generate llvm function call
