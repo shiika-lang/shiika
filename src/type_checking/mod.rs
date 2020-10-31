@@ -61,6 +61,17 @@ pub fn check_method_args(
     receiver_hir: &hir::HirExpression,
     arg_hirs: &[hir::HirExpression],
 ) -> Result<(), Error> {
+    check_method_arity(sig, arg_tys, receiver_hir, arg_hirs)?;
+    check_arg_types(sig, arg_tys, receiver_hir, arg_hirs)?;
+    Ok(())
+}
+
+fn check_method_arity(
+    sig: &MethodSignature,
+    arg_tys: &[&TermTy],
+    receiver_hir: &hir::HirExpression,
+    arg_hirs: &[hir::HirExpression],
+) -> Result<(), Error> {
     if sig.params.len() != arg_tys.len() {
         return Err(type_error!(
             "{} takes {} args but got {} (receiver: {:?}, args: {:?})",
@@ -71,26 +82,28 @@ pub fn check_method_args(
             arg_hirs
         ));
     }
+    Ok(())
+}
 
-    sig.params
-        .iter()
-        .zip(arg_tys.iter())
-        .try_for_each(|(param, arg_ty)| {
-            let a = arg_ty.upper_bound();
-            let p = param.ty.upper_bound();
-            if a.conforms_to(&p) {
-                Ok(())
-            } else {
-                Err(type_error!(
-                    "{} takes {} but got {} (receiver: {:?}, args: {:?})",
-                    sig.fullname,
-                    param.ty.fullname,
-                    arg_ty.fullname,
-                    receiver_hir,
-                    arg_hirs
-                ))
-            }
-        })?;
-
+fn check_arg_types(
+    sig: &MethodSignature,
+    arg_tys: &[&TermTy],
+    receiver_hir: &hir::HirExpression,
+    arg_hirs: &[hir::HirExpression],
+) -> Result<(), Error> {
+    for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
+        let a = arg_ty.upper_bound();
+        let p = param.ty.upper_bound();
+        if !a.conforms_to(&p) {
+            return Err(type_error!(
+                "{} takes {} but got {} (receiver: {:?}, args: {:?})",
+                sig.fullname,
+                param.ty.fullname,
+                arg_ty.fullname,
+                receiver_hir,
+                arg_hirs
+            ))
+        }
+    }
     Ok(())
 }
