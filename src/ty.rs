@@ -128,6 +128,15 @@ impl TermTy {
         }
     }
 
+    /// Name for vtable when invoking a method on an object of this type
+    pub fn vtable_name(&self) -> ClassFullname {
+        match &self.body {
+            TySpe { base_name, .. } => class_fullname(base_name),
+            TySpeMeta { base_name, .. } => class_fullname(base_name),
+            _ => self.fullname.clone(),
+        }
+    }
+
     pub fn is_specialized(&self) -> bool {
         match self.body {
             TySpe { .. } | TySpeMeta { .. } => true,

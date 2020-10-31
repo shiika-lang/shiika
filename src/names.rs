@@ -82,7 +82,7 @@ impl MethodFirstname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct MethodFullname {
     pub full_name: String,
     pub first_name: MethodFirstname,

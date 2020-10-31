@@ -195,11 +195,7 @@ impl HirMaker {
         }
         self.define_ivars(fullname, own_ivars, defs)?;
 
-        // Add `.new`
-        if has_new(&fullname) {
-            self.method_dict
-                .add_method(&meta_name, self.create_new(&fullname)?);
-        }
+        self.method_dict.add_method(&meta_name, self.create_new(&fullname)?);
 
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {
@@ -398,14 +394,4 @@ impl HirMaker {
         // Start from space so that it won't collide with user vars
         format!(" tmp{}", self.gensym_ct)
     }
-}
-
-// Whether the class has .new
-fn has_new(fullname: &ClassFullname) -> bool {
-    // TODO: maybe more?
-    // At least these two must be excluded (otherwise wrong .ll is generated)
-    if fullname.0 == "Int" || fullname.0 == "Float" {
-        return false;
-    }
-    true
 }

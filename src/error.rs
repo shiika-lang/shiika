@@ -87,3 +87,7 @@ pub fn plain_runner_error(msg: impl Into<String>) -> Error {
         source: None,
     }
 }
+
+pub fn must_be_some<T>(o: Option<T>, msg: String) -> T {
+    o.unwrap_or_else(|| panic!(msg))
+}

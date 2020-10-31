@@ -3,9 +3,12 @@ mod code_gen_context;
 mod gen_exprs;
 mod lambda;
 mod utils;
+use crate::code_gen::utils::llvm_vtable_name;
 use crate::code_gen::code_gen_context::*;
 use crate::error::Error;
 use crate::hir::*;
+use crate::mir;
+use crate::mir::*;
 use crate::names::*;
 use crate::ty::*;
 use either::*;
@@ -34,24 +37,25 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub void_type: inkwell::types::VoidType<'ictx>,
     pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
+    vtables: &'hir mir::VTables,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(hir: &Hir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(mir: &Mir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
-    let mut code_gen = CodeGen::new(&hir, &context, &module, &builder);
-    code_gen.gen_program(&hir)?;
+    let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
+    code_gen.gen_program(&mir.hir)?;
     code_gen.module.print_to_file(outpath)?;
     Ok(())
 }
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn new(
-        hir: &'hir Hir,
+        mir: &'hir Mir,
         context: &'ictx inkwell::context::Context,
         module: &'run inkwell::module::Module<'ictx>,
         builder: &'run inkwell::builder::Builder<'ictx>,
@@ -68,7 +72,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             f64_type: context.f64_type(),
             void_type: context.void_type(),
             llvm_struct_types: HashMap::new(),
-            str_literals: &hir.str_literals,
+            str_literals: &mir.hir.str_literals,
+            vtables: &mir.vtables,
             the_main: None,
         }
     }
@@ -79,6 +84,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_method_funcs(&hir.sk_methods);
+        self.gen_vtables();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         self.gen_user_main(&hir.main_exprs)?;
@@ -150,6 +156,22 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
+    // Generate vtable constants
+    fn gen_vtables(&self) {
+        for (class_fullname, vtable) in self.vtables.iter() {
+            let method_names = vtable.to_vec();
+            let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
+            let global = self.module.add_global(ary_type, None, &llvm_vtable_name(class_fullname));
+            global.set_constant(true);
+            global.set_linkage(inkwell::module::Linkage::Internal);
+            let func_ptrs = method_names.iter().map(|name| {
+                let func = self.get_llvm_func(&name.full_name).as_any_value_enum().into_pointer_value();
+                self.builder.build_bitcast(func, self.i8ptr_type, "").into_pointer_value()
+            }).collect::<Vec<_>>();
+            global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+        }
+    }
+
     fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
@@ -203,30 +225,36 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // 2. Set ivars
+        let vt = self.llvm_vtable_ref_type().into();
         for (name, sk_class) in classes {
             let struct_type = self.llvm_struct_types.get(&name).unwrap();
             if name.0 == "Int" {
-                struct_type.set_body(&[self.i32_type.into()], false);
+                struct_type.set_body(&[vt, self.i32_type.into()], false);
             } else if name.0 == "Float" {
-                struct_type.set_body(&[self.f64_type.into()], false);
+                struct_type.set_body(&[vt, self.f64_type.into()], false);
             } else if name.0 == "Bool" {
-                struct_type.set_body(&[self.i1_type.into()], false);
+                struct_type.set_body(&[vt, self.i1_type.into()], false);
+            } else if name.0 == "Shiika::Internal::Ptr" {
+                struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
             } else {
                 struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
             }
         }
     }
 
+    /// List of fields of a class struct
     fn llvm_field_types(
         &self,
         ivars: &HashMap<String, SkIVar>,
     ) -> Vec<inkwell::types::BasicTypeEnum> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
-        values
+        let mut types = values
             .iter()
             .map(|ivar| self.llvm_type(&ivar.ty))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        types.insert(0, self.llvm_vtable_ref_type().into());
+        types
     }
 
     /// Generate llvm constants for string literals
@@ -453,6 +481,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_return(Some(&v));
         }
         Ok(())
+    }
+
+    /// LLVM type of a reference to a vtable
+    fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
+        self.i8ptr_type
     }
 }
 

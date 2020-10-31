@@ -5,7 +5,7 @@ mod hir_maker;
 mod hir_maker_context;
 mod method_dict;
 pub mod signature;
-mod sk_class;
+pub mod sk_class;
 use crate::ast;
 use crate::corelib::Corelib;
 use crate::names::*;

@@ -19,4 +19,16 @@ impl SkClass {
     pub fn class_ty(&self) -> TermTy {
         self.instance_ty.meta_ty()
     }
+
+    /// List of method names, alphabetic order
+    pub fn method_names(&self) -> Vec<MethodFullname> {
+        let mut v = self.method_sigs.values().
+            map(|x| x.fullname.clone()).
+            collect::<Vec<_>>();
+        // Sort by first name
+        v.sort_unstable_by(|a, b| {
+            a.first_name.0.cmp(&b.first_name.0)
+        });
+        v
+    }
 }

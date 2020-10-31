@@ -1,4 +1,3 @@
-//use inkwell::values::*;
 use crate::corelib::create_method;
 use crate::hir::*;
 use crate::ty;
@@ -9,15 +8,16 @@ pub fn create_methods() -> Vec<SkMethod> {
             "Shiika::Internal::Ptr",
             "+(n_bytes: Int) -> Shiika::Internal::Ptr",
             |code_gen, function| {
-                let ptr = function.get_params()[0];
+                let ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let sk_int = function.get_params()[1];
                 let n_bytes = code_gen.unbox_int(sk_int);
                 let newptr = unsafe {
                     code_gen
                         .builder
-                        .build_gep(ptr.into_pointer_value(), &[n_bytes], "newptr")
+                        .build_gep(ptr, &[n_bytes], "newptr")
                 };
-                code_gen.builder.build_return(Some(&newptr));
+                let skptr = code_gen.box_i8ptr(newptr);
+                code_gen.builder.build_return(Some(&skptr));
                 Ok(())
             },
         ),
@@ -25,8 +25,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             "Shiika::Internal::Ptr",
             "store(value: Object)",
             |code_gen, function| {
-                let i8ptr = function.get_params()[0].into_pointer_value();
-
+                let i8ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let obj_ptr_type = code_gen.llvm_type(&ty::raw("Object")).into_pointer_type();
                 let obj_ptrptr_type = obj_ptr_type.ptr_type(inkwell::AddressSpace::Generic);
                 let obj_ptr = code_gen
@@ -43,7 +42,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             "Shiika::Internal::Ptr",
             "load -> Object",
             |code_gen, function| {
-                let i8ptr = function.get_params()[0].into_pointer_value();
+                let i8ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let obj_ptr_type = code_gen.llvm_type(&ty::raw("Object")).into_pointer_type();
                 let obj_ptrptr_type = obj_ptr_type.ptr_type(inkwell::AddressSpace::Generic);
                 let obj_ptr = code_gen
