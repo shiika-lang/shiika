@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use crate::names::*;
 use crate::ty::*;
 use crate::hir::sk_class::SkClass;
+use crate::error::*;
 
 #[derive(Debug, Clone)]
 pub struct VTable {
@@ -106,7 +107,8 @@ impl VTables {
 
     /// Return the index of the method when invoking it on the object
     pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
-        let vtable = self.contents.get(&obj_ty.fullname).unwrap();
+        let vtable = must_be_some(self.contents.get(&obj_ty.vtable_name()),
+            format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname));
         (vtable.get(&method_name), vtable.len())
     }
 
