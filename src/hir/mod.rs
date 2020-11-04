@@ -11,7 +11,8 @@ use crate::corelib::Corelib;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-pub use sk_class::SkClass;
+pub use crate::hir::sk_class::SkClass;
+pub use crate::hir::class_dict::ClassDict;
 use std::collections::HashMap;
 
 #[derive(Debug)]

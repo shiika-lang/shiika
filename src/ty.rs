@@ -16,6 +16,7 @@ use crate::hir::class_dict::ClassDict;
 ///
 use crate::names::*;
 use crate::ty;
+use crate::hir::*;
 
 // Types for a term (types of Shiika values)
 #[derive(PartialEq, Clone)]
@@ -90,7 +91,7 @@ impl TermTy {
         }
     }
 
-    pub fn conforms_to(&self, other: &TermTy) -> bool {
+    pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
         if let TyParamRef { .. } = other.body {
             return self == &ty::raw("Object"); // The upper bound
         }

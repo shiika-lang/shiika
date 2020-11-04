@@ -305,7 +305,7 @@ impl HirMaker {
             .lookup_method(&receiver_hir.ty, method_name)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
-        type_checking::check_method_args(&sig, &param_tys, &receiver_hir, &arg_hirs)?;
+        type_checking::check_method_args(&self.class_dict, &sig, &param_tys, &receiver_hir, &arg_hirs)?;
 
         let receiver = if &found_class_name != class_fullname {
             // Upcast needed
