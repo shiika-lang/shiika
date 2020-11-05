@@ -382,7 +382,7 @@ impl HirMaker {
         ));
         let body_exprs = self.convert_exprs(body_exprs)?;
         let iivars = self.pop_ctx().iivars;
-        type_checking::check_return_value(&signature, &body_exprs.ty)?;
+        type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
         Ok((SkMethod { signature, body }, iivars))
