@@ -11,7 +11,7 @@ macro_rules! type_error {
 }
 
 pub fn check_return_value(class_dict: &ClassDict, sig: &MethodSignature, ty: &TermTy) -> Result<(), Error> {
-    if ty.conforms_to(&sig.ret_ty, class_dict) || sig.ret_ty.is_void_type() {
+    if sig.ret_ty.is_void_type() || ty.conforms_to(&sig.ret_ty, class_dict) {
         Ok(())
     } else {
         Err(type_error!(

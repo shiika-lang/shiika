@@ -16,7 +16,6 @@ use crate::hir::class_dict::ClassDict;
 ///
 use crate::names::*;
 use crate::ty;
-use crate::hir::*;
 
 // Types for a term (types of Shiika values)
 #[derive(PartialEq, Clone)]
@@ -91,12 +90,13 @@ impl TermTy {
         }
     }
 
+    /// Return true if `self` conforms to `other` i.e.
+    /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
         if let TyParamRef { .. } = other.body {
             return self == &ty::raw("Object"); // The upper bound
         }
-        // TODO: Should respect class hierarchy
-        self.equals_to(other)
+        self.equals_to(other) || class_dict.is_descendant(self, other)
     }
 
     /// Return true if two types are identical
@@ -117,7 +117,7 @@ impl TermTy {
                 }
             }
             TyClass => Some(ty::raw("Object")),
-            _ => panic!("TODO"),
+            _ => panic!("TODO: {}", self),
         }
     }
 

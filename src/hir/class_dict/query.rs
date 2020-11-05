@@ -129,6 +129,20 @@ impl ClassDict {
         v
     }
 
+    /// Return true if ty1 is an descendant of ty2
+    pub fn is_descendant(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
+        dbg!(&ty1,&ty2);
+        let expected = Some(ty2.clone());
+        let mut t = Some(ty1.clone());
+        while t.is_some() {
+            t = self.supertype_of(&t.unwrap());
+            if t == expected {
+                return true
+            }
+        }
+        false
+    }
+
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(&classname).unwrap_or_else(|| {
             panic!(
