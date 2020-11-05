@@ -1,0 +1,20 @@
+class A
+  def foo -> Int
+    1
+  end
+end
+
+class B : A
+  def foo -> Int
+    2
+  end
+
+  def self.test(x: A) -> Int
+    # A#foo if x is A, B#foo is x is B
+    x.foo
+  end
+end
+
+unless B.test(B.new) == 2; puts "ng 1"; end
+
+puts "ok"
