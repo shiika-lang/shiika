@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use crate::error::*;
+use crate::hir::sk_class::SkClass;
 use crate::names::*;
 use crate::ty::*;
-use crate::hir::sk_class::SkClass;
-use crate::error::*;
+use std::collections::HashMap;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct VTable {
@@ -16,7 +16,7 @@ pub struct VTable {
 impl VTable {
     /// Create an empty VTable
     pub fn null() -> VTable {
-        VTable { 
+        VTable {
             fullnames: vec![],
             index: HashMap::new(),
         }
@@ -28,8 +28,7 @@ impl VTable {
         for name in class.method_names() {
             if vtable.contains(&name.first_name) {
                 vtable.update(name);
-            }
-            else {
+            } else {
                 vtable.push(name);
             }
         }
@@ -53,7 +52,7 @@ impl VTable {
     }
 
     /// Returns the size
-    pub fn len(&self) -> usize {
+    fn size(&self) -> usize {
         self.fullnames.len()
     }
 
@@ -81,21 +80,21 @@ impl VTables {
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if contents.contains_key(name) { continue }
+            if contents.contains_key(name) {
+                continue;
+            }
 
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
             if let Some(super_name) = &class.superclass_fullname {
                 if let Some(x) = contents.get(super_name) {
                     super_vtable = x;
-                }
-                else {
+                } else {
                     queue.push_front(&super_name);
                     queue.push_back(&class.fullname);
                     continue;
                 }
-            }
-            else {
+            } else {
                 // The class Object does not have a superclass.
                 super_vtable = &null_vtable;
             }
@@ -107,9 +106,11 @@ impl VTables {
 
     /// Return the index of the method when invoking it on the object
     pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
-        let vtable = must_be_some(self.contents.get(&obj_ty.vtable_name()),
-            format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname));
-        (vtable.get(&method_name), vtable.len())
+        let vtable = must_be_some(
+            self.contents.get(&obj_ty.vtable_name()),
+            format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname),
+        );
+        (vtable.get(&method_name), vtable.size())
     }
 
     // REFACTOR: it's better to implement Iterator (I just don't know how to)
@@ -117,4 +118,3 @@ impl VTables {
         self.contents.iter()
     }
 }
-

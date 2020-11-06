@@ -318,24 +318,32 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .map(|arg_expr| self.gen_expr(ctx, arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}", method_fullname));
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("Invoke_{}", method_fullname));
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
-    
+
         let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
         let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
 
-        let func_type = self.llvm_func_type(
-            Some(&receiver_expr.ty),
-            &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-            ret_ty)
+        let func_type = self
+            .llvm_func_type(
+                Some(&receiver_expr.ty),
+                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
+                ret_ty,
+            )
             .ptr_type(AddressSpace::Generic);
-        let func = self.builder.build_bitcast(func_raw, func_type, "func")
+        let func = self
+            .builder
+            .build_bitcast(func_raw, func_type, "func")
             .into_pointer_value();
 
         let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
 
-        let block = self.context.append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
 
@@ -359,9 +367,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         function: F,
         receiver_value: inkwell::values::BasicValueEnum<'a>,
         mut arg_values: Vec<inkwell::values::BasicValueEnum<'a>>,
-    ) -> Result<inkwell::values::BasicValueEnum, Error> 
+    ) -> Result<inkwell::values::BasicValueEnum, Error>
     where
-        F: Into<either::Either<inkwell::values::FunctionValue<'a>, inkwell::values::PointerValue<'a>>>,
+        F: Into<
+            either::Either<inkwell::values::FunctionValue<'a>, inkwell::values::PointerValue<'a>>,
+        >,
     {
         let mut llvm_args = vec![receiver_value];
         llvm_args.append(&mut arg_values);
@@ -511,13 +521,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let glob_i8 = self.builder.build_bitcast(global, self.i8ptr_type, "").into_pointer_value();
+        let glob_i8 = self
+            .builder
+            .build_bitcast(global, self.i8ptr_type, "")
+            .into_pointer_value();
         let bytesize = self
             .i32_type
             .const_int(self.str_literals[*idx].len() as u64, false);
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
-        self.gen_llvm_function_call(func, receiver_value, arg_values).unwrap()
+        self.gen_llvm_function_call(func, receiver_value, arg_values)
+            .unwrap()
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum {

@@ -1,5 +1,3 @@
-mod class_dict;
-pub use crate::hir::class_dict::class_dict::ClassDict;
 mod indexing;
 mod query;
 use crate::ast;
@@ -9,6 +7,14 @@ use crate::hir::*;
 use crate::names::*;
 use crate::ty::*;
 use std::collections::HashMap;
+
+#[derive(Debug, PartialEq, Default)]
+pub struct ClassDict {
+    /// Indexed classes.
+    /// Note that .ivars are empty at first (because their types cannot be decided
+    /// while indexing)
+    pub sk_classes: HashMap<ClassFullname, SkClass>,
+}
 
 pub fn create(
     ast: &ast::Program,
