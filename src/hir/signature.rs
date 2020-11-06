@@ -24,17 +24,15 @@ fn convert_typ(typ: &ast::Typ, typarams: &[String]) -> TermTy {
     let found = typarams.iter().enumerate().find(|(_, s)| **s == typ.name);
     if let Some((idx, _)) = found {
         ty::typaram(&typ.name, idx)
+    } else if typ.typ_args.is_empty() {
+        ty::raw(&typ.name)
     } else {
-        if typ.typ_args.len() == 0 {
-            ty::raw(&typ.name)
-        } else {
-            let tyargs = typ
-                .typ_args
-                .iter()
-                .map(|t| convert_typ(t, typarams))
-                .collect();
-            ty::spe(&typ.name, tyargs)
-        }
+        let tyargs = typ
+            .typ_args
+            .iter()
+            .map(|t| convert_typ(t, typarams))
+            .collect();
+        ty::spe(&typ.name, tyargs)
     }
 }
 

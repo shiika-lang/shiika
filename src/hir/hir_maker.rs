@@ -379,7 +379,7 @@ impl HirMaker {
             ctx,
             &signature,
             is_initializer,
-            super_ivars.unwrap_or_else(|| HashMap::new()),
+            super_ivars.unwrap_or_else(HashMap::new),
         ));
         let body_exprs = self.convert_exprs(body_exprs)?;
         let iivars = self.pop_ctx().iivars;

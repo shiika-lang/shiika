@@ -10,7 +10,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// PERF: Ideally they should be created during gen_methods but I couldn't
     /// avoid borrow checker errors.
     pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<(), Error> {
-        for (_, methods) in &hir.sk_methods {
+        for methods in hir.sk_methods.values() {
             for method in methods {
                 if let SkMethodBody::ShiikaMethodBody { exprs } = &method.body {
                     self.gen_lambda_funcs_in_exprs(&exprs)?;

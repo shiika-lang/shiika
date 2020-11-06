@@ -52,7 +52,7 @@ impl VTable {
     }
 
     /// Returns the size
-    pub fn len(&self) -> usize {
+    fn size(&self) -> usize {
         self.fullnames.len()
     }
 
@@ -110,7 +110,7 @@ impl VTables {
             self.contents.get(&obj_ty.vtable_name()),
             format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname),
         );
-        (vtable.get(&method_name), vtable.len())
+        (vtable.get(&method_name), vtable.size())
     }
 
     // REFACTOR: it's better to implement Iterator (I just don't know how to)

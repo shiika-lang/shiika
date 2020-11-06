@@ -449,7 +449,7 @@ impl Hir {
     }
 }
 
-fn lambda_ty(params: &Vec<MethodParam>, ret_ty: &TermTy) -> TermTy {
+fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
     let i = params.len();
     let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
     tyargs.push(ret_ty.clone());

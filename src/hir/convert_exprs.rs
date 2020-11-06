@@ -320,15 +320,14 @@ impl HirMaker {
             receiver_hir
         };
 
-        let args;
-        if specialized {
-            args = arg_hirs
+        let args = if specialized {
+            arg_hirs
                 .into_iter()
                 .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
-                .collect::<Vec<_>>();
+                .collect::<Vec<_>>()
         } else {
-            args = arg_hirs;
-        }
+            arg_hirs
+        };
 
         let mut ret = Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), args);
         if specialized {
@@ -520,7 +519,7 @@ impl HirMaker {
         item_exprs: Vec<HirExpression>,
     ) -> Result<HirExpression, Error> {
         // TODO #102: Support empty array literal
-        let mut item_ty = if item_exprs.len() == 0 {
+        let mut item_ty = if item_exprs.is_empty() {
             ty::raw("Object")
         } else {
             item_exprs[0].ty.clone()
