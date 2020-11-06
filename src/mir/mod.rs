@@ -1,6 +1,6 @@
 pub mod vtable;
-pub use crate::mir::vtable::VTables;
 use crate::hir::Hir;
+pub use crate::mir::vtable::VTables;
 
 #[derive(Debug)]
 pub struct Mir {

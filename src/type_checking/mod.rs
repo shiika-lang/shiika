@@ -10,7 +10,11 @@ macro_rules! type_error {
     })
 }
 
-pub fn check_return_value(class_dict: &ClassDict, sig: &MethodSignature, ty: &TermTy) -> Result<(), Error> {
+pub fn check_return_value(
+    class_dict: &ClassDict,
+    sig: &MethodSignature,
+    ty: &TermTy,
+) -> Result<(), Error> {
     if sig.ret_ty.is_void_type() || ty.conforms_to(&sig.ret_ty, class_dict) {
         Ok(())
     } else {
@@ -105,7 +109,7 @@ fn check_arg_types(
                 arg_ty.fullname,
                 receiver_hir,
                 arg_hirs
-            ))
+            ));
         }
     }
     Ok(())

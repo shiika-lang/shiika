@@ -3,8 +3,8 @@ mod code_gen_context;
 mod gen_exprs;
 mod lambda;
 mod utils;
-use crate::code_gen::utils::llvm_vtable_name;
 use crate::code_gen::code_gen_context::*;
+use crate::code_gen::utils::llvm_vtable_name;
 use crate::error::Error;
 use crate::hir::*;
 use crate::mir;
@@ -161,13 +161,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
             let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-            let global = self.module.add_global(ary_type, None, &llvm_vtable_name(class_fullname));
+            let global = self
+                .module
+                .add_global(ary_type, None, &llvm_vtable_name(class_fullname));
             global.set_constant(true);
             global.set_linkage(inkwell::module::Linkage::Internal);
-            let func_ptrs = method_names.iter().map(|name| {
-                let func = self.get_llvm_func(&name.full_name).as_any_value_enum().into_pointer_value();
-                self.builder.build_bitcast(func, self.i8ptr_type, "").into_pointer_value()
-            }).collect::<Vec<_>>();
+            let func_ptrs = method_names
+                .iter()
+                .map(|name| {
+                    let func = self
+                        .get_llvm_func(&name.full_name)
+                        .as_any_value_enum()
+                        .into_pointer_value();
+                    self.builder
+                        .build_bitcast(func, self.i8ptr_type, "")
+                        .into_pointer_value()
+                })
+                .collect::<Vec<_>>();
             global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
         }
     }
@@ -296,14 +306,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
                     let fn_type = self.void_type.fn_type(&[], false);
-                    let function = self.module.add_function(&format!("init_{}", fullname.0), fn_type, None);
+                    let function =
+                        self.module
+                            .add_function(&format!("init_{}", fullname.0), fn_type, None);
                     let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     self.gen_expr(&mut ctx, &expr)?;
                     self.builder.build_return(None);
                 }
-                _ => panic!("gen_const_inits: Not a HirConstAssign")
+                _ => panic!("gen_const_inits: Not a HirConstAssign"),
             }
         }
 
@@ -320,7 +332,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let func = self.get_llvm_func(&format!("init_{}", fullname.0));
                     self.builder.build_call(func, &[], "");
                 }
-                _ => panic!("gen_const_inits: Not a HirConstAssign")
+                _ => panic!("gen_const_inits: Not a HirConstAssign"),
             }
         }
 

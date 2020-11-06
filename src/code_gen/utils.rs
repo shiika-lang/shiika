@@ -36,13 +36,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         object: inkwell::values::BasicValueEnum<'a>,
         idx: usize,
-        size: usize
+        size: usize,
     ) -> inkwell::values::BasicValueEnum<'a> {
         let vtable_ref = self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable_ref");
         let ary_type = self.i8ptr_type.array_type(size as u32);
-        let vtable_ptr = self.builder.build_bitcast(vtable_ref, ary_type.ptr_type(AddressSpace::Generic), "vtable_ptr").into_pointer_value();
-        let vtable = self.builder.build_load(vtable_ptr, "vtable").into_array_value();
-        self.builder.build_extract_value(vtable, idx as u32, "func_raw").unwrap()
+        let vtable_ptr = self
+            .builder
+            .build_bitcast(
+                vtable_ref,
+                ary_type.ptr_type(AddressSpace::Generic),
+                "vtable_ptr",
+            )
+            .into_pointer_value();
+        let vtable = self
+            .builder
+            .build_load(vtable_ptr, "vtable")
+            .into_array_value();
+        self.builder
+            .build_extract_value(vtable, idx as u32, "func_raw")
+            .unwrap()
     }
 
     /// Store reference to vtable into an object
@@ -51,8 +63,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         object: inkwell::values::BasicValueEnum<'a>,
         class_fullname: &ClassFullname,
     ) {
-        let vtable_ref = self.module.get_global(&llvm_vtable_name(class_fullname)).unwrap().as_pointer_value();
-        let vtable = self.builder.build_bitcast(vtable_ref, self.i8ptr_type, "vtable");
+        let vtable_ref = self
+            .module
+            .get_global(&llvm_vtable_name(class_fullname))
+            .unwrap()
+            .as_pointer_value();
+        let vtable = self
+            .builder
+            .build_bitcast(vtable_ref, self.i8ptr_type, "vtable");
         self.build_llvm_struct_set(&object, OBJ_VTABLE_IDX, vtable, "vtable")
     }
 

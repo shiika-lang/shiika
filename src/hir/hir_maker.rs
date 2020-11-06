@@ -195,7 +195,8 @@ impl HirMaker {
         }
         self.define_ivars(fullname, own_ivars, defs)?;
 
-        self.method_dict.add_method(&meta_name, self.create_new(&fullname)?);
+        self.method_dict
+            .add_method(&meta_name, self.create_new(&fullname)?);
 
         for def in defs.iter().filter(|d| !d.is_initializer()) {
             match def {

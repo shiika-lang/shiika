@@ -8,11 +8,11 @@ pub mod signature;
 pub mod sk_class;
 use crate::ast;
 use crate::corelib::Corelib;
+pub use crate::hir::class_dict::ClassDict;
+pub use crate::hir::sk_class::SkClass;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-pub use crate::hir::sk_class::SkClass;
-pub use crate::hir::class_dict::ClassDict;
 use std::collections::HashMap;
 
 #[derive(Debug)]

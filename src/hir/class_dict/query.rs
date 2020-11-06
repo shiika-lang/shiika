@@ -136,7 +136,7 @@ impl ClassDict {
         while t.is_some() {
             t = self.supertype_of(&t.unwrap());
             if t == expected {
-                return true
+                return true;
             }
         }
         false

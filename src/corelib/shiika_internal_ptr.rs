@@ -11,11 +11,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                 let ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let sk_int = function.get_params()[1];
                 let n_bytes = code_gen.unbox_int(sk_int);
-                let newptr = unsafe {
-                    code_gen
-                        .builder
-                        .build_gep(ptr, &[n_bytes], "newptr")
-                };
+                let newptr = unsafe { code_gen.builder.build_gep(ptr, &[n_bytes], "newptr") };
                 let skptr = code_gen.box_i8ptr(newptr);
                 code_gen.builder.build_return(Some(&skptr));
                 Ok(())
