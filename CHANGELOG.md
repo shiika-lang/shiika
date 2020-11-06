@@ -1,3 +1,10 @@
+## v0.5.0 (2020-11-06)
+
+- feat: Virtual methods (#166)
+- feat: `p` and `inspect` (#168)
+- feat: `+=` (#163)
+- feat: `panic`, `exit` (#162)
+
 ## v0.4.0 (2020-09-06)
 
 - feat: [Anonymous function](https://github.com/yhara/shiika/projects/2)

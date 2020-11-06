@@ -61,9 +61,9 @@ See [Issues](https://github.com/yhara/shiika/issues)
 - [x] v0.2.0 - Start writing with Rust
 - [x] v0.3.0 - Generics
 - [x] v0.4.0 - Anonymous function (lambda)
+- [x] v0.5.0 - Virtual methods
 - [ ] - Enums
 - [ ] - Generic methods
-- [ ] - Virtual methods
 - [ ] - Modules (like Ruby's `module`)
 - [ ] - Something like Ruby's `require`
 - After v1.0.0
