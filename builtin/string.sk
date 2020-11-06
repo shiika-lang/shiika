@@ -19,4 +19,12 @@ class String
     ret.append(other)
     ret._unsafe_to_s
   end
+
+  def inspect -> String
+    "'" + self + "'"
+  end
+
+  def to_s -> String
+    self
+  end
 end

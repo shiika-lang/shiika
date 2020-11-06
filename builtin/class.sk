@@ -1,10 +1,13 @@
 class Class
-  # TODO: Move this to corelib
   def initialize(name: String)
     @name = name
   end
 
   def name -> String
     @name
+  end
+
+  def inspect
+    "#<Class:" + @name + ">"
   end
 end

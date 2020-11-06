@@ -1,11 +1,18 @@
 class Object
-  def inspect() -> String
-    # "#<" + self.class.name + ">"
-    "#<Something>"
+  def inspect -> String
+    self.to_s
+  end
+
+  def p(obj: Object)
+    puts obj.inspect
   end
 
   def panic(msg: String)
     puts msg
     exit 1
+  end
+
+  def to_s -> String
+    "#<?>"  # TODO:  "#<" + self.class.name + ">"
   end
 end
