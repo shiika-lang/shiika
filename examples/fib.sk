@@ -8,7 +8,4 @@ class A
   end
 end
 a = A.new
-putchar a.fib(40)
-putchar 20
-putchar 79
-putchar 107
+putd a.fib(30)
