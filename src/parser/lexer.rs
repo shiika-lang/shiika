@@ -480,7 +480,8 @@ impl<'a> Lexer<'a> {
             '&' => {
                 if c2 == Some('&') {
                     next_cur.proceed(self.src);
-                    if c2 == Some('=') {
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
                         next_cur.proceed(self.src);
                         (Token::AndAndEq, LexerState::ExprBegin)
                     } else {
@@ -496,7 +497,8 @@ impl<'a> Lexer<'a> {
             '|' => {
                 if c2 == Some('|') {
                     next_cur.proceed(self.src);
-                    if c2 == Some('=') {
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
                         next_cur.proceed(self.src);
                         (Token::OrOrEq, LexerState::ExprBegin)
                     } else {
