@@ -95,7 +95,7 @@ impl Token {
         match self {
             Token::Equal => true,
             Token::PlusEq => true,
-            Token::MinusEq => false,
+            Token::MinusEq => true,
             Token::MulEq => true,
             Token::DivEq => true,
             Token::ModEq => true,
