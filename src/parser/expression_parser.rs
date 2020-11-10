@@ -212,6 +212,17 @@ impl<'a> Parser<'a> {
         Ok(match op {
             Token::Equal => ast::assignment(lhs, rhs),
             Token::PlusEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "+", rhs)),
+            Token::MinusEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "-", rhs)),
+            Token::MulEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "*", rhs)),
+            Token::DivEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "/", rhs)),
+            Token::ModEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "%", rhs)),
+            Token::LShiftEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "<<", rhs)),
+            Token::RShiftEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, ">>", rhs)),
+            Token::AndEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "&", rhs)),
+            Token::OrEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "|", rhs)),
+            Token::XorEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "^", rhs)),
+            Token::AndAndEq => ast::assignment(lhs.clone(), ast::logical_and(lhs, rhs)),
+            Token::OrOrEq => ast::assignment(lhs.clone(), ast::logical_or(lhs, rhs)),
             _unexpected => unimplemented!(),
         })
     }

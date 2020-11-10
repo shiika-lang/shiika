@@ -49,6 +49,17 @@ pub enum Token {
     UPlusMethod,  //  +@
     UMinusMethod, //  -@
     PlusEq,       //  +=
+    MinusEq,      //  -=
+    MulEq,        //  *=
+    DivEq,        //  /=
+    ModEq,        //  %=
+    LShiftEq,     //  <<=
+    RShiftEq,     //  >>=
+    AndEq,        //  &=
+    OrEq,         //  |=
+    XorEq,        //  ^=
+    AndAndEq,     //  &&=
+    OrOrEq,       //  ||=
     // Keywords
     KwClass,
     KwEnd,
@@ -82,7 +93,19 @@ impl Token {
 
     pub fn is_assignment_token(&self) -> bool {
         match self {
-            Token::Equal | Token::PlusEq => true,
+            Token::Equal => true,
+            Token::PlusEq => true,
+            Token::MinusEq => true,
+            Token::MulEq => true,
+            Token::DivEq => true,
+            Token::ModEq => true,
+            Token::LShiftEq => true,
+            Token::RShiftEq => true,
+            Token::AndEq => true,
+            Token::OrEq => true,
+            Token::XorEq => true,
+            Token::AndAndEq => true,
+            Token::OrOrEq => true,
             _ => false,
         }
     }
@@ -141,6 +164,17 @@ impl Token {
             Token::UPlusMethod => false,  //  +@
             Token::UMinusMethod => false, //  -@
             Token::PlusEq => false,       //  +=
+            Token::MinusEq => false,      //  -=
+            Token::MulEq => false,        //  *=
+            Token::DivEq => false,        //  /=
+            Token::ModEq => false,        //  %=
+            Token::LShiftEq => false,     //  <<=
+            Token::RShiftEq => false,     //  >>=
+            Token::AndEq => false,        //  &=
+            Token::OrEq => false,         //  |=
+            Token::XorEq => false,        //  ^=
+            Token::AndAndEq => false,     //  &&=
+            Token::OrOrEq => false,       //  ||=
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,

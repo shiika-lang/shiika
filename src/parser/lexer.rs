@@ -383,15 +383,39 @@ impl<'a> Lexer<'a> {
                 } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
                     (Token::RightArrow, LexerState::ExprBegin)
+                } else if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::MinusEq, LexerState::ExprBegin)
                 } else if self.is_unary(c2) {
                     (Token::UnaryMinus, LexerState::ExprBegin)
                 } else {
                     (Token::BinaryMinus, LexerState::ExprBegin)
                 }
             }
-            '*' => (Token::Mul, LexerState::ExprBegin),
-            '/' => (Token::Div, LexerState::ExprBegin),
-            '%' => (Token::Mod, LexerState::ExprBegin),
+            '*' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::MulEq, LexerState::ExprBegin)
+                } else {
+                    (Token::Mul, LexerState::ExprBegin)
+                }
+            }
+            '/' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::DivEq, LexerState::ExprBegin)
+                } else {
+                    (Token::Div, LexerState::ExprBegin)
+                }
+            }
+            '%' => {
+                if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::ModEq, LexerState::ExprBegin)
+                } else {
+                    (Token::Mod, LexerState::ExprBegin)
+                }
+            }
             '=' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
@@ -414,7 +438,13 @@ impl<'a> Lexer<'a> {
                     (Token::LessEq, LexerState::ExprBegin)
                 } else if c2 == Some('<') {
                     next_cur.proceed(self.src);
-                    (Token::LShift, LexerState::ExprBegin)
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
+                        next_cur.proceed(self.src);
+                        (Token::LShiftEq, LexerState::ExprBegin)
+                    } else {
+                        (Token::LShift, LexerState::ExprBegin)
+                    }
                 } else {
                     (Token::LessThan, LexerState::ExprBegin)
                 }
@@ -425,7 +455,13 @@ impl<'a> Lexer<'a> {
                     (Token::GreaterEq, LexerState::ExprBegin)
                 } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
-                    (Token::RShift, LexerState::ExprBegin)
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
+                        next_cur.proceed(self.src);
+                        (Token::RShiftEq, LexerState::ExprBegin)
+                    } else {
+                        (Token::RShift, LexerState::ExprBegin)
+                    }
                 } else {
                     (Token::GreaterThan, LexerState::ExprBegin)
                 }
@@ -446,7 +482,16 @@ impl<'a> Lexer<'a> {
             '&' => {
                 if c2 == Some('&') {
                     next_cur.proceed(self.src);
-                    (Token::AndAnd, LexerState::ExprBegin)
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
+                        next_cur.proceed(self.src);
+                        (Token::AndAndEq, LexerState::ExprBegin)
+                    } else {
+                        (Token::AndAnd, LexerState::ExprBegin)
+                    }
+                } else if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::AndEq, LexerState::ExprBegin)
                 } else {
                     (Token::And, LexerState::ExprBegin)
                 }
@@ -454,7 +499,16 @@ impl<'a> Lexer<'a> {
             '|' => {
                 if c2 == Some('|') {
                     next_cur.proceed(self.src);
-                    (Token::OrOr, LexerState::ExprBegin)
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
+                        next_cur.proceed(self.src);
+                        (Token::OrOrEq, LexerState::ExprBegin)
+                    } else {
+                        (Token::OrOr, LexerState::ExprBegin)
+                    }
+                } else if c2 == Some('=') {
+                    next_cur.proceed(self.src);
+                    (Token::OrEq, LexerState::ExprBegin)
                 } else {
                     (Token::Or, LexerState::ExprBegin)
                 }
