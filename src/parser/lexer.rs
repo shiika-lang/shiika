@@ -438,7 +438,8 @@ impl<'a> Lexer<'a> {
                     (Token::LessEq, LexerState::ExprBegin)
                 } else if c2 == Some('<') {
                     next_cur.proceed(self.src);
-                    if c2 == Some('=') {
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
                         next_cur.proceed(self.src);
                         (Token::LShiftEq, LexerState::ExprBegin)
                     } else {
@@ -454,7 +455,8 @@ impl<'a> Lexer<'a> {
                     (Token::GreaterEq, LexerState::ExprBegin)
                 } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
-                    if c2 == Some('=') {
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
                         next_cur.proceed(self.src);
                         (Token::RShiftEq, LexerState::ExprBegin)
                     } else {
