@@ -868,7 +868,20 @@ impl<'a> Parser<'a> {
 
     /// Parse `{|..| ...}`
     fn parse_brace_block(&mut self) -> Result<AstExpression, Error> {
-        todo!()
+        self.lv += 1;
+        self.debug_log("parse_brace_block");
+        self.expect(Token::LBrace)?;
+        self.skip_ws();
+        let block_params = if self.current_token_is(Token::Or) {
+                               self.parse_block_params()?
+                           } else {
+                               vec![]
+                           };
+        self.skip_wsn();
+        let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
+        self.expect(Token::RBrace)?;
+        self.lv -= 1;
+        Ok(ast::lambda_expr(block_params, body_exprs))
     }
 
     /// Parse `|a, b, ...|`

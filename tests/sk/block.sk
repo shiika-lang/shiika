@@ -5,6 +5,7 @@ class A
   end
 end
 
+# TODO #172
 #A.one do |i: Int| result = 2 end
 #unless result == 2; puts "do/oneline"; end
 #
@@ -17,9 +18,17 @@ end
 result = A.one do |i: Int| i + 1 end
 unless result == 2; puts "assignment rhs/do/oneline"; end
 
+result = A.one{|i: Int| i + 1}
+unless result == 2; puts "assignment rhs/brace/oneline"; end
+
 result = A.one do |i: Int|
   i + 1
 end
 unless result == 2; puts "assignment rhs/do/multiline"; end
+
+result = A.one{|i: Int|
+  i + 1
+}
+unless result == 2; puts "assignment rhs/brace/multiline"; end
 
 puts "ok"
