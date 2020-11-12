@@ -581,14 +581,17 @@ impl<'a> Parser<'a> {
         self.consume_token();
 
         // Args
-        let (args, may_have_paren_wo_args) = match self.current_token() {
+        let (mut args, may_have_paren_wo_args) = match self.current_token() {
             // .foo(args)
             Token::LParen => (self.parse_paren_and_args()?, false),
             // .foo
             _ => (vec![], true),
         };
 
-        // TODO: self.parse_opt_block()
+        // Block
+        if let Some(lambda) = self.parse_opt_block()? {
+            args.push(lambda)
+        }
 
         self.lv -= 1;
         Ok(ast::method_call(
@@ -822,9 +825,15 @@ impl<'a> Parser<'a> {
 
     /// Parse `do |..| ...end` or `{|..| ...}`, if any
     fn parse_opt_block(&mut self) -> Result<Option<AstExpression>, Error> {
-        match self.current_token() {
-            Token::KwDo => Ok(Some(self.parse_do_block()?)),
-            Token::LBrace => Ok(Some(self.parse_brace_block()?)),
+        match self.next_nonspace_token() {
+            Token::KwDo => {
+                self.skip_ws();
+                Ok(Some(self.parse_do_block()?))
+            }
+            Token::LBrace => {
+                self.skip_ws();
+                Ok(Some(self.parse_brace_block()?))
+            }
             _ => Ok(None),
         }
     }
