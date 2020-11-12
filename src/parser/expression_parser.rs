@@ -661,18 +661,20 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_primary_method_call");
         let expr = match self.current_token() {
             Token::LParen => {
-                let arg_exprs = self.parse_paren_and_args()?;
+                let mut args = self.parse_paren_and_args()?;
+                if let Some(lambda) = self.parse_opt_block()? {
+                    args.push(lambda)
+                }
                 ast::method_call(
                     None, // receiver_expr
                     bare_name_str,
-                    arg_exprs,
+                    args,
                     true,  // primary
                     false, // may_have_paren_wo_args
                 )
             }
-            _ => ast::bare_name(&bare_name_str),
+            _ => ast::bare_name(&bare_name_str)
         };
-        // TODO: self.parse_opt_block()
         self.lv -= 1;
         Ok(expr)
     }
