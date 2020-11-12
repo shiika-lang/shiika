@@ -118,6 +118,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_call_wo_paren");
 
+        // If `LowerWord + Space`, see if the rest is an argument list
         let token = self.current_token();
         if let Token::LowerWord(s) = token.clone() {
             let next_token = self.peek_next_token();
@@ -126,23 +127,40 @@ impl<'a> Parser<'a> {
                 self.consume_token();
                 self.set_lexer_state(LexerState::ExprArg);
                 assert!(self.consume(Token::Space));
-                let args = self.parse_operator_exprs()?;
+                let mut args = self.parse_operator_exprs()?;
                 self.debug_log(&format!("tried/args: {:?}", args));
                 if !args.is_empty() {
+                    self.skip_ws();
+                    if let Some(lambda) = self.parse_opt_do_block()? {
+                        args.push(lambda);
+                    }
                     self.lv -= 1;
                     return Ok(ast::method_call(None, &s, args, false, false));
                 }
                 self.rewind_to(cur)
             }
         }
-        let mut expr = self.parse_operator_expr()?;
+
+        // Otherwise, read an expression
+        let expr = self.parse_operator_expr()?;
+
+        // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
-            // foo bar, baz
-            let args = self.parse_operator_exprs()?;
+            let mut args = self.parse_operator_exprs()?;
             if !args.is_empty() {
-                expr = ast::set_method_call_args(expr, args);
+                self.skip_ws();
+                if let Some(lambda) = self.parse_opt_do_block()? {
+                    args.push(lambda);
+                }
+                self.lv -= 1;
+                return Ok(ast::set_method_call_args(expr, args));
+            } else if self.next_nonspace_token() == Token::KwDo {
+                self.skip_ws();
+                let lambda = self.parse_do_block()?;
+                return Ok(ast::set_method_call_args(expr, vec![lambda]));
             }
         }
+
         self.lv -= 1;
         Ok(expr)
     }
@@ -547,7 +565,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    /// Parse `.foo(args)`
+    /// Parse `.foo(args)` plus a block, if any
     fn parse_method_chain(&mut self, expr: AstExpression) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_method_chain");
@@ -563,12 +581,17 @@ impl<'a> Parser<'a> {
         self.consume_token();
 
         // Args
-        let (args, may_have_paren_wo_args) = match self.current_token() {
+        let (mut args, may_have_paren_wo_args) = match self.current_token() {
             // .foo(args)
             Token::LParen => (self.parse_paren_and_args()?, false),
             // .foo
             _ => (vec![], true),
         };
+
+        // Block
+        if let Some(lambda) = self.parse_opt_block()? {
+            args.push(lambda)
+        }
 
         self.lv -= 1;
         Ok(ast::method_call(
@@ -632,22 +655,25 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    // Method call with explicit parenthesis (eg. `foo(bar)`)
+    // Method call with explicit parenthesis (eg. `foo(bar)`) optionally followed by a block
     fn parse_primary_method_call(&mut self, bare_name_str: &str) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_primary_method_call");
         let expr = match self.current_token() {
             Token::LParen => {
-                let arg_exprs = self.parse_paren_and_args()?;
+                let mut args = self.parse_paren_and_args()?;
+                if let Some(lambda) = self.parse_opt_block()? {
+                    args.push(lambda)
+                }
                 ast::method_call(
                     None, // receiver_expr
                     bare_name_str,
-                    arg_exprs,
+                    args,
                     true,  // primary
                     false, // may_have_paren_wo_args
                 )
             }
-            _ => ast::bare_name(&bare_name_str),
+            _ => ast::bare_name(&bare_name_str)
         };
         self.lv -= 1;
         Ok(expr)
@@ -676,7 +702,7 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_lambda");
         assert!(self.consume(Token::KwFn));
         self.expect(Token::LParen)?;
-        let params = self.parse_params()?;
+        let params = self.parse_params(vec![Token::RParen])?;
         self.skip_ws();
         self.expect(Token::LBrace)?;
         self.consume_token();
@@ -797,5 +823,75 @@ impl<'a> Parser<'a> {
             let right = func(self)?;
             left = ast::bin_op_expr(left, op, right)
         }
+    }
+
+    /// Parse `do |..| ...end` or `{|..| ...}`, if any
+    fn parse_opt_block(&mut self) -> Result<Option<AstExpression>, Error> {
+        match self.next_nonspace_token() {
+            Token::KwDo => {
+                self.skip_ws();
+                Ok(Some(self.parse_do_block()?))
+            }
+            Token::LBrace => {
+                self.skip_ws();
+                Ok(Some(self.parse_brace_block()?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Parse `do |..| ...end`, if any
+    fn parse_opt_do_block(&mut self) -> Result<Option<AstExpression>, Error> {
+        match self.current_token() {
+            Token::KwDo => Ok(Some(self.parse_do_block()?)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Parse `do |..| ...end`
+    fn parse_do_block(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_do_block");
+        self.expect(Token::KwDo)?;
+        self.skip_ws();
+        let block_params = if self.current_token_is(Token::Or) {
+                               self.parse_block_params()?
+                           } else {
+                               vec![]
+                           };
+        self.skip_wsn();
+        let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
+        self.expect(Token::KwEnd)?;
+        self.lv -= 1;
+        Ok(ast::lambda_expr(block_params, body_exprs))
+    }
+
+    /// Parse `{|..| ...}`
+    fn parse_brace_block(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_brace_block");
+        self.expect(Token::LBrace)?;
+        self.skip_ws();
+        let block_params = if self.current_token_is(Token::Or) {
+                               self.parse_block_params()?
+                           } else {
+                               vec![]
+                           };
+        self.skip_wsn();
+        let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
+        self.expect(Token::RBrace)?;
+        self.lv -= 1;
+        Ok(ast::lambda_expr(block_params, body_exprs))
+    }
+
+    /// Parse `|a, b, ...|`
+    fn parse_block_params(&mut self) -> Result<Vec<Param>, Error> {
+        self.lv += 1;
+        self.debug_log("parse_block_params");
+        self.expect(Token::Or)?;
+        self.skip_wsn();
+        let params = self.parse_params(vec![Token::Or])?;
+        self.lv -= 1;
+        Ok(params)
     }
 }

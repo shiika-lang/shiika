@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
             Token::LParen => {
                 self.consume_token();
                 self.skip_wsn();
-                params = self.parse_params()?;
+                params = self.parse_params(vec![Token::RParen])?;
             }
             // Has no params
             _ => {
@@ -257,34 +257,33 @@ impl<'a> Parser<'a> {
     }
 
     // Parse parameters
-    // The `(` should be consumed beforehand
-    pub(super) fn parse_params(&mut self) -> Result<Vec<ast::Param>, Error> {
+    // - The `(` should be consumed beforehand
+    pub(super) fn parse_params(&mut self, stop_toks: Vec<Token>) -> Result<Vec<ast::Param>, Error> {
         let mut params = vec![];
         loop {
             // Param
-            match self.current_token() {
-                Token::LowerWord(_) => params.push(self.parse_param()?),
-                Token::RParen => {
-                    self.consume_token();
-                    break;
+            if !stop_toks.contains(self.current_token()) {
+                match self.current_token() {
+                    Token::LowerWord(_) => params.push(self.parse_param()?),
+                    token => {
+                        return Err(parse_error!(
+                            self,
+                            "invalid token in method arguments: {:?}",
+                            token
+                        ))
+                    }
                 }
-                token => {
-                    return Err(parse_error!(
-                        self,
-                        "invalid token in method arguments: {:?}",
-                        token
-                    ))
-                }
+                self.skip_wsn();
             }
-            self.skip_wsn();
+            // Next param or exit
+            if stop_toks.contains(self.current_token()) {
+                self.consume_token();
+                break;
+            }
             match self.current_token() {
                 Token::Comma => {
                     self.consume_token();
                     self.skip_wsn();
-                }
-                Token::RParen => {
-                    self.consume_token();
-                    break;
                 }
                 token => {
                     return Err(parse_error!(
