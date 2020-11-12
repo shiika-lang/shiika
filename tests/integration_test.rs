@@ -1,8 +1,10 @@
 use shiika::error::*;
 use std::fs;
+use std::env;
 
 #[test]
 fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
+    let filter = env::var("FILTER").ok();
     let paths = fs::read_dir("tests/sk/")?;
     for item in paths {
         let pathbuf = item?.path();
@@ -10,6 +12,9 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
             .to_str()
             .ok_or(plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
+            if let Some(s) = &filter {
+                if !path.contains(s) { continue; }
+            }
             run_sk_test(path)?;
         }
     }

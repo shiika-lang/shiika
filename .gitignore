@@ -6,3 +6,6 @@
 /lib/shiika/parser.rb
 /target
 /tests/tmp.*
+/tests/sk/*.ll
+/tests/sk/*.opt.ll
+/tests/sk/*.out
