@@ -7,6 +7,41 @@ use crate::hir::*;
 use crate::parser::token::Token;
 use crate::type_checking;
 
+#[derive(Debug)]
+enum LVarInfo {
+    CurrentScope { ty: TermTy, name: String },
+    Argument { ty: TermTy, idx: usize },
+    OuterScope { ty: TermTy, arity: usize, cidx: usize },
+}
+
+impl LVarInfo {
+    fn ref_expr(&self) -> HirExpression {
+        match self {
+            LVarInfo::CurrentScope { ty, name } => {
+                Hir::lvar_ref(ty.clone(), name.clone())
+            }
+            LVarInfo::Argument { ty, idx } => {
+                Hir::hir_arg_ref(ty.clone(), *idx)
+            }
+            LVarInfo::OuterScope { ty, cidx, .. } => {
+                Hir::lambda_capture_ref(ty.clone(), *cidx)
+            }
+        }
+    }
+
+    fn assign_expr(&self, expr: HirExpression) -> HirExpression {
+        match self {
+            LVarInfo::CurrentScope { name, .. } => {
+                Hir::assign_lvar(name, expr)
+            }
+            LVarInfo::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
+            LVarInfo::OuterScope { arity, cidx, .. } => {
+                Hir::lambda_capture_write(*arity, *cidx, expr)
+            }
+        }
+    }
+}
+
 impl HirMaker {
     pub(super) fn convert_exprs(
         &mut self,
@@ -156,7 +191,9 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
+        let existing_lvar = self.lookup_var(name, true);
         let ctx = self.ctx_mut();
+        // REFACTOR: since we have `existing_lvar` now, we don't need to see `ctx.lvars` here.
         match ctx.lvars.get(name) {
             Some(lvar) => {
                 // Reassigning
@@ -175,15 +212,20 @@ impl HirMaker {
                 }
             }
             None => {
-                // Newly introduced lvar
-                ctx.lvars.insert(
-                    name.to_string(),
-                    CtxLVar {
-                        name: name.to_string(),
-                        ty: expr.ty.clone(),
-                        readonly: !is_var,
-                    },
-                );
+                // Check it is defined in outer scope
+                if let Some(lvar_info) = existing_lvar {
+                    return Ok(lvar_info.assign_expr(expr))
+                } else {
+                    // Newly introduced lvar
+                    ctx.lvars.insert(
+                        name.to_string(),
+                        CtxLVar {
+                            name: name.to_string(),
+                            ty: expr.ty.clone(),
+                            readonly: !is_var,
+                        },
+                    );
+                }
             }
         }
 
@@ -361,7 +403,6 @@ impl HirMaker {
     /// Also, concat lambda_captures to outer_captures
     fn resolve_lambda_captures(&mut self) -> Vec<HirExpression> {
         let lambda_ctx = self.pop_ctx();
-        let arity = lambda_ctx.method_sig.as_ref().unwrap().params.len();
         let ctx = self.ctx_mut();
         lambda_ctx
             .captures
@@ -378,7 +419,7 @@ impl HirMaker {
                     let ty = cap.ty.clone();
                     ctx.captures.push(cap);
                     let cidx = ctx.captures.len() - 1;
-                    Hir::lambda_capture_ref(ty, arity, cidx)
+                    Hir::lambda_capture_ref(ty, cidx)
                 }
             })
             .collect()
@@ -386,8 +427,8 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
-        if let Some(expr) = self.lookup_var(name) {
-            Ok(expr)
+        if let Some(lvar_info) = self.lookup_var(name, false) {
+            Ok(lvar_info.ref_expr())
         } else {
             Err(error::program_error(&format!(
                 "variable `{}' was not found",
@@ -398,22 +439,30 @@ impl HirMaker {
 
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
-    fn lookup_var(&mut self, name: &str) -> Option<HirExpression> {
+    /// If `updating` is true, readonly variables are skipped
+    fn lookup_var(&mut self, name: &str, updating: bool) -> Option<LVarInfo> {
         let ctx = self.ctx();
+        // Local
         if let Some(lvar) = ctx.find_lvar(name) {
-            return Some(Hir::lvar_ref(lvar.ty.clone(), name.to_string()));
+            if !updating || !lvar.readonly {
+                return Some(LVarInfo::CurrentScope{ ty: lvar.ty.clone(), name: name.to_string()});
+            }
         }
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            return Some(Hir::hir_arg_ref(param.ty.clone(), idx));
+        // Arg
+        if !updating {
+            if let Some((idx, param)) = ctx.find_fn_arg(name) {
+                return Some(LVarInfo::Argument{ ty: param.ty.clone(), idx});
+            }
         }
+        // Outer
         if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
             // The `ctx` has outer scope == `ctx` is a lambda
             let arity = ctx.method_sig.as_ref().unwrap().params.len();
             let cidx = ctx.captures.len();
-            if let Some((cap, expr)) = self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name)
+            if let Some((cap, lvar_info)) = self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name, updating)
             {
                 self.ctx_mut().captures.push(cap);
-                return Some(expr);
+                return Some(lvar_info);
             }
         }
         None
@@ -428,31 +477,36 @@ impl HirMaker {
         cidx: usize,
         ctx: &HirMakerContext,
         name: &str,
-    ) -> Option<(LambdaCapture, HirExpression)> {
+        updating: bool,
+    ) -> Option<(LambdaCapture, LVarInfo)> {
         if let Some(lvar) = ctx.find_lvar(name) {
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: lvar.ty.clone(),
-                detail: LambdaCaptureDetail::CapLVar {
-                    name: name.to_string(),
-                },
-            };
-            return Some((cap, Hir::lambda_capture_ref(lvar.ty.clone(), arity, cidx)));
+            if !updating || !lvar.readonly {
+                let cap = LambdaCapture {
+                    ctx_depth: ctx.depth,
+                    ty: lvar.ty.clone(),
+                    detail: LambdaCaptureDetail::CapLVar {
+                        name: name.to_string(),
+                    },
+                };
+                return Some((cap, LVarInfo::OuterScope{ ty: lvar.ty.clone(), arity, cidx }));
+            }
         }
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: param.ty.clone(),
-                detail: LambdaCaptureDetail::CapFnArg { idx },
-            };
-            return Some((cap, Hir::lambda_capture_ref(param.ty.clone(), arity, cidx)));
+        if !updating {
+            if let Some((idx, param)) = ctx.find_fn_arg(name) {
+                let cap = LambdaCapture {
+                    ctx_depth: ctx.depth,
+                    ty: param.ty.clone(),
+                    detail: LambdaCaptureDetail::CapFnArg { idx },
+                };
+                return Some((cap, LVarInfo::OuterScope{ ty: param.ty.clone(), arity, cidx}));
+            }
         }
 
         // TODO: It may be a nullary method call
 
         // Lookup in the next surrounding context
         self.outer_lvar_scope_of(ctx)
-            .map(|outer_ctx| self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name))
+            .map(|outer_ctx| self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name, updating))
             .flatten()
     }
 

@@ -193,6 +193,12 @@ pub enum HirExpressionBase {
     HirLambdaCaptureRef {
         idx: usize,
     },
+    /// Reassign to a variable in `captures`
+    HirLambdaCaptureWrite {
+        arity: usize,
+        cidx: usize,
+        rhs: Box<HirExpression>,
+    },
     /// Represents bitcast of an object
     HirBitCast {
         expr: Box<HirExpression>,
@@ -441,10 +447,17 @@ impl Hir {
         }
     }
 
-    pub fn lambda_capture_ref(ty: TermTy, _arity: usize, idx: usize) -> HirExpression {
+    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaCaptureRef { idx },
+        }
+    }
+
+    pub fn lambda_capture_write(arity: usize, cidx: usize, rhs: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirLambdaCaptureWrite { arity, cidx, rhs: Box::new(rhs) },
         }
     }
 }
