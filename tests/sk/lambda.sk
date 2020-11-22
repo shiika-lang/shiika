@@ -1,6 +1,6 @@
 # Basic
 if fn(){ false }.call; puts "ng 0"; end
-f = fn(x: Int){ x + 1 }
+var f = fn(x: Int){ x + 1 }
 if f.call(1) != 2; puts "ng 1"; end
 ff = fn(x: Int, y: Int){ x + y }
 if ff.call(1, 2) != 3; puts "ng 1-1"; end
@@ -14,7 +14,7 @@ end
 if A.foo != 2; puts "ng 2"; end
 
 # Capturing free vars
-a = 1
+var a = 1
 g = fn(x: Int){
   b = 2
   h = fn(y: Int, z: Int) {
@@ -28,5 +28,11 @@ unless g.call(5) == 15; puts "ng 3"; end
 t = true
 f2 = fn(x: Int) { t }
 unless f2.call(0); puts "ng 4"; end
+
+# Updating value
+a = 0
+f = fn(x: Int) { a = 1 }
+f.call(0)
+unless a == 1; puts "ng 5"; end
 
 puts "ok"

@@ -60,8 +60,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 name,
                 params,
                 exprs,
-                captures_ary,
-            } => self.gen_lambda_expr(ctx, name, params, exprs, captures_ary),
+                captures,
+            } => self.gen_lambda_expr(ctx, name, params, exprs, captures),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -69,7 +69,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
             HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
 
-            HirLambdaCaptureRef { idx } => self.gen_lambda_capture_ref(ctx, idx, &expr.ty),
+            HirLambdaCaptureRef { idx, readonly } => {
+                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)
+            }
+            HirLambdaCaptureWrite { cidx, rhs, .. } => {
+                self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
+            }
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,
@@ -445,7 +450,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         func_name: &str,
         params: &[MethodParam],
         exprs: &'hir HirExpressions,
-        captures_ary: &'hir HirExpression,
+        captures: &'hir [HirLambdaCapture],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..params.len()).map(|_| &obj_type).collect::<Vec<_>>();
@@ -465,19 +470,43 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
-        let arg_values = vec![sk_ptr, self.gen_lambda_captures(ctx, captures_ary)?];
+        let arg_values = vec![sk_ptr, self.gen_lambda_captures(ctx, captures)?];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 
     fn gen_lambda_captures(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        captures_ary: &'hir HirExpression,
+        captures: &'hir [HirLambdaCapture],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match &captures_ary.node {
-            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
-            _ => panic!("captures_ary not Array"),
+        let ary = self.gen_llvm_func_call(
+            "Meta:Array#new",
+            self.gen_const_ref(&const_fullname("::Array")),
+            vec![self.gen_decimal_literal(captures.len() as i32)],
+        )?;
+        for cap in captures {
+            let item = match cap {
+                HirLambdaCapture::CaptureLVar { name } => {
+                    // Local vars are captured by pointer
+                    ctx.lvars.get(name).unwrap().as_basic_value_enum()
+                }
+                HirLambdaCapture::CaptureArg { idx } => {
+                    // Args are captured by value
+                    self.gen_arg_ref(ctx, idx)?
+                }
+                HirLambdaCapture::CaptureFwd { cidx, ty } => {
+                    let deref = false; // When forwarding, pass the item as is
+                    self.gen_lambda_capture_ref(ctx, cidx, deref, ty)?
+                }
+            };
+            let obj = self.builder.build_bitcast(
+                item,
+                self.llvm_type(&ty::raw("Object")),
+                "capture_item",
+            );
+            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
         }
+        Ok(ary)
     }
 
     fn gen_self_expression(
@@ -559,16 +588,52 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
+        deref: bool,
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let idx_of_captures = ctx.function_params.unwrap().len() - 1;
         let captures = self.gen_arg_ref(ctx, &idx_of_captures)?;
-        let obj = self.gen_llvm_func_call(
+        let item = self.gen_llvm_func_call(
             "Array#nth",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i32)],
         )?;
-        Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), ""))
+        if deref {
+            // `item` is a pointer
+            let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
+            let ptr = self
+                .builder
+                .build_bitcast(item, ptr_ty, "")
+                .into_pointer_value();
+            Ok(self.builder.build_load(ptr, ""))
+        } else {
+            // `item` is a value
+            Ok(self.builder.build_bitcast(item, self.llvm_type(ty), ""))
+        }
+    }
+
+    fn gen_lambda_capture_write(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        idx_in_captures: &usize,
+        rhs: &'hir HirExpression,
+        ty: &TermTy,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let idx_of_captures = ctx.function_params.unwrap().len() - 1;
+        let captures = self.gen_arg_ref(ctx, &idx_of_captures)?;
+        let ptr_ = self.gen_llvm_func_call(
+            "Array#nth",
+            captures,
+            vec![self.gen_decimal_literal(*idx_in_captures as i32)],
+        )?;
+        let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
+        let ptr = self
+            .builder
+            .build_bitcast(ptr_, ptr_type, "")
+            .into_pointer_value();
+        let value = self.gen_expr(ctx, rhs)?;
+        self.builder.build_store(ptr, value);
+        Ok(value)
     }
 
     fn gen_bitcast(
