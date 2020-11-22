@@ -1,6 +1,6 @@
 use shiika::error::*;
-use std::fs;
 use std::env;
+use std::fs;
 
 #[test]
 fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,7 +13,9 @@ fn test_compile_and_run() -> Result<(), Box<dyn std::error::Error>> {
             .ok_or(plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
             if let Some(s) = &filter {
-                if !path.contains(s) { continue; }
+                if !path.contains(s) {
+                    continue;
+                }
             }
             run_sk_test(path)?;
         }

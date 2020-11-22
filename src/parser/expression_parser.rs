@@ -673,7 +673,7 @@ impl<'a> Parser<'a> {
                     false, // may_have_paren_wo_args
                 )
             }
-            _ => ast::bare_name(&bare_name_str)
+            _ => ast::bare_name(&bare_name_str),
         };
         self.lv -= 1;
         Ok(expr)
@@ -855,10 +855,10 @@ impl<'a> Parser<'a> {
         self.expect(Token::KwDo)?;
         self.skip_ws();
         let block_params = if self.current_token_is(Token::Or) {
-                               self.parse_block_params()?
-                           } else {
-                               vec![]
-                           };
+            self.parse_block_params()?
+        } else {
+            vec![]
+        };
         self.skip_wsn();
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.expect(Token::KwEnd)?;
@@ -873,10 +873,10 @@ impl<'a> Parser<'a> {
         self.expect(Token::LBrace)?;
         self.skip_ws();
         let block_params = if self.current_token_is(Token::Or) {
-                               self.parse_block_params()?
-                           } else {
-                               vec![]
-                           };
+            self.parse_block_params()?
+        } else {
+            vec![]
+        };
         self.skip_wsn();
         let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
         self.expect(Token::RBrace)?;
