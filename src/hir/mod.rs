@@ -166,7 +166,7 @@ pub enum HirExpressionBase {
         name: String,
         params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures_ary: Box<HirExpression>,
+        captures: Vec<HirLambdaCapture>,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -192,6 +192,8 @@ pub enum HirExpressionBase {
     /// Refer a variable in `captures`
     HirLambdaCaptureRef {
         idx: usize,
+        /// Whether this capture is a readonly one (i.e. passed by value)
+        readonly: bool,
     },
     /// Reassign to a variable in `captures`
     HirLambdaCaptureWrite {
@@ -210,6 +212,18 @@ pub enum HirExpressionBase {
         fullname: ClassFullname,
         str_literal_idx: usize,
     },
+}
+
+/// Denotes which variable to include in the `captures`
+#[derive(Debug)]
+pub enum HirLambdaCapture {
+    /// Local variable
+    CaptureLVar { name: String },
+    /// Method/Function argument
+    CaptureArg { idx: usize },
+    /// Variable in the current `captures`
+    /// `ty` is needed for bitcast
+    CaptureFwd { cidx: usize, ty: TermTy },
 }
 
 impl Hir {
@@ -365,7 +379,7 @@ impl Hir {
         n: usize,
         mut params: Vec<MethodParam>,
         exprs: HirExpressions,
-        captures_ary: HirExpression,
+        captures: Vec<HirLambdaCapture>,
     ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
@@ -379,7 +393,7 @@ impl Hir {
                 name,
                 params,
                 exprs,
-                captures_ary: Box::new(captures_ary),
+                captures,
             },
         }
     }
@@ -447,10 +461,10 @@ impl Hir {
         }
     }
 
-    pub fn lambda_capture_ref(ty: TermTy, idx: usize) -> HirExpression {
+    pub fn lambda_capture_ref(ty: TermTy, idx: usize, readonly: bool) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirLambdaCaptureRef { idx },
+            node: HirExpressionBase::HirLambdaCaptureRef { idx, readonly },
         }
     }
 
