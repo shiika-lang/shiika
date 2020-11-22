@@ -167,6 +167,7 @@ pub enum HirExpressionBase {
         params: Vec<MethodParam>,
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
+        lvars: Vec<(String, TermTy)>,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -380,6 +381,7 @@ impl Hir {
         mut params: Vec<MethodParam>,
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
+        lvars: Vec<(String, TermTy)>,
     ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);
@@ -394,6 +396,7 @@ impl Hir {
                 params,
                 exprs,
                 captures,
+                lvars,
             },
         }
     }

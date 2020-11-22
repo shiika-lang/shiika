@@ -145,6 +145,14 @@ impl HirMakerContext {
         self.lvars.get(name)
     }
 
+    /// Destructively extract list of local variables
+    pub fn extract_lvars(&mut self) -> Vec<(String, TermTy)> {
+        std::mem::take(&mut self.lvars)
+            .into_iter()
+            .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
+            .collect::<Vec<_>>()
+    }
+
     /// Return method/lambda argument of given name, if any
     pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
         self.method_sig

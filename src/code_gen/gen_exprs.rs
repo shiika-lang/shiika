@@ -61,7 +61,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 params,
                 exprs,
                 captures,
-            } => self.gen_lambda_expr(ctx, name, params, exprs, captures),
+                lvars,
+            } => self.gen_lambda_expr(ctx, name, params, exprs, captures, lvars),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -451,6 +452,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         params: &[MethodParam],
         exprs: &'hir HirExpressions,
         captures: &'hir [HirLambdaCapture],
+        _lvars: &[(String, TermTy)],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..params.len()).map(|_| &obj_type).collect::<Vec<_>>();
