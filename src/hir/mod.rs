@@ -471,7 +471,11 @@ impl Hir {
     pub fn lambda_capture_write(arity: usize, cidx: usize, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
-            node: HirExpressionBase::HirLambdaCaptureWrite { arity, cidx, rhs: Box::new(rhs) },
+            node: HirExpressionBase::HirLambdaCaptureWrite {
+                arity,
+                cidx,
+                rhs: Box::new(rhs),
+            },
         }
     }
 }

@@ -219,7 +219,7 @@ impl HirMaker {
             None => {
                 // Check it is defined in outer scope
                 if let Some(lvar_info) = existing_lvar {
-                    return Ok(lvar_info.assign_expr(expr))
+                    return Ok(lvar_info.assign_expr(expr));
                 } else {
                     // Newly introduced lvar
                     ctx.lvars.insert(
@@ -448,13 +448,19 @@ impl HirMaker {
         // Local
         if let Some(lvar) = ctx.find_lvar(name) {
             if !updating || !lvar.readonly {
-                return Some(LVarInfo::CurrentScope{ ty: lvar.ty.clone(), name: name.to_string()});
+                return Some(LVarInfo::CurrentScope {
+                    ty: lvar.ty.clone(),
+                    name: name.to_string(),
+                });
             }
         }
         // Arg
         if !updating {
             if let Some((idx, param)) = ctx.find_fn_arg(name) {
-                return Some(LVarInfo::Argument{ ty: param.ty.clone(), idx});
+                return Some(LVarInfo::Argument {
+                    ty: param.ty.clone(),
+                    idx,
+                });
             }
         }
         // Outer
@@ -462,7 +468,8 @@ impl HirMaker {
             // The `ctx` has outer scope == `ctx` is a lambda
             let arity = ctx.method_sig.as_ref().unwrap().params.len();
             let cidx = ctx.captures.len();
-            if let Some((cap, lvar_info)) = self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name, updating)
+            if let Some((cap, lvar_info)) =
+                self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name, updating)
             {
                 self.ctx_mut().captures.push(cap);
                 return Some(lvar_info);
@@ -527,7 +534,9 @@ impl HirMaker {
 
         // Lookup in the next surrounding context
         self.outer_lvar_scope_of(ctx)
-            .map(|outer_ctx| self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name, updating))
+            .map(|outer_ctx| {
+                self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name, updating)
+            })
             .flatten()
     }
 

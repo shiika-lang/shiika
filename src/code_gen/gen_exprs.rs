@@ -627,7 +627,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             vec![self.gen_decimal_literal(*idx_in_captures as i32)],
         )?;
         let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
-        let ptr = self.builder.build_bitcast(ptr_, ptr_type, "").into_pointer_value();
+        let ptr = self
+            .builder
+            .build_bitcast(ptr_, ptr_type, "")
+            .into_pointer_value();
         let value = self.gen_expr(ctx, rhs)?;
         self.builder.build_store(ptr, value);
         Ok(value)
