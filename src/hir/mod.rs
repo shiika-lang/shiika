@@ -58,6 +58,7 @@ type SkIVars = HashMap<String, SkIVar>;
 pub struct SkMethod {
     pub signature: MethodSignature,
     pub body: SkMethodBody,
+    pub lvars: Vec<(String, TermTy)>,
 }
 
 pub enum SkMethodBody {

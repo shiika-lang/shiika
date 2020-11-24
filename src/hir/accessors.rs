@@ -59,6 +59,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         body: SkMethodBody::RustClosureMethodBody {
             boxed_gen: Box::new(getter_body),
         },
+        lvars: vec![],
     }
 }
 
@@ -86,5 +87,6 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         body: SkMethodBody::RustClosureMethodBody {
             boxed_gen: Box::new(getter_body),
         },
+        lvars: vec![],
     }
 }

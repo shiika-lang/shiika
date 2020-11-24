@@ -309,6 +309,7 @@ impl HirMaker {
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
             },
+            lvars: vec![],
         })
     }
 
@@ -382,11 +383,13 @@ impl HirMaker {
             super_ivars.unwrap_or_else(HashMap::new),
         ));
         let body_exprs = self.convert_exprs(body_exprs)?;
-        let iivars = self.pop_ctx().iivars;
+        let mut method_ctx = self.pop_ctx();
+        let lvars = method_ctx.extract_lvars();
+        let iivars = method_ctx.iivars;
         type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
-        Ok((SkMethod { signature, body }, iivars))
+        Ok((SkMethod { signature, body, lvars }, iivars))
     }
 
     /// Generate unique variable name
