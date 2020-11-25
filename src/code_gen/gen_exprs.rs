@@ -265,17 +265,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
-        match ctx.lvars.get(name) {
-            Some(ptr) => {
-                // Reassigning; Just store to it
-                self.builder.build_store(*ptr, value);
-            }
-            None => {
-                let ptr = self.builder.build_alloca(self.llvm_type(&rhs.ty), name);
-                self.builder.build_store(ptr, value);
-                ctx.lvars.insert(name.to_string(), ptr);
-            }
-        }
+        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
+        self.builder.build_store(*ptr, value);
         Ok(value)
     }
 
@@ -423,7 +414,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not declared");
+        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
         Ok(self.builder.build_load(*ptr, name))
     }
 
