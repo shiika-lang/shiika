@@ -465,6 +465,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         function: inkwell::values::FunctionValue,
         lvars: &[(String, TermTy)],
     ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
+        if lvars.is_empty() {
+            return HashMap::new()
+        }
         let mut lvar_ptrs = HashMap::new();
         let alloca_start = self.context.append_basic_block(function, "alloca");
         let alloca_end = self.context.append_basic_block(function, "alloca_End");
