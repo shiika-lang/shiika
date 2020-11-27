@@ -42,8 +42,8 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict);
     hir_maker.register_class_consts();
-    let main_exprs = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
-    Ok(hir_maker.extract_hir(main_exprs))
+    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
+    Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
 
 impl HirMaker {
@@ -61,7 +61,7 @@ impl HirMaker {
     }
 
     /// Destructively convert self to Hir
-    fn extract_hir(&mut self, main_exprs: HirExpressions) -> Hir {
+    fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
@@ -82,6 +82,7 @@ impl HirMaker {
             str_literals,
             const_inits,
             main_exprs,
+            main_lvars,
         }
     }
 
@@ -114,7 +115,7 @@ impl HirMaker {
     fn convert_toplevel_items(
         &mut self,
         items: &[ast::TopLevelItem],
-    ) -> Result<HirExpressions, Error> {
+    ) -> Result<(HirExpressions, HirLVars), Error> {
         let mut main_exprs = vec![];
         // Contains local vars defined at toplevel
         self.push_ctx(HirMakerContext::toplevel());
@@ -128,8 +129,8 @@ impl HirMaker {
                 }
             }
         }
-        self.pop_ctx();
-        Ok(HirExpressions::new(main_exprs))
+        let mut ctx = self.pop_ctx();
+        Ok((HirExpressions::new(main_exprs), ctx.extract_lvars()))
     }
 
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {

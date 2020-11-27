@@ -146,7 +146,7 @@ impl HirMakerContext {
     }
 
     /// Destructively extract list of local variables
-    pub fn extract_lvars(&mut self) -> Vec<(String, TermTy)> {
+    pub fn extract_lvars(&mut self) -> HirLVars {
         std::mem::take(&mut self.lvars)
             .into_iter()
             .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))

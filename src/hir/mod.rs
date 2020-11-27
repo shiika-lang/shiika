@@ -23,6 +23,8 @@ pub struct Hir {
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
     pub main_exprs: HirExpressions,
+    /// Local variables in `main_exprs`
+    pub main_lvars: HirLVars,
 }
 
 pub fn build(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
@@ -54,11 +56,13 @@ pub struct SkIVar {
 
 type SkIVars = HashMap<String, SkIVar>;
 
+pub type HirLVars = Vec<(String, TermTy)>;
+
 #[derive(Debug)]
 pub struct SkMethod {
     pub signature: MethodSignature,
     pub body: SkMethodBody,
-    pub lvars: Vec<(String, TermTy)>,
+    pub lvars: HirLVars,
 }
 
 pub enum SkMethodBody {
@@ -168,7 +172,7 @@ pub enum HirExpressionBase {
         params: Vec<MethodParam>,
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
-        lvars: Vec<(String, TermTy)>,
+        lvars: HirLVars,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -382,7 +386,7 @@ impl Hir {
         mut params: Vec<MethodParam>,
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
-        lvars: Vec<(String, TermTy)>,
+        lvars: HirLVars,
     ) -> HirExpression {
         let name = format!("lambda_{}", n);
         let ty = lambda_ty(&params, &exprs.ty);

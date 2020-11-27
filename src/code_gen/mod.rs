@@ -87,7 +87,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_vtables();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
-        self.gen_user_main(&hir.main_exprs)?;
+        self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
         self.gen_lambda_funcs(&hir)?;
         self.gen_main()?;
         Ok(())
@@ -182,7 +182,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
+    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions, main_lvars: &'hir HirLVars) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
@@ -196,7 +196,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // UserMain:
         self.builder.position_at_end(user_main_block);
-        let lvar_ptrs = self.gen_alloca_lvars(function, &vec![]);
+        let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
         let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
