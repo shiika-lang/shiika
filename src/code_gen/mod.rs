@@ -186,17 +186,19 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
-        let create_main_block = self.context.append_basic_block(function, "CreateMain");
-        let user_main_block = self.context.append_basic_block(function, "UserMain");
+        // alloca
+        let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
 
         // CreateMain:
+        let create_main_block = self.context.append_basic_block(function, "CreateMain");
+        self.builder.build_unconditional_branch(create_main_block);
         self.builder.position_at_end(create_main_block);
         self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
-        self.builder.build_unconditional_branch(user_main_block);
 
         // UserMain:
+        let user_main_block = self.context.append_basic_block(function, "UserMain");
+        self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
-        let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
         let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
@@ -466,16 +468,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvars: &[(String, TermTy)],
     ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
         if lvars.is_empty() {
+            let block = self.context.append_basic_block(function, "");
+            self.builder.position_at_end(block);
             return HashMap::new()
         }
         let mut lvar_ptrs = HashMap::new();
         let alloca_start = self.context.append_basic_block(function, "alloca");
-        let alloca_end = self.context.append_basic_block(function, "alloca_End");
         self.builder.position_at_end(alloca_start);
         for (name, ty) in lvars {
             let ptr = self.builder.build_alloca(self.llvm_type(&ty), name);
             lvar_ptrs.insert(name.to_string(), ptr);
         }
+        let alloca_end = self.context.append_basic_block(function, "alloca_End");
         self.builder.build_unconditional_branch(alloca_end);
         self.builder.position_at_end(alloca_end);
         lvar_ptrs
