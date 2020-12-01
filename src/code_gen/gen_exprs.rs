@@ -265,7 +265,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
-        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
+        let ptr = ctx.lvars.get(name).unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
         self.builder.build_store(*ptr, value);
         Ok(value)
     }
