@@ -22,8 +22,6 @@ pub struct HirMaker {
     pub(super) str_literals: Vec<String>,
     /// Stack of ctx
     pub(super) ctx_stack: Vec<HirMakerContext>,
-    /// Gensym (currently used by array literals)
-    gensym_ct: usize,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
 }
@@ -55,7 +53,6 @@ impl HirMaker {
             const_inits: vec![],
             str_literals: vec![],
             ctx_stack: vec![],
-            gensym_ct: 0,
             lambda_ct: 0,
         }
     }
@@ -391,12 +388,5 @@ impl HirMaker {
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
         Ok((SkMethod { signature, body, lvars }, iivars))
-    }
-
-    /// Generate unique variable name
-    pub(super) fn gensym(&mut self) -> String {
-        self.gensym_ct += 1;
-        // Start from space so that it won't collide with user vars
-        format!(" tmp{}", self.gensym_ct)
     }
 }
