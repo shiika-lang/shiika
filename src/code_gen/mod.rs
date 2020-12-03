@@ -87,7 +87,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_vtables();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
-        self.gen_user_main(&hir.main_exprs)?;
+        self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
         self.gen_lambda_funcs(&hir)?;
         self.gen_main()?;
         Ok(())
@@ -182,21 +182,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions) -> Result<(), Error> {
+    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions, main_lvars: &'hir HirLVars) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
-        let create_main_block = self.context.append_basic_block(function, "CreateMain");
-        let user_main_block = self.context.append_basic_block(function, "UserMain");
+        // alloca
+        let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
 
         // CreateMain:
+        let create_main_block = self.context.append_basic_block(function, "CreateMain");
+        self.builder.build_unconditional_branch(create_main_block);
         self.builder.position_at_end(create_main_block);
         self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
-        self.builder.build_unconditional_branch(user_main_block);
 
         // UserMain:
+        let user_main_block = self.context.append_basic_block(function, "UserMain");
+        self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
 
@@ -309,7 +312,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let function =
                         self.module
                             .add_function(&format!("init_{}", fullname.0), fn_type, None);
-                    let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None);
+                    let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, HashMap::new());
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     self.gen_expr(&mut ctx, &expr)?;
@@ -412,6 +415,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             &func_name,
             &method.signature.params,
             Left(&method.body),
+            &method.lvars,
             &method.signature.ret_ty,
         )
     }
@@ -423,6 +427,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         func_name: &str,
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
+        lvars: &[(String, TermTy)],
         ret_ty: &TermTy,
     ) -> Result<(), Error> {
         // LLVM function
@@ -437,9 +442,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             }
         }
 
-        // Main basic block
-        let basic_block = self.context.append_basic_block(function, "");
-        self.builder.position_at_end(basic_block);
+        // alloca
+        let lvar_ptrs = self.gen_alloca_lvars(function, lvars);
 
         // Method body
         match body {
@@ -447,14 +451,38 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_method_body(function, None, ret_ty.is_void_type(), &exprs)?
+                    self.gen_shiika_method_body(function, None, ret_ty.is_void_type(), &exprs, lvar_ptrs)?
                 }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(function, Some(params), ret_ty.is_void_type(), &exprs)?;
+                self.gen_shiika_lambda_body(function, Some(params), ret_ty.is_void_type(), &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
+    }
+
+    /// Generate `alloca` section
+    fn gen_alloca_lvars(
+        &self,
+        function: inkwell::values::FunctionValue,
+        lvars: &[(String, TermTy)],
+    ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
+        if lvars.is_empty() {
+            let block = self.context.append_basic_block(function, "");
+            self.builder.position_at_end(block);
+            return HashMap::new()
+        }
+        let mut lvar_ptrs = HashMap::new();
+        let alloca_start = self.context.append_basic_block(function, "alloca");
+        self.builder.position_at_end(alloca_start);
+        for (name, ty) in lvars {
+            let ptr = self.builder.build_alloca(self.llvm_type(&ty), name);
+            lvar_ptrs.insert(name.to_string(), ptr);
+        }
+        let alloca_end = self.context.append_basic_block(function, "alloca_End");
+        self.builder.build_unconditional_branch(alloca_end);
+        self.builder.position_at_end(alloca_end);
+        lvar_ptrs
     }
 
     /// Generate body of llvm function of Shiika method
@@ -464,8 +492,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         function_params: Option<&'hir [MethodParam]>,
         void_method: bool,
         exprs: &'hir HirExpressions,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
@@ -482,8 +511,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         function_params: Option<&'hir [MethodParam]>,
         void_method: bool,
         exprs: &'hir HirExpressions,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params);
+        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);

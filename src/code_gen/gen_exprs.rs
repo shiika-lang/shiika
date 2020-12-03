@@ -61,7 +61,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 params,
                 exprs,
                 captures,
-            } => self.gen_lambda_expr(ctx, name, params, exprs, captures),
+                lvars,
+            } => self.gen_lambda_expr(ctx, name, params, exprs, captures, lvars),
             HirSelfExpression => self.gen_self_expression(ctx),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -264,17 +265,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
-        match ctx.lvars.get(name) {
-            Some(ptr) => {
-                // Reassigning; Just store to it
-                self.builder.build_store(*ptr, value);
-            }
-            None => {
-                let ptr = self.builder.build_alloca(self.llvm_type(&rhs.ty), name);
-                self.builder.build_store(ptr, value);
-                ctx.lvars.insert(name.to_string(), ptr);
-            }
-        }
+        let ptr = ctx.lvars.get(name).unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
+        self.builder.build_store(*ptr, value);
         Ok(value)
     }
 
@@ -422,7 +414,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not declared");
+        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
         Ok(self.builder.build_load(*ptr, name))
     }
 
@@ -451,6 +443,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         params: &[MethodParam],
         exprs: &'hir HirExpressions,
         captures: &'hir [HirLambdaCapture],
+        _lvars: &[(String, TermTy)],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..params.len()).map(|_| &obj_type).collect::<Vec<_>>();
@@ -528,9 +521,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_array_literal(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        exprs: &'hir HirExpressions,
+        exprs: &'hir[HirExpression],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        self.gen_exprs(ctx, exprs)
+        let ary = self.gen_llvm_func_call(
+            "Meta:Array#new",
+            self.gen_const_ref(&const_fullname("::Array")),
+            vec![self.gen_decimal_literal(exprs.len() as i32)],
+        )?;
+        for expr in exprs {
+            let item = self.gen_expr(ctx, expr)?;
+            let obj = self.builder.build_bitcast(
+                item,
+                self.llvm_type(&ty::raw("Object")),
+                "obj",
+            );
+            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+        }
+        Ok(ary)
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {

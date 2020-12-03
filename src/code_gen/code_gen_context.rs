@@ -40,12 +40,13 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
         function: inkwell::values::FunctionValue<'run>,
         function_origin: FunctionOrigin,
         function_params: Option<&'hir [MethodParam]>,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> CodeGenContext<'hir, 'run> {
         CodeGenContext {
             function,
             function_origin,
             function_params,
-            lvars: HashMap::new(),
+            lvars,
             current_loop_end: None,
             lambdas: VecDeque::new(),
         }

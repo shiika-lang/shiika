@@ -222,5 +222,6 @@ fn create_method_generic(
     SkMethod {
         signature: sig,
         body: SkMethodBody::RustMethodBody { gen },
+        lvars: vec![],
     }
 }
