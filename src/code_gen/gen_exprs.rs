@@ -521,9 +521,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_array_literal(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        exprs: &'hir HirExpressions,
+        exprs: &'hir[HirExpression],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        self.gen_exprs(ctx, exprs)
+        let ary = self.gen_llvm_func_call(
+            "Meta:Array#new",
+            self.gen_const_ref(&const_fullname("::Array")),
+            vec![self.gen_decimal_literal(exprs.len() as i32)],
+        )?;
+        for expr in exprs {
+            let item = self.gen_expr(ctx, expr)?;
+            let obj = self.builder.build_bitcast(
+                item,
+                self.llvm_type(&ty::raw("Object")),
+                "obj",
+            );
+            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+        }
+        Ok(ary)
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum {

@@ -176,7 +176,7 @@ pub enum HirExpressionBase {
     },
     HirSelfExpression,
     HirArrayLiteral {
-        exprs: HirExpressions,
+        exprs: Vec<HirExpression>,
     },
     HirFloatLiteral {
         value: f64,
@@ -416,9 +416,7 @@ impl Hir {
     pub fn array_literal(exprs: Vec<HirExpression>, ty: TermTy) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirArrayLiteral {
-                exprs: HirExpressions::new(exprs),
-            },
+            node: HirExpressionBase::HirArrayLiteral { exprs },
         }
     }
 

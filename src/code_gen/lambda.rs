@@ -13,7 +13,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for methods in hir.sk_methods.values() {
             for method in methods {
                 if let SkMethodBody::ShiikaMethodBody { exprs } = &method.body {
-                    self.gen_lambda_funcs_in_exprs(&exprs)?;
+                    self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
                 }
             }
         }
@@ -22,13 +22,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.gen_lambda_funcs_in_expr(&expr)?;
         }
 
-        self.gen_lambda_funcs_in_exprs(&hir.main_exprs)?;
+        self.gen_lambda_funcs_in_exprs(&hir.main_exprs.exprs)?;
         Ok(())
     }
 
-    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir HirExpressions) -> Result<(), Error> {
-        for expr in &exprs.exprs {
-            self.gen_lambda_funcs_in_expr(&expr)?;
+    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir[HirExpression]) -> Result<(), Error> {
+        for expr in exprs {
+            self.gen_lambda_funcs_in_expr(expr)?;
         }
         Ok(())
     }
@@ -50,9 +50,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 else_exprs,
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_exprs(then_exprs)?;
+                self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
                 if else_exprs.is_some() {
-                    self.gen_lambda_funcs_in_exprs(&else_exprs.as_ref().as_ref().unwrap())?;
+                    self.gen_lambda_funcs_in_exprs(&else_exprs.as_ref().as_ref().unwrap().exprs)?;
                 }
             }
             HirWhileExpression {
@@ -60,7 +60,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 body_exprs,
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_exprs(body_exprs)?;
+                self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
             }
             HirBreakExpression => (),
             HirLVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
@@ -88,7 +88,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_func(name, params, exprs, lvars)?;
-                self.gen_lambda_funcs_in_exprs(exprs)?;
+                self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
             }
             HirSelfExpression => (),
             HirArrayLiteral { exprs } => self.gen_lambda_funcs_in_exprs(exprs)?,

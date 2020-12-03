@@ -615,33 +615,8 @@ impl HirMaker {
             item_ty = self.nearest_common_ancestor_type(&item_ty, &expr.ty)
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
-        let upper_bound_ty = ty::raw("Object");
 
-        let tmp = self.gensym();
-        let mut exprs = vec![];
-
-        // `tmp = Array.new`
-        exprs.push(Hir::assign_lvar(
-            &tmp,
-            Hir::method_call(
-                ary_ty.clone(),
-                Hir::const_ref(ty::meta("Array"), const_fullname("::Array")),
-                method_fullname(&class_fullname("Meta:Array"), "new"),
-                vec![Hir::decimal_literal(item_exprs.len() as i32)],
-            ),
-        ));
-        // `tmp.push(item)`
-        for expr in item_exprs {
-            exprs.push(Hir::method_call(
-                ty::raw("Void"),
-                Hir::lvar_ref(ary_ty.clone(), tmp.clone()),
-                method_fullname(&class_fullname("Array"), "push"),
-                vec![Hir::bit_cast(upper_bound_ty.clone(), expr)],
-            ))
-        }
-        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp));
-
-        Ok(Hir::array_literal(exprs, ary_ty))
+        Ok(Hir::array_literal(item_exprs, ary_ty))
     }
 
     fn convert_self_expr(&self) -> Result<HirExpression, Error> {
