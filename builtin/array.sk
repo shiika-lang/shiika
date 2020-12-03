@@ -45,4 +45,8 @@ class Array<T>
     ptr = @items
     ptr.load
   end
+
+  def length -> Int
+    @n_items
+  end
 end
