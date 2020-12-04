@@ -98,7 +98,7 @@ class Sphere
       isect.normal = isect.hit_point.sub(@position).normalize
       isect.color = @color.mul(Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0))
       isect.distance = t
-      isect.hit = isect.hit + 1
+      isect.hit += 1
       isect.ray_dir = ray.dir
     end
   end
@@ -130,7 +130,7 @@ class Plane
       f = 1.0 - (if abs < 25.0; abs; else 25.0; end) * 0.04
       isect.color = @color.mul(d3 * f)
       isect.distance = t
-      isect.hit = isect.hit + 1
+      isect.hit += 1
       isect.ray_dir = ray.dir
     end
   end
@@ -204,14 +204,14 @@ var row = 0; while row < IMAGE_HEIGHT
           temp_col = temp_col.multi(i.color)
         end
 
-        j = j + 1
+        j += 1
       end
       Util.print_col(dest_col)
     else
       Util.print_col(Vec.new(ray.dir.y, ray.dir.y, ray.dir.y))
     end
 
-    col = col + 1
+    col += 1
   end
-  row = row + 1
+  row += 1
 end

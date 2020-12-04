@@ -1,6 +1,5 @@
 # How to run
-#   $ rake build
-#   $ ./build/debug/shiika run examples/mandel.sk > a.pbm
+#   $ cargo run -- run examples/mandel.sk > a.pbm
 #   $ open a.pbm   # With Preview.app or something
 size = 600
 
@@ -49,7 +48,7 @@ var y=0; while y <= count_size
       bit_num = 0
     else 
       if x == count_size
-        byte_acc = byte_acc << (8 - bit_num)
+        byte_acc <<= (8 - bit_num)
         putchar byte_acc
         byte_acc = 0
         bit_num = 0
@@ -58,7 +57,7 @@ var y=0; while y <= count_size
       end
     end
 
-    x = x + 1
+    x += 1
   end
-  y = y + 1
+  y += 1
 end
