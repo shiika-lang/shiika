@@ -1,3 +1,9 @@
+## v0.5.1 (2020-12-04)
+
+- feat: Block syntax (#173)
+- feat: `-=`, etc. (#165)
+- fixes: #176 #175 
+
 ## v0.5.0 (2020-11-06)
 
 - feat: Virtual methods (#166)
