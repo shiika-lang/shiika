@@ -1,3 +1,4 @@
+# Original: https://github.com/ruby/ruby/blob/master/benchmark/so_mandelbrot.rb
 # How to run
 #   $ cargo run -- run examples/mandel.sk > a.pbm
 #   $ open a.pbm   # With Preview.app or something
