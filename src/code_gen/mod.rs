@@ -182,7 +182,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_user_main(&mut self, main_exprs: &'hir HirExpressions, main_lvars: &'hir HirLVars) -> Result<(), Error> {
+    fn gen_user_main(
+        &mut self,
+        main_exprs: &'hir HirExpressions,
+        main_lvars: &'hir HirLVars,
+    ) -> Result<(), Error> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
@@ -312,7 +316,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let function =
                         self.module
                             .add_function(&format!("init_{}", fullname.0), fn_type, None);
-                    let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, HashMap::new());
+                    let mut ctx =
+                        CodeGenContext::new(function, FunctionOrigin::Other, None, HashMap::new());
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     self.gen_expr(&mut ctx, &expr)?;
@@ -450,12 +455,22 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_method_body(function, None, ret_ty.is_void_type(), &exprs, lvar_ptrs)?
-                }
+                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
+                    function,
+                    None,
+                    ret_ty.is_void_type(),
+                    &exprs,
+                    lvar_ptrs,
+                )?,
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(function, Some(params), ret_ty.is_void_type(), &exprs, lvar_ptrs)?;
+                self.gen_shiika_lambda_body(
+                    function,
+                    Some(params),
+                    ret_ty.is_void_type(),
+                    &exprs,
+                    lvar_ptrs,
+                )?;
             }
         }
         Ok(())
@@ -470,7 +485,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if lvars.is_empty() {
             let block = self.context.append_basic_block(function, "");
             self.builder.position_at_end(block);
-            return HashMap::new()
+            return HashMap::new();
         }
         let mut lvar_ptrs = HashMap::new();
         let alloca_start = self.context.append_basic_block(function, "alloca");

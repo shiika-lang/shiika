@@ -26,7 +26,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
-    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir[HirExpression]) -> Result<(), Error> {
+    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir [HirExpression]) -> Result<(), Error> {
         for expr in exprs {
             self.gen_lambda_funcs_in_expr(expr)?;
         }

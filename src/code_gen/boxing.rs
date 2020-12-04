@@ -15,7 +15,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_bool: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
-        self.build_ivar_load(sk_bool, 0, "@llvm_bool").into_int_value()
+        self.build_ivar_load(sk_bool, 0, "@llvm_bool")
+            .into_int_value()
     }
 
     /// Convert LLVM int into Shiika Int
@@ -30,7 +31,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_int: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
-        self.build_ivar_load(sk_int, 0, "@llvm_int").into_int_value()
+        self.build_ivar_load(sk_int, 0, "@llvm_int")
+            .into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float

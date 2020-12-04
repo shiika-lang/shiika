@@ -387,6 +387,13 @@ impl HirMaker {
         type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
-        Ok((SkMethod { signature, body, lvars }, iivars))
+        Ok((
+            SkMethod {
+                signature,
+                body,
+                lvars,
+            },
+            iivars,
+        ))
     }
 }

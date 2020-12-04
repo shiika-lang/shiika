@@ -265,7 +265,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let value = self.gen_expr(ctx, rhs)?;
-        let ptr = ctx.lvars.get(name).unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
+        let ptr = ctx
+            .lvars
+            .get(name)
+            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
         self.builder.build_store(*ptr, value);
         Ok(value)
     }
@@ -521,7 +524,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_array_literal(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        exprs: &'hir[HirExpression],
+        exprs: &'hir [HirExpression],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
@@ -530,11 +533,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         )?;
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?;
-            let obj = self.builder.build_bitcast(
-                item,
-                self.llvm_type(&ty::raw("Object")),
-                "obj",
-            );
+            let obj = self
+                .builder
+                .build_bitcast(item, self.llvm_type(&ty::raw("Object")), "obj");
             self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
         }
         Ok(ary)
