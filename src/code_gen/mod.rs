@@ -182,6 +182,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    #[allow(clippy::ptr_arg)]
     fn gen_user_main(
         &mut self,
         main_exprs: &'hir HirExpressions,
