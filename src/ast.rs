@@ -111,7 +111,7 @@ pub enum AstExpressionBody {
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
     IVarRef(String),
-    ConstRef(Vec<String>),
+    ConstRef(AstConstName),
     PseudoVariable(Token),
     ArrayLiteral(Vec<AstExpression>),
     FloatLiteral {
@@ -123,6 +123,25 @@ pub enum AstExpressionBody {
     StringLiteral {
         content: String,
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AstConstName {
+    pub names: Vec<String>,
+    pub args: Vec<AstConstName>,
+}
+
+impl AstConstName {
+    pub fn string(&self) -> String {
+        let mut s = self.names.join("::");
+        if !self.args.is_empty() {
+            s += "<";
+            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
+            s += &v.join(",");
+            s += ">";
+        }
+        s
+    }
 }
 
 impl Definition {
@@ -216,8 +235,8 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
             rhs: Box::new(rhs),
             is_var: false,
         },
-        AstExpressionBody::ConstRef(names) => AstExpressionBody::ConstAssign {
-            names,
+        AstExpressionBody::ConstRef(const_name) => AstExpressionBody::ConstAssign {
+            names: const_name.names,
             rhs: Box::new(rhs),
         },
         AstExpressionBody::MethodCall {
@@ -277,8 +296,8 @@ pub fn ivar_ref(name: String) -> AstExpression {
     primary_expression(AstExpressionBody::IVarRef(name))
 }
 
-pub fn const_ref(names: Vec<String>) -> AstExpression {
-    primary_expression(AstExpressionBody::ConstRef(names))
+pub fn const_ref(name: AstConstName) -> AstExpression {
+    primary_expression(AstExpressionBody::ConstRef(name))
 }
 
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {

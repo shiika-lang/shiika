@@ -105,7 +105,7 @@ impl HirMaker {
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::ConstRef(names) => self.convert_const_ref(names),
+            AstExpressionBody::ConstRef(name) => self.convert_const_ref(name),
 
             AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
 
@@ -559,13 +559,13 @@ impl HirMaker {
     }
 
     /// Resolve constant name
-    fn convert_const_ref(&self, names: &[String]) -> Result<HirExpression, Error> {
+    fn convert_const_ref(&self, name: &AstConstName) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
-        let fullname = ConstFullname("::".to_string() + &names.join("::"));
+        let fullname = ConstFullname("::".to_string() + &name.string());
         match self.constants.get(&fullname) {
             Some(ty) => Ok(Hir::const_ref(ty.clone(), fullname)),
             None => {
-                let c = class_fullname(&names.join("::"));
+                let c = class_fullname(&name.string());
                 if self.class_dict.class_exists(&c.0) {
                     Ok(Hir::const_ref(c.class_ty(), fullname))
                 } else {
