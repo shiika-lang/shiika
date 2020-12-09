@@ -55,7 +55,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirArgRef { idx } => self.gen_arg_ref(ctx, idx),
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx } => self.gen_ivar_ref(ctx, name, idx),
-            HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
+            HirConstRef { name } => Ok(self.gen_const_ref(name)),
             HirLambdaExpr {
                 name,
                 params,
@@ -382,7 +382,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .left()
         {
             Some(result_value) => Ok(result_value),
-            None => Ok(self.gen_const_ref(&const_fullname("::Void"))),
+            None => Ok(self.gen_const_ref(&const_name(vec!["Void".to_string()]))),
         }
     }
 
@@ -431,12 +431,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(self.build_ivar_load(object, *idx, name))
     }
 
-    fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum {
+    fn gen_const_ref(&self, name: &ConstName) -> inkwell::values::BasicValueEnum {
+        let fullname = name.fullname();
         let ptr = self
             .module
-            .get_global(&fullname.0)
-            .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0));
-        self.builder.build_load(ptr.as_pointer_value(), &fullname.0)
+            .get_global(&fullname)
+            .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname));
+        self.builder.build_load(ptr.as_pointer_value(), &fullname)
     }
 
     fn gen_lambda_expr(
@@ -458,8 +459,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // eg. Fn1.new(fnptr, captures)
         let cls_name = format!("Fn{}", params.len() - 1); // -1 for the last `captures` ary
-        let const_name = format!("::{}", cls_name);
-        let meta = self.gen_const_ref(&const_fullname(&const_name));
+        let meta = self.gen_const_ref(&const_name(vec![cls_name.clone()]));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
@@ -477,7 +477,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
-            self.gen_const_ref(&const_fullname("::Array")),
+            self.gen_const_ref(&const_name(vec!["Array".to_string()])),
             vec![self.gen_decimal_literal(captures.len() as i32)],
         )?;
         for cap in captures {
@@ -528,7 +528,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
-            self.gen_const_ref(&const_fullname("::Array")),
+            self.gen_const_ref(&const_name(vec!["Array".to_string()])),
             vec![self.gen_decimal_literal(exprs.len() as i32)],
         )?;
         for expr in exprs {
@@ -552,7 +552,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum {
         let func = self.get_llvm_func(&"Meta:String#new");
-        let receiver_value = self.gen_const_ref(&const_fullname("::String"));
+        let receiver_value = self.gen_const_ref(&const_name(vec!["String".to_string()]));
         let global = self
             .module
             .get_global(&format!("str_{}", idx))
