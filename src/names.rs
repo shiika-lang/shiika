@@ -126,3 +126,30 @@ impl std::fmt::Display for ConstFullname {
 pub fn const_fullname(s: &str) -> ConstFullname {
     ConstFullname(s.to_string())
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConstName {
+    pub names: Vec<String>,
+    pub args: Vec<ConstName>,
+}
+
+impl ConstName {
+    pub fn fullname(&self) -> String {
+        "::".to_string() + &self.string()
+    }
+
+    pub fn string(&self) -> String {
+        let mut s = self.names.join("::");
+        if !self.args.is_empty() {
+            s += "<";
+            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
+            s += &v.join(",");
+            s += ">";
+        }
+        s
+    }
+}
+
+pub fn const_name(names: Vec<String>) -> ConstName {
+    ConstName { names, args: vec![] }
+}

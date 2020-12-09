@@ -1,4 +1,5 @@
 use crate::parser::base::*;
+use crate::names::ConstName;
 use std::collections::HashMap;
 
 impl<'a> Parser<'a> {
@@ -688,8 +689,8 @@ impl<'a> Parser<'a> {
         Ok(ast::const_ref(name))
     }
 
-    /// Main routine of parse_const_ref (returns AstConstName)
-    fn _parse_const_ref(&mut self, s: String, recursing: bool) -> Result<AstConstName, Error> {
+    /// Main routine of parse_const_ref (returns ConstName)
+    fn _parse_const_ref(&mut self, s: String, recursing: bool) -> Result<ConstName, Error> {
         self.lv += 1;
         self.debug_log("_parse_const_ref");
         let mut names = vec![s];
@@ -746,7 +747,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(AstConstName { names, args })
+        Ok(ConstName { names, args })
     }
 
     fn parse_lambda(&mut self) -> Result<AstExpression, Error> {

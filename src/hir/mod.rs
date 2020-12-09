@@ -96,7 +96,7 @@ impl HirExpressions {
     // Destructively convert Vec<HirExpression> into HirExpressions
     pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
         if exprs.is_empty() {
-            exprs.push(Hir::const_ref(ty::raw("Void"), const_fullname("::Void")))
+            exprs.push(Hir::const_ref(ty::raw("Void"), const_name(vec!["Void".to_string()])))
         }
 
         let last_expr = exprs.last().unwrap();
@@ -165,7 +165,7 @@ pub enum HirExpressionBase {
         idx: usize,
     },
     HirConstRef {
-        fullname: ConstFullname,
+        name: ConstName,
     },
     HirLambdaExpr {
         name: String,
@@ -374,10 +374,10 @@ impl Hir {
         }
     }
 
-    pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
+    pub fn const_ref(ty: TermTy, name: ConstName) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirConstRef { fullname },
+            node: HirExpressionBase::HirConstRef { name },
         }
     }
 

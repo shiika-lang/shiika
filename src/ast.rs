@@ -111,7 +111,7 @@ pub enum AstExpressionBody {
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
     IVarRef(String),
-    ConstRef(AstConstName),
+    ConstRef(ConstName),
     PseudoVariable(Token),
     ArrayLiteral(Vec<AstExpression>),
     FloatLiteral {
@@ -123,25 +123,6 @@ pub enum AstExpressionBody {
     StringLiteral {
         content: String,
     },
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AstConstName {
-    pub names: Vec<String>,
-    pub args: Vec<AstConstName>,
-}
-
-impl AstConstName {
-    pub fn string(&self) -> String {
-        let mut s = self.names.join("::");
-        if !self.args.is_empty() {
-            s += "<";
-            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
-            s += &v.join(",");
-            s += ">";
-        }
-        s
-    }
 }
 
 impl Definition {
@@ -296,7 +277,7 @@ pub fn ivar_ref(name: String) -> AstExpression {
     primary_expression(AstExpressionBody::IVarRef(name))
 }
 
-pub fn const_ref(name: AstConstName) -> AstExpression {
+pub fn const_ref(name: ConstName) -> AstExpression {
     primary_expression(AstExpressionBody::ConstRef(name))
 }
 

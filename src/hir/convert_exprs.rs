@@ -559,15 +559,15 @@ impl HirMaker {
     }
 
     /// Resolve constant name
-    fn convert_const_ref(&self, name: &AstConstName) -> Result<HirExpression, Error> {
+    fn convert_const_ref(&self, name: &ConstName) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
-        let fullname = ConstFullname("::".to_string() + &name.string());
-        match self.constants.get(&fullname) {
-            Some(ty) => Ok(Hir::const_ref(ty.clone(), fullname)),
+        let fullname = name.fullname();
+        match self.constants.get(&const_fullname(&fullname)) {
+            Some(ty) => Ok(Hir::const_ref(ty.clone(), name.clone())),
             None => {
                 let c = class_fullname(&name.string());
                 if self.class_dict.class_exists(&c.0) {
-                    Ok(Hir::const_ref(c.class_ty(), fullname))
+                    Ok(Hir::const_ref(c.class_ty(), name.clone()))
                 } else {
                     Err(error::program_error(&format!(
                         "constant `{:?}' was not found",
