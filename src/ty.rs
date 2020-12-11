@@ -32,7 +32,8 @@ impl std::fmt::Display for TermTy {
 
 impl std::fmt::Debug for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TermTy(\"{}\")", self.fullname)
+        write!(f, "TermTy({})", self.fullname)
+        //write!(f, "TermTy({:?})", self.body)
     }
 }
 
