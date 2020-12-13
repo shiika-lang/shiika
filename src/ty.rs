@@ -128,9 +128,14 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    pub fn substitute(&self, type_args: &[TermTy]) -> TermTy {
+    pub fn substitute(&self, tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { idx, .. } => type_args[*idx].clone(),
+            TyParamRef { idx, .. } => tyargs[*idx].clone(),
+            TySpe { base_name, type_args } => {
+                let args = type_args.iter().map(|t| t.substitute(tyargs)).collect();
+                ty::spe(base_name, args)
+            }
+            TySpeMeta { .. } => todo!(),
             _ => self.clone(),
         }
     }
