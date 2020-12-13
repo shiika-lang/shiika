@@ -240,6 +240,24 @@ pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
+/// Create the type of return value of `.new` method of the class
+pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> TermTy {
+    if typarams.is_empty() {
+        ty::raw(&classname.0)
+    } else {
+        let args = typarams.iter().enumerate().map(|(i, s)| {
+            TermTy {
+                fullname: class_fullname(s),
+                body: TyParamRef {
+                    name: s.to_string(),
+                    idx: i,
+                }
+            }
+        }).collect::<Vec<_>>();
+        ty::spe(&classname.0, args)
+    }
+}
+
 /// Shortcut for Array<T>
 pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
