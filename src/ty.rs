@@ -169,6 +169,7 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
+    debug_assert!(!fullname.contains('<'), fullname.to_string());
     TermTy {
         fullname: class_fullname(fullname),
         body: TyRaw,
@@ -176,6 +177,7 @@ pub fn raw(fullname: &str) -> TermTy {
 }
 
 pub fn meta(base_fullname: &str) -> TermTy {
+    debug_assert!(!base_fullname.contains('<'), base_fullname.to_string());
     TermTy {
         fullname: metaclass_fullname(base_fullname),
         body: TyMeta {
