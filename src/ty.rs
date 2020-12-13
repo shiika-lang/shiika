@@ -83,10 +83,15 @@ impl TermTy {
     }
 
     pub fn meta_ty(&self) -> TermTy {
-        match self.body {
+        match &self.body {
             TyRaw => ty::meta(&self.fullname.0),
             TyMeta { .. } => ty::class(),
             TyClass => ty::class(),
+            TyGenMeta { .. } => ty::class(),
+            TySpe { base_name, type_args } => {
+                ty::spe_meta(&base_name, type_args.clone())
+            }
+            TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
         }
     }
