@@ -529,7 +529,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
             self.gen_const_ref(&const_name(vec!["Array".to_string()])),
-            vec![self.gen_decimal_literal(exprs.len() as i32)],
+            vec![],
         )?;
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?;
