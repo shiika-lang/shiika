@@ -96,6 +96,15 @@ impl TermTy {
         }
     }
 
+    /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
+    pub fn base_class_name(&self) -> ClassFullname {
+        match &self.body {
+            TySpe { base_name, .. } => class_fullname(base_name),
+            TySpeMeta { base_name, .. } => class_fullname("Meta:".to_string() + base_name),
+            _ => panic!("unexpected"),
+        }
+    }
+
     /// Return true if `self` conforms to `other` i.e.
     /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
