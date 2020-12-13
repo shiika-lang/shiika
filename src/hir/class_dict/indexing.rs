@@ -28,7 +28,7 @@ impl ClassDict {
     }
 
     /// Register a class
-    fn add_class(&mut self, class: SkClass) {
+    pub fn add_class(&mut self, class: SkClass) {
         self.sk_classes.insert(class.fullname.clone(), class);
     }
 
@@ -90,7 +90,7 @@ impl ClassDict {
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
             self.initializer_params(&super_name.instance_ty(), &defs),
-            &instance_ty,
+            &ty::return_type_of_new(fullname, typarams),
         );
 
         for def in defs {

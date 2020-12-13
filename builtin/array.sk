@@ -51,3 +51,6 @@ class Array<T>
     @n_items
   end
 end
+
+# Create `Meta:Array` by this ConstRef for array literals
+Array

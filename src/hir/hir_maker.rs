@@ -1,7 +1,6 @@
 use crate::ast::*;
 use crate::code_gen::CodeGen;
 use crate::error::Error;
-use crate::hir;
 use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
 use crate::hir::method_dict::MethodDict;
@@ -39,7 +38,6 @@ pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
 
 fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict);
-    hir_maker.register_class_consts();
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
     Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
@@ -81,32 +79,6 @@ impl HirMaker {
             main_exprs,
             main_lvars,
         }
-    }
-
-    fn register_class_consts(&mut self) {
-        // mem::take is needed to avoid compile error
-        let classes = std::mem::take(&mut self.class_dict.sk_classes);
-        for (name, class) in &classes {
-            if !name.is_meta() && !class.const_is_obj {
-                self.register_class_const(name);
-            }
-        }
-        self.class_dict.sk_classes = classes;
-    }
-
-    /// Register a constant that holds a class
-    fn register_class_const(&mut self, fullname: &ClassFullname) {
-        let instance_ty = ty::raw(&fullname.0);
-        let class_ty = instance_ty.meta_ty();
-        let const_name = const_fullname(&format!("::{}", &fullname.0));
-
-        // eg. Constant `A` holds the class A
-        self.constants.insert(const_name.clone(), class_ty);
-        // eg. "A"
-        let idx = self.register_string_literal(&fullname.0);
-        // eg. A = Meta:A.new
-        let op = Hir::assign_const(const_name, Hir::class_literal(fullname.clone(), idx));
-        self.const_inits.push(op);
     }
 
     fn convert_toplevel_items(
@@ -256,12 +228,12 @@ impl HirMaker {
     /// Create .new
     fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
         let class_fullname = class_fullname.clone();
-        let (initialize_name, initialize_params, init_cls_name) =
-            self.find_initialize(&class_fullname.instance_ty())?;
-        let instance_ty = ty::raw(&class_fullname.0);
-        let meta_name = class_fullname.meta_name();
+        let (initialize_name, init_cls_name) =
+            self._find_initialize(&class_fullname.instance_ty())?;
         let need_bitcast = init_cls_name != class_fullname;
-        let arity = initialize_params.len();
+        let (signature, _) = self.class_dict
+            .lookup_method(&class_fullname.class_ty(), &method_firstname("new"))?;
+        let arity = signature.params.len();
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
             // Allocate memory
@@ -299,11 +271,7 @@ impl HirMaker {
         };
 
         Ok(SkMethod {
-            signature: hir::signature::signature_of_new(
-                &meta_name,
-                initialize_params,
-                &instance_ty,
-            ),
+            signature, 
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
             },
@@ -311,21 +279,21 @@ impl HirMaker {
         })
     }
 
-    fn find_initialize(
+    /// Find actual `initialize` func to call from `.new`
+    fn _find_initialize(
         &self,
         class: &TermTy,
-    ) -> Result<(MethodFullname, Vec<MethodParam>, ClassFullname), Error> {
-        let (sig, found_cls) = self
+    ) -> Result<(MethodFullname, ClassFullname), Error> {
+        let (_, found_cls) = self
             .class_dict
             .lookup_method(&class, &method_firstname("initialize"))?;
         Ok((
             names::method_fullname(&found_cls, "initialize"),
-            sig.params,
             found_cls,
         ))
     }
 
-    /// Register a constant
+    /// Resolve and register a constant
     pub(super) fn register_const(
         &mut self,
         name: &ConstFirstname,
@@ -335,10 +303,19 @@ impl HirMaker {
         // TODO: resolve name using ctx
         let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
         let hir_expr = self.convert_expr(expr)?;
+        Ok(self.register_const_full(fullname, hir_expr))
+    }
+
+    /// Register a constant
+    pub(super) fn register_const_full(
+        &mut self,
+        fullname: ConstFullname,
+        hir_expr: HirExpression,
+    ) -> ConstFullname  {
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);
-        Ok(fullname)
+        fullname
     }
 
     fn convert_method_def(
