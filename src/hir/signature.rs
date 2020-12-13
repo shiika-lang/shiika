@@ -46,6 +46,7 @@ pub fn convert_params(params: &[ast::Param], typarams: &[String]) -> Vec<MethodP
         .collect()
 }
 
+/// Create a signature of a `new` method
 pub fn signature_of_new(
     metaclass_fullname: &ClassFullname,
     initialize_params: Vec<MethodParam>,
