@@ -52,5 +52,5 @@ class Array<T>
   end
 end
 
-# Create `Meta:Array` by this ConstRef for array literals
+# Create `Meta:Array` by this ConstRef for array literals (#178)
 Array

@@ -97,3 +97,6 @@ class Fn9<S1, S2, S3, S4, S5, S6, S7, S8, S9, T>
     @captures = captures
   end
 end
+
+# Create `::FnX` by these ConstRef's for lambda exprs (#178)
+Fn0; Fn1; Fn2; Fn3; Fn4; Fn5; Fn6; Fn7; Fn8; Fn9
