@@ -233,7 +233,7 @@ pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
         .collect::<Vec<_>>();
     TermTy {
         fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
-        body: TySpe {
+        body: TySpeMeta {
             base_name: base_name.to_string(),
             type_args,
         },
