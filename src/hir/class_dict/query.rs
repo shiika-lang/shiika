@@ -24,19 +24,19 @@ impl ClassDict {
         class: &TermTy,
         method_name: &MethodFirstname,
     ) -> Result<(MethodSignature, ClassFullname), Error> {
-        if let TyBody::TySpe {
-            base_name,
-            type_args,
-        } = &class.body
-        {
-            let base_cls = &self
-                .find_class(&class_fullname(base_name))
-                .expect("[BUG] base_cls not found")
-                .instance_ty;
-            let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
-            Ok((base_sig.specialize(&type_args), found_cls))
-        } else {
-            self.lookup_method_(class, class, method_name)
+        match &class.body {
+            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyClass => {
+                self.lookup_method_(class, class, method_name)
+            }
+            TyBody::TySpe { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
+                let base_cls = &self
+                    .find_class(&class.base_class_name())
+                    .expect("[BUG] base_cls not found")
+                    .instance_ty;
+                let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
+                Ok((base_sig.specialize(&type_args), found_cls))
+            }
+            _ => todo!()
         }
     }
 

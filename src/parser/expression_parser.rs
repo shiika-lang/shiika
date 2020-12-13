@@ -1,4 +1,5 @@
 use crate::parser::base::*;
+use crate::names::ConstName;
 use std::collections::HashMap;
 
 impl<'a> Parser<'a> {
@@ -632,6 +633,7 @@ impl<'a> Parser<'a> {
             }
             Token::UpperWord(s) => {
                 let name = s.to_string();
+                self.consume_token();
                 self.parse_const_ref(name)
             }
             Token::KwFn => self.parse_lambda(),
@@ -680,21 +682,72 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_const_ref(&mut self, s: String) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_const_ref");
+        let name = self._parse_const_ref(s, false)?;
+        self.lv -= 1;
+        Ok(ast::const_ref(name))
+    }
+
+    /// Main routine of parse_const_ref (returns ConstName)
+    fn _parse_const_ref(&mut self, s: String, recursing: bool) -> Result<ConstName, Error> {
+        self.lv += 1;
+        self.debug_log("_parse_const_ref");
         let mut names = vec![s];
-        self.consume_token();
-        // Parse `A::B`
-        while self.current_token_is(Token::ColonColon) {
-            self.consume_token();
+        let mut lessthan_seen = false;
+        let mut args = vec![];
+        loop {
             match self.current_token() {
+                Token::ColonColon => { // `A::B`
+                    if lessthan_seen {
+                        return Err(parse_error!(self, "unexpected `::'"));
+                    }
+                    self.consume_token();
+                }
+                Token::LessThan => { // `A<B>`
+                    lessthan_seen = true;
+                    self.consume_token();
+                }
+                Token::GreaterThan => { // `A<B>`
+                    if recursing {
+                        break;
+                    }
+                    if !lessthan_seen {
+                        return Err(parse_error!(self, "unexpected `>'"));
+                    }
+                    self.consume_token();
+                    break;
+                }
+                Token::Comma => { // `A<B, C>`
+                    if !lessthan_seen {
+                        return Err(parse_error!(self, "unexpected `,'"));
+                    }
+                    self.consume_token();
+                    self.skip_wsn();
+                }
                 Token::UpperWord(s) => {
                     let name = s.to_string();
                     self.consume_token();
-                    names.push(name);
+                    if lessthan_seen {
+                        args.push(self._parse_const_ref(name, true)?);
+                    } else {
+                        names.push(name);
+                    }
                 }
-                token => return Err(parse_error!(self, "unexpected token: {:?}", token)),
+                token => {
+                    if recursing {
+                        break;
+                    }
+                    if lessthan_seen {
+                        return Err(parse_error!(self, "unexpected token: {:?}", token));
+                    } else {
+                        break;
+                    }
+                }
             }
         }
-        Ok(ast::const_ref(names))
+        self.lv -= 1;
+        Ok(ConstName { names, args })
     }
 
     fn parse_lambda(&mut self) -> Result<AstExpression, Error> {

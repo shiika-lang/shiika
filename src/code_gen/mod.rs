@@ -236,26 +236,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Create llvm struct types for Shiika objects
     fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
-        // 1. Create struct type for each class
+        // Create all the struct types in advance
         for name in classes.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
 
-        // 2. Set ivars
+        // Set fields for ivars
         let vt = self.llvm_vtable_ref_type().into();
-        for (name, sk_class) in classes {
-            let struct_type = self.llvm_struct_types.get(&name).unwrap();
-            if name.0 == "Int" {
-                struct_type.set_body(&[vt, self.i32_type.into()], false);
-            } else if name.0 == "Float" {
-                struct_type.set_body(&[vt, self.f64_type.into()], false);
-            } else if name.0 == "Bool" {
-                struct_type.set_body(&[vt, self.i1_type.into()], false);
-            } else if name.0 == "Shiika::Internal::Ptr" {
-                struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
-            } else {
-                struct_type.set_body(&self.llvm_field_types(&sk_class.ivars), false);
+        for (name, class) in classes {
+            let struct_type = self.llvm_struct_types.get(name).unwrap();
+            match name.0.as_str() {
+                "Int" => { struct_type.set_body(&[vt, self.i32_type.into()], false); }
+                "Float" => { struct_type.set_body(&[vt, self.f64_type.into()], false); }
+                "Bool" => { struct_type.set_body(&[vt, self.i1_type.into()], false); }
+                "Shiika::Internal::Ptr" => { struct_type.set_body(&[vt, self.i8ptr_type.into()], false); }
+                _ => {
+                    struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
+                }
             }
         }
     }
@@ -295,6 +293,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         })
     }
 
+    /// Generate llvm global that holds Shiika constants
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in constants {
             let name = &fullname.0;

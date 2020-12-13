@@ -105,7 +105,7 @@ impl HirMaker {
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::ConstRef(names) => self.convert_const_ref(names),
+            AstExpressionBody::ConstRef(name) => self.convert_const_ref(name),
 
             AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
 
@@ -330,15 +330,14 @@ impl HirMaker {
             // Implicit self
             _ => self.convert_self_expr()?,
         };
-        // TODO: arg types must match with method signature
         let arg_hirs = arg_exprs
             .iter()
             .map(|arg_expr| self.convert_expr(arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
-
         self.make_method_call(receiver_hir, &method_name, arg_hirs)
     }
 
+    /// Resolve the method and create HirMethodCall
     fn make_method_call(
         &self,
         receiver_hir: HirExpression,
@@ -559,23 +558,43 @@ impl HirMaker {
     }
 
     /// Resolve constant name
-    fn convert_const_ref(&self, names: &[String]) -> Result<HirExpression, Error> {
+    fn convert_const_ref(&mut self, name: &ConstName) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
-        let fullname = ConstFullname("::".to_string() + &names.join("::"));
-        match self.constants.get(&fullname) {
-            Some(ty) => Ok(Hir::const_ref(ty.clone(), fullname)),
-            None => {
-                let c = class_fullname(&names.join("::"));
-                if self.class_dict.class_exists(&c.0) {
-                    Ok(Hir::const_ref(c.class_ty(), fullname))
-                } else {
-                    Err(error::program_error(&format!(
-                        "constant `{:?}' was not found",
-                        fullname
-                    )))
-                }
-            }
+        if let Some(ty) = self.constants.get(&name.to_const_fullname()) {
+            return Ok(Hir::const_ref(ty.clone(), name.clone()))
         }
+        // Check if it refers to a class
+        if self.class_dict.class_exists(&name.names.join("::")) {
+            self._create_class_const(name);
+            return Ok(Hir::const_ref(name.class_ty(), name.clone()))
+        }
+        Err(error::program_error(&format!("constant `{:?}' was not found", name.fullname())))
+    }
+
+    /// Register constant of a class object
+    fn _create_class_const(&mut self, name: &ConstName) {
+        let idx = self.register_string_literal(&name.string());
+        let expr = Hir::class_literal(name, idx);
+        self.register_const_full(name.to_const_fullname(), expr);
+
+        // If the const is `A<B>`, also create its type `Meta:A<B>`
+        if name.args.len() > 0 {
+            self._create_specialized_meta_class(name);
+        }
+    }
+
+    /// Create `Meta:A<B>` when there is a const `A<B>`
+    fn _create_specialized_meta_class(&mut self, name: &ConstName) {
+        let mut ivars = HashMap::new();
+        ivars.insert("name".to_string(), SkIVar {
+            idx: 0,
+            name: "name".to_string(),
+            ty: ty::raw("String"),
+            readonly: true,
+        });
+        let tyargs = name.args.iter().map(|arg| arg.to_ty()).collect::<Vec<_>>();
+        let cls = self.class_dict.find_class(&class_fullname("Meta:".to_string()+&name.names.join("::"))).unwrap().specialized_meta(&tyargs);
+        self.class_dict.add_class(cls);
     }
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {

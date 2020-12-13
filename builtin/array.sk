@@ -1,11 +1,12 @@
 # TODO: Move to Array::
 BYTES_OF_PTR = 8  # Assuming 64bit env
+INITIAL_CAPA = 10
 
 class Array<T>
-  def initialize(capa: Int)
-    var @capa = capa
+  def initialize
+    var @capa = INITIAL_CAPA
     var @n_items = 0
-    var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * capa)
+    var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
 # TODO #147: Generic methods
@@ -50,3 +51,6 @@ class Array<T>
     @n_items
   end
 end
+
+# Create `Meta:Array` by this ConstRef for array literals (#178)
+Array

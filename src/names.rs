@@ -126,3 +126,59 @@ impl std::fmt::Display for ConstFullname {
 pub fn const_fullname(s: &str) -> ConstFullname {
     ConstFullname(s.to_string())
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConstName {
+    pub names: Vec<String>,
+    pub args: Vec<ConstName>,
+}
+
+impl ConstName {
+    /// Make ConstFullname from self
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        const_fullname(&self.fullname())
+    }
+
+    /// Make ClassFullname from self
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        class_fullname(&self.string())
+    }
+
+    /// Return const name as String
+    pub fn fullname(&self) -> String {
+        "::".to_string() + &self.string()
+    }
+
+    /// Return class name as String
+    pub fn string(&self) -> String {
+        let mut s = self.names.join("::");
+        if !self.args.is_empty() {
+            s += "<";
+            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
+            s += &v.join(",");
+            s += ">";
+        }
+        s
+    }
+
+    /// Make TermTy form self
+    pub fn to_ty(&self) -> TermTy {
+        if self.args.is_empty() {
+            ty::raw(&self.names.join("::"))
+        } else {
+            let type_args = self.args.iter().map(|n| n.to_ty()).collect();
+            ty::spe(&self.names.join("::"), type_args)
+        }
+    }
+
+    /// Make TermTy of the class
+    /// eg. for `::Array<Int>`, returns `TermTy(Meta:Array<Int>)`, which is
+    /// the type of the constant
+    pub fn class_ty(&self) -> TermTy {
+        self.to_ty().meta_ty()
+    }
+}
+
+pub fn const_name(names: Vec<String>) -> ConstName {
+    ConstName { names, args: vec![] }
+}

@@ -32,7 +32,8 @@ impl std::fmt::Display for TermTy {
 
 impl std::fmt::Debug for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TermTy(\"{}\")", self.fullname)
+        write!(f, "TermTy({})", self.fullname)
+        //write!(f, "TermTy({:?})", self.body)
     }
 }
 
@@ -82,11 +83,25 @@ impl TermTy {
     }
 
     pub fn meta_ty(&self) -> TermTy {
-        match self.body {
+        match &self.body {
             TyRaw => ty::meta(&self.fullname.0),
             TyMeta { .. } => ty::class(),
             TyClass => ty::class(),
+            TyGenMeta { .. } => ty::class(),
+            TySpe { base_name, type_args } => {
+                ty::spe_meta(&base_name, type_args.clone())
+            }
+            TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
+        }
+    }
+
+    /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
+    pub fn base_class_name(&self) -> ClassFullname {
+        match &self.body {
+            TySpe { base_name, .. } => class_fullname(base_name),
+            TySpeMeta { base_name, .. } => class_fullname("Meta:".to_string() + base_name),
+            _ => panic!("unexpected"),
         }
     }
 
@@ -122,9 +137,14 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    pub fn substitute(&self, type_args: &[TermTy]) -> TermTy {
+    pub fn substitute(&self, tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { idx, .. } => type_args[*idx].clone(),
+            TyParamRef { idx, .. } => tyargs[*idx].clone(),
+            TySpe { base_name, type_args } => {
+                let args = type_args.iter().map(|t| t.substitute(tyargs)).collect();
+                ty::spe(base_name, args)
+            }
+            TySpeMeta { .. } => todo!(),
             _ => self.clone(),
         }
     }
@@ -168,6 +188,7 @@ impl TermTy {
 }
 
 pub fn raw(fullname: &str) -> TermTy {
+    debug_assert!(!fullname.contains('<'), fullname.to_string());
     TermTy {
         fullname: class_fullname(fullname),
         body: TyRaw,
@@ -175,6 +196,7 @@ pub fn raw(fullname: &str) -> TermTy {
 }
 
 pub fn meta(base_fullname: &str) -> TermTy {
+    debug_assert!(!base_fullname.contains('<'), base_fullname.to_string());
     TermTy {
         fullname: metaclass_fullname(base_fullname),
         body: TyMeta {
@@ -211,10 +233,28 @@ pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
         .collect::<Vec<_>>();
     TermTy {
         fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
-        body: TySpe {
+        body: TySpeMeta {
             base_name: base_name.to_string(),
             type_args,
         },
+    }
+}
+
+/// Create the type of return value of `.new` method of the class
+pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> TermTy {
+    if typarams.is_empty() {
+        ty::raw(&classname.0)
+    } else {
+        let args = typarams.iter().enumerate().map(|(i, s)| {
+            TermTy {
+                fullname: class_fullname(s),
+                body: TyParamRef {
+                    name: s.to_string(),
+                    idx: i,
+                }
+            }
+        }).collect::<Vec<_>>();
+        ty::spe(&classname.0, args)
     }
 }
 

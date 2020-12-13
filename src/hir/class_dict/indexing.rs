@@ -28,7 +28,7 @@ impl ClassDict {
     }
 
     /// Register a class
-    fn add_class(&mut self, class: SkClass) {
+    pub fn add_class(&mut self, class: SkClass) {
         self.sk_classes.insert(class.fullname.clone(), class);
     }
 
@@ -90,7 +90,7 @@ impl ClassDict {
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
             self.initializer_params(&super_name.instance_ty(), &defs),
-            &instance_ty,
+            &ty::return_type_of_new(fullname, typarams),
         );
 
         for def in defs {
@@ -133,6 +133,7 @@ impl ClassDict {
                 }
             }
             None => {
+                let ty_params = typarams.iter().map(|s| TyParam { name: s.to_string() }).collect::<Vec<_>>();
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 if !self.class_exists(&super_name.0) {
@@ -143,7 +144,7 @@ impl ClassDict {
                 }
                 self.add_class(SkClass {
                     fullname: fullname.clone(),
-                    typarams: vec![],
+                    typarams: ty_params.clone(),
                     superclass_fullname: Some(super_name.clone()),
                     instance_ty,
                     ivars: HashMap::new(),
@@ -152,7 +153,7 @@ impl ClassDict {
                 });
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
-                    typarams: vec![],
+                    typarams: ty_params,
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
                     ivars: HashMap::new(),
