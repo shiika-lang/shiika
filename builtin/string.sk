@@ -5,6 +5,22 @@ class String
     @bytesize = bytesize
   end
 
+  # Return true if `self` and `other` has same contents
+  def ==(other: String) -> Bool
+    if @bytesize != other.bytesize
+      false
+    else
+      var ret = true
+      var i = 0; while i < @bytesize
+        if self.nth_byte(i) != other.nth_byte(i)
+          ret = false
+        end
+        i += 1
+      end
+      ret
+    end
+  end
+
   def ptr -> Shiika::Internal::Ptr
     @ptr
   end
@@ -22,6 +38,63 @@ class String
 
   def inspect -> String
     "'" + self + "'"
+  end
+
+  def nth_byte(i: Int) -> Int
+    if i < 0
+      panic "[String#nth_byte: index less than zero]"
+    end
+    if i >= @bytesize
+      panic "[String#nth_byte: index too large]"
+    end
+    (@ptr+i).read
+  end
+
+  # Create a string which has a partial content of `self`
+  def slice_bytes(from: Int, bytes: Int) -> String
+    if from < 0
+      panic "[String#slice_bytes: `from` is less than zero]"
+    end
+    if from + bytes > @bytesize
+      panic "[String#slice_bytes: `from + bytes` too large]"
+    end
+    newptr = Shiika::Internal::Memory.gc_malloc(bytes+1)
+    Shiika::Internal::Memory.memcpy(newptr, @ptr+from, bytes)
+    String.new(newptr, bytes)
+  end
+
+  # Split `self` with separator
+  def split(sep: String) -> Array<String>
+    if sep.bytesize == 0
+      [self]
+    else
+      ret = Array<String>.new
+      var word_start = 0
+      var sep_cur = 0
+      var i = 0
+      while i < @bytesize
+        if self.nth_byte(i) == sep.nth_byte(sep_cur)
+          sep_cur += 1
+          if sep_cur == sep.bytesize
+            # Found a separator.
+            ret.push(self.slice_bytes(word_start, i - word_start - sep.bytesize + 1))
+            word_start = i + 1
+            sep_cur = 0
+          end
+          0 # TODO: #184
+        else
+          # Not a separator here
+          sep_cur = 0
+        end
+        i += 1
+      end
+      # The last part
+      if word_start < @bytesize
+        ret.push(self.slice_bytes(word_start, @bytesize - word_start))
+      end
+
+      ret
+    end
   end
 
   def to_s -> String
