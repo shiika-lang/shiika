@@ -99,6 +99,18 @@ $ cargo build
 $ cargo test
 ```
 
+Only integration tests (test/sk/*.sk):
+
+```
+$ cargo test --test integration_test
+```
+
+Specific file under test/sk/ (eg. string.sk):
+
+```
+$ FILTER=string cargo test --test integration_test
+```
+
 ### How to run a Shiika program
 
 ```
