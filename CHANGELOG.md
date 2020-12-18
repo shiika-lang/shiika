@@ -1,3 +1,7 @@
+## HEAD
+
+- feat: String#split, #slice_bytes, #== (#187)
+
 ## v0.5.1 (2020-12-04)
 
 - feat: Block syntax (#173)
