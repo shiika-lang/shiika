@@ -657,16 +657,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_class_literal(
         &self,
         fullname: &ClassFullname,
-        str_literal_idx: &usize,
+        _str_literal_idx: &usize,
     ) -> inkwell::values::BasicValueEnum {
         let cls_obj = self.allocate_sk_obj(&fullname.meta_name(), &format!("class_{}", fullname.0));
-        // Set @name
-        self.build_ivar_store(
-            &cls_obj,
-            0,
-            self.gen_string_literal(str_literal_idx),
-            "@name",
-        );
+        // Set @name #188
+        //self.build_ivar_store(
+        //    &cls_obj,
+        //    0,
+        //    self.gen_string_literal(str_literal_idx),
+        //    "@name",
+        //);
 
         cls_obj
     }
