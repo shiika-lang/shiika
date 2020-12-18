@@ -209,7 +209,7 @@ impl<'a> Lexer<'a> {
             CharType::IVar => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
             CharType::Symbol => self.read_symbol(&mut next_next_cur),
             CharType::Number => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Str => (self.read_str(&mut next_next_cur, Some(&next_cur)), None),
+            CharType::Str => (self.read_str(&mut next_next_cur), None),
             CharType::Eof => (self.read_eof(), None),
         };
         token
@@ -238,7 +238,7 @@ impl<'a> Lexer<'a> {
                 Some(LexerState::ExprEnd),
             ),
             CharType::Str => (
-                self.read_str(&mut next_cur, None),
+                self.read_str(&mut next_cur),
                 Some(LexerState::ExprEnd),
             ),
             CharType::Eof => (self.read_eof(), None),
@@ -564,7 +564,10 @@ impl<'a> Lexer<'a> {
         Token::Number(self.src[begin..next_cur.pos].to_string())
     }
 
-    fn read_str(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
+    /// Read a string literal
+    /// Also parse escape sequences here
+    fn read_str(&mut self, next_cur: &mut Cursor) -> Token {
+        let mut buf = String::new();
         next_cur.proceed(self.src);
         loop {
             match next_cur.peek(self.src) {
@@ -576,16 +579,35 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     break;
                 }
-                _ => {
+                Some('\\') => {
                     next_cur.proceed(self.src);
+                    let c = self._read_escape_sequence(next_cur.peek(self.src));
+                    next_cur.proceed(self.src);
+                    buf.push(c);
+                }
+                Some(c) => {
+                    next_cur.proceed(self.src);
+                    buf.push(c);
                 }
             }
         }
-        let begin = match cur {
-            Some(c) => c.pos,
-            None => self.cur.pos,
-        };
-        Token::Str(self.src[(begin + 1)..(next_cur.pos - 1)].to_string())
+        Token::Str(buf)
+    }
+
+    /// Return special char written with '\'
+    fn _read_escape_sequence(&self, c: Option<char>) -> char {
+        match c {
+            None => {
+                // TODO: should be a LexError
+                panic!("found unterminated string");
+            }
+            Some('\\') => '\\',
+            Some('"') => '"',
+            Some('n') => '\n',
+            Some('t') => '\t',
+            Some('r') => '\r',
+            Some(c) => c,
+        }
     }
 
     fn read_eof(&mut self) -> Token {
