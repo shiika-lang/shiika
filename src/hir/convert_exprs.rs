@@ -196,7 +196,7 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let existing_lvar = self.lookup_var(name, true);
+        let existing_lvar = self._lookup_var(name, true);
         let ctx = self.ctx_mut();
         // REFACTOR: since we have `existing_lvar` now, we don't need to see `ctx.lvars` here.
         match ctx.lvars.get(name) {
@@ -433,7 +433,7 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
-        if let Some(lvar_info) = self.lookup_var(name, false) {
+        if let Some(lvar_info) = self._lookup_var(name, false) {
             Ok(lvar_info.ref_expr())
         } else {
             Err(error::program_error(&format!(
@@ -446,7 +446,7 @@ impl HirMaker {
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
     /// If `updating` is true, readonly variables are skipped
-    fn lookup_var(&mut self, name: &str, updating: bool) -> Option<LVarInfo> {
+    fn _lookup_var(&mut self, name: &str, updating: bool) -> Option<LVarInfo> {
         let ctx = self.ctx();
         // Local
         if let Some(lvar) = ctx.find_lvar(name) {
