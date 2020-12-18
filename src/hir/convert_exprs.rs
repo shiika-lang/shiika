@@ -561,14 +561,17 @@ impl HirMaker {
     fn convert_const_ref(&mut self, name: &ConstName) -> Result<HirExpression, Error> {
         // TODO: Resolve using ctx
         if let Some(ty) = self.constants.get(&name.to_const_fullname()) {
-            return Ok(Hir::const_ref(ty.clone(), name.clone()))
+            return Ok(Hir::const_ref(ty.clone(), name.clone()));
         }
         // Check if it refers to a class
         if self.class_dict.class_exists(&name.names.join("::")) {
             self._create_class_const(name);
-            return Ok(Hir::const_ref(name.class_ty(), name.clone()))
+            return Ok(Hir::const_ref(name.class_ty(), name.clone()));
         }
-        Err(error::program_error(&format!("constant `{:?}' was not found", name.fullname())))
+        Err(error::program_error(&format!(
+            "constant `{:?}' was not found",
+            name.fullname()
+        )))
     }
 
     /// Register constant of a class object
@@ -586,14 +589,23 @@ impl HirMaker {
     /// Create `Meta:A<B>` when there is a const `A<B>`
     fn _create_specialized_meta_class(&mut self, name: &ConstName) {
         let mut ivars = HashMap::new();
-        ivars.insert("name".to_string(), SkIVar {
-            idx: 0,
-            name: "name".to_string(),
-            ty: ty::raw("String"),
-            readonly: true,
-        });
+        ivars.insert(
+            "name".to_string(),
+            SkIVar {
+                idx: 0,
+                name: "name".to_string(),
+                ty: ty::raw("String"),
+                readonly: true,
+            },
+        );
         let tyargs = name.args.iter().map(|arg| arg.to_ty()).collect::<Vec<_>>();
-        let cls = self.class_dict.find_class(&class_fullname("Meta:".to_string()+&name.names.join("::"))).unwrap().specialized_meta(&tyargs);
+        let cls = self
+            .class_dict
+            .find_class(&class_fullname(
+                "Meta:".to_string() + &name.names.join("::"),
+            ))
+            .unwrap()
+            .specialized_meta(&tyargs);
         self.class_dict.add_class(cls);
     }
 

@@ -88,9 +88,10 @@ impl TermTy {
             TyMeta { .. } => ty::class(),
             TyClass => ty::class(),
             TyGenMeta { .. } => ty::class(),
-            TySpe { base_name, type_args } => {
-                ty::spe_meta(&base_name, type_args.clone())
-            }
+            TySpe {
+                base_name,
+                type_args,
+            } => ty::spe_meta(&base_name, type_args.clone()),
             TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
         }
@@ -140,7 +141,10 @@ impl TermTy {
     pub fn substitute(&self, tyargs: &[TermTy]) -> TermTy {
         match &self.body {
             TyParamRef { idx, .. } => tyargs[*idx].clone(),
-            TySpe { base_name, type_args } => {
+            TySpe {
+                base_name,
+                type_args,
+            } => {
                 let args = type_args.iter().map(|t| t.substitute(tyargs)).collect();
                 ty::spe(base_name, args)
             }
@@ -245,15 +249,17 @@ pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> Ter
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {
-        let args = typarams.iter().enumerate().map(|(i, s)| {
-            TermTy {
+        let args = typarams
+            .iter()
+            .enumerate()
+            .map(|(i, s)| TermTy {
                 fullname: class_fullname(s),
                 body: TyParamRef {
                     name: s.to_string(),
                     idx: i,
-                }
-            }
-        }).collect::<Vec<_>>();
+                },
+            })
+            .collect::<Vec<_>>();
         ty::spe(&classname.0, args)
     }
 }

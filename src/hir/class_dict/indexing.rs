@@ -133,7 +133,12 @@ impl ClassDict {
                 }
             }
             None => {
-                let ty_params = typarams.iter().map(|s| TyParam { name: s.to_string() }).collect::<Vec<_>>();
+                let ty_params = typarams
+                    .iter()
+                    .map(|s| TyParam {
+                        name: s.to_string(),
+                    })
+                    .collect::<Vec<_>>();
                 // Add `.new` to the metaclass
                 class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
                 if !self.class_exists(&super_name.0) {

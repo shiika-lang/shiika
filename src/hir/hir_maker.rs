@@ -215,7 +215,8 @@ impl HirMaker {
         let (initialize_name, init_cls_name) =
             self._find_initialize(&class_fullname.instance_ty())?;
         let need_bitcast = init_cls_name != class_fullname;
-        let (signature, _) = self.class_dict
+        let (signature, _) = self
+            .class_dict
             .lookup_method(&class_fullname.class_ty(), &method_firstname("new"))?;
         let arity = signature.params.len();
 
@@ -255,7 +256,7 @@ impl HirMaker {
         };
 
         Ok(SkMethod {
-            signature, 
+            signature,
             body: SkMethodBody::RustClosureMethodBody {
                 boxed_gen: Box::new(new_body),
             },
@@ -264,17 +265,11 @@ impl HirMaker {
     }
 
     /// Find actual `initialize` func to call from `.new`
-    fn _find_initialize(
-        &self,
-        class: &TermTy,
-    ) -> Result<(MethodFullname, ClassFullname), Error> {
+    fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
         let (_, found_cls) = self
             .class_dict
             .lookup_method(&class, &method_firstname("initialize"))?;
-        Ok((
-            names::method_fullname(&found_cls, "initialize"),
-            found_cls,
-        ))
+        Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
     /// Resolve and register a constant
@@ -295,7 +290,7 @@ impl HirMaker {
         &mut self,
         fullname: ConstFullname,
         hir_expr: HirExpression,
-    ) -> ConstFullname  {
+    ) -> ConstFullname {
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::assign_const(fullname.clone(), hir_expr);
         self.const_inits.push(op);

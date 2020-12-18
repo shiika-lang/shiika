@@ -38,13 +38,17 @@ impl SkClass {
     pub fn specialized_meta(&self, tyargs: &[TermTy]) -> SkClass {
         // `self` must be a generic metaclass.
         debug_assert!(self.typarams.len() > 0);
-        let base_name =
-            if let TyBody::TyMeta { base_fullname } = &self.instance_ty.body { base_fullname }
-            else { panic!("SkClass::specialize: not TyMeta") };
+        let base_name = if let TyBody::TyMeta { base_fullname } = &self.instance_ty.body {
+            base_fullname
+        } else {
+            panic!("SkClass::specialize: not TyMeta")
+        };
         let instance_ty = ty::spe_meta(&base_name, tyargs.to_vec());
-        let method_sigs = self.method_sigs.iter().map(|(name, sig)| {
-            (name.clone(), sig.specialize(tyargs))
-        }).collect(); //::<Vec<_>>;
+        let method_sigs = self
+            .method_sigs
+            .iter()
+            .map(|(name, sig)| (name.clone(), sig.specialize(tyargs)))
+            .collect(); //::<Vec<_>>;
 
         SkClass {
             fullname: instance_ty.fullname.clone(),

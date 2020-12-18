@@ -247,10 +247,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (name, class) in classes {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match name.0.as_str() {
-                "Int" => { struct_type.set_body(&[vt, self.i32_type.into()], false); }
-                "Float" => { struct_type.set_body(&[vt, self.f64_type.into()], false); }
-                "Bool" => { struct_type.set_body(&[vt, self.i1_type.into()], false); }
-                "Shiika::Internal::Ptr" => { struct_type.set_body(&[vt, self.i8ptr_type.into()], false); }
+                "Int" => {
+                    struct_type.set_body(&[vt, self.i32_type.into()], false);
+                }
+                "Float" => {
+                    struct_type.set_body(&[vt, self.f64_type.into()], false);
+                }
+                "Bool" => {
+                    struct_type.set_body(&[vt, self.i1_type.into()], false);
+                }
+                "Shiika::Internal::Ptr" => {
+                    struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
+                }
                 _ => {
                     struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
                 }

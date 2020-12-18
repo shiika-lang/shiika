@@ -180,5 +180,8 @@ impl ConstName {
 }
 
 pub fn const_name(names: Vec<String>) -> ConstName {
-    ConstName { names, args: vec![] }
+    ConstName {
+        names,
+        args: vec![],
+    }
 }

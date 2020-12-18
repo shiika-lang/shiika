@@ -36,7 +36,7 @@ impl ClassDict {
                 let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
                 Ok((base_sig.specialize(&type_args), found_cls))
             }
-            _ => todo!()
+            _ => todo!(),
         }
     }
 

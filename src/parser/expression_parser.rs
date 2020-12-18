@@ -1,5 +1,5 @@
-use crate::parser::base::*;
 use crate::names::ConstName;
+use crate::parser::base::*;
 use std::collections::HashMap;
 
 impl<'a> Parser<'a> {
@@ -698,17 +698,20 @@ impl<'a> Parser<'a> {
         let mut args = vec![];
         loop {
             match self.current_token() {
-                Token::ColonColon => { // `A::B`
+                Token::ColonColon => {
+                    // `A::B`
                     if lessthan_seen {
                         return Err(parse_error!(self, "unexpected `::'"));
                     }
                     self.consume_token();
                 }
-                Token::LessThan => { // `A<B>`
+                Token::LessThan => {
+                    // `A<B>`
                     lessthan_seen = true;
                     self.consume_token();
                 }
-                Token::GreaterThan => { // `A<B>`
+                Token::GreaterThan => {
+                    // `A<B>`
                     if recursing {
                         break;
                     }
@@ -718,7 +721,8 @@ impl<'a> Parser<'a> {
                     self.consume_token();
                     break;
                 }
-                Token::Comma => { // `A<B, C>`
+                Token::Comma => {
+                    // `A<B, C>`
                     if !lessthan_seen {
                         return Err(parse_error!(self, "unexpected `,'"));
                     }

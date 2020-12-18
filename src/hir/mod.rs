@@ -96,7 +96,10 @@ impl HirExpressions {
     // Destructively convert Vec<HirExpression> into HirExpressions
     pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
         if exprs.is_empty() {
-            exprs.push(Hir::const_ref(ty::raw("Void"), const_name(vec!["Void".to_string()])))
+            exprs.push(Hir::const_ref(
+                ty::raw("Void"),
+                const_name(vec!["Void".to_string()]),
+            ))
         }
 
         let last_expr = exprs.last().unwrap();
