@@ -123,23 +123,7 @@ impl HirMaker {
         fullname: &ClassFullname,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
-        self.register_meta_ivar(&fullname)?;
         self.process_defs(defs, &fullname)?;
-        Ok(())
-    }
-
-    fn register_meta_ivar(&mut self, name: &ClassFullname) -> Result<(), Error> {
-        let mut meta_ivars = HashMap::new();
-        meta_ivars.insert(
-            "name".to_string(),
-            SkIVar {
-                name: "name".to_string(),
-                idx: 0,
-                ty: ty::raw("String"),
-                readonly: true,
-            },
-        );
-        self.define_ivars(&name.meta_name(), meta_ivars, &[])?;
         Ok(())
     }
 
