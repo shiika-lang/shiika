@@ -1,6 +1,7 @@
 ## HEAD
 
 - feat: String#split, #slice_bytes, #== (#187)
+- feat: `\n`, etc. (#190)
 
 ## v0.5.1 (2020-12-04)
 
