@@ -390,11 +390,14 @@ impl HirMaker {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
         let hir_params = signature::convert_params(params, &[]);
+
+        // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.pop_ctx();
+
         let lvars = lambda_ctx.extract_lvars();
-        let captures = self.resolve_lambda_captures(lambda_ctx);
+        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
         Ok(Hir::lambda_expr(
             lambda_id, hir_params, hir_exprs, captures, lvars,
         ))
@@ -402,10 +405,9 @@ impl HirMaker {
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn resolve_lambda_captures(&mut self, lambda_ctx: HirMakerContext) -> Vec<HirLambdaCapture> {
+    fn _resolve_lambda_captures(&mut self, captures: Vec<LambdaCapture>) -> Vec<HirLambdaCapture> {
         let ctx = self.ctx_mut();
-        lambda_ctx
-            .captures
+        captures
             .into_iter()
             .map(|cap| {
                 if cap.ctx_depth == ctx.depth {
