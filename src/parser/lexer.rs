@@ -4,11 +4,14 @@ use super::token::Token;
 pub struct Lexer<'a> {
     pub src: &'a str,
     pub cur: Cursor,
+    pub current_token: Token,
+    next_cur: Option<Cursor>,
+    /// Flag to decide +/- etc. is unary or binary
     state: LexerState,
     /// true if the last token is a space
     space_seen: bool,
-    pub current_token: Token,
-    next_cur: Option<Cursor>,
+    /// If true, parse `>>` as `>` + `>`
+    pub rshift_is_gtgt: bool,
 }
 
 /// Flags to decide a `-`, `+`, etc. is unary or binary.
@@ -32,6 +35,9 @@ pub enum LexerState {
     /// Beginning of a (possible) first paren-less arg of a method call.
     /// `+`/`-` is unary, if with space before it and no space after it (`p -x`)
     ExprArg,
+
+    // Special states
+
     /// Expects a method name
     /// eg. `+@`, `-@` is allowed only in this state
     MethodName,
@@ -107,10 +113,11 @@ impl<'a> Lexer<'a> {
         let mut lexer = Lexer {
             src,
             cur: Cursor::new(),
-            state,
-            space_seen: false,
             next_cur: None,
             current_token: Token::Bof,
+            state,
+            space_seen: false,
+            rshift_is_gtgt: false,
         };
         lexer.read_token();
         lexer
@@ -455,13 +462,18 @@ impl<'a> Lexer<'a> {
                     next_cur.proceed(self.src);
                     (Token::GreaterEq, LexerState::ExprBegin)
                 } else if c2 == Some('>') {
-                    next_cur.proceed(self.src);
-                    let c3 = next_cur.peek(self.src);
-                    if c3 == Some('=') {
-                        next_cur.proceed(self.src);
-                        (Token::RShiftEq, LexerState::ExprBegin)
+                    if self.rshift_is_gtgt {
+                        // Don't make it RShift (eg. `Array<Array<Int>>`)
+                        (Token::GreaterThan, LexerState::ExprBegin)
                     } else {
-                        (Token::RShift, LexerState::ExprBegin)
+                        next_cur.proceed(self.src);
+                        let c3 = next_cur.peek(self.src);
+                        if c3 == Some('=') {
+                            next_cur.proceed(self.src);
+                            (Token::RShiftEq, LexerState::ExprBegin)
+                        } else {
+                            (Token::RShift, LexerState::ExprBegin)
+                        }
                     }
                 } else {
                     (Token::GreaterThan, LexerState::ExprBegin)
@@ -528,6 +540,8 @@ impl<'a> Lexer<'a> {
             LexerState::ExprBegin => true,
             LexerState::ExprEnd => false,
             LexerState::ExprArg => self.current_token == Token::Space && next_char != Some(' '),
+
+            // is_unary does not make sense at this state. Just return false
             LexerState::MethodName => false,
         }
     }

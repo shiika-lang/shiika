@@ -110,6 +110,10 @@ impl<'a> Parser<'a> {
         self.lexer.set_state(state);
     }
 
+    pub(super) fn set_lexer_gtgt_mode(&mut self, mode: bool) {
+        self.lexer.rshift_is_gtgt = mode;
+    }
+
     pub(super) fn parseerror(&self, msg: &str) -> Error {
         Error {
             msg: msg.to_string(),

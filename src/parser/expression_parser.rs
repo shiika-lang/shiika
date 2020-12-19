@@ -685,6 +685,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_const_ref");
         let name = self._parse_const_ref(s, false)?;
+        self.set_lexer_gtgt_mode(false); // End special mode
         self.lv -= 1;
         Ok(ast::const_ref(name))
     }
@@ -697,7 +698,8 @@ impl<'a> Parser<'a> {
         let mut lessthan_seen = false;
         let mut args = vec![];
         loop {
-            match self.current_token() {
+            let tok = self.current_token();
+            match tok {
                 Token::ColonColon => {
                     // `A::B`
                     if lessthan_seen {
@@ -708,6 +710,7 @@ impl<'a> Parser<'a> {
                 Token::LessThan => {
                     // `A<B>`
                     lessthan_seen = true;
+                    self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
                     self.consume_token();
                     self.skip_wsn();
                 }
@@ -734,7 +737,8 @@ impl<'a> Parser<'a> {
                     let name = s.to_string();
                     self.consume_token();
                     if lessthan_seen {
-                        args.push(self._parse_const_ref(name, true)?);
+                        let inner = self._parse_const_ref(name, true)?;
+                        args.push(inner);
                         self.skip_wsn();
                     } else {
                         names.push(name);
