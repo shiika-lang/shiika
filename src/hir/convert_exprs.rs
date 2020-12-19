@@ -196,7 +196,7 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let existing_lvar = self.lookup_var(name, true);
+        let existing_lvar = self._lookup_var(name, true);
         let ctx = self.ctx_mut();
         // REFACTOR: since we have `existing_lvar` now, we don't need to see `ctx.lvars` here.
         match ctx.lvars.get(name) {
@@ -390,11 +390,14 @@ impl HirMaker {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
         let hir_params = signature::convert_params(params, &[]);
+
+        // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.pop_ctx();
+
         let lvars = lambda_ctx.extract_lvars();
-        let captures = self.resolve_lambda_captures(lambda_ctx);
+        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
         Ok(Hir::lambda_expr(
             lambda_id, hir_params, hir_exprs, captures, lvars,
         ))
@@ -402,10 +405,9 @@ impl HirMaker {
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn resolve_lambda_captures(&mut self, lambda_ctx: HirMakerContext) -> Vec<HirLambdaCapture> {
+    fn _resolve_lambda_captures(&mut self, captures: Vec<LambdaCapture>) -> Vec<HirLambdaCapture> {
         let ctx = self.ctx_mut();
-        lambda_ctx
-            .captures
+        captures
             .into_iter()
             .map(|cap| {
                 if cap.ctx_depth == ctx.depth {
@@ -431,7 +433,7 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
-        if let Some(lvar_info) = self.lookup_var(name, false) {
+        if let Some(lvar_info) = self._lookup_var(name, false) {
             Ok(lvar_info.ref_expr())
         } else {
             Err(error::program_error(&format!(
@@ -444,7 +446,7 @@ impl HirMaker {
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
     /// If `updating` is true, readonly variables are skipped
-    fn lookup_var(&mut self, name: &str, updating: bool) -> Option<LVarInfo> {
+    fn _lookup_var(&mut self, name: &str, updating: bool) -> Option<LVarInfo> {
         let ctx = self.ctx();
         // Local
         if let Some(lvar) = ctx.find_lvar(name) {

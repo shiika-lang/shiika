@@ -83,10 +83,10 @@ impl HirMakerContext {
     }
 
     /// Create a class context
-    pub fn class_ctx(fullname: &ClassFullname) -> HirMakerContext {
+    pub fn class_ctx(fullname: &ClassFullname, depth: usize) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
-            depth: 0,
+            depth,
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
@@ -107,7 +107,7 @@ impl HirMakerContext {
     ) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Method,
-            depth: 0,
+            depth: class_ctx.depth + 1,
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
@@ -179,6 +179,11 @@ impl HirMaker {
         self.ctx_stack.pop().unwrap()
     }
 
+    /// Returns depth of next ctx
+    pub(super) fn next_ctx_depth(&self) -> usize {
+        self.ctx_stack.len()
+    }
+
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
         let mut i = (self.ctx_stack.len() as isize) - 1;
         while i >= 0 {
@@ -204,13 +209,8 @@ impl HirMaker {
     }
 
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
-        match ctx.kind {
-            CtxKind::Method | CtxKind::Toplevel => return None,
-            _ => (),
-        };
-        if ctx.depth == 0 {
-            return None;
-        }
+        if ctx.kind != CtxKind::Lambda { return None }
+        if ctx.depth == 0 { return None }
         let outer_ctx = &self.ctx_stack[ctx.depth - 1];
         Some(outer_ctx)
     }
