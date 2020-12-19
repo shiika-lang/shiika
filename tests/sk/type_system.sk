@@ -1,0 +1,6 @@
+# `(String) -> Int` conforms to `(T) -> Void` (#197)
+[""].each do |s: String|
+  0
+end
+
+puts "ok"

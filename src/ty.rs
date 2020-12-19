@@ -110,9 +110,25 @@ impl TermTy {
     /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
         if let TyParamRef { .. } = other.body {
-            return self == &ty::raw("Object"); // The upper bound
+            self == &ty::raw("Object") // The upper bound
+        } else if let TySpe { base_name, type_args } = &self.body {
+            if let TySpe { base_name: b2, type_args: a2 } = &other.body {
+                if base_name != b2 { return false } // TODO: Relax this condition
+                for (i, a) in type_args.iter().enumerate() {
+                    // Invariant
+                    if a.equals_to(&a2[i]) || a2[i].is_void_type() {
+                        // ok
+                    } else {
+                        return false
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            self.equals_to(other) || class_dict.is_descendant(self, other)
         }
-        self.equals_to(other) || class_dict.is_descendant(self, other)
     }
 
     /// Return true if two types are identical
