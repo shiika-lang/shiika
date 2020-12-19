@@ -3,6 +3,7 @@
 - feat: String#split, #slice_bytes, #== (#187)
 - feat: String#each_byte, #to_i (7474253b)
 - feat: `\n`, etc. (#190)
+- fixes: #183
 
 ## v0.5.1 (2020-12-04)
 
