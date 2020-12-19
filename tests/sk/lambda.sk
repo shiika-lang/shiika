@@ -7,11 +7,11 @@ if ff.call(1, 2) != 3; puts "ng 1-1"; end
 
 # Lambda in a method
 class A
-  def self.foo -> Int
-    fn(x: Int){ x + 1 }.call(1)
+  def self.foo(i: Int) -> Int
+    fn(x: Int){ x + i }.call(1)
   end
 end
-if A.foo != 2; puts "ng 2"; end
+if A.foo(1) != 2; puts "ng 2"; end
 
 # Capturing free vars
 var a = 1
