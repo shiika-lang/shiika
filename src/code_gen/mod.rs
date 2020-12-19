@@ -133,11 +133,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("floor", fn_type, None);
 
-        let str_type = self.i8_type.array_type(3);
+        let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
         global.set_linkage(inkwell::module::Linkage::Internal);
         global.set_initializer(&self.i8_type.const_array(&[
             self.i8_type.const_int(37, false),  // %
+            self.i8_type.const_int(108, false), // l
             self.i8_type.const_int(100, false), // d
             self.i8_type.const_int(0, false),
         ]));
