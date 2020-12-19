@@ -232,7 +232,7 @@ pub fn create_methods() -> Vec<SkMethod> {
         create_method("Int", "-@ -> Int", |code_gen, function| {
             let sk_int = function.get_params()[0];
             let this = code_gen.unbox_int(sk_int);
-            let zero = code_gen.i32_type.const_int(0, false);
+            let zero = code_gen.i64_type.const_int(0, false);
             let result = code_gen.builder.build_int_sub(zero, this, "result");
             let sk_result = code_gen.box_int(&result);
             code_gen.builder.build_return(Some(&sk_result));

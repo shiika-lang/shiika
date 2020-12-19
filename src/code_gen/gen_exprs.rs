@@ -545,8 +545,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.box_float(&self.f64_type.const_float(value))
     }
 
-    fn gen_decimal_literal(&self, value: i32) -> inkwell::values::BasicValueEnum {
-        self.box_int(&self.i32_type.const_int(value as u64, false))
+    fn gen_decimal_literal(&self, value: i64) -> inkwell::values::BasicValueEnum {
+        self.box_int(&self.i64_type.const_int(value as u64, false))
     }
 
     /// Create a string object
@@ -563,7 +563,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .build_bitcast(global, self.i8ptr_type, "")
             .into_pointer_value();
         let bytesize = self
-            .i32_type
+            .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
@@ -604,7 +604,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let item = self.gen_llvm_func_call(
             "Array#nth",
             captures,
-            vec![self.gen_decimal_literal(*idx_in_captures as i32)],
+            vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
         if deref {
             // `item` is a pointer
@@ -632,7 +632,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr_ = self.gen_llvm_func_call(
             "Array#nth",
             captures,
-            vec![self.gen_decimal_literal(*idx_in_captures as i32)],
+            vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
         let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
         let ptr = self

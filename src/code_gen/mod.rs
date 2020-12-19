@@ -248,7 +248,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match name.0.as_str() {
                 "Int" => {
-                    struct_type.set_body(&[vt, self.i32_type.into()], false);
+                    struct_type.set_body(&[vt, self.i64_type.into()], false);
                 }
                 "Float" => {
                     struct_type.set_body(&[vt, self.f64_type.into()], false);

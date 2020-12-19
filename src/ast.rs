@@ -118,7 +118,7 @@ pub enum AstExpressionBody {
         value: f64,
     },
     DecimalLiteral {
-        value: i32,
+        value: i64,
     },
     StringLiteral {
         content: String,
@@ -315,7 +315,7 @@ pub fn float_literal(value: f64) -> AstExpression {
     primary_expression(AstExpressionBody::FloatLiteral { value })
 }
 
-pub fn decimal_literal(value: i32) -> AstExpression {
+pub fn decimal_literal(value: i64) -> AstExpression {
     primary_expression(AstExpressionBody::DecimalLiteral { value })
 }
 

@@ -199,7 +199,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             let float = code_gen.unbox_float(this);
             let int = code_gen
                 .builder
-                .build_float_to_signed_int(float, code_gen.i32_type, "int");
+                .build_float_to_signed_int(float, code_gen.i64_type, "int");
             let sk_int = code_gen.box_int(&int);
             code_gen.builder.build_return(Some(&sk_int));
             Ok(())

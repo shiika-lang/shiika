@@ -56,11 +56,11 @@ pub fn create_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let i8ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let i8val = code_gen.builder.build_load(i8ptr, "i8val").into_int_value();
-                let i32val =
+                let i64val =
                     code_gen
                         .builder
-                        .build_int_z_extend(i8val, code_gen.i32_type, "i32val");
-                let sk_int = code_gen.box_int(&i32val);
+                        .build_int_z_extend(i8val, code_gen.i64_type, "i64val");
+                let sk_int = code_gen.box_int(&i64val);
                 code_gen.builder.build_return(Some(&sk_int));
                 Ok(())
             },
