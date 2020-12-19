@@ -8,20 +8,6 @@ pub fn create_methods() -> Vec<SkMethod> {
             code_gen.builder.build_return(None);
             Ok(())
         }),
-        create_method(
-            "Object",
-            "putchar(ord: Int) -> Void",
-            |code_gen, function| {
-                let sk_int = function.get_params()[1];
-                let n = code_gen.unbox_int(sk_int);
-                let func = code_gen.module.get_function("putchar").unwrap();
-                code_gen
-                    .builder
-                    .build_call(func, &[n.as_basic_value_enum()], "");
-                code_gen.builder.build_return(None);
-                Ok(())
-            },
-        ),
         create_method("Object", "putd(n: Int) -> Void", |code_gen, function| {
             let sk_int = function.get_params()[1];
             let n = code_gen.unbox_int(sk_int);

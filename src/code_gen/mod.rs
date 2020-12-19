@@ -94,8 +94,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_declares(&self) {
-        let fn_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
-        self.module.add_function("putchar", fn_type, None);
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], true);
         self.module.add_function("printf", fn_type, None);
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], false);
