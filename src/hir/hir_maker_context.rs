@@ -204,13 +204,8 @@ impl HirMaker {
     }
 
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
-        match ctx.kind {
-            CtxKind::Method | CtxKind::Toplevel => return None,
-            _ => (),
-        };
-        if ctx.depth == 0 {
-            return None;
-        }
+        if ctx.kind != CtxKind::Lambda { return None }
+        if ctx.depth == 0 { return None }
         let outer_ctx = &self.ctx_stack[ctx.depth - 1];
         Some(outer_ctx)
     }
