@@ -94,8 +94,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_declares(&self) {
-        let fn_type = self.i32_type.fn_type(&[self.i32_type.into()], false);
-        self.module.add_function("putchar", fn_type, None);
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], true);
         self.module.add_function("printf", fn_type, None);
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], false);
@@ -135,11 +133,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
         self.module.add_function("floor", fn_type, None);
 
-        let str_type = self.i8_type.array_type(3);
+        let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
         global.set_linkage(inkwell::module::Linkage::Internal);
         global.set_initializer(&self.i8_type.const_array(&[
             self.i8_type.const_int(37, false),  // %
+            self.i8_type.const_int(108, false), // l
             self.i8_type.const_int(100, false), // d
             self.i8_type.const_int(0, false),
         ]));
@@ -248,7 +247,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match name.0.as_str() {
                 "Int" => {
-                    struct_type.set_body(&[vt, self.i32_type.into()], false);
+                    struct_type.set_body(&[vt, self.i64_type.into()], false);
                 }
                 "Float" => {
                     struct_type.set_body(&[vt, self.f64_type.into()], false);

@@ -185,7 +185,7 @@ pub enum HirExpressionBase {
         value: f64,
     },
     HirDecimalLiteral {
-        value: i32,
+        value: i64,
     },
     /// A string literal. Its body is stored in str_literals
     HirStringLiteral {
@@ -430,7 +430,7 @@ impl Hir {
         }
     }
 
-    pub fn decimal_literal(value: i32) -> HirExpression {
+    pub fn decimal_literal(value: i64) -> HirExpression {
         HirExpression {
             ty: ty::raw("Int"),
             node: HirExpressionBase::HirDecimalLiteral { value },
