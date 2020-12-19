@@ -5,4 +5,7 @@ class Foo
 end
 if Foo.bar([99]) != 99; puts "ng 1"; end
 
+a = Array<Array<Int>>.new
+unless a.length == 0; puts "ng 2"; end
+
 puts "ok"
