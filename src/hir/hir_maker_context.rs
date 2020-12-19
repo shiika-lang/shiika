@@ -83,10 +83,10 @@ impl HirMakerContext {
     }
 
     /// Create a class context
-    pub fn class_ctx(fullname: &ClassFullname) -> HirMakerContext {
+    pub fn class_ctx(fullname: &ClassFullname, depth: usize) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
-            depth: 0,
+            depth,
             method_sig: None,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
@@ -107,7 +107,7 @@ impl HirMakerContext {
     ) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Method,
-            depth: 0,
+            depth: class_ctx.depth + 1,
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
@@ -177,6 +177,11 @@ impl HirMaker {
 
     pub(super) fn pop_ctx(&mut self) -> HirMakerContext {
         self.ctx_stack.pop().unwrap()
+    }
+
+    /// Returns depth of next ctx
+    pub(super) fn next_ctx_depth(&self) -> usize {
+        self.ctx_stack.len()
     }
 
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
