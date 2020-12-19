@@ -17,18 +17,19 @@ class Array<T>
     end
   end
 
+  # Push an object to the end of `self`
   def push(value: T)
     if @n_items == @capa
       if @capa < 1024
-        @capa = @capa * 2
+        @capa *= 2
       else
-        @capa= @capa + 256
+        @capa += 256
       end
       @items = Shiika::Internal::Memory.gc_realloc(@items, BYTES_OF_PTR * @capa + 1)
     end
     ptr = @items + @n_items * BYTES_OF_PTR
     ptr.store(value)
-    @n_items = @n_items + 1
+    @n_items += 1
   end
 
   # TODO #155: rename to `#[]`
