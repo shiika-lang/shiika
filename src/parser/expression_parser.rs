@@ -709,17 +709,18 @@ impl<'a> Parser<'a> {
                     // `A<B>`
                     lessthan_seen = true;
                     self.consume_token();
+                    self.skip_wsn();
                 }
                 Token::GreaterThan => {
                     // `A<B>`
-                    if recursing {
+                    if lessthan_seen {
+                        self.consume_token();
                         break;
-                    }
-                    if !lessthan_seen {
+                    } else if recursing {
+                        break;
+                    } else {
                         return Err(parse_error!(self, "unexpected `>'"));
                     }
-                    self.consume_token();
-                    break;
                 }
                 Token::Comma => {
                     // `A<B, C>`
@@ -734,6 +735,7 @@ impl<'a> Parser<'a> {
                     self.consume_token();
                     if lessthan_seen {
                         args.push(self._parse_const_ref(name, true)?);
+                        self.skip_wsn();
                     } else {
                         names.push(name);
                     }
