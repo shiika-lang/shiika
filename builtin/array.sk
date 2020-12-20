@@ -26,6 +26,49 @@ class Array<T>
     end
   end
 
+  # Return true if `self` contains `item` (compared by `==`)
+  def includes(item: T) -> Bool
+    var ret = false
+    each do |x: T|
+      if x == item; ret = true; end
+    end
+    ret
+  end
+
+  # Return string representation of `self` (for debugging)
+  def inspect -> String
+    var first = true
+    ret = MutableString.new
+    ret.append("[")
+    each do |item: T|
+      if first
+        first = false
+      else
+        ret.append(", ")
+        true #184
+      end
+      ret.append(item.inspect)
+    end
+    ret.append("]")
+    ret._unsafe_to_s
+  end
+
+  # Create a string by joining all items with separator.
+  def join(separator: String) -> String
+    var first = true
+    ret = MutableString.new
+    each do |item: T|
+      if first
+        first = false
+      else
+        ret.append(separator)
+        true #184
+      end
+      ret.append(item.to_s)
+    end
+    ret._unsafe_to_s
+  end
+
   # Push an object to the end of `self`
   def push(value: T)
     if @n_items == @capa

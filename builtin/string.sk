@@ -43,14 +43,15 @@ class String
   end
 
   def +(other: String) -> String
-    ret = MutableString.new(self.bytesize + other.bytesize)
+    ret = MutableString.new
     ret.append(self)
     ret.append(other)
     ret._unsafe_to_s
   end
 
   def inspect -> String
-    "'" + self + "'"
+    # TODO: format newline, etc.
+    "\"" + self + "\""
   end
 
   def nth_byte(i: Int) -> Int

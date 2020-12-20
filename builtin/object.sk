@@ -1,4 +1,9 @@
 class Object
+  def ==(other: Object) -> Bool
+    panic "[`==` not yet implemented for this class]"
+    false
+  end
+
   def inspect -> String
     self.to_s
   end
