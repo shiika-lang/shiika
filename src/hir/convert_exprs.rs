@@ -389,7 +389,7 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
-        let hir_params = signature::convert_params(params, &[]);
+        let hir_params = signature::convert_params(params, &self.current_class_typarams());
 
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));

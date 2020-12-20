@@ -36,7 +36,11 @@ impl ClassDict {
                 let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
                 Ok((base_sig.specialize(&type_args), found_cls))
             }
-            _ => todo!(),
+            TyBody::TyParamRef { .. } => {
+                let o = ty::raw("Object");
+                self.lookup_method_(&o, &o, method_name)
+            }
+            _ => todo!("{}", class),
         }
     }
 

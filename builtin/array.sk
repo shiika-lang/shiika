@@ -9,6 +9,15 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
+  # Return true if `f` returned true for all items
+  def is_all(f: Fn1<T, Bool>) -> Bool
+    var ret = true
+    each do |x: T|
+      unless f.call(x); ret = false; end
+    end
+    ret
+  end
+
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items

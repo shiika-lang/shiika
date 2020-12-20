@@ -214,4 +214,10 @@ impl HirMaker {
         let outer_ctx = &self.ctx_stack[ctx.depth - 1];
         Some(outer_ctx)
     }
+
+    /// Returns type parameter of the current class
+    pub(super) fn current_class_typarams(&self) -> Vec<String> {
+        let typarams = &self.class_dict.find_class(&self.ctx().self_ty.fullname).unwrap().typarams;
+        typarams.iter().map(|x| x.name.clone()).collect()
+    }
 }
