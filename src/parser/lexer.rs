@@ -75,6 +75,10 @@ impl Cursor {
         }
     }
 
+    pub fn peek_n(&self, src: &str, n: usize) -> String {
+        src[self.pos..].chars().take(n).collect()
+    }
+
     /// Consume the current char and return it
     pub fn proceed(&mut self, src: &str) -> char {
         let c = src[self.pos..].chars().next().unwrap();
@@ -134,6 +138,10 @@ impl<'a> Lexer<'a> {
 
     pub fn debug_info(&self) -> String {
         format!("{:?} {:?}", self.current_token, self.state)
+    }
+
+    pub fn peek_n(&self, n: usize) -> String {
+        self.cur.peek_n(self.src, n)
     }
 
     /// Remove the current token and read next

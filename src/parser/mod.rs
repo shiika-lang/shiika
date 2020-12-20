@@ -5,7 +5,8 @@
 
 macro_rules! parse_error {
     ( $self:ident, $( $arg:expr ),* ) => ({
-        let msg = format!( $( $arg ),* );
+        let rest = $self.lexer.peek_n(100);
+        let msg = format!( $( $arg ),* ) + " | " + &rest;
         $self.parseerror(&msg)
     })
 }
