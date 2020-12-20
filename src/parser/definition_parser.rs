@@ -340,7 +340,9 @@ impl<'a> Parser<'a> {
                 }
                 Token::LessThan => {
                     self.consume_token();
+                    self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
                     let typ_args = self.parse_typ_args()?;
+                    self.set_lexer_gtgt_mode(false);
                     return Ok(ast::Typ { name, typ_args });
                 }
                 token => {
