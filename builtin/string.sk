@@ -54,6 +54,11 @@ class String
     "\"" + self + "\""
   end
 
+  # Return true if `self` contains nothing
+  def is_empty -> Bool
+    @bytesize == 0
+  end
+
   def nth_byte(i: Int) -> Int
     if i < 0
       panic "[String#nth_byte: index less than zero]"
