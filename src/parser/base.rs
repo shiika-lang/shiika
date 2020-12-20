@@ -29,8 +29,7 @@ impl<'a> Parser<'a> {
         if *self.current_token() == token {
             Ok(self.consume_token())
         } else {
-            let msg = format!("expected {:?} but got {:?}", token, self.current_token());
-            Err(self.parseerror(&msg))
+            Err(parse_error!(self, "expected {:?} but got {:?}", token, self.current_token()))
         }
     }
 
