@@ -342,6 +342,7 @@ impl<'a> Lexer<'a> {
             "break" => (Token::KwBreak, LexerState::ExprEnd),
             "then" => (Token::KwThen, LexerState::ExprBegin),
             "else" => (Token::KwElse, LexerState::ExprBegin),
+            "elsif" => (Token::KwElsif, LexerState::ExprBegin),
             "fn" => (Token::KwFn, LexerState::ExprBegin),
             "do" => (Token::KwDo, LexerState::ExprBegin),
             "self" => (Token::KwSelf, LexerState::ExprEnd),

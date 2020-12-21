@@ -486,16 +486,37 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_if_expr");
         assert!(self.consume(Token::KwIf));
         self.skip_ws();
+
+        // cond
         let cond_expr = self.parse_expr()?;
         self.skip_ws();
+
+        // `then`
         if self.consume(Token::KwThen) {
             self.skip_wsn();
         } else {
             self.expect(Token::Separator)?;
         }
-        let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
+
+        // then body
+        let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
         self.skip_wsn();
-        if self.consume(Token::KwElse) {
+
+        self._parse_if_expr(cond_expr, then_exprs)
+    }
+
+    /// Parse latter part of if-expr
+    fn _parse_if_expr(&mut self, cond_expr: AstExpression, then_exprs: Vec<AstExpression>) -> Result<AstExpression, Error> {
+        if self.consume(Token::KwElsif) {
+            self.skip_ws();
+            let cond_expr2 = self.parse_expr()?;
+            self.skip_ws();
+            if self.consume(Token::KwThen) { self.skip_wsn(); }
+            else { self.expect(Token::Separator)?; }
+            let then_exprs2 = self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
+            self.skip_wsn();
+            Ok(ast::if_expr(cond_expr, then_exprs, Some(vec![self._parse_if_expr(cond_expr2, then_exprs2)?])))
+        } else if self.consume(Token::KwElse) {
             self.skip_wsn();
             let else_exprs = self.parse_exprs(vec![Token::KwEnd])?;
             self.skip_wsn();
