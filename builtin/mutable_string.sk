@@ -8,14 +8,6 @@ class MutableString
     var @bytesize = 0
   end
 
-  def ptr -> Shiika::Internal::Ptr
-    @ptr
-  end
-
-  def bytesize -> Int
-    @bytesize
-  end
-
   def append(other: String) -> Void
     new_bytesize = @bytesize + other.bytesize
     if @capa < new_bytesize
