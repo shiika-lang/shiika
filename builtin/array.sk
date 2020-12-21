@@ -9,21 +9,18 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
-  # Return true if `f` returned true for all items
-  def is_all(f: Fn1<T, Bool>) -> Bool
-    var ret = true
-    each do |x: T|
-      unless f.call(x); ret = false; end
-    end
-    ret
-  end
-
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items
       f.call(nth(i))
       i = i + 1
     end
+  end
+
+  # Return the first element
+  def first -> T  # TODO: Return Option
+    ptr = @items
+    ptr.load
   end
 
   # Return true if `self` contains `item` (compared by `==`)
@@ -53,6 +50,15 @@ class Array<T>
     ret._unsafe_to_s
   end
 
+  # Return true if `f` returned true for all items
+  def is_all(f: Fn1<T, Bool>) -> Bool
+    var ret = true
+    each do |x: T|
+      unless f.call(x); ret = false; end
+    end
+    ret
+  end
+
   # Create a string by joining all items with separator.
   def join(separator: String) -> String
     var first = true
@@ -67,6 +73,11 @@ class Array<T>
       ret.append(item.to_s)
     end
     ret._unsafe_to_s
+  end
+
+  # Return the number of items
+  def length -> Int
+    @n_items
   end
 
   # Push an object to the end of `self`
@@ -84,6 +95,8 @@ class Array<T>
     @n_items += 1
   end
 
+  # Return the nth item
+  # Panics if the index is out of range
   # TODO #155: rename to `#[]`
   def nth(i: Int) -> T
     if i < 0
@@ -93,15 +106,6 @@ class Array<T>
       panic "[Array#nth: index too large]"
     end
     (@items + i * BYTES_OF_PTR).load 
-  end
-
-  def first -> T
-    ptr = @items
-    ptr.load
-  end
-
-  def length -> Int
-    @n_items
   end
 end
 

@@ -5,6 +5,14 @@ class String
     @bytesize = bytesize
   end
 
+  # Create a string by concatenating `self` and `other`
+  def +(other: String) -> String
+    ret = MutableString.new
+    ret.append(self)
+    ret.append(other)
+    ret._unsafe_to_s
+  end
+
   # Return true if `self` and `other` has same contents
   def ==(other: String) -> Bool
     if @bytesize != other.bytesize
@@ -21,14 +29,6 @@ class String
     end
   end
 
-  def ptr -> Shiika::Internal::Ptr
-    @ptr
-  end
-
-  def bytesize -> Int
-    @bytesize
-  end
-
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
     var i = 0; while i < @bytesize
@@ -42,16 +42,15 @@ class String
     #end
   end
 
-  def +(other: String) -> String
-    ret = MutableString.new
-    ret.append(self)
-    ret.append(other)
-    ret._unsafe_to_s
-  end
-
+  # Return string representation of `self` (for debugging)
   def inspect -> String
     # TODO: format newline, etc.
     "\"" + self + "\""
+  end
+
+  # Return true if `self` contains nothing
+  def is_empty -> Bool
+    @bytesize == 0
   end
 
   def nth_byte(i: Int) -> Int
@@ -131,6 +130,7 @@ class String
     n
   end
 
+  # Return `self`
   def to_s -> String
     self
   end

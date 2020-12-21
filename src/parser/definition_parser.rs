@@ -138,6 +138,7 @@ impl<'a> Parser<'a> {
 
         // `foo(bar) -> Baz`
         let (sig, is_class_method) = self.parse_method_signature()?;
+        self.skip_ws();
         self.expect_sep()?;
 
         // Body (optional)
