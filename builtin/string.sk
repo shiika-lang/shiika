@@ -5,6 +5,10 @@ class String
     @bytesize = bytesize
   end
 
+  # TODO: I thought these are not necessary anymore but test fails without these
+  def bytesize -> Int; @bytesize; end
+  def ptr -> Shiika::Internal::Ptr; @ptr; end
+
   # Create a string by concatenating `self` and `other`
   def +(other: String) -> String
     ret = MutableString.new
@@ -40,6 +44,16 @@ class String
     #@bytesize.times do |i: Int|
     #  f.call(self.nth_byte(i))
     #end
+  end
+
+  # Return true if `self` ends with `s`
+  def ends_with(s: String) -> Bool
+    if s.bytesize > @bytesize
+      false
+    else
+      from = @bytesize - s.bytesize
+      slice_bytes(from, s.bytesize) == s
+    end
   end
 
   # Return string representation of `self` (for debugging)
