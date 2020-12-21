@@ -42,6 +42,16 @@ class String
     #end
   end
 
+  # Return true if `self` ends with `s`
+  def ends_with(s: String) -> Bool
+    if s.bytesize > @bytesize
+      false
+    else
+      from = @bytesize - s.bytesize
+      slice_bytes(from, s.bytesize) == s
+    end
+  end
+
   # Return string representation of `self` (for debugging)
   def inspect -> String
     # TODO: format newline, etc.
