@@ -159,14 +159,25 @@ impl HirMaker {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
-        let then_hirs = self.convert_exprs(then_exprs)?;
-        let else_hirs = match else_exprs {
-            Some(exprs) => Some(self.convert_exprs(exprs)?),
-            None => None,
+        let mut then_hirs = self.convert_exprs(then_exprs)?;
+        let mut else_hirs = match else_exprs {
+            Some(exprs) => self.convert_exprs(exprs)?,
+            None => HirExpressions::new(vec![]),
         };
-        // TODO: then and else must have conpatible type
+
+        if then_hirs.ty.is_void_type() && !else_hirs.ty.is_never_type() {
+            else_hirs.voidify();
+        } else if else_hirs.ty.is_void_type() && !then_hirs.ty.is_never_type() {
+            then_hirs.voidify();
+        } else {
+            type_checking::check_if_clauses_ty(&then_hirs.ty, &else_hirs.ty)?;
+        }
+
+        let if_ty = if then_hirs.ty.is_never_type() { else_hirs.ty.clone() }
+          else { then_hirs.ty.clone() };
+
         Ok(Hir::if_expression(
-            then_hirs.ty.clone(),
+            if_ty,
             cond_hir,
             then_hirs,
             else_hirs,

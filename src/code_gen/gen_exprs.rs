@@ -169,51 +169,39 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
         cond_expr: &'hir HirExpression,
         then_exprs: &'hir HirExpressions,
-        opt_else_exprs: &'hir Option<HirExpressions>,
+        else_exprs: &'hir HirExpressions,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match opt_else_exprs {
-            Some(else_exprs) => {
-                let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
-                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
-                let else_block = self.context.append_basic_block(ctx.function, "IfElse");
-                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
-                // IfBegin:
-                self.builder.build_unconditional_branch(begin_block);
-                self.builder.position_at_end(begin_block);
-                let cond_value = self.gen_expr(ctx, cond_expr)?;
-                self.gen_conditional_branch(cond_value, then_block, else_block);
-                // IfThen:
-                self.builder.position_at_end(then_block);
-                let then_value: &dyn inkwell::values::BasicValue =
-                    &self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(merge_block);
-                let then_block_end = self.builder.get_insert_block().unwrap();
-                // IfElse:
-                self.builder.position_at_end(else_block);
-                let else_value = self.gen_exprs(ctx, else_exprs)?;
-                self.builder.build_unconditional_branch(merge_block);
-                let else_block_end = self.builder.get_insert_block().unwrap();
-                // IfEnd:
-                self.builder.position_at_end(merge_block);
+        let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
+        let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+        let else_block = self.context.append_basic_block(ctx.function, "IfElse");
+        let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
+        // IfBegin:
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
+        let cond_value = self.gen_expr(ctx, cond_expr)?;
+        self.gen_conditional_branch(cond_value, then_block, else_block);
+        // IfThen:
+        self.builder.position_at_end(then_block);
+        let then_value = self.gen_exprs(ctx, then_exprs)?;
+        self.builder.build_unconditional_branch(merge_block);
+        let then_block_end = self.builder.get_insert_block().unwrap();
+        // IfElse:
+        self.builder.position_at_end(else_block);
+        let else_value = self.gen_exprs(ctx, else_exprs)?;
+        self.builder.build_unconditional_branch(merge_block);
+        let else_block_end = self.builder.get_insert_block().unwrap();
+        // IfEnd:
+        self.builder.position_at_end(merge_block);
 
-                let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-                phi_node
-                    .add_incoming(&[(then_value, then_block_end), (&else_value, else_block_end)]);
-                Ok(phi_node.as_basic_value())
-            }
-            None => {
-                let cond_value = self.gen_expr(ctx, cond_expr)?;
-                let then_block = self.context.append_basic_block(ctx.function, "IfThen");
-                let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
-                self.gen_conditional_branch(cond_value, then_block, merge_block);
-                // IfThen:
-                self.builder.position_at_end(then_block);
-                self.gen_exprs(ctx, then_exprs)?;
-                self.builder.build_unconditional_branch(merge_block);
-                // IfEnd:
-                self.builder.position_at_end(merge_block);
-                Ok(self.i1_type.const_int(0, false).as_basic_value_enum()) // dummy value
-            }
+        if then_exprs.ty.is_never_type() {
+            Ok(then_value)
+        } else if else_exprs.ty.is_never_type() {
+            Ok(else_value)
+        } else {
+            let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
+            phi_node
+                .add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
+            Ok(phi_node.as_basic_value())
         }
     }
 
