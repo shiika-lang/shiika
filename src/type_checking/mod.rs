@@ -47,6 +47,20 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     }
 }
 
+pub fn check_if_clauses_ty(then_ty: &TermTy, else_ty: &TermTy) -> Result<(), Error> {
+    if then_ty.equals_to(else_ty) {
+        Ok(())
+    } else if then_ty.is_never_type() || else_ty.is_never_type() {
+        Ok(())
+    } else {
+        Err(type_error!(
+            "type of `if` clauses does not match (then: {}, else: {})",
+            then_ty,
+            else_ty
+        ))
+    }
+}
+
 pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Result<(), Error> {
     if orig_ty.equals_to(new_ty) {
         Ok(())

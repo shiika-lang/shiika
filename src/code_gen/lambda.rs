@@ -51,9 +51,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
-                if else_exprs.is_some() {
-                    self.gen_lambda_funcs_in_exprs(&else_exprs.as_ref().as_ref().unwrap().exprs)?;
-                }
+                self.gen_lambda_funcs_in_exprs(&else_exprs.exprs)?;
             }
             HirWhileExpression {
                 cond_expr,

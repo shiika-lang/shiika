@@ -82,6 +82,14 @@ impl TermTy {
         }
     }
 
+    // Returns true when this is the Never type
+    pub fn is_never_type(&self) -> bool {
+        match self.body {
+            TyRaw => (self.fullname.0 == "Never"),
+            _ => false,
+        }
+    }
+
     pub fn meta_ty(&self) -> TermTy {
         match &self.body {
             TyRaw => ty::meta(&self.fullname.0),

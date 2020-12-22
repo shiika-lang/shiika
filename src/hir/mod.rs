@@ -93,20 +93,29 @@ pub struct HirExpressions {
 }
 
 impl HirExpressions {
-    // Destructively convert Vec<HirExpression> into HirExpressions
+    /// Destructively convert Vec<HirExpression> into HirExpressions
     pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
         if exprs.is_empty() {
-            exprs.push(Hir::const_ref(
-                ty::raw("Void"),
-                const_name(vec!["Void".to_string()]),
-            ))
+            exprs.push(void_const_ref());
         }
-
         let last_expr = exprs.last().unwrap();
         let ty = last_expr.ty.clone();
 
         HirExpressions { ty, exprs }
     }
+
+    /// Change the type of `self` to `Void`
+    pub fn voidify(&mut self) {
+        self.exprs.push(void_const_ref());
+        self.ty = ty::raw("Void");
+    }
+}
+/// Make a HirExpression to refer `::Void`
+fn void_const_ref() -> HirExpression {
+    Hir::const_ref(
+        ty::raw("Void"),
+        const_name(vec!["Void".to_string()]),
+    )
 }
 
 #[derive(Debug)]
@@ -131,7 +140,7 @@ pub enum HirExpressionBase {
     HirIfExpression {
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
-        else_exprs: Box<Option<HirExpressions>>,
+        else_exprs: Box<HirExpressions>, // may be a dummy expression
     },
     HirWhileExpression {
         cond_expr: Box<HirExpression>,
@@ -273,7 +282,7 @@ impl Hir {
         ty: TermTy,
         cond_hir: HirExpression,
         then_hir: HirExpressions,
-        else_hir: Option<HirExpressions>,
+        else_hir: HirExpressions,
     ) -> HirExpression {
         HirExpression {
             ty,
