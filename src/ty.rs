@@ -132,7 +132,9 @@ impl TermTy {
                 }
                 true
             } else {
-                false
+                // eg. Passing a `Array<String>` for `Object`
+                let base = ty::raw(base_name);
+                class_dict.is_descendant(&base, other)
             }
         } else {
             self.equals_to(other) || class_dict.is_descendant(self, other)
