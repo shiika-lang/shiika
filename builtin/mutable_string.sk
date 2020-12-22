@@ -10,10 +10,7 @@ class MutableString
 
   def append(other: String) -> Void
     new_bytesize = @bytesize + other.bytesize
-    if @capa < new_bytesize
-      @ptr = Shiika::Internal::Memory.gc_realloc(@ptr, new_bytesize+1)
-      @capa = new_bytesize
-    end
+    _realloc_if_needed(new_bytesize)
     Shiika::Internal::Memory.memcpy(@ptr + @bytesize, other.ptr, other.bytesize)
     @bytesize = new_bytesize
   end
@@ -24,6 +21,33 @@ class MutableString
     newptr = Shiika::Internal::Memory.gc_malloc(@bytesize + 1)
     Shiika::Internal::Memory.memcpy(newptr, @ptr, @bytesize)
     String.new(newptr, @bytesize)
+  end
+
+  # Update the `nth` byte of `self` to `byte`
+  # If `nth` is larger than `self.bytesize`, additional memory is allocated.
+  def write_byte(nth: Int, byte: Int)
+    if nth < 0
+      panic "[String#write_byte: index less than zero]"
+    end
+    if byte < 0
+      panic "[String#write_byte: byte less than zero]"
+    end
+    if byte >= 256
+      panic "[String#write_byte: byte larger than 255]"
+    end
+    _realloc_if_needed(nth)
+    (@ptr + nth).write(byte)
+    if @bytesize <= nth
+      @bytesize = nth + 1
+    end
+  end
+
+  # Resize `self` if needed
+  def _realloc_if_needed(new_bytesize: Int)
+    if @capa < new_bytesize
+      @ptr = Shiika::Internal::Memory.gc_realloc(@ptr, new_bytesize+1)
+      @capa = new_bytesize
+    end
   end
 
   # Create a immutable version of self without copying memory.

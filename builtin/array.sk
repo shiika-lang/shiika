@@ -95,6 +95,24 @@ class Array<T>
     @n_items += 1
   end
 
+# TODO: #205
+#  # Create a new array which has reversed elements of `self`
+#  def reverse -> Array<T>
+#    ret = Array<T>.new
+#    reverse_each do |item: T|
+#      ret.push(item)
+#    end
+#    ret
+#  end
+
+  # Call `f` with each element of `self` in the reversed order
+  def reverse_each(f: Fn1<T, Void>)
+    var i = @n_items - 1; while i >= 0
+      f.call(nth(i))
+      i -= 1
+    end
+  end
+
   # Return the nth item
   # Panics if the index is out of range
   # TODO #155: rename to `#[]`

@@ -40,4 +40,25 @@ class Int
   def to_i -> Int
     self
   end
+
+  # Returns string representation of `self`.
+  def to_s -> String
+    a = Array<Int>.new
+    var n = self
+    while true
+      a.push((n % 10) + 48)  # 48 = "0"
+      n /= 10
+      if n == 0
+        break
+      end
+    end
+
+    ret = MutableString.new
+    var i = 0
+    a.reverse_each do |b: Int|
+      ret.write_byte(i, b)
+      i += 1
+    end
+    ret._unsafe_to_s
+  end
 end
