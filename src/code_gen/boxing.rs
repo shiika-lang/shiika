@@ -10,6 +10,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_bool", fn_type, None);
         let fn_type = self.i1_type.fn_type(&[self.llvm_type(&ty::raw("Bool")).into()], false);
         self.module.add_function("unbox_bool", fn_type, None);
+        let fn_type = self.llvm_type(&ty::raw("Int")).fn_type(&[self.i64_type.into()], false);
+        self.module.add_function("box_int", fn_type, None);
+        let fn_type = self.i64_type.fn_type(&[self.llvm_type(&ty::raw("Int")).into()], false);
+        self.module.add_function("unbox_int", fn_type, None);
     }
 
     /// Generate body of llvm funcs about boxing
@@ -32,6 +36,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_bool = function.get_params()[0];
         let i1_val = self.build_ivar_load(sk_bool, 0, "@llvm_bool");
         self.builder.build_return(Some(&i1_val));
+
+        // box_int
+        let function = self.module.get_function("box_int").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let i64_val = function.get_params()[0];
+        let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "sk_int");
+        self.build_ivar_store(&sk_int, 0, i64_val.as_basic_value_enum(), "@llvm_int");
+        self.builder.build_return(Some(&sk_int));
+
+        // unbox_int
+        let function = self.module.get_function("unbox_int").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let sk_int = function.get_params()[0];
+        let i64_val = self.build_ivar_load(sk_int, 0, "@llvm_int");
+        self.builder.build_return(Some(&i64_val));
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
@@ -50,10 +73,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM int into Shiika Int
-    pub fn box_int(&self, int: &inkwell::values::IntValue) -> inkwell::values::BasicValueEnum {
-        let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "sk_int");
-        self.build_ivar_store(&sk_int, 0, int.as_basic_value_enum(), "@llvm_int");
-        sk_int
+    pub fn box_int<'a>(&'a self, i: &inkwell::values::IntValue<'a>) -> inkwell::values::BasicValueEnum {
+        let f = self.module.get_function("box_int").unwrap();
+        self.builder.build_call(f, &[i.as_basic_value_enum().into()], "int").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Int into LLVM int
@@ -61,8 +83,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_int: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
-        self.build_ivar_load(sk_int, 0, "@llvm_int")
-            .into_int_value()
+        let f = self.module.get_function("unbox_int").unwrap();
+        self.builder.build_call(f, &[sk_int.into()], "i").try_as_basic_value().left().unwrap().into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
