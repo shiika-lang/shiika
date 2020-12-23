@@ -68,7 +68,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 captures,
                 lvars,
             } => self.gen_lambda_expr(ctx, name, params, exprs, captures, lvars),
-            HirSelfExpression => self.gen_self_expression(ctx),
+            HirSelfExpression => self.gen_self_expression(ctx, Some(&expr.ty)),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
             HirDecimalLiteral { value } => Ok(self.gen_decimal_literal(*value)),
@@ -273,7 +273,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
         rhs: &'hir HirExpression,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let theself = self.gen_self_expression(ctx)?;
+        let theself = self.gen_self_expression(ctx, None)?;
         let value = self.gen_expr(ctx, rhs)?;
         self.build_ivar_store(&theself, *idx, value, name);
         Ok(value)
@@ -421,7 +421,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         name: &str,
         idx: &usize,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let object = self.gen_self_expression(ctx)?;
+        let object = self.gen_self_expression(ctx, None)?;
         Ok(self.build_ivar_load(object, *idx, name))
     }
 
@@ -460,13 +460,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
-        let the_self = self.builder.build_bitcast(
-            self.gen_self_expression(ctx)?,
-            self.llvm_type(&ty::raw("Object")),
-            "the_self");
+        let the_self = self.gen_self_expression(ctx, None)?;
+        let the_self_obj = self.builder.build_bitcast(the_self, self.llvm_type(&ty::raw("Object")), "the_self");
         let arg_values = vec![
             sk_ptr,
-            the_self,
+            the_self_obj,
             self.gen_lambda_captures(ctx, captures)?,
         ];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
@@ -507,15 +505,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(ary)
     }
 
+    /// Get the object referred by `self`
     fn gen_self_expression(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        opt_ty: Option<&TermTy>,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         if ctx.function.get_name().to_str().unwrap() == "user_main" {
             Ok(self.the_main.unwrap())
         } else if ctx.function_origin == FunctionOrigin::Lambda {
             let fn_x = ctx.function.get_first_param().unwrap();
-            Ok(self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "the_main"))
+            let obj = self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "obj");
+            if let Some(ty) = opt_ty {
+                Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "the_main"))
+            } else {
+                Ok(obj)
+            }
         } else {
             // The first arg of llvm function is `self`
             Ok(ctx.function.get_first_param().unwrap())
