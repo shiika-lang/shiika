@@ -14,6 +14,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_int", fn_type, None);
         let fn_type = self.i64_type.fn_type(&[self.llvm_type(&ty::raw("Int")).into()], false);
         self.module.add_function("unbox_int", fn_type, None);
+        let fn_type = self.llvm_type(&ty::raw("Float")).fn_type(&[self.f64_type.into()], false);
+        self.module.add_function("box_float", fn_type, None);
+        let fn_type = self.f64_type.fn_type(&[self.llvm_type(&ty::raw("Float")).into()], false);
+        self.module.add_function("unbox_float", fn_type, None);
     }
 
     /// Generate body of llvm funcs about boxing
@@ -55,6 +59,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_int = function.get_params()[0];
         let i64_val = self.build_ivar_load(sk_int, 0, "@llvm_int");
         self.builder.build_return(Some(&i64_val));
+
+        // box_float
+        let function = self.module.get_function("box_float").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let f64_val = function.get_params()[0];
+        let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "sk_float");
+        self.build_ivar_store(&sk_float, 0, f64_val.as_basic_value_enum(), "@llvm_float");
+        self.builder.build_return(Some(&sk_float));
+
+        // unbox_float
+        let function = self.module.get_function("unbox_float").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let sk_float = function.get_params()[0];
+        let f64_val = self.build_ivar_load(sk_float, 0, "@llvm_float");
+        self.builder.build_return(Some(&f64_val));
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
@@ -88,13 +111,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM float into Shiika Float
-    pub fn box_float(
-        &self,
-        float: &inkwell::values::FloatValue,
+    pub fn box_float<'a>(
+        &'a self,
+        fl: &inkwell::values::FloatValue<'a>,
     ) -> inkwell::values::BasicValueEnum {
-        let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "sk_float");
-        self.build_ivar_store(&sk_float, 0, float.as_basic_value_enum(), "@llvm_float");
-        sk_float
+        let f = self.module.get_function("box_float").unwrap();
+        self.builder.build_call(f, &[fl.as_basic_value_enum().into()], "float").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Float into LLVM float
@@ -102,8 +124,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_float: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::FloatValue {
-        self.build_ivar_load(sk_float, 0, "@llvm_float")
-            .into_float_value()
+        let f = self.module.get_function("unbox_float").unwrap();
+        self.builder.build_call(f, &[sk_float.into()], "f").try_as_basic_value().left().unwrap().into_float_value()
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
