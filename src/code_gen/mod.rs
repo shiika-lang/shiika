@@ -447,18 +447,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
+        // (Function for lambdas are created in gen_lambda_expr)
         let function = self.get_llvm_func(func_name);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
-            let name = if is_lambda {
-                           &params[i].name
+            let name = if i == 0 {
+                           if is_lambda { "fn_x" } else { "self" }
                        } else {
-                           if i == 0 {
-                               "self"
-                           } else {
-                               &params[i - 1].name
-                           }
+                           &params[i - 1].name
                        };
             inkwell_set_name(param, name);
         }

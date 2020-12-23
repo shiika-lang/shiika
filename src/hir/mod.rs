@@ -394,18 +394,13 @@ impl Hir {
     }
 
     pub fn lambda_expr(
-        n: usize,
-        mut params: Vec<MethodParam>,
+        ty: TermTy,
+        name: String,
+        params: Vec<MethodParam>,
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
     ) -> HirExpression {
-        let name = format!("lambda_{}", n);
-        let ty = lambda_ty(&params, &exprs.ty);
-        params.push(MethodParam {
-            name: "(captures)".to_string(),
-            ty: ty::ary(ty::raw("Object")),
-        });
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {
@@ -496,11 +491,4 @@ impl Hir {
             },
         }
     }
-}
-
-fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
-    let i = params.len();
-    let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
-    tyargs.push(ret_ty.clone());
-    ty::spe(&format!("Fn{}", i), tyargs)
 }

@@ -10,6 +10,9 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
+/// Index of @captures of FnX
+const FN_X_CAPTURES_IDX: usize = 1;
+
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
         &self,
@@ -312,6 +315,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
 
+        // Get llvm function from vtable
         let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
         let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
 
@@ -386,7 +390,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
-                let obj = ctx.function.get_nth_param(*idx as u32).unwrap_or_else(|| {
+                let obj = ctx.function.get_nth_param((*idx as u32) + 1).unwrap_or_else(|| { // +1 for the first %self
                     panic!(format!(
                         "{:?}\ngen_arg_ref: no param of idx={}",
                         &ctx.function, idx
@@ -437,16 +441,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         captures: &'hir [HirLambdaCapture],
         _lvars: &[(String, TermTy)],
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
-        let mut arg_types = (1..params.len()).map(|_| &obj_type).collect::<Vec<_>>();
-        let captures_type = ty::ary(ty::raw("Object"));
-        arg_types.push(&captures_type);
+        let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
+        arg_types.insert(0, &fn_x_type);
         let ret_ty = &exprs.ty;
         let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // eg. Fn1.new(fnptr, captures)
-        let cls_name = format!("Fn{}", params.len() - 1); // -1 for the last `captures` ary
+        let cls_name = format!("Fn{}", params.len());
         let meta = self.gen_const_ref(&const_name(vec![cls_name.clone()]));
         let fnptr = self
             .get_llvm_func(&func_name)
@@ -587,25 +591,38 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         deref: bool,
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let idx_of_captures = ctx.function_params.unwrap().len() - 1;
-        let captures = self.gen_arg_ref(ctx, &idx_of_captures)?;
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("CaptureRef_{}th", idx_in_captures));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
+
+        let captures = self._gen_get_lambda_captures(ctx);
         let item = self.gen_llvm_func_call(
             "Array#nth",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
-        if deref {
-            // `item` is a pointer
-            let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
-            let ptr = self
-                .builder
-                .build_bitcast(item, ptr_ty, "")
-                .into_pointer_value();
-            Ok(self.builder.build_load(ptr, ""))
-        } else {
-            // `item` is a value
-            Ok(self.builder.build_bitcast(item, self.llvm_type(ty), ""))
-        }
+        let ret =
+            if deref {
+                // `item` is a pointer
+                let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
+                let ptr = self
+                    .builder
+                    .build_bitcast(item, ptr_ty, "")
+                    .into_pointer_value();
+                self.builder.build_load(ptr, "")
+            } else {
+                // `item` is a value
+                self.builder.build_bitcast(item, self.llvm_type(ty), "")
+            };
+
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("CaptureRef_{}th_end", idx_in_captures));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
+        Ok(ret)
     }
 
     fn gen_lambda_capture_write(
@@ -615,8 +632,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let idx_of_captures = ctx.function_params.unwrap().len() - 1;
-        let captures = self.gen_arg_ref(ctx, &idx_of_captures)?;
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("CaptureWrite_{}th", idx_in_captures));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
+
+        let captures = self._gen_get_lambda_captures(ctx);
         let ptr_ = self.gen_llvm_func_call(
             "Array#nth",
             captures,
@@ -629,7 +651,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
         let value = self.gen_expr(ctx, rhs)?;
         self.builder.build_store(ptr, value);
+
+        let block = self
+            .context
+            .append_basic_block(ctx.function, &format!("CaptureWrite_{}th_end", idx_in_captures));
+        self.builder.build_unconditional_branch(block);
+        self.builder.position_at_end(block);
         Ok(value)
+    }
+
+    fn _gen_get_lambda_captures(&self, ctx: &mut CodeGenContext<'hir, 'run>) -> inkwell::values::BasicValueEnum {
+        let fn_x = ctx.function.get_first_param().unwrap();
+        self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "captures")
     }
 
     fn gen_bitcast(

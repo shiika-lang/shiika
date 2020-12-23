@@ -409,8 +409,11 @@ impl HirMaker {
 
         let lvars = lambda_ctx.extract_lvars();
         let captures = self._resolve_lambda_captures(lambda_ctx.captures);
+
+        let name = format!("lambda_{}", lambda_id);
+        let ty = lambda_ty(&hir_params, &hir_exprs.ty);
         Ok(Hir::lambda_expr(
-            lambda_id, hir_params, hir_exprs, captures, lvars,
+            ty, name, hir_params, hir_exprs, captures, lvars,
         ))
     }
 
@@ -703,4 +706,10 @@ impl HirMaker {
         }
         panic!("[BUG] nearest_common_ancestor_type not found");
     }
+}
+
+fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
+    let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
+    tyargs.push(ret_ty.clone());
+    ty::spe(&format!("Fn{}", params.len()), tyargs)
 }
