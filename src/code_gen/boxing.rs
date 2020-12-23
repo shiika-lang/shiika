@@ -18,6 +18,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_float", fn_type, None);
         let fn_type = self.f64_type.fn_type(&[self.llvm_type(&ty::raw("Float")).into()], false);
         self.module.add_function("unbox_float", fn_type, None);
+        let fn_type = self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).fn_type(&[self.i8ptr_type.into()], false);
+        self.module.add_function("box_i8ptr", fn_type, None);
+        let fn_type = self.i8ptr_type.fn_type(&[self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).into()], false);
+        self.module.add_function("unbox_i8ptr", fn_type, None);
     }
 
     /// Generate body of llvm funcs about boxing
@@ -78,6 +82,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_float = function.get_params()[0];
         let f64_val = self.build_ivar_load(sk_float, 0, "@llvm_float");
         self.builder.build_return(Some(&f64_val));
+
+        // box_i8ptr
+        let function = self.module.get_function("box_i8ptr").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let i8ptr = function.get_params()[0];
+        let sk_ptr = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "sk_ptr");
+        self.build_ivar_store(&sk_ptr, 0, i8ptr.as_basic_value_enum(), "@llvm_i8ptr");
+        self.builder.build_return(Some(&sk_ptr));
+
+        // unbox_i8ptr
+        let function = self.module.get_function("unbox_i8ptr").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let sk_ptr = function.get_params()[0];
+        let i8ptr = self.build_ivar_load(sk_ptr, 0, "@llvm_i8ptr");
+        self.builder.build_return(Some(&i8ptr));
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
@@ -131,11 +154,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Convert LLVM i8* into Shiika::Internal::Ptr
     pub fn box_i8ptr<'a>(
         &'a self,
-        p: inkwell::values::PointerValue,
+        p: inkwell::values::PointerValue<'a>,
     ) -> inkwell::values::BasicValueEnum {
-        let sk_obj = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "sk_ptr");
-        self.build_ivar_store(&sk_obj, 0, p.as_basic_value_enum(), "@llvm_ptr");
-        sk_obj
+        let f = self.module.get_function("box_i8ptr").unwrap();
+        self.builder.build_call(f, &[p.as_basic_value_enum().into()], "i8ptr").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*
@@ -143,7 +165,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_obj: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::PointerValue {
-        self.build_ivar_load(sk_obj, 0, "@llvm_ptr")
-            .into_pointer_value()
+        let f = self.module.get_function("unbox_i8ptr").unwrap();
+        self.builder.build_call(f, &[sk_obj.into()], "p").try_as_basic_value().left().unwrap().into_pointer_value()
     }
 }
