@@ -28,11 +28,11 @@ class Int
 #    self / 2 != 0.0
 #  end
 
-  # Calls the given function `self` times, passing in values from zero to `self - 1`.
+  # Calls `f` for `self` times, passing numbers from zero to `self - 1`.
   def times(f: Fn1<Int, Void>)
     var i = 0; while i < self
       f.call(i)
-      i = i + 1
+      i += 1
     end
   end
 
@@ -60,5 +60,13 @@ class Int
       i += 1
     end
     ret._unsafe_to_s
+  end
+
+  # Calls `f` by passing numbers from `self` to `n`.
+  def upto(n: Int, f: Fn1<Int, Void>)
+    var i = self; while i <= n
+      f.call(i)
+      i += 1
+    end
   end
 end

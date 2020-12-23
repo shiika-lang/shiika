@@ -33,6 +33,15 @@ class String
     end
   end
 
+  # Create an array of bytes of `self`
+  def bytes -> Array<Int>
+    ret = Array<Int>.new
+    each_byte do |b: Int|
+      ret.push(b)
+    end
+    ret
+  end
+
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
     var i = 0; while i < @bytesize
