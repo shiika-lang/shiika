@@ -1,9 +1,11 @@
 class Fn0<T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -11,9 +13,11 @@ end
 class Fn1<S1, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -21,9 +25,11 @@ end
 class Fn2<S1, S2, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -31,9 +37,11 @@ end
 class Fn3<S1, S2, S3, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -41,9 +49,11 @@ end
 class Fn4<S1, S2, S3, S4, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -51,9 +61,11 @@ end
 class Fn5<S1, S2, S3, S4, S5, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -61,9 +73,11 @@ end
 class Fn6<S1, S2, S3, S4, S5, S6, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -71,9 +85,11 @@ end
 class Fn7<S1, S2, S3, S4, S5, S6, S7, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -81,9 +97,11 @@ end
 class Fn8<S1, S2, S3, S4, S5, S6, S7, S8, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end
@@ -91,9 +109,11 @@ end
 class Fn9<S1, S2, S3, S4, S5, S6, S7, S8, S9, T>
   def initialize(
     func: Shiika::Internal::Ptr,
+    the_self: Object,
     captures: Array<Shiika::Internal::Ptr>,
   )
     @func = func
+    @the_self = the_self
     @captures = captures
   end
 end

@@ -44,15 +44,9 @@ class String
 
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
-    var i = 0; while i < @bytesize
-      f.call(self.nth_byte(i))
-      i += 1
+    @bytesize.times do |i: Int|
+      f.call(nth_byte(i))
     end
-
-    # TODO #194
-    #@bytesize.times do |i: Int|
-    #  f.call(self.nth_byte(i))
-    #end
   end
 
   # Return true if `self` ends with `s`

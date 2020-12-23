@@ -2,6 +2,9 @@ use crate::corelib::*;
 use inkwell::types::*;
 use inkwell::AddressSpace;
 
+/// Index of @func of FnX
+const FN_X_FUNC_IDX: usize = 0;
+
 macro_rules! create_fn_call {
     ($i:expr) => {{
         let args_str = (1..=$i)
@@ -17,23 +20,20 @@ macro_rules! create_fn_call {
             &format!("call({}) -> T", args_str),
             |code_gen, function| {
                 let fn_obj = function.get_params()[0];
-                let sk_ptr = code_gen.build_ivar_load(fn_obj, 0, "func");
-                let capary = code_gen.build_ivar_load(fn_obj, 1, "captures");
+                let sk_ptr = code_gen.build_ivar_load(fn_obj, FN_X_FUNC_IDX, "func");
 
-                let mut args = vec![];
+                let mut args = vec![fn_obj];
                 for k in 1..=$i {
                     args.push(function.get_params()[k]);
                 }
-                args.push(capary);
 
                 // Create the type of lambda_xx()
+                let fn_x_type = code_gen.llvm_type(&ty::raw(&format!("Fn{}", $i)));
                 let obj_type = code_gen.llvm_type(&ty::raw("Object"));
-                let ary_type = code_gen.llvm_type(&ty::raw("Array"));
-                let mut arg_types = vec![];
+                let mut arg_types = vec![fn_x_type.into()];
                 for _ in 1..=$i {
                     arg_types.push(obj_type.into());
                 }
-                arg_types.push(ary_type.into());
                 let fntype = obj_type.fn_type(&arg_types, false);
                 let fnptype = fntype.ptr_type(AddressSpace::Generic);
 
