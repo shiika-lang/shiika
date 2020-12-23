@@ -1,11 +1,7 @@
+*.ll
+*.out
 /coverage
-/examples/*.ll
-/examples/*.opt.ll
-/examples/*.out
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
 /target
 /tests/tmp.*
-/tests/sk/*.ll
-/tests/sk/*.opt.ll
-/tests/sk/*.out
