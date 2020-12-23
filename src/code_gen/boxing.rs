@@ -6,9 +6,10 @@ use inkwell::values::*;
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Generate llvm funcs about boxing
     pub fn gen_boxing_funcs(&self) {
-        // box_bool
         let fn_type = self.llvm_type(&ty::raw("Bool")).fn_type(&[self.i1_type.into()], false);
         self.module.add_function("box_bool", fn_type, None);
+        let fn_type = self.i1_type.fn_type(&[self.llvm_type(&ty::raw("Bool")).into()], false);
+        self.module.add_function("unbox_bool", fn_type, None);
     }
 
     /// Generate body of llvm funcs about boxing
@@ -22,12 +23,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_bool = self.allocate_sk_obj(&class_fullname("Bool"), "sk_bool");
         self.build_ivar_store(&sk_bool, 0, i1_val.as_basic_value_enum(), "@llvm_bool");
         self.builder.build_return(Some(&sk_bool));
+
+        // unbox_bool
+        let function = self.module.get_function("unbox_bool").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let sk_bool = function.get_params()[0];
+        let i1_val = self.build_ivar_load(sk_bool, 0, "@llvm_bool");
+        self.builder.build_return(Some(&i1_val));
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
     pub fn box_bool<'a>(&'a self, b: inkwell::values::IntValue<'a>) -> inkwell::values::BasicValueEnum {
         let f = self.module.get_function("box_bool").unwrap();
-        self.builder.build_call(f, &[b.into()], "").try_as_basic_value().left().unwrap()
+        self.builder.build_call(f, &[b.into()], "bool").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Bool into LLVM bool(i1)
@@ -35,8 +45,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'a self,
         sk_bool: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
-        self.build_ivar_load(sk_bool, 0, "@llvm_bool")
-            .into_int_value()
+        let f = self.module.get_function("unbox_bool").unwrap();
+        self.builder.build_call(f, &[sk_bool.into()], "b").try_as_basic_value().left().unwrap().into_int_value()
     }
 
     /// Convert LLVM int into Shiika Int
