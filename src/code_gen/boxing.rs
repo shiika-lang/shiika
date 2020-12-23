@@ -1,13 +1,33 @@
 use crate::code_gen::*;
 use crate::names::*;
+use crate::ty;
 use inkwell::values::*;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
-    /// Convert LLVM bool(i1) into Shiika Bool
-    pub fn box_bool<'a>(&'a self, b: inkwell::values::IntValue) -> inkwell::values::BasicValueEnum {
+    /// Generate llvm funcs about boxing
+    pub fn gen_boxing_funcs(&self) {
+        // box_bool
+        let fn_type = self.llvm_type(&ty::raw("Bool")).fn_type(&[self.i1_type.into()], false);
+        self.module.add_function("box_bool", fn_type, None);
+    }
+
+    /// Generate body of llvm funcs about boxing
+    pub fn impl_boxing_funcs(&self) {
+        // box_bool
+        let function = self.module.get_function("box_bool").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let i1_val = function.get_params()[0];
         let sk_bool = self.allocate_sk_obj(&class_fullname("Bool"), "sk_bool");
-        self.build_ivar_store(&sk_bool, 0, b.as_basic_value_enum(), "@llvm_bool");
-        sk_bool
+        self.build_ivar_store(&sk_bool, 0, i1_val.as_basic_value_enum(), "@llvm_bool");
+        self.builder.build_return(Some(&sk_bool));
+    }
+
+    /// Convert LLVM bool(i1) into Shiika Bool
+    pub fn box_bool<'a>(&'a self, b: inkwell::values::IntValue<'a>) -> inkwell::values::BasicValueEnum {
+        let f = self.module.get_function("box_bool").unwrap();
+        self.builder.build_call(f, &[b.into()], "").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Bool into LLVM bool(i1)
