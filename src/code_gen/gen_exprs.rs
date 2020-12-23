@@ -11,7 +11,7 @@ use inkwell::values::*;
 use std::rc::Rc;
 
 /// Index of @captures of FnX
-const FN_X_CAPTURES_IDX: usize = 1;
+const FN_X_CAPTURES_IDX: usize = 2;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
@@ -449,7 +449,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
-        // eg. Fn1.new(fnptr, captures)
+        // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
         let meta = self.gen_const_ref(&const_name(vec![cls_name.clone()]));
         let fnptr = self
@@ -458,7 +458,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
-        let arg_values = vec![sk_ptr, self.gen_lambda_captures(ctx, captures)?];
+        let the_self = self.builder.build_bitcast(
+            self.gen_self_expression(ctx)?,
+            self.llvm_type(&ty::raw("Object")),
+            "the_self");
+        let arg_values = vec![
+            sk_ptr,
+            the_self,
+            self.gen_lambda_captures(ctx, captures)?,
+        ];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 
@@ -584,6 +592,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .build_conditional_branch(istrue, then_block, else_block);
     }
 
+    /// Get an object from `captures`
     fn gen_lambda_capture_ref(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
