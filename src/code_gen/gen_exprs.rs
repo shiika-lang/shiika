@@ -10,6 +10,8 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
+/// Index of @the_self of FnX
+const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
 const FN_X_CAPTURES_IDX: usize = 2;
 
@@ -510,13 +512,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         if ctx.function.get_name().to_str().unwrap() == "user_main" {
-            Ok(self.the_main.expect("[BUG] self.the_main is None"))
+            Ok(self.the_main.unwrap())
+        } else if ctx.function_origin == FunctionOrigin::Lambda {
+            let fn_x = ctx.function.get_first_param().unwrap();
+            Ok(self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "the_main"))
         } else {
             // The first arg of llvm function is `self`
-            Ok(ctx
-                .function
-                .get_first_param()
-                .expect("[BUG] get_first_param() is None"))
+            Ok(ctx.function.get_first_param().unwrap())
         }
     }
 

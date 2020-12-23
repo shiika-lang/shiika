@@ -21,7 +21,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     pub lambdas: VecDeque<CodeGenLambda<'hir>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FunctionOrigin {
     Method,
     Lambda,
