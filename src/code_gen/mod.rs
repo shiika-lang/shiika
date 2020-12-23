@@ -431,6 +431,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(&method.body),
             &method.lvars,
             &method.signature.ret_ty,
+            false,
         )
     }
 
@@ -443,17 +444,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
         ret_ty: &TermTy,
+        is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
         let function = self.get_llvm_func(func_name);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
-            if i == 0 {
-                inkwell_set_name(param, "self")
-            } else {
-                inkwell_set_name(param, &params[i - 1].name)
-            }
+            let name = if is_lambda {
+                           &params[i].name
+                       } else {
+                           if i == 0 {
+                               "self"
+                           } else {
+                               &params[i - 1].name
+                           }
+                       };
+            inkwell_set_name(param, name);
         }
 
         // alloca

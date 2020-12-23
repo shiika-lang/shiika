@@ -111,6 +111,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvars: &[(String, TermTy)],
     ) -> Result<(), Error> {
         let ret_ty = &exprs.ty;
-        self.gen_llvm_func_body(&func_name, params, Right(exprs), lvars, &ret_ty)
+        self.gen_llvm_func_body(&func_name, params, Right(exprs), lvars, &ret_ty, true)
     }
 }
