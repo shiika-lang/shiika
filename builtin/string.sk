@@ -111,7 +111,6 @@ class String
             word_start = i + 1
             sep_cur = 0
           end
-          0 # TODO: #184
         else
           # Not a separator here
           sep_cur = 0

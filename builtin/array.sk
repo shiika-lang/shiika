@@ -42,7 +42,6 @@ class Array<T>
         first = false
       else
         ret.append(", ")
-        true #184
       end
       ret.append(item.inspect)
     end
@@ -68,7 +67,6 @@ class Array<T>
         first = false
       else
         ret.append(separator)
-        true #184
       end
       ret.append(item.to_s)
     end
