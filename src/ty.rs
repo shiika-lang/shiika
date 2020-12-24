@@ -117,8 +117,12 @@ impl TermTy {
     /// Return true if `self` conforms to `other` i.e.
     /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
-        if let TyParamRef { .. } = other.body {
-            self == &ty::raw("Object") // The upper bound
+        if let TyParamRef { name, .. } = &other.body {
+            if let TyParamRef { name: name2, .. } = &self.body {
+                name == name2
+            } else {
+                self == &ty::raw("Object") // The upper bound
+            }
         } else if let TySpe { base_name, type_args } = &self.body {
             if let TySpe { base_name: b2, type_args: a2 } = &other.body {
                 if base_name != b2 { return false } // TODO: Relax this condition
