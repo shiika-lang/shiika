@@ -748,11 +748,14 @@ impl<'a> Parser<'a> {
                 }
                 Token::Comma => {
                     // `A<B, C>`
-                    if !lessthan_seen {
+                    if lessthan_seen {
+                        self.consume_token();
+                        self.skip_wsn();
+                    } else if recursing {
+                        break;
+                    } else {
                         return Err(parse_error!(self, "unexpected `,'"));
                     }
-                    self.consume_token();
-                    self.skip_wsn();
                 }
                 Token::UpperWord(s) => {
                     let name = s.to_string();
