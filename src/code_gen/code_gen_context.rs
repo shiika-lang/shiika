@@ -1,5 +1,4 @@
 use crate::hir::*;
-use crate::ty::*;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::rc::Rc;

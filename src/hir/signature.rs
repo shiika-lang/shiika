@@ -3,6 +3,55 @@ use crate::names::*;
 use crate::ty;
 use crate::ty::*;
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MethodSignature {
+    pub fullname: MethodFullname,
+    pub ret_ty: TermTy,
+    pub params: Vec<MethodParam>,
+}
+
+impl MethodSignature {
+    /// Return a param of the given name and its index
+    pub fn find_param(&self, name: &str) -> Option<(usize, &MethodParam)> {
+        self.params
+            .iter()
+            .enumerate()
+            .find(|(_, param)| param.name == name)
+    }
+
+    pub fn first_name(&self) -> &MethodFirstname {
+        &self.fullname.first_name
+    }
+
+    /// Substitute type parameters with type arguments
+    pub fn specialize(&self, type_args: &[TermTy]) -> MethodSignature {
+        MethodSignature {
+            fullname: self.fullname.clone(),
+            ret_ty: self.ret_ty.substitute(&type_args),
+            params: self
+                .params
+                .iter()
+                .map(|param| param.substitute(&type_args))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct MethodParam {
+    pub name: String,
+    pub ty: TermTy,
+}
+
+impl MethodParam {
+    pub fn substitute(&self, type_args: &[TermTy]) -> MethodParam {
+        MethodParam {
+            name: self.name.clone(),
+            ty: self.ty.substitute(&type_args),
+        }
+    }
+}
+
 /// Create `hir::MethodSignature` from `ast::MethodSignature`
 pub fn create_signature(
     class_fullname: &ClassFullname,

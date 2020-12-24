@@ -10,6 +10,8 @@ use crate::ast;
 use crate::corelib::Corelib;
 pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::sk_class::SkClass;
+pub use crate::hir::signature::MethodSignature;
+pub use crate::hir::signature::MethodParam;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
