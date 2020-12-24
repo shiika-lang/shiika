@@ -70,6 +70,11 @@ class String
     @bytesize == 0
   end
 
+  # Return an array of lines of `self`. The `\n` of each line is deleted.
+  def lines -> Array<String>
+    split("\n")
+  end
+
   def nth_byte(i: Int) -> Int
     if i < 0
       panic "[String#nth_byte: index less than zero]"
