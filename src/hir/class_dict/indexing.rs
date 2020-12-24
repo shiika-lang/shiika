@@ -2,10 +2,8 @@ use crate::ast;
 use crate::error;
 use crate::error::*;
 use crate::hir::class_dict::class_dict::ClassDict;
-use crate::hir::signature;
 use crate::hir::*;
 use crate::names::*;
-use crate::ty::*;
 use std::collections::HashMap;
 
 impl ClassDict {
@@ -87,9 +85,11 @@ impl ClassDict {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
+        let initializer_params = self.initializer_params(
+            typarams, &super_name.instance_ty(), &defs);
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            self.initializer_params(&super_name.instance_ty(), &defs),
+            initializer_params,
             &ty::return_type_of_new(fullname, typarams),
         );
 

@@ -36,17 +36,16 @@ pub fn create(
 
 impl ClassDict {
     /// Return parameters of `initialize`
-    fn initializer_params(&self, class: &TermTy, defs: &[ast::Definition]) -> Vec<MethodParam> {
+    fn initializer_params(&self, typarams: &[String], super_class: &TermTy, defs: &[ast::Definition]) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
-            // TODO: Support typarams in initializer params
-            hir::signature::convert_params(&sig.params, &[])
+            hir::signature::convert_params(&sig.params, typarams)
         } else {
             // Inherit #initialize from superclass
-            let (sig, _found_cls) = self
-                .lookup_method(&class, &method_firstname("initialize"))
+            let (sig, _) = self
+                .lookup_method(&super_class, &method_firstname("initialize"))
                 .expect("[BUG] initialize not found");
             sig.params
         }
