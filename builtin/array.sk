@@ -9,6 +9,30 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
+  # Return the `i`th item
+  # Panics if the index is out of range
+  def [](i: Int) -> T
+    if i < 0
+      panic "[Array#[]: index less than zero]"
+    end
+    if i >= @n_items
+      panic "[Array#[]: index too large]"
+    end
+    (@items + i * BYTES_OF_PTR).load 
+  end
+
+  # Replace the `i`th item with `obj`
+  # Panics if the index is out of range
+  def []=(i: Int, obj: T)
+    if i < 0
+      panic "[Array#[]=: index less than zero]"
+    end
+    if i >= @n_items
+      panic "[Array#[]=: index too large]"
+    end
+    (@items + i * BYTES_OF_PTR).store(obj) 
+  end
+
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
     other.each do |item: T|
@@ -137,18 +161,6 @@ class Array<T>
       f.call(self[i])
       i -= 1
     end
-  end
-
-  # Return the `i`th item
-  # Panics if the index is out of range
-  def [](i: Int) -> T
-    if i < 0
-      panic "[Array#[]: index less than zero]"
-    end
-    if i >= @n_items
-      panic "[Array#[]: index too large]"
-    end
-    (@items + i * BYTES_OF_PTR).load 
   end
 end
 

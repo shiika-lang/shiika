@@ -151,10 +151,10 @@ impl AstExpression {
         if self.may_have_paren_wo_args() {
             return true;
         }
-        match self.body {
+        match &self.body {
             AstExpressionBody::IVarRef(_) => true,
             AstExpressionBody::ConstRef(_) => true,
-            // TODO: a[b]
+            AstExpressionBody::MethodCall { method_name, .. } => method_name.0 == "[]",
             _ => false,
         }
     }
@@ -223,12 +223,16 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
         AstExpressionBody::MethodCall {
             receiver_expr,
             method_name,
+            mut arg_exprs,
             ..
-        } => AstExpressionBody::MethodCall {
-            receiver_expr,
-            method_name: method_name.append("="),
-            arg_exprs: vec![rhs],
-            may_have_paren_wo_args: false,
+        } => {
+            arg_exprs.push(rhs);
+            AstExpressionBody::MethodCall {
+                receiver_expr,
+                method_name: method_name.append("="),
+                arg_exprs,
+                may_have_paren_wo_args: false,
+            }
         },
         _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body),
     };
