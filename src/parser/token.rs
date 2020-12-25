@@ -46,8 +46,6 @@ pub enum Token {
     Xor,          //  ^
     LShift,       //  <<
     RShift,       //  >>
-    UPlusMethod,  //  +@
-    UMinusMethod, //  -@
     PlusEq,       //  +=
     MinusEq,      //  -=
     MulEq,        //  *=
@@ -60,6 +58,11 @@ pub enum Token {
     XorEq,        //  ^=
     AndAndEq,     //  &&=
     OrOrEq,       //  ||=
+    // Method name only
+    UPlusMethod,  //  +@
+    UMinusMethod, //  -@
+    GetMethod,    //  []
+    SetMethod,    //  []=
     // Keywords
     KwClass,
     KwEnd,
@@ -163,8 +166,6 @@ impl Token {
             Token::Xor => false,          //  ^
             Token::LShift => false,       //  <<
             Token::RShift => false,       //  >>
-            Token::UPlusMethod => false,  //  +@
-            Token::UMinusMethod => false, //  -@
             Token::PlusEq => false,       //  +=
             Token::MinusEq => false,      //  -=
             Token::MulEq => false,        //  *=
@@ -177,6 +178,11 @@ impl Token {
             Token::XorEq => false,        //  ^=
             Token::AndAndEq => false,     //  &&=
             Token::OrOrEq => false,       //  ||=
+            // Method name only
+            Token::UPlusMethod => false,  //  +@
+            Token::UMinusMethod => false, //  -@
+            Token::GetMethod => false,    //  []
+            Token::SetMethod => false,    //  []=
             // Keywords
             Token::KwClass => false,
             Token::KwEnd => false,

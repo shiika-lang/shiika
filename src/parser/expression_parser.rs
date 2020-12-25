@@ -360,6 +360,7 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
+    /// <=, etc.
     fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_relational_expr");
@@ -575,7 +576,13 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_primary_expr");
         let mut expr = self.parse_atomic()?;
         loop {
-            if self.next_nonspace_token() == Token::Dot {
+            if self.consume(Token::LSqBracket) {
+                let arg = self.parse_operator_expr()?;
+                // TODO: parse multiple arguments
+                self.skip_wsn();
+                self.expect(Token::RSqBracket)?;
+                expr = ast::method_call(Some(expr), "[]", vec![arg], true, false);
+            } else if self.next_nonspace_token() == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
                 self.skip_ws();
                 expr = self.parse_method_chain(expr)?;
@@ -642,6 +649,7 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
+    /// Smallest parts of Shiika program, such as number literals
     fn parse_atomic(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_atomic");

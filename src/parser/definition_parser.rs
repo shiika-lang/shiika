@@ -236,6 +236,8 @@ impl<'a> Parser<'a> {
             Token::LowerWord(s) => s,
             Token::UPlusMethod => "+@",
             Token::UMinusMethod => "-@",
+            Token::GetMethod => "[]",
+            Token::SetMethod => "[]=",
             Token::BinaryPlus => "+",
             Token::BinaryMinus => "-",
             Token::Mul => "*",

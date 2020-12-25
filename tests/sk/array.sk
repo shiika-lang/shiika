@@ -3,6 +3,6 @@ unless a.first == 123; puts "ng #first"; end
 
 b = Array<Int>.new
 b.push(123)
-unless b.nth(0) == 123; puts "ng Array<Int>.new"; end
+unless b[0] == 123; puts "ng Array<Int>.new"; end
 
 puts "ok"
