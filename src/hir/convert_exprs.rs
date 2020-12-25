@@ -260,8 +260,9 @@ impl HirMaker {
         })?;
 
         if ctx.is_initializer {
+            let self_ty = ctx.self_ty.clone();
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::assign_ivar(name, idx, expr, *is_var));
+            return Ok(Hir::assign_ivar(name, idx, expr, *is_var, self_ty));
         }
 
         if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
@@ -278,7 +279,7 @@ impl HirMaker {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::assign_ivar(name, ivar.idx, expr, false))
+            Ok(Hir::assign_ivar(name, ivar.idx, expr, false, ctx.self_ty.clone()))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -578,7 +579,7 @@ impl HirMaker {
             .class_dict
             .find_ivar(&method_ctx.self_ty.fullname, name)
         {
-            Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx)),
+            Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx, self.ctx().self_ty.clone())),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
                 name
