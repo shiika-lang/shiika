@@ -12,8 +12,8 @@ class Array<T>
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items
-      f.call(nth(i))
-      i = i + 1
+      f.call(self[i])
+      i += 1
     end
   end
 
@@ -106,20 +106,19 @@ class Array<T>
   # Call `f` with each element of `self` in the reversed order
   def reverse_each(f: Fn1<T, Void>)
     var i = @n_items - 1; while i >= 0
-      f.call(nth(i))
+      f.call(self[i])
       i -= 1
     end
   end
 
-  # Return the nth item
+  # Return the `i`th item
   # Panics if the index is out of range
-  # TODO #155: rename to `#[]`
-  def nth(i: Int) -> T
+  def [](i: Int) -> T
     if i < 0
-      panic "[Array#nth: index less than zero]"
+      panic "[Array#[]: index less than zero]"
     end
     if i >= @n_items
-      panic "[Array#nth: index too large]"
+      panic "[Array#[]: index too large]"
     end
     (@items + i * BYTES_OF_PTR).load 
   end

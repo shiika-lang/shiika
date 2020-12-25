@@ -376,7 +376,20 @@ impl<'a> Lexer<'a> {
         let (token, state) = match c1 {
             '(' => (Token::LParen, LexerState::ExprBegin),
             ')' => (Token::RParen, LexerState::ExprEnd),
-            '[' => (Token::LSqBracket, LexerState::ExprBegin),
+            '[' => {
+                if self.state == LexerState::MethodName && c2 == Some(']') {
+                    next_cur.proceed(self.src);
+                    let c3 = next_cur.peek(self.src);
+                    if c3 == Some('=') {
+                        next_cur.proceed(self.src);
+                        (Token::SetMethod, LexerState::ExprBegin)
+                    } else {
+                        (Token::GetMethod, LexerState::ExprBegin)
+                    }
+                } else {
+                    (Token::LSqBracket, LexerState::ExprBegin)
+                }
+            }
             ']' => (Token::RSqBracket, LexerState::ExprEnd),
             '{' => (Token::LBrace, LexerState::ExprBegin),
             '}' => (Token::RBrace, LexerState::ExprEnd),

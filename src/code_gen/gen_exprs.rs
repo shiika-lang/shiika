@@ -615,7 +615,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let captures = self._gen_get_lambda_captures(ctx);
         let item = self.gen_llvm_func_call(
-            "Array#nth",
+            "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
@@ -656,7 +656,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let captures = self._gen_get_lambda_captures(ctx);
         let ptr_ = self.gen_llvm_func_call(
-            "Array#nth",
+            "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
