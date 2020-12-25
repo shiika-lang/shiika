@@ -148,9 +148,18 @@ class String
   # Parse `self` as an integer value.
   # If non-digit character appears, parsing is terminated.
   def to_i -> Int
+    var minus = false
+    var start = 0
+    if self.nth_byte(0) == "+".nth_byte(0)
+      start = 1
+    elsif self.nth_byte(0) == "-".nth_byte(0)
+      start = 1
+      minus = true
+    end
+
     var n = 0
     # TODO: Use each_byte (#177)
-    var i = 0; while i < @bytesize
+    var i = start; while i < @bytesize
       b = self.nth_byte(i)
       if 48 <= b && b <= 57
         n *= 10
@@ -162,7 +171,7 @@ class String
       i += 1
     end
 
-    n
+    minus ? -n : n
   end
 
   # Return `self`
