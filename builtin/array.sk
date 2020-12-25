@@ -9,6 +9,19 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
+  # Add elements of `other` to the end of `self`
+  def append(other: Array<T>)
+    other.each do |item: T|
+      push(item)
+    end
+  end
+
+  # Remove all elements of `self`
+  def clear
+    @n_items = 0
+    # QUESTION: should we call gc_realloc?
+  end
+
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items
@@ -49,6 +62,11 @@ class Array<T>
     ret._unsafe_to_s
   end
 
+  # Return true if `self` has no elements
+  def is_empty -> Bool
+    @n_items == 0
+  end
+
   # Return true if `f` returned true for all items
   def is_all(f: Fn1<T, Bool>) -> Bool
     var ret = true
@@ -76,6 +94,16 @@ class Array<T>
   # Return the number of items
   def length -> Int
     @n_items
+  end
+
+  # Remove the last element and return it
+  def pop -> T
+    if @n_items == 0
+      panic "[Array#pop: array is empty]"
+    end
+    ret = self[@n_items-1]
+    @n_items -= 1
+    ret
   end
 
   # Push an object to the end of `self`

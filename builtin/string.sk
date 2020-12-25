@@ -17,6 +17,15 @@ class String
     ret._unsafe_to_s
   end
 
+  # Create a string by repeating `self` for `n` times
+  def *(n: Int) -> String
+    ret = MutableString.new
+    n.times do |_: Int|
+      ret.append(self)
+    end
+    ret._unsafe_to_s
+  end
+
   # Return true if `self` and `other` has same contents
   def ==(other: String) -> Bool
     if @bytesize != other.bytesize
@@ -47,6 +56,11 @@ class String
     @bytesize.times do |i: Int|
       f.call(nth_byte(i))
     end
+  end
+
+  # Call `f` for each line
+  def each_line(f: Fn1<String, Void>)
+    self.lines.each(f)
   end
 
   # Return true if `self` ends with `s`
