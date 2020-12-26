@@ -115,6 +115,14 @@ class Array<T>
     ret._unsafe_to_s
   end
 
+  # TODO: return Option
+  def last -> T
+    if @n_items == 0
+      panic "[Array#last: array is empty]"
+    end
+    self[@n_items - 1]
+  end
+
   # Return the number of items
   def length -> Int
     @n_items
