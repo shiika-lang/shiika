@@ -4,6 +4,23 @@ class Object
     false
   end
 
+  def <(other: Object) -> Bool
+    panic "[`< is not implemented for this class]"
+    false
+  end
+
+  def >(other: Object) -> Bool
+    other < self
+  end
+
+  def <=(other: Object) -> Bool
+    self < other || self == other
+  end
+
+  def >=(other: Object) -> Bool
+    self > other || self == other
+  end
+
   def inspect -> String
     self.to_s
   end

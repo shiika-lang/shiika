@@ -162,6 +162,60 @@ class Array<T>
       i -= 1
     end
   end
+
+  # Destructively sort elements of `self`.
+  # Panics if `T` does not implement `<=>`
+  def sort_inplace()
+    if self.is_empty
+      # do nothing
+    else
+      _quicksort(0, @n_items - 1)
+    end
+  end
+  def _quicksort(i: Int, j: Int)
+    if i == j
+      # done
+    else
+      k = _partition(i, j, self[_choose_pivot(i, j)])
+      _quicksort(i, k-1)
+      _quicksort(k, j)
+    end
+  end
+  def _choose_pivot(i: Int, j: Int) -> Int
+    var k = i + 1
+    while k <= j && self[i] == self[k]
+      k += 1
+    end
+    if k > j
+      -1
+    elsif self[i] >= self[k]
+      i
+    else
+      k
+    end
+  end
+  def _partition(i: Int, j: Int, pivot: T) -> Int
+    var l = i
+    var r = j
+    while l <= r
+      while l <= j && self[l] < pivot
+        l += 1
+      end
+      while r >= i && self[r] >= pivot
+        r -= 1
+      end
+      if l > r
+        #break  # #215
+      else
+        tmp = self[l]
+        self[l] = self[r]
+        self[r] = tmp
+        l += 1
+        r -= 1
+      end
+    end
+    l
+  end
 end
 
 # Create `Meta:Array` by this ConstRef for array literals (#178)
