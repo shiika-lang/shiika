@@ -496,6 +496,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::KwThen) {
             self.skip_wsn();
         } else {
+            self.set_lexer_state(LexerState::ExprBegin); // +/- is always unary here
             self.expect(Token::Separator)?;
         }
 
