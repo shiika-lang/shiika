@@ -1,9 +1,12 @@
-## HEAD
+## v0.5.2 (2020-12-27)
 
-- feat: String#split, #slice_bytes, #== (#187)
-- feat: String#each_byte, #to_i (7474253b)
+- Breaking change: Rename `Array#nth` to `Array#[]` (#155)
+- feat: Added many methods
 - feat: `\n`, etc. (#190)
-- fixes: #183
+- feat: Int is now 64bit (#198)
+- feat: Better parse error (1262091)
+- feat: elsif (#201)
+- fixes: #183, #184, #194, #196, #197, #199, #200, #214
 
 ## v0.5.1 (2020-12-04)
 
