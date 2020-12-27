@@ -1,6 +1,18 @@
 INITIAL_STR_CAPA = 10
 
 class MutableString
+  # TODO: inherit from String #206
+  def nth_byte(n: Int) -> Int
+    if n < 0
+      panic "[String#nth_byte: index less than zero]"
+    end
+    if n >= @bytesize
+      panic "[String#nth_byte: index too large]"
+    end
+    (@ptr+n).read
+  end
+
+
   def initialize
     var @ptr = Shiika::Internal::Memory.gc_malloc(INITIAL_STR_CAPA+1)
     # Maximum number of bytes (does not included the last null)

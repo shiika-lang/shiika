@@ -89,14 +89,15 @@ class String
     split("\n")
   end
 
-  def nth_byte(i: Int) -> Int
-    if i < 0
+  # Return the `n`th byte of `self`
+  def nth_byte(n: Int) -> Int
+    if n < 0
       panic "[String#nth_byte: index less than zero]"
     end
-    if i >= @bytesize
+    if n >= @bytesize
       panic "[String#nth_byte: index too large]"
     end
-    (@ptr+i).read
+    (@ptr+n).read
   end
 
   # Create a string which has a partial content of `self`
@@ -172,6 +173,13 @@ class String
     end
 
     minus ? -n : n
+  end
+
+  # Create mutable clone of `self`
+  def to_mutable -> MutableString
+    ret = MutableString.new
+    ret.append(self)
+    ret
   end
 
   # Return `self`
