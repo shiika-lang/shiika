@@ -45,6 +45,7 @@ pub struct AstMethodSignature {
 pub struct Param {
     pub name: String,
     pub typ: Typ,
+    pub is_iparam: bool, // eg. `def initialize(@a: Int)`
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -252,6 +253,14 @@ pub fn ivar_decl(name: String, rhs: AstExpression) -> AstExpression {
         name,
         rhs: Box::new(rhs),
         is_var: true,
+    })
+}
+
+pub fn ivar_assign(name: String, rhs: AstExpression) -> AstExpression {
+    non_primary_expression(AstExpressionBody::IVarAssign {
+        name,
+        rhs: Box::new(rhs),
+        is_var: false,
     })
 }
 

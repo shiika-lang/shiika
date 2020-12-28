@@ -142,7 +142,8 @@ impl<'a> Parser<'a> {
         self.expect_sep()?;
 
         // Body (optional)
-        let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
+        let mut body_exprs = iparam_exprs(&sig.params);
+        body_exprs.append(&mut self.parse_exprs(vec![Token::KwEnd])?);
 
         // `end'
         self.skip_wsn();
@@ -198,7 +199,8 @@ impl<'a> Parser<'a> {
             Token::LParen => {
                 self.consume_token();
                 self.skip_wsn();
-                params = self.parse_params(vec![Token::RParen])?;
+                let is_initialize = !is_class_method && name == Some(method_firstname("initialize"));
+                params = self.parse_params(is_initialize, vec![Token::RParen])?;
             }
             // Has no params
             _ => {
@@ -261,12 +263,19 @@ impl<'a> Parser<'a> {
 
     // Parse parameters
     // - The `(` should be consumed beforehand
-    pub(super) fn parse_params(&mut self, stop_toks: Vec<Token>) -> Result<Vec<ast::Param>, Error> {
+    pub(super) fn parse_params(&mut self, is_initialize: bool, stop_toks: Vec<Token>) -> Result<Vec<ast::Param>, Error> {
         let mut params = vec![];
         loop {
             // Param
             if !stop_toks.contains(self.current_token()) {
                 match self.current_token() {
+                    Token::IVar(_) => {
+                        if is_initialize {
+                            params.push(self.parse_param()?);
+                        } else {
+                            return Err(parse_error!(self, "@ is only used in `initialize'"))
+                        }
+                    }
                     Token::LowerWord(_) => params.push(self.parse_param()?),
                     token => {
                         return Err(parse_error!(
@@ -302,12 +311,19 @@ impl<'a> Parser<'a> {
 
     fn parse_param(&mut self) -> Result<ast::Param, Error> {
         let name;
+        let is_iparam;
 
         // Name
         match self.current_token() {
             Token::LowerWord(s) => {
                 name = s.to_string();
                 self.consume_token();
+                is_iparam = false;
+            }
+            Token::IVar(s) => {
+                name = s.to_string();
+                self.consume_token();
+                is_iparam = true;
             }
             token => {
                 return Err(parse_error!(
@@ -326,7 +342,7 @@ impl<'a> Parser<'a> {
         // Type
         let typ = self.parse_typ()?;
 
-        Ok(ast::Param { name, typ })
+        Ok(ast::Param { name, typ, is_iparam })
     }
 
     fn parse_typ(&mut self) -> Result<ast::Typ, Error> {
@@ -408,4 +424,13 @@ impl<'a> Parser<'a> {
         self.lv -= 1;
         Ok(ast::Definition::ConstDefinition { name, expr })
     }
+}
+
+/// `def initialize(@a: Int)` is equivalent to
+/// `def initialize(a: Int); @a = a`.
+/// Returns expressions like `@a = a`
+fn iparam_exprs(params: &[Param]) -> Vec<ast::AstExpression> {
+    params.iter().filter(|param| param.is_iparam).map(|param| {
+        ast::ivar_assign(param.name.clone(), ast::bare_name(&param.name))
+    }).collect()
 }
