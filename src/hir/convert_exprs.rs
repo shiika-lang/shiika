@@ -29,7 +29,7 @@ impl LVarInfo {
     fn ref_expr(&self) -> HirExpression {
         match self {
             LVarInfo::CurrentScope { ty, name } => Hir::lvar_ref(ty.clone(), name.clone()),
-            LVarInfo::Argument { ty, idx } => Hir::hir_arg_ref(ty.clone(), *idx),
+            LVarInfo::Argument { ty, idx } => Hir::arg_ref(ty.clone(), *idx),
             LVarInfo::OuterScope {
                 ty, cidx, readonly, ..
             } => Hir::lambda_capture_ref(ty.clone(), *cidx, *readonly),

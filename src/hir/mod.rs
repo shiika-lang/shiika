@@ -370,8 +370,7 @@ impl Hir {
         }
     }
 
-    // REFACTOR: Remove `hir_`
-    pub fn hir_arg_ref(ty: TermTy, idx: usize) -> HirExpression {
+    pub fn arg_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirArgRef { idx },
