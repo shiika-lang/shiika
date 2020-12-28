@@ -1,3 +1,7 @@
+## HEAD
+
+- fixes: #179
+
 ## v0.5.2 (2020-12-27)
 
 - Breaking change: Rename `Array#nth` to `Array#[]` (#155)

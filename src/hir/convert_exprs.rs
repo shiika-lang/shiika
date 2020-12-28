@@ -575,10 +575,11 @@ impl HirMaker {
         let method_ctx = self.method_ctx().ok_or_else(|| {
             error::program_error(&format!("referring ivar `{}' out of a method", name))
         })?;
-        match self
-            .class_dict
-            .find_ivar(&method_ctx.self_ty.fullname, name)
-        {
+        let self_cls = &method_ctx.self_ty.fullname;
+        let found = self.class_dict.find_ivar(&self_cls, name).or_else(||{
+            method_ctx.iivars.get(name)
+        });
+        match found {
             Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx, self.ctx().self_ty.clone())),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
