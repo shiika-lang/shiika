@@ -315,7 +315,7 @@ impl Hir {
         }
     }
 
-    pub fn assign_lvar(name: &str, rhs: HirExpression) -> HirExpression {
+    pub fn lvar_assign(name: &str, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLVarAssign {
@@ -325,7 +325,7 @@ impl Hir {
         }
     }
 
-    pub fn assign_ivar(
+    pub fn ivar_assign(
         name: &str,
         idx: usize,
         rhs: HirExpression,
@@ -344,7 +344,7 @@ impl Hir {
         }
     }
 
-    pub fn assign_const(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
+    pub fn const_assign(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirConstAssign {

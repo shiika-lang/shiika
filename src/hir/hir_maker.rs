@@ -293,7 +293,7 @@ impl HirMaker {
         hir_expr: HirExpression,
     ) -> ConstFullname {
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        let op = Hir::assign_const(fullname.clone(), hir_expr);
+        let op = Hir::const_assign(fullname.clone(), hir_expr);
         self.const_inits.push(op);
         fullname
     }

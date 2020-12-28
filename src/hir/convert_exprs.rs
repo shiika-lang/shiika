@@ -38,7 +38,7 @@ impl LVarInfo {
 
     fn assign_expr(&self, expr: HirExpression) -> HirExpression {
         match self {
-            LVarInfo::CurrentScope { name, .. } => Hir::assign_lvar(name, expr),
+            LVarInfo::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
             LVarInfo::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
             LVarInfo::OuterScope { arity, cidx, .. } => {
                 Hir::lambda_capture_write(*arity, *cidx, expr)
@@ -245,7 +245,7 @@ impl HirMaker {
             }
         }
 
-        Ok(Hir::assign_lvar(name, expr))
+        Ok(Hir::lvar_assign(name, expr))
     }
 
     fn convert_ivar_assign(
@@ -262,7 +262,7 @@ impl HirMaker {
         if ctx.is_initializer {
             let self_ty = ctx.self_ty.clone();
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::assign_ivar(name, idx, expr, *is_var, self_ty));
+            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
         }
 
         if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
@@ -279,7 +279,7 @@ impl HirMaker {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::assign_ivar(name, ivar.idx, expr, false, ctx.self_ty.clone()))
+            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, ctx.self_ty.clone()))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -328,7 +328,7 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         let name = const_firstname(&names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
         let fullname = self.register_const(&name, &rhs)?;
-        Ok(Hir::assign_const(fullname, self.convert_expr(rhs)?))
+        Ok(Hir::const_assign(fullname, self.convert_expr(rhs)?))
     }
 
     fn convert_method_call(
