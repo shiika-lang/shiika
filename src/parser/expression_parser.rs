@@ -489,7 +489,7 @@ impl<'a> Parser<'a> {
         self.skip_ws();
 
         // cond
-        let cond_expr = self.parse_expr()?;
+        let cond_expr = self.parse_and_or_expr()?;
         self.skip_ws();
 
         // `then`
@@ -537,7 +537,7 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_unlessif_expr");
         assert!(self.consume(Token::KwUnless));
         self.skip_ws();
-        let cond_expr = self.parse_expr()?;
+        let cond_expr = self.parse_and_or_expr()?;
         self.skip_ws();
         if self.consume(Token::KwThen) {
             self.skip_wsn();
@@ -560,7 +560,7 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_while_expr");
         assert!(self.consume(Token::KwWhile));
         self.skip_ws();
-        let cond_expr = self.parse_expr()?;
+        let cond_expr = self.parse_and_or_expr()?;
         self.skip_ws();
         self.expect(Token::Separator)?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
@@ -836,7 +836,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error!(self, "unexpected comma in an array literal"))
                 }
                 _ => {
-                    let expr = self.parse_expr()?;
+                    let expr = self.parse_and_or_expr()?;
                     exprs.push(expr);
                     self.skip_wsn();
                     match self.current_token() {
