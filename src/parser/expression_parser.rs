@@ -58,7 +58,30 @@ impl<'a> Parser<'a> {
                 token => return Err(parse_error!(self, "invalid var name: {:?}", token)),
             }
         } else {
-            expr = self.parse_and_or_expr()?;
+            expr = self.parse_if_unless_modifier()?;
+        }
+        self.lv -= 1;
+        Ok(expr)
+    }
+
+    /// a if b
+    /// a unless b
+    pub fn parse_if_unless_modifier(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_if_unless_modifier");
+        let mut expr = self.parse_and_or_expr()?;
+        if self.next_nonspace_token() == Token::KwIf {
+            self.skip_ws();
+            assert!(self.consume(Token::KwIf));
+            self.skip_ws();
+            let cond = self.parse_and_or_expr()?;
+            expr = ast::if_expr(cond, vec![expr], None)
+        } else if self.next_nonspace_token() == Token::KwUnless {
+            self.skip_ws();
+            assert!(self.consume(Token::KwUnless));
+            self.skip_ws();
+            let cond = ast::logical_not(self.parse_and_or_expr()?);
+            expr = ast::if_expr(cond, vec![expr], None)
         }
         self.lv -= 1;
         Ok(expr)
