@@ -534,7 +534,7 @@ impl<'a> Parser<'a> {
 
     fn parse_unless_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
-        self.debug_log("parse_unlessif_expr");
+        self.debug_log("parse_unless_expr");
         assert!(self.consume(Token::KwUnless));
         self.skip_ws();
         let cond_expr = self.parse_and_or_expr()?;
