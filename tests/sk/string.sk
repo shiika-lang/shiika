@@ -1,5 +1,11 @@
 var a = Array<String>.new
 
+# interpolation
+x = 1; y = 2
+unless "x=#{x}, y=#{y}" == "x=1, y=2"; puts "interpolation1: fail"; end
+b = [1,2,3]; c = [4,5]
+unless "b=\{b}, c=\{c}" == "b=[1, 2, 3], c=[4, 5]"; puts "interpolation2: fail"; end
+
 # split
 a = "a<>bc<>d".split("<>")
 unless a.length == 3; puts "split1: bad length"; end
