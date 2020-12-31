@@ -918,18 +918,19 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
-        let head = if let Token::StrWithInterpolation { head: head1 } = self.consume_token() {
-            head1
+        let (head, inspect1) = if let Token::StrWithInterpolation { head, inspect } = self.consume_token() {
+            (head, inspect)
         } else {
             panic!("invalid call")
         };
+        let mut inspect = inspect1;
         let mut expr = ast::string_literal(head);
         loop {
             self.skip_wsn();
             let inner_expr = self.parse_expr()?;
             let arg = ast::method_call(
                 Some(inner_expr),
-                "to_s",
+                if inspect { "inspect" } else { "to_s" },
                 vec![],
                 false, // primary
                 false, // may_have_paren_wo_args
@@ -946,7 +947,10 @@ impl<'a> Parser<'a> {
             self.set_lexer_state(LexerState::ExprEnd);
             let (s, finish) = match self.consume_token() {
                 Token::Str(tail) => (tail, true),
-                Token::StrWithInterpolation { head } => (head, false),
+                Token::StrWithInterpolation { head, inspect: inspect2 } => {
+                    inspect = inspect2;
+                    (head, false)
+                }
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
             }; 
             expr = ast::method_call(

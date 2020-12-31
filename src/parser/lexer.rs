@@ -633,16 +633,22 @@ impl<'a> Lexer<'a> {
                 }
                 Some('\\') => {
                     next_cur.proceed(self.src);
-                    let c = self._read_escape_sequence(next_cur.peek(self.src));
-                    next_cur.proceed(self.src);
-                    buf.push(c);
+                    let c2 = next_cur.peek(self.src);
+                    if c2 == Some('{') {
+                        next_cur.proceed(self.src);
+                        return Token::StrWithInterpolation{ head: buf, inspect: true };
+                    } else {
+                        let c = self._read_escape_sequence(next_cur.peek(self.src));
+                        next_cur.proceed(self.src);
+                        buf.push(c);
+                    }
                 }
                 Some('#') => {
                     next_cur.proceed(self.src);
                     let c2 = next_cur.peek(self.src);
                     if c2 == Some('{') {
                         next_cur.proceed(self.src);
-                        return Token::StrWithInterpolation{ head: buf };
+                        return Token::StrWithInterpolation{ head: buf, inspect: false };
                     } else {
                         buf.push('#');
                     }

@@ -11,6 +11,7 @@ pub enum Token {
     Str(String),
     StrWithInterpolation {
         head: String, // Contents before `#{'
+        inspect: bool, // true if `\{}', which calls .inspect instead of .to_s
     },
     // Symbols
     LParen,       //  (
