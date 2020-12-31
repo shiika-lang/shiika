@@ -163,6 +163,12 @@ impl TermTy {
                 }
             }
             TyClass => Some(ty::raw("Object")),
+            TySpe { base_name, .. } => {
+                match class_dict.get_superclass(&class_fullname(base_name)) {
+                    Some(scls) => Some(ty::raw(&scls.fullname.0)),
+                    None => panic!("unexpected"),
+                }
+            }
             _ => panic!("TODO: {}", self),
         }
     }
