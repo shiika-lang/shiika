@@ -702,7 +702,8 @@ impl<'a> Parser<'a> {
             }
             Token::LSqBracket => self.parse_array_literal(),
             Token::Number(_) => self.parse_decimal_literal(),
-            Token::Str(_) => self.parse_string(),
+            Token::Str(_) => Ok(self.parse_string_literal()),
+            Token::StrWithInterpolation{ .. } => self.parse_string_with_interpolation(),
             Token::LParen => self.parse_parenthesized_expr(),
             token => Err(parse_error!(self, "unexpected token: {:?}", token)),
         }?;
@@ -905,13 +906,58 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_string(&mut self) -> Result<AstExpression, Error> {
+    fn parse_string_literal(&mut self) -> AstExpression {
+        if let Token::Str(content) = self.consume_token() {
+            ast::string_literal(content)
+        } else {
+            panic!("invalid call")
+        }
+    }
+
+    /// Process a string literal with interpolation (`#{}`)
+    fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
-        self.debug_log("parse_string");
-        let expr = match self.consume_token() {
-            Token::Str(content) => ast::string_literal(content),
-            _ => panic!("parse_string called on non-string token"),
+        self.debug_log("parse_string_with_interpolation");
+        let head = if let Token::StrWithInterpolation { head: head1 } = self.consume_token() {
+            head1
+        } else {
+            panic!("invalid call")
         };
+        let mut expr = ast::string_literal(head);
+        loop {
+            self.skip_wsn();
+            let inner_expr = self.parse_expr()?;
+            let arg = ast::method_call(
+                Some(inner_expr),
+                "to_s",
+                vec![],
+                false, // primary
+                false, // may_have_paren_wo_args
+                );
+            expr = ast::method_call(
+                Some(expr),
+                "+",
+                vec![arg],
+                false, // primary
+                false, // may_have_paren_wo_args
+                );
+            self.set_lexer_state(LexerState::StrLiteral);
+            self.expect(Token::RBrace)?;
+            self.set_lexer_state(LexerState::ExprEnd);
+            let (s, finish) = match self.consume_token() {
+                Token::Str(tail) => (tail, true),
+                Token::StrWithInterpolation { head } => (head, false),
+                _ => panic!("unexpeced token in LexerState::StrLiteral"),
+            }; 
+            expr = ast::method_call(
+                Some(expr),
+                "+",
+                vec![ast::string_literal(s)],
+                false, // primary
+                false, // may_have_paren_wo_args
+            );
+            if finish { break };
+        }
         self.lv -= 1;
         Ok(expr)
     }

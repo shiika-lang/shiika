@@ -41,6 +41,8 @@ pub enum LexerState {
     /// Expects a method name
     /// eg. `+@`, `-@` is allowed only in this state
     MethodName,
+    /// In a string literal (with interpolation)
+    StrLiteral,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -224,7 +226,7 @@ impl<'a> Lexer<'a> {
             CharType::IVar => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
             CharType::Symbol => self.read_symbol(&mut next_next_cur),
             CharType::Number => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Str => (self.read_str(&mut next_next_cur), None),
+            CharType::Str => (self.read_str(&mut next_next_cur, false), None),
             CharType::Eof => (self.read_eof(), None),
         };
         token
@@ -234,30 +236,39 @@ impl<'a> Lexer<'a> {
     fn read_token(&mut self) {
         let c = self.cur.peek(self.src);
         let mut next_cur = self.cur.clone();
-        let (token, new_state) = match self.char_type(c) {
-            CharType::Space => (self.read_space(&mut next_cur), None),
-            CharType::Separator => (self.read_separator(&mut next_cur), None),
-            CharType::Comment => (self.read_comment(&mut next_cur), None),
-            CharType::UpperWord => (
-                self.read_upper_word(&mut next_cur, None),
-                Some(LexerState::ExprEnd),
-            ),
-            CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
-            CharType::IVar => (
-                self.read_ivar(&mut next_cur, None),
-                Some(LexerState::ExprEnd),
-            ),
-            CharType::Symbol => self.read_symbol(&mut next_cur),
-            CharType::Number => (
-                self.read_number(&mut next_cur, None),
-                Some(LexerState::ExprEnd),
-            ),
-            CharType::Str => (
-                self.read_str(&mut next_cur),
-                Some(LexerState::ExprEnd),
-            ),
-            CharType::Eof => (self.read_eof(), None),
-        };
+        let token;
+        let new_state;
+        if self.state == LexerState::StrLiteral {
+            token = self.read_str(&mut next_cur, true);
+            new_state = None;
+        } else {
+            let (t, s) = match self.char_type(c) {
+                CharType::Space => (self.read_space(&mut next_cur), None),
+                CharType::Separator => (self.read_separator(&mut next_cur), None),
+                CharType::Comment => (self.read_comment(&mut next_cur), None),
+                CharType::UpperWord => (
+                    self.read_upper_word(&mut next_cur, None),
+                    Some(LexerState::ExprEnd),
+                ),
+                CharType::LowerWord => self.read_lower_word(&mut next_cur, None),
+                CharType::IVar => (
+                    self.read_ivar(&mut next_cur, None),
+                    Some(LexerState::ExprEnd),
+                ),
+                CharType::Symbol => self.read_symbol(&mut next_cur),
+                CharType::Number => (
+                    self.read_number(&mut next_cur, None),
+                    Some(LexerState::ExprEnd),
+                ),
+                CharType::Str => (
+                    self.read_str(&mut next_cur, false),
+                    Some(LexerState::ExprEnd),
+                ),
+                CharType::Eof => (self.read_eof(), None),
+            };
+            token = t;
+            new_state = s;
+        }
         self.set_current_token(token);
         if let Some(state) = new_state {
             self.state = state;
@@ -563,8 +574,9 @@ impl<'a> Lexer<'a> {
             LexerState::ExprEnd => false,
             LexerState::ExprArg => self.current_token == Token::Space && next_char != Some(' '),
 
-            // is_unary does not make sense at this state. Just return false
+            // is_unary does not make sense at these states. Just return false
             LexerState::MethodName => false,
+            LexerState::StrLiteral => false,
         }
     }
 
@@ -602,9 +614,13 @@ impl<'a> Lexer<'a> {
 
     /// Read a string literal
     /// Also parse escape sequences here
-    fn read_str(&mut self, next_cur: &mut Cursor) -> Token {
+    /// - cont: true if reading string after `#{}'
+    fn read_str(&mut self, next_cur: &mut Cursor, cont: bool) -> Token {
         let mut buf = String::new();
-        next_cur.proceed(self.src);
+        if !cont {
+            // Consume the beginning `"'
+            next_cur.proceed(self.src);
+        }
         loop {
             match next_cur.peek(self.src) {
                 None => {
@@ -620,6 +636,16 @@ impl<'a> Lexer<'a> {
                     let c = self._read_escape_sequence(next_cur.peek(self.src));
                     next_cur.proceed(self.src);
                     buf.push(c);
+                }
+                Some('#') => {
+                    next_cur.proceed(self.src);
+                    let c2 = next_cur.peek(self.src);
+                    if c2 == Some('{') {
+                        next_cur.proceed(self.src);
+                        return Token::StrWithInterpolation{ head: buf };
+                    } else {
+                        buf.push('#');
+                    }
                 }
                 Some(c) => {
                     next_cur.proceed(self.src);

@@ -9,6 +9,9 @@ pub enum Token {
     IVar(String),
     Number(String),
     Str(String),
+    StrWithInterpolation {
+        head: String, // Contents before `#{'
+    },
     // Symbols
     LParen,       //  (
     RParen,       //  )
@@ -129,6 +132,7 @@ impl Token {
             Token::IVar(_) => true,
             Token::Number(_) => true,
             Token::Str(_) => true,
+            Token::StrWithInterpolation { .. } => true,
             // Symbols
             Token::LParen => true,        //  (
             Token::RParen => false,       //  )
