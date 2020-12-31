@@ -43,8 +43,14 @@ class Int
 
   # Returns string representation of `self`.
   def to_s -> String
-    a = Array<Int>.new
+    var minus = false
     var n = self
+    if self < 0
+      minus = true
+      n = -self
+    end
+
+    a = Array<Int>.new
     while true
       a.push((n % 10) + 48)  # 48 = "0"
       n /= 10
@@ -55,6 +61,10 @@ class Int
 
     ret = MutableString.new
     var i = 0
+    if minus
+      ret.append("-") 
+      i = 1
+    end
     a.reverse_each do |b: Int|
       ret.write_byte(i, b)
       i += 1
