@@ -84,7 +84,7 @@ See [Issues](https://github.com/yhara/shiika/issues)
 ### Prerequisits
 
 - Rust
-- LLVM (`brew install llvm@7`)
+- LLVM (`brew install llvm@9`)
 - bdw-gc (`brew install bdw-gc`)
 
 ### Compile
