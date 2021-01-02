@@ -70,12 +70,12 @@ pub fn program_error(msg: &str) -> Error {
     }
 }
 
-pub fn runner_error(msg: impl Into<String>, source: impl std::error::Error + 'static) -> Error {
+pub fn runner_error(msg: impl Into<String>, source: Box<dyn std::error::Error>) -> Error {
     Error {
         msg: msg.into(),
         backtrace: backtrace::Backtrace::new(),
         details: ErrorDetails::RunnerError,
-        source: Some(Box::new(source)),
+        source: Some(source),
     }
 }
 
