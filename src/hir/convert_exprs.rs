@@ -595,14 +595,24 @@ impl HirMaker {
             return Ok(Hir::const_ref(ty.clone(), name.clone()));
         }
         // Check if it refers to a class
-        if self.class_dict.class_exists(&name.names.join("::")) {
-            self._create_class_const(name);
-            return Ok(Hir::const_ref(name.class_ty(), name.clone()));
+        self._check_class_exists(name)?;
+        self._create_class_const(name);
+        Ok(Hir::const_ref(name.class_ty(), name.clone()))
+    }
+
+    /// Check `name` refers proper class name
+    /// eg. For `A<B<C>>`, check A, B and C exists
+    fn _check_class_exists(&self, name: &ConstName) -> Result<(), Error> {
+        if !self.class_dict.class_exists(&name.names.join("::")) {
+            return Err(error::program_error(&format!(
+                "class `{:?}' was not found",
+                name.names.join("::")
+            )))
         }
-        Err(error::program_error(&format!(
-            "constant `{:?}' was not found",
-            name.fullname()
-        )))
+        for arg in &name.args {
+            self._check_class_exists(arg)?;
+        }
+        Ok(())
     }
 
     /// Register constant of a class object
