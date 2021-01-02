@@ -6,8 +6,8 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 
 [dependencies]
 backtrace = "0.3"
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm7-0" }
-llvm-sys = "70"
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm9-0" }
+llvm-sys = "90.2.0"
 failure = "0.1.6"
 clap = { git = "https://github.com/clap-rs/clap", version = "3.0.0-beta.1", features = ["yaml"]}
 either = "1.5.3"
