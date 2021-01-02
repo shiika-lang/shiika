@@ -185,23 +185,20 @@ impl HirMaker {
     }
 
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
-        let mut i = (self.ctx_stack.len() as isize) - 1;
-        while i >= 0 {
-            let ctx = &self.ctx_stack[i as usize];
-            if ctx.kind == CtxKind::Method {
-                return Some(ctx);
-            }
-            i -= 1
-        }
-        None
+        self.find_ctx(CtxKind::Method).map(|i| &self.ctx_stack[i])
     }
 
     pub(super) fn method_ctx_mut(&mut self) -> Option<&mut HirMakerContext> {
+        self.find_ctx(CtxKind::Method).map(move |i| &mut self.ctx_stack[i])
+    }
+
+    /// Find nearest enclosing ctx of the `kind`
+    fn find_ctx(&self, kind: CtxKind) -> Option<usize> {
         let mut i = (self.ctx_stack.len() as isize) - 1;
         while i >= 0 {
             let ctx = &self.ctx_stack[i as usize];
-            if ctx.kind == CtxKind::Method {
-                return Some(&mut self.ctx_stack[i as usize]);
+            if ctx.kind == kind {
+                return Some(i as usize);
             }
             i -= 1
         }
