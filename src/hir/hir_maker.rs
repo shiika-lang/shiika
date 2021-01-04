@@ -107,7 +107,7 @@ impl HirMaker {
             // Extract instance/class methods
             ast::Definition::ClassDefinition { name, defs, .. } => {
                 let full = name.add_namespace("");
-                self.collect_sk_methods(&full, defs)?;
+                self.process_defs_in_class(defs, &full)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_const(name, expr)?;
@@ -117,18 +117,8 @@ impl HirMaker {
         Ok(())
     }
 
-    /// Extract instance/class methods and constants
-    fn collect_sk_methods(
-        &mut self,
-        fullname: &ClassFullname,
-        defs: &[ast::Definition],
-    ) -> Result<(), Error> {
-        self.process_defs(defs, &fullname)?;
-        Ok(())
-    }
-
     /// Process each method def and const def
-    fn process_defs(
+    fn process_defs_in_class(
         &mut self,
         defs: &[ast::Definition],
         fullname: &ClassFullname,
@@ -174,7 +164,7 @@ impl HirMaker {
                 }
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.collect_sk_methods(&full, defs)?;
+                    self.process_defs_in_class(defs, &full)?;
                 }
             }
         }
