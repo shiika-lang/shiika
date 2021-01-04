@@ -623,12 +623,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
                 let ptr = self
                     .builder
-                    .build_bitcast(item, ptr_ty, "")
+                    .build_bitcast(item, ptr_ty, "ptr")
                     .into_pointer_value();
-                self.builder.build_load(ptr, "")
+                self.builder.build_load(ptr, "ret")
             } else {
                 // `item` is a value
-                self.builder.build_bitcast(item, self.llvm_type(ty), "")
+                self.builder.build_bitcast(item, self.llvm_type(ty), "ret")
             };
 
         let block = self
@@ -661,7 +661,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
         let ptr = self
             .builder
-            .build_bitcast(ptr_, ptr_type, "")
+            .build_bitcast(ptr_, ptr_type, "ptr")
             .into_pointer_value();
         let value = self.gen_expr(ctx, rhs)?;
         self.builder.build_store(ptr, value);
