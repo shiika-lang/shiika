@@ -160,7 +160,9 @@ impl HirMaker {
                     self.method_dict.add_method(&meta_name, method);
                 }
                 ast::Definition::ConstDefinition { name, expr } => {
-                    self.register_const(name, expr)?;
+                    let full = name.add_namespace(&fullname.0);
+                    let hir_expr = self.convert_expr(expr)?;
+                    self.register_const_full(full, hir_expr);
                 }
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
