@@ -605,7 +605,7 @@ impl HirMaker {
     fn _check_class_exists(&self, name: &ConstName) -> Result<(), Error> {
         if !self.class_dict.class_exists(&name.names.join("::")) {
             return Err(error::program_error(&format!(
-                "class `{:?}' was not found",
+                "constant `{:?}' was not found",
                 name.names.join("::")
             )))
         }
