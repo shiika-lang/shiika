@@ -116,7 +116,7 @@ impl HirExpressions {
 fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
-        const_name(vec!["Void".to_string()]),
+        const_fullname("::Void"),
     )
 }
 
@@ -181,7 +181,7 @@ pub enum HirExpressionBase {
         self_ty: TermTy,
     },
     HirConstRef {
-        name: ConstName,
+        fullname: ConstFullname,
     },
     HirLambdaExpr {
         name: String,
@@ -391,10 +391,10 @@ impl Hir {
         }
     }
 
-    pub fn const_ref(ty: TermTy, name: ConstName) -> HirExpression {
+    pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirConstRef { name },
+            node: HirExpressionBase::HirConstRef { fullname },
         }
     }
 

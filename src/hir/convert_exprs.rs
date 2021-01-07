@@ -590,14 +590,26 @@ impl HirMaker {
 
     /// Resolve constant name
     fn convert_const_ref(&mut self, name: &ConstName) -> Result<HirExpression, Error> {
-        // TODO: Resolve using ctx
-        if let Some(ty) = self.constants.get(&name.to_const_fullname()) {
-            return Ok(Hir::const_ref(ty.clone(), name.clone()));
+        if let Some((ty, fullname)) = self._lookup_const(name) {
+            return Ok(Hir::const_ref(ty.clone(), fullname));
         }
         // Check if it refers to a class
         self._check_class_exists(name)?;
         self._create_class_const(name);
-        Ok(Hir::const_ref(name.class_ty(), name.clone()))
+        Ok(Hir::const_ref(name.class_ty(), name.to_const_fullname()))
+    }
+
+    /// Lookup a constant from current scope
+    fn _lookup_const(&self, name: &ConstName) -> Option<(&TermTy, ConstFullname)> {
+        let fullname = name.to_const_fullname();
+        if let Some(found) = self.constants.get(&fullname) {
+            return Some((found, fullname))
+        }
+
+        let fullname = name.under_namespace(&(self.ctx().namespace.0.clone()));
+        self.constants.get(&fullname).map(|found| {
+            (found, fullname)
+        })
     }
 
     /// Check `name` refers proper class name
