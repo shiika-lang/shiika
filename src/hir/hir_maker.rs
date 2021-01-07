@@ -127,6 +127,9 @@ impl HirMaker {
         let ctx = HirMakerContext::class_ctx(&fullname, self.next_ctx_depth());
         self.push_ctx(ctx);
 
+        // Register constants before processing #initialize
+        self._process_const_defs_in_class(defs, fullname)?;
+
         // Add `#initialize`
         let mut own_ivars = HashMap::default();
         if let Some(ast::Definition::InstanceMethodDefinition {
@@ -143,14 +146,18 @@ impl HirMaker {
         self.method_dict
             .add_method(&meta_name, self.create_new(&fullname)?);
 
-        for def in defs.iter().filter(|d| !d.is_initializer()) {
+        for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition {
                     sig, body_exprs, ..
                 } => {
-                    let method =
-                        self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
-                    self.method_dict.add_method(&fullname, method);
+                    if def.is_initializer() {
+                        // Already processed above
+                    } else {
+                        let method =
+                            self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
+                        self.method_dict.add_method(&fullname, method);
+                    }
                 }
                 ast::Definition::ClassMethodDefinition {
                     sig, body_exprs, ..
@@ -159,10 +166,9 @@ impl HirMaker {
                         self.convert_method_def(&meta_name, &sig.name, &body_exprs)?;
                     self.method_dict.add_method(&meta_name, method);
                 }
-                ast::Definition::ConstDefinition { name, expr } => {
-                    let full = name.add_namespace(&fullname.0);
-                    let hir_expr = self.convert_expr(expr)?;
-                    self.register_const_full(full, hir_expr);
+                ast::Definition::ConstDefinition { .. } => {
+                    // Already processed above
+                    ()
                 }
                 ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
@@ -171,6 +177,22 @@ impl HirMaker {
             }
         }
         self.pop_ctx();
+        Ok(())
+    }
+
+    /// Register constants defined in a class
+    fn _process_const_defs_in_class(
+        &mut self,
+        defs: &[ast::Definition],
+        fullname: &ClassFullname,
+    ) -> Result<(), Error> {
+        for def in defs {
+            if let ast::Definition::ConstDefinition { name, expr } = def {
+                let full = name.add_namespace(&fullname.0);
+                let hir_expr = self.convert_expr(expr)?;
+                self.register_const_full(full, hir_expr);
+            }
+        }
         Ok(())
     }
 
