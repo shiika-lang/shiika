@@ -1,8 +1,7 @@
-# TODO: Move to Array::
-BYTES_OF_PTR = 8  # Assuming 64bit env
-INITIAL_CAPA = 10
-
 class Array<T>
+  BYTES_OF_PTR = 8  # Assuming 64bit env
+  INITIAL_CAPA = 10
+
   def initialize
     var @capa = INITIAL_CAPA
     var @n_items = 0

@@ -1,6 +1,6 @@
-INITIAL_STR_CAPA = 10
-
 class MutableString
+  INITIAL_STR_CAPA = 10
+
   # TODO: inherit from String #206
   def nth_byte(n: Int) -> Int
     if n < 0
