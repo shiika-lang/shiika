@@ -110,6 +110,12 @@ impl std::fmt::Display for ConstFirstname {
     }
 }
 
+impl ConstFirstname {
+    pub fn add_namespace(&self, namespace: &str) -> ConstFullname {
+        const_fullname(&("::".to_string() + namespace + "::" + &self.0))
+    }
+}
+
 pub fn const_firstname(s: &str) -> ConstFirstname {
     ConstFirstname(s.to_string())
 }
@@ -124,6 +130,8 @@ impl std::fmt::Display for ConstFullname {
 }
 
 pub fn const_fullname(s: &str) -> ConstFullname {
+    debug_assert!(s.starts_with("::"));
+    debug_assert!(!s.starts_with("::::"));
     ConstFullname(s.to_string())
 }
 
@@ -134,6 +142,16 @@ pub struct ConstName {
 }
 
 impl ConstName {
+    /// Make ConstFullname prefixed by `namespace`
+    pub fn under_namespace(&self, namespace: &str) -> ConstFullname {
+        let s = if namespace.is_empty() {
+            "::".to_string() + &self.string()
+        } else {
+            "::".to_string() + namespace + "::" + &self.string()
+        };
+        const_fullname(&s)
+    }
+
     /// Make ConstFullname from self
     pub fn to_const_fullname(&self) -> ConstFullname {
         const_fullname(&self.fullname())
