@@ -169,6 +169,12 @@ impl TermTy {
                     None => panic!("unexpected"),
                 }
             }
+            TySpeMeta { base_name, .. } => {
+                match class_dict.get_superclass(&class_fullname(base_name)) {
+                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
+                    None => panic!("unexpected"),
+                }
+            }
             _ => panic!("TODO: {}", self),
         }
     }
@@ -309,7 +315,7 @@ pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
         // TODO: s is not a class name. `fullname` should be just a String
-        fullname: class_fullname(format!("TyParamRef({})", &s)),
+        fullname: class_fullname(s.clone()),
         body: TyParamRef { name: s, idx },
     }
 }

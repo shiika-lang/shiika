@@ -595,8 +595,8 @@ impl HirMaker {
         }
         // Check if it refers to a class
         self._check_class_exists(name)?;
-        self._create_class_const(name);
-        Ok(Hir::const_ref(name.class_ty(), name.to_const_fullname()))
+        let class_ty = self._create_class_const(name);
+        Ok(Hir::const_ref(class_ty, name.to_const_fullname()))
     }
 
     /// Lookup a constant from current scope
@@ -621,26 +621,44 @@ impl HirMaker {
                 name.names.join("::")
             )))
         }
+        if name.args.is_empty() {
+            return Ok(())
+        }
+        let mut typarams = &vec![];
+        if let Some(class_ctx) = self.class_ctx() {
+            typarams = &class_ctx.typarams
+        }
         for arg in &name.args {
-            self._check_class_exists(arg)?;
+            if typarams.contains(&arg.string()) {
+                // ok.
+            } else {
+                self._check_class_exists(arg)?;
+            }
         }
         Ok(())
     }
 
     /// Register constant of a class object
-    fn _create_class_const(&mut self, name: &ConstName) {
+    /// Return class_ty
+    // TODO: why not create the constant on class definition?
+    fn _create_class_const(&mut self, name: &ConstName) -> TermTy {
+        let ty = if name.args.is_empty() {
+            name.to_ty(&[]).meta_ty()
+        } else {
+            // If the const is `A<B>`, also create its type `Meta:A<B>`
+            self._create_specialized_meta_class(name)
+        };
         let idx = self.register_string_literal(&name.string());
-        let expr = Hir::class_literal(name, idx);
+        let expr = Hir::class_literal(ty.clone(), name, idx);
         self.register_const_full(name.to_const_fullname(), expr);
-
-        // If the const is `A<B>`, also create its type `Meta:A<B>`
-        if name.args.len() > 0 {
-            self._create_specialized_meta_class(name);
-        }
+        ty
     }
 
     /// Create `Meta:A<B>` when there is a const `A<B>`
-    fn _create_specialized_meta_class(&mut self, name: &ConstName) {
+    /// Return class_ty
+    fn _create_specialized_meta_class(&mut self, name: &ConstName) -> TermTy {
+        let mut typarams = &vec![];
+        if let Some(c) = self.class_ctx() { typarams = &c.typarams }
         let mut ivars = HashMap::new();
         ivars.insert(
             "name".to_string(),
@@ -651,7 +669,7 @@ impl HirMaker {
                 readonly: true,
             },
         );
-        let tyargs = name.args.iter().map(|arg| arg.to_ty()).collect::<Vec<_>>();
+        let tyargs = name.args.iter().map(|arg| arg.to_ty(typarams)).collect::<Vec<_>>();
         let cls = self
             .class_dict
             .find_class(&class_fullname(
@@ -659,7 +677,9 @@ impl HirMaker {
             ))
             .unwrap()
             .specialized_meta(&tyargs);
+        let ty = cls.instance_ty.clone();
         self.class_dict.add_class(cls);
+        ty
     }
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {

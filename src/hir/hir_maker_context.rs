@@ -16,6 +16,8 @@ pub struct HirMakerContext {
     pub method_sig: Option<MethodSignature>,
     /// The type of current `self`
     pub self_ty: TermTy,
+    /// Names of the type parameter of the current class (or method, in the future)
+    pub typarams: Vec<String>,
     /// Current namespace
     /// `""` for toplevel
     pub namespace: ClassFullname,
@@ -73,6 +75,7 @@ impl HirMakerContext {
             depth: 0,
             method_sig: None,
             self_ty: ty::raw("Object"),
+            typarams: vec![],
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
             captures: vec![],
@@ -83,12 +86,13 @@ impl HirMakerContext {
     }
 
     /// Create a class context
-    pub fn class_ctx(fullname: &ClassFullname, depth: usize) -> HirMakerContext {
+    pub fn class_ctx(fullname: &ClassFullname, typarams: Vec<String>, depth: usize) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
             depth,
             method_sig: None,
             self_ty: ty::raw("Object"),
+            typarams,
             namespace: fullname.clone(),
             lvars: HashMap::new(),
             captures: vec![],
@@ -110,6 +114,7 @@ impl HirMakerContext {
             depth: class_ctx.depth + 1,
             method_sig: Some(method_sig.clone()),
             self_ty: ty::raw(&class_ctx.namespace.0),
+            typarams: vec![],
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
             captures: vec![],
@@ -131,6 +136,7 @@ impl HirMakerContext {
             depth: method_ctx.depth + 1,
             method_sig: Some(sig),
             self_ty: method_ctx.self_ty.clone(),
+            typarams: vec![],
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
             captures: vec![],
@@ -182,6 +188,10 @@ impl HirMaker {
     /// Returns depth of next ctx
     pub(super) fn next_ctx_depth(&self) -> usize {
         self.ctx_stack.len()
+    }
+
+    pub(super) fn class_ctx(&self) -> Option<&HirMakerContext> {
+        self.find_ctx(CtxKind::Class).map(|i| &self.ctx_stack[i])
     }
 
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
