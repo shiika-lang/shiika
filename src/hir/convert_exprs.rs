@@ -624,20 +624,18 @@ impl HirMaker {
         if name.args.is_empty() {
             return Ok(())
         }
+        let mut typarams = &vec![];
         if let Some(class_ctx) = self.class_ctx() {
-            for arg in &name.args {
-                if class_ctx.typarams.contains(&arg.string()) {
-                    // ok.
-                } else {
-                    self._check_class_exists(arg)?;
-                }
-            }
-            Ok(())
-        } else {
-            return Err(error::program_error(&format!(
-                        "class `{:?}' was not found",
-                        name.args[0])))
+            typarams = &class_ctx.typarams
         }
+        for arg in &name.args {
+            if typarams.contains(&arg.string()) {
+                // ok.
+            } else {
+                self._check_class_exists(arg)?;
+            }
+        }
+        Ok(())
     }
 
     /// Register constant of a class object
@@ -659,7 +657,8 @@ impl HirMaker {
     /// Create `Meta:A<B>` when there is a const `A<B>`
     /// Return class_ty
     fn _create_specialized_meta_class(&mut self, name: &ConstName) -> TermTy {
-        let typarams = &self.class_ctx().unwrap().typarams;
+        let mut typarams = &vec![];
+        if let Some(c) = self.class_ctx() { typarams = &c.typarams }
         let mut ivars = HashMap::new();
         ivars.insert(
             "name".to_string(),
