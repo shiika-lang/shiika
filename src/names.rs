@@ -180,20 +180,18 @@ impl ConstName {
     }
 
     /// Make TermTy form self
-    pub fn to_ty(&self) -> TermTy {
+    pub fn to_ty(&self, typarams: &[String]) -> TermTy {
         if self.args.is_empty() {
-            ty::raw(&self.names.join("::"))
+            let s = self.names.join("::");
+            if let Some(i) = typarams.iter().position(|name| *name == s) {
+                ty::typaram(s, i)
+            } else {
+                ty::raw(&self.names.join("::"))
+            }
         } else {
-            let type_args = self.args.iter().map(|n| n.to_ty()).collect();
+            let type_args = self.args.iter().map(|n| n.to_ty(typarams)).collect();
             ty::spe(&self.names.join("::"), type_args)
         }
-    }
-
-    /// Make TermTy of the class
-    /// eg. for `::Array<Int>`, returns `TermTy(Meta:Array<Int>)`, which is
-    /// the type of the constant
-    pub fn class_ty(&self) -> TermTy {
-        self.to_ty().meta_ty()
     }
 }
 
