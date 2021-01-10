@@ -70,8 +70,7 @@ pub fn create_signature(
 
 // TODO: pass the list of visible classes
 fn convert_typ(typ: &ast::Typ, typarams: &[String]) -> TermTy {
-    let found = typarams.iter().enumerate().find(|(_, s)| **s == typ.name);
-    if let Some((idx, _)) = found {
+    if let Some(idx) = typarams.iter().position(|s| *s == typ.name) {
         ty::typaram(&typ.name, idx)
     } else if typ.typ_args.is_empty() {
         ty::raw(&typ.name)
