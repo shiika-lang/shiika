@@ -1,0 +1,59 @@
+class Hash<K, V>
+  def initialize
+    @pairs = Array<Pair<K, V>>.new
+  end
+
+  def []=(key: K, value: V)
+    var done = false
+    @pairs.each do |pair: Pair<K, V>|
+      if pair.fst == key
+        pair.snd = value
+        done = true
+      end
+    end
+    unless done
+      @pairs.push(Pair<K, V>.new(key, value))
+    end
+  end
+
+  # Get the value of specified key.
+  # If that key does not exist, the behavior is undefined (TODO: Return Option<V>)
+  def [](key: K) -> V
+    var ret = @pairs.first.snd
+    @pairs.each do |pair: Pair<K, V>|
+      if pair.fst == key
+        ret = pair.snd
+      end
+    end
+    ret
+  end
+
+  # Return true if `self` has `key` (compared with `==`)
+  def has_key(key: K) -> Bool
+    var ret = false
+    @pairs.each do |pair: Pair<K, V>|
+      if pair.fst == key
+        ret = true
+      end
+    end
+    ret
+  end
+
+  # Return list of the keys
+  def keys -> Array<K>
+    ret = Array<K>.new
+    @pairs.each do |pair: Pair<K, V>|
+      ret.push(pair.fst)
+    end
+    ret
+  end
+
+  # Return list of the values
+  def values -> Array<V>
+    ret = Array<V>.new
+    @pairs.each do |pair: Pair<K, V>|
+      ret.push(pair.snd)
+    end
+    ret
+  end
+end
