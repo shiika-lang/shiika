@@ -37,6 +37,7 @@ pub enum Definition {
 #[derive(Debug, PartialEq)]
 pub struct AstMethodSignature {
     pub name: MethodFirstname,
+    pub typarams: Vec<String>,
     pub params: Vec<Param>,
     pub ret_typ: Typ,
 }
