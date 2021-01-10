@@ -21,6 +21,10 @@ class Object
     self > other || self == other
   end
 
+  def hash -> Int
+    0 # TODO: Use the pointer address
+  end
+
   def inspect -> String
     self.to_s
   end
