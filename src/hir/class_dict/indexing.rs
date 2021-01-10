@@ -43,7 +43,7 @@ impl ClassDict {
         corelib.into_iter().for_each(|(_, c)| {
             self.add_class(SkClass {
                 fullname: c.fullname,
-                typarams: vec![],
+                typarams: c.typarams,
                 superclass_fullname: c.superclass_fullname,
                 instance_ty: c.instance_ty,
                 ivars: c.ivars,

@@ -1,3 +1,4 @@
+mod array;
 mod bool;
 mod float;
 mod fn_x;
@@ -50,6 +51,13 @@ type ClassItem = (
 fn rust_body_items() -> Vec<ClassItem> {
     let mut ret = vec![
         // Classes
+        (
+            "Array".to_string(),
+            array::create_methods(),
+            vec![],
+            HashMap::new(),
+            vec!["T".to_string()],
+        ),
         (
             "Bool".to_string(),
             bool::create_methods(),
@@ -154,8 +162,8 @@ fn make_classes(
             SkClass {
                 fullname: class_fullname(&name),
                 typarams: typarams
-                    .into_iter()
-                    .map(|s| ty::TyParam { name: s })
+                    .iter()
+                    .map(|s| ty::TyParam { name: s.clone() })
                     .collect(),
                 superclass_fullname: super_name,
                 instance_ty: ty::raw(&name),
@@ -182,7 +190,10 @@ fn make_classes(
             metaclass_fullname(&name),
             SkClass {
                 fullname: metaclass_fullname(&name),
-                typarams: vec![],
+                typarams: typarams
+                    .into_iter()
+                    .map(|s| ty::TyParam { name: s })
+                    .collect(),
                 superclass_fullname: Some(class_fullname("Class")),
                 instance_ty: ty::meta(&name),
                 ivars: meta_ivars,

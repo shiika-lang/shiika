@@ -17,7 +17,7 @@ class Array<T>
     if i >= @n_items
       panic "[Array#[]: index too large]"
     end
-    (@items + i * BYTES_OF_PTR).load 
+    _corelib_array_get(@items + i * BYTES_OF_PTR)
   end
 
   # Replace the `i`th item with `obj`
@@ -64,8 +64,7 @@ class Array<T>
 
   # Return the first element
   def first -> T  # TODO: Return Option
-    ptr = @items
-    ptr.load
+    self[0]
   end
 
   # Return true if `self` contains `item` (compared by `==`)
