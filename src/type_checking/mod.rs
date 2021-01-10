@@ -113,9 +113,7 @@ fn check_arg_types(
     arg_hirs: &[hir::HirExpression],
 ) -> Result<(), Error> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
-        let a = arg_ty.upper_bound();
-        let p = param.ty.upper_bound();
-        if !a.conforms_to(&p, class_dict) {
+        if !arg_ty.conforms_to(&param.ty, class_dict) {
             return Err(type_error!(
                 "{} takes {} but got {} (receiver: {:?}, args: {:?})",
                 sig.fullname,

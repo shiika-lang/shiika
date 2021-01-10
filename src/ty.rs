@@ -32,8 +32,11 @@ impl std::fmt::Display for TermTy {
 
 impl std::fmt::Debug for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TermTy({})", self.fullname)
-        //write!(f, "TermTy({:?})", self.body)
+        match &self.body {
+            TyParamRef { name, idx } => 
+                write!(f, "TermTy(TyParamRef {} {})", idx, name),
+            _ => write!(f, "TermTy({})", self.fullname),
+        }
     }
 }
 
@@ -117,7 +120,13 @@ impl TermTy {
     /// Return true if `self` conforms to `other` i.e.
     /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
-        if let TyParamRef { name, .. } = &other.body {
+        if let TyParamRef { name, .. } = &self.body {
+            if let TyParamRef { name: name2, .. } = &other.body {
+                name == name2
+            } else {
+                other == &ty::raw("Object") // The upper bound
+            }
+        } else if let TyParamRef { name, .. } = &other.body {
             if let TyParamRef { name: name2, .. } = &self.body {
                 name == name2
             } else {
