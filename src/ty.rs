@@ -121,7 +121,7 @@ impl TermTy {
             if let TyParamRef { name: name2, .. } = &self.body {
                 name == name2
             } else {
-                self == &ty::raw("Object") // The upper bound
+                false
             }
         } else if let TySpe { base_name, type_args } = &self.body {
             if let TySpe { base_name: b2, type_args: a2 } = &other.body {
