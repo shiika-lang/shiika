@@ -146,6 +146,15 @@ class String
     end
   end
 
+  # Return true if `self` starts with `s`
+  def starts_with(s: String) -> Bool
+    if s.bytesize > @bytesize
+      false
+    else
+      slice_bytes(0, s.bytesize) == s
+    end
+  end
+
   # Parse `self` as an integer value.
   # If non-digit character appears, parsing is terminated.
   def to_i -> Int
