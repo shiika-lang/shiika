@@ -1,3 +1,12 @@
+# TODO: Move to _tuples.sk (#233)
+class Pair<A, B>
+  def initialize(@fst: A, @snd: B); end
+end
+
+class Triple<A, B, C>
+  def initialize(@fst: A, @snd: B, @thd: C); end
+end
+
 # TODO: Make this behave as ordered hash (like Ruby's)
 class Hash<K, V>
   N_TABLES = 1000

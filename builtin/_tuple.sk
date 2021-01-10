@@ -1,7 +1,0 @@
-class Pair<A, B>
-  def initialize(@fst: A, @snd: B); end
-end
-
-class Triple<A, B, C>
-  def initialize(@fst: A, @snd: B, @thd: C); end
-end
