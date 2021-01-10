@@ -1,8 +1,59 @@
+# TODO: Make this behave as ordered hash (like Ruby's)
 class Hash<K, V>
+  N_TABLES = 1000
+
+  def initialize
+    @tables = Array<Hash_Table<K, V>>.new
+    N_TABLES.times{|_: Int| @tables.push(Hash_Table<K, V>.new) }
+  end
+
+  # Return the `Hash_Table` which contains the `key`
+  def _table(key: K) -> Hash_Table<K, V>
+    @tables[key.hash % @tables.length]
+  end
+
+  # Set the value of specified key.
+  def []=(key: K, value: V)
+    _table(key)[key] = value
+  end
+
+  # Get the value of specified key.
+  # If that key does not exist, the behavior is undefined (TODO: Return Option<V>)
+  def [](key: K) -> V
+    _table(key)[key]
+  end
+
+  # Return true if `self` has `key` (compared with `==`)
+  def has_key(key: K) -> Bool
+    _table(key).has_key(key)
+  end
+
+  # Return list of the keys
+  def keys -> Array<K>
+    ret = Array<K>.new
+    @tables.each do |table: Hash_Table<K, V>|
+      ret.append(table.keys)
+    end
+    ret
+  end
+
+  # Return list of the values
+  def values -> Array<V>
+    ret = Array<V>.new
+    @tables.each do |table: Hash_Table<K, V>|
+      ret.append(table.values)
+    end
+    ret
+  end
+end
+
+# TODO: Move to Hash::Table (#221)
+class Hash_Table<K, V>
   def initialize
     @pairs = Array<Pair<K, V>>.new
   end
 
+  # Set the value of specified key.
   def []=(key: K, value: V)
     var done = false
     @pairs.each do |pair: Pair<K, V>|

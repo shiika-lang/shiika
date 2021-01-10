@@ -28,6 +28,11 @@ class Int
 #    self / 2 != 0.0
 #  end
 
+  # Return the hash value of `self`.
+  def hash -> Int
+    self
+  end
+
   # Calls `f` for `self` times, passing numbers from zero to `self - 1`.
   def times(f: Fn1<Int, Void>)
     var i = 0; while i < self
