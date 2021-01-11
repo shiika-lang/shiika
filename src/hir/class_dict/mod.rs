@@ -41,7 +41,7 @@ impl ClassDict {
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
-            hir::signature::convert_params(&sig.params, typarams)
+            hir::signature::convert_params(&sig.params, typarams, &[])
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self

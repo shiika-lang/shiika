@@ -401,7 +401,10 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
-        let hir_params = signature::convert_params(params, &self.current_class_typarams());
+        let hir_params = signature::convert_params(
+            params,
+            &self.current_class_typarams(),
+            &self.current_method_typarams());
 
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
@@ -643,7 +646,7 @@ impl HirMaker {
     // TODO: why not create the constant on class definition?
     fn _create_class_const(&mut self, name: &ConstName) -> TermTy {
         let ty = if name.args.is_empty() {
-            name.to_ty(&[]).meta_ty()
+            name.to_ty(&[], &[]).meta_ty()
         } else {
             // If the const is `A<B>`, also create its type `Meta:A<B>`
             self._create_specialized_meta_class(name)
@@ -657,8 +660,6 @@ impl HirMaker {
     /// Create `Meta:A<B>` when there is a const `A<B>`
     /// Return class_ty
     fn _create_specialized_meta_class(&mut self, name: &ConstName) -> TermTy {
-        let mut typarams = &vec![];
-        if let Some(c) = self.class_ctx() { typarams = &c.typarams }
         let mut ivars = HashMap::new();
         ivars.insert(
             "name".to_string(),
@@ -669,7 +670,9 @@ impl HirMaker {
                 readonly: true,
             },
         );
-        let tyargs = name.args.iter().map(|arg| arg.to_ty(typarams)).collect::<Vec<_>>();
+        let class_typarams = self.current_class_typarams();
+        let method_typarams = self.current_method_typarams();
+        let tyargs = name.args.iter().map(|arg| arg.to_ty(&class_typarams, &method_typarams)).collect::<Vec<_>>();
         let cls = self
             .class_dict
             .find_class(&class_fullname(
