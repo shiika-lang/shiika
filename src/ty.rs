@@ -32,12 +32,34 @@ impl std::fmt::Display for TermTy {
 
 impl std::fmt::Debug for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TermTy({})", &self.dbg_str())
+    }
+}
+
+impl TermTy {
+    /// Return string to inspect `self`
+    fn dbg_str(&self) -> String {
         match &self.body {
-            TyParamRef { name, idx } => 
-                write!(f, "TermTy(TyParamRef {} {})", idx, name),
-            _ => write!(f, "TermTy({})", self.fullname),
+            TyGenMeta { base_name, typaram_names } => {
+                format!("Meta:{}<{}>", base_name, typaram_names.join(", "))
+            },
+            TySpe { base_name, type_args } => {
+                format!("{}<{}>", base_name, _dbg_type_args(type_args))
+            },
+            TySpeMeta { base_name, type_args } => {
+                format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args))
+            }
+            TyParamRef { name, idx } => {
+                format!("TyParamRef({}={})", idx, name)
+            }
+            _ => self.fullname.0.clone()
         }
     }
+}
+
+/// Format `type_args` with .dbg_str
+fn _dbg_type_args(type_args: &[TermTy]) -> String {
+    type_args.iter().map(|x| x.dbg_str()).collect::<Vec<_>>().join(", ")
 }
 
 #[derive(Debug, PartialEq, Clone)]
