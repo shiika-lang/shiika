@@ -1,4 +1,4 @@
-## HEAD
+## v0.5.3 (2021-01-11)
 
 - feat: Added many methods
 - feat: Impl. `Array<T>.new` (#222)
