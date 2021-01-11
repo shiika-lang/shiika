@@ -1,6 +1,14 @@
 ## HEAD
 
-- fixes: #179
+- feat: Added many methods
+- feat: Impl. `Array<T>.new` (#222)
+- feat: if/unless modifier (#61)
+- feat: String interpolation (#218)
+- feat: Support `initialize(@a: Int)` like Crystal (#211)
+- feat: class Hash (#232)
+- feat: Refine backtrace (f56eabe)
+- misc: Upgrade to LLVM 9 (#219)
+- fixes: #179, b00ce1c, #226, #230, #234
 
 ## v0.5.2 (2020-12-27)
 
