@@ -17,6 +17,14 @@ class Int
     end
   end
 
+  # Calls `f` by passing numbers from `self` to `n`.
+  def downto(n: Int, f: Fn1<Int, Void>)
+    var i = self; while i >= n
+      f.call(i)
+      i -= 1
+    end
+  end
+
 # TODO: Allow `?` in the end of method name
 #  # Returns true if `self` is even.
 #  def even? -> Bool
