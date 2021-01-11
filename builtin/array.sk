@@ -2,6 +2,17 @@ class Array<T>
   BYTES_OF_PTR = 8  # Assuming 64bit env
   INITIAL_CAPA = 10
 
+  # Creates an empty array and preallocate memory for `capa` elements.
+  def self.repeat(item: T, len: Int) -> Array<T>
+    ret = Array<T>.new
+    ret.reserve(len)
+    var i=0; while i<len
+      ret.push(item)
+      i += 1
+    end
+    ret
+  end
+
   def initialize
     var @capa = INITIAL_CAPA
     var @n_items = 0
@@ -158,6 +169,16 @@ class Array<T>
     ptr = @items + @n_items * BYTES_OF_PTR
     ptr.store(value)
     @n_items += 1
+  end
+
+  # Reserves capacity for at least `additional` elements to be inserted
+  # without reallocation. Does nothing if capacity is already sufficient.
+  def reserve(additional: Int)
+    new_capa = @n_items + additional
+    if new_capa > @capa
+      @items = Shiika::Internal::Memory.gc_realloc(@items, BYTES_OF_PTR * new_capa)
+      @capa = new_capa
+    end
   end
 
   # Create a new array which has reversed elements of `self`
