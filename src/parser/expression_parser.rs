@@ -633,6 +633,15 @@ impl<'a> Parser<'a> {
         };
         self.consume_token();
 
+        // Type args (Optional)
+        let mut type_args = vec![];
+        if self.current_token_is(Token::LessThan) {
+            // TODO: Allow `ary.map< Int >{ ... }` ?
+            if let Token::UpperWord(s) = self.peek_next_token() {
+                type_args = self.parse_type_arguments(s)?;
+            }
+        }
+
         // Args
         let (mut args, may_have_paren_wo_args) = match self.current_token() {
             // .foo(args)
@@ -654,6 +663,38 @@ impl<'a> Parser<'a> {
             true,
             may_have_paren_wo_args,
         ))
+    }
+
+    fn parse_type_arguments(&mut self, s: String) -> Result<Vec<AstExpression>, Error> {
+        self.lv += 1;
+        self.debug_log("parse_type_arguments");
+        assert!(self.consume(Token::LessThan));
+        let mut name = s;
+        let mut type_args = vec![];
+        loop {
+            type_args.push(self.parse_const_ref(name)?);
+            self.skip_ws();
+            match self.current_token() {
+                Token::Comma => {
+                    self.consume_token();
+                    self.skip_wsn();
+                    if let Token::UpperWord(s) = self.peek_next_token() {
+                        name = s
+                    } else {
+                        return Err(parse_error!(self, "unexpected token in method call type arguments: {:?}", self.current_token()));
+                    }
+                }
+                Token::GreaterThan => {
+                    self.consume_token();
+                    break;
+                }
+                token => {
+                    return Err(parse_error!(self, "unexpected token in method call type arguments: {:?}", token));
+                }
+            }
+        }
+        self.lv -= 1;
+        Ok(type_args)
     }
 
     fn parse_paren_and_args(&mut self) -> Result<Vec<AstExpression>, Error> {
@@ -738,14 +779,15 @@ impl<'a> Parser<'a> {
     fn parse_const_ref(&mut self, s: String) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_const_ref");
-        let name = self._parse_const_ref(s, false)?;
+        self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
+        let name = self._parse_const_ref(s)?;
         self.set_lexer_gtgt_mode(false); // End special mode
         self.lv -= 1;
         Ok(ast::const_ref(name))
     }
 
     /// Main routine of parse_const_ref (returns ConstName)
-    fn _parse_const_ref(&mut self, s: String, recursing: bool) -> Result<ConstName, Error> {
+    fn _parse_const_ref(&mut self, s: String) -> Result<ConstName, Error> {
         self.lv += 1;
         self.debug_log("_parse_const_ref");
         let mut names = vec![s];
@@ -764,7 +806,6 @@ impl<'a> Parser<'a> {
                 Token::LessThan => {
                     // `A<B>`
                     lessthan_seen = true;
-                    self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
                     self.consume_token();
                     self.skip_wsn();
                 }
@@ -773,10 +814,8 @@ impl<'a> Parser<'a> {
                     if lessthan_seen {
                         self.consume_token();
                         break;
-                    } else if recursing {
-                        break;
                     } else {
-                        return Err(parse_error!(self, "unexpected `>'"));
+                        break;
                     }
                 }
                 Token::Comma => {
@@ -784,17 +823,15 @@ impl<'a> Parser<'a> {
                     if lessthan_seen {
                         self.consume_token();
                         self.skip_wsn();
-                    } else if recursing {
-                        break;
                     } else {
-                        return Err(parse_error!(self, "unexpected `,'"));
+                        break;
                     }
                 }
                 Token::UpperWord(s) => {
                     let name = s.to_string();
                     self.consume_token();
                     if lessthan_seen {
-                        let inner = self._parse_const_ref(name, true)?;
+                        let inner = self._parse_const_ref(name)?;
                         args.push(inner);
                         self.skip_wsn();
                     } else {
@@ -802,9 +839,6 @@ impl<'a> Parser<'a> {
                     }
                 }
                 token => {
-                    if recursing {
-                        break;
-                    }
                     if lessthan_seen {
                         return Err(parse_error!(self, "unexpected token: {:?}", token));
                     } else {
