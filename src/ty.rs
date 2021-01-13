@@ -49,8 +49,12 @@ impl TermTy {
             TySpeMeta { base_name, type_args } => {
                 format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args))
             }
-            TyParamRef { name, idx } => {
-                format!("TyParamRef({}={})", idx, name)
+            TyParamRef { kind, name, idx } => {
+                let k = match kind {
+                    TyParamKind::Class => "C",
+                    TyParamKind::Method => "M",
+                };
+                format!("TyParamRef({} {}{})", name, idx, k)
             }
             _ => self.fullname.0.clone()
         }
@@ -91,9 +95,18 @@ pub enum TyBody {
     },
     // Type parameter reference eg. `T`
     TyParamRef {
+        kind: TyParamKind,
         name: String,
         idx: usize,
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TyParamKind {
+    /// eg. `class A<B>`
+    Class,
+    /// eg. `def foo<X>(...)`
+    Method,
 }
 
 use TyBody::*;
@@ -211,14 +224,19 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    pub fn substitute(&self, tyargs: &[TermTy]) -> TermTy {
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { idx, .. } => tyargs[*idx].clone(),
+            TyParamRef { kind, idx, .. } => {
+                match kind {
+                    TyParamKind::Class => class_tyargs[*idx].clone(),
+                    TyParamKind::Method => method_tyargs[*idx].clone(),
+                }
+            }
             TySpe {
                 base_name,
                 type_args,
             } => {
-                let args = type_args.iter().map(|t| t.substitute(tyargs)).collect();
+                let args = type_args.iter().map(|t| t.substitute(class_tyargs, method_tyargs)).collect();
                 ty::spe(base_name, args)
             }
             TySpeMeta { .. } => todo!(),
@@ -328,6 +346,7 @@ pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> Ter
             .map(|(i, s)| TermTy {
                 fullname: class_fullname(s),
                 body: TyParamRef {
+                    kind: TyParamKind::Class,
                     name: s.to_string(),
                     idx: i,
                 },
@@ -342,12 +361,12 @@ pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
 }
 
-pub fn typaram(name: impl Into<String>, idx: usize) -> TermTy {
+pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy {
     let s = name.into();
     TermTy {
         // TODO: s is not a class name. `fullname` should be just a String
         fullname: class_fullname(s.clone()),
-        body: TyParamRef { name: s, idx },
+        body: TyParamRef { kind, name: s, idx },
     }
 }
 

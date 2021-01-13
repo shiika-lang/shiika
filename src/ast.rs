@@ -37,6 +37,7 @@ pub enum Definition {
 #[derive(Debug, PartialEq)]
 pub struct AstMethodSignature {
     pub name: MethodFirstname,
+    pub typarams: Vec<String>,
     pub params: Vec<Param>,
     pub ret_typ: Typ,
 }
@@ -103,6 +104,7 @@ pub enum AstExpressionBody {
         receiver_expr: Option<Box<AstExpression>>, // Box is needed to aboid E0072
         method_name: MethodFirstname,
         arg_exprs: Vec<AstExpression>,
+        type_args: Vec<ConstName>,
         may_have_paren_wo_args: bool,
     },
     LambdaExpr {
@@ -232,6 +234,7 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
                 receiver_expr,
                 method_name: method_name.append("="),
                 arg_exprs,
+                type_args: vec![],
                 may_have_paren_wo_args: false,
             }
         },
@@ -268,6 +271,7 @@ pub fn method_call(
     receiver_expr: Option<AstExpression>,
     method_name: &str,
     arg_exprs: Vec<AstExpression>,
+    type_args: Vec<ConstName>,
     primary: bool,
     may_have_paren_wo_args: bool,
 ) -> AstExpression {
@@ -277,6 +281,7 @@ pub fn method_call(
             receiver_expr: receiver_expr.map(Box::new),
             method_name: method_firstname(method_name),
             arg_exprs,
+            type_args,
             may_have_paren_wo_args,
         },
     }
@@ -299,6 +304,7 @@ pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
         receiver_expr: Some(Box::new(expr)),
         method_name: method_firstname(op),
         arg_exprs: vec![],
+        type_args: vec![],
         may_have_paren_wo_args: false,
     })
 }
@@ -308,6 +314,7 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
         receiver_expr: Some(Box::new(left)),
         method_name: method_firstname(op),
         arg_exprs: vec![right],
+        type_args: vec![],
         may_have_paren_wo_args: false,
     })
 }
@@ -358,6 +365,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
             receiver_expr,
             method_name,
             arg_exprs,
+            type_args,
             ..
         } => {
             if !arg_exprs.is_empty() {
@@ -373,6 +381,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                     receiver_expr,
                     method_name,
                     arg_exprs: args,
+                    type_args,
                     may_have_paren_wo_args: false,
                 },
             }
@@ -383,6 +392,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                 receiver_expr: None,
                 method_name: method_firstname(&s),
                 arg_exprs: args,
+                type_args: vec![],
                 may_have_paren_wo_args: false,
             },
         },

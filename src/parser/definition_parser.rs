@@ -26,7 +26,6 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_class_definition");
         self.lv += 1;
         let name;
-        let mut typarams = vec![];
         let defs;
 
         // `class'
@@ -49,34 +48,11 @@ impl<'a> Parser<'a> {
         }
 
         // Type parameters (optional)
-        if self.current_token_is(Token::LessThan) {
-            self.consume_token();
-            self.skip_wsn();
-            loop {
-                match self.current_token() {
-                    Token::GreaterThan => {
-                        self.consume_token();
-                        break;
-                    }
-                    Token::UpperWord(s) => {
-                        typarams.push(s.to_string());
-                        self.consume_token();
-                        self.skip_wsn();
-                    }
-                    Token::Comma => {
-                        self.consume_token();
-                        self.skip_wsn();
-                    }
-                    token => {
-                        return Err(parse_error!(
-                            self,
-                            "unexpected token `{:?}' in type parameter definition",
-                            token
-                        ))
-                    }
-                }
-            }
-        }
+        let typarams = if self.current_token_is(Token::LessThan) {
+            self.parse_typarams()?
+        } else {
+            vec![]
+        };
 
         // Superclass name (optional)
         let mut super_name = class_fullname("Object");
@@ -169,6 +145,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // Parse `foo(bar) -> Baz`
     pub fn parse_method_signature(&mut self) -> Result<(ast::AstMethodSignature, bool), Error> {
         let mut name = None;
         let params;
@@ -192,7 +169,13 @@ impl<'a> Parser<'a> {
             name = Some(method_firstname(self.get_method_name()?));
             self.consume_token();
         }
-        self.skip_ws();
+
+        // Method-wise type parameters (Optional)
+        let typarams = if self.current_token_is(Token::LessThan) {
+            self.parse_typarams()?
+        } else {
+            vec![]
+        };
 
         // Params (optional)
         match self.current_token() {
@@ -227,6 +210,7 @@ impl<'a> Parser<'a> {
 
         let sig = ast::AstMethodSignature {
             name: name.unwrap(),
+            typarams,
             params,
             ret_typ,
         };
@@ -259,6 +243,40 @@ impl<'a> Parser<'a> {
             token => return Err(parse_error!(self, "invalid method name {:?}", token)),
         };
         Ok(name)
+    }
+
+    // Parse type parameters of a class or a method
+    // - `class Foo<A, B, C>`
+    // - `def foo<A, B, C>( ... )`
+    fn parse_typarams(&mut self) -> Result<Vec<String>, Error> {
+        let mut typarams = vec![];
+        debug_assert!(self.consume(Token::LessThan));
+        self.skip_wsn();
+        loop {
+            match self.current_token() {
+                Token::GreaterThan => {
+                    self.consume_token();
+                    break;
+                }
+                Token::UpperWord(s) => {
+                    typarams.push(s.to_string());
+                    self.consume_token();
+                    self.skip_wsn();
+                }
+                Token::Comma => {
+                    self.consume_token();
+                    self.skip_wsn();
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "unexpected token `{:?}' in type parameter definition",
+                        token
+                    ))
+                }
+            }
+        }
+        Ok(typarams)
     }
 
     // Parse parameters

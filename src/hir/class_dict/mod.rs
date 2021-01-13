@@ -41,11 +41,11 @@ impl ClassDict {
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
-            hir::signature::convert_params(&sig.params, typarams)
+            hir::signature::convert_params(&sig.params, typarams, &[])
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&super_class, &method_firstname("initialize"))
+                .lookup_method(&super_class, &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
             sig.params
         }

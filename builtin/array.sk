@@ -146,6 +146,15 @@ class Array<T>
     @n_items
   end
 
+  # Create a new array by calling `f` with each element
+  def map<U>(f: Fn1<T, U>) -> Array<U>
+    ret = Array<U>.new
+    self.each do |item: T|
+      ret.push(f.call(item))
+    end
+    ret
+  end
+
   # Remove the last element and return it
   def pop -> T
     if @n_items == 0

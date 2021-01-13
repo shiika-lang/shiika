@@ -44,6 +44,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         fullname: method_fullname(clsname, &ivar.name),
         ret_ty: ivar.ty.clone(),
         params: vec![],
+        typarams: vec![],
     };
     let name = ivar.name.clone(); // Clone to embed into the closure
     let idx = ivar.idx;
@@ -72,6 +73,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
             name: ivar.name.clone(),
             ty: ivar.ty.clone(),
         }],
+        typarams: vec![],
     };
     let idx = ivar.idx;
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {

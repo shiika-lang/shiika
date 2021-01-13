@@ -130,6 +130,7 @@ impl HirMakerContext {
             fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
             ret_ty: ty::raw("(dummy)"),
             params,
+            typarams: vec![],
         };
         HirMakerContext {
             kind: CtxKind::Lambda,
@@ -190,10 +191,6 @@ impl HirMaker {
         self.ctx_stack.len()
     }
 
-    pub(super) fn class_ctx(&self) -> Option<&HirMakerContext> {
-        self.find_ctx(CtxKind::Class).map(|i| &self.ctx_stack[i])
-    }
-
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
         self.find_ctx(CtxKind::Method).map(|i| &self.ctx_stack[i])
     }
@@ -226,5 +223,10 @@ impl HirMaker {
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
         let typarams = &self.class_dict.find_class(&self.ctx().self_ty.fullname).unwrap().typarams;
         typarams.iter().map(|x| x.name.clone()).collect()
+    }
+
+    /// Returns type parameter of the current method
+    pub(super) fn current_method_typarams(&self) -> Vec<String> {
+        self.method_ctx().map(|c| c.method_sig.as_ref().unwrap()).map_or(vec![], |sig| sig.typarams.clone())
     }
 }

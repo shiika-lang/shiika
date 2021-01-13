@@ -8,6 +8,7 @@ pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
     pub params: Vec<MethodParam>,
+    pub typarams: Vec<String>,
 }
 
 impl MethodSignature {
@@ -24,15 +25,16 @@ impl MethodSignature {
     }
 
     /// Substitute type parameters with type arguments
-    pub fn specialize(&self, type_args: &[TermTy]) -> MethodSignature {
+    pub fn specialize(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
-            ret_ty: self.ret_ty.substitute(&type_args),
+            ret_ty: self.ret_ty.substitute(class_tyargs, method_tyargs),
             params: self
                 .params
                 .iter()
-                .map(|param| param.substitute(&type_args))
+                .map(|param| param.substitute(class_tyargs, method_tyargs))
                 .collect(),
+            typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
         }
     }
 }
@@ -44,10 +46,10 @@ pub struct MethodParam {
 }
 
 impl MethodParam {
-    pub fn substitute(&self, type_args: &[TermTy]) -> MethodParam {
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodParam {
         MethodParam {
             name: self.name.clone(),
-            ty: self.ty.substitute(&type_args),
+            ty: self.ty.substitute(class_tyargs, method_tyargs),
         }
     }
 }
@@ -56,40 +58,43 @@ impl MethodParam {
 pub fn create_signature(
     class_fullname: &ClassFullname,
     sig: &ast::AstMethodSignature,
-    typarams: &[String],
+    class_typarams: &[String],
 ) -> MethodSignature {
     let fullname = method_fullname(class_fullname, &sig.name.0);
-    let ret_ty = convert_typ(&sig.ret_typ, typarams);
-    let params = convert_params(&sig.params, typarams);
+    let ret_ty = convert_typ(&sig.ret_typ, class_typarams, &sig.typarams);
+    let params = convert_params(&sig.params, class_typarams, &sig.typarams);
     MethodSignature {
         fullname,
         ret_ty,
         params,
+        typarams: sig.typarams.clone(),
     }
 }
 
 // TODO: pass the list of visible classes
-fn convert_typ(typ: &ast::Typ, typarams: &[String]) -> TermTy {
-    if let Some(idx) = typarams.iter().position(|s| *s == typ.name) {
-        ty::typaram(&typ.name, idx)
+fn convert_typ(typ: &ast::Typ, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
+    if let Some(idx) = class_typarams.iter().position(|s| *s == typ.name) {
+        ty::typaram(&typ.name, ty::TyParamKind::Class, idx)
+    } else if let Some(idx) = method_typarams.iter().position(|s| *s == typ.name) {
+        ty::typaram(&typ.name, ty::TyParamKind::Method, idx)
     } else if typ.typ_args.is_empty() {
         ty::raw(&typ.name)
     } else {
         let tyargs = typ
             .typ_args
             .iter()
-            .map(|t| convert_typ(t, typarams))
+            .map(|t| convert_typ(t, class_typarams, method_typarams))
             .collect();
         ty::spe(&typ.name, tyargs)
     }
 }
 
-pub fn convert_params(params: &[ast::Param], typarams: &[String]) -> Vec<MethodParam> {
+pub fn convert_params(params: &[ast::Param], class_typarams: &[String], method_typarams: &[String]) -> Vec<MethodParam> {
     params
         .iter()
         .map(|param| MethodParam {
             name: param.name.to_string(),
-            ty: convert_typ(&param.typ, typarams),
+            ty: convert_typ(&param.typ, class_typarams, method_typarams),
         })
         .collect()
 }
@@ -104,5 +109,6 @@ pub fn signature_of_new(
         fullname: method_fullname(metaclass_fullname, "new"),
         ret_ty: instance_ty.clone(),
         params: initialize_params,
+        typarams: vec![],
     }
 }

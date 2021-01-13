@@ -179,17 +179,20 @@ impl ConstName {
         s
     }
 
-    /// Make TermTy form self
-    pub fn to_ty(&self, typarams: &[String]) -> TermTy {
+    /// Returns the instance type when this const refers to a class
+    /// eg. "Object" -> `TermTy(Object)`
+    pub fn to_ty(&self, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
         if self.args.is_empty() {
             let s = self.names.join("::");
-            if let Some(i) = typarams.iter().position(|name| *name == s) {
-                ty::typaram(s, i)
+            if let Some(i) = class_typarams.iter().position(|name| *name == s) {
+                ty::typaram(s, ty::TyParamKind::Class, i)
+            } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
+                ty::typaram(s, ty::TyParamKind::Method, i)
             } else {
                 ty::raw(&self.names.join("::"))
             }
         } else {
-            let type_args = self.args.iter().map(|n| n.to_ty(typarams)).collect();
+            let type_args = self.args.iter().map(|n| n.to_ty(class_typarams, method_typarams)).collect();
             ty::spe(&self.names.join("::"), type_args)
         }
     }
