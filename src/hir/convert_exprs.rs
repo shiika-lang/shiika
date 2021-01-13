@@ -94,8 +94,9 @@ impl HirMaker {
                 receiver_expr,
                 method_name,
                 arg_exprs,
+                type_args,
                 ..
-            } => self.convert_method_call(receiver_expr, method_name, arg_exprs),
+            } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
 
             AstExpressionBody::LambdaExpr { params, exprs } => {
                 self.convert_lambda_expr(params, exprs)
@@ -336,6 +337,7 @@ impl HirMaker {
         receiver_expr: &Option<Box<AstExpression>>,
         method_name: &MethodFirstname,
         arg_exprs: &[AstExpression],
+        type_args: &[ConstName],
     ) -> Result<HirExpression, Error> {
         let receiver_hir = match receiver_expr {
             Some(expr) => self.convert_expr(&expr)?,
@@ -346,21 +348,41 @@ impl HirMaker {
             .iter()
             .map(|arg_expr| self.convert_expr(arg_expr))
             .collect::<Result<Vec<_>, _>>()?;
-        self.make_method_call(receiver_hir, &method_name, arg_hirs)
+        let mut method_tyargs = vec![];
+        for const_name in type_args {
+            method_tyargs.push(self._resolve_method_tyarg(const_name)?);
+        }
+        self._make_method_call(receiver_hir, &method_name, arg_hirs, &method_tyargs)
+    }
+
+    /// Resolve a method tyarg (a ConstName) into a TermTy
+    /// eg. 
+    ///     ary.map<Array<T>>(f)
+    ///             ~~~~~~~~
+    ///             => TermTy(Array<TyParamRef(T)>)
+    fn _resolve_method_tyarg(
+        &self,
+        name: &ConstName,
+    ) -> Result<TermTy, Error> {
+        let class_typarams = self.current_class_typarams();
+        let method_typarams = self.current_method_typarams();
+        let ret = name.to_ty(&class_typarams, &method_typarams);
+        Ok(ret)
     }
 
     /// Resolve the method and create HirMethodCall
-    fn make_method_call(
+    fn _make_method_call(
         &self,
         receiver_hir: HirExpression,
         method_name: &MethodFirstname,
         arg_hirs: Vec<HirExpression>,
+        method_tyargs: &[TermTy],
     ) -> Result<HirExpression, Error> {
         let specialized = receiver_hir.ty.is_specialized();
         let class_fullname = &receiver_hir.ty.fullname;
         let (sig, found_class_name) = self
             .class_dict
-            .lookup_method(&receiver_hir.ty, method_name)?;
+            .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(
@@ -627,10 +649,8 @@ impl HirMaker {
         if name.args.is_empty() {
             return Ok(())
         }
-        let mut typarams = &vec![];
-        if let Some(class_ctx) = self.class_ctx() {
-            typarams = &class_ctx.typarams
-        }
+        let mut typarams = self.current_class_typarams();
+        typarams.append(&mut self.current_method_typarams());
         for arg in &name.args {
             if typarams.contains(&arg.string()) {
                 // ok.

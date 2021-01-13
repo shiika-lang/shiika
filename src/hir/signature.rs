@@ -25,14 +25,14 @@ impl MethodSignature {
     }
 
     /// Substitute type parameters with type arguments
-    pub fn specialize(&self, type_args: &[TermTy]) -> MethodSignature {
+    pub fn specialize(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
-            ret_ty: self.ret_ty.substitute(&type_args),
+            ret_ty: self.ret_ty.substitute(class_tyargs, method_tyargs),
             params: self
                 .params
                 .iter()
-                .map(|param| param.substitute(&type_args))
+                .map(|param| param.substitute(class_tyargs, method_tyargs))
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
         }
@@ -46,10 +46,10 @@ pub struct MethodParam {
 }
 
 impl MethodParam {
-    pub fn substitute(&self, type_args: &[TermTy]) -> MethodParam {
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodParam {
         MethodParam {
             name: self.name.clone(),
-            ty: self.ty.substitute(&type_args),
+            ty: self.ty.substitute(class_tyargs, method_tyargs),
         }
     }
 }

@@ -45,7 +45,7 @@ impl ClassDict {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&super_class, &method_firstname("initialize"))
+                .lookup_method(&super_class, &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
             sig.params
         }

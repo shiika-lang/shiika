@@ -233,7 +233,7 @@ impl HirMaker {
         let need_bitcast = init_cls_name != class_fullname;
         let (signature, _) = self
             .class_dict
-            .lookup_method(&class_fullname.class_ty(), &method_firstname("new"))?;
+            .lookup_method(&class_fullname.class_ty(), &method_firstname("new"), &[])?;
         let arity = signature.params.len();
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
@@ -284,7 +284,7 @@ impl HirMaker {
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
         let (_, found_cls) = self
             .class_dict
-            .lookup_method(&class, &method_firstname("initialize"))?;
+            .lookup_method(&class, &method_firstname("initialize"), &[])?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
