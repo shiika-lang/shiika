@@ -191,10 +191,6 @@ impl HirMaker {
         self.ctx_stack.len()
     }
 
-    pub(super) fn class_ctx(&self) -> Option<&HirMakerContext> {
-        self.find_ctx(CtxKind::Class).map(|i| &self.ctx_stack[i])
-    }
-
     pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
         self.find_ctx(CtxKind::Method).map(|i| &self.ctx_stack[i])
     }
