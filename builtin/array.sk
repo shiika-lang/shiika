@@ -225,6 +225,15 @@ class Array<T>
     @n_items += 1
   end
 
+  # Create an array which contains items of `self` for which `f` does not return true
+  def reject(f: Fn1<T, Bool>) -> Array<T>
+    ret = Array<T>.new
+    each do |item: T|
+      ret.push(item) unless f.call(item)
+    end
+    ret
+  end
+
   # Reserves capacity for at least `additional` elements to be inserted
   # without reallocation. Does nothing if capacity is already sufficient.
   def reserve(additional: Int)
@@ -250,6 +259,29 @@ class Array<T>
       f.call(self[i])
       i -= 1
     end
+  end
+
+  # Create an array which contains items of `self` for which `f` returns true
+  def select(f: Fn1<T, Bool>) -> Array<T>
+    ret = Array<T>.new
+    each do |item: T|
+      ret.push(item) if f.call(item)
+    end
+    ret
+  end
+
+  # Removes the first element and returns it.
+  # Panics if `self` is empty
+  # TODO: Return Option<T>
+  def shift -> T
+    if @n_items == 0
+      panic "[Array#shift: array is empty]"
+    end
+    ret = self[0]
+    @capa -= 1
+    @n_items -= 1
+    @items += BYTES_OF_PTR
+    ret
   end
 
   # Create sorted version of `self`
