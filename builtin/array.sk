@@ -20,27 +20,31 @@ class Array<T>
   end
 
   # Return the `i`th item
+  # Count from the last if `i` is less than zero
   # Panics if the index is out of range
   def [](i: Int) -> T
-    if i < 0
-      panic "[Array#[]: index less than zero]"
+    idx = i < 0 ? @n_items + i : i
+    if idx < 0
+      panic "[Array#[]: index too small]"
     end
-    if i >= @n_items
+    if idx >= @n_items
       panic "[Array#[]: index too large]"
     end
-    _corelib_array_get(@items + i * BYTES_OF_PTR)
+    _corelib_array_get(@items + idx * BYTES_OF_PTR)
   end
 
   # Replace the `i`th item with `obj`
+  # Count from the last if `i` is less than zero
   # Panics if the index is out of range
   def []=(i: Int, obj: T)
-    if i < 0
+    idx = i < 0 ? @n_items + i : i
+    if idx < 0
       panic "[Array#[]=: index less than zero]"
     end
-    if i >= @n_items
+    if idx >= @n_items
       panic "[Array#[]=: index too large]"
     end
-    (@items + i * BYTES_OF_PTR).store(obj) 
+    (@items + idx * BYTES_OF_PTR).store(obj) 
   end
 
   # Return true if `f` returns true for all element of `self`
