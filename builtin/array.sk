@@ -43,6 +43,24 @@ class Array<T>
     (@items + i * BYTES_OF_PTR).store(obj) 
   end
 
+  # Return true if `f` returns true for all element of `self`
+  def all(f: Fn1<T, Bool>) -> Bool
+    var ret = true
+    each do |item: T|
+      ret = false unless f.call(item)
+    end
+    ret
+  end
+
+  # Return true if `f` returns true for an element of `self`
+  def any(f: Fn1<T, Bool>) -> Bool
+    var ret = false
+    each do |item: T|
+      ret = true if f.call(item)
+    end
+    ret
+  end
+
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
     other.each do |item: T|
@@ -65,6 +83,15 @@ class Array<T>
     ret
   end
 
+  # Create an array which contains elements of `self` without first `n` elements.
+  def drop(n: Int) -> Array<T>
+    ret = Array<T>.new
+    n.upto(@n_items - 1) do |i: Int|
+      ret.push(self[i])
+    end
+    ret
+  end
+
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items
@@ -76,6 +103,15 @@ class Array<T>
   # Return the first element
   def first -> T  # TODO: Return Option
     self[0]
+  end
+
+  # Calculate a value by passing `sum` and `item` to `f` for each element
+  def fold<SUM>(initial_sum: SUM, f: Fn2<SUM, T, SUM>) -> SUM
+    var sum = initial_sum
+    each do |item: T|
+      sum = f.call(sum, item)
+    end
+    sum
   end
 
   # Return true if `self` contains `item` (compared by `==`)
@@ -151,6 +187,15 @@ class Array<T>
     ret = Array<U>.new
     self.each do |item: T|
       ret.push(f.call(item))
+    end
+    ret
+  end
+
+  # Return true if `f` returns false for all element of `self`
+  def none(f: Fn1<T, Bool>) -> Bool
+    var ret = true
+    each do |item: T|
+      ret = false if f.call(item)
     end
     ret
   end
