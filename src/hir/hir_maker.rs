@@ -227,47 +227,22 @@ impl HirMaker {
 
     /// Create .new
     fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
-        let class_fullname = class_fullname.clone();
         let (initialize_name, init_cls_name) =
             self._find_initialize(&class_fullname.instance_ty())?;
-        let need_bitcast = init_cls_name != class_fullname;
         let (signature, _) = self
             .class_dict
             .lookup_method(&class_fullname.class_ty(), &method_firstname("new"), &[])?;
         let arity = signature.params.len();
+        let classname = class_fullname.clone();
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-            // Allocate memory
-            let obj = code_gen.allocate_sk_obj(&class_fullname, "addr");
-
-            // Call initialize
-            let initialize = code_gen
-                .module
-                .get_function(&initialize_name.full_name)
-                .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
-            let mut addr = obj;
-            if need_bitcast {
-                let ances_type = code_gen
-                    .llvm_struct_types
-                    .get(&init_cls_name)
-                    .expect("ances_type not found")
-                    .ptr_type(inkwell::AddressSpace::Generic);
-                addr = code_gen
-                    .builder
-                    .build_bitcast(addr, ances_type, "obj_as_super");
-            }
-            let args = (0..=arity)
-                .map(|i| {
-                    if i == 0 {
-                        addr
-                    } else {
-                        function.get_params()[i]
-                    }
-                })
-                .collect::<Vec<_>>();
-            code_gen.builder.build_call(initialize, &args, "");
-
-            code_gen.builder.build_return(Some(&obj));
+            code_gen.gen_body_of_new(
+                function,
+                &classname,
+                &initialize_name,
+                &init_cls_name,
+                arity,
+                );
             Ok(())
         };
 

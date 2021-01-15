@@ -557,6 +557,50 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
         self.i8ptr_type
     }
+
+    /// Generate body of `.new`
+    pub fn gen_body_of_new(
+        &self,
+        function: &inkwell::values::FunctionValue,
+        class_fullname: &ClassFullname,
+        initialize_name: &MethodFullname,
+        init_cls_name: &ClassFullname,
+        arity: usize,
+    ) {
+        let need_bitcast = init_cls_name != class_fullname;
+
+        // Allocate memory
+        let obj = self.allocate_sk_obj(&class_fullname, "addr");
+
+        // Call initialize
+        let initialize = self
+            .module
+            .get_function(&initialize_name.full_name)
+            .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
+        let mut addr = obj;
+        if need_bitcast {
+            let ances_type = self
+                .llvm_struct_types
+                .get(&init_cls_name)
+                .expect("ances_type not found")
+                .ptr_type(inkwell::AddressSpace::Generic);
+            addr = self
+                .builder
+                .build_bitcast(addr, ances_type, "obj_as_super");
+        }
+        let args = (0..=arity)
+            .map(|i| {
+                if i == 0 {
+                    addr
+                } else {
+                    function.get_params()[i]
+                }
+            })
+            .collect::<Vec<_>>();
+        self.builder.build_call(initialize, &args, "");
+
+        self.builder.build_return(Some(&obj));
+    }
 }
 
 // Question: is there a better way to do this?
