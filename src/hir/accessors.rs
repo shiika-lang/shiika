@@ -20,15 +20,16 @@ impl HirMaker {
                 }
             })
             .collect::<Vec<_>>();
-        for (name, ivar) in ivars {
-            if !method_names.iter().any(|x| ***x == name) {
+        for ivar in ivars.values() {
+            let accessor_name = ivar.accessor_name();
+            if !method_names.iter().any(|x| ***x == accessor_name) {
                 let getter = create_getter(&clsname, &ivar);
                 let sig = getter.signature.clone();
                 self.method_dict.add_method(&clsname, getter);
                 self.class_dict.add_method(&clsname, sig);
             }
 
-            let setter_name = format!("{}=", name);
+            let setter_name = format!("{}=", accessor_name);
             if !method_names.iter().any(|x| ***x == setter_name) {
                 let setter = create_setter(&clsname, &ivar);
                 let sig = setter.signature.clone();
@@ -41,7 +42,7 @@ impl HirMaker {
 
 fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let sig = MethodSignature {
-        fullname: method_fullname(clsname, &ivar.name),
+        fullname: method_fullname(clsname, &ivar.accessor_name()),
         ret_ty: ivar.ty.clone(),
         params: vec![],
         typarams: vec![],
@@ -65,21 +66,23 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
 }
 
 fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
-    let name = format!("{}=", ivar.name);
+    let accessor_name = ivar.accessor_name();
+    let setter_name = format!("{}=", accessor_name);
     let sig = MethodSignature {
-        fullname: method_fullname(clsname, &name),
+        fullname: method_fullname(clsname, &setter_name),
         ret_ty: ivar.ty.clone(),
         params: vec![MethodParam {
-            name: ivar.name.clone(),
+            name: ivar.accessor_name(),
             ty: ivar.ty.clone(),
         }],
         typarams: vec![],
     };
+    let ivar_name = ivar.name.clone(); // Clone to embed into the closure
     let idx = ivar.idx;
-    let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
+    let setter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
         let this = function.get_params()[0];
         let val = function.get_params()[1];
-        code_gen.build_ivar_store(&this, idx, val, &name);
+        code_gen.build_ivar_store(&this, idx, val, &ivar_name);
         code_gen.builder.build_return(Some(&val));
         Ok(())
     };
@@ -87,7 +90,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     SkMethod {
         signature: sig,
         body: SkMethodBody::RustClosureMethodBody {
-            boxed_gen: Box::new(getter_body),
+            boxed_gen: Box::new(setter_body),
         },
         lvars: vec![],
     }

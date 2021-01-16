@@ -364,6 +364,7 @@ impl<'a> Lexer<'a> {
         (token, Some(state))
     }
 
+    /// Read `@foo`
     fn read_ivar(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
         next_cur.proceed(self.src); // Skip '@'
                                     // TODO: First character must not be a number
@@ -377,7 +378,7 @@ impl<'a> Lexer<'a> {
             Some(c) => c.pos,
             None => self.cur.pos,
         };
-        let s = &self.src[(begin + 1)..next_cur.pos];
+        let s = &self.src[begin..next_cur.pos];
         Token::IVar(s.to_string())
     }
 
