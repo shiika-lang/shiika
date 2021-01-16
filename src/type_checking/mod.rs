@@ -47,6 +47,7 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     }
 }
 
+#[allow(clippy::if_same_then_else)]
 pub fn check_if_clauses_ty(then_ty: &TermTy, else_ty: &TermTy) -> Result<(), Error> {
     if then_ty.equals_to(else_ty) {
         Ok(())

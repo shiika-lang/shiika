@@ -8,19 +8,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_boxing_funcs(&self) {
         let fn_type = self.llvm_type(&ty::raw("Bool")).fn_type(&[self.i1_type.into()], false);
         self.module.add_function("box_bool", fn_type, None);
-        let fn_type = self.i1_type.fn_type(&[self.llvm_type(&ty::raw("Bool")).into()], false);
+        let fn_type = self.i1_type.fn_type(&[self.llvm_type(&ty::raw("Bool"))], false);
         self.module.add_function("unbox_bool", fn_type, None);
         let fn_type = self.llvm_type(&ty::raw("Int")).fn_type(&[self.i64_type.into()], false);
         self.module.add_function("box_int", fn_type, None);
-        let fn_type = self.i64_type.fn_type(&[self.llvm_type(&ty::raw("Int")).into()], false);
+        let fn_type = self.i64_type.fn_type(&[self.llvm_type(&ty::raw("Int"))], false);
         self.module.add_function("unbox_int", fn_type, None);
         let fn_type = self.llvm_type(&ty::raw("Float")).fn_type(&[self.f64_type.into()], false);
         self.module.add_function("box_float", fn_type, None);
-        let fn_type = self.f64_type.fn_type(&[self.llvm_type(&ty::raw("Float")).into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.llvm_type(&ty::raw("Float"))], false);
         self.module.add_function("unbox_float", fn_type, None);
         let fn_type = self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).fn_type(&[self.i8ptr_type.into()], false);
         self.module.add_function("box_i8ptr", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).into()], false);
+        let fn_type = self.i8ptr_type.fn_type(&[self.llvm_type(&ty::raw("Shiika::Internal::Ptr"))], false);
         self.module.add_function("unbox_i8ptr", fn_type, None);
     }
 
@@ -115,13 +115,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         sk_bool: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
         let f = self.module.get_function("unbox_bool").unwrap();
-        self.builder.build_call(f, &[sk_bool.into()], "b").try_as_basic_value().left().unwrap().into_int_value()
+        self.builder.build_call(f, &[sk_bool], "b").try_as_basic_value().left().unwrap().into_int_value()
     }
 
     /// Convert LLVM int into Shiika Int
     pub fn box_int<'a>(&'a self, i: &inkwell::values::IntValue<'a>) -> inkwell::values::BasicValueEnum {
         let f = self.module.get_function("box_int").unwrap();
-        self.builder.build_call(f, &[i.as_basic_value_enum().into()], "int").try_as_basic_value().left().unwrap()
+        self.builder.build_call(f, &[i.as_basic_value_enum()], "int").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Int into LLVM int
@@ -130,7 +130,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         sk_int: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::IntValue {
         let f = self.module.get_function("unbox_int").unwrap();
-        self.builder.build_call(f, &[sk_int.into()], "i").try_as_basic_value().left().unwrap().into_int_value()
+        self.builder.build_call(f, &[sk_int], "i").try_as_basic_value().left().unwrap().into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
@@ -139,7 +139,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         fl: &inkwell::values::FloatValue<'a>,
     ) -> inkwell::values::BasicValueEnum {
         let f = self.module.get_function("box_float").unwrap();
-        self.builder.build_call(f, &[fl.as_basic_value_enum().into()], "float").try_as_basic_value().left().unwrap()
+        self.builder.build_call(f, &[fl.as_basic_value_enum()], "float").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika Float into LLVM float
@@ -148,7 +148,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         sk_float: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::FloatValue {
         let f = self.module.get_function("unbox_float").unwrap();
-        self.builder.build_call(f, &[sk_float.into()], "f").try_as_basic_value().left().unwrap().into_float_value()
+        self.builder.build_call(f, &[sk_float], "f").try_as_basic_value().left().unwrap().into_float_value()
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
@@ -157,7 +157,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         p: inkwell::values::PointerValue<'a>,
     ) -> inkwell::values::BasicValueEnum {
         let f = self.module.get_function("box_i8ptr").unwrap();
-        self.builder.build_call(f, &[p.as_basic_value_enum().into()], "i8ptr").try_as_basic_value().left().unwrap()
+        self.builder.build_call(f, &[p.as_basic_value_enum()], "i8ptr").try_as_basic_value().left().unwrap()
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*
@@ -166,6 +166,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         sk_obj: inkwell::values::BasicValueEnum<'a>,
     ) -> inkwell::values::PointerValue {
         let f = self.module.get_function("unbox_i8ptr").unwrap();
-        self.builder.build_call(f, &[sk_obj.into()], "p").try_as_basic_value().left().unwrap().into_pointer_value()
+        self.builder.build_call(f, &[sk_obj], "p").try_as_basic_value().left().unwrap().into_pointer_value()
     }
 }

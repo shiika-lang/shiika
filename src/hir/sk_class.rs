@@ -38,7 +38,7 @@ impl SkClass {
     /// eg. create `Meta:Array<Int>` from `Meta:Array`
     pub fn specialized_meta(&self, tyargs: &[TermTy]) -> SkClass {
         // `self` must be a generic metaclass.
-        debug_assert!(self.typarams.len() > 0);
+        debug_assert!(!self.typarams.is_empty());
         let base_name = if let TyBody::TyMeta { base_fullname } = &self.instance_ty.body {
             base_fullname
         } else {

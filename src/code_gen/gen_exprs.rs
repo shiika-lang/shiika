@@ -688,6 +688,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
     }
 
+    #[allow(clippy::let_and_return)]
     fn gen_class_literal(
         &self,
         fullname: &ClassFullname,

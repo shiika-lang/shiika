@@ -233,6 +233,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Read a token and set it to `current_token`
+    #[allow(clippy::useless_let_if_seq)]
     fn read_token(&mut self) {
         let c = self.cur.peek(self.src);
         let mut next_cur = self.cur.clone();

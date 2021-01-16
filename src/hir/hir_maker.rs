@@ -169,7 +169,6 @@ impl HirMaker {
                 }
                 ast::Definition::ConstDefinition { .. } => {
                     // Already processed above
-                    ()
                 }
                 ast::Definition::ClassDefinition { name, typarams, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
