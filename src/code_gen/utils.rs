@@ -88,7 +88,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 idx as u32,
                 &format!("addr_{}", name),
             )
-            .unwrap();
+            .unwrap_or_else(|_| panic!("build_llvm_struct_ref: elem not found (idx: {}, name: {})", &idx, &name));
         self.builder.build_load(ptr, name)
     }
 
