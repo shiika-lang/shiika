@@ -51,9 +51,16 @@ impl Hir {
 #[derive(Debug, PartialEq, Clone)]
 pub struct SkIVar {
     pub idx: usize,
-    pub name: String, // Without `@`
+    pub name: String, // Includes `@`
     pub ty: TermTy,
     pub readonly: bool,
+}
+
+impl SkIVar {
+    /// Return "foo" for `@foo`
+    pub fn accessor_name(&self) -> String {
+        self.name.replace("@", "")
+    }
 }
 
 type SkIVars = HashMap<String, SkIVar>;

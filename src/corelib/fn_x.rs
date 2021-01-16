@@ -20,7 +20,7 @@ macro_rules! create_fn_call {
             &format!("call({}) -> T", args_str),
             |code_gen, function| {
                 let fn_obj = function.get_params()[0];
-                let sk_ptr = code_gen.build_ivar_load(fn_obj, FN_X_FUNC_IDX, "func");
+                let sk_ptr = code_gen.build_ivar_load(fn_obj, FN_X_FUNC_IDX, "@func");
 
                 let mut args = vec![fn_obj];
                 for k in 1..=$i {
