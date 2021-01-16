@@ -520,7 +520,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.the_main.unwrap()
         } else if ctx.function_origin == FunctionOrigin::Lambda {
             let fn_x = ctx.function.get_first_param().unwrap();
-            self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "obj")
+            self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "@obj")
         } else {
             // The first arg of llvm function is `self`
             ctx.function.get_first_param().unwrap()
@@ -685,7 +685,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
     ) -> inkwell::values::BasicValueEnum {
         let fn_x = ctx.function.get_first_param().unwrap();
-        self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "captures")
+        self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "@captures")
     }
 
     fn gen_bitcast(
