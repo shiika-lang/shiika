@@ -405,7 +405,8 @@ impl<'a> Parser<'a> {
             if nesting {
                 if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
                     let mid = arg_exprs[0].clone();
-                    let compare = ast::method_call(Some(mid), op, vec![right], vec![], false, false);
+                    let compare =
+                        ast::method_call(Some(mid), op, vec![right], vec![], false, false);
                     expr = ast::logical_and(expr, compare);
                 }
             } else {
@@ -531,16 +532,28 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse latter part of if-expr
-    fn _parse_if_expr(&mut self, cond_expr: AstExpression, then_exprs: Vec<AstExpression>) -> Result<AstExpression, Error> {
+    fn _parse_if_expr(
+        &mut self,
+        cond_expr: AstExpression,
+        then_exprs: Vec<AstExpression>,
+    ) -> Result<AstExpression, Error> {
         if self.consume(Token::KwElsif) {
             self.skip_ws();
             let cond_expr2 = self.parse_expr()?;
             self.skip_ws();
-            if self.consume(Token::KwThen) { self.skip_wsn(); }
-            else { self.expect(Token::Separator)?; }
-            let then_exprs2 = self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
+            if self.consume(Token::KwThen) {
+                self.skip_wsn();
+            } else {
+                self.expect(Token::Separator)?;
+            }
+            let then_exprs2 =
+                self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
             self.skip_wsn();
-            Ok(ast::if_expr(cond_expr, then_exprs, Some(vec![self._parse_if_expr(cond_expr2, then_exprs2)?])))
+            Ok(ast::if_expr(
+                cond_expr,
+                then_exprs,
+                Some(vec![self._parse_if_expr(cond_expr2, then_exprs2)?]),
+            ))
         } else if self.consume(Token::KwElse) {
             self.skip_wsn();
             let else_exprs = self.parse_exprs(vec![Token::KwEnd])?;
@@ -683,7 +696,11 @@ impl<'a> Parser<'a> {
                     if let Token::UpperWord(s) = self.peek_next_token() {
                         name = s
                     } else {
-                        return Err(parse_error!(self, "unexpected token in method call type arguments: {:?}", self.current_token()));
+                        return Err(parse_error!(
+                            self,
+                            "unexpected token in method call type arguments: {:?}",
+                            self.current_token()
+                        ));
                     }
                 }
                 Token::GreaterThan => {
@@ -691,7 +708,11 @@ impl<'a> Parser<'a> {
                     break;
                 }
                 token => {
-                    return Err(parse_error!(self, "unexpected token in method call type arguments: {:?}", token));
+                    return Err(parse_error!(
+                        self,
+                        "unexpected token in method call type arguments: {:?}",
+                        token
+                    ));
                 }
             }
         }
@@ -746,7 +767,7 @@ impl<'a> Parser<'a> {
             Token::LSqBracket => self.parse_array_literal(),
             Token::Number(_) => self.parse_decimal_literal(),
             Token::Str(_) => Ok(self.parse_string_literal()),
-            Token::StrWithInterpolation{ .. } => self.parse_string_with_interpolation(),
+            Token::StrWithInterpolation { .. } => self.parse_string_with_interpolation(),
             Token::LParen => self.parse_parenthesized_expr(),
             token => Err(parse_error!(self, "unexpected token: {:?}", token)),
         }?;
@@ -769,8 +790,8 @@ impl<'a> Parser<'a> {
                     bare_name_str,
                     args,
                     vec![], // TODO: type_args
-                    true,  // primary
-                    false, // may_have_paren_wo_args
+                    true,   // primary
+                    false,  // may_have_paren_wo_args
                 )
             }
             _ => ast::bare_name(&bare_name_str),
@@ -959,11 +980,12 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
-        let (head, inspect1) = if let Token::StrWithInterpolation { head, inspect } = self.consume_token() {
-            (head, inspect)
-        } else {
-            panic!("invalid call")
-        };
+        let (head, inspect1) =
+            if let Token::StrWithInterpolation { head, inspect } = self.consume_token() {
+                (head, inspect)
+            } else {
+                panic!("invalid call")
+            };
         let mut inspect = inspect1;
         let mut expr = ast::string_literal(head);
         loop {
@@ -976,7 +998,7 @@ impl<'a> Parser<'a> {
                 vec![],
                 false, // primary
                 false, // may_have_paren_wo_args
-                );
+            );
             expr = ast::method_call(
                 Some(expr),
                 "+",
@@ -984,18 +1006,21 @@ impl<'a> Parser<'a> {
                 vec![],
                 false, // primary
                 false, // may_have_paren_wo_args
-                );
+            );
             self.set_lexer_state(LexerState::StrLiteral);
             self.expect(Token::RBrace)?;
             self.set_lexer_state(LexerState::ExprEnd);
             let (s, finish) = match self.consume_token() {
                 Token::Str(tail) => (tail, true),
-                Token::StrWithInterpolation { head, inspect: inspect2 } => {
+                Token::StrWithInterpolation {
+                    head,
+                    inspect: inspect2,
+                } => {
                     inspect = inspect2;
                     (head, false)
                 }
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
-            }; 
+            };
             expr = ast::method_call(
                 Some(expr),
                 "+",
@@ -1004,7 +1029,9 @@ impl<'a> Parser<'a> {
                 false, // primary
                 false, // may_have_paren_wo_args
             );
-            if finish { break };
+            if finish {
+                break;
+            };
         }
         self.lv -= 1;
         Ok(expr)

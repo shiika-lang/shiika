@@ -237,7 +237,7 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
                 type_args: vec![],
                 may_have_paren_wo_args: false,
             }
-        },
+        }
         _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body),
     };
     non_primary_expression(body)

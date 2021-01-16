@@ -89,7 +89,11 @@ fn convert_typ(typ: &ast::Typ, class_typarams: &[String], method_typarams: &[Str
     }
 }
 
-pub fn convert_params(params: &[ast::Param], class_typarams: &[String], method_typarams: &[String]) -> Vec<MethodParam> {
+pub fn convert_params(
+    params: &[ast::Param],
+    class_typarams: &[String],
+    method_typarams: &[String],
+) -> Vec<MethodParam> {
     params
         .iter()
         .map(|param| MethodParam {

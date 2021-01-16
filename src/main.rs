@@ -1,5 +1,5 @@
-use shiika::runner;
 use shiika::error::Error;
+use shiika::runner;
 #[macro_use]
 extern crate clap;
 

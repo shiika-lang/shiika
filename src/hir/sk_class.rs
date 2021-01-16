@@ -1,7 +1,7 @@
+use crate::hir::signature::MethodSignature;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
-use crate::hir::signature::MethodSignature;
 use std::collections::HashMap;
 
 /// A Shiika class, possibly generic

@@ -453,10 +453,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
             let name = if i == 0 {
-                           if is_lambda { "fn_x" } else { "self" }
-                       } else {
-                           &params[i - 1].name
-                       };
+                if is_lambda {
+                    "fn_x"
+                } else {
+                    "self"
+                }
+            } else {
+                &params[i - 1].name
+            };
             inkwell_set_name(param, name);
         }
 
@@ -584,9 +588,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .get(&init_cls_name)
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
-            addr = self
-                .builder
-                .build_bitcast(addr, ances_type, "obj_as_super");
+            addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
         }
         let args = (0..=arity)
             .map(|i| {

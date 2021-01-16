@@ -40,15 +40,18 @@ impl TermTy {
     /// Return string to inspect `self`
     fn dbg_str(&self) -> String {
         match &self.body {
-            TyGenMeta { base_name, typaram_names } => {
-                format!("Meta:{}<{}>", base_name, typaram_names.join(", "))
-            },
-            TySpe { base_name, type_args } => {
-                format!("{}<{}>", base_name, _dbg_type_args(type_args))
-            },
-            TySpeMeta { base_name, type_args } => {
-                format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args))
-            }
+            TyGenMeta {
+                base_name,
+                typaram_names,
+            } => format!("Meta:{}<{}>", base_name, typaram_names.join(", ")),
+            TySpe {
+                base_name,
+                type_args,
+            } => format!("{}<{}>", base_name, _dbg_type_args(type_args)),
+            TySpeMeta {
+                base_name,
+                type_args,
+            } => format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args)),
             TyParamRef { kind, name, idx } => {
                 let k = match kind {
                     TyParamKind::Class => "C",
@@ -56,14 +59,18 @@ impl TermTy {
                 };
                 format!("TyParamRef({} {}{})", name, idx, k)
             }
-            _ => self.fullname.0.clone()
+            _ => self.fullname.0.clone(),
         }
     }
 }
 
 /// Format `type_args` with .dbg_str
 fn _dbg_type_args(type_args: &[TermTy]) -> String {
-    type_args.iter().map(|x| x.dbg_str()).collect::<Vec<_>>().join(", ")
+    type_args
+        .iter()
+        .map(|x| x.dbg_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -167,15 +174,25 @@ impl TermTy {
             } else {
                 false
             }
-        } else if let TySpe { base_name, type_args } = &self.body {
-            if let TySpe { base_name: b2, type_args: a2 } = &other.body {
-                if base_name != b2 { return false } // TODO: Relax this condition
+        } else if let TySpe {
+            base_name,
+            type_args,
+        } = &self.body
+        {
+            if let TySpe {
+                base_name: b2,
+                type_args: a2,
+            } = &other.body
+            {
+                if base_name != b2 {
+                    return false;
+                } // TODO: Relax this condition
                 for (i, a) in type_args.iter().enumerate() {
                     // Invariant
                     if a.equals_to(&a2[i]) || a2[i].is_void_type() {
                         // ok
                     } else {
-                        return false
+                        return false;
                     }
                 }
                 true
@@ -226,17 +243,18 @@ impl TermTy {
     /// Apply type argments into type parameters
     pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { kind, idx, .. } => {
-                match kind {
-                    TyParamKind::Class => class_tyargs[*idx].clone(),
-                    TyParamKind::Method => method_tyargs[*idx].clone(),
-                }
-            }
+            TyParamRef { kind, idx, .. } => match kind {
+                TyParamKind::Class => class_tyargs[*idx].clone(),
+                TyParamKind::Method => method_tyargs[*idx].clone(),
+            },
             TySpe {
                 base_name,
                 type_args,
             } => {
-                let args = type_args.iter().map(|t| t.substitute(class_tyargs, method_tyargs)).collect();
+                let args = type_args
+                    .iter()
+                    .map(|t| t.substitute(class_tyargs, method_tyargs))
+                    .collect();
                 ty::spe(base_name, args)
             }
             TySpeMeta { .. } => todo!(),

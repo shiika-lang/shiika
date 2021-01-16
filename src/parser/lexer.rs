@@ -37,7 +37,6 @@ pub enum LexerState {
     ExprArg,
 
     // Special states
-
     /// Expects a method name
     /// eg. `+@`, `-@` is allowed only in this state
     MethodName,
@@ -637,7 +636,10 @@ impl<'a> Lexer<'a> {
                     let c2 = next_cur.peek(self.src);
                     if c2 == Some('{') {
                         next_cur.proceed(self.src);
-                        return Token::StrWithInterpolation{ head: buf, inspect: true };
+                        return Token::StrWithInterpolation {
+                            head: buf,
+                            inspect: true,
+                        };
                     } else {
                         let c = self._read_escape_sequence(next_cur.peek(self.src));
                         next_cur.proceed(self.src);
@@ -649,7 +651,10 @@ impl<'a> Lexer<'a> {
                     let c2 = next_cur.peek(self.src);
                     if c2 == Some('{') {
                         next_cur.proceed(self.src);
-                        return Token::StrWithInterpolation{ head: buf, inspect: false };
+                        return Token::StrWithInterpolation {
+                            head: buf,
+                            inspect: false,
+                        };
                     } else {
                         buf.push('#');
                     }

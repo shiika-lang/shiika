@@ -182,7 +182,8 @@ impl<'a> Parser<'a> {
             Token::LParen => {
                 self.consume_token();
                 self.skip_wsn();
-                let is_initialize = !is_class_method && name == Some(method_firstname("initialize"));
+                let is_initialize =
+                    !is_class_method && name == Some(method_firstname("initialize"));
                 params = self.parse_params(is_initialize, vec![Token::RParen])?;
             }
             // Has no params
@@ -281,7 +282,11 @@ impl<'a> Parser<'a> {
 
     // Parse parameters
     // - The `(` should be consumed beforehand
-    pub(super) fn parse_params(&mut self, is_initialize: bool, stop_toks: Vec<Token>) -> Result<Vec<ast::Param>, Error> {
+    pub(super) fn parse_params(
+        &mut self,
+        is_initialize: bool,
+        stop_toks: Vec<Token>,
+    ) -> Result<Vec<ast::Param>, Error> {
         let mut params = vec![];
         loop {
             // Param
@@ -291,7 +296,7 @@ impl<'a> Parser<'a> {
                         if is_initialize {
                             params.push(self.parse_param()?);
                         } else {
-                            return Err(parse_error!(self, "@ is only used in `initialize'"))
+                            return Err(parse_error!(self, "@ is only used in `initialize'"));
                         }
                     }
                     Token::LowerWord(_) => params.push(self.parse_param()?),
@@ -360,7 +365,11 @@ impl<'a> Parser<'a> {
         // Type
         let typ = self.parse_typ()?;
 
-        Ok(ast::Param { name, typ, is_iparam })
+        Ok(ast::Param {
+            name,
+            typ,
+            is_iparam,
+        })
     }
 
     fn parse_typ(&mut self) -> Result<ast::Typ, Error> {
@@ -448,7 +457,9 @@ impl<'a> Parser<'a> {
 /// `def initialize(a: Int); @a = a`.
 /// Returns expressions like `@a = a`
 fn iparam_exprs(params: &[Param]) -> Vec<ast::AstExpression> {
-    params.iter().filter(|param| param.is_iparam).map(|param| {
-        ast::ivar_assign(param.name.clone(), ast::bare_name(&param.name))
-    }).collect()
+    params
+        .iter()
+        .filter(|param| param.is_iparam)
+        .map(|param| ast::ivar_assign(param.name.clone(), ast::bare_name(&param.name)))
+        .collect()
 }

@@ -174,15 +174,13 @@ impl HirMaker {
             type_checking::check_if_clauses_ty(&then_hirs.ty, &else_hirs.ty)?;
         }
 
-        let if_ty = if then_hirs.ty.is_never_type() { else_hirs.ty.clone() }
-          else { then_hirs.ty.clone() };
+        let if_ty = if then_hirs.ty.is_never_type() {
+            else_hirs.ty.clone()
+        } else {
+            then_hirs.ty.clone()
+        };
 
-        Ok(Hir::if_expression(
-            if_ty,
-            cond_hir,
-            then_hirs,
-            else_hirs,
-        ))
+        Ok(Hir::if_expression(if_ty, cond_hir, then_hirs, else_hirs))
     }
 
     fn convert_while_expr(
@@ -280,7 +278,13 @@ impl HirMaker {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, ctx.self_ty.clone()))
+            Ok(Hir::ivar_assign(
+                name,
+                ivar.idx,
+                expr,
+                false,
+                ctx.self_ty.clone(),
+            ))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -356,14 +360,11 @@ impl HirMaker {
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
-    /// eg. 
+    /// eg.
     ///     ary.map<Array<T>>(f)
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
-    fn _resolve_method_tyarg(
-        &self,
-        name: &ConstName,
-    ) -> Result<TermTy, Error> {
+    fn _resolve_method_tyarg(&self, name: &ConstName) -> Result<TermTy, Error> {
         let class_typarams = self.current_class_typarams();
         let method_typarams = self.current_method_typarams();
         let ret = name.to_ty(&class_typarams, &method_typarams);
@@ -380,9 +381,9 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         let specialized = receiver_hir.ty.is_specialized();
         let class_fullname = &receiver_hir.ty.fullname;
-        let (sig, found_class_name) = self
-            .class_dict
-            .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
+        let (sig, found_class_name) =
+            self.class_dict
+                .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
 
         let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(
@@ -426,7 +427,8 @@ impl HirMaker {
         let hir_params = signature::convert_params(
             params,
             &self.current_class_typarams(),
-            &self.current_method_typarams());
+            &self.current_method_typarams(),
+        );
 
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
@@ -601,11 +603,17 @@ impl HirMaker {
             error::program_error(&format!("referring ivar `{}' out of a method", name))
         })?;
         let self_cls = &method_ctx.self_ty.fullname;
-        let found = self.class_dict.find_ivar(&self_cls, name).or_else(||{
-            method_ctx.iivars.get(name)
-        });
+        let found = self
+            .class_dict
+            .find_ivar(&self_cls, name)
+            .or_else(|| method_ctx.iivars.get(name));
         match found {
-            Some(ivar) => Ok(Hir::ivar_ref(ivar.ty.clone(), name.to_string(), ivar.idx, self.ctx().self_ty.clone())),
+            Some(ivar) => Ok(Hir::ivar_ref(
+                ivar.ty.clone(),
+                name.to_string(),
+                ivar.idx,
+                self.ctx().self_ty.clone(),
+            )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
                 name
@@ -628,13 +636,11 @@ impl HirMaker {
     fn _lookup_const(&self, name: &ConstName) -> Option<(&TermTy, ConstFullname)> {
         let fullname = name.to_const_fullname();
         if let Some(found) = self.constants.get(&fullname) {
-            return Some((found, fullname))
+            return Some((found, fullname));
         }
 
         let fullname = name.under_namespace(&(self.ctx().namespace.0.clone()));
-        self.constants.get(&fullname).map(|found| {
-            (found, fullname)
-        })
+        self.constants.get(&fullname).map(|found| (found, fullname))
     }
 
     /// Check `name` refers proper class name
@@ -644,10 +650,10 @@ impl HirMaker {
             return Err(error::program_error(&format!(
                 "constant `{:?}' was not found",
                 name.names.join("::")
-            )))
+            )));
         }
         if name.args.is_empty() {
-            return Ok(())
+            return Ok(());
         }
         let mut typarams = self.current_class_typarams();
         typarams.append(&mut self.current_method_typarams());
@@ -692,7 +698,11 @@ impl HirMaker {
         );
         let class_typarams = self.current_class_typarams();
         let method_typarams = self.current_method_typarams();
-        let tyargs = name.args.iter().map(|arg| arg.to_ty(&class_typarams, &method_typarams)).collect::<Vec<_>>();
+        let tyargs = name
+            .args
+            .iter()
+            .map(|arg| arg.to_ty(&class_typarams, &method_typarams))
+            .collect::<Vec<_>>();
         let cls = self
             .class_dict
             .find_class(&class_fullname(

@@ -71,7 +71,9 @@ pub fn create_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let i8ptr = code_gen.unbox_i8ptr(function.get_params()[0]);
                 let i64val = code_gen.unbox_int(function.get_params()[1]);
-                let i8val = code_gen.builder.build_int_truncate(i64val, code_gen.i8_type, "i8val");
+                let i8val = code_gen
+                    .builder
+                    .build_int_truncate(i64val, code_gen.i8_type, "i8val");
 
                 code_gen.builder.build_store(i8ptr, i8val);
                 code_gen.builder.build_return(None);

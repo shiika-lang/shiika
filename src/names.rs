@@ -192,7 +192,11 @@ impl ConstName {
                 ty::raw(&self.names.join("::"))
             }
         } else {
-            let type_args = self.args.iter().map(|n| n.to_ty(class_typarams, method_typarams)).collect();
+            let type_args = self
+                .args
+                .iter()
+                .map(|n| n.to_ty(class_typarams, method_typarams))
+                .collect();
             ty::spe(&self.names.join("::"), type_args)
         }
     }

@@ -85,8 +85,8 @@ impl ClassDict {
         let metaclass_fullname = class_ty.fullname.clone();
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
-        let initializer_params = self.initializer_params(
-            typarams, &super_name.instance_ty(), &defs);
+        let initializer_params =
+            self.initializer_params(typarams, &super_name.instance_ty(), &defs);
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
             initializer_params,

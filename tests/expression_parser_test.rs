@@ -114,18 +114,39 @@ fn test_additive_expr() {
 fn test_multiplicative_with_method_call() {
     let result = parse_expr("1.foo * 2");
 
-    let left = ast::method_call(Some(ast::decimal_literal(1)), "foo", vec![], vec![], true, true);
+    let left = ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "foo",
+        vec![],
+        vec![],
+        true,
+        true,
+    );
 
     assert_eq!(
         result.unwrap(),
-        ast::method_call(Some(left), "*", vec![ast::decimal_literal(2)], vec![], false, false)
+        ast::method_call(
+            Some(left),
+            "*",
+            vec![ast::decimal_literal(2)],
+            vec![],
+            false,
+            false
+        )
     )
 }
 
 #[test]
 fn test_unary() {
     let result = parse_expr("p -1");
-    let minus1 = ast::method_call(Some(ast::decimal_literal(1)), "-@", vec![], vec![], true, false);
+    let minus1 = ast::method_call(
+        Some(ast::decimal_literal(1)),
+        "-@",
+        vec![],
+        vec![],
+        true,
+        false,
+    );
 
     assert_eq!(
         result.unwrap(),
@@ -199,7 +220,14 @@ fn test_call_with_dot() {
     let result = parse_expr("1.foo");
     assert_eq!(
         result.unwrap(),
-        ast::method_call(Some(ast::decimal_literal(1)), "foo", vec![], vec![], true, true)
+        ast::method_call(
+            Some(ast::decimal_literal(1)),
+            "foo",
+            vec![],
+            vec![],
+            true,
+            true
+        )
     )
 }
 
@@ -212,7 +240,14 @@ fn test_call_with_paren_1() {
     let result = parse_expr("foo(1)");
     assert_eq!(
         result.unwrap(),
-        ast::method_call(None, "foo", vec![ast::decimal_literal(1)], vec![], true, false)
+        ast::method_call(
+            None,
+            "foo",
+            vec![ast::decimal_literal(1)],
+            vec![],
+            true,
+            false
+        )
     )
 }
 
@@ -221,7 +256,14 @@ fn test_call_with_space_1() {
     let result = parse_expr("foo 1");
     assert_eq!(
         result.unwrap(),
-        ast::method_call(None, "foo", vec![ast::decimal_literal(1)], vec![], false, false)
+        ast::method_call(
+            None,
+            "foo",
+            vec![ast::decimal_literal(1)],
+            vec![],
+            false,
+            false
+        )
     )
 }
 

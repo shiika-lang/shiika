@@ -25,7 +25,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
 
 fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
-    let dir = fs::read_dir("builtin").map_err(|e| runner_error("./builtin not found", Box::new(e)))?;
+    let dir =
+        fs::read_dir("builtin").map_err(|e| runner_error("./builtin not found", Box::new(e)))?;
     for item in dir {
         let pathbuf = item?.path();
         let path = pathbuf

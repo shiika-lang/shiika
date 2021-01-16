@@ -50,7 +50,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             } => self.gen_while_expr(ctx, &cond_expr, &body_exprs),
             HirBreakExpression => self.gen_break_expr(ctx),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
-            HirIVarAssign { name, idx, rhs, self_ty, .. } => self.gen_ivar_assign(ctx, name, idx, rhs, self_ty),
+            HirIVarAssign {
+                name,
+                idx,
+                rhs,
+                self_ty,
+                ..
+            } => self.gen_ivar_assign(ctx, name, idx, rhs, self_ty),
             HirConstAssign { fullname, rhs } => self.gen_const_assign(ctx, fullname, rhs),
             HirMethodCall {
                 receiver_expr,
@@ -204,8 +210,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             Ok(else_value)
         } else {
             let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-            phi_node
-                .add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
+            phi_node.add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
             Ok(phi_node.as_basic_value())
         }
     }
@@ -393,12 +398,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
-                let obj = ctx.function.get_nth_param((*idx as u32) + 1).unwrap_or_else(|| { // +1 for the first %self
-                    panic!(format!(
-                        "{:?}\ngen_arg_ref: no param of idx={}",
-                        &ctx.function, idx
-                    ))
-                });
+                let obj = ctx
+                    .function
+                    .get_nth_param((*idx as u32) + 1)
+                    .unwrap_or_else(|| {
+                        // +1 for the first %self
+                        panic!(format!(
+                            "{:?}\ngen_arg_ref: no param of idx={}",
+                            &ctx.function, idx
+                        ))
+                    });
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
                 let value = self.builder.build_bitcast(obj, llvm_type, "");
                 Ok(value)
@@ -462,11 +471,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"))?;
-        let arg_values = vec![
-            sk_ptr,
-            the_self,
-            self.gen_lambda_captures(ctx, captures)?,
-        ];
+        let arg_values = vec![sk_ptr, the_self, self.gen_lambda_captures(ctx, captures)?];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 
@@ -511,17 +516,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        let the_main =
-            if ctx.function.get_name().to_str().unwrap() == "user_main" {
-                self.the_main.unwrap()
-            } else if ctx.function_origin == FunctionOrigin::Lambda {
-                let fn_x = ctx.function.get_first_param().unwrap();
-                self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "obj")
-            } else {
-                // The first arg of llvm function is `self`
-                ctx.function.get_first_param().unwrap()
-            };
-        Ok(self.builder.build_bitcast(the_main, self.llvm_type(ty), "the_main"))
+        let the_main = if ctx.function.get_name().to_str().unwrap() == "user_main" {
+            self.the_main.unwrap()
+        } else if ctx.function_origin == FunctionOrigin::Lambda {
+            let fn_x = ctx.function.get_first_param().unwrap();
+            self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "obj")
+        } else {
+            // The first arg of llvm function is `self`
+            ctx.function.get_first_param().unwrap()
+        };
+        Ok(self
+            .builder
+            .build_bitcast(the_main, self.llvm_type(ty), "the_main"))
     }
 
     /// Generate code for creating an array
@@ -616,23 +622,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         )?;
-        let ret =
-            if deref {
-                // `item` is a pointer
-                let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
-                let ptr = self
-                    .builder
-                    .build_bitcast(item, ptr_ty, "ptr")
-                    .into_pointer_value();
-                self.builder.build_load(ptr, "ret")
-            } else {
-                // `item` is a value
-                self.builder.build_bitcast(item, self.llvm_type(ty), "ret")
-            };
+        let ret = if deref {
+            // `item` is a pointer
+            let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
+            let ptr = self
+                .builder
+                .build_bitcast(item, ptr_ty, "ptr")
+                .into_pointer_value();
+            self.builder.build_load(ptr, "ret")
+        } else {
+            // `item` is a value
+            self.builder.build_bitcast(item, self.llvm_type(ty), "ret")
+        };
 
-        let block = self
-            .context
-            .append_basic_block(ctx.function, &format!("CaptureRef_{}th_end", idx_in_captures));
+        let block = self.context.append_basic_block(
+            ctx.function,
+            &format!("CaptureRef_{}th_end", idx_in_captures),
+        );
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
         Ok(ret)
@@ -665,15 +671,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let value = self.gen_expr(ctx, rhs)?;
         self.builder.build_store(ptr, value);
 
-        let block = self
-            .context
-            .append_basic_block(ctx.function, &format!("CaptureWrite_{}th_end", idx_in_captures));
+        let block = self.context.append_basic_block(
+            ctx.function,
+            &format!("CaptureWrite_{}th_end", idx_in_captures),
+        );
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
         Ok(value)
     }
 
-    fn _gen_get_lambda_captures(&self, ctx: &mut CodeGenContext<'hir, 'run>) -> inkwell::values::BasicValueEnum {
+    fn _gen_get_lambda_captures(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+    ) -> inkwell::values::BasicValueEnum {
         let fn_x = ctx.function.get_first_param().unwrap();
         self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "captures")
     }

@@ -36,7 +36,12 @@ pub fn create(
 
 impl ClassDict {
     /// Return parameters of `initialize`
-    fn initializer_params(&self, typarams: &[String], super_class: &TermTy, defs: &[ast::Definition]) -> Vec<MethodParam> {
+    fn initializer_params(
+        &self,
+        typarams: &[String],
+        super_class: &TermTy,
+        defs: &[ast::Definition],
+    ) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
             defs.iter().find(|d| d.is_initializer())
         {

@@ -105,7 +105,12 @@ impl HirMaker {
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
         match def {
             // Extract instance/class methods
-            ast::Definition::ClassDefinition { name, defs, typarams, .. } => {
+            ast::Definition::ClassDefinition {
+                name,
+                defs,
+                typarams,
+                ..
+            } => {
                 let full = name.add_namespace("");
                 self.process_defs_in_class(&full, typarams.clone(), defs)?;
             }
@@ -155,22 +160,25 @@ impl HirMaker {
                     if def.is_initializer() {
                         // Already processed above
                     } else {
-                        let method =
-                            self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
+                        let method = self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
                         self.method_dict.add_method(&fullname, method);
                     }
                 }
                 ast::Definition::ClassMethodDefinition {
                     sig, body_exprs, ..
                 } => {
-                    let method =
-                        self.convert_method_def(&meta_name, &sig.name, &body_exprs)?;
+                    let method = self.convert_method_def(&meta_name, &sig.name, &body_exprs)?;
                     self.method_dict.add_method(&meta_name, method);
                 }
                 ast::Definition::ConstDefinition { .. } => {
                     // Already processed above
                 }
-                ast::Definition::ClassDefinition { name, typarams, defs, .. } => {
+                ast::Definition::ClassDefinition {
+                    name,
+                    typarams,
+                    defs,
+                    ..
+                } => {
                     let full = name.add_namespace(&fullname.0);
                     self.process_defs_in_class(&full, typarams.clone(), defs)?;
                 }
@@ -228,9 +236,11 @@ impl HirMaker {
     fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
         let (initialize_name, init_cls_name) =
             self._find_initialize(&class_fullname.instance_ty())?;
-        let (signature, _) = self
-            .class_dict
-            .lookup_method(&class_fullname.class_ty(), &method_firstname("new"), &[])?;
+        let (signature, _) = self.class_dict.lookup_method(
+            &class_fullname.class_ty(),
+            &method_firstname("new"),
+            &[],
+        )?;
         let arity = signature.params.len();
         let classname = class_fullname.clone();
 
@@ -241,7 +251,7 @@ impl HirMaker {
                 &initialize_name,
                 &init_cls_name,
                 arity,
-                );
+            );
             Ok(())
         };
 
@@ -256,9 +266,9 @@ impl HirMaker {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
-        let (_, found_cls) = self
-            .class_dict
-            .lookup_method(&class, &method_firstname("initialize"), &[])?;
+        let (_, found_cls) =
+            self.class_dict
+                .lookup_method(&class, &method_firstname("initialize"), &[])?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 

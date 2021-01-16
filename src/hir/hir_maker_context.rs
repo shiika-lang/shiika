@@ -86,7 +86,11 @@ impl HirMakerContext {
     }
 
     /// Create a class context
-    pub fn class_ctx(fullname: &ClassFullname, typarams: Vec<String>, depth: usize) -> HirMakerContext {
+    pub fn class_ctx(
+        fullname: &ClassFullname,
+        typarams: Vec<String>,
+        depth: usize,
+    ) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
             depth,
@@ -196,7 +200,8 @@ impl HirMaker {
     }
 
     pub(super) fn method_ctx_mut(&mut self) -> Option<&mut HirMakerContext> {
-        self.find_ctx(CtxKind::Method).map(move |i| &mut self.ctx_stack[i])
+        self.find_ctx(CtxKind::Method)
+            .map(move |i| &mut self.ctx_stack[i])
     }
 
     /// Find nearest enclosing ctx of the `kind`
@@ -213,20 +218,30 @@ impl HirMaker {
     }
 
     pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
-        if ctx.kind != CtxKind::Lambda { return None }
-        if ctx.depth == 0 { return None }
+        if ctx.kind != CtxKind::Lambda {
+            return None;
+        }
+        if ctx.depth == 0 {
+            return None;
+        }
         let outer_ctx = &self.ctx_stack[ctx.depth - 1];
         Some(outer_ctx)
     }
 
     /// Returns type parameter of the current class
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
-        let typarams = &self.class_dict.find_class(&self.ctx().self_ty.fullname).unwrap().typarams;
+        let typarams = &self
+            .class_dict
+            .find_class(&self.ctx().self_ty.fullname)
+            .unwrap()
+            .typarams;
         typarams.iter().map(|x| x.name.clone()).collect()
     }
 
     /// Returns type parameter of the current method
     pub(super) fn current_method_typarams(&self) -> Vec<String> {
-        self.method_ctx().map(|c| c.method_sig.as_ref().unwrap()).map_or(vec![], |sig| sig.typarams.clone())
+        self.method_ctx()
+            .map(|c| c.method_sig.as_ref().unwrap())
+            .map_or(vec![], |sig| sig.typarams.clone())
     }
 }
