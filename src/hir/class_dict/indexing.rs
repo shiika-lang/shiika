@@ -84,8 +84,6 @@ impl ClassDict {
         let class_ty = instance_ty.meta_ty();
 
         let metaclass_fullname = class_ty.fullname.clone();
-        let mut instance_methods = HashMap::new();
-        let mut class_methods = HashMap::new();
         let initializer_params =
             self.initializer_params(typarams, &super_name.instance_ty(), &defs);
         let new_sig = signature::signature_of_new(
@@ -94,28 +92,9 @@ impl ClassDict {
             &ty::return_type_of_new(fullname, typarams),
         );
 
-        for def in defs {
-            match def {
-                ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&fullname, sig, typarams);
-                    instance_methods.insert(sig.name.clone(), hir_sig);
-                }
-                ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&metaclass_fullname, sig, typarams);
-                    class_methods.insert(sig.name.clone(), hir_sig);
-                }
-                ast::Definition::ConstDefinition { .. } => (),
-                ast::Definition::ClassDefinition {
-                    name,
-                    typarams,
-                    super_name,
-                    defs,
-                } => {
-                    let full = name.add_namespace(&fullname.0);
-                    self.index_class(&full, &typarams, &super_name, &defs)?;
-                }
-            }
-        }
+        let (instance_methods, mut class_methods) = self.index_defs_in_class(
+            fullname, typarams, defs
+        )?;
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
@@ -172,5 +151,38 @@ impl ClassDict {
             }
         }
         Ok(())
+    }
+
+    fn index_defs_in_class(
+        &mut self,
+        fullname: &ClassFullname,
+        typarams: &[String],
+        defs: &[ast::Definition]
+    ) -> Result<(HashMap<MethodFirstname, MethodSignature>, HashMap<MethodFirstname, MethodSignature>), Error> {
+        let mut instance_methods = HashMap::new();
+        let mut class_methods = HashMap::new();
+        for def in defs {
+            match def {
+                ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                    let hir_sig = signature::create_signature(&fullname, sig, typarams);
+                    instance_methods.insert(sig.name.clone(), hir_sig);
+                }
+                ast::Definition::ClassMethodDefinition { sig, .. } => {
+                    let hir_sig = signature::create_signature(&fullname.meta_name(), sig, typarams);
+                    class_methods.insert(sig.name.clone(), hir_sig);
+                }
+                ast::Definition::ConstDefinition { .. } => (),
+                ast::Definition::ClassDefinition {
+                    name,
+                    typarams,
+                    super_name,
+                    defs,
+                } => {
+                    let full = name.add_namespace(&fullname.0);
+                    self.index_class(&full, &typarams, &super_name, &defs)?;
+                }
+            }
+        }
+        Ok((instance_methods, class_methods))
     }
 }
