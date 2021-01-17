@@ -1,5 +1,6 @@
 mod array;
 mod bool;
+mod class;
 mod float;
 mod fn_x;
 mod int;
@@ -51,6 +52,15 @@ type ClassItem = (
 fn rust_body_items() -> Vec<ClassItem> {
     let mut ret = vec![
         // Classes
+        (
+            // `Class` must be created before loading builtin/* because
+            // `Meta::XX` inherits `Class`.
+            "Class".to_string(),
+            Default::default(),
+            vec![],
+            class::ivars(),
+            vec![],
+        ),
         (
             "Array".to_string(),
             array::create_methods(),
