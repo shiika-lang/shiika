@@ -63,7 +63,11 @@ impl ClassFullname {
     }
 
     pub fn meta_name(&self) -> ClassFullname {
-        ClassFullname("Meta:".to_string() + &self.0)
+        if self.0 == "Class" {
+            self.clone()
+        } else {
+            ClassFullname("Meta:".to_string() + &self.0)
+        }
     }
 }
 

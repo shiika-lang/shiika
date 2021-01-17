@@ -147,7 +147,10 @@ impl HirMaker {
             self.method_dict.add_method(&fullname, sk_method);
             own_ivars = found_ivars;
         }
-        self.define_ivars(fullname, own_ivars, defs)?;
+        if !own_ivars.is_empty() {
+            // Be careful not to reset ivars of corelib/* by builtin/*
+            self.define_ivars(fullname, own_ivars, defs)?;
+        }
 
         self.method_dict
             .add_method(&meta_name, self.create_new(&fullname)?);
