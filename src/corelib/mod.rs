@@ -9,7 +9,6 @@ mod never;
 mod object;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
-mod string;
 mod void;
 use crate::hir::*;
 use crate::names::*;
@@ -117,14 +116,6 @@ fn rust_body_items() -> Vec<ClassItem> {
             never::create_methods(),
             vec![],
             HashMap::new(),
-            vec![],
-        ),
-        (
-            "String".to_string(),
-            Some(class_fullname("Object")),
-            string::create_methods(),
-            vec![],
-            string::ivars(),
             vec![],
         ),
         (
