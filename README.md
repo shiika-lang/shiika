@@ -117,6 +117,12 @@ Specific file under test/sk/ (eg. string.sk):
 $ FILTER=string cargo test --test integration_test
 ```
 
+With logging enabled
+
+```
+$ RUST_LOG='trace' cargo test
+```
+
 ### How to run a Shiika program
 
 ```
