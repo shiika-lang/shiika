@@ -175,38 +175,32 @@ fn make_classes(
                 const_is_obj: (name == "Void"),
             },
         );
-
-        let mut meta_ivars = HashMap::new();
-        meta_ivars.insert(
-            "name".to_string(),
-            SkIVar {
-                name: "name".to_string(),
-                idx: 0,
-                ty: ty::raw("String"),
-                readonly: true,
-            },
-        );
-        sk_classes.insert(
-            metaclass_fullname(&name),
-            SkClass {
-                fullname: metaclass_fullname(&name),
-                typarams: typarams
-                    .into_iter()
-                    .map(|s| ty::TyParam { name: s })
-                    .collect(),
-                superclass_fullname: Some(class_fullname("Class")),
-                instance_ty: ty::meta(&name),
-                ivars: meta_ivars,
-                method_sigs: cmethods
-                    .iter()
-                    .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
-                    .collect(),
-                const_is_obj: false,
-            },
-        );
-
         sk_methods.insert(class_fullname(&name), imethods);
-        sk_methods.insert(metaclass_fullname(&name), cmethods);
+
+        if name == "Class" {
+            // The class of `Class` is `Class` itself. So we don't need to create again
+        } else {
+            let meta_ivars = class::ivars(); // `Meta::XX` inherits `Class`
+            sk_classes.insert(
+                metaclass_fullname(&name),
+                SkClass {
+                    fullname: metaclass_fullname(&name),
+                    typarams: typarams
+                        .into_iter()
+                        .map(|s| ty::TyParam { name: s })
+                        .collect(),
+                    superclass_fullname: Some(class_fullname("Class")),
+                    instance_ty: ty::meta(&name),
+                    ivars: meta_ivars,
+                    method_sigs: cmethods
+                        .iter()
+                        .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
+                        .collect(),
+                    const_is_obj: false,
+                },
+            );
+            sk_methods.insert(metaclass_fullname(&name), cmethods);
+        }
     }
     (sk_classes, sk_methods)
 }
