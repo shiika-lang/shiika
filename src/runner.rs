@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use log;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
@@ -16,10 +17,15 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
         + &fs::read_to_string(filepath)
             .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
     let ast = crate::parser::Parser::parse(&str)?;
+    log::debug!("created ast");
     let corelib = crate::corelib::Corelib::create();
+    log::debug!("loaded corelib");
     let hir = crate::hir::build(ast, corelib)?;
+    log::debug!("created hir");
     let mir = crate::mir::build(hir);
+    log::debug!("created mir");
     wrap_error(crate::code_gen::run(&mir, &(path + ".ll")))?;
+    log::debug!("created .ll");
     Ok(())
 }
 

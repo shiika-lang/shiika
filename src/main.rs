@@ -4,6 +4,8 @@ use shiika::runner;
 extern crate clap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     let yaml = load_yaml!("cli.yml");
     let matches = clap::App::from(yaml).get_matches();
 
