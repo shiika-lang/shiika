@@ -66,6 +66,7 @@ macro_rules! fn_item {
 
         (
             format!("Fn{}", $i),
+            Some(class_fullname("Fn")),
             vec![create_fn_call!($i)],
             vec![],
             HashMap::new(),

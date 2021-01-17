@@ -43,6 +43,7 @@ impl Corelib {
 
 type ClassItem = (
     String,
+    Option<ClassFullname>, // superclass
     Vec<SkMethod>,
     Vec<SkMethod>,
     HashMap<String, SkIVar>,
@@ -56,6 +57,7 @@ fn rust_body_items() -> Vec<ClassItem> {
             // `Class` must be created before loading builtin/* because
             // `Meta::XX` inherits `Class`.
             "Class".to_string(),
+            Some(class_fullname("Object")),
             Default::default(),
             vec![],
             class::ivars(),
@@ -63,6 +65,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Array".to_string(),
+            Some(class_fullname("Object")),
             array::create_methods(),
             vec![],
             HashMap::new(),
@@ -70,6 +73,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Bool".to_string(),
+            Some(class_fullname("Object")),
             bool::create_methods(),
             vec![],
             HashMap::new(),
@@ -77,6 +81,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Float".to_string(),
+            Some(class_fullname("Object")),
             float::create_methods(),
             vec![],
             HashMap::new(),
@@ -84,6 +89,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Int".to_string(),
+            Some(class_fullname("Object")),
             int::create_methods(),
             vec![],
             HashMap::new(),
@@ -91,6 +97,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Object".to_string(),
+            None,
             object::create_methods(),
             vec![],
             HashMap::new(),
@@ -98,6 +105,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Void".to_string(),
+            Some(class_fullname("Object")),
             void::create_methods(),
             vec![],
             HashMap::new(),
@@ -105,6 +113,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Never".to_string(),
+            Some(class_fullname("Object")),
             never::create_methods(),
             vec![],
             HashMap::new(),
@@ -112,14 +121,15 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "String".to_string(),
+            Some(class_fullname("Object")),
             string::create_methods(),
             vec![],
             string::ivars(),
             vec![],
         ),
-        ("Class".to_string(), vec![], vec![], HashMap::new(), vec![]),
         (
             "Shiika::Internal::Ptr".to_string(),
+            Some(class_fullname("Object")),
             shiika_internal_ptr::create_methods(),
             vec![],
             HashMap::new(),
@@ -128,14 +138,23 @@ fn rust_body_items() -> Vec<ClassItem> {
         // Modules
         (
             "Math".to_string(),
+            Some(class_fullname("Object")),
             vec![],
             math::create_class_methods(),
             HashMap::new(),
             vec![],
         ),
-        ("Shiika".to_string(), vec![], vec![], HashMap::new(), vec![]),
+        (
+            "Shiika".to_string(),
+            Some(class_fullname("Object")),
+            vec![],
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
         (
             "Shiika::Internal".to_string(),
+            Some(class_fullname("Object")),
             vec![],
             vec![],
             HashMap::new(),
@@ -143,6 +162,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Shiika::Internal::Memory".to_string(),
+            Some(class_fullname("Object")),
             vec![],
             shiika_internal_memory::create_class_methods(),
             HashMap::new(),
@@ -161,12 +181,7 @@ fn make_classes(
 ) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
-    for (name, imethods, cmethods, ivars, typarams) in items {
-        let super_name = if name == "Object" {
-            None
-        } else {
-            Some(ClassFullname("Object".to_string()))
-        };
+    for (name, super_name, imethods, cmethods, ivars, typarams) in items {
         sk_classes.insert(
             ClassFullname(name.to_string()),
             SkClass {
