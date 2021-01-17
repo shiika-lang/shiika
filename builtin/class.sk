@@ -1,9 +1,7 @@
+# see also: src/corelib/
 class Class
-  def initialize(name: String)
-    @name = name
-  end
-
   def name -> String
+    # Accessors does not defined automatically for classes defined src/corelib
     @name
   end
 

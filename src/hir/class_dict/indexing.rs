@@ -18,6 +18,7 @@ impl ClassDict {
             None => HashMap::new(),
         };
         let class = self.get_class_mut(&classname, "ClassDict::define_ivars");
+        debug_assert!(class.ivars.is_empty());
         class.ivars = super_ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
             class.ivars.insert(k, v);
@@ -152,16 +153,19 @@ impl ClassDict {
                     typarams: ty_params.clone(),
                     superclass_fullname: Some(super_name.clone()),
                     instance_ty,
-                    ivars: HashMap::new(),
+                    ivars: HashMap::new(), // will be set when processing `#initialize`
                     method_sigs: instance_methods,
                     const_is_obj: false,
                 });
+                // Crete metaclass (which is a subclass of `Class`)
+                let the_class = self.get_class(&class_fullname("Class"), "index_class");
+                let meta_ivars = the_class.ivars.clone();
                 self.add_class(SkClass {
                     fullname: metaclass_fullname,
                     typarams: ty_params,
                     superclass_fullname: Some(class_fullname("Class")),
                     instance_ty: class_ty,
-                    ivars: HashMap::new(),
+                    ivars: meta_ivars,
                     method_sigs: class_methods,
                     const_is_obj: false,
                 });

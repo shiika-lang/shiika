@@ -32,7 +32,11 @@ pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
-    ClassFullname("Meta:".to_string() + base)
+    if base == "Class" {
+        class_fullname("Class")
+    } else {
+        class_fullname(&("Meta:".to_string() + base))
+    }
 }
 
 impl ClassFullname {
@@ -59,7 +63,11 @@ impl ClassFullname {
     }
 
     pub fn meta_name(&self) -> ClassFullname {
-        ClassFullname("Meta:".to_string() + &self.0)
+        if self.0 == "Class" {
+            self.clone()
+        } else {
+            ClassFullname("Meta:".to_string() + &self.0)
+        }
     }
 }
 

@@ -66,12 +66,45 @@ macro_rules! fn_item {
 
         (
             format!("Fn{}", $i),
+            Some(class_fullname("Fn")),
             vec![create_fn_call!($i)],
             vec![],
-            HashMap::new(),
+            ivars(),
             typarams,
         )
     }};
+}
+
+fn ivars() -> HashMap<String, SkIVar> {
+    let mut ivars = HashMap::new();
+    ivars.insert(
+        "@func".to_string(),
+        SkIVar {
+            name: "@func".to_string(),
+            idx: 0,
+            ty: ty::raw("Shiika::Internal::Ptr"),
+            readonly: true,
+        },
+    );
+    ivars.insert(
+        "@the_self".to_string(),
+        SkIVar {
+            name: "@the_self".to_string(),
+            idx: 1,
+            ty: ty::raw("Object"),
+            readonly: true,
+        },
+    );
+    ivars.insert(
+        "@captures".to_string(),
+        SkIVar {
+            name: "@captures".to_string(),
+            idx: 2,
+            ty: ty::ary(ty::raw("Shiika::Internal::Ptr")),
+            readonly: true,
+        },
+    );
+    ivars
 }
 
 pub fn fn_items() -> Vec<ClassItem> {
