@@ -92,7 +92,9 @@ impl ClassDict {
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
-                // Merge methods to existing class (Class is reopened)
+                // Merge methods to existing class
+                // Shiika will not support reopening a class but this is needed
+                // for classes defined both in src corelib/ and in builtin/.
                 class.method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_classes
