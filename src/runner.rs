@@ -1,9 +1,9 @@
 use crate::error::*;
+use log;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use log;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
