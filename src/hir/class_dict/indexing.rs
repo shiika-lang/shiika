@@ -80,21 +80,15 @@ impl ClassDict {
         super_name: &ClassFullname,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
-        let instance_ty = ty::raw(&fullname.0);
-        let class_ty = instance_ty.meta_ty();
-
-        let metaclass_fullname = class_ty.fullname.clone();
-        let initializer_params =
-            self.initializer_params(typarams, &super_name.instance_ty(), &defs);
+        let metaclass_fullname = fullname.meta_name();
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            initializer_params,
+            self.initializer_params(typarams, &super_name.instance_ty(), &defs),
             &ty::return_type_of_new(fullname, typarams),
         );
 
-        let (instance_methods, mut class_methods) = self.index_defs_in_class(
-            fullname, typarams, defs
-        )?;
+        let (instance_methods, class_methods) =
+            self.index_defs_in_class(fullname, typarams, defs)?;
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
@@ -112,43 +106,7 @@ impl ClassDict {
                         .insert(new_sig.fullname.first_name.clone(), new_sig);
                 }
             }
-            None => {
-                let ty_params = typarams
-                    .iter()
-                    .map(|s| TyParam {
-                        name: s.to_string(),
-                    })
-                    .collect::<Vec<_>>();
-                // Add `.new` to the metaclass
-                class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
-                if !self.class_exists(&super_name.0) {
-                    return Err(error::name_error(&format!(
-                        "unknown superclass: {:?}",
-                        super_name
-                    )));
-                }
-                self.add_class(SkClass {
-                    fullname: fullname.clone(),
-                    typarams: ty_params.clone(),
-                    superclass_fullname: Some(super_name.clone()),
-                    instance_ty,
-                    ivars: HashMap::new(), // will be set when processing `#initialize`
-                    method_sigs: instance_methods,
-                    const_is_obj: false,
-                });
-                // Crete metaclass (which is a subclass of `Class`)
-                let the_class = self.get_class(&class_fullname("Class"), "index_class");
-                let meta_ivars = the_class.ivars.clone();
-                self.add_class(SkClass {
-                    fullname: metaclass_fullname,
-                    typarams: ty_params,
-                    superclass_fullname: Some(class_fullname("Class")),
-                    instance_ty: class_ty,
-                    ivars: meta_ivars,
-                    method_sigs: class_methods,
-                    const_is_obj: false,
-                });
-            }
+            None => self.add_new_class(fullname, typarams, super_name, new_sig, instance_methods, class_methods)?
         }
         Ok(())
     }
@@ -157,8 +115,14 @@ impl ClassDict {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[String],
-        defs: &[ast::Definition]
-    ) -> Result<(HashMap<MethodFirstname, MethodSignature>, HashMap<MethodFirstname, MethodSignature>), Error> {
+        defs: &[ast::Definition],
+    ) -> Result<
+        (
+            HashMap<MethodFirstname, MethodSignature>,
+            HashMap<MethodFirstname, MethodSignature>,
+        ),
+        Error,
+    > {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
         for def in defs {
@@ -184,5 +148,55 @@ impl ClassDict {
             }
         }
         Ok((instance_methods, class_methods))
+    }
+
+    fn add_new_class(
+        &mut self,
+        fullname: &ClassFullname,
+        typaram_names: &[String],
+        super_name: &ClassFullname,
+        new_sig: MethodSignature,
+        instance_methods: HashMap<MethodFirstname, MethodSignature>,
+        mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+    ) -> Result<(), Error> {
+        let typarams = typaram_names
+            .iter()
+            .map(|s| TyParam {
+                name: s.to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        // Add `.new` to the metaclass
+        class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+        if !self.class_exists(&super_name.0) {
+            return Err(error::name_error(&format!(
+                "unknown superclass: {:?}",
+                super_name
+            )));
+        }
+
+        self.add_class(SkClass {
+            fullname: fullname.clone(),
+            typarams: typarams.clone(),
+            superclass_fullname: Some(super_name.clone()),
+            instance_ty: ty::raw(&fullname.0),
+            ivars: HashMap::new(), // will be set when processing `#initialize`
+            method_sigs: instance_methods,
+            const_is_obj: false,
+        });
+
+        // Crete metaclass (which is a subclass of `Class`)
+        let the_class = self.get_class(&class_fullname("Class"), "index_class");
+        let meta_ivars = the_class.ivars.clone();
+        self.add_class(SkClass {
+            fullname: fullname.meta_name(),
+            typarams,
+            superclass_fullname: Some(class_fullname("Class")),
+            instance_ty: ty::meta(&fullname.0),
+            ivars: meta_ivars,
+            method_sigs: class_methods,
+            const_is_obj: false,
+        });
+        Ok(())
     }
 }
