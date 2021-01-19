@@ -108,7 +108,14 @@ impl ClassDict {
                         .insert(new_sig.fullname.first_name.clone(), new_sig);
                 }
             }
-            None => self.add_new_class(fullname, typarams, super_name, new_sig, instance_methods, class_methods)?
+            None => self.add_new_class(
+                fullname,
+                typarams,
+                super_name,
+                new_sig,
+                instance_methods,
+                class_methods,
+            )?,
         }
         Ok(())
     }
