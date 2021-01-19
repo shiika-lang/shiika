@@ -136,22 +136,15 @@ impl HirMaker {
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
 
-        // Add `#initialize`
-        let mut own_ivars = HashMap::default();
-        if let Some(ast::Definition::InstanceMethodDefinition {
-            sig, body_exprs, ..
-        }) = defs.iter().find(|d| d.is_initializer())
-        {
-            let (sk_method, found_ivars) =
-                self.create_initialize(&fullname, &sig.name, &body_exprs)?;
-            self.method_dict.add_method(&fullname, sk_method);
-            own_ivars = found_ivars;
-        }
+        // Register #initialize and ivars
+        let own_ivars = self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
-            self.define_ivars(fullname, own_ivars, defs)?;
+            self.class_dict.define_ivars(fullname, own_ivars.clone())?;
+            self.define_accessors(fullname, own_ivars, defs);
         }
 
+        // Register .new
         self.method_dict
             .add_method(&meta_name, self.create_new(&fullname)?);
 
@@ -191,6 +184,25 @@ impl HirMaker {
         Ok(())
     }
 
+    /// Add `#initialize` and return defined ivars
+    fn _process_initialize(
+        &mut self,
+        fullname: &ClassFullname,
+        initialize: Option<&ast::Definition>,
+    ) -> Result<SkIVars, Error> {
+        let mut own_ivars = HashMap::default();
+        if let Some(ast::Definition::InstanceMethodDefinition {
+            sig, body_exprs, ..
+        }) = initialize
+        {
+            let (sk_method, found_ivars) =
+                self.create_initialize(&fullname, &sig.name, &body_exprs)?;
+            self.method_dict.add_method(&fullname, sk_method);
+            own_ivars = found_ivars;
+        }
+        Ok(own_ivars)
+    }
+
     /// Register constants defined in a class
     fn _process_const_defs_in_class(
         &mut self,
@@ -220,19 +232,6 @@ impl HirMaker {
             .get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
         self.convert_method_def_(class_fullname, name, body_exprs, true, super_ivars)
-    }
-
-    /// Define ivars of a class
-    /// Also, define accessors
-    fn define_ivars(
-        &mut self,
-        clsname: &ClassFullname,
-        own_ivars: SkIVars,
-        defs: &[ast::Definition],
-    ) -> Result<(), Error> {
-        self.class_dict.define_ivars(clsname, own_ivars.clone())?;
-        self.define_accessors(clsname, own_ivars, defs);
-        Ok(())
     }
 
     /// Create .new
