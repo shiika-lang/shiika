@@ -879,6 +879,7 @@ impl<'a> Parser<'a> {
         Ok(ConstName { names, args })
     }
 
+    /// Parse `fn(){}`
     fn parse_lambda(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_lambda");
@@ -891,7 +892,7 @@ impl<'a> Parser<'a> {
         let exprs = self.parse_exprs(vec![Token::RBrace])?;
         assert!(self.consume(Token::RBrace));
         self.lv -= 1;
-        Ok(ast::lambda_expr(params, exprs))
+        Ok(ast::lambda_expr(params, exprs, true))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
@@ -1103,7 +1104,7 @@ impl<'a> Parser<'a> {
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
-        Ok(ast::lambda_expr(block_params, body_exprs))
+        Ok(ast::lambda_expr(block_params, body_exprs, false))
     }
 
     /// Parse `{|..| ...}`
@@ -1121,7 +1122,7 @@ impl<'a> Parser<'a> {
         let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
         self.expect(Token::RBrace)?;
         self.lv -= 1;
-        Ok(ast::lambda_expr(block_params, body_exprs))
+        Ok(ast::lambda_expr(block_params, body_exprs, false))
     }
 
     /// Parse `|a, b, ...|`
