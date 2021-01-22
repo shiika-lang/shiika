@@ -25,7 +25,6 @@ pub struct HirMakerContext {
     pub lvars: HashMap<String, CtxLVar>,
     /// List of free variables captured in this context
     pub captures: Vec<LambdaCapture>,
-
     //
     // ivar-related stuffs
     //
@@ -33,10 +32,22 @@ pub struct HirMakerContext {
     pub iivars: SkIVars,
     /// Number of inherited ivars. Only used when kind is Initializer
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
+
+    /// Additional information
+    pub body: CtxBody,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum CtxKind {
+    Toplevel,
+    Class,
+    Method,
+    Initializer,
+    Lambda,
+}
+
+#[derive(Debug)]
+pub enum CtxBody {
     Toplevel,
     Class,
     Method,
@@ -80,6 +91,7 @@ impl HirMakerContext {
             captures: vec![],
             iivars: HashMap::new(),
             super_ivars: HashMap::new(),
+            body: CtxBody::Toplevel,
         }
     }
 
@@ -100,6 +112,7 @@ impl HirMakerContext {
             captures: vec![],
             iivars: HashMap::new(),
             super_ivars: HashMap::new(),
+            body: CtxBody::Class,
         }
     }
 
@@ -120,6 +133,7 @@ impl HirMakerContext {
             captures: vec![],
             iivars: HashMap::new(),
             super_ivars: HashMap::new(),
+            body: CtxBody::Method,
         }
     }
 
@@ -140,6 +154,7 @@ impl HirMakerContext {
             captures: vec![],
             iivars: HashMap::new(),
             super_ivars,
+            body: CtxBody::Initializer,
         }
     }
 
@@ -162,6 +177,7 @@ impl HirMakerContext {
             captures: vec![],
             iivars: HashMap::new(),
             super_ivars: HashMap::new(),
+            body: CtxBody::Lambda,
         }
     }
 
