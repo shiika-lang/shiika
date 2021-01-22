@@ -173,6 +173,11 @@ pub enum HirExpressionBase {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
+    HirInvokeLambda {
+        receiver_expr: Box<HirExpression>,
+        method_fullname: MethodFullname,
+        arg_exprs: Vec<HirExpression>,
+    },
     HirArgRef {
         idx: usize,
     },
@@ -358,6 +363,22 @@ impl Hir {
     }
 
     pub fn method_call(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        method_fullname: MethodFullname,
+        arg_hirs: Vec<HirExpression>,
+    ) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                method_fullname,
+                arg_exprs: arg_hirs,
+            },
+        }
+    }
+
+    pub fn invoke_lambda(
         result_ty: TermTy,
         receiver_hir: HirExpression,
         method_fullname: MethodFullname,
