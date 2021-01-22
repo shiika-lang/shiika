@@ -137,7 +137,8 @@ impl HirMaker {
         self._process_const_defs_in_class(defs, fullname)?;
 
         // Register #initialize and ivars
-        let own_ivars = self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
+        let own_ivars =
+            self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
             self.class_dict.define_ivars(fullname, own_ivars.clone())?;
@@ -330,12 +331,12 @@ impl HirMaker {
             .expect(&err)
             .clone();
 
-        self.push_ctx(HirMakerContext::method_ctx(
-            self.ctx(),
-            &signature,
-            is_initializer,
-            super_ivars.unwrap_or_else(HashMap::new),
-        ));
+        let method_ctx = if is_initializer {
+            HirMakerContext::initializer_ctx(self.ctx(), &signature, super_ivars.unwrap())
+        } else {
+            HirMakerContext::method_ctx(self.ctx(), &signature)
+        };
+        self.push_ctx(method_ctx);
         let body_exprs = self.convert_exprs(body_exprs)?;
         let mut method_ctx = self.pop_ctx();
         let lvars = method_ctx.extract_lvars();
