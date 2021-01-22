@@ -292,8 +292,17 @@ impl HirMaker {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let ctx = self.method_ctx_mut().unwrap();
-        if let Some(super_ivar) = ctx.super_ivars.get(name) {
+        let ctx = self.ctx_mut();
+        let (super_ivars, iivars) = if let CtxBody::Initializer {
+            super_ivars,
+            iivars,
+        } = &mut ctx.body
+        {
+            (super_ivars, iivars)
+        } else {
+            panic!("assertion failed");
+        };
+        if let Some(super_ivar) = super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(
                     "type of {} of {:?} is {:?} but it is defined as {:?} in the superclass",
@@ -307,20 +316,21 @@ impl HirMaker {
                 )));
             }
             // This is not a declaration (assigning to an ivar defined in superclass)
-            return Ok(super_ivar.idx);
+            Ok(super_ivar.idx)
+        } else {
+            // TODO: check duplicates
+            let idx = super_ivars.len() + iivars.len();
+            iivars.insert(
+                name.to_string(),
+                SkIVar {
+                    idx,
+                    name: name.to_string(),
+                    ty: ty.clone(),
+                    readonly,
+                },
+            );
+            Ok(idx)
         }
-        // TODO: check duplicates
-        let idx = ctx.super_ivars.len() + ctx.iivars.len();
-        ctx.iivars.insert(
-            name.to_string(),
-            SkIVar {
-                idx,
-                name: name.to_string(),
-                ty: ty.clone(),
-                readonly,
-            },
-        );
-        Ok(idx)
     }
 
     fn convert_const_assign(
@@ -596,10 +606,10 @@ impl HirMaker {
             error::program_error(&format!("referring ivar `{}' out of a method", name))
         })?;
         let self_cls = &method_ctx.self_ty.fullname;
-        let found = self
-            .class_dict
-            .find_ivar(&self_cls, name)
-            .or_else(|| method_ctx.iivars.get(name));
+        let mut found = self.class_dict.find_ivar(&self_cls, name);
+        if let CtxBody::Initializer { iivars, .. } = &method_ctx.body {
+            found = found.or_else(|| iivars.get(name))
+        };
         match found {
             Some(ivar) => Ok(Hir::ivar_ref(
                 ivar.ty.clone(),

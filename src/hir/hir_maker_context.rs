@@ -25,13 +25,6 @@ pub struct HirMakerContext {
     pub lvars: HashMap<String, CtxLVar>,
     /// List of free variables captured in this context
     pub captures: Vec<LambdaCapture>,
-    //
-    // ivar-related stuffs
-    //
-    /// List of instance variables in an initializer found so far
-    pub iivars: SkIVars,
-    /// Number of inherited ivars. Only used when kind is Initializer
-    pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
 
     /// Additional information
     pub body: CtxBody,
@@ -51,7 +44,12 @@ pub enum CtxBody {
     Toplevel,
     Class,
     Method,
-    Initializer,
+    Initializer {
+        /// List of instance variables in an initializer found so far
+        iivars: SkIVars,
+        /// List of inherited ivars
+        super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
+    },
     Lambda,
 }
 
@@ -89,8 +87,6 @@ impl HirMakerContext {
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
             captures: vec![],
-            iivars: HashMap::new(),
-            super_ivars: HashMap::new(),
             body: CtxBody::Toplevel,
         }
     }
@@ -110,8 +106,6 @@ impl HirMakerContext {
             namespace: fullname.clone(),
             lvars: HashMap::new(),
             captures: vec![],
-            iivars: HashMap::new(),
-            super_ivars: HashMap::new(),
             body: CtxBody::Class,
         }
     }
@@ -131,8 +125,6 @@ impl HirMakerContext {
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
             captures: vec![],
-            iivars: HashMap::new(),
-            super_ivars: HashMap::new(),
             body: CtxBody::Method,
         }
     }
@@ -152,9 +144,10 @@ impl HirMakerContext {
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
             captures: vec![],
-            iivars: HashMap::new(),
-            super_ivars,
-            body: CtxBody::Initializer,
+            body: CtxBody::Initializer {
+                iivars: HashMap::new(),
+                super_ivars,
+            },
         }
     }
 
@@ -175,8 +168,6 @@ impl HirMakerContext {
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
             captures: vec![],
-            iivars: HashMap::new(),
-            super_ivars: HashMap::new(),
             body: CtxBody::Lambda,
         }
     }
@@ -230,13 +221,6 @@ impl HirMaker {
             .find_ctx(CtxKind::Method)
             .or_else(|| self.find_ctx(CtxKind::Initializer));
         opt_idx.map(|i| &self.ctx_stack[i])
-    }
-
-    pub(super) fn method_ctx_mut(&mut self) -> Option<&mut HirMakerContext> {
-        let opt_idx = self
-            .find_ctx(CtxKind::Method)
-            .or_else(|| self.find_ctx(CtxKind::Initializer));
-        opt_idx.map(move |i| &mut self.ctx_stack[i])
     }
 
     /// Find nearest enclosing ctx of the `kind`

@@ -340,7 +340,11 @@ impl HirMaker {
         let body_exprs = self.convert_exprs(body_exprs)?;
         let mut method_ctx = self.pop_ctx();
         let lvars = method_ctx.extract_lvars();
-        let iivars = method_ctx.iivars;
+        let iivars = if let CtxBody::Initializer { iivars, .. } = method_ctx.body {
+            iivars
+        } else {
+            Default::default()
+        };
         type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
