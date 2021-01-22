@@ -1,12 +1,9 @@
 class Fn
   def initialize(
-    func: Shiika::Internal::Ptr,
-    the_self: Object,
-    captures: Array<Shiika::Internal::Ptr>,
+    @func: Shiika::Internal::Ptr,
+    @the_self: Object,
+    @captures: Array<Shiika::Internal::Ptr>,
   )
-    @func = func
-    @the_self = the_self
-    @captures = captures
   end
 end
 
