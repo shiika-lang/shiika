@@ -84,7 +84,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaCaptureRef { idx, readonly } => {
                 self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)
             }
-            HirLambdaCaptureWrite { cidx, rhs, .. } => {
+            HirLambdaCaptureWrite { cidx, rhs } => {
                 self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
             }
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),

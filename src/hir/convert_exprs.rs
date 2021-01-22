@@ -19,7 +19,6 @@ enum LVarInfo {
     },
     OuterScope {
         ty: TermTy,
-        arity: usize,
         cidx: usize,
         readonly: bool,
     },
@@ -40,9 +39,7 @@ impl LVarInfo {
         match self {
             LVarInfo::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
             LVarInfo::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarInfo::OuterScope { arity, cidx, .. } => {
-                Hir::lambda_capture_write(*arity, *cidx, expr)
-            }
+            LVarInfo::OuterScope { cidx, .. } => Hir::lambda_capture_write(*cidx, expr),
         }
     }
 }
@@ -516,10 +513,9 @@ impl HirMaker {
         // Outer
         if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
             // The `ctx` has outer scope == `ctx` is a lambda
-            let arity = ctx.method_sig.as_ref().unwrap().params.len();
             let cidx = ctx.captures.len();
             if let Some((cap, lvar_info)) =
-                self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name, updating)?
+                self.lookup_var_in_outer_scope(cidx, outer_ctx, name, updating)?
             {
                 self.ctx_mut().captures.push(cap);
                 return Ok(Some(lvar_info));
@@ -533,7 +529,6 @@ impl HirMaker {
     /// `HirExpression` (how it can be retrieved from `captures`).
     fn lookup_var_in_outer_scope(
         &self,
-        arity: usize,
         cidx: usize,
         ctx: &HirMakerContext,
         name: &str,
@@ -558,7 +553,6 @@ impl HirMaker {
                 cap,
                 LVarInfo::OuterScope {
                     ty: lvar.ty.clone(),
-                    arity,
                     cidx,
                     readonly: false,
                 },
@@ -581,7 +575,6 @@ impl HirMaker {
                 cap,
                 LVarInfo::OuterScope {
                     ty: param.ty.clone(),
-                    arity,
                     cidx,
                     readonly: true,
                 },
@@ -592,7 +585,7 @@ impl HirMaker {
 
         // Lookup in the next surrounding context
         if let Some(outer_ctx) = self.outer_lvar_scope_of(ctx) {
-            self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name, updating)
+            self.lookup_var_in_outer_scope(cidx, &*outer_ctx, name, updating)
         } else {
             Ok(None)
         }

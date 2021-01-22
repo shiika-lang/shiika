@@ -223,7 +223,6 @@ pub enum HirExpressionBase {
     },
     /// Reassign to a variable in `captures`
     HirLambdaCaptureWrite {
-        arity: usize,
         cidx: usize,
         rhs: Box<HirExpression>,
     },
@@ -490,11 +489,10 @@ impl Hir {
         }
     }
 
-    pub fn lambda_capture_write(arity: usize, cidx: usize, rhs: HirExpression) -> HirExpression {
+    pub fn lambda_capture_write(cidx: usize, rhs: HirExpression) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLambdaCaptureWrite {
-                arity,
                 cidx,
                 rhs: Box::new(rhs),
             },
