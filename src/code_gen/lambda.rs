@@ -99,6 +99,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaCaptureWrite { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
+            _ => todo!(),
         }
         Ok(())
     }
