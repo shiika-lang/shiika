@@ -48,11 +48,51 @@ pub enum CtxDetail {
         signature: MethodSignature,
     },
     Lambda {
-        /// List of free variables captured in this context
-        captures: Vec<LambdaCapture>,
-        /// Signature of the current method
+        /// Signature of the current lambda
         signature: MethodSignature,
     },
+}
+
+#[derive(Debug)]
+pub struct HirMakerContext_ {
+    pub toplevel: ToplevelCtx,
+    pub classes: Vec<ClassCtx>,
+    pub method: Option<MethodCtx>,
+    pub lambdas: Vec<LambdaCtx>,
+}
+
+#[derive(Debug)]
+pub struct ToplevelCtx {}
+
+#[derive(Debug)]
+pub struct ClassCtx {}
+
+#[derive(Debug)]
+pub struct MethodCtx {}
+
+#[derive(Debug)]
+pub struct LambdaCtx {
+    /// List of free variables captured in this context
+    pub captures: Vec<LambdaCapture>,
+}
+
+impl HirMakerContext_ {
+    /// Create initial ctx
+    pub fn new() -> HirMakerContext_ {
+        HirMakerContext_ {
+            toplevel: ToplevelCtx {},
+            classes: vec![],
+            method: None,
+            lambdas: vec![],
+        }
+    }
+
+    /// Push a LambdaCapture to captures
+    pub fn push_lambda_capture(&mut self, cap: LambdaCapture) -> usize {
+        let lambda_ctx = self.lambdas.last_mut().expect("not in lambda");
+        lambda_ctx.captures.push(cap);
+        lambda_ctx.captures.len() - 1
+    }
 }
 
 /// A local variable
@@ -149,10 +189,7 @@ impl HirMakerContext {
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Lambda {
-                captures: vec![],
-                signature: sig,
-            },
+            detail: CtxDetail::Lambda { signature: sig },
         }
     }
 
@@ -184,30 +221,6 @@ impl HirMakerContext {
             CtxDetail::Initializer { signature, .. } => Some(&signature),
             CtxDetail::Lambda { signature, .. } => Some(&signature),
             _ => None,
-        }
-    }
-
-    // Methods for CtxKind::Lambda
-    // QUESTION: is there a better way?
-    pub fn captures(&self) -> &Vec<LambdaCapture> {
-        if let CtxDetail::Lambda { captures, .. } = &self.detail {
-            &captures
-        } else {
-            panic!("this ctx is not Lambda")
-        }
-    }
-    pub fn push_capture(&mut self, cap: LambdaCapture) {
-        if let CtxDetail::Lambda { captures, .. } = &mut self.detail {
-            captures.push(cap);
-        } else {
-            panic!("this ctx is not Lambda")
-        }
-    }
-    pub fn extract_captures(self) -> Vec<LambdaCapture> {
-        if let CtxDetail::Lambda { captures, .. } = self.detail {
-            captures
-        } else {
-            panic!("this ctx is not Lambda")
         }
     }
 }

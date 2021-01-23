@@ -440,11 +440,13 @@ impl HirMaker {
 
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
+        self.ctx.lambdas.push(LambdaCtx { captures: vec![] });
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.pop_ctx();
+        let captures = self.ctx.lambdas.pop().unwrap().captures;
 
         let lvars = lambda_ctx.extract_lvars();
-        let hir_captures = self._resolve_lambda_captures(lambda_ctx.extract_captures());
+        let hir_captures = self._resolve_lambda_captures(captures);
 
         let name = format!("lambda_{}", lambda_id);
         let ty = lambda_ty(&hir_params, &hir_exprs.ty);
@@ -465,9 +467,9 @@ impl HirMaker {
         lambda_captures: Vec<LambdaCapture>,
     ) -> Vec<HirLambdaCapture> {
         let mut ret = vec![];
-        let ctx = self.ctx_mut();
+        let ctx_depth = self.ctx().depth;
         for cap in lambda_captures {
-            if cap.ctx_depth == ctx.depth {
+            if cap.ctx_depth == ctx_depth {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
@@ -480,8 +482,7 @@ impl HirMaker {
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
-                ctx.push_capture(cap);
-                let cidx = ctx.captures().len() - 1;
+                let cidx = self.ctx.push_lambda_capture(cap);
                 ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
             }
         }
@@ -531,11 +532,11 @@ impl HirMaker {
         // Outer
         if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
             // The `ctx` has outer lvar scope == `ctx` is a lambda
-            let cidx = ctx.captures().len();
+            let cidx = self.ctx.lambdas.last().unwrap().captures.len();
             if let Some((cap, lvar_info)) =
                 self.lookup_var_in_outer_scope(cidx, outer_ctx, name, updating)?
             {
-                self.ctx_mut().push_capture(cap);
+                self.ctx.push_lambda_capture(cap);
                 return Ok(Some(lvar_info));
             }
         }

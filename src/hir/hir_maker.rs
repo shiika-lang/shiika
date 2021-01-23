@@ -21,6 +21,8 @@ pub struct HirMaker {
     pub(super) str_literals: Vec<String>,
     /// Stack of ctx
     pub(super) ctx_stack: Vec<HirMakerContext>,
+    /// Contextual information
+    pub(super) ctx: HirMakerContext_,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
 }
@@ -51,6 +53,7 @@ impl HirMaker {
             const_inits: vec![],
             str_literals: vec![],
             ctx_stack: vec![],
+            ctx: HirMakerContext_::new(),
             lambda_ct: 0,
         }
     }
