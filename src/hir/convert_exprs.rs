@@ -443,41 +443,48 @@ impl HirMaker {
         let mut lambda_ctx = self.pop_ctx();
 
         let lvars = lambda_ctx.extract_lvars();
-        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
+        let hir_captures = self._resolve_lambda_captures(lambda_ctx.extract_captures());
 
         let name = format!("lambda_{}", lambda_id);
         let ty = lambda_ty(&hir_params, &hir_exprs.ty);
         Ok(Hir::lambda_expr(
-            ty, name, hir_params, hir_exprs, captures, lvars,
+            ty,
+            name,
+            hir_params,
+            hir_exprs,
+            hir_captures,
+            lvars,
         ))
     }
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn _resolve_lambda_captures(&mut self, captures: Vec<LambdaCapture>) -> Vec<HirLambdaCapture> {
+    fn _resolve_lambda_captures(
+        &mut self,
+        lambda_captures: Vec<LambdaCapture>,
+    ) -> Vec<HirLambdaCapture> {
+        let mut ret = vec![];
         let ctx = self.ctx_mut();
-        captures
-            .into_iter()
-            .map(|cap| {
-                if cap.ctx_depth == ctx.depth {
-                    // The variable is in this scope
-                    match cap.detail {
-                        LambdaCaptureDetail::CapLVar { name } => {
-                            HirLambdaCapture::CaptureLVar { name }
-                        }
-                        LambdaCaptureDetail::CapFnArg { idx } => {
-                            HirLambdaCapture::CaptureArg { idx }
-                        }
+        for cap in lambda_captures {
+            if cap.ctx_depth == ctx.depth {
+                // The variable is in this scope
+                match cap.detail {
+                    LambdaCaptureDetail::CapLVar { name } => {
+                        ret.push(HirLambdaCapture::CaptureLVar { name });
                     }
-                } else {
-                    // The variable is in outer scope
-                    let ty = cap.ty.clone();
-                    ctx.captures.push(cap);
-                    let cidx = ctx.captures.len() - 1;
-                    HirLambdaCapture::CaptureFwd { cidx, ty }
+                    LambdaCaptureDetail::CapFnArg { idx } => {
+                        ret.push(HirLambdaCapture::CaptureArg { idx });
+                    }
                 }
-            })
-            .collect()
+            } else {
+                // The variable is in outer scope
+                let ty = cap.ty.clone();
+                ctx.push_capture(cap);
+                let cidx = ctx.captures().len() - 1;
+                ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
+            }
+        }
+        ret
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
@@ -522,12 +529,12 @@ impl HirMaker {
         }
         // Outer
         if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
-            // The `ctx` has outer scope == `ctx` is a lambda
-            let cidx = ctx.captures.len();
+            // The `ctx` has outer lvar scope == `ctx` is a lambda
+            let cidx = ctx.captures().len();
             if let Some((cap, lvar_info)) =
                 self.lookup_var_in_outer_scope(cidx, outer_ctx, name, updating)?
             {
-                self.ctx_mut().captures.push(cap);
+                self.ctx_mut().push_capture(cap);
                 return Ok(Some(lvar_info));
             }
         }

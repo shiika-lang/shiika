@@ -21,9 +21,6 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
-    /// List of free variables captured in this context
-    pub captures: Vec<LambdaCapture>,
-
     /// Additional information
     pub body: CtxBody,
 }
@@ -48,7 +45,10 @@ pub enum CtxBody {
         /// List of inherited ivars
         super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
     },
-    Lambda,
+    Lambda {
+        /// List of free variables captured in this context
+        captures: Vec<LambdaCapture>,
+    },
 }
 
 /// A local variable
@@ -83,7 +83,6 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
-            captures: vec![],
             body: CtxBody::Toplevel,
         }
     }
@@ -97,7 +96,6 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
-            captures: vec![],
             body: CtxBody::Class,
         }
     }
@@ -115,7 +113,6 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            captures: vec![],
             body: CtxBody::Method,
         }
     }
@@ -133,7 +130,6 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            captures: vec![],
             body: CtxBody::Initializer {
                 iivars: HashMap::new(),
                 super_ivars,
@@ -156,8 +152,7 @@ impl HirMakerContext {
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            captures: vec![],
-            body: CtxBody::Lambda,
+            body: CtxBody::Lambda { captures: vec![] },
         }
     }
 
@@ -180,6 +175,30 @@ impl HirMakerContext {
             .as_ref()
             .map(|sig| sig.find_param(name))
             .flatten()
+    }
+
+    // Methods for CtxKind::Lambda
+    // QUESTION: is there a better way?
+    pub fn captures(&self) -> &Vec<LambdaCapture> {
+        if let CtxBody::Lambda { captures } = &self.body {
+            &captures
+        } else {
+            panic!("this ctx is not Lambda")
+        }
+    }
+    pub fn push_capture(&mut self, cap: LambdaCapture) {
+        if let CtxBody::Lambda { captures } = &mut self.body {
+            captures.push(cap);
+        } else {
+            panic!("this ctx is not Lambda")
+        }
+    }
+    pub fn extract_captures(self) -> Vec<LambdaCapture> {
+        if let CtxBody::Lambda { captures } = self.body {
+            captures
+        } else {
+            panic!("this ctx is not Lambda")
+        }
     }
 }
 
