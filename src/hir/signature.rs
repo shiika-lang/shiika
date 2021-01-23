@@ -12,14 +12,6 @@ pub struct MethodSignature {
 }
 
 impl MethodSignature {
-    /// Return a param of the given name and its index
-    pub fn find_param(&self, name: &str) -> Option<(usize, &MethodParam)> {
-        self.params
-            .iter()
-            .enumerate()
-            .find(|(_, param)| param.name == name)
-    }
-
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
     }
@@ -52,6 +44,14 @@ impl MethodParam {
             ty: self.ty.substitute(class_tyargs, method_tyargs),
         }
     }
+}
+
+/// Return a param of the given name and its index
+pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &'a MethodParam)> {
+    params
+        .iter()
+        .enumerate()
+        .find(|(_, param)| param.name == name)
 }
 
 /// Create `hir::MethodSignature` from `ast::MethodSignature`

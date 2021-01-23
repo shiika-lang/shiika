@@ -430,8 +430,8 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
-        self.ctx.lambdas.push(LambdaCtx::new());
+        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx()));
+        self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.pop_ctx();
         let captures = self.ctx.lambdas.pop().unwrap().captures;
@@ -507,7 +507,7 @@ impl HirMaker {
             }
         }
         // Arg
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+        if let Some((idx, param)) = self.ctx.find_fn_arg(name) {
             if updating {
                 return Err(error::program_error(&format!(
                     "you cannot reassign to argument `{}'",
@@ -569,7 +569,7 @@ impl HirMaker {
             )));
         }
         // Check argument
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
+        if let Some((idx, param)) = self.ctx.find_fn_arg(name) {
             if updating {
                 return Err(error::program_error(&format!(
                     "you cannot reassign to argument `{}'",

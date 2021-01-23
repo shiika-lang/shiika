@@ -324,12 +324,12 @@ impl HirMaker {
             .clone();
 
         let method_ctx = if is_initializer {
-            HirMakerContext::initializer_ctx(self.ctx(), signature.clone())
+            HirMakerContext::initializer_ctx(self.ctx())
         } else {
-            HirMakerContext::method_ctx(self.ctx(), signature.clone())
+            HirMakerContext::method_ctx(self.ctx())
         };
         self.push_ctx(method_ctx);
-        self.ctx.method = Some(MethodCtx::new(super_ivars));
+        self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
         let body_exprs = self.convert_exprs(body_exprs)?;
         let iivars = self.ctx.method.take().unwrap().iivars;
         let mut method_ctx = self.pop_ctx();

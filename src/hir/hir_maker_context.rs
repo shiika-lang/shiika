@@ -18,8 +18,6 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
-    /// Additional information
-    pub detail: CtxDetail,
 }
 
 #[derive(Debug, PartialEq)]
@@ -29,24 +27,6 @@ pub enum CtxKind {
     Method,
     Initializer,
     Lambda,
-}
-
-#[derive(Debug)]
-pub enum CtxDetail {
-    Toplevel,
-    Class,
-    Method {
-        /// Signature of the current method
-        signature: MethodSignature,
-    },
-    Initializer {
-        /// Signature of the current method
-        signature: MethodSignature,
-    },
-    Lambda {
-        /// Signature of the current lambda
-        signature: MethodSignature,
-    },
 }
 
 #[derive(Debug)]
@@ -68,6 +48,16 @@ impl HirMakerContext_ {
         }
     }
 
+    /// Return method/lambda argument of given name, if any
+    pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
+        let params = if let Some(lambda_ctx) = self.lambdas.last() {
+            &lambda_ctx.params
+        } else {
+            &self.method.as_ref().unwrap().signature.params
+        };
+        signature::find_param(&params, name)
+    }
+
     /// Push a LambdaCapture to captures
     pub fn push_lambda_capture(&mut self, cap: LambdaCapture) -> usize {
         let lambda_ctx = self.lambdas.last_mut().expect("not in lambda");
@@ -84,6 +74,8 @@ pub struct ClassCtx {}
 
 #[derive(Debug)]
 pub struct MethodCtx {
+    /// Signature of the current method
+    signature: MethodSignature,
     /// List of instance variables in an initializer found so far.
     /// Empty if the method is not `#initialize`
     pub iivars: SkIVars,
@@ -93,8 +85,9 @@ pub struct MethodCtx {
 }
 
 impl MethodCtx {
-    pub fn new(super_ivars: Option<SkIVars>) -> MethodCtx {
+    pub fn new(signature: MethodSignature, super_ivars: Option<SkIVars>) -> MethodCtx {
         MethodCtx {
+            signature,
             iivars: Default::default(),
             super_ivars: super_ivars.unwrap_or(Default::default()),
         }
@@ -103,13 +96,16 @@ impl MethodCtx {
 
 #[derive(Debug)]
 pub struct LambdaCtx {
+    /// Parameters of the current lambda
+    pub params: Vec<MethodParam>,
     /// List of free variables captured in this context
     pub captures: Vec<LambdaCapture>,
 }
 
 impl LambdaCtx {
-    pub fn new() -> LambdaCtx {
+    pub fn new(params: Vec<MethodParam>) -> LambdaCtx {
         LambdaCtx {
+            params,
             captures: Default::default(),
         }
     }
@@ -146,7 +142,6 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
-            detail: CtxDetail::Toplevel,
         }
     }
 
@@ -158,53 +153,39 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Class,
         }
     }
 
     /// Create a method context
-    pub fn method_ctx(class_ctx: &HirMakerContext, signature: MethodSignature) -> HirMakerContext {
-        debug_assert!(signature.fullname.first_name.0 != "initialize");
+    pub fn method_ctx(class_ctx: &HirMakerContext) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Method,
             depth: class_ctx.depth + 1,
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Method { signature },
         }
     }
 
     /// Create a initializer context
-    pub fn initializer_ctx(
-        class_ctx: &HirMakerContext,
-        signature: MethodSignature,
-    ) -> HirMakerContext {
+    pub fn initializer_ctx(class_ctx: &HirMakerContext) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Initializer,
             depth: class_ctx.depth + 1,
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Initializer { signature },
         }
     }
 
     /// Create a ctx for lambda
-    pub fn lambda_ctx(method_ctx: &HirMakerContext, params: Vec<MethodParam>) -> HirMakerContext {
-        let sig = MethodSignature {
-            fullname: method_fullname(&class_fullname("(anon)"), "(anon)"),
-            ret_ty: ty::raw("(dummy)"),
-            params,
-            typarams: vec![],
-        };
+    pub fn lambda_ctx(method_ctx: &HirMakerContext) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Lambda,
             depth: method_ctx.depth + 1,
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Lambda { signature: sig },
         }
     }
 
@@ -219,24 +200,6 @@ impl HirMakerContext {
             .into_iter()
             .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
             .collect::<Vec<_>>()
-    }
-
-    /// Return method/lambda argument of given name, if any
-    pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
-        self.signature()
-            .as_ref()
-            .map(|sig| sig.find_param(name))
-            .flatten()
-    }
-
-    /// Return signature if in a method or a lambda
-    fn signature(&self) -> Option<&MethodSignature> {
-        match &self.detail {
-            CtxDetail::Method { signature, .. } => Some(&signature),
-            CtxDetail::Initializer { signature, .. } => Some(&signature),
-            CtxDetail::Lambda { signature, .. } => Some(&signature),
-            _ => None,
-        }
     }
 }
 
@@ -305,8 +268,8 @@ impl HirMaker {
 
     /// Returns type parameter of the current method
     pub(super) fn current_method_typarams(&self) -> Vec<String> {
-        if let Some(ctx) = self.method_ctx() {
-            ctx.signature().unwrap().typarams.clone()
+        if let Some(method_ctx) = &self.ctx.method {
+            method_ctx.signature.typarams.clone()
         } else {
             vec![]
         }
