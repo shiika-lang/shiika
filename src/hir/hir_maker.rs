@@ -329,7 +329,7 @@ impl HirMaker {
         let body_exprs = self.convert_exprs(body_exprs)?;
         let mut method_ctx = self.pop_ctx();
         let lvars = method_ctx.extract_lvars();
-        let iivars = if let CtxBody::Initializer { iivars, .. } = method_ctx.body {
+        let iivars = if let CtxDetail::Initializer { iivars, .. } = method_ctx.detail {
             iivars
         } else {
             Default::default()

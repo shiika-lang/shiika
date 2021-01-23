@@ -293,10 +293,10 @@ impl HirMaker {
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
         let ctx = self.ctx_mut();
-        let (super_ivars, iivars) = if let CtxBody::Initializer {
+        let (super_ivars, iivars) = if let CtxDetail::Initializer {
             super_ivars,
             iivars,
-        } = &mut ctx.body
+        } = &mut ctx.detail
         {
             (super_ivars, iivars)
         } else {
@@ -614,7 +614,7 @@ impl HirMaker {
         })?;
         let self_cls = &method_ctx.self_ty.fullname;
         let mut found = self.class_dict.find_ivar(&self_cls, name);
-        if let CtxBody::Initializer { iivars, .. } = &method_ctx.body {
+        if let CtxDetail::Initializer { iivars, .. } = &method_ctx.detail {
             found = found.or_else(|| iivars.get(name))
         };
         match found {

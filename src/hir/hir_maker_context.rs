@@ -22,7 +22,7 @@ pub struct HirMakerContext {
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
     /// Additional information
-    pub body: CtxBody,
+    pub detail: CtxDetail,
 }
 
 #[derive(Debug, PartialEq)]
@@ -35,7 +35,7 @@ pub enum CtxKind {
 }
 
 #[derive(Debug)]
-pub enum CtxBody {
+pub enum CtxDetail {
     Toplevel,
     Class,
     Method,
@@ -83,7 +83,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
             lvars: HashMap::new(),
-            body: CtxBody::Toplevel,
+            detail: CtxDetail::Toplevel,
         }
     }
 
@@ -96,7 +96,7 @@ impl HirMakerContext {
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
             lvars: HashMap::new(),
-            body: CtxBody::Class,
+            detail: CtxDetail::Class,
         }
     }
 
@@ -113,7 +113,7 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            body: CtxBody::Method,
+            detail: CtxDetail::Method,
         }
     }
 
@@ -130,7 +130,7 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            body: CtxBody::Initializer {
+            detail: CtxDetail::Initializer {
                 iivars: HashMap::new(),
                 super_ivars,
             },
@@ -152,7 +152,7 @@ impl HirMakerContext {
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            body: CtxBody::Lambda { captures: vec![] },
+            detail: CtxDetail::Lambda { captures: vec![] },
         }
     }
 
@@ -180,21 +180,21 @@ impl HirMakerContext {
     // Methods for CtxKind::Lambda
     // QUESTION: is there a better way?
     pub fn captures(&self) -> &Vec<LambdaCapture> {
-        if let CtxBody::Lambda { captures } = &self.body {
+        if let CtxDetail::Lambda { captures } = &self.detail {
             &captures
         } else {
             panic!("this ctx is not Lambda")
         }
     }
     pub fn push_capture(&mut self, cap: LambdaCapture) {
-        if let CtxBody::Lambda { captures } = &mut self.body {
+        if let CtxDetail::Lambda { captures } = &mut self.detail {
             captures.push(cap);
         } else {
             panic!("this ctx is not Lambda")
         }
     }
     pub fn extract_captures(self) -> Vec<LambdaCapture> {
-        if let CtxBody::Lambda { captures } = self.body {
+        if let CtxDetail::Lambda { captures } = self.detail {
             captures
         } else {
             panic!("this ctx is not Lambda")
