@@ -324,19 +324,16 @@ impl HirMaker {
             .clone();
 
         let method_ctx = if is_initializer {
-            HirMakerContext::initializer_ctx(self.ctx(), signature.clone(), super_ivars.unwrap())
+            HirMakerContext::initializer_ctx(self.ctx(), signature.clone())
         } else {
             HirMakerContext::method_ctx(self.ctx(), signature.clone())
         };
         self.push_ctx(method_ctx);
+        self.ctx.method = Some(MethodCtx::new(super_ivars));
         let body_exprs = self.convert_exprs(body_exprs)?;
+        let iivars = self.ctx.method.take().unwrap().iivars;
         let mut method_ctx = self.pop_ctx();
         let lvars = method_ctx.extract_lvars();
-        let iivars = if let CtxDetail::Initializer { iivars, .. } = method_ctx.detail {
-            iivars
-        } else {
-            Default::default()
-        };
         type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };

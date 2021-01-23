@@ -292,36 +292,27 @@ impl HirMaker {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let ctx = self.ctx_mut();
-        let (super_ivars, iivars) = if let CtxDetail::Initializer {
-            super_ivars,
-            iivars,
-            ..
-        } = &mut ctx.detail
-        {
-            (super_ivars, iivars)
-        } else {
-            panic!("assertion failed");
-        };
-        if let Some(super_ivar) = super_ivars.get(name) {
+        let self_ty = &self.ctx().self_ty.clone();
+        let method_ctx = self.ctx.method.as_mut().unwrap();
+        if let Some(super_ivar) = method_ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(
                     "type of {} of {:?} is {:?} but it is defined as {:?} in the superclass",
-                    &name, &ctx.self_ty, ty, super_ivar.ty
+                    &name, &self_ty, ty, super_ivar.ty
                 )));
             }
             if super_ivar.readonly != readonly {
                 return Err(error::type_error(&format!(
                     "mutability of {} of {:?} differs from the inherited one",
-                    &name, &ctx.self_ty
+                    &name, &self_ty
                 )));
             }
             // This is not a declaration (assigning to an ivar defined in superclass)
             Ok(super_ivar.idx)
         } else {
             // TODO: check duplicates
-            let idx = super_ivars.len() + iivars.len();
-            iivars.insert(
+            let idx = method_ctx.super_ivars.len() + method_ctx.iivars.len();
+            method_ctx.iivars.insert(
                 name.to_string(),
                 SkIVar {
                     idx,
@@ -440,7 +431,7 @@ impl HirMaker {
 
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
-        self.ctx.lambdas.push(LambdaCtx { captures: vec![] });
+        self.ctx.lambdas.push(LambdaCtx::new());
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.pop_ctx();
         let captures = self.ctx.lambdas.pop().unwrap().captures;
@@ -615,10 +606,10 @@ impl HirMaker {
             error::program_error(&format!("referring ivar `{}' out of a method", name))
         })?;
         let self_cls = &method_ctx.self_ty.fullname;
-        let mut found = self.class_dict.find_ivar(&self_cls, name);
-        if let CtxDetail::Initializer { iivars, .. } = &method_ctx.detail {
-            found = found.or_else(|| iivars.get(name))
-        };
+        let found = self
+            .class_dict
+            .find_ivar(&self_cls, name)
+            .or_else(|| self.ctx.method.as_ref().unwrap().iivars.get(name));
         match found {
             Some(ivar) => Ok(Hir::ivar_ref(
                 ivar.ty.clone(),

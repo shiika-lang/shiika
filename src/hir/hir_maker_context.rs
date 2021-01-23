@@ -40,10 +40,6 @@ pub enum CtxDetail {
         signature: MethodSignature,
     },
     Initializer {
-        /// List of instance variables in an initializer found so far
-        iivars: SkIVars,
-        /// List of inherited ivars
-        super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
         /// Signature of the current method
         signature: MethodSignature,
     },
@@ -59,21 +55,6 @@ pub struct HirMakerContext_ {
     pub classes: Vec<ClassCtx>,
     pub method: Option<MethodCtx>,
     pub lambdas: Vec<LambdaCtx>,
-}
-
-#[derive(Debug)]
-pub struct ToplevelCtx {}
-
-#[derive(Debug)]
-pub struct ClassCtx {}
-
-#[derive(Debug)]
-pub struct MethodCtx {}
-
-#[derive(Debug)]
-pub struct LambdaCtx {
-    /// List of free variables captured in this context
-    pub captures: Vec<LambdaCapture>,
 }
 
 impl HirMakerContext_ {
@@ -92,6 +73,45 @@ impl HirMakerContext_ {
         let lambda_ctx = self.lambdas.last_mut().expect("not in lambda");
         lambda_ctx.captures.push(cap);
         lambda_ctx.captures.len() - 1
+    }
+}
+
+#[derive(Debug)]
+pub struct ToplevelCtx {}
+
+#[derive(Debug)]
+pub struct ClassCtx {}
+
+#[derive(Debug)]
+pub struct MethodCtx {
+    /// List of instance variables in an initializer found so far.
+    /// Empty if the method is not `#initialize`
+    pub iivars: SkIVars,
+    /// List of inherited ivars
+    /// Empty if the method is not `#initialize`
+    pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
+}
+
+impl MethodCtx {
+    pub fn new(super_ivars: Option<SkIVars>) -> MethodCtx {
+        MethodCtx {
+            iivars: Default::default(),
+            super_ivars: super_ivars.unwrap_or(Default::default()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LambdaCtx {
+    /// List of free variables captured in this context
+    pub captures: Vec<LambdaCapture>,
+}
+
+impl LambdaCtx {
+    pub fn new() -> LambdaCtx {
+        LambdaCtx {
+            captures: Default::default(),
+        }
     }
 }
 
@@ -159,7 +179,6 @@ impl HirMakerContext {
     pub fn initializer_ctx(
         class_ctx: &HirMakerContext,
         signature: MethodSignature,
-        super_ivars: SkIVars,
     ) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Initializer,
@@ -167,11 +186,7 @@ impl HirMakerContext {
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
             lvars: HashMap::new(),
-            detail: CtxDetail::Initializer {
-                iivars: HashMap::new(),
-                super_ivars,
-                signature,
-            },
+            detail: CtxDetail::Initializer { signature },
         }
     }
 
