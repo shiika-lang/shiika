@@ -321,9 +321,9 @@ impl HirMaker {
             .clone();
 
         let method_ctx = if is_initializer {
-            HirMakerContext::initializer_ctx(self.ctx(), &signature, super_ivars.unwrap())
+            HirMakerContext::initializer_ctx(self.ctx(), signature.clone(), super_ivars.unwrap())
         } else {
-            HirMakerContext::method_ctx(self.ctx(), &signature)
+            HirMakerContext::method_ctx(self.ctx(), signature.clone())
         };
         self.push_ctx(method_ctx);
         let body_exprs = self.convert_exprs(body_exprs)?;

@@ -296,6 +296,7 @@ impl HirMaker {
         let (super_ivars, iivars) = if let CtxDetail::Initializer {
             super_ivars,
             iivars,
+            ..
         } = &mut ctx.detail
         {
             (super_ivars, iivars)
