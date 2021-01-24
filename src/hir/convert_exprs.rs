@@ -25,6 +25,16 @@ enum LVarInfo {
 }
 
 impl LVarInfo {
+    /// The type of the lvar
+    fn ty(&self) -> &TermTy {
+        match self {
+            LVarInfo::CurrentScope { ty, .. } => &ty,
+            LVarInfo::Argument { ty, .. } => &ty,
+            LVarInfo::OuterScope { ty, .. } => &ty,
+        }
+    }
+
+    /// Returns HirExpression to refer this lvar
     fn ref_expr(&self) -> HirExpression {
         match self {
             LVarInfo::CurrentScope { ty, name } => Hir::lvar_ref(ty.clone(), name.clone()),
@@ -35,6 +45,7 @@ impl LVarInfo {
         }
     }
 
+    /// Returns HirExpression to update this lvar
     fn assign_expr(&self, expr: HirExpression) -> HirExpression {
         match self {
             LVarInfo::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
@@ -203,45 +214,22 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let existing_lvar = self._lookup_var(name, true)?;
-        let ctx = self.ctx_mut();
-        // REFACTOR: since we have `existing_lvar` now, we don't need to see `ctx.lvars` here.
-        match ctx.lvars.get(name) {
-            Some(lvar) => {
-                // Reassigning
-                if lvar.readonly {
-                    return Err(error::program_error(&format!(
-                        "cannot reassign to `{}' (Hint: declare it with `var')",
-                        name
-                    )));
-                } else if *is_var {
-                    return Err(error::program_error(&format!(
-                        "variable `{}' already exists",
-                        name
-                    )));
-                } else {
-                    type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
-                }
-            }
-            None => {
-                // Check it is defined in outer scope
-                if let Some(lvar_info) = existing_lvar {
-                    return Ok(lvar_info.assign_expr(expr));
-                } else {
-                    // Newly introduced lvar
-                    ctx.lvars.insert(
-                        name.to_string(),
-                        CtxLVar {
-                            name: name.to_string(),
-                            ty: expr.ty.clone(),
-                            readonly: !is_var,
-                        },
-                    );
-                }
-            }
+        // For `var x`, `x` should not be exist
+        if *is_var && self._lookup_var(name, false).unwrap().is_some() {
+            return Err(error::program_error(&format!(
+                "variable `{}' already exists",
+                name
+            )));
         }
-
-        Ok(Hir::lvar_assign(name, expr))
+        if let Some(lvar_info) = self._lookup_var(name, true)? {
+            // Reassigning
+            type_checking::check_reassign_var(&lvar_info.ty(), &expr.ty, name)?;
+            Ok(lvar_info.assign_expr(expr))
+        } else {
+            // Create new lvar
+            self.ctx.declare_lvar(name, expr.ty.clone(), !is_var);
+            Ok(Hir::lvar_assign(name, expr))
+        }
     }
 
     fn convert_ivar_assign(
@@ -490,12 +478,15 @@ impl HirMaker {
 
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
-    /// If `updating` is true, readonly variables are skipped
     fn _lookup_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        let ctx = self.ctx();
         // Local
-        if let Some(lvar) = ctx.find_lvar(name) {
-            if !updating || !lvar.readonly {
+        if let Some(lvar) = self.ctx.find_lvar(name) {
+            if updating && lvar.readonly {
+                return Err(error::program_error(&format!(
+                    "cannot reassign to `{}' (Hint: declare it with `var')",
+                    name
+                )));
+            } else {
                 return Ok(Some(LVarInfo::CurrentScope {
                     ty: lvar.ty.clone(),
                     name: name.to_string(),

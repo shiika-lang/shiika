@@ -50,6 +50,34 @@ impl HirMakerContext_ {
         }
     }
 
+    /// Return local variable of given name, if any
+    pub fn find_lvar(&self, name: &str) -> Option<&CtxLVar> {
+        let lvars = match self.current {
+            CtxKind::Toplevel => self.toplevel.lvars,
+            CtxKind::Class => self.classes.last().as_ref().unwrap().lvars,
+            CtxKind::Method => self.method.as_ref().unwrap().lvars,
+            CtxKind::Lambda => self.lambdas.last().as_ref().unwrap().lvars,
+        };
+        lvars.get(name)
+    }
+
+    /// Add a local variable to current context
+    pub fn declare_lvar(&mut self, name: &str, ty: TermTy, readonly: bool) {
+        let lvars = match self.current {
+            CtxKind::Toplevel => self.toplevel.lvars,
+            CtxKind::Class => self.classes.last().as_ref().unwrap().lvars,
+            CtxKind::Method => self.method.as_ref().unwrap().lvars,
+            CtxKind::Lambda => self.lambdas.last().as_ref().unwrap().lvars,
+        };
+        let k = name.to_string();
+        let v = CtxLVar {
+            name: name.to_string(),
+            ty,
+            readonly,
+        };
+        lvars.insert(k, v);
+    }
+
     /// Return method/lambda argument of given name, if any
     pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
         let params = if let Some(lambda_ctx) = self.lambdas.last() {
@@ -231,11 +259,6 @@ impl HirMakerContext {
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
         }
-    }
-
-    /// Return local variable of given name, if any
-    pub fn find_lvar(&self, name: &str) -> Option<&CtxLVar> {
-        self.lvars.get(name)
     }
 }
 
