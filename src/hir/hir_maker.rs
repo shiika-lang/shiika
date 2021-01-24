@@ -19,8 +19,8 @@ pub struct HirMaker {
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
-    /// Stack of ctx
-    pub(super) ctx_stack: Vec<HirMakerContext>,
+    /// Contextual information
+    pub(super) ctx: HirMakerContext,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
 }
@@ -50,7 +50,7 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            ctx_stack: vec![],
+            ctx: HirMakerContext::new(),
             lambda_ct: 0,
         }
     }
@@ -86,8 +86,6 @@ impl HirMaker {
         items: &[ast::TopLevelItem],
     ) -> Result<(HirExpressions, HirLVars), Error> {
         let mut main_exprs = vec![];
-        // Contains local vars defined at toplevel
-        self.push_ctx(HirMakerContext::toplevel());
         for item in items {
             match item {
                 ast::TopLevelItem::Def(def) => {
@@ -98,21 +96,18 @@ impl HirMaker {
                 }
             }
         }
-        let mut ctx = self.pop_ctx();
-        Ok((HirExpressions::new(main_exprs), ctx.extract_lvars()))
+        Ok((
+            HirExpressions::new(main_exprs),
+            extract_lvars(&mut self.ctx.toplevel.lvars),
+        ))
     }
 
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
         match def {
             // Extract instance/class methods
-            ast::Definition::ClassDefinition {
-                name,
-                defs,
-                typarams,
-                ..
-            } => {
+            ast::Definition::ClassDefinition { name, defs, .. } => {
                 let full = name.add_namespace("");
-                self.process_defs_in_class(&full, typarams.clone(), defs)?;
+                self.process_defs_in_class(&full, defs)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_const(name, expr)?;
@@ -126,18 +121,19 @@ impl HirMaker {
     fn process_defs_in_class(
         &mut self,
         fullname: &ClassFullname,
-        typarams: Vec<String>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
-        let ctx = HirMakerContext::class_ctx(&fullname, typarams, self.next_ctx_depth());
-        self.push_ctx(ctx);
+        let orig_current = self.ctx.current.clone();
+        self.ctx.current = CtxKind::Class;
+        self.ctx.classes.push(ClassCtx::new(fullname.clone()));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
 
         // Register #initialize and ivars
-        let own_ivars = self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
+        let own_ivars =
+            self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
             self.class_dict.define_ivars(fullname, own_ivars.clone())?;
@@ -169,18 +165,14 @@ impl HirMaker {
                 ast::Definition::ConstDefinition { .. } => {
                     // Already processed above
                 }
-                ast::Definition::ClassDefinition {
-                    name,
-                    typarams,
-                    defs,
-                    ..
-                } => {
+                ast::Definition::ClassDefinition { name, defs, .. } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.process_defs_in_class(&full, typarams.clone(), defs)?;
+                    self.process_defs_in_class(&full, defs)?;
                 }
             }
         }
-        self.pop_ctx();
+        self.ctx.classes.pop();
+        self.ctx.current = orig_current;
         Ok(())
     }
 
@@ -231,7 +223,7 @@ impl HirMaker {
             .class_dict
             .get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
-        self.convert_method_def_(class_fullname, name, body_exprs, true, super_ivars)
+        self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
     }
 
     /// Create .new
@@ -280,9 +272,8 @@ impl HirMaker {
         name: &ConstFirstname,
         expr: &AstExpression,
     ) -> Result<ConstFullname, Error> {
-        let ctx = self.ctx();
         // TODO: resolve name using ctx
-        let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
+        let fullname = const_fullname(&format!("{}::{}", self.ctx.namespace(), &name.0));
         let hir_expr = self.convert_expr(expr)?;
         Ok(self.register_const_full(fullname, hir_expr))
     }
@@ -306,7 +297,7 @@ impl HirMaker {
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod, Error> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(class_fullname, name, body_exprs, false, None)?;
+            self.convert_method_def_(class_fullname, name, body_exprs, None)?;
         Ok(sk_method)
     }
 
@@ -316,7 +307,6 @@ impl HirMaker {
         class_fullname: &ClassFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
-        is_initializer: bool,
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by class_dict::new
@@ -330,26 +320,25 @@ impl HirMaker {
             .expect(&err)
             .clone();
 
-        self.push_ctx(HirMakerContext::method_ctx(
-            self.ctx(),
-            &signature,
-            is_initializer,
-            super_ivars.unwrap_or_else(HashMap::new),
-        ));
-        let body_exprs = self.convert_exprs(body_exprs)?;
-        let mut method_ctx = self.pop_ctx();
-        let lvars = method_ctx.extract_lvars();
-        let iivars = method_ctx.iivars;
-        type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
+        self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
 
-        let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
+        let orig_current = self.ctx.current.clone();
+        self.ctx.current = CtxKind::Method;
+        let hir_exprs = self.convert_exprs(body_exprs)?;
+        self.ctx.current = orig_current;
+
+        let mut method_ctx = self.ctx.method.take().unwrap();
+        let lvars = extract_lvars(&mut method_ctx.lvars);
+        type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
+
+        let body = SkMethodBody::ShiikaMethodBody { exprs: hir_exprs };
         Ok((
             SkMethod {
                 signature,
                 body,
                 lvars,
             },
-            iivars,
+            method_ctx.iivars,
         ))
     }
 }

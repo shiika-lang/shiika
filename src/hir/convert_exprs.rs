@@ -7,25 +7,33 @@ use crate::hir::*;
 use crate::parser::token::Token;
 use crate::type_checking;
 
+/// Result of looking up a lvar
 #[derive(Debug)]
 enum LVarInfo {
-    CurrentScope {
-        ty: TermTy,
-        name: String,
-    },
-    Argument {
-        ty: TermTy,
-        idx: usize,
-    },
+    /// Found in the current scope
+    CurrentScope { ty: TermTy, name: String },
+    /// Found in the current method/lambda argument
+    Argument { ty: TermTy, idx: usize },
+    /// Found in outer scope
     OuterScope {
         ty: TermTy,
-        arity: usize,
+        /// Index of the lvar in `captures`
         cidx: usize,
         readonly: bool,
     },
 }
 
 impl LVarInfo {
+    /// The type of the lvar
+    fn ty(&self) -> &TermTy {
+        match self {
+            LVarInfo::CurrentScope { ty, .. } => &ty,
+            LVarInfo::Argument { ty, .. } => &ty,
+            LVarInfo::OuterScope { ty, .. } => &ty,
+        }
+    }
+
+    /// Returns HirExpression to refer this lvar
     fn ref_expr(&self) -> HirExpression {
         match self {
             LVarInfo::CurrentScope { ty, name } => Hir::lvar_ref(ty.clone(), name.clone()),
@@ -36,13 +44,12 @@ impl LVarInfo {
         }
     }
 
+    /// Returns HirExpression to update this lvar
     fn assign_expr(&self, expr: HirExpression) -> HirExpression {
         match self {
             LVarInfo::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
             LVarInfo::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarInfo::OuterScope { arity, cidx, .. } => {
-                Hir::lambda_capture_write(*arity, *cidx, expr)
-            }
+            LVarInfo::OuterScope { cidx, .. } => Hir::lambda_capture_write(*cidx, expr),
         }
     }
 }
@@ -206,45 +213,22 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let existing_lvar = self._lookup_var(name, true)?;
-        let ctx = self.ctx_mut();
-        // REFACTOR: since we have `existing_lvar` now, we don't need to see `ctx.lvars` here.
-        match ctx.lvars.get(name) {
-            Some(lvar) => {
-                // Reassigning
-                if lvar.readonly {
-                    return Err(error::program_error(&format!(
-                        "cannot reassign to `{}' (Hint: declare it with `var')",
-                        name
-                    )));
-                } else if *is_var {
-                    return Err(error::program_error(&format!(
-                        "variable `{}' already exists",
-                        name
-                    )));
-                } else {
-                    type_checking::check_reassign_var(&lvar.ty, &expr.ty, name)?;
-                }
-            }
-            None => {
-                // Check it is defined in outer scope
-                if let Some(lvar_info) = existing_lvar {
-                    return Ok(lvar_info.assign_expr(expr));
-                } else {
-                    // Newly introduced lvar
-                    ctx.lvars.insert(
-                        name.to_string(),
-                        CtxLVar {
-                            name: name.to_string(),
-                            ty: expr.ty.clone(),
-                            readonly: !is_var,
-                        },
-                    );
-                }
-            }
+        // For `var x`, `x` should not be exist
+        if *is_var && self._lookup_var(name, false).unwrap().is_some() {
+            return Err(error::program_error(&format!(
+                "variable `{}' already exists",
+                name
+            )));
         }
-
-        Ok(Hir::lvar_assign(name, expr))
+        if let Some(lvar_info) = self._lookup_var(name, true)? {
+            // Reassigning
+            type_checking::check_reassign_var(&lvar_info.ty(), &expr.ty, name)?;
+            Ok(lvar_info.assign_expr(expr))
+        } else {
+            // Create new lvar
+            self.ctx.declare_lvar(name, expr.ty.clone(), !is_var);
+            Ok(Hir::lvar_assign(name, expr))
+        }
     }
 
     fn convert_ivar_assign(
@@ -254,17 +238,14 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let ctx = self.method_ctx().ok_or_else(|| {
-            error::program_error(&format!("cannot assign ivar `{}' out of a method", name))
-        })?;
+        let self_ty = self.ctx.self_ty();
 
-        if ctx.is_initializer {
-            let self_ty = ctx.self_ty.clone();
+        if self.ctx.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
+            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty.clone()));
         }
 
-        if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
+        if let Some(ivar) = self.class_dict.find_ivar(&self_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -278,13 +259,7 @@ impl HirMaker {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::ivar_assign(
-                name,
-                ivar.idx,
-                expr,
-                false,
-                ctx.self_ty.clone(),
-            ))
+            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, self_ty))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -295,35 +270,37 @@ impl HirMaker {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let ctx = self.method_ctx_mut().unwrap();
-        if let Some(super_ivar) = ctx.super_ivars.get(name) {
+        let self_ty = &self.ctx.self_ty();
+        let method_ctx = self.ctx.method.as_mut().unwrap();
+        if let Some(super_ivar) = method_ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(
                     "type of {} of {:?} is {:?} but it is defined as {:?} in the superclass",
-                    &name, &ctx.self_ty, ty, super_ivar.ty
+                    &name, &self_ty, ty, super_ivar.ty
                 )));
             }
             if super_ivar.readonly != readonly {
                 return Err(error::type_error(&format!(
                     "mutability of {} of {:?} differs from the inherited one",
-                    &name, &ctx.self_ty
+                    &name, &self_ty
                 )));
             }
             // This is not a declaration (assigning to an ivar defined in superclass)
-            return Ok(super_ivar.idx);
+            Ok(super_ivar.idx)
+        } else {
+            // TODO: check duplicates
+            let idx = method_ctx.super_ivars.len() + method_ctx.iivars.len();
+            method_ctx.iivars.insert(
+                name.to_string(),
+                SkIVar {
+                    idx,
+                    name: name.to_string(),
+                    ty: ty.clone(),
+                    readonly,
+                },
+            );
+            Ok(idx)
         }
-        // TODO: check duplicates
-        let idx = ctx.super_ivars.len() + ctx.iivars.len();
-        ctx.iivars.insert(
-            name.to_string(),
-            SkIVar {
-                idx,
-                name: name.to_string(),
-                ty: ty.clone(),
-                readonly,
-            },
-        );
-        Ok(idx)
     }
 
     fn convert_const_assign(
@@ -431,46 +408,54 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx(), hir_params.clone()));
+        self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
+
+        let orig_current = self.ctx.current.clone();
+        self.ctx.current = CtxKind::Lambda;
         let hir_exprs = self.convert_exprs(exprs)?;
-        let mut lambda_ctx = self.pop_ctx();
+        self.ctx.current = orig_current;
 
-        let lvars = lambda_ctx.extract_lvars();
-        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
-
-        let name = format!("lambda_{}", lambda_id);
-        let ty = lambda_ty(&hir_params, &hir_exprs.ty);
+        let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
-            ty, name, hir_params, hir_exprs, captures, lvars,
+            lambda_ty(&hir_params, &hir_exprs.ty), // ty
+            format!("lambda_{}", lambda_id),       // name
+            hir_params,
+            hir_exprs,
+            self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
+            extract_lvars(&mut lambda_ctx.lvars),               // lvars
         ))
     }
 
     /// Resolve LambdaCapture into HirExpression
     /// Also, concat lambda_captures to outer_captures
-    fn _resolve_lambda_captures(&mut self, captures: Vec<LambdaCapture>) -> Vec<HirLambdaCapture> {
-        let ctx = self.ctx_mut();
-        captures
-            .into_iter()
-            .map(|cap| {
-                if cap.ctx_depth == ctx.depth {
-                    // The variable is in this scope
-                    match cap.detail {
-                        LambdaCaptureDetail::CapLVar { name } => {
-                            HirLambdaCapture::CaptureLVar { name }
-                        }
-                        LambdaCaptureDetail::CapFnArg { idx } => {
-                            HirLambdaCapture::CaptureArg { idx }
-                        }
+    fn _resolve_lambda_captures(
+        &mut self,
+        lambda_captures: Vec<LambdaCapture>,
+    ) -> Vec<HirLambdaCapture> {
+        let mut ret = vec![];
+        for cap in lambda_captures {
+            let captured_here = match self.ctx.current {
+                CtxKind::Lambda => cap.ctx_depth == (self.ctx.lambdas.len() as isize) - 1,
+                _ => cap.ctx_depth == -1,
+            };
+            if captured_here {
+                // The variable is in this scope
+                match cap.detail {
+                    LambdaCaptureDetail::CapLVar { name } => {
+                        ret.push(HirLambdaCapture::CaptureLVar { name });
                     }
-                } else {
-                    // The variable is in outer scope
-                    let ty = cap.ty.clone();
-                    ctx.captures.push(cap);
-                    let cidx = ctx.captures.len() - 1;
-                    HirLambdaCapture::CaptureFwd { cidx, ty }
+                    LambdaCaptureDetail::CapFnArg { idx } => {
+                        ret.push(HirLambdaCapture::CaptureArg { idx });
+                    }
                 }
-            })
-            .collect()
+            } else {
+                // The variable is in outer scope
+                let ty = cap.ty.clone();
+                let cidx = self.ctx.push_lambda_capture(cap);
+                ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
+            }
+        }
+        ret
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
@@ -487,132 +472,99 @@ impl HirMaker {
 
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
-    /// If `updating` is true, readonly variables are skipped
     fn _lookup_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        let ctx = self.ctx();
-        // Local
-        if let Some(lvar) = ctx.find_lvar(name) {
-            if !updating || !lvar.readonly {
-                return Ok(Some(LVarInfo::CurrentScope {
-                    ty: lvar.ty.clone(),
-                    name: name.to_string(),
-                }));
-            }
-        }
-        // Arg
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            if updating {
-                return Err(error::program_error(&format!(
-                    "you cannot reassign to argument `{}'",
-                    name
-                )));
-            } else {
-                return Ok(Some(LVarInfo::Argument {
-                    ty: param.ty.clone(),
-                    idx,
-                }));
-            }
-        }
-        // Outer
-        if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
-            // The `ctx` has outer scope == `ctx` is a lambda
-            let arity = ctx.method_sig.as_ref().unwrap().params.len();
-            let cidx = ctx.captures.len();
-            if let Some((cap, lvar_info)) =
-                self.lookup_var_in_outer_scope(arity, cidx, outer_ctx, name, updating)?
-            {
-                self.ctx_mut().captures.push(cap);
-                return Ok(Some(lvar_info));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Lookup variable of the given name in the outer scopes.
-    /// Return a `LambdaCapture` (which variable is captured) and a
-    /// `HirExpression` (how it can be retrieved from `captures`).
-    fn lookup_var_in_outer_scope(
-        &self,
-        arity: usize,
-        cidx: usize,
-        ctx: &HirMakerContext,
-        name: &str,
-        updating: bool,
-    ) -> Result<Option<(LambdaCapture, LVarInfo)>, Error> {
-        // Check local var
-        if let Some(lvar) = ctx.find_lvar(name) {
-            if updating && lvar.readonly {
-                return Err(error::program_error(&format!(
-                    "cannot reassign to `{}' (Hint: declare it with `var')",
-                    name
-                )));
-            }
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: lvar.ty.clone(),
-                detail: LambdaCaptureDetail::CapLVar {
-                    name: name.to_string(),
-                },
-            };
-            return Ok(Some((
-                cap,
-                LVarInfo::OuterScope {
-                    ty: lvar.ty.clone(),
-                    arity,
-                    cidx,
-                    readonly: false,
-                },
-            )));
-        }
-        // Check argument
-        if let Some((idx, param)) = ctx.find_fn_arg(name) {
-            if updating {
-                return Err(error::program_error(&format!(
-                    "you cannot reassign to argument `{}'",
-                    name
-                )));
-            }
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: param.ty.clone(),
-                detail: LambdaCaptureDetail::CapFnArg { idx },
-            };
-            return Ok(Some((
-                cap,
-                LVarInfo::OuterScope {
-                    ty: param.ty.clone(),
-                    arity,
-                    cidx,
-                    readonly: true,
-                },
-            )));
-        }
-
-        // TODO: It may be a nullary method call
-
-        // Lookup in the next surrounding context
-        if let Some(outer_ctx) = self.outer_lvar_scope_of(ctx) {
-            self.lookup_var_in_outer_scope(arity, cidx, &*outer_ctx, name, updating)
+        let cidx = if self.ctx.current == CtxKind::Lambda {
+            self.ctx.lambdas.last().unwrap().captures.len()
         } else {
-            Ok(None)
+            0 // this value is never used
+        };
+        let mut first = true;
+        let mut caps = vec![];
+        let mut ret = None;
+        for (lvars, params, depth) in self.ctx.lvar_scopes() {
+            // Local
+            if let Some(lvar) = lvars.get(name) {
+                if updating && lvar.readonly {
+                    return Err(error::program_error(&format!(
+                        "cannot reassign to `{}' (Hint: declare it with `var')",
+                        name
+                    )));
+                }
+                if first {
+                    ret = Some(LVarInfo::CurrentScope {
+                        ty: lvar.ty.clone(),
+                        name: name.to_string(),
+                    });
+                    break;
+                } else {
+                    // !first == there are more than one scope == we're in a lambda
+                    // and capturing outer lvar
+                    caps.push(LambdaCapture {
+                        ctx_depth: depth,
+                        ty: lvar.ty.clone(),
+                        detail: LambdaCaptureDetail::CapLVar {
+                            name: name.to_string(),
+                        },
+                    });
+                    ret = Some(LVarInfo::OuterScope {
+                        ty: lvar.ty.clone(),
+                        cidx,
+                        readonly: false,
+                    });
+                    break;
+                }
+            }
+            // Arg
+            if let Some((idx, param)) = signature::find_param(&params, name) {
+                if updating {
+                    return Err(error::program_error(&format!(
+                        "you cannot reassign to argument `{}'",
+                        name
+                    )));
+                }
+                if first {
+                    return Ok(Some(LVarInfo::Argument {
+                        ty: param.ty.clone(),
+                        idx,
+                    }));
+                } else {
+                    // !first == there are more than one scope == we're in a lambda
+                    // and capturing the outer arg
+                    caps.push(LambdaCapture {
+                        ctx_depth: depth,
+                        ty: param.ty.clone(),
+                        detail: LambdaCaptureDetail::CapFnArg { idx },
+                    });
+                    ret = Some(LVarInfo::OuterScope {
+                        ty: param.ty.clone(),
+                        cidx,
+                        readonly: true,
+                    });
+                    break;
+                }
+            }
+            first = false;
         }
+        if !caps.is_empty() {
+            caps.into_iter().for_each(|cap| {
+                self.ctx.push_lambda_capture(cap);
+            });
+        }
+        Ok(ret)
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
-        let method_ctx = self.method_ctx().ok_or_else(|| {
-            error::program_error(&format!("referring ivar `{}' out of a method", name))
-        })?;
-        let self_cls = &method_ctx.self_ty.fullname;
+        let self_ty = self.ctx.self_ty();
         let found = self
             .class_dict
-            .find_ivar(&self_cls, name)
-            .or_else(|| method_ctx.iivars.get(name));
+            .find_ivar(&self_ty.fullname, name)
+            .or_else(|| self.ctx.method.as_ref().unwrap().iivars.get(name));
         match found {
             Some(ivar) => Ok(Hir::ivar_ref(
                 ivar.ty.clone(),
                 name.to_string(),
                 ivar.idx,
-                self.ctx().self_ty.clone(),
+                self_ty,
             )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
@@ -639,7 +591,7 @@ impl HirMaker {
             return Some((found, fullname));
         }
 
-        let fullname = name.under_namespace(&(self.ctx().namespace.0.clone()));
+        let fullname = name.under_namespace(&self.ctx.namespace());
         self.constants.get(&fullname).map(|found| (found, fullname))
     }
 
@@ -757,8 +709,7 @@ impl HirMaker {
     }
 
     fn convert_self_expr(&self) -> Result<HirExpression, Error> {
-        let ctx = self.ctx();
-        Ok(Hir::self_expression(ctx.self_ty.clone()))
+        Ok(Hir::self_expression(self.ctx.self_ty()))
     }
 
     fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
