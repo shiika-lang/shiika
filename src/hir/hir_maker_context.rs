@@ -11,8 +11,6 @@ pub struct HirMakerContext {
     pub kind: CtxKind,
     /// Where this ctx is in the ctx_stack
     pub depth: usize,
-    /// The type of current `self`
-    pub self_ty: TermTy,
     /// Current namespace
     /// `""` for toplevel
     pub namespace: ClassFullname,
@@ -47,6 +45,30 @@ impl HirMakerContext_ {
             classes: vec![],
             method: None,
             lambdas: vec![],
+        }
+    }
+
+    /// The type of `self` in the current scope
+    pub fn self_ty(&self) -> TermTy {
+        match self.current {
+            CtxKind::Toplevel => ty::raw("Object"),
+            CtxKind::Class => {
+                let class_ctx = self.classes.last().unwrap();
+                ty::meta(&class_ctx.namespace.0)
+            }
+            CtxKind::Method => {
+                let class_ctx = self.classes.last().unwrap();
+                ty::raw(&class_ctx.namespace.0)
+            }
+            CtxKind::Lambda => {
+                if let Some(class_ctx) = self.classes.last() {
+                    ty::raw(&class_ctx.namespace.0)
+                } else {
+                    // This lambda is on the toplevel
+                    ty::raw("Object")
+                }
+            }
+            _ => todo!(),
         }
     }
 
@@ -171,13 +193,16 @@ impl ToplevelCtx {
 
 #[derive(Debug)]
 pub struct ClassCtx {
+    /// Current namespace
+    pub namespace: ClassFullname,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
 }
 
 impl ClassCtx {
-    pub fn new() -> ClassCtx {
+    pub fn new(namespace: ClassFullname) -> ClassCtx {
         ClassCtx {
+            namespace,
             lvars: Default::default(),
         }
     }
@@ -266,7 +291,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Toplevel,
             depth: 0,
-            self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
         }
     }
@@ -276,7 +300,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
             depth,
-            self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
         }
     }
@@ -286,7 +309,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Method,
             depth: class_ctx.depth + 1,
-            self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
         }
     }
@@ -296,7 +318,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Initializer,
             depth: class_ctx.depth + 1,
-            self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
         }
     }
@@ -306,7 +327,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Lambda,
             depth: method_ctx.depth + 1,
-            self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
         }
     }
@@ -354,7 +374,7 @@ impl HirMaker {
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
         let typarams = &self
             .class_dict
-            .find_class(&self.ctx().self_ty.fullname)
+            .find_class(&self.ctx.self_ty().fullname)
             .unwrap()
             .typarams;
         typarams.iter().map(|x| x.name.clone()).collect()

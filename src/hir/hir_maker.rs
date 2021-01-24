@@ -134,7 +134,7 @@ impl HirMaker {
         self.push_ctx(ctx);
         let orig_current = self.ctx.current.clone();
         self.ctx.current = CtxKind::Class;
-        self.ctx.classes.push(ClassCtx::new());
+        self.ctx.classes.push(ClassCtx::new(fullname.clone()));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;

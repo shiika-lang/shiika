@@ -241,14 +241,14 @@ impl HirMaker {
         let ctx = self.method_ctx().ok_or_else(|| {
             error::program_error(&format!("cannot assign ivar `{}' out of a method", name))
         })?;
+        let self_ty = self.ctx.self_ty();
 
         if ctx.kind == CtxKind::Initializer {
-            let self_ty = ctx.self_ty.clone();
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
+            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty.clone()));
         }
 
-        if let Some(ivar) = self.class_dict.find_ivar(&ctx.self_ty.fullname, name) {
+        if let Some(ivar) = self.class_dict.find_ivar(&self_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -262,13 +262,7 @@ impl HirMaker {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::ivar_assign(
-                name,
-                ivar.idx,
-                expr,
-                false,
-                ctx.self_ty.clone(),
-            ))
+            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, self_ty))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -279,7 +273,7 @@ impl HirMaker {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let self_ty = &self.ctx().self_ty.clone();
+        let self_ty = &self.ctx.self_ty();
         let method_ctx = self.ctx.method.as_mut().unwrap();
         if let Some(super_ivar) = method_ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
@@ -565,20 +559,17 @@ impl HirMaker {
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
-        let method_ctx = self.method_ctx().ok_or_else(|| {
-            error::program_error(&format!("referring ivar `{}' out of a method", name))
-        })?;
-        let self_cls = &method_ctx.self_ty.fullname;
+        let self_ty = self.ctx.self_ty();
         let found = self
             .class_dict
-            .find_ivar(&self_cls, name)
+            .find_ivar(&self_ty.fullname, name)
             .or_else(|| self.ctx.method.as_ref().unwrap().iivars.get(name));
         match found {
             Some(ivar) => Ok(Hir::ivar_ref(
                 ivar.ty.clone(),
                 name.to_string(),
                 ivar.idx,
-                self.ctx().self_ty.clone(),
+                self_ty,
             )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
@@ -723,8 +714,7 @@ impl HirMaker {
     }
 
     fn convert_self_expr(&self) -> Result<HirExpression, Error> {
-        let ctx = self.ctx();
-        Ok(Hir::self_expression(ctx.self_ty.clone()))
+        Ok(Hir::self_expression(self.ctx.self_ty()))
     }
 
     fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
