@@ -5,14 +5,6 @@ use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub struct HirMakerContext {
-    /// Type of this ctx
-    pub kind: CtxKind,
-    /// Where this ctx is in the ctx_stack
-    pub depth: usize,
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum CtxKind {
     Toplevel,
@@ -294,59 +286,7 @@ pub enum LambdaCaptureDetail {
     CapFnArg { idx: usize },
 }
 
-impl HirMakerContext {
-    /// Create a ctx for toplevel
-    pub fn toplevel() -> HirMakerContext {
-        // REVIEW: not sure this 'static is the right way
-        HirMakerContext {
-            kind: CtxKind::Toplevel,
-            depth: 0,
-        }
-    }
-
-    /// Create a class context
-    pub fn class_ctx(depth: usize) -> HirMakerContext {
-        HirMakerContext {
-            kind: CtxKind::Class,
-            depth,
-        }
-    }
-
-    /// Create a method context
-    pub fn method_ctx(class_ctx: &HirMakerContext) -> HirMakerContext {
-        HirMakerContext {
-            kind: CtxKind::Method,
-            depth: class_ctx.depth + 1,
-        }
-    }
-
-    /// Create a ctx for lambda
-    pub fn lambda_ctx(method_ctx: &HirMakerContext) -> HirMakerContext {
-        HirMakerContext {
-            kind: CtxKind::Lambda,
-            depth: method_ctx.depth + 1,
-        }
-    }
-}
-
 impl HirMaker {
-    pub(super) fn ctx(&self) -> &HirMakerContext {
-        self.ctx_stack.last().unwrap()
-    }
-
-    pub(super) fn push_ctx(&mut self, ctx: HirMakerContext) {
-        self.ctx_stack.push(ctx);
-    }
-
-    pub(super) fn pop_ctx(&mut self) -> HirMakerContext {
-        self.ctx_stack.pop().unwrap()
-    }
-
-    /// Returns depth of next ctx
-    pub(super) fn next_ctx_depth(&self) -> usize {
-        self.ctx_stack.len()
-    }
-
     /// Returns type parameter of the current class
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
         let typarams = &self

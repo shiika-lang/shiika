@@ -19,8 +19,6 @@ pub struct HirMaker {
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
-    /// Stack of ctx
-    pub(super) ctx_stack: Vec<HirMakerContext>,
     /// Contextual information
     pub(super) ctx: HirMakerContext_,
     /// Counter to give unique name for lambdas
@@ -52,7 +50,6 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            ctx_stack: vec![],
             ctx: HirMakerContext_::new(),
             lambda_ct: 0,
         }
@@ -89,8 +86,6 @@ impl HirMaker {
         items: &[ast::TopLevelItem],
     ) -> Result<(HirExpressions, HirLVars), Error> {
         let mut main_exprs = vec![];
-        // Contains local vars defined at toplevel
-        self.push_ctx(HirMakerContext::toplevel());
         for item in items {
             match item {
                 ast::TopLevelItem::Def(def) => {
@@ -101,7 +96,6 @@ impl HirMaker {
                 }
             }
         }
-        self.pop_ctx();
         Ok((
             HirExpressions::new(main_exprs),
             extract_lvars(&mut self.ctx.toplevel.lvars),
@@ -130,8 +124,6 @@ impl HirMaker {
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
-        let ctx = HirMakerContext::class_ctx(self.next_ctx_depth());
-        self.push_ctx(ctx);
         let orig_current = self.ctx.current.clone();
         self.ctx.current = CtxKind::Class;
         self.ctx.classes.push(ClassCtx::new(fullname.clone()));
@@ -179,7 +171,6 @@ impl HirMaker {
                 }
             }
         }
-        self.pop_ctx();
         self.ctx.classes.pop();
         self.ctx.current = orig_current;
         Ok(())
@@ -329,8 +320,6 @@ impl HirMaker {
             .expect(&err)
             .clone();
 
-        let method_ctx = HirMakerContext::method_ctx(self.ctx());
-        self.push_ctx(method_ctx);
         self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
 
         let orig_current = self.ctx.current.clone();
@@ -339,7 +328,6 @@ impl HirMaker {
         self.ctx.current = orig_current;
 
         let mut method_ctx = self.ctx.method.take().unwrap();
-        self.pop_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
 

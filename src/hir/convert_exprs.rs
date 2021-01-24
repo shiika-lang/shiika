@@ -408,7 +408,6 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.push_ctx(HirMakerContext::lambda_ctx(self.ctx()));
         self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
 
         let orig_current = self.ctx.current.clone();
@@ -416,7 +415,6 @@ impl HirMaker {
         let hir_exprs = self.convert_exprs(exprs)?;
         self.ctx.current = orig_current;
 
-        self.pop_ctx();
         let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
             lambda_ty(&hir_params, &hir_exprs.ty), // ty
