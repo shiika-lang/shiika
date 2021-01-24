@@ -596,7 +596,7 @@ impl HirMaker {
             return Some((found, fullname));
         }
 
-        let fullname = name.under_namespace(&(self.ctx().namespace.0.clone()));
+        let fullname = name.under_namespace(&self.ctx.namespace());
         self.constants.get(&fullname).map(|found| (found, fullname))
     }
 

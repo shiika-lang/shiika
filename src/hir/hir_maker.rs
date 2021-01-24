@@ -130,7 +130,7 @@ impl HirMaker {
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
-        let ctx = HirMakerContext::class_ctx(&fullname, self.next_ctx_depth());
+        let ctx = HirMakerContext::class_ctx(self.next_ctx_depth());
         self.push_ctx(ctx);
         let orig_current = self.ctx.current.clone();
         self.ctx.current = CtxKind::Class;
@@ -281,9 +281,8 @@ impl HirMaker {
         name: &ConstFirstname,
         expr: &AstExpression,
     ) -> Result<ConstFullname, Error> {
-        let ctx = self.ctx();
         // TODO: resolve name using ctx
-        let fullname = const_fullname(&format!("{}::{}", ctx.namespace.0, &name.0));
+        let fullname = const_fullname(&format!("{}::{}", self.ctx.namespace(), &name.0));
         let hir_expr = self.convert_expr(expr)?;
         Ok(self.register_const_full(fullname, hir_expr))
     }

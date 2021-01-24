@@ -11,9 +11,6 @@ pub struct HirMakerContext {
     pub kind: CtxKind,
     /// Where this ctx is in the ctx_stack
     pub depth: usize,
-    /// Current namespace
-    /// `""` for toplevel
-    pub namespace: ClassFullname,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,6 +42,15 @@ impl HirMakerContext_ {
             classes: vec![],
             method: None,
             lambdas: vec![],
+        }
+    }
+
+    /// Returns the current namespace
+    pub fn namespace(&self) -> &str {
+        if let Some(class_ctx) = self.classes.last() {
+            &class_ctx.namespace.0
+        } else {
+            ""
         }
     }
 
@@ -291,16 +297,14 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Toplevel,
             depth: 0,
-            namespace: ClassFullname("".to_string()),
         }
     }
 
     /// Create a class context
-    pub fn class_ctx(fullname: &ClassFullname, depth: usize) -> HirMakerContext {
+    pub fn class_ctx(depth: usize) -> HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Class,
             depth,
-            namespace: fullname.clone(),
         }
     }
 
@@ -309,7 +313,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Method,
             depth: class_ctx.depth + 1,
-            namespace: class_ctx.namespace.clone(),
         }
     }
 
@@ -318,7 +321,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Initializer,
             depth: class_ctx.depth + 1,
-            namespace: class_ctx.namespace.clone(),
         }
     }
 
@@ -327,7 +329,6 @@ impl HirMakerContext {
         HirMakerContext {
             kind: CtxKind::Lambda,
             depth: method_ctx.depth + 1,
-            namespace: method_ctx.namespace.clone(),
         }
     }
 }
