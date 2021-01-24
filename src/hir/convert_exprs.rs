@@ -432,22 +432,18 @@ impl HirMaker {
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx()));
         self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
-        let hir_exprs = self.convert_exprs(exprs)?;
-        let mut lambda_ctx = self.pop_ctx();
-        let captures = self.ctx.lambdas.pop().unwrap().captures;
-
-        let lvars = lambda_ctx.extract_lvars();
-        let hir_captures = self._resolve_lambda_captures(captures);
-
-        let name = format!("lambda_{}", lambda_id);
-        let ty = lambda_ty(&hir_params, &hir_exprs.ty);
+        let hir_exprs = self
+            .ctx
+            .with_current(CtxKind::Lambda, || self.convert_exprs(exprs))?;
+        self.pop_ctx();
+        let lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
-            ty,
-            name,
+            lambda_ty(&hir_params, &hir_exprs.ty), // ty
+            format!("lambda_{}", lambda_id),       // name
             hir_params,
             hir_exprs,
-            hir_captures,
-            lvars,
+            self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
+            extract_lvars(&mut lambda_ctx.lvars),               // lvars
         ))
     }
 

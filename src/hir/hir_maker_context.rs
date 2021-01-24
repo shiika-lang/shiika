@@ -16,8 +16,6 @@ pub struct HirMakerContext {
     /// Current namespace
     /// `""` for toplevel
     pub namespace: ClassFullname,
-    /// Current local variables
-    pub lvars: HashMap<String, CtxLVar>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,6 +29,9 @@ pub enum CtxKind {
 
 #[derive(Debug)]
 pub struct HirMakerContext_ {
+    /// Which kind of scope we're in
+    pub current: CtxKind,
+    // Context of each scope
     pub toplevel: ToplevelCtx,
     pub classes: Vec<ClassCtx>,
     pub method: Option<MethodCtx>,
@@ -41,7 +42,8 @@ impl HirMakerContext_ {
     /// Create initial ctx
     pub fn new() -> HirMakerContext_ {
         HirMakerContext_ {
-            toplevel: ToplevelCtx {},
+            current: CtxKind::Toplevel,
+            toplevel: ToplevelCtx::new(),
             classes: vec![],
             method: None,
             lambdas: vec![],
@@ -64,18 +66,53 @@ impl HirMakerContext_ {
         lambda_ctx.captures.push(cap);
         lambda_ctx.captures.len() - 1
     }
+
+    pub fn with_current<F, T>(&mut self, c: CtxKind, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        let orig = self.current;
+        self.current = c;
+        let ret = f();
+        self.current = orig;
+        ret
+    }
 }
 
 #[derive(Debug)]
-pub struct ToplevelCtx {}
+pub struct ToplevelCtx {
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+}
+
+impl ToplevelCtx {
+    pub fn new() -> ToplevelCtx {
+        ToplevelCtx {
+            lvars: Default::default(),
+        }
+    }
+}
 
 #[derive(Debug)]
-pub struct ClassCtx {}
+pub struct ClassCtx {
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+}
+
+impl ClassCtx {
+    pub fn new() -> ClassCtx {
+        ClassCtx {
+            lvars: Default::default(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct MethodCtx {
     /// Signature of the current method
     signature: MethodSignature,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
     /// List of instance variables in an initializer found so far.
     /// Empty if the method is not `#initialize`
     pub iivars: SkIVars,
@@ -88,6 +125,7 @@ impl MethodCtx {
     pub fn new(signature: MethodSignature, super_ivars: Option<SkIVars>) -> MethodCtx {
         MethodCtx {
             signature,
+            lvars: Default::default(),
             iivars: Default::default(),
             super_ivars: super_ivars.unwrap_or(Default::default()),
         }
@@ -98,6 +136,8 @@ impl MethodCtx {
 pub struct LambdaCtx {
     /// Parameters of the current lambda
     pub params: Vec<MethodParam>,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
     /// List of free variables captured in this context
     pub captures: Vec<LambdaCapture>,
 }
@@ -106,9 +146,18 @@ impl LambdaCtx {
     pub fn new(params: Vec<MethodParam>) -> LambdaCtx {
         LambdaCtx {
             params,
+            lvars: Default::default(),
             captures: Default::default(),
         }
     }
+}
+
+/// Destructively extract list of local variables
+pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
+    std::mem::take(lvars)
+        .into_iter()
+        .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
+        .collect::<Vec<_>>()
 }
 
 /// A local variable
@@ -141,7 +190,6 @@ impl HirMakerContext {
             depth: 0,
             self_ty: ty::raw("Object"),
             namespace: ClassFullname("".to_string()),
-            lvars: HashMap::new(),
         }
     }
 
@@ -152,7 +200,6 @@ impl HirMakerContext {
             depth,
             self_ty: ty::raw("Object"),
             namespace: fullname.clone(),
-            lvars: HashMap::new(),
         }
     }
 
@@ -163,7 +210,6 @@ impl HirMakerContext {
             depth: class_ctx.depth + 1,
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
-            lvars: HashMap::new(),
         }
     }
 
@@ -174,7 +220,6 @@ impl HirMakerContext {
             depth: class_ctx.depth + 1,
             self_ty: ty::raw(&class_ctx.namespace.0),
             namespace: class_ctx.namespace.clone(),
-            lvars: HashMap::new(),
         }
     }
 
@@ -185,21 +230,12 @@ impl HirMakerContext {
             depth: method_ctx.depth + 1,
             self_ty: method_ctx.self_ty.clone(),
             namespace: method_ctx.namespace.clone(),
-            lvars: HashMap::new(),
         }
     }
 
     /// Return local variable of given name, if any
     pub fn find_lvar(&self, name: &str) -> Option<&CtxLVar> {
         self.lvars.get(name)
-    }
-
-    /// Destructively extract list of local variables
-    pub fn extract_lvars(&mut self) -> HirLVars {
-        std::mem::take(&mut self.lvars)
-            .into_iter()
-            .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
-            .collect::<Vec<_>>()
     }
 }
 

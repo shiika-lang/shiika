@@ -102,7 +102,10 @@ impl HirMaker {
             }
         }
         let mut ctx = self.pop_ctx();
-        Ok((HirExpressions::new(main_exprs), ctx.extract_lvars()))
+        Ok((
+            HirExpressions::new(main_exprs),
+            extract_lvars(&mut self.ctx.toplevel.lvars),
+        ))
     }
 
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
@@ -129,6 +132,8 @@ impl HirMaker {
         let meta_name = fullname.meta_name();
         let ctx = HirMakerContext::class_ctx(&fullname, self.next_ctx_depth());
         self.push_ctx(ctx);
+        let orig_current = self.ctx.current;
+        self.ctx.current = CtxKind::Class;
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
@@ -174,6 +179,7 @@ impl HirMaker {
             }
         }
         self.pop_ctx();
+        self.ctx.current = orig_current;
         Ok(())
     }
 
@@ -330,10 +336,12 @@ impl HirMaker {
         };
         self.push_ctx(method_ctx);
         self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
-        let body_exprs = self.convert_exprs(body_exprs)?;
-        let iivars = self.ctx.method.take().unwrap().iivars;
-        let mut method_ctx = self.pop_ctx();
-        let lvars = method_ctx.extract_lvars();
+        let body_exprs = self
+            .ctx
+            .with_current(CtxKind::Method, || self.convert_exprs(body_exprs))?;
+        let method_ctx = self.ctx.method.take().unwrap();
+        self.pop_ctx();
+        let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
 
         let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
@@ -343,7 +351,7 @@ impl HirMaker {
                 body,
                 lvars,
             },
-            iivars,
+            method_ctx.iivars,
         ))
     }
 }
