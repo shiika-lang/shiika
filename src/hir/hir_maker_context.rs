@@ -18,7 +18,7 @@ pub struct HirMakerContext {
     pub namespace: ClassFullname,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CtxKind {
     Toplevel,
     Class,
@@ -50,24 +50,19 @@ impl HirMakerContext_ {
         }
     }
 
-    /// Return local variable of given name, if any
-    pub fn find_lvar(&self, name: &str) -> Option<&CtxLVar> {
-        let lvars = match self.current {
-            CtxKind::Toplevel => self.toplevel.lvars,
-            CtxKind::Class => self.classes.last().as_ref().unwrap().lvars,
-            CtxKind::Method => self.method.as_ref().unwrap().lvars,
-            CtxKind::Lambda => self.lambdas.last().as_ref().unwrap().lvars,
-        };
-        lvars.get(name)
+    /// Iterates over lvar scopes starting from the current scope
+    pub fn lvar_scopes(&self) -> LVarIter {
+        LVarIter::new(self)
     }
 
     /// Add a local variable to current context
     pub fn declare_lvar(&mut self, name: &str, ty: TermTy, readonly: bool) {
         let lvars = match self.current {
-            CtxKind::Toplevel => self.toplevel.lvars,
-            CtxKind::Class => self.classes.last().as_ref().unwrap().lvars,
-            CtxKind::Method => self.method.as_ref().unwrap().lvars,
-            CtxKind::Lambda => self.lambdas.last().as_ref().unwrap().lvars,
+            CtxKind::Toplevel => &mut self.toplevel.lvars,
+            CtxKind::Class => &mut self.classes.last_mut().unwrap().lvars,
+            CtxKind::Method => &mut self.method.as_mut().unwrap().lvars,
+            CtxKind::Lambda => &mut self.lambdas.last_mut().unwrap().lvars,
+            _ => todo!(),
         };
         let k = name.to_string();
         let v = CtxLVar {
@@ -78,32 +73,85 @@ impl HirMakerContext_ {
         lvars.insert(k, v);
     }
 
-    /// Return method/lambda argument of given name, if any
-    pub fn find_fn_arg(&self, name: &str) -> Option<(usize, &MethodParam)> {
-        let params = if let Some(lambda_ctx) = self.lambdas.last() {
-            &lambda_ctx.params
-        } else {
-            &self.method.as_ref().unwrap().signature.params
-        };
-        signature::find_param(&params, name)
-    }
-
     /// Push a LambdaCapture to captures
     pub fn push_lambda_capture(&mut self, cap: LambdaCapture) -> usize {
         let lambda_ctx = self.lambdas.last_mut().expect("not in lambda");
         lambda_ctx.captures.push(cap);
         lambda_ctx.captures.len() - 1
     }
+}
 
-    pub fn with_current<F, T>(&mut self, c: CtxKind, f: F) -> T
-    where
-        F: FnOnce() -> T,
-    {
-        let orig = self.current;
-        self.current = c;
-        let ret = f();
-        self.current = orig;
-        ret
+/// Iterates over each lvar scope.
+pub struct LVarIter<'a> {
+    ctx: &'a HirMakerContext_,
+    cur: Option<CtxKind>,
+    idx: usize,
+}
+
+impl<'a> LVarIter<'a> {
+    fn new(ctx: &HirMakerContext_) -> LVarIter {
+        let idx = match ctx.current {
+            CtxKind::Toplevel => 0,
+            CtxKind::Class => ctx.classes.len() - 1,
+            CtxKind::Method => 0,
+            CtxKind::Lambda => ctx.lambdas.len() - 1,
+            _ => todo!(),
+        };
+        LVarIter {
+            ctx,
+            cur: Some(ctx.current.clone()),
+            idx,
+        }
+    }
+}
+
+impl<'a> Iterator for LVarIter<'a> {
+    /// Yields `(lvars, params, depth)`
+    type Item = (&'a HashMap<String, CtxLVar>, &'a [MethodParam], isize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.cur {
+            // Toplevel -> end.
+            Some(CtxKind::Toplevel) => {
+                self.cur = None;
+                Some((&self.ctx.toplevel.lvars, &[], -1))
+            }
+            // Classes -> end.
+            Some(CtxKind::Class) => {
+                let class_ctx = self.ctx.classes.get(self.idx).unwrap();
+                if self.idx == 0 {
+                    self.cur = None;
+                } else {
+                    self.idx -= 1;
+                }
+                Some((&class_ctx.lvars, &[], -1))
+            }
+            // Method -> end.
+            Some(CtxKind::Method) => {
+                self.cur = None;
+                let method_ctx = self.ctx.method.as_ref().unwrap();
+                Some((&method_ctx.lvars, &method_ctx.signature.params, -1))
+            }
+            // Lambdas -> Method
+            Some(CtxKind::Lambda) => {
+                let orig_idx = self.idx as isize;
+                let lambda_ctx = self.ctx.lambdas.get(self.idx).unwrap();
+                if self.idx == 0 {
+                    self.cur = if self.ctx.method.is_some() {
+                        Some(CtxKind::Method)
+                    } else if !self.ctx.classes.is_empty() {
+                        Some(CtxKind::Class)
+                    } else {
+                        Some(CtxKind::Toplevel)
+                    }
+                } else {
+                    self.idx -= 1;
+                }
+                Some((&lambda_ctx.lvars, &lambda_ctx.params, orig_idx))
+            }
+            None => None,
+            _ => todo!(),
+        }
     }
 }
 
@@ -198,7 +246,9 @@ pub struct CtxLVar {
 
 #[derive(Debug)]
 pub struct LambdaCapture {
-    pub ctx_depth: usize,
+    /// The index of `self.ctx.lambdas` where this lvar is captured.
+    /// -1 if it is captured in `self.ctx.method` or `self.ctx.toplevel`
+    pub ctx_depth: isize,
     pub ty: TermTy,
     pub detail: LambdaCaptureDetail,
 }
@@ -267,10 +317,6 @@ impl HirMaker {
         self.ctx_stack.last().unwrap()
     }
 
-    pub(super) fn ctx_mut(&mut self) -> &mut HirMakerContext {
-        self.ctx_stack.last_mut().unwrap()
-    }
-
     pub(super) fn push_ctx(&mut self, ctx: HirMakerContext) {
         self.ctx_stack.push(ctx);
     }
@@ -302,17 +348,6 @@ impl HirMaker {
             i -= 1
         }
         None
-    }
-
-    pub(super) fn outer_lvar_scope_of(&self, ctx: &HirMakerContext) -> Option<&HirMakerContext> {
-        if ctx.kind != CtxKind::Lambda {
-            return None;
-        }
-        if ctx.depth == 0 {
-            return None;
-        }
-        let outer_ctx = &self.ctx_stack[ctx.depth - 1];
-        Some(outer_ctx)
     }
 
     /// Returns type parameter of the current class

@@ -7,18 +7,17 @@ use crate::hir::*;
 use crate::parser::token::Token;
 use crate::type_checking;
 
+/// Result of looking up a lvar
 #[derive(Debug)]
 enum LVarInfo {
-    CurrentScope {
-        ty: TermTy,
-        name: String,
-    },
-    Argument {
-        ty: TermTy,
-        idx: usize,
-    },
+    /// Found in the current scope
+    CurrentScope { ty: TermTy, name: String },
+    /// Found in the current method/lambda argument
+    Argument { ty: TermTy, idx: usize },
+    /// Found in outer scope
     OuterScope {
         ty: TermTy,
+        /// Index of the lvar in `captures`
         cidx: usize,
         readonly: bool,
     },
@@ -420,11 +419,14 @@ impl HirMaker {
         // Convert lambda body
         self.push_ctx(HirMakerContext::lambda_ctx(self.ctx()));
         self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
-        let hir_exprs = self
-            .ctx
-            .with_current(CtxKind::Lambda, || self.convert_exprs(exprs))?;
+
+        let orig_current = self.ctx.current.clone();
+        self.ctx.current = CtxKind::Lambda;
+        let hir_exprs = self.convert_exprs(exprs)?;
+        self.ctx.current = orig_current;
+
         self.pop_ctx();
-        let lambda_ctx = self.ctx.lambdas.pop().unwrap();
+        let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
             lambda_ty(&hir_params, &hir_exprs.ty), // ty
             format!("lambda_{}", lambda_id),       // name
@@ -442,9 +444,12 @@ impl HirMaker {
         lambda_captures: Vec<LambdaCapture>,
     ) -> Vec<HirLambdaCapture> {
         let mut ret = vec![];
-        let ctx_depth = self.ctx().depth;
         for cap in lambda_captures {
-            if cap.ctx_depth == ctx_depth {
+            let captured_here = match self.ctx.current {
+                CtxKind::Lambda => cap.ctx_depth == (self.ctx.lambdas.len() as isize) - 1,
+                _ => cap.ctx_depth == -1,
+            };
+            if captured_here {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
@@ -479,113 +484,84 @@ impl HirMaker {
     /// Lookup variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
     fn _lookup_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        // Local
-        if let Some(lvar) = self.ctx.find_lvar(name) {
-            if updating && lvar.readonly {
-                return Err(error::program_error(&format!(
-                    "cannot reassign to `{}' (Hint: declare it with `var')",
-                    name
-                )));
-            } else {
-                return Ok(Some(LVarInfo::CurrentScope {
-                    ty: lvar.ty.clone(),
-                    name: name.to_string(),
-                }));
-            }
-        }
-        // Arg
-        if let Some((idx, param)) = self.ctx.find_fn_arg(name) {
-            if updating {
-                return Err(error::program_error(&format!(
-                    "you cannot reassign to argument `{}'",
-                    name
-                )));
-            } else {
-                return Ok(Some(LVarInfo::Argument {
-                    ty: param.ty.clone(),
-                    idx,
-                }));
-            }
-        }
-        // Outer
-        if let Some(outer_ctx) = self.outer_lvar_scope_of(&ctx) {
-            // The `ctx` has outer lvar scope == `ctx` is a lambda
-            let cidx = self.ctx.lambdas.last().unwrap().captures.len();
-            if let Some((cap, lvar_info)) =
-                self.lookup_var_in_outer_scope(cidx, outer_ctx, name, updating)?
-            {
-                self.ctx.push_lambda_capture(cap);
-                return Ok(Some(lvar_info));
-            }
-        }
-        Ok(None)
-    }
-
-    /// Lookup variable of the given name in the outer scopes.
-    /// Return a `LambdaCapture` (which variable is captured) and a
-    /// `HirExpression` (how it can be retrieved from `captures`).
-    fn lookup_var_in_outer_scope(
-        &self,
-        cidx: usize,
-        ctx: &HirMakerContext,
-        name: &str,
-        updating: bool,
-    ) -> Result<Option<(LambdaCapture, LVarInfo)>, Error> {
-        // Check local var
-        if let Some(lvar) = ctx.find_lvar(name) {
-            if updating && lvar.readonly {
-                return Err(error::program_error(&format!(
-                    "cannot reassign to `{}' (Hint: declare it with `var')",
-                    name
-                )));
-            }
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: lvar.ty.clone(),
-                detail: LambdaCaptureDetail::CapLVar {
-                    name: name.to_string(),
-                },
-            };
-            return Ok(Some((
-                cap,
-                LVarInfo::OuterScope {
-                    ty: lvar.ty.clone(),
-                    cidx,
-                    readonly: false,
-                },
-            )));
-        }
-        // Check argument
-        if let Some((idx, param)) = self.ctx.find_fn_arg(name) {
-            if updating {
-                return Err(error::program_error(&format!(
-                    "you cannot reassign to argument `{}'",
-                    name
-                )));
-            }
-            let cap = LambdaCapture {
-                ctx_depth: ctx.depth,
-                ty: param.ty.clone(),
-                detail: LambdaCaptureDetail::CapFnArg { idx },
-            };
-            return Ok(Some((
-                cap,
-                LVarInfo::OuterScope {
-                    ty: param.ty.clone(),
-                    cidx,
-                    readonly: true,
-                },
-            )));
-        }
-
-        // TODO: It may be a nullary method call
-
-        // Lookup in the next surrounding context
-        if let Some(outer_ctx) = self.outer_lvar_scope_of(ctx) {
-            self.lookup_var_in_outer_scope(cidx, &*outer_ctx, name, updating)
+        let cidx = if self.ctx.current == CtxKind::Lambda {
+            self.ctx.lambdas.last().unwrap().captures.len()
         } else {
-            Ok(None)
+            0 // this value is never used
+        };
+        let mut first = true;
+        let mut caps = vec![];
+        let mut ret = None;
+        for (lvars, params, depth) in self.ctx.lvar_scopes() {
+            // Local
+            if let Some(lvar) = lvars.get(name) {
+                if updating && lvar.readonly {
+                    return Err(error::program_error(&format!(
+                        "cannot reassign to `{}' (Hint: declare it with `var')",
+                        name
+                    )));
+                }
+                if first {
+                    ret = Some(LVarInfo::CurrentScope {
+                        ty: lvar.ty.clone(),
+                        name: name.to_string(),
+                    });
+                    break;
+                } else {
+                    // !first == there are more than one scope == we're in a lambda
+                    // and capturing outer lvar
+                    caps.push(LambdaCapture {
+                        ctx_depth: depth,
+                        ty: lvar.ty.clone(),
+                        detail: LambdaCaptureDetail::CapLVar {
+                            name: name.to_string(),
+                        },
+                    });
+                    ret = Some(LVarInfo::OuterScope {
+                        ty: lvar.ty.clone(),
+                        cidx,
+                        readonly: false,
+                    });
+                    break;
+                }
+            }
+            // Arg
+            if let Some((idx, param)) = signature::find_param(&params, name) {
+                if updating {
+                    return Err(error::program_error(&format!(
+                        "you cannot reassign to argument `{}'",
+                        name
+                    )));
+                }
+                if first {
+                    return Ok(Some(LVarInfo::Argument {
+                        ty: param.ty.clone(),
+                        idx,
+                    }));
+                } else {
+                    // !first == there are more than one scope == we're in a lambda
+                    // and capturing the outer arg
+                    caps.push(LambdaCapture {
+                        ctx_depth: depth,
+                        ty: param.ty.clone(),
+                        detail: LambdaCaptureDetail::CapFnArg { idx },
+                    });
+                    ret = Some(LVarInfo::OuterScope {
+                        ty: param.ty.clone(),
+                        cidx,
+                        readonly: true,
+                    });
+                    break;
+                }
+            }
+            first = false;
         }
+        if !caps.is_empty() {
+            caps.into_iter().for_each(|cap| {
+                self.ctx.push_lambda_capture(cap);
+            });
+        }
+        Ok(ret)
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {

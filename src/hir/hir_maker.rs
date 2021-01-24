@@ -101,7 +101,7 @@ impl HirMaker {
                 }
             }
         }
-        let mut ctx = self.pop_ctx();
+        self.pop_ctx();
         Ok((
             HirExpressions::new(main_exprs),
             extract_lvars(&mut self.ctx.toplevel.lvars),
@@ -132,8 +132,9 @@ impl HirMaker {
         let meta_name = fullname.meta_name();
         let ctx = HirMakerContext::class_ctx(&fullname, self.next_ctx_depth());
         self.push_ctx(ctx);
-        let orig_current = self.ctx.current;
+        let orig_current = self.ctx.current.clone();
         self.ctx.current = CtxKind::Class;
+        self.ctx.classes.push(ClassCtx::new());
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
@@ -179,6 +180,7 @@ impl HirMaker {
             }
         }
         self.pop_ctx();
+        self.ctx.classes.pop();
         self.ctx.current = orig_current;
         Ok(())
     }
@@ -336,15 +338,18 @@ impl HirMaker {
         };
         self.push_ctx(method_ctx);
         self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
-        let body_exprs = self
-            .ctx
-            .with_current(CtxKind::Method, || self.convert_exprs(body_exprs))?;
-        let method_ctx = self.ctx.method.take().unwrap();
+
+        let orig_current = self.ctx.current.clone();
+        self.ctx.current = CtxKind::Method;
+        let hir_exprs = self.convert_exprs(body_exprs)?;
+        self.ctx.current = orig_current;
+
+        let mut method_ctx = self.ctx.method.take().unwrap();
         self.pop_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
-        type_checking::check_return_value(&self.class_dict, &signature, &body_exprs.ty)?;
+        type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
 
-        let body = SkMethodBody::ShiikaMethodBody { exprs: body_exprs };
+        let body = SkMethodBody::ShiikaMethodBody { exprs: hir_exprs };
         Ok((
             SkMethod {
                 signature,
