@@ -232,7 +232,7 @@ impl HirMaker {
             .class_dict
             .get_superclass(class_fullname)
             .map(|super_cls| super_cls.ivars.clone());
-        self.convert_method_def_(class_fullname, name, body_exprs, true, super_ivars)
+        self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
     }
 
     /// Create .new
@@ -306,7 +306,7 @@ impl HirMaker {
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod, Error> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(class_fullname, name, body_exprs, false, None)?;
+            self.convert_method_def_(class_fullname, name, body_exprs, None)?;
         Ok(sk_method)
     }
 
@@ -316,7 +316,6 @@ impl HirMaker {
         class_fullname: &ClassFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
-        is_initializer: bool,
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by class_dict::new
@@ -330,11 +329,7 @@ impl HirMaker {
             .expect(&err)
             .clone();
 
-        let method_ctx = if is_initializer {
-            HirMakerContext::initializer_ctx(self.ctx())
-        } else {
-            HirMakerContext::method_ctx(self.ctx())
-        };
+        let method_ctx = HirMakerContext::method_ctx(self.ctx());
         self.push_ctx(method_ctx);
         self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
 

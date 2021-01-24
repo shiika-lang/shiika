@@ -238,12 +238,9 @@ impl HirMaker {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let ctx = self.method_ctx().ok_or_else(|| {
-            error::program_error(&format!("cannot assign ivar `{}' out of a method", name))
-        })?;
         let self_ty = self.ctx.self_ty();
 
-        if ctx.kind == CtxKind::Initializer {
+        if self.ctx.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
             return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty.clone()));
         }

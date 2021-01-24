@@ -18,7 +18,6 @@ pub enum CtxKind {
     Toplevel,
     Class,
     Method,
-    Initializer,
     Lambda,
 }
 
@@ -74,7 +73,6 @@ impl HirMakerContext_ {
                     ty::raw("Object")
                 }
             }
-            _ => todo!(),
         }
     }
 
@@ -90,7 +88,6 @@ impl HirMakerContext_ {
             CtxKind::Class => &mut self.classes.last_mut().unwrap().lvars,
             CtxKind::Method => &mut self.method.as_mut().unwrap().lvars,
             CtxKind::Lambda => &mut self.lambdas.last_mut().unwrap().lvars,
-            _ => todo!(),
         };
         let k = name.to_string();
         let v = CtxLVar {
@@ -99,6 +96,15 @@ impl HirMakerContext_ {
             readonly,
         };
         lvars.insert(k, v);
+    }
+
+    /// Returns if we're in an `#initialize`
+    pub fn in_initializer(&self) -> bool {
+        if let Some(method_ctx) = &self.method {
+            method_ctx.signature.fullname.first_name.0 == "initialize"
+        } else {
+            false
+        }
     }
 
     /// Push a LambdaCapture to captures
@@ -123,7 +129,6 @@ impl<'a> LVarIter<'a> {
             CtxKind::Class => ctx.classes.len() - 1,
             CtxKind::Method => 0,
             CtxKind::Lambda => ctx.lambdas.len() - 1,
-            _ => todo!(),
         };
         LVarIter {
             ctx,
@@ -178,7 +183,6 @@ impl<'a> Iterator for LVarIter<'a> {
                 Some((&lambda_ctx.lvars, &lambda_ctx.params, orig_idx))
             }
             None => None,
-            _ => todo!(),
         }
     }
 }
@@ -316,14 +320,6 @@ impl HirMakerContext {
         }
     }
 
-    /// Create a initializer context
-    pub fn initializer_ctx(class_ctx: &HirMakerContext) -> HirMakerContext {
-        HirMakerContext {
-            kind: CtxKind::Initializer,
-            depth: class_ctx.depth + 1,
-        }
-    }
-
     /// Create a ctx for lambda
     pub fn lambda_ctx(method_ctx: &HirMakerContext) -> HirMakerContext {
         HirMakerContext {
@@ -349,26 +345,6 @@ impl HirMaker {
     /// Returns depth of next ctx
     pub(super) fn next_ctx_depth(&self) -> usize {
         self.ctx_stack.len()
-    }
-
-    pub(super) fn method_ctx(&self) -> Option<&HirMakerContext> {
-        let opt_idx = self
-            .find_ctx(CtxKind::Method)
-            .or_else(|| self.find_ctx(CtxKind::Initializer));
-        opt_idx.map(|i| &self.ctx_stack[i])
-    }
-
-    /// Find nearest enclosing ctx of the `kind`
-    fn find_ctx(&self, kind: CtxKind) -> Option<usize> {
-        let mut i = (self.ctx_stack.len() as isize) - 1;
-        while i >= 0 {
-            let ctx = &self.ctx_stack[i as usize];
-            if ctx.kind == kind {
-                return Some(i as usize);
-            }
-            i -= 1
-        }
-        None
     }
 
     /// Returns type parameter of the current class
