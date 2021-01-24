@@ -5,14 +5,6 @@ use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum CtxKind {
-    Toplevel,
-    Class,
-    Method,
-    Lambda,
-}
-
 #[derive(Debug)]
 pub struct HirMakerContext {
     /// Which kind of scope we're in
@@ -22,6 +14,113 @@ pub struct HirMakerContext {
     pub classes: Vec<ClassCtx>,
     pub method: Option<MethodCtx>,
     pub lambdas: Vec<LambdaCtx>,
+}
+
+#[derive(Debug)]
+pub struct ToplevelCtx {
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+}
+
+impl ToplevelCtx {
+    pub fn new() -> ToplevelCtx {
+        ToplevelCtx {
+            lvars: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ClassCtx {
+    /// Current namespace
+    pub namespace: ClassFullname,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+}
+
+impl ClassCtx {
+    pub fn new(namespace: ClassFullname) -> ClassCtx {
+        ClassCtx {
+            namespace,
+            lvars: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MethodCtx {
+    /// Signature of the current method
+    signature: MethodSignature,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+    /// List of instance variables in an initializer found so far.
+    /// Empty if the method is not `#initialize`
+    pub iivars: SkIVars,
+    /// List of inherited ivars
+    /// Empty if the method is not `#initialize`
+    pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
+}
+
+impl MethodCtx {
+    pub fn new(signature: MethodSignature, super_ivars: Option<SkIVars>) -> MethodCtx {
+        MethodCtx {
+            signature,
+            lvars: Default::default(),
+            iivars: Default::default(),
+            super_ivars: super_ivars.unwrap_or(Default::default()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LambdaCtx {
+    /// Parameters of the current lambda
+    pub params: Vec<MethodParam>,
+    /// Current local variables
+    pub lvars: HashMap<String, CtxLVar>,
+    /// List of free variables captured in this context
+    pub captures: Vec<LambdaCapture>,
+}
+
+impl LambdaCtx {
+    pub fn new(params: Vec<MethodParam>) -> LambdaCtx {
+        LambdaCtx {
+            params,
+            lvars: Default::default(),
+            captures: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CtxKind {
+    Toplevel,
+    Class,
+    Method,
+    Lambda,
+}
+
+/// A local variable
+#[derive(Debug)]
+pub struct CtxLVar {
+    pub name: String,
+    pub ty: TermTy,
+    pub readonly: bool,
+}
+
+#[derive(Debug)]
+pub struct LambdaCapture {
+    /// The index of `self.ctx.lambdas` where this lvar is captured.
+    /// -1 if it is captured in `self.ctx.method` or `self.ctx.toplevel`
+    pub ctx_depth: isize,
+    pub ty: TermTy,
+    pub detail: LambdaCaptureDetail,
+}
+
+#[derive(Debug)]
+pub enum LambdaCaptureDetail {
+    CapLVar { name: String },
+    CapFnArg { idx: usize },
 }
 
 impl HirMakerContext {
@@ -179,111 +278,12 @@ impl<'a> Iterator for LVarIter<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ToplevelCtx {
-    /// Current local variables
-    pub lvars: HashMap<String, CtxLVar>,
-}
-
-impl ToplevelCtx {
-    pub fn new() -> ToplevelCtx {
-        ToplevelCtx {
-            lvars: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ClassCtx {
-    /// Current namespace
-    pub namespace: ClassFullname,
-    /// Current local variables
-    pub lvars: HashMap<String, CtxLVar>,
-}
-
-impl ClassCtx {
-    pub fn new(namespace: ClassFullname) -> ClassCtx {
-        ClassCtx {
-            namespace,
-            lvars: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct MethodCtx {
-    /// Signature of the current method
-    signature: MethodSignature,
-    /// Current local variables
-    pub lvars: HashMap<String, CtxLVar>,
-    /// List of instance variables in an initializer found so far.
-    /// Empty if the method is not `#initialize`
-    pub iivars: SkIVars,
-    /// List of inherited ivars
-    /// Empty if the method is not `#initialize`
-    pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
-}
-
-impl MethodCtx {
-    pub fn new(signature: MethodSignature, super_ivars: Option<SkIVars>) -> MethodCtx {
-        MethodCtx {
-            signature,
-            lvars: Default::default(),
-            iivars: Default::default(),
-            super_ivars: super_ivars.unwrap_or(Default::default()),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct LambdaCtx {
-    /// Parameters of the current lambda
-    pub params: Vec<MethodParam>,
-    /// Current local variables
-    pub lvars: HashMap<String, CtxLVar>,
-    /// List of free variables captured in this context
-    pub captures: Vec<LambdaCapture>,
-}
-
-impl LambdaCtx {
-    pub fn new(params: Vec<MethodParam>) -> LambdaCtx {
-        LambdaCtx {
-            params,
-            lvars: Default::default(),
-            captures: Default::default(),
-        }
-    }
-}
-
 /// Destructively extract list of local variables
 pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
     std::mem::take(lvars)
         .into_iter()
         .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
         .collect::<Vec<_>>()
-}
-
-/// A local variable
-#[derive(Debug)]
-pub struct CtxLVar {
-    pub name: String,
-    pub ty: TermTy,
-    pub readonly: bool,
-}
-
-#[derive(Debug)]
-pub struct LambdaCapture {
-    /// The index of `self.ctx.lambdas` where this lvar is captured.
-    /// -1 if it is captured in `self.ctx.method` or `self.ctx.toplevel`
-    pub ctx_depth: isize,
-    pub ty: TermTy,
-    pub detail: LambdaCaptureDetail,
-}
-
-#[derive(Debug)]
-pub enum LambdaCaptureDetail {
-    CapLVar { name: String },
-    CapFnArg { idx: usize },
 }
 
 impl HirMaker {
