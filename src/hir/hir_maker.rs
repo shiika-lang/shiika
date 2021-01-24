@@ -20,7 +20,7 @@ pub struct HirMaker {
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
     /// Contextual information
-    pub(super) ctx: HirMakerContext_,
+    pub(super) ctx: HirMakerContext,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
 }
@@ -50,7 +50,7 @@ impl HirMaker {
             constants: HashMap::new(),
             const_inits: vec![],
             str_literals: vec![],
-            ctx: HirMakerContext_::new(),
+            ctx: HirMakerContext::new(),
             lambda_ct: 0,
         }
     }

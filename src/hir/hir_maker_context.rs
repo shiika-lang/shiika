@@ -14,7 +14,7 @@ pub enum CtxKind {
 }
 
 #[derive(Debug)]
-pub struct HirMakerContext_ {
+pub struct HirMakerContext {
     /// Which kind of scope we're in
     pub current: CtxKind,
     // Context of each scope
@@ -24,10 +24,10 @@ pub struct HirMakerContext_ {
     pub lambdas: Vec<LambdaCtx>,
 }
 
-impl HirMakerContext_ {
+impl HirMakerContext {
     /// Create initial ctx
-    pub fn new() -> HirMakerContext_ {
-        HirMakerContext_ {
+    pub fn new() -> HirMakerContext {
+        HirMakerContext {
             current: CtxKind::Toplevel,
             toplevel: ToplevelCtx::new(),
             classes: vec![],
@@ -109,13 +109,13 @@ impl HirMakerContext_ {
 
 /// Iterates over each lvar scope.
 pub struct LVarIter<'a> {
-    ctx: &'a HirMakerContext_,
+    ctx: &'a HirMakerContext,
     cur: Option<CtxKind>,
     idx: usize,
 }
 
 impl<'a> LVarIter<'a> {
-    fn new(ctx: &HirMakerContext_) -> LVarIter {
+    fn new(ctx: &HirMakerContext) -> LVarIter {
         let idx = match ctx.current {
             CtxKind::Toplevel => 0,
             CtxKind::Class => ctx.classes.len() - 1,
