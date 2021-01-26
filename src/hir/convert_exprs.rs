@@ -207,6 +207,9 @@ impl HirMaker {
     }
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
+        if self.ctx.current != CtxKind::While {
+            return Err(error::program_error("`break' outside of a loop"));
+        }
         Ok(Hir::break_expression())
     }
 

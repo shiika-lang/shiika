@@ -88,6 +88,15 @@ pub fn plain_runner_error(msg: impl Into<String>) -> Error {
     }
 }
 
+pub fn bug(msg: impl Into<String>) -> Error {
+    Error {
+        msg: msg.into(),
+        backtrace: backtrace::Backtrace::new(),
+        details: ErrorDetails::Bug,
+        source: None,
+    }
+}
+
 pub fn must_be_some<T>(o: Option<T>, msg: String) -> T {
     o.unwrap_or_else(|| panic!(msg))
 }

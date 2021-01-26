@@ -253,7 +253,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.builder.build_unconditional_branch(*Rc::clone(b));
                 Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
             }
-            None => Err(error::program_error("break outside of a loop")),
+            None => Err(error::bug("break outside of a loop")),
         }
     }
 
