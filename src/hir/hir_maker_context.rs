@@ -98,6 +98,7 @@ pub enum CtxKind {
     Class,
     Method,
     Lambda,
+    While,
 }
 
 /// A local variable
@@ -152,11 +153,7 @@ impl HirMakerContext {
                 let class_ctx = self.classes.last().unwrap();
                 ty::meta(&class_ctx.namespace.0)
             }
-            CtxKind::Method => {
-                let class_ctx = self.classes.last().unwrap();
-                ty::raw(&class_ctx.namespace.0)
-            }
-            CtxKind::Lambda => {
+            _ => {
                 if let Some(class_ctx) = self.classes.last() {
                     ty::raw(&class_ctx.namespace.0)
                 } else {
@@ -179,6 +176,17 @@ impl HirMakerContext {
             CtxKind::Class => &mut self.classes.last_mut().unwrap().lvars,
             CtxKind::Method => &mut self.method.as_mut().unwrap().lvars,
             CtxKind::Lambda => &mut self.lambdas.last_mut().unwrap().lvars,
+            CtxKind::While => {
+                if self.lambdas.len() > 0 {
+                    &mut self.lambdas.last_mut().unwrap().lvars
+                } else if self.method.is_some() {
+                    &mut self.method.as_mut().unwrap().lvars
+                } else if self.classes.len() > 0 {
+                    &mut self.classes.last_mut().unwrap().lvars
+                } else {
+                    &mut self.toplevel.lvars
+                }
+            }
         };
         let k = name.to_string();
         let v = CtxLVar {
@@ -215,15 +223,28 @@ pub struct LVarIter<'a> {
 
 impl<'a> LVarIter<'a> {
     fn new(ctx: &HirMakerContext) -> LVarIter {
-        let idx = match ctx.current {
-            CtxKind::Toplevel => 0,
-            CtxKind::Class => ctx.classes.len() - 1,
-            CtxKind::Method => 0,
-            CtxKind::Lambda => ctx.lambdas.len() - 1,
+        let c = ctx.current.clone();
+        let (cur, idx) = match &c {
+            CtxKind::Toplevel => (c, 0),
+            CtxKind::Class => (c, ctx.classes.len() - 1),
+            CtxKind::Method => (c, 0),
+            CtxKind::Lambda => (c, ctx.lambdas.len() - 1),
+            // `while` does not make a lvar scope, so find the nearest one
+            CtxKind::While => {
+                if !ctx.lambdas.is_empty() {
+                    (CtxKind::Lambda, ctx.lambdas.len() - 1)
+                } else if ctx.method.is_some() {
+                    (CtxKind::Method, 0)
+                } else if !ctx.classes.is_empty() {
+                    (CtxKind::Class, ctx.classes.len() - 1)
+                } else {
+                    (CtxKind::Toplevel, 0)
+                }
+            }
         };
         LVarIter {
             ctx,
-            cur: Some(ctx.current.clone()),
+            cur: Some(cur),
             idx,
         }
     }
@@ -256,7 +277,7 @@ impl<'a> Iterator for LVarIter<'a> {
                 let method_ctx = self.ctx.method.as_ref().unwrap();
                 Some((&method_ctx.lvars, &method_ctx.signature.params, -1))
             }
-            // Lambdas -> Method
+            // Lambdas -> (Method or Class or Toplevel)
             Some(CtxKind::Lambda) => {
                 let orig_idx = self.idx as isize;
                 let lambda_ctx = self.ctx.lambdas.get(self.idx).unwrap();
@@ -264,6 +285,7 @@ impl<'a> Iterator for LVarIter<'a> {
                     self.cur = if self.ctx.method.is_some() {
                         Some(CtxKind::Method)
                     } else if !self.ctx.classes.is_empty() {
+                        self.idx = self.ctx.classes.len() - 1;
                         Some(CtxKind::Class)
                     } else {
                         Some(CtxKind::Toplevel)
@@ -273,6 +295,8 @@ impl<'a> Iterator for LVarIter<'a> {
                 }
                 Some((&lambda_ctx.lvars, &lambda_ctx.params, orig_idx))
             }
+            // ::new() never sets `While` to .cur
+            Some(CtxKind::While) => panic!("must not happen"),
             None => None,
         }
     }

@@ -105,7 +105,7 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
 
-            AstExpressionBody::LambdaExpr { params, exprs } => {
+            AstExpressionBody::LambdaExpr { params, exprs, .. } => {
                 self.convert_lambda_expr(params, exprs)
             }
 
@@ -198,7 +198,11 @@ impl HirMaker {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
+        let mut current = CtxKind::While;
+        std::mem::swap(&mut current, &mut self.ctx.current);
         let body_hirs = self.convert_exprs(body_exprs)?;
+        std::mem::swap(&mut current, &mut self.ctx.current);
+
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
 
