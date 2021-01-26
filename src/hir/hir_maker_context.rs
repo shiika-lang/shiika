@@ -136,6 +136,11 @@ impl HirMakerContext {
         }
     }
 
+    /// Set `c` to `self.current` and the original value to `c`
+    pub fn swap_current(&mut self, c: &mut CtxKind) {
+        std::mem::swap(c, &mut self.current);
+    }
+
     /// Returns the current namespace
     pub fn namespace(&self) -> &str {
         if let Some(class_ctx) = self.classes.last() {

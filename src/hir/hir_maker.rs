@@ -124,8 +124,8 @@ impl HirMaker {
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
-        let orig_current = self.ctx.current.clone();
-        self.ctx.current = CtxKind::Class;
+        let mut current = CtxKind::Class;
+        self.ctx.swap_current(&mut current);
         self.ctx.classes.push(ClassCtx::new(fullname.clone()));
 
         // Register constants before processing #initialize
@@ -172,7 +172,7 @@ impl HirMaker {
             }
         }
         self.ctx.classes.pop();
-        self.ctx.current = orig_current;
+        self.ctx.swap_current(&mut current);
         Ok(())
     }
 
@@ -322,10 +322,10 @@ impl HirMaker {
 
         self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
 
-        let orig_current = self.ctx.current.clone();
-        self.ctx.current = CtxKind::Method;
+        let mut current = CtxKind::Method;
+        self.ctx.swap_current(&mut current);
         let hir_exprs = self.convert_exprs(body_exprs)?;
-        self.ctx.current = orig_current;
+        self.ctx.swap_current(&mut current);
 
         let mut method_ctx = self.ctx.method.take().unwrap();
         let lvars = extract_lvars(&mut method_ctx.lvars);

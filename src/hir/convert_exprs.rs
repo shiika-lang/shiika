@@ -199,9 +199,9 @@ impl HirMaker {
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
         let mut current = CtxKind::While;
-        std::mem::swap(&mut current, &mut self.ctx.current);
+        self.ctx.swap_current(&mut current);
         let body_hirs = self.convert_exprs(body_exprs)?;
-        std::mem::swap(&mut current, &mut self.ctx.current);
+        self.ctx.swap_current(&mut current);
 
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
@@ -414,10 +414,10 @@ impl HirMaker {
         // Convert lambda body
         self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
 
-        let orig_current = self.ctx.current.clone();
-        self.ctx.current = CtxKind::Lambda;
+        let mut current = CtxKind::Lambda;
+        self.ctx.swap_current(&mut current);
         let hir_exprs = self.convert_exprs(exprs)?;
-        self.ctx.current = orig_current;
+        self.ctx.swap_current(&mut current);
 
         let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
