@@ -74,6 +74,8 @@ impl MethodCtx {
 
 #[derive(Debug)]
 pub struct LambdaCtx {
+    /// true if this lambda is `fn(){}`. false if it is a block (`do..end`,`{...}`)
+    pub is_fn: bool,
     /// Parameters of the current lambda
     pub params: Vec<MethodParam>,
     /// Current local variables
@@ -83,8 +85,9 @@ pub struct LambdaCtx {
 }
 
 impl LambdaCtx {
-    pub fn new(params: Vec<MethodParam>) -> LambdaCtx {
+    pub fn new(is_fn: bool, params: Vec<MethodParam>) -> LambdaCtx {
         LambdaCtx {
+            is_fn,
             params,
             lvars: Default::default(),
             captures: Default::default(),
@@ -139,6 +142,11 @@ impl HirMakerContext {
     /// Set `c` to `self.current` and the original value to `c`
     pub fn swap_current(&mut self, c: &mut CtxKind) {
         std::mem::swap(c, &mut self.current);
+    }
+
+    /// Returns the nearest lambda ctx
+    pub fn lambda(&self) -> &LambdaCtx {
+        self.lambdas.last().unwrap()
     }
 
     /// Returns the current namespace

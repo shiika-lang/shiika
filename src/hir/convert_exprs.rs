@@ -105,8 +105,8 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
 
-            AstExpressionBody::LambdaExpr { params, exprs, .. } => {
-                self.convert_lambda_expr(params, exprs)
+            AstExpressionBody::LambdaExpr { params, exprs, is_fn } => {
+                self.convert_lambda_expr(params, exprs, is_fn)
             }
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(name),
@@ -207,7 +207,13 @@ impl HirMaker {
     }
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
-        if self.ctx.current != CtxKind::While {
+        if self.ctx.current == CtxKind::Lambda {
+            if self.ctx.lambda().is_fn {
+                return Err(error::program_error("`break' inside a fn"));
+            } else {
+                // break from block is legal
+            }
+        } else if self.ctx.current != CtxKind::While {
             return Err(error::program_error("`break' outside of a loop"));
         }
         Ok(Hir::break_expression())
@@ -405,6 +411,7 @@ impl HirMaker {
         &mut self,
         params: &[ast::Param],
         exprs: &[AstExpression],
+        is_fn: &bool,
     ) -> Result<HirExpression, Error> {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
@@ -415,7 +422,7 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
+        self.ctx.lambdas.push(LambdaCtx::new(*is_fn, hir_params.clone()));
 
         let mut current = CtxKind::Lambda;
         self.ctx.swap_current(&mut current);
