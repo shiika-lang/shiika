@@ -208,10 +208,13 @@ impl HirMaker {
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
         if self.ctx.current == CtxKind::Lambda {
-            if self.ctx.lambda().is_fn {
+            let lambda_ctx = self.ctx.lambda_mut();
+            if lambda_ctx.is_fn {
                 return Err(error::program_error("`break' inside a fn"));
             } else {
-                // break from block is legal
+                // OK for now. This `break` still may be invalid
+                // (eg. `ary.map{ break }`) but it cannot be checked here
+                lambda_ctx.has_break = true;
             }
         } else if self.ctx.current != CtxKind::While {
             return Err(error::program_error("`break' outside of a loop"));
@@ -383,6 +386,9 @@ impl HirMaker {
             &receiver_hir,
             &arg_hirs,
         )?;
+        if let Some(last_arg) = arg_hirs.last() {
+            check_break_in_block(&sig, last_arg)?;
+        }
 
         let receiver = if &found_class_name != class_fullname {
             // Upcast needed
@@ -437,6 +443,7 @@ impl HirMaker {
             hir_exprs,
             self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
             extract_lvars(&mut lambda_ctx.lvars),               // lvars
+            lambda_ctx.has_break,
         ))
     }
 
@@ -754,4 +761,14 @@ fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
     let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
     tyargs.push(ret_ty.clone());
     ty::spe(&format!("Fn{}", params.len()), tyargs)
+}
+
+/// Check if `break` in block is valid
+fn check_break_in_block(sig: &MethodSignature, last_arg: &HirExpression) -> Result<(), Error> {
+    if let HirExpressionBase::HirLambdaExpr { has_break, .. } = last_arg.node {
+        if has_break && sig.ret_ty != ty::raw("Void") {
+            return Err(error::program_error("`break' not allowed because this block is expected to return a value"));
+        }
+    }
+    Ok(())
 }

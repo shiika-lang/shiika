@@ -73,6 +73,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 exprs,
                 captures,
                 lvars,
+                ..
             } => self.gen_lambda_expr(ctx, name, params, exprs, captures, lvars),
             HirSelfExpression => self.gen_self_expression(ctx, &expr.ty),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),

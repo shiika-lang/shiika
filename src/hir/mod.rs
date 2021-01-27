@@ -198,6 +198,8 @@ pub enum HirExpressionBase {
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
+        /// true if there is a `break` in this lambda
+        has_break: bool,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -429,6 +431,7 @@ impl Hir {
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
+        has_break: bool,
     ) -> HirExpression {
         HirExpression {
             ty,
@@ -438,6 +441,7 @@ impl Hir {
                 exprs,
                 captures,
                 lvars,
+                has_break,
             },
         }
     }

@@ -76,12 +76,14 @@ impl MethodCtx {
 pub struct LambdaCtx {
     /// true if this lambda is `fn(){}`. false if it is a block (`do..end`,`{...}`)
     pub is_fn: bool,
-    /// Parameters of the current lambda
+    /// Parameters of the lambda
     pub params: Vec<MethodParam>,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
     /// List of free variables captured in this context
     pub captures: Vec<LambdaCapture>,
+    /// true if this lambda has `break`
+    pub has_break: bool,
 }
 
 impl LambdaCtx {
@@ -91,6 +93,7 @@ impl LambdaCtx {
             params,
             lvars: Default::default(),
             captures: Default::default(),
+            has_break: false,
         }
     }
 }
@@ -145,8 +148,8 @@ impl HirMakerContext {
     }
 
     /// Returns the nearest lambda ctx
-    pub fn lambda(&self) -> &LambdaCtx {
-        self.lambdas.last().unwrap()
+    pub fn lambda_mut(&mut self) -> &mut LambdaCtx {
+        self.lambdas.last_mut().unwrap()
     }
 
     /// Returns the current namespace
