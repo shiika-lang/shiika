@@ -5,6 +5,7 @@ mod lambda;
 mod utils;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_name;
+use crate::error;
 use crate::error::Error;
 use crate::hir::*;
 use crate::mir;
@@ -43,13 +44,15 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(mir: &Mir, outpath: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(mir: &Mir, outpath: &str) -> Result<(), Error> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
     code_gen.gen_program(&mir.hir)?;
-    code_gen.module.print_to_file(outpath)?;
+    code_gen.module.print_to_file(outpath).map_err(|llvm_str| {
+        error::plain_runner_error(llvm_str.to_string())
+    })?;
     Ok(())
 }
 

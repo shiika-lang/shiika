@@ -24,7 +24,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     log::debug!("created hir");
     let mir = crate::mir::build(hir);
     log::debug!("created mir");
-    wrap_error(crate::code_gen::run(&mir, &(path + ".ll")))?;
+    crate::code_gen::run(&mir, &(path + ".ll"))?;
     log::debug!("created .ll");
     Ok(())
 }
