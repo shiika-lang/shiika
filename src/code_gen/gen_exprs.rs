@@ -48,7 +48,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 body_exprs,
             } => self.gen_while_expr(ctx, &cond_expr, &body_exprs),
-            HirBreakExpression => self.gen_break_expr(ctx),
+            HirBreakExpression { from } => self.gen_break_expr(ctx, from),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
             HirIVarAssign {
                 name,
@@ -248,6 +248,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_break_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        _from: &HirBreakFrom,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         match &ctx.current_loop_end {
             Some(b) => {

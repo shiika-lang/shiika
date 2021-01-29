@@ -60,7 +60,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
             }
-            HirBreakExpression => (),
+            HirBreakExpression { .. } => (),
             HirLVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirIVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirConstAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,

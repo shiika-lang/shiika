@@ -152,7 +152,9 @@ pub enum HirExpressionBase {
         cond_expr: Box<HirExpression>,
         body_exprs: Box<HirExpressions>,
     },
-    HirBreakExpression,
+    HirBreakExpression {
+        from: HirBreakFrom,
+    },
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -258,6 +260,13 @@ pub enum HirLambdaCapture {
     CaptureFwd { cidx: usize, ty: TermTy },
 }
 
+/// Denotes what a `break` escapes from
+#[derive(Debug)]
+pub enum HirBreakFrom {
+    While,
+    Block,
+}
+
 impl Hir {
     pub fn expressions(exprs: Vec<HirExpression>) -> HirExpressions {
         HirExpressions::new(exprs)
@@ -318,10 +327,10 @@ impl Hir {
         }
     }
 
-    pub fn break_expression() -> HirExpression {
+    pub fn break_expression(from: HirBreakFrom) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
-            node: HirExpressionBase::HirBreakExpression {},
+            node: HirExpressionBase::HirBreakExpression { from },
         }
     }
 

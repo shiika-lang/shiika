@@ -207,6 +207,7 @@ impl HirMaker {
     }
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
+        let from;
         if self.ctx.current == CtxKind::Lambda {
             let lambda_ctx = self.ctx.lambda_mut();
             if lambda_ctx.is_fn {
@@ -215,11 +216,14 @@ impl HirMaker {
                 // OK for now. This `break` still may be invalid
                 // (eg. `ary.map{ break }`) but it cannot be checked here
                 lambda_ctx.has_break = true;
+                from = HirBreakFrom::Block;
             }
-        } else if self.ctx.current != CtxKind::While {
+        } else if self.ctx.current == CtxKind::While {
+            from = HirBreakFrom::While;
+        } else {
             return Err(error::program_error("`break' outside of a loop"));
         }
-        Ok(Hir::break_expression())
+        Ok(Hir::break_expression(from))
     }
 
     fn convert_lvar_assign(
