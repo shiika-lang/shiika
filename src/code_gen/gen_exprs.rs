@@ -14,6 +14,10 @@ use std::rc::Rc;
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
 const FN_X_CAPTURES_IDX: usize = 2;
+/// Index of @exit_status of FnX
+const FN_X_EXIT_STATUS_IDX: usize = 3;
+/// Fn::EXIT_BREAK
+const EXIT_BREAK: u64 = 1;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
@@ -262,6 +266,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             }
             HirBreakFrom::Block => {
+                debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
+                // Set @exit_status
+                let fn_x = ctx.function.get_first_param().unwrap();
+                let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
+                self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
+
+                // Jump to the end of the llvm func
                 let b = ctx.current_func_end.as_ref().unwrap();
                 self.builder.build_unconditional_branch(*Rc::clone(b));
                 Ok(dummy_value)
