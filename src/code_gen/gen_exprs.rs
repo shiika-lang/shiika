@@ -248,14 +248,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_break_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        _from: &HirBreakFrom,
+        from: &HirBreakFrom,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
-        match &ctx.current_loop_end {
-            Some(b) => {
-                self.builder.build_unconditional_branch(*Rc::clone(b));
-                Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
+        let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
+        match from {
+            HirBreakFrom::While => {
+                match &ctx.current_loop_end {
+                    Some(b) => {
+                        self.builder.build_unconditional_branch(*Rc::clone(b));
+                        Ok(dummy_value)
+                    }
+                    None => Err(error::bug("break outside of a loop")),
+                }
             }
-            None => Err(error::bug("break outside of a loop")),
+            HirBreakFrom::Block => {
+                let b = ctx.current_func_end.as_ref().unwrap();
+                self.builder.build_unconditional_branch(*Rc::clone(b));
+                Ok(dummy_value)
+            }
         }
     }
 
@@ -412,7 +422,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                         ))
                     });
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
-                let value = self.builder.build_bitcast(obj, llvm_type, "");
+                let value = self.builder.build_bitcast(obj, llvm_type, "value");
                 Ok(value)
             }
             _ => panic!("[BUG] arg ref in invalid place"),

@@ -17,6 +17,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// CodeGen
 ///
@@ -208,7 +209,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let user_main_block = self.context.append_basic_block(function, "UserMain");
         self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, lvar_ptrs);
+        let mut ctx = CodeGenContext::new(function, None, FunctionOrigin::Other, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
         self.builder.build_return(None);
 
@@ -329,7 +330,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         self.module
                             .add_function(&format!("init_{}", fullname.0), fn_type, None);
                     let mut ctx =
-                        CodeGenContext::new(function, FunctionOrigin::Other, None, HashMap::new());
+                        CodeGenContext::new(function, None, FunctionOrigin::Other, None, HashMap::new());
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     self.gen_expr(&mut ctx, &expr)?;
@@ -529,7 +530,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params, lvars);
+        let mut ctx = CodeGenContext::new(function, None, FunctionOrigin::Method, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         if void_method {
             self.builder.build_return(None);
@@ -548,8 +549,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params, lvars);
+        let end_block = self.context.append_basic_block(function, "End");
+        let rc1 = Rc::new(end_block);
+        let rc2 = Rc::clone(&rc1);
+        let mut ctx = CodeGenContext::new(function, Some(rc1), FunctionOrigin::Lambda, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        self.builder.build_unconditional_branch(*rc2);
+        self.builder.position_at_end(*rc2);
         if void_method {
             self.builder.build_return(None);
         } else {
