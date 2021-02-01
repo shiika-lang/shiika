@@ -1,12 +1,13 @@
 class Fn
+  EXIT_NORMAL = 0
+  EXIT_BREAK = 1
+
   def initialize(
-    func: Shiika::Internal::Ptr,
-    the_self: Object,
-    captures: Array<Shiika::Internal::Ptr>,
+    @func: Shiika::Internal::Ptr,
+    @the_self: Object,
+    @captures: Array<Shiika::Internal::Ptr>,
   )
-    @func = func
-    @the_self = the_self
-    @captures = captures
+    @exit_status = EXIT_NORMAL
   end
 end
 

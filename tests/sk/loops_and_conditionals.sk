@@ -1,17 +1,35 @@
 # while
 var i = 0
 while i < 3
-  i = i + 1
+  i += 1
 end
 unless i == 3 then puts "ng 1" end
+
+# while in lambda
+[3].each do |n: Int|
+  i = 0; while i < n
+    i += 1
+    break if i == 2
+  end
+end
+unless i == 2 then puts "ng: while in lambda" end
 
 # break
 i = 0
 while i < 3
   if i == 3 then break end
   if i == 2 then break end
-  i = i + 1
+  i += 1
 end
 unless i == 2 then puts "ng 2" end
+
+# break from block
+var n = 0
+[1, 2, 3].each{|i: Int|
+  n += i
+  break if i == 2
+  n += i
+}
+unless n == 4 then puts "ng: break from block" end
 
 puts "ok"

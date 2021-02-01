@@ -109,6 +109,18 @@ impl std::fmt::Display for MethodFullname {
     }
 }
 
+impl MethodFullname {
+    /// Returns true if this is any of `Fn0#call`, ..., `Fn9#call`
+    pub fn is_fn_x_call(&self) -> bool {
+        for i in 0..=9 {
+            if self.full_name == format!("Fn{}#call", i) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct ConstFirstname(pub String);
 

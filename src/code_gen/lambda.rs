@@ -60,7 +60,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
             }
-            HirBreakExpression => (),
+            HirBreakExpression { .. } => (),
             HirLVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirIVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirConstAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
@@ -82,10 +82,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 name,
                 params,
                 exprs,
+                ret_ty,
                 lvars,
                 ..
             } => {
-                self.gen_lambda_func(name, params, exprs, lvars)?;
+                self.gen_lambda_func(name, params, exprs, ret_ty, lvars)?;
                 self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
             }
             HirSelfExpression => (),
@@ -108,9 +109,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         func_name: &str,
         params: &'hir [MethodParam],
         exprs: &'hir HirExpressions,
+        ret_ty: &TermTy,
         lvars: &[(String, TermTy)],
     ) -> Result<(), Error> {
-        let ret_ty = &exprs.ty;
-        self.gen_llvm_func_body(&func_name, params, Right(exprs), lvars, &ret_ty, true)
+        self.gen_llvm_func_body(
+            &func_name,
+            params,
+            Right(exprs),
+            lvars,
+            ret_ty.is_void_type(),
+            true,
+        )
     }
 }

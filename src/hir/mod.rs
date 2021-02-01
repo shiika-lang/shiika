@@ -152,7 +152,9 @@ pub enum HirExpressionBase {
         cond_expr: Box<HirExpression>,
         body_exprs: Box<HirExpressions>,
     },
-    HirBreakExpression,
+    HirBreakExpression {
+        from: HirBreakFrom,
+    },
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -193,6 +195,9 @@ pub enum HirExpressionBase {
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
+        ret_ty: TermTy,
+        /// true if there is a `break` in this lambda
+        has_break: bool,
     },
     HirSelfExpression,
     HirArrayLiteral {
@@ -249,6 +254,13 @@ pub enum HirLambdaCapture {
     /// Variable in the current `captures`
     /// `ty` is needed for bitcast
     CaptureFwd { cidx: usize, ty: TermTy },
+}
+
+/// Denotes what a `break` escapes from
+#[derive(Debug)]
+pub enum HirBreakFrom {
+    While,
+    Block,
 }
 
 impl Hir {
@@ -311,10 +323,10 @@ impl Hir {
         }
     }
 
-    pub fn break_expression() -> HirExpression {
+    pub fn break_expression(from: HirBreakFrom) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
-            node: HirExpressionBase::HirBreakExpression {},
+            node: HirExpressionBase::HirBreakExpression { from },
         }
     }
 
@@ -373,6 +385,22 @@ impl Hir {
         }
     }
 
+    pub fn invoke_lambda(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        method_fullname: MethodFullname,
+        arg_hirs: Vec<HirExpression>,
+    ) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                method_fullname,
+                arg_exprs: arg_hirs,
+            },
+        }
+    }
+
     pub fn arg_ref(ty: TermTy, idx: usize) -> HirExpression {
         HirExpression {
             ty,
@@ -408,7 +436,9 @@ impl Hir {
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
+        has_break: bool,
     ) -> HirExpression {
+        let ret_ty = exprs.ty.clone();
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {
@@ -417,6 +447,8 @@ impl Hir {
                 exprs,
                 captures,
                 lvars,
+                ret_ty,
+                has_break,
             },
         }
     }

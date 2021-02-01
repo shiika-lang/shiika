@@ -1,6 +1,5 @@
 use crate::hir::*;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -8,16 +7,16 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// Current llvm function
     pub function: inkwell::values::FunctionValue<'run>,
     /// If `function` corresponds to a lambda or a method
-    /// (llvm func of methods takes `self` as the first arg but lambdas do not)
     pub function_origin: FunctionOrigin,
     /// Parameters of `function`
     /// Only used for lambdas
     pub function_params: Option<&'hir [MethodParam]>,
     /// Ptr of local variables
     pub lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
+    /// End of `while`, if any
     pub current_loop_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
-    /// Lambdas to be compiled
-    pub lambdas: VecDeque<CodeGenLambda<'hir>>,
+    /// End of the current llvm function. Only used for lambdas
+    pub current_func_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -37,6 +36,7 @@ pub struct CodeGenLambda<'hir> {
 impl<'hir, 'run> CodeGenContext<'hir, 'run> {
     pub fn new(
         function: inkwell::values::FunctionValue<'run>,
+        function_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
         function_origin: FunctionOrigin,
         function_params: Option<&'hir [MethodParam]>,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
@@ -47,7 +47,7 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
             function_params,
             lvars,
             current_loop_end: None,
-            lambdas: VecDeque::new(),
+            current_func_end: function_end,
         }
     }
 }

@@ -104,6 +104,15 @@ fn ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
+    ivars.insert(
+        "@exit_status".to_string(),
+        SkIVar {
+            name: "@exit_status".to_string(),
+            idx: 3,
+            ty: ty::raw("Int"),
+            readonly: false,
+        },
+    );
     ivars
 }
 

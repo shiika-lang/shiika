@@ -105,9 +105,11 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
 
-            AstExpressionBody::LambdaExpr { params, exprs } => {
-                self.convert_lambda_expr(params, exprs)
-            }
+            AstExpressionBody::LambdaExpr {
+                params,
+                exprs,
+                is_fn,
+            } => self.convert_lambda_expr(params, exprs, is_fn),
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(name),
 
@@ -198,12 +200,32 @@ impl HirMaker {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
+        let mut current = CtxKind::While;
+        self.ctx.swap_current(&mut current);
         let body_hirs = self.convert_exprs(body_exprs)?;
+        self.ctx.swap_current(&mut current);
+
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
-        Ok(Hir::break_expression())
+        let from;
+        if self.ctx.current == CtxKind::Lambda {
+            let lambda_ctx = self.ctx.lambda_mut();
+            if lambda_ctx.is_fn {
+                return Err(error::program_error("`break' inside a fn"));
+            } else {
+                // OK for now. This `break` still may be invalid
+                // (eg. `ary.map{ break }`) but it cannot be checked here
+                lambda_ctx.has_break = true;
+                from = HirBreakFrom::Block;
+            }
+        } else if self.ctx.current == CtxKind::While {
+            from = HirBreakFrom::While;
+        } else {
+            return Err(error::program_error("`break' outside of a loop"));
+        }
+        Ok(Hir::break_expression(from))
     }
 
     fn convert_lvar_assign(
@@ -353,7 +375,7 @@ impl HirMaker {
         &self,
         receiver_hir: HirExpression,
         method_name: &MethodFirstname,
-        arg_hirs: Vec<HirExpression>,
+        mut arg_hirs: Vec<HirExpression>,
         method_tyargs: &[TermTy],
     ) -> Result<HirExpression, Error> {
         let specialized = receiver_hir.ty.is_specialized();
@@ -370,6 +392,9 @@ impl HirMaker {
             &receiver_hir,
             &arg_hirs,
         )?;
+        if let Some(last_arg) = arg_hirs.last_mut() {
+            check_break_in_block(&sig, last_arg)?;
+        }
 
         let receiver = if &found_class_name != class_fullname {
             // Upcast needed
@@ -398,6 +423,7 @@ impl HirMaker {
         &mut self,
         params: &[ast::Param],
         exprs: &[AstExpression],
+        is_fn: &bool,
     ) -> Result<HirExpression, Error> {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
@@ -408,12 +434,14 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.ctx.lambdas.push(LambdaCtx::new(hir_params.clone()));
+        self.ctx
+            .lambdas
+            .push(LambdaCtx::new(*is_fn, hir_params.clone()));
 
-        let orig_current = self.ctx.current.clone();
-        self.ctx.current = CtxKind::Lambda;
+        let mut current = CtxKind::Lambda;
+        self.ctx.swap_current(&mut current);
         let hir_exprs = self.convert_exprs(exprs)?;
-        self.ctx.current = orig_current;
+        self.ctx.swap_current(&mut current);
 
         let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
@@ -423,6 +451,7 @@ impl HirMaker {
             hir_exprs,
             self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
             extract_lvars(&mut lambda_ctx.lvars),               // lvars
+            lambda_ctx.has_break,
         ))
     }
 
@@ -740,4 +769,25 @@ fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
     let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
     tyargs.push(ret_ty.clone());
     ty::spe(&format!("Fn{}", params.len()), tyargs)
+}
+
+/// Check if `break` in block is valid
+fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> Result<(), Error> {
+    if let HirExpressionBase::HirLambdaExpr { has_break, .. } = last_arg.node {
+        if has_break {
+            if sig.ret_ty == ty::raw("Void") {
+                match &mut last_arg.node {
+                    HirExpressionBase::HirLambdaExpr { ret_ty, .. } => {
+                        std::mem::swap(ret_ty, &mut ty::raw("Void"));
+                    }
+                    _ => return Err(error::bug("unexpected type")),
+                }
+            } else {
+                return Err(error::program_error(
+                    "`break' not allowed because this block is expected to return a value",
+                ));
+            }
+        }
+    }
+    Ok(())
 }

@@ -110,6 +110,8 @@ pub enum AstExpressionBody {
     LambdaExpr {
         params: Vec<Param>,
         exprs: Vec<AstExpression>,
+        /// true if this is from `fn(){}`. false if this is a block (do-end/{})
+        is_fn: bool,
     },
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
@@ -319,8 +321,12 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
     })
 }
 
-pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::LambdaExpr { params, exprs })
+pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -> AstExpression {
+    primary_expression(AstExpressionBody::LambdaExpr {
+        params,
+        exprs,
+        is_fn,
+    })
 }
 
 pub fn pseudo_variable(token: Token) -> AstExpression {

@@ -17,6 +17,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// CodeGen
 ///
@@ -50,9 +51,10 @@ pub fn run(mir: &Mir, outpath: &str) -> Result<(), Error> {
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
     code_gen.gen_program(&mir.hir)?;
-    code_gen.module.print_to_file(outpath).map_err(|llvm_str| {
-        error::plain_runner_error(llvm_str.to_string())
-    })?;
+    code_gen
+        .module
+        .print_to_file(outpath)
+        .map_err(|llvm_str| error::plain_runner_error(llvm_str.to_string()))?;
     Ok(())
 }
 
@@ -208,8 +210,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let user_main_block = self.context.append_basic_block(function, "UserMain");
         self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Other, None, lvar_ptrs);
+
+        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
         self.builder.build_return(None);
 
         Ok(())
@@ -328,11 +333,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let function =
                         self.module
                             .add_function(&format!("init_{}", fullname.0), fn_type, None);
-                    let mut ctx =
-                        CodeGenContext::new(function, FunctionOrigin::Other, None, HashMap::new());
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
+                    let (end_block, mut ctx) =
+                        self.new_ctx(FunctionOrigin::Other, function, None, HashMap::new());
                     self.gen_expr(&mut ctx, &expr)?;
+                    self.builder.build_unconditional_branch(*end_block);
+                    self.builder.position_at_end(*end_block);
                     self.builder.build_return(None);
                 }
                 _ => panic!("gen_const_inits: Not a HirConstAssign"),
@@ -433,7 +440,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
-            &method.signature.ret_ty,
+            method.signature.ret_ty.is_void_type(),
             false,
         )
     }
@@ -446,7 +453,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
-        ret_ty: &TermTy,
+        is_void: bool,
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
@@ -475,22 +482,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                    function,
-                    None,
-                    ret_ty.is_void_type(),
-                    &exprs,
-                    lvar_ptrs,
-                )?,
+                SkMethodBody::ShiikaMethodBody { exprs } => {
+                    self.gen_shiika_method_body(function, None, is_void, &exprs, lvar_ptrs)?
+                }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(
-                    function,
-                    Some(params),
-                    ret_ty.is_void_type(),
-                    &exprs,
-                    lvar_ptrs,
-                )?;
+                self.gen_shiika_lambda_body(function, Some(params), is_void, &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
@@ -529,8 +526,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Method, function_params, lvars);
+        let (end_block, mut ctx) =
+            self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
         if void_method {
             self.builder.build_return(None);
         } else {
@@ -544,13 +544,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
-        void_method: bool,
+        void_ret: bool,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, FunctionOrigin::Lambda, function_params, lvars);
+        let (end_block, mut ctx) =
+            self.new_ctx(FunctionOrigin::Lambda, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        if void_method {
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
+        if void_ret {
             self.builder.build_return(None);
         } else {
             let llvm_type = self.llvm_type(&exprs.ty);
@@ -605,6 +608,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_call(initialize, &args, "");
 
         self.builder.build_return(Some(&obj));
+    }
+
+    /// Create a CodeGenContext
+    fn new_ctx(
+        &self,
+        origin: FunctionOrigin,
+        function: inkwell::values::FunctionValue<'run>,
+        function_params: Option<&'hir [MethodParam]>,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
+    ) -> (
+        Rc<inkwell::basic_block::BasicBlock<'run>>,
+        CodeGenContext<'hir, 'run>,
+    ) {
+        let end_block = self.context.append_basic_block(function, "End");
+        let ref_end_block1 = Rc::new(end_block);
+        let ref_end_block2 = Rc::clone(&ref_end_block1);
+        let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
+        (ref_end_block2, ctx)
     }
 }
 
