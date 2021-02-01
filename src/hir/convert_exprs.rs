@@ -105,9 +105,11 @@ impl HirMaker {
                 ..
             } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
 
-            AstExpressionBody::LambdaExpr { params, exprs, is_fn } => {
-                self.convert_lambda_expr(params, exprs, is_fn)
-            }
+            AstExpressionBody::LambdaExpr {
+                params,
+                exprs,
+                is_fn,
+            } => self.convert_lambda_expr(params, exprs, is_fn),
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(name),
 

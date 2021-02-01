@@ -51,9 +51,10 @@ pub fn run(mir: &Mir, outpath: &str) -> Result<(), Error> {
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
     code_gen.gen_program(&mir.hir)?;
-    code_gen.module.print_to_file(outpath).map_err(|llvm_str| {
-        error::plain_runner_error(llvm_str.to_string())
-    })?;
+    code_gen
+        .module
+        .print_to_file(outpath)
+        .map_err(|llvm_str| error::plain_runner_error(llvm_str.to_string()))?;
     Ok(())
 }
 

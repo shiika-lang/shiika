@@ -322,7 +322,11 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
 }
 
 pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -> AstExpression {
-    primary_expression(AstExpressionBody::LambdaExpr { params, exprs, is_fn })
+    primary_expression(AstExpressionBody::LambdaExpr {
+        params,
+        exprs,
+        is_fn,
+    })
 }
 
 pub fn pseudo_variable(token: Token) -> AstExpression {
