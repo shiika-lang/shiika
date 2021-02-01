@@ -17,7 +17,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// End of `while`, if any
     pub current_loop_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
     /// End of the current llvm function. Only used for lambdas
-    pub current_func_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
+    pub current_func_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
     /// Lambdas to be compiled
     pub lambdas: VecDeque<CodeGenLambda<'hir>>,
 }
@@ -39,7 +39,7 @@ pub struct CodeGenLambda<'hir> {
 impl<'hir, 'run> CodeGenContext<'hir, 'run> {
     pub fn new(
         function: inkwell::values::FunctionValue<'run>,
-        function_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
+        function_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
         function_origin: FunctionOrigin,
         function_params: Option<&'hir [MethodParam]>,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,

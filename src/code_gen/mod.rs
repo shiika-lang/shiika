@@ -209,8 +209,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let user_main_block = self.context.append_basic_block(function, "UserMain");
         self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
-        let mut ctx = CodeGenContext::new(function, None, FunctionOrigin::Other, None, lvar_ptrs);
+
+        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, None, lvar_ptrs);
         self.gen_exprs(&mut ctx, &main_exprs)?;
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
         self.builder.build_return(None);
 
         Ok(())
@@ -329,11 +332,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let function =
                         self.module
                             .add_function(&format!("init_{}", fullname.0), fn_type, None);
-                    let mut ctx =
-                        CodeGenContext::new(function, None, FunctionOrigin::Other, None, HashMap::new());
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
+                    let (end_block, mut ctx) =
+                        self.new_ctx(FunctionOrigin::Other, function, None, HashMap::new());
                     self.gen_expr(&mut ctx, &expr)?;
+                    self.builder.build_unconditional_branch(*end_block);
+                    self.builder.position_at_end(*end_block);
                     self.builder.build_return(None);
                 }
                 _ => panic!("gen_const_inits: Not a HirConstAssign"),
@@ -530,8 +535,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let mut ctx = CodeGenContext::new(function, None, FunctionOrigin::Method, function_params, lvars);
+        let (end_block, mut ctx) =
+            self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
         if void_method {
             self.builder.build_return(None);
         } else {
@@ -549,13 +557,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let end_block = self.context.append_basic_block(function, "End");
-        let rc1 = Rc::new(end_block);
-        let rc2 = Rc::clone(&rc1);
-        let mut ctx = CodeGenContext::new(function, Some(rc1), FunctionOrigin::Lambda, function_params, lvars);
+        let (end_block, mut ctx) =
+            self.new_ctx(FunctionOrigin::Lambda, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        self.builder.build_unconditional_branch(*rc2);
-        self.builder.position_at_end(*rc2);
+        self.builder.build_unconditional_branch(*end_block);
+        self.builder.position_at_end(*end_block);
         if void_method {
             self.builder.build_return(None);
         } else {
@@ -611,6 +617,30 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_call(initialize, &args, "");
 
         self.builder.build_return(Some(&obj));
+    }
+
+    /// Create a CodeGenContext
+    fn new_ctx(
+        &self,
+        origin: FunctionOrigin,
+        function: inkwell::values::FunctionValue<'run>,
+        function_params: Option<&'hir [MethodParam]>,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
+    ) -> (
+        Rc<inkwell::basic_block::BasicBlock<'run>>,
+        CodeGenContext<'hir, 'run>,
+    ) {
+        let end_block = self.context.append_basic_block(function, "End");
+        let ref_end_block1 = Rc::new(end_block);
+        let ref_end_block2 = Rc::clone(&ref_end_block1);
+        let ctx = CodeGenContext::new(
+            function,
+            ref_end_block1,
+            origin,
+            function_params,
+            lvars,
+        );
+        (ref_end_block2, ctx)
     }
 }
 
