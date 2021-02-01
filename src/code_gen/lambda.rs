@@ -112,6 +112,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
         lvars: &[(String, TermTy)],
     ) -> Result<(), Error> {
-        self.gen_llvm_func_body(&func_name, params, Right(exprs), lvars, ret_ty.is_void_type(), true)
+        self.gen_llvm_func_body(
+            &func_name,
+            params,
+            Right(exprs),
+            lvars,
+            ret_ty.is_void_type(),
+            true,
+        )
     }
 }

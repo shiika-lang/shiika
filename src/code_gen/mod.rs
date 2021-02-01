@@ -482,22 +482,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
-                    function,
-                    None,
-                    is_void,
-                    &exprs,
-                    lvar_ptrs,
-                )?,
+                SkMethodBody::ShiikaMethodBody { exprs } => {
+                    self.gen_shiika_method_body(function, None, is_void, &exprs, lvar_ptrs)?
+                }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(
-                    function,
-                    Some(params),
-                    is_void,
-                    &exprs,
-                    lvar_ptrs,
-                )?;
+                self.gen_shiika_lambda_body(function, Some(params), is_void, &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
@@ -634,13 +624,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let end_block = self.context.append_basic_block(function, "End");
         let ref_end_block1 = Rc::new(end_block);
         let ref_end_block2 = Rc::clone(&ref_end_block1);
-        let ctx = CodeGenContext::new(
-            function,
-            ref_end_block1,
-            origin,
-            function_params,
-            lvars,
-        );
+        let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
         (ref_end_block2, ctx)
     }
 }

@@ -434,7 +434,9 @@ impl HirMaker {
         );
 
         // Convert lambda body
-        self.ctx.lambdas.push(LambdaCtx::new(*is_fn, hir_params.clone()));
+        self.ctx
+            .lambdas
+            .push(LambdaCtx::new(*is_fn, hir_params.clone()));
 
         let mut current = CtxKind::Lambda;
         self.ctx.swap_current(&mut current);
