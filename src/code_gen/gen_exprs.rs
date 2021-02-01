@@ -96,7 +96,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 fullname,
                 str_literal_idx,
             } => Ok(self.gen_class_literal(fullname, str_literal_idx)),
-            _ => todo!(),
         }
     }
 

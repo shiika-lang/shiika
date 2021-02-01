@@ -175,11 +175,6 @@ pub enum HirExpressionBase {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
-    HirInvokeLambda {
-        receiver_expr: Box<HirExpression>,
-        method_fullname: MethodFullname,
-        arg_exprs: Vec<HirExpression>,
-    },
     HirArgRef {
         idx: usize,
     },
