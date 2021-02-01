@@ -1,6 +1,5 @@
 use crate::hir::*;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -18,8 +17,6 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     pub current_loop_end: Option<Rc<inkwell::basic_block::BasicBlock<'run>>>,
     /// End of the current llvm function. Only used for lambdas
     pub current_func_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
-    /// Lambdas to be compiled
-    pub lambdas: VecDeque<CodeGenLambda<'hir>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -51,7 +48,6 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
             lvars,
             current_loop_end: None,
             current_func_end: function_end,
-            lambdas: VecDeque::new(),
         }
     }
 }
