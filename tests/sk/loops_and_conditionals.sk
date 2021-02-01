@@ -23,4 +23,13 @@ while i < 3
 end
 unless i == 2 then puts "ng 2" end
 
+# break from block
+var n = 0
+[1, 2, 3].each{|i: Int|
+  n += i
+  break if i == 2
+  n += i
+}
+unless n == 4 then puts "ng: break from block" end
+
 puts "ok"

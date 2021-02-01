@@ -74,11 +74,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaExpr {
                 name,
                 params,
-                exprs,
                 captures,
-                lvars,
+                ret_ty,
                 ..
-            } => self.gen_lambda_expr(ctx, name, params, exprs, captures, lvars),
+            } => self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
             HirSelfExpression => self.gen_self_expression(ctx, &expr.ty),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
@@ -486,15 +485,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         func_name: &str,
         params: &[MethodParam],
-        exprs: &'hir HirExpressions,
         captures: &'hir [HirLambdaCapture],
-        _lvars: &[(String, TermTy)],
+        ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
         arg_types.insert(0, &fn_x_type);
-        let ret_ty = &exprs.ty;
         let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 

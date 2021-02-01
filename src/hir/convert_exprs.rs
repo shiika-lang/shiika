@@ -375,7 +375,7 @@ impl HirMaker {
         &self,
         receiver_hir: HirExpression,
         method_name: &MethodFirstname,
-        arg_hirs: Vec<HirExpression>,
+        mut arg_hirs: Vec<HirExpression>,
         method_tyargs: &[TermTy],
     ) -> Result<HirExpression, Error> {
         let specialized = receiver_hir.ty.is_specialized();
@@ -392,7 +392,7 @@ impl HirMaker {
             &receiver_hir,
             &arg_hirs,
         )?;
-        if let Some(last_arg) = arg_hirs.last() {
+        if let Some(last_arg) = arg_hirs.last_mut() {
             check_break_in_block(&sig, last_arg)?;
         }
 
@@ -770,10 +770,21 @@ fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
 }
 
 /// Check if `break` in block is valid
-fn check_break_in_block(sig: &MethodSignature, last_arg: &HirExpression) -> Result<(), Error> {
+fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> Result<(), Error> {
     if let HirExpressionBase::HirLambdaExpr { has_break, .. } = last_arg.node {
-        if has_break && sig.ret_ty != ty::raw("Void") {
-            return Err(error::program_error("`break' not allowed because this block is expected to return a value"));
+        if has_break {
+            if sig.ret_ty == ty::raw("Void") {
+                match &mut last_arg.node {
+                    HirExpressionBase::HirLambdaExpr { ret_ty, .. } => {
+                        std::mem::swap(ret_ty, &mut ty::raw("Void"));
+                    }
+                    _ => return Err(error::bug("unexpected type")),
+                }
+            } else {
+                return Err(error::program_error(
+                    "`break' not allowed because this block is expected to return a value",
+                ));
+            }
         }
     }
     Ok(())

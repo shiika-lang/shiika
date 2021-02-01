@@ -440,7 +440,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
-            &method.signature.ret_ty,
+            method.signature.ret_ty.is_void_type(),
             false,
         )
     }
@@ -453,7 +453,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
-        ret_ty: &TermTy,
+        is_void: bool,
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
@@ -485,7 +485,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_method_body(
                     function,
                     None,
-                    ret_ty.is_void_type(),
+                    is_void,
                     &exprs,
                     lvar_ptrs,
                 )?,
@@ -494,7 +494,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_shiika_lambda_body(
                     function,
                     Some(params),
-                    ret_ty.is_void_type(),
+                    is_void,
                     &exprs,
                     lvar_ptrs,
                 )?;
@@ -554,7 +554,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
-        void_method: bool,
+        void_ret: bool,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
@@ -563,7 +563,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
-        if void_method {
+        if void_ret {
             self.builder.build_return(None);
         } else {
             let llvm_type = self.llvm_type(&exprs.ty);

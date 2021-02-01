@@ -200,6 +200,7 @@ pub enum HirExpressionBase {
         exprs: HirExpressions,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
+        ret_ty: TermTy,
         /// true if there is a `break` in this lambda
         has_break: bool,
     },
@@ -442,6 +443,7 @@ impl Hir {
         lvars: HirLVars,
         has_break: bool,
     ) -> HirExpression {
+        let ret_ty = exprs.ty.clone();
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {
@@ -450,6 +452,7 @@ impl Hir {
                 exprs,
                 captures,
                 lvars,
+                ret_ty,
                 has_break,
             },
         }
