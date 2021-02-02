@@ -241,10 +241,16 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
+    pub fn substitute(&self, opt_class_tyargs: Option<&[TermTy]>, method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
-                TyParamKind::Class => class_tyargs[*idx].clone(),
+                TyParamKind::Class => {
+                    if let Some(class_tyargs) = opt_class_tyargs {
+                        class_tyargs[*idx].clone()
+                    } else {
+                        self.clone()
+                    }
+                }
                 TyParamKind::Method => method_tyargs[*idx].clone(),
             },
             TySpe {
@@ -253,7 +259,7 @@ impl TermTy {
             } => {
                 let args = type_args
                     .iter()
-                    .map(|t| t.substitute(class_tyargs, method_tyargs))
+                    .map(|t| t.substitute(opt_class_tyargs, method_tyargs))
                     .collect();
                 ty::spe(base_name, args)
             }
