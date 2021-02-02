@@ -384,11 +384,11 @@ impl HirMaker {
             self.class_dict
                 .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
 
-        let param_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
+        let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(
             &self.class_dict,
             &sig,
-            &param_tys,
+            &arg_tys,
             &receiver_hir,
             &arg_hirs,
         )?;
