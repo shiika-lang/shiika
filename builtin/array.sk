@@ -19,6 +19,22 @@ class Array<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
+  # Return true if `other` has the same elements as `self` (compared by `==`.)
+  def ==(other: Array<T>) -> Bool
+    if self.length != other.length
+      false
+    else
+      var ret = true
+      0.upto(@n_items - 1) do |i: Int|
+        if self[i] != other[i]
+          ret = false
+          break
+        end
+      end
+      ret
+    end
+  end
+
   # Return the `i`th item
   # Count from the last if `i` is less than zero
   # Panics if the index is out of range
@@ -107,6 +123,14 @@ class Array<T>
   # Return the first element
   def first -> T  # TODO: Return Option
     self[0]
+  end
+
+  # Like `map` but `f` should return an array and the result is flattened.
+  def flat_map<W>(f: Fn1<T, Array<W>>) -> Array<W>
+    self.map<Array<W>>(f).fold<Array<W>>(Array<W>.new){|sum: Array<W>, item: Array<W>|
+      sum.append(item)
+      sum
+    }
   end
 
   # Calculate a value by passing `sum` and `item` to `f` for each element
