@@ -5,4 +5,8 @@ b = Array<Int>.new
 b.push(123)
 unless b[0] == 123; puts "ng Array<Int>.new"; end
 
+# flat_map
+fa = [1, 2].flat_map<Float>{|i: Int| [i.to_f, i.to_f / 2.0]}
+unless fa == [1.0, 0.5, 2.0, 1.0]; puts "ng flat_map"; end
+
 puts "ok"

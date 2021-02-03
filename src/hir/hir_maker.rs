@@ -7,6 +7,7 @@ use crate::hir::method_dict::MethodDict;
 use crate::hir::*;
 use crate::names;
 use crate::type_checking;
+use log;
 
 #[derive(Debug)]
 pub struct HirMaker {
@@ -296,6 +297,7 @@ impl HirMaker {
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod, Error> {
+        log::trace!("method {}#{}", &class_fullname, &name);
         let (sk_method, _ivars) =
             self.convert_method_def_(class_fullname, name, body_exprs, None)?;
         Ok(sk_method)
