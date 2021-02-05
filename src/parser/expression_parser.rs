@@ -468,10 +468,23 @@ impl<'a> Parser<'a> {
         //  parse_unary_minus_expr
         //  parse_power_expr
         //  parse_unary_expr
-        //  parse_secondary_expr
         let expr = if self.consume(Token::UnaryMinus) {
-            let target = self.parse_secondary_expr()?;
+            let target = self.parse_unary_expr()?;
             ast::unary_expr(target, "-@")
+        } else {
+            self.parse_unary_expr()?
+        };
+        self.lv -= 1;
+        Ok(expr)
+    }
+
+    // TODO: Parse ~, +
+    fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_unary_expr");
+        let expr = if self.consume(Token::Bang) {
+            let target = self.parse_secondary_expr()?;
+            ast::logical_not(target)
         } else {
             self.parse_secondary_expr()?
         };
