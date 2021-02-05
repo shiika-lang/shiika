@@ -153,6 +153,7 @@ impl HirMaker {
                     if def.is_initializer() {
                         // Already processed above
                     } else {
+                        log::trace!("method {}#{}", &fullname, &sig.name);
                         let method = self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
                         self.method_dict.add_method(&fullname, method);
                     }
@@ -160,6 +161,7 @@ impl HirMaker {
                 ast::Definition::ClassMethodDefinition {
                     sig, body_exprs, ..
                 } => {
+                    log::trace!("method {}.{}", &fullname, &sig.name);
                     let method = self.convert_method_def(&meta_name, &sig.name, &body_exprs)?;
                     self.method_dict.add_method(&meta_name, method);
                 }
@@ -188,6 +190,7 @@ impl HirMaker {
             sig, body_exprs, ..
         }) = initialize
         {
+            log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
                 self.create_initialize(&fullname, &sig.name, &body_exprs)?;
             self.method_dict.add_method(&fullname, sk_method);
@@ -297,7 +300,6 @@ impl HirMaker {
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod, Error> {
-        log::trace!("method {}#{}", &class_fullname, &name);
         let (sk_method, _ivars) =
             self.convert_method_def_(class_fullname, name, body_exprs, None)?;
         Ok(sk_method)

@@ -241,25 +241,32 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    pub fn substitute(&self, opt_class_tyargs: Option<&[TermTy]>, method_tyargs: &[TermTy]) -> TermTy {
+    /// - class_tyargs: None if the class is not generic (non-generic class
+    ///   can have a generic method)
+    /// - method_tyargs: None if not in a method context (eg. when creating
+    ///   `Array<Int>` from `Array<T>`)
+    pub fn substitute(&self, class_tyargs: Option<&[TermTy]>, method_tyargs: Option<&[TermTy]>) -> TermTy {
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
                 TyParamKind::Class => {
-                    if let Some(class_tyargs) = opt_class_tyargs {
-                        class_tyargs[*idx].clone()
+                    if let Some(tyargs) = class_tyargs {
+                        tyargs[*idx].clone()
                     } else {
                         self.clone()
                     }
                 }
-                TyParamKind::Method => method_tyargs[*idx].clone(),
+                TyParamKind::Method => {
+                    if let Some(tyargs) = method_tyargs {
+                        tyargs[*idx].clone()
+                    } else {
+                        self.clone()
+                    }
+                }
             },
-            TySpe {
-                base_name,
-                type_args,
-            } => {
+            TySpe { base_name, type_args } => {
                 let args = type_args
                     .iter()
-                    .map(|t| t.substitute(opt_class_tyargs, method_tyargs))
+                    .map(|t| t.substitute(class_tyargs, method_tyargs))
                     .collect();
                 ty::spe(base_name, args)
             }

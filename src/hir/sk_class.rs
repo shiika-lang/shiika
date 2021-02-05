@@ -48,7 +48,7 @@ impl SkClass {
         let method_sigs = self
             .method_sigs
             .iter()
-            .map(|(name, sig)| (name.clone(), sig.specialize(Some(tyargs), &[])))
+            .map(|(name, sig)| (name.clone(), sig.specialize(Some(tyargs), None)))
             .collect(); //::<Vec<_>>;
 
         SkClass {

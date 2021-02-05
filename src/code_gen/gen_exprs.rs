@@ -367,7 +367,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
 
         // Check `break` in block
-        if method_fullname.is_fn_x_call() {
+        if method_fullname.is_fn_x_call() && ret_ty.is_void_type() {
             let fn_x = receiver_value;
             let exit_status = self.build_ivar_load(fn_x, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_llvm_func_call(

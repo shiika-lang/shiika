@@ -17,14 +17,14 @@ impl MethodSignature {
     }
 
     /// Substitute type parameters with type arguments
-    pub fn specialize(&self, opt_class_tyargs: Option<&[TermTy]>, method_tyargs: &[TermTy]) -> MethodSignature {
+    pub fn specialize(&self, class_tyargs: Option<&[TermTy]>, method_tyargs: Option<&[TermTy]>) -> MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
-            ret_ty: self.ret_ty.substitute(opt_class_tyargs, method_tyargs),
+            ret_ty: self.ret_ty.substitute(class_tyargs, method_tyargs),
             params: self
                 .params
                 .iter()
-                .map(|param| param.substitute(opt_class_tyargs, method_tyargs))
+                .map(|param| param.substitute(class_tyargs, method_tyargs))
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
         }
@@ -38,10 +38,10 @@ pub struct MethodParam {
 }
 
 impl MethodParam {
-    pub fn substitute(&self, opt_class_tyargs: Option<&[TermTy]>, method_tyargs: &[TermTy]) -> MethodParam {
+    pub fn substitute(&self, class_tyargs: Option<&[TermTy]>, method_tyargs: Option<&[TermTy]>) -> MethodParam {
         MethodParam {
             name: self.name.clone(),
-            ty: self.ty.substitute(opt_class_tyargs, method_tyargs),
+            ty: self.ty.substitute(class_tyargs, method_tyargs),
         }
     }
 }
