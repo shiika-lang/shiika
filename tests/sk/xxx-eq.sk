@@ -24,6 +24,6 @@ var b = false
 b &&= true
 if b then puts "ng &&=" end
 b ||= true
-if not b then puts "ng ||=" end
+if !b then puts "ng ||=" end
 
 puts "ok"

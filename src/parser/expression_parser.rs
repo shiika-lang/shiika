@@ -69,67 +69,20 @@ impl<'a> Parser<'a> {
     pub fn parse_if_unless_modifier(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_if_unless_modifier");
-        let mut expr = self.parse_and_or_expr()?;
+        let mut expr = self.parse_call_wo_paren()?;
         if self.next_nonspace_token() == Token::KwIf {
             self.skip_ws();
             assert!(self.consume(Token::KwIf));
             self.skip_ws();
-            let cond = self.parse_and_or_expr()?;
+            let cond = self.parse_call_wo_paren()?;
             expr = ast::if_expr(cond, vec![expr], None)
         } else if self.next_nonspace_token() == Token::KwUnless {
             self.skip_ws();
             assert!(self.consume(Token::KwUnless));
             self.skip_ws();
-            let cond = ast::logical_not(self.parse_and_or_expr()?);
+            let cond = ast::logical_not(self.parse_call_wo_paren()?);
             expr = ast::if_expr(cond, vec![expr], None)
         }
-        self.lv -= 1;
-        Ok(expr)
-    }
-
-    pub fn parse_and_or_expr(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1;
-        self.debug_log("parse_and_or_expr");
-        let mut expr = self.parse_not_expr()?;
-        self.skip_ws();
-        loop {
-            match self.current_token() {
-                Token::KwAnd => {
-                    self.consume_token();
-                    self.skip_wsn();
-                    expr = ast::logical_and(expr, self.parse_not_expr()?);
-                }
-                Token::KwOr => {
-                    self.consume_token();
-                    self.skip_wsn();
-                    expr = ast::logical_or(expr, self.parse_not_expr()?);
-                }
-                _ => break,
-            }
-            self.skip_ws();
-        }
-        self.lv -= 1;
-        Ok(expr)
-    }
-
-    fn parse_not_expr(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1;
-        self.debug_log("parse_not_expr");
-        let expr = match self.current_token() {
-            Token::KwNot => {
-                self.consume_token();
-                self.skip_ws();
-                let inner = self.parse_not_expr()?;
-                ast::logical_not(inner)
-            }
-            Token::Bang => {
-                self.consume_token();
-                self.skip_ws();
-                let inner = self.parse_call_wo_paren()?;
-                ast::logical_not(inner)
-            }
-            _ => self.parse_call_wo_paren()?,
-        };
         self.lv -= 1;
         Ok(expr)
     }
@@ -526,7 +479,7 @@ impl<'a> Parser<'a> {
         self.skip_ws();
 
         // cond
-        let cond_expr = self.parse_and_or_expr()?;
+        let cond_expr = self.parse_call_wo_paren()?;
         self.skip_ws();
 
         // `then`
@@ -586,7 +539,7 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_unless_expr");
         assert!(self.consume(Token::KwUnless));
         self.skip_ws();
-        let cond_expr = self.parse_and_or_expr()?;
+        let cond_expr = self.parse_call_wo_paren()?;
         self.skip_ws();
         if self.consume(Token::KwThen) {
             self.skip_wsn();
@@ -609,7 +562,7 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_while_expr");
         assert!(self.consume(Token::KwWhile));
         self.skip_ws();
-        let cond_expr = self.parse_and_or_expr()?;
+        let cond_expr = self.parse_call_wo_paren()?;
         self.skip_ws();
         self.expect(Token::Separator)?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
@@ -936,7 +889,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error!(self, "unexpected comma in an array literal"))
                 }
                 _ => {
-                    let expr = self.parse_and_or_expr()?;
+                    let expr = self.parse_call_wo_paren()?;
                     exprs.push(expr);
                     self.skip_wsn();
                     match self.current_token() {
