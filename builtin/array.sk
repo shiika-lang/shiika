@@ -2,6 +2,17 @@ class Array<T>
   BYTES_OF_PTR = 8  # Assuming 64bit env
   INITIAL_CAPA = 10
 
+  # Build an array of length `len` by passing index to `f`
+  def self.build<U>(len: Int, f: Fn1<Int, U>) -> Array<U>
+    ret = Array<U>.new
+    ret.reserve(len)
+    var i=0; while i<len
+      ret.push(f.call(i))
+      i += 1
+    end
+    ret
+  end
+
   # Creates an empty array and preallocate memory for `capa` elements.
   def self.repeat(item: T, len: Int) -> Array<T>
     ret = Array<T>.new
