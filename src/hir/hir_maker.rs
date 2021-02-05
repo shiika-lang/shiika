@@ -106,9 +106,9 @@ impl HirMaker {
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
         match def {
             // Extract instance/class methods
-            ast::Definition::ClassDefinition { name, defs, .. } => {
+            ast::Definition::ClassDefinition { name, typarams, defs, .. } => {
                 let full = name.add_namespace("");
-                self.process_defs_in_class(&full, defs)?;
+                self.process_defs_in_class(&full, typarams.clone(), defs)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_const(name, expr)?;
@@ -122,12 +122,13 @@ impl HirMaker {
     fn process_defs_in_class(
         &mut self,
         fullname: &ClassFullname,
+        typarams: Vec<String>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let meta_name = fullname.meta_name();
         let mut current = CtxKind::Class;
         self.ctx.swap_current(&mut current);
-        self.ctx.classes.push(ClassCtx::new(fullname.clone()));
+        self.ctx.classes.push(ClassCtx::new(fullname.clone(), typarams));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
@@ -168,9 +169,9 @@ impl HirMaker {
                 ast::Definition::ConstDefinition { .. } => {
                     // Already processed above
                 }
-                ast::Definition::ClassDefinition { name, defs, .. } => {
+                ast::Definition::ClassDefinition { name, defs, typarams, .. } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.process_defs_in_class(&full, defs)?;
+                    self.process_defs_in_class(&full, typarams.clone(), defs)?;
                 }
             }
         }

@@ -141,7 +141,7 @@ impl ClassDict {
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&fullname.meta_name(), sig, typarams);
+                    let hir_sig = signature::create_signature(&fullname.meta_name(), sig, &[]);
                     class_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ConstDefinition { .. } => (),
