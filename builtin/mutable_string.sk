@@ -20,11 +20,20 @@ class MutableString
     var @bytesize = 0
   end
 
-  def append(other: String) -> Void
+  # Concatenates `other` to `self`.
+  # The content of `self` will be changed (`other` is not.)
+  def append(other: String)
     new_bytesize = @bytesize + other.bytesize
     _realloc_if_needed(new_bytesize)
     Shiika::Internal::Memory.memcpy(@ptr + @bytesize, other.ptr, other.bytesize)
     @bytesize = new_bytesize
+  end
+
+  # Appends a byte to the end of `self`.
+  def append_byte(b: Int)
+    @bytesize += 1
+    _realloc_if_needed(@bytesize)
+    write_byte(@bytesize - 1, b)
   end
 
   # Create a immutable clone of self. The contents of the returned string will not change
