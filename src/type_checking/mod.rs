@@ -116,7 +116,8 @@ fn check_arg_types(
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
         if !arg_ty.conforms_to(&param.ty, class_dict) {
             return Err(type_error!(
-                "{} takes {} but got {} (receiver: {:?}, args: {:?})",
+                "the argument `{}' of `{}' should be {} but got {} (receiver: {:?}, args: {:?})",
+                param.name,
                 sig.fullname,
                 param.ty.fullname,
                 arg_ty.fullname,
