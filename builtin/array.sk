@@ -14,8 +14,8 @@ class Array<T>
   end
 
   # Creates an empty array and preallocate memory for `capa` elements.
-  def self.repeat(item: T, len: Int) -> Array<T>
-    ret = Array<T>.new
+  def self.repeat<U>(item: U, len: Int) -> Array<U>
+    ret = Array<U>.new
     ret.reserve(len)
     var i=0; while i<len
       ret.push(item)

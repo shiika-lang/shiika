@@ -34,14 +34,17 @@ impl ToplevelCtx {
 pub struct ClassCtx {
     /// Current namespace
     pub namespace: ClassFullname,
+    /// Names of class type parameters
+    pub typarams: Vec<String>,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
 }
 
 impl ClassCtx {
-    pub fn new(namespace: ClassFullname) -> ClassCtx {
+    pub fn new(namespace: ClassFullname, typarams: Vec<String>) -> ClassCtx {
         ClassCtx {
             namespace,
+            typarams,
             lvars: Default::default(),
         }
     }
@@ -329,12 +332,14 @@ pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
 impl HirMaker {
     /// Returns type parameter of the current class
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
-        let typarams = &self
-            .class_dict
-            .find_class(&self.ctx.self_ty().fullname)
-            .unwrap()
-            .typarams;
-        typarams.iter().map(|x| x.name.clone()).collect()
+        if let Some(class_ctx) = self.ctx.classes.last() {
+            if let Some(method_ctx) = &self.ctx.method {
+                if !method_ctx.signature.fullname.is_class_method() {
+                    return class_ctx.typarams.clone();
+                }
+            }
+        }
+        vec![]
     }
 
     /// Returns type parameter of the current method

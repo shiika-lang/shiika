@@ -119,6 +119,11 @@ impl MethodFullname {
         }
         false
     }
+
+    /// Returns true if this method isn't an instance method
+    pub fn is_class_method(&self) -> bool {
+        self.full_name.starts_with("Meta:")
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
