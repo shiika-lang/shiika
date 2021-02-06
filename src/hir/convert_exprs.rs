@@ -85,6 +85,8 @@ impl HirMaker {
 
             AstExpressionBody::Break => self.convert_break_expr(),
 
+            AstExpressionBody::Return { arg } => self.convert_return_expr(arg),
+
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
                 self.convert_lvar_assign(name, &*rhs, is_var)
             }
@@ -226,6 +228,10 @@ impl HirMaker {
             return Err(error::program_error("`break' outside of a loop"));
         }
         Ok(Hir::break_expression(from))
+    }
+
+    fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
+        todo!()
     }
 
     fn convert_lvar_assign(
