@@ -1,21 +1,40 @@
 # Shiika
 
-is a statically-typed programming language.
+Shiika is a statically-typed, Ruby-like programming language.
 
-It looks like Ruby, but has explicit type annotations.
-Aims to be Kotlin or Swift in Rubyish style.
+Ruby has been my "mother tongue" since 2000. What I love about Ruby are:
 
-The name "Shiika" comes from Japanese word "詩歌"(poetry).
-It should be pleasant to read Shiika programs, not only to write them.
+- Easy to write
+  - Method call without parenthesis (eg. `p foo`)
+  - Handy syntaxes like `#{}`, modifier `if`, etc.
+  - Powerful, small number of core classes (eg. Array also behaves as stack or queue)
+
+On the other hand, static typing has many merits.
+
+- Better performance (it makes optimization easier)
+- Easy to refactor (by checking type errors without execution)
+
+Shiika tries to combine these.
+
+Most of the static typing languages, such as C++/Java/Scala/Go/Swift/Kotlin/Rust, etc. are designed for execution speed. However what I want a "lightweight" static typing language.
 
 ## Key features
 
 - Ruby-like syntax
-- Compiles to LLVM IRs
 - Static type checking
-- Consistency: everything is an object
-- Is a "scripting" language (prefer easiness over performance; use C or Rust for performance-critical parts and load it as a library)
-  - This does not mean Shiika is only for small programs. You know, Ruby is designed as a scripting language but it is considered "production-ready" nowadays
+- Everything is an object
+- Written in Rust, compiles to LLVM IR
+
+### Design policy
+
+- Easiness over performance
+  - Shiika is a glue language. Use C or Rust for performance-critical parts and load it as a library
+- Readability matters
+  - The name "Shiika" comes from Japanese word "詩歌"(poetry). It should be pleasant to read Shiika programs, not only to write them.
+- Easy to learn
+  - There may be more than one way to do it, but not too many.
+- Scalable
+  - Shiika is not only for small programs; Ruby is designed as a "scripting" language but used in production now
 
 ### Why not [Crystal](https://crystal-lang.org/)?
 
@@ -27,7 +46,7 @@ Shiika has lots in common with Crystal. However:
 
 ## Example
 
-```crystal
+```
 class A
   def fib(n: Int) -> Int
     if n < 3
@@ -62,8 +81,8 @@ See [Issues](https://github.com/yhara/shiika/issues)
 - [x] v0.3.0 - Generics
 - [x] v0.4.0 - Anonymous function (lambda)
 - [x] v0.5.0 - Virtual methods
+- [x] - Generic methods
 - [ ] - Enums
-- [ ] - Generic methods
 - [ ] - Modules (like Ruby's `module`)
 - [ ] - Something like Ruby's `require`
 - After v1.0.0
@@ -73,7 +92,7 @@ See [Issues](https://github.com/yhara/shiika/issues)
     - Pattern matching
     - Exceptions?
   - Built-in library
-    - Bignum, Hash, etc
+    - Bignum, etc
   - Standard library?
     - Http, etc?
   - Package system
