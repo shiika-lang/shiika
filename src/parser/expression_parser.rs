@@ -96,26 +96,33 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_call_wo_paren");
 
         // If `LowerWord + Space`, see if the rest is an argument list
-        let token = self.current_token();
-        if let Token::LowerWord(s) = token.clone() {
-            let next_token = self.peek_next_token();
-            if next_token == Token::Space {
-                let cur = self.current_position();
-                self.consume_token();
-                self.set_lexer_state(LexerState::ExprArg);
-                assert!(self.consume(Token::Space));
-                let mut args = self.parse_operator_exprs()?;
-                self.debug_log(&format!("tried/args: {:?}", args));
-                if !args.is_empty() {
-                    self.skip_ws();
-                    if let Some(lambda) = self.parse_opt_do_block()? {
-                        args.push(lambda);
+        let token = self.current_token().clone();
+        match &token {
+            Token::LowerWord(_) | Token::KwReturn => {
+                let next_token = self.peek_next_token();
+                if next_token == Token::Space {
+                    let cur = self.current_position();
+                    self.consume_token();
+                    self.set_lexer_state(LexerState::ExprArg);
+                    assert!(self.consume(Token::Space));
+                    let mut args = self.parse_operator_exprs()?;
+                    self.debug_log(&format!("tried/args: {:?}", args));
+                    if !args.is_empty() {
+                        self.skip_ws();
+                        if let Some(lambda) = self.parse_opt_do_block()? {
+                            args.push(lambda);
+                        }
+                        self.lv -= 1;
+                        if let Token::LowerWord(s) = &token {
+                            return Ok(ast::method_call(None, &s, args, vec![], false, false));
+                        } else {
+                            return Ok(ast::method_call(None, "TODO", args, vec![], false, false));
+                        }
                     }
-                    self.lv -= 1;
-                    return Ok(ast::method_call(None, &s, args, vec![], false, false));
+                    self.rewind_to(cur)
                 }
-                self.rewind_to(cur)
             }
+            _ => ()
         }
 
         // Otherwise, read an expression
