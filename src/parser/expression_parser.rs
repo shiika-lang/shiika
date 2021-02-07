@@ -70,15 +70,15 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_if_unless_modifier");
         let mut expr = self.parse_call_wo_paren()?;
-        if self.next_nonspace_token() == Token::KwIf {
+        if self.next_nonspace_token() == Token::ModIf {
             self.skip_ws();
-            assert!(self.consume(Token::KwIf));
+            assert!(self.consume(Token::ModIf));
             self.skip_ws();
             let cond = self.parse_call_wo_paren()?;
             expr = ast::if_expr(cond, vec![expr], None)
-        } else if self.next_nonspace_token() == Token::KwUnless {
+        } else if self.next_nonspace_token() == Token::ModUnless {
             self.skip_ws();
-            assert!(self.consume(Token::KwUnless));
+            assert!(self.consume(Token::ModUnless));
             self.skip_ws();
             let cond = ast::logical_not(self.parse_call_wo_paren()?);
             expr = ast::if_expr(cond, vec![expr], None)
@@ -119,7 +119,8 @@ impl<'a> Parser<'a> {
                             return Ok(ast::method_call(None, "TODO", args, vec![], false, false));
                         }
                     }
-                    self.rewind_to(cur)
+                    self.rewind_to(cur);
+                    self.set_lexer_state(LexerState::ExprArg);
                 }
             }
             _ => ()
@@ -720,6 +721,10 @@ impl<'a> Parser<'a> {
                 let name = s.to_string();
                 self.consume_token();
                 self.parse_primary_method_call(&name)
+            }
+            Token::KwReturn => {
+                self.consume_token();
+                Ok(ast::return_expr(None))
             }
             Token::UpperWord(s) => {
                 let name = s.to_string();

@@ -244,7 +244,7 @@ impl<'a> Lexer<'a> {
         } else {
             let (t, s) = match self.char_type(c) {
                 CharType::Space => (self.read_space(&mut next_cur), None),
-                CharType::Separator => (self.read_separator(&mut next_cur), None),
+                CharType::Separator => (self.read_separator(&mut next_cur), Some(LexerState::ExprBegin)),
                 CharType::Comment => (self.read_comment(&mut next_cur), None),
                 CharType::UpperWord => (
                     self.read_upper_word(&mut next_cur, None),
@@ -344,8 +344,20 @@ impl<'a> Lexer<'a> {
             "end" => (Token::KwEnd, LexerState::ExprEnd),
             "def" => (Token::KwDef, LexerState::ExprBegin),
             "var" => (Token::KwVar, LexerState::ExprBegin),
-            "if" => (Token::KwIf, LexerState::ExprBegin),
-            "unless" => (Token::KwUnless, LexerState::ExprBegin),
+            "if" => {
+                if self.state == LexerState::ExprBegin {
+                    (Token::KwIf, LexerState::ExprBegin)
+                } else {
+                    (Token::ModIf, LexerState::ExprBegin)
+                }
+            }
+            "unless" => {
+                if self.state == LexerState::ExprBegin {
+                    (Token::KwUnless, LexerState::ExprBegin)
+                } else {
+                    (Token::ModUnless, LexerState::ExprBegin)
+                }
+            }
             "while" => (Token::KwWhile, LexerState::ExprBegin),
             "break" => (Token::KwBreak, LexerState::ExprEnd),
             "return" => (Token::KwReturn, LexerState::ExprBegin),

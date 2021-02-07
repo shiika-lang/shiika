@@ -85,6 +85,9 @@ pub enum Token {
     KwSelf,
     KwTrue,
     KwFalse,
+    // Keywords (modifier version)
+    ModIf,
+    ModUnless,
 }
 
 impl Token {
@@ -204,6 +207,9 @@ impl Token {
             Token::KwSelf => true,
             Token::KwTrue => true,
             Token::KwFalse => true,
+            // Keywords (modifier version)
+            Token::ModIf => false,
+            Token::ModUnless => false,
         }
     }
 }
