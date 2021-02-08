@@ -113,10 +113,17 @@ impl<'a> Parser<'a> {
                             args.push(lambda);
                         }
                         self.lv -= 1;
-                        if let Token::LowerWord(s) = &token {
-                            return Ok(ast::method_call(None, &s, args, vec![], false, false));
-                        } else {
-                            return Ok(ast::method_call(None, "TODO", args, vec![], false, false));
+                        match &token {
+                            Token::LowerWord(s) => {
+                                return Ok(ast::method_call(None, &s, args, vec![], false, false));
+                            }
+                            Token::KwReturn => {
+                                if args.len() >= 2 {
+                                    return Err(parse_error!(self, "`return' cannot take more than one args"));
+                                }
+                                return Ok(ast::return_expr(Some(args.pop().unwrap())));
+                            }
+                            _ => panic!("must not happen")
                         }
                     }
                     self.rewind_to(cur);
