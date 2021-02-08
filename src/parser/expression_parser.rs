@@ -96,44 +96,18 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_call_wo_paren");
 
         // If `LowerWord + Space`, see if the rest is an argument list
-        let token = self.current_token().clone();
-        match &token {
+        match &self.current_token() {
             Token::LowerWord(_) | Token::KwReturn => {
-                let next_token = self.peek_next_token();
-                if next_token == Token::Space {
-                    let cur = self.current_position();
-                    self.consume_token();
-                    self.set_lexer_state(LexerState::ExprArg);
-                    assert!(self.consume(Token::Space));
-                    let mut args = self.parse_operator_exprs()?;
-                    self.debug_log(&format!("tried/args: {:?}", args));
-                    if !args.is_empty() {
-                        self.skip_ws();
-                        if let Some(lambda) = self.parse_opt_do_block()? {
-                            args.push(lambda);
-                        }
-                        self.lv -= 1;
-                        match &token {
-                            Token::LowerWord(s) => {
-                                return Ok(ast::method_call(None, &s, args, vec![], false, false));
-                            }
-                            Token::KwReturn => {
-                                if args.len() >= 2 {
-                                    return Err(parse_error!(self, "`return' cannot take more than one args"));
-                                }
-                                return Ok(ast::return_expr(Some(args.pop().unwrap())));
-                            }
-                            _ => panic!("must not happen")
-                        }
+                if self.peek_next_token() == Token::Space {
+                    if let Some(expr) = self._try_parse_call_wo_paren()? {
+                        return Ok(expr)
                     }
-                    self.rewind_to(cur);
-                    self.set_lexer_state(LexerState::ExprArg);
                 }
             }
             _ => ()
         }
 
-        // Otherwise, read an expression
+        // If not, read an expression
         let expr = self.parse_operator_expr()?;
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
@@ -155,6 +129,43 @@ impl<'a> Parser<'a> {
 
         self.lv -= 1;
         Ok(expr)
+    }
+
+    // Returns `Some` if there is one of the following.
+    // Otherwise, returns `None` and rewind the lexer position.
+    // - `foo 1, 2, 3`
+    // - `return 1`
+    fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
+        let token = self.current_token().clone();
+        let cur = self.current_position();
+        self.consume_token();
+        self.set_lexer_state(LexerState::ExprArg);
+        assert!(self.consume(Token::Space));
+        let mut args = self.parse_operator_exprs()?;
+        self.debug_log(&format!("tried/args: {:?}", args));
+        if !args.is_empty() {
+            self.skip_ws();
+            if let Some(lambda) = self.parse_opt_do_block()? {
+                args.push(lambda);
+            }
+            self.lv -= 1;
+            match &token {
+                Token::LowerWord(s) => {
+                    return Ok(Some(ast::method_call(None, &s, args, vec![], false, false)));
+                }
+                Token::KwReturn => {
+                    if args.len() >= 2 {
+                        return Err(parse_error!(self, "`return' cannot take more than one args"));
+                    }
+                    return Ok(Some(ast::return_expr(Some(args.pop().unwrap()))));
+                }
+                _ => panic!("must not happen: {:?}", self.current_token())
+            }
+        }
+        // Failed. Rollback the lexer changes
+        self.rewind_to(cur);
+        self.set_lexer_state(LexerState::ExprArg);
+        Ok(None)
     }
 
     /// Parse successive operator_exprs delimited by `,`
