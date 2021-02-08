@@ -157,14 +157,6 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_args(&mut self) -> Result<Vec<AstExpression>, Error> {
-        self.lv += 1;
-        self.debug_log("parse_args");
-        let expr = self.parse_operator_exprs()?;
-        self.lv -= 1;
-        Ok(expr)
-    }
-
     /// Parse successive operator_exprs delimited by `,`
     ///
     /// May return empty Vec if there are no values
@@ -710,7 +702,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::RParen) {
             args = vec![]
         } else {
-            args = self.parse_args()?;
+            args = self.parse_operator_exprs()?;
             self.skip_wsn();
             self.expect(Token::RParen)?;
         }
