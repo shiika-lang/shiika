@@ -155,6 +155,10 @@ pub enum HirExpressionBase {
     HirBreakExpression {
         from: HirBreakFrom,
     },
+    HirReturnExpression {
+        from: HirReturnFrom,
+        arg: Box<Option<HirExpression>>,
+    },
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -263,6 +267,14 @@ pub enum HirBreakFrom {
     Block,
 }
 
+/// Denotes what a `return` escapes from
+#[derive(Debug)]
+pub enum HirReturnFrom {
+    Fn,
+    Block,
+    Method,
+}
+
 impl Hir {
     pub fn expressions(exprs: Vec<HirExpression>) -> HirExpressions {
         HirExpressions::new(exprs)
@@ -327,6 +339,13 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Never"),
             node: HirExpressionBase::HirBreakExpression { from },
+        }
+    }
+
+    pub fn return_expression(from: HirReturnFrom, arg_expr: Option<HirExpression>) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Never"),
+            node: HirExpressionBase::HirReturnExpression { from, arg: Box::new(arg_expr) },
         }
     }
 

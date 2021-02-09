@@ -225,13 +225,44 @@ impl HirMaker {
         } else if self.ctx.current == CtxKind::While {
             from = HirBreakFrom::While;
         } else {
-            return Err(error::program_error("`break' outside of a loop"));
+            return Err(error::program_error("`break' outside a loop"));
         }
         Ok(Hir::break_expression(from))
     }
 
     fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
-        todo!()
+        let from = self._validate_return()?;
+        self._validate_return_type(arg)?;
+
+        let arg_expr = if let Some(x) = arg {
+            Some(self.convert_expr(x)?)
+        } else {
+            None
+        };
+        Ok(Hir::return_expression(from, arg_expr))
+    }
+
+    /// Check if `return' is valid in the current context
+    fn _validate_return(&self) -> Result<HirReturnFrom, Error> {
+        if let Some(lambda_ctx) = self.ctx.lambdas.last() {
+            if lambda_ctx.is_fn {
+                Ok(HirReturnFrom::Fn)
+            } else if self.ctx.method.is_some() {
+                Ok(HirReturnFrom::Block)
+            } else {
+                Err(error::program_error("`return' outside a loop"))
+            }
+        } else if self.ctx.method.is_some() {
+            Ok(HirReturnFrom::Method)
+        } else {
+            Err(error::program_error("`return' outside a loop"))
+        }
+    }
+
+    /// Check if the argument of `return' is valid
+    fn _validate_return_type(&self, arg: &Option<Box<AstExpression>>) -> Result<(), Error> {
+        // TODO
+        Ok(())
     }
 
     fn convert_lvar_assign(

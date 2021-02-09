@@ -53,6 +53,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 body_exprs,
             } => self.gen_while_expr(ctx, &cond_expr, &body_exprs),
             HirBreakExpression { from } => self.gen_break_expr(ctx, from),
+            HirReturnExpression { from, arg } => self.gen_return_expr(ctx, arg, from),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
             HirIVarAssign {
                 name,
@@ -274,6 +275,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 Ok(dummy_value)
             }
         }
+    }
+
+    fn gen_return_expr(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        arg: &Option<HirExpression>,
+        from: &HirReturnFrom,
+    ) -> Result<inkwell::values::BasicValueEnum, Error> {
+        let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
+        // Jump to the end of the llvm func
+        self.builder
+            .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+        Ok(dummy_value)
     }
 
     fn gen_lvar_assign(
