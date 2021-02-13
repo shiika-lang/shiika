@@ -53,7 +53,7 @@ impl ClassCtx {
 #[derive(Debug)]
 pub struct MethodCtx {
     /// Signature of the current method
-    signature: MethodSignature,
+    pub signature: MethodSignature,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
     /// List of instance variables in an initializer found so far.
@@ -143,6 +143,12 @@ impl HirMakerContext {
             method: None,
             lambdas: vec![],
         }
+    }
+
+    /// Returns true if current context is a fn
+    pub fn current_is_fn(&self) -> bool {
+        self.current == CtxKind::Lambda &&
+            self.lambdas.last().unwrap().is_fn
     }
 
     /// Set `c` to `self.current` and the original value to `c`
