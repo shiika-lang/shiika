@@ -235,9 +235,9 @@ impl HirMaker {
         self._validate_return_type(arg)?;
 
         let arg_expr = if let Some(x) = arg {
-            Some(self.convert_expr(x)?)
+            self.convert_expr(x)?
         } else {
-            None
+            void_const_ref()
         };
         Ok(Hir::return_expression(from, arg_expr))
     }

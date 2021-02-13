@@ -157,7 +157,7 @@ pub enum HirExpressionBase {
     },
     HirReturnExpression {
         from: HirReturnFrom,
-        arg: Box<Option<HirExpression>>,
+        arg: Box<HirExpression>,
     },
     HirLVarAssign {
         name: String,
@@ -342,7 +342,7 @@ impl Hir {
         }
     }
 
-    pub fn return_expression(from: HirReturnFrom, arg_expr: Option<HirExpression>) -> HirExpression {
+    pub fn return_expression(from: HirReturnFrom, arg_expr: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
             node: HirExpressionBase::HirReturnExpression { from, arg: Box::new(arg_expr) },

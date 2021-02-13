@@ -280,7 +280,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_return_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        arg: &Option<HirExpression>,
+        arg: &HirExpression,
         from: &HirReturnFrom,
     ) -> Result<inkwell::values::BasicValueEnum, Error> {
         let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
