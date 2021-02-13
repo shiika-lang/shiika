@@ -120,10 +120,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
-    pub fn box_bool<'a>(
-        &'a self,
-        b: inkwell::values::IntValue<'a>,
-    ) -> inkwell::values::BasicValueEnum {
+    pub fn box_bool(
+        &self,
+        b: inkwell::values::IntValue<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function("box_bool").unwrap();
         self.builder
             .build_call(f, &[b.into()], "bool")
@@ -133,10 +133,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert Shiika Bool into LLVM bool(i1)
-    pub fn unbox_bool<'a>(
-        &'a self,
-        sk_bool: inkwell::values::BasicValueEnum<'a>,
-    ) -> inkwell::values::IntValue {
+    pub fn unbox_bool(
+        &self,
+        sk_bool: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::IntValue<'run> {
         let f = self.module.get_function("unbox_bool").unwrap();
         self.builder
             .build_call(f, &[sk_bool], "b")
@@ -147,10 +147,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM int into Shiika Int
-    pub fn box_int<'a>(
-        &'a self,
-        i: &inkwell::values::IntValue<'a>,
-    ) -> inkwell::values::BasicValueEnum {
+    pub fn box_int(
+        &self,
+        i: &inkwell::values::IntValue<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function("box_int").unwrap();
         self.builder
             .build_call(f, &[i.as_basic_value_enum()], "int")
@@ -160,10 +160,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert Shiika Int into LLVM int
-    pub fn unbox_int<'a>(
-        &'a self,
-        sk_int: inkwell::values::BasicValueEnum<'a>,
-    ) -> inkwell::values::IntValue {
+    pub fn unbox_int(
+        &self,
+        sk_int: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::IntValue<'run> {
         let f = self.module.get_function("unbox_int").unwrap();
         self.builder
             .build_call(f, &[sk_int], "i")
@@ -174,10 +174,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM float into Shiika Float
-    pub fn box_float<'a>(
-        &'a self,
-        fl: &inkwell::values::FloatValue<'a>,
-    ) -> inkwell::values::BasicValueEnum {
+    pub fn box_float(
+        &self,
+        fl: &inkwell::values::FloatValue<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function("box_float").unwrap();
         self.builder
             .build_call(f, &[fl.as_basic_value_enum()], "float")
@@ -187,10 +187,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert Shiika Float into LLVM float
-    pub fn unbox_float<'a>(
-        &'a self,
-        sk_float: inkwell::values::BasicValueEnum<'a>,
-    ) -> inkwell::values::FloatValue {
+    pub fn unbox_float(
+        &self,
+        sk_float: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::FloatValue<'run> {
         let f = self.module.get_function("unbox_float").unwrap();
         self.builder
             .build_call(f, &[sk_float], "f")
@@ -201,10 +201,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
-    pub fn box_i8ptr<'a>(
-        &'a self,
-        p: inkwell::values::PointerValue<'a>,
-    ) -> inkwell::values::BasicValueEnum {
+    pub fn box_i8ptr(
+        &self,
+        p: inkwell::values::PointerValue<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function("box_i8ptr").unwrap();
         self.builder
             .build_call(f, &[p.as_basic_value_enum()], "i8ptr")
@@ -214,10 +214,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*
-    pub fn unbox_i8ptr<'a>(
-        &'a self,
-        sk_obj: inkwell::values::BasicValueEnum<'a>,
-    ) -> inkwell::values::PointerValue {
+    pub fn unbox_i8ptr(
+        &self,
+        sk_obj: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::PointerValue<'run> {
         let f = self.module.get_function("unbox_i8ptr").unwrap();
         self.builder
             .build_call(f, &[sk_obj], "p")
