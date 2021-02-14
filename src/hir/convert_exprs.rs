@@ -187,6 +187,8 @@ impl HirMaker {
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
+        } else if then_hirs.ty.is_void_type() {
+            ty::raw("Void")
         } else {
             then_hirs.ty.clone()
         };

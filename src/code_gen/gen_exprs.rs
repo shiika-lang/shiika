@@ -283,10 +283,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg: &'hir HirExpression,
         from: &HirReturnFrom,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+        let value = self.gen_expr(ctx, arg)?;
         let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
         // Jump to the end of the llvm func
         self.builder
             .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+        let block_end = self.builder.get_insert_block().unwrap();
+        ctx.returns.push((value, block_end));
         Ok(dummy_value)
     }
 

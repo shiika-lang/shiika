@@ -118,7 +118,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             params,
             Right(exprs),
             lvars,
-            ret_ty.is_void_type(),
+            ret_ty,
             true,
         )
     }

@@ -414,12 +414,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             arg_types.insert(0, self.llvm_type(ty));
         }
 
-        if ret_ty.is_void_type() {
-            self.void_type.fn_type(&arg_types, false)
-        } else {
-            let result_type = self.llvm_type(&ret_ty);
-            result_type.fn_type(&arg_types, false)
-        }
+        let result_type = self.llvm_type(&ret_ty);
+        result_type.fn_type(&arg_types, false)
     }
 
     fn gen_methods(
@@ -440,7 +436,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
-            method.signature.ret_ty.is_void_type(),
+            &method.signature.ret_ty,
             false,
         )
     }
@@ -453,7 +449,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
-        is_void: bool,
+        ret_ty: &TermTy,
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
@@ -483,11 +479,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_method_body(function, None, is_void, &exprs, lvar_ptrs)?
+                    self.gen_shiika_method_body(function, None, ret_ty, &exprs, lvar_ptrs)?
                 }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(function, Some(params), is_void, &exprs, lvar_ptrs)?;
+                self.gen_shiika_lambda_body(function, Some(params), ret_ty, &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
@@ -522,20 +518,29 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
-        void_method: bool,
+        ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
         let (end_block, mut ctx) =
             self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
+        let last_block = function.get_last_basic_block().unwrap();
+
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
-        if void_method {
-            self.builder.build_return(None);
-        } else {
-            self.builder.build_return(Some(&last_value));
+
+//        let mut incomings = vec![];
+//        std::mem::swap(&mut ctx.returns, &mut incomings);
+        let mut incomings = ctx.returns.iter().map(|(v, b)| {
+            (v as &dyn inkwell::values::BasicValue, *b)
+        }).collect::<Vec<_>>();
+        if !exprs.ty.is_never_type() {
+            incomings.push((&last_value, last_block));
         }
+        let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
+        phi_node.add_incoming(incomings.as_slice());
+        self.builder.build_return(Some(&phi_node.as_basic_value()));
         Ok(())
     }
 
@@ -544,7 +549,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
-        void_ret: bool,
+        ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
@@ -553,13 +558,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
-        if void_ret {
-            self.builder.build_return(None);
-        } else {
-            let llvm_type = self.llvm_type(&exprs.ty);
-            let v = self.builder.build_bitcast(last_value, llvm_type, "");
-            self.builder.build_return(Some(&v));
-        }
+        let llvm_type = self.llvm_type(&exprs.ty);
+        let v = self.builder.build_bitcast(last_value, llvm_type, "");
+        self.builder.build_return(Some(&v));
         Ok(())
     }
 
