@@ -485,7 +485,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(self.build_ivar_load(object, *idx, name))
     }
 
-    fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum<'run> {
+    pub fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = self
             .module
             .get_global(&fullname.0)

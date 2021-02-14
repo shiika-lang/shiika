@@ -10,6 +10,12 @@ const OBJ_HEADER_SIZE: usize = 1;
 const OBJ_VTABLE_IDX: usize = 0;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
+    /// Build IR to return ::Void
+    pub fn build_return_void(&self) {
+        let v = self.gen_const_ref(&const_fullname("::Void"));
+        self.builder.build_return(Some(&v));
+    }
+
     /// Load value of an instance variable
     pub fn build_ivar_load(
         &self,

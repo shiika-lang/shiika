@@ -329,7 +329,11 @@ impl HirMaker {
 
         let mut current = CtxKind::Method;
         self.ctx.swap_current(&mut current);
-        let hir_exprs = self.convert_exprs(body_exprs)?;
+        let mut hir_exprs = self.convert_exprs(body_exprs)?;
+        // Insert ::Void so that last expr always matches to ret_ty
+        if signature.ret_ty.is_void_type() {
+            hir_exprs.voidify();
+        }
         self.ctx.swap_current(&mut current);
 
         let mut method_ctx = self.ctx.method.take().unwrap();
