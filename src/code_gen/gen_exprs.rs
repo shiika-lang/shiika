@@ -245,7 +245,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // WhileEnd:
         self.builder.position_at_end(*rc2);
-        Ok(self.i32_type.const_int(0, false).as_basic_value_enum()) // return Void
+        Ok(self.gen_const_ref(&const_fullname("::Void")))
     }
 
     fn gen_break_expr(
