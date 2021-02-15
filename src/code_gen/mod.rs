@@ -414,8 +414,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             arg_types.insert(0, self.llvm_type(ty));
         }
 
-        let result_type = self.llvm_type(&ret_ty);
-        result_type.fn_type(&arg_types, false)
+        if ret_ty.is_never_type() {
+            // `Never` does not have an instance
+            self.void_type.fn_type(&arg_types, false)
+        } else {
+            self.llvm_type(&ret_ty).fn_type(&arg_types, false)
+        }
     }
 
     fn gen_methods(
@@ -525,22 +529,30 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let (end_block, mut ctx) =
             self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        let last_block = function.get_last_basic_block().unwrap();
+        let ret_block = self.context.append_basic_block(ctx.function, "Ret");
+        self.builder.build_unconditional_branch(ret_block);
+        self.builder.position_at_end(ret_block);
 
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
 
-//        let mut incomings = vec![];
-//        std::mem::swap(&mut ctx.returns, &mut incomings);
-        let mut incomings = ctx.returns.iter().map(|(v, b)| {
-            (v as &dyn inkwell::values::BasicValue, *b)
-        }).collect::<Vec<_>>();
-        if !exprs.ty.is_never_type() {
-            incomings.push((&last_value, last_block));
+        if ret_ty.is_never_type() {
+            // `Never` does not have an instance
+            self.builder.build_return(None);
+        } else if ret_ty.is_void_type() {
+            self.build_return_void();
+        } else {
+            // Make a phi node from the `return`s
+            let mut incomings = ctx.returns.iter().map(|(v, b)| {
+                (v as &dyn inkwell::values::BasicValue, *b)
+            }).collect::<Vec<_>>();
+            if !exprs.ty.is_never_type() {
+                incomings.push((&last_value, ret_block));
+            }
+            let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
+            phi_node.add_incoming(incomings.as_slice());
+            self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
-        let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
-        phi_node.add_incoming(incomings.as_slice());
-        self.builder.build_return(Some(&phi_node.as_basic_value()));
         Ok(())
     }
 
