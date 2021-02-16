@@ -529,11 +529,19 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let (end_block, mut ctx) =
             self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        let ret_block = self.context.append_basic_block(ctx.function, "Ret");
-        self.builder.build_unconditional_branch(ret_block);
-        self.builder.position_at_end(ret_block);
+        let ret_block = if exprs.ty.is_never_type() {
+            if ret_ty.is_never_type() {
+                self.builder.build_unconditional_branch(*end_block);
+            }
+            None
+        } else {
+            let b = self.context.append_basic_block(ctx.function, "Ret");
+            self.builder.build_unconditional_branch(b);
+            self.builder.position_at_end(b);
+            self.builder.build_unconditional_branch(*end_block);
+            Some(b)
+        };
 
-        self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
 
         if ret_ty.is_never_type() {
@@ -546,8 +554,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let mut incomings = ctx.returns.iter().map(|(v, b)| {
                 (v as &dyn inkwell::values::BasicValue, *b)
             }).collect::<Vec<_>>();
-            if !exprs.ty.is_never_type() {
-                incomings.push((&last_value, ret_block));
+            if let Some(b) = ret_block {
+                incomings.push((&last_value, b));
             }
             let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
             phi_node.add_incoming(incomings.as_slice());
