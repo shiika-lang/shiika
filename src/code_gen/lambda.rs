@@ -61,11 +61,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
             }
             HirBreakExpression { .. } => (),
-            HirReturnExpression { arg, .. } => {
-                if let Some(expr) = &**arg {
-                    self.gen_lambda_funcs_in_expr(expr)?;
-                }
-            },
+            HirReturnExpression { arg, .. } => self.gen_lambda_funcs_in_expr(arg)?,
             HirLVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirIVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirConstAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
@@ -122,7 +118,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             params,
             Right(exprs),
             lvars,
-            ret_ty.is_void_type(),
+            ret_ty,
             true,
         )
     }

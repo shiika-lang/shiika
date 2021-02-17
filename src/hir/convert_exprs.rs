@@ -187,6 +187,8 @@ impl HirMaker {
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
+        } else if then_hirs.ty.is_void_type() {
+            ty::raw("Void")
         } else {
             then_hirs.ty.clone()
         };
@@ -232,13 +234,12 @@ impl HirMaker {
 
     fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
         let from = self._validate_return()?;
-        self._validate_return_type(arg)?;
-
         let arg_expr = if let Some(x) = arg {
-            Some(self.convert_expr(x)?)
+            self.convert_expr(x)?
         } else {
-            None
+            void_const_ref()
         };
+        self._validate_return_type(&arg_expr.ty)?;
         Ok(Hir::return_expression(from, arg_expr))
     }
 
@@ -260,8 +261,12 @@ impl HirMaker {
     }
 
     /// Check if the argument of `return' is valid
-    fn _validate_return_type(&self, arg: &Option<Box<AstExpression>>) -> Result<(), Error> {
-        // TODO
+    fn _validate_return_type(&self, arg_ty: &TermTy) -> Result<(), Error> {
+        if self.ctx.current_is_fn() {
+            // TODO
+        } else if let Some(method_ctx) = &self.ctx.method {
+            type_checking::check_return_arg_type(&self.class_dict, arg_ty, &method_ctx.signature)?;
+        }
         Ok(())
     }
 

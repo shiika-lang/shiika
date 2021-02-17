@@ -414,11 +414,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             arg_types.insert(0, self.llvm_type(ty));
         }
 
-        if ret_ty.is_void_type() {
+        if ret_ty.is_never_type() {
+            // `Never` does not have an instance
             self.void_type.fn_type(&arg_types, false)
         } else {
-            let result_type = self.llvm_type(&ret_ty);
-            result_type.fn_type(&arg_types, false)
+            self.llvm_type(&ret_ty).fn_type(&arg_types, false)
         }
     }
 
@@ -440,7 +440,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
-            method.signature.ret_ty.is_void_type(),
+            &method.signature.ret_ty,
             false,
         )
     }
@@ -453,7 +453,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
-        is_void: bool,
+        ret_ty: &TermTy,
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
@@ -483,11 +483,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_method_body(function, None, is_void, &exprs, lvar_ptrs)?
+                    self.gen_shiika_function_body(function, None, FunctionOrigin::Method, ret_ty, &exprs, lvar_ptrs)?
                 }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(function, Some(params), is_void, &exprs, lvar_ptrs)?;
+                self.gen_shiika_function_body(function, Some(params), FunctionOrigin::Lambda, ret_ty, &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
@@ -517,48 +517,50 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvar_ptrs
     }
 
-    /// Generate body of llvm function of Shiika method
-    fn gen_shiika_method_body(
+    /// Generate body of llvm function of Shiika method or lambda
+    fn gen_shiika_function_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
-        void_method: bool,
+        function_origin: FunctionOrigin,
+        ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
         let (end_block, mut ctx) =
-            self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
+            self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        self.builder.build_unconditional_branch(*end_block);
-        self.builder.position_at_end(*end_block);
-        if void_method {
-            self.builder.build_return(None);
+        let ret_block = if exprs.ty.is_never_type() {
+            if ret_ty.is_never_type() {
+                self.builder.build_unconditional_branch(*end_block);
+            }
+            None
         } else {
-            self.builder.build_return(Some(&last_value));
-        }
-        Ok(())
-    }
+            let b = self.context.append_basic_block(ctx.function, "Ret");
+            self.builder.build_unconditional_branch(b);
+            self.builder.position_at_end(b);
+            self.builder.build_unconditional_branch(*end_block);
+            Some(b)
+        };
 
-    /// Generate body of llvm function of Shiika lambda
-    fn gen_shiika_lambda_body(
-        &self,
-        function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
-        void_ret: bool,
-        exprs: &'hir HirExpressions,
-        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
-    ) -> Result<(), Error> {
-        let (end_block, mut ctx) =
-            self.new_ctx(FunctionOrigin::Lambda, function, function_params, lvars);
-        let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
-        if void_ret {
+
+        if ret_ty.is_never_type() {
+            // `Never` does not have an instance
             self.builder.build_return(None);
+        } else if ret_ty.is_void_type() {
+            self.build_return_void();
         } else {
-            let llvm_type = self.llvm_type(&exprs.ty);
-            let v = self.builder.build_bitcast(last_value, llvm_type, "");
-            self.builder.build_return(Some(&v));
+            // Make a phi node from the `return`s
+            let mut incomings = ctx.returns.iter().map(|(v, b)| {
+                (v as &dyn inkwell::values::BasicValue, *b)
+            }).collect::<Vec<_>>();
+            if let Some(b) = ret_block {
+                incomings.push((&last_value, b));
+            }
+            let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
+            phi_node.add_incoming(incomings.as_slice());
+            self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
         Ok(())
     }

@@ -5,7 +5,7 @@ class Class
     @name
   end
 
-  def inspect
+  def inspect -> String
     "#<Class:" + @name + ">"
   end
 end

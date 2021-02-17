@@ -162,6 +162,10 @@ impl TermTy {
     /// Return true if `self` conforms to `other` i.e.
     /// an object of the type `self` is included in the set of objects represented by the type `other`
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
+        // `Never` is bottom type (i.e. subclass of any class)
+        if self.is_never_type() {
+            return true
+        }
         if let TyParamRef { name, .. } = &self.body {
             if let TyParamRef { name: name2, .. } = &other.body {
                 name == name2
