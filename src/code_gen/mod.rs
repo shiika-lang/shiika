@@ -483,11 +483,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
                 SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_method_body(function, None, ret_ty, &exprs, lvar_ptrs)?
+                    self.gen_shiika_function_body(function, None, FunctionOrigin::Method, ret_ty, &exprs, lvar_ptrs)?
                 }
             },
             Right(exprs) => {
-                self.gen_shiika_lambda_body(function, Some(params), ret_ty, &exprs, lvar_ptrs)?;
+                self.gen_shiika_function_body(function, Some(params), FunctionOrigin::Lambda, ret_ty, &exprs, lvar_ptrs)?;
             }
         }
         Ok(())
@@ -517,17 +517,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvar_ptrs
     }
 
-    /// Generate body of llvm function of Shiika method
-    fn gen_shiika_method_body(
+    /// Generate body of llvm function of Shiika method or lambda
+    fn gen_shiika_function_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
         function_params: Option<&'hir [MethodParam]>,
+        function_origin: FunctionOrigin,
         ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
         let (end_block, mut ctx) =
-            self.new_ctx(FunctionOrigin::Method, function, function_params, lvars);
+            self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         let ret_block = if exprs.ty.is_never_type() {
             if ret_ty.is_never_type() {
@@ -561,26 +562,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             phi_node.add_incoming(incomings.as_slice());
             self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
-        Ok(())
-    }
-
-    /// Generate body of llvm function of Shiika lambda
-    fn gen_shiika_lambda_body(
-        &self,
-        function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
-        ret_ty: &TermTy,
-        exprs: &'hir HirExpressions,
-        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
-    ) -> Result<(), Error> {
-        let (end_block, mut ctx) =
-            self.new_ctx(FunctionOrigin::Lambda, function, function_params, lvars);
-        let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        self.builder.build_unconditional_branch(*end_block);
-        self.builder.position_at_end(*end_block);
-        let llvm_type = self.llvm_type(&exprs.ty);
-        let v = self.builder.build_bitcast(last_value, llvm_type, "");
-        self.builder.build_return(Some(&v));
         Ok(())
     }
 
