@@ -32,4 +32,46 @@ var n = 0
 }
 unless n == 4 then puts "ng: break from block" end
 
+class A
+  # return without arguments
+  def self.wo_arg
+    return if false
+    1
+  end
+
+  # return without arguments on the end of a method
+  def self.wo_arg_end
+    return
+  end
+
+  # return with an argument
+  def self.w_arg -> Int
+    return 1 if false
+    2
+  end
+
+  # return with an argument on the end of a method
+  def self.w_arg_end -> Int
+    return 1
+  end
+
+#  def self.return_from_block -> Int
+#    [1, 2, 3].each do |i: Int|
+#      return 99 # Jumps to the end of the lambda, then
+#    end         # jumps to the end of `each`, and then
+#    return 0    # jumps to the end of the method
+#  end
+
+  def self.return_from_fn -> Int
+    f = fn(){ return 1; 2 } # Jumps to the end of this fn
+    f.call
+  end
+end
+A.wo_arg
+A.wo_arg_end
+unless A.w_arg == 2; puts "ng w_arg" end
+unless A.w_arg_end == 1; puts "ng w_arg_end" end
+#unless A.return_from_block == 99; puts "ng return_from_block" end
+unless A.return_from_fn == 1; puts "ng return_from_fn" end
+
 puts "ok"

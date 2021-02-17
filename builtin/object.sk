@@ -33,7 +33,7 @@ class Object
     puts obj.inspect
   end
 
-  def panic(msg: String)
+  def panic(msg: String) -> Never
     puts msg
     exit 1
   end

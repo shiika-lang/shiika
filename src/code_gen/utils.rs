@@ -10,13 +10,19 @@ const OBJ_HEADER_SIZE: usize = 1;
 const OBJ_VTABLE_IDX: usize = 0;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
+    /// Build IR to return ::Void
+    pub fn build_return_void(&self) {
+        let v = self.gen_const_ref(&const_fullname("::Void"));
+        self.builder.build_return(Some(&v));
+    }
+
     /// Load value of an instance variable
-    pub fn build_ivar_load<'a>(
-        &'a self,
-        object: inkwell::values::BasicValueEnum<'a>,
+    pub fn build_ivar_load(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
         idx: usize,
         name: &str,
-    ) -> inkwell::values::BasicValueEnum<'a> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         self.build_llvm_struct_ref(object, OBJ_HEADER_SIZE + idx, name)
     }
 
@@ -32,12 +38,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Lookup llvm func from vtable of an object
-    pub fn build_vtable_ref<'a>(
-        &'a self,
-        object: inkwell::values::BasicValueEnum<'a>,
+    pub fn build_vtable_ref(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
         idx: usize,
         size: usize,
-    ) -> inkwell::values::BasicValueEnum<'a> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let vtable_ref = self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable_ref");
         let ary_type = self.i8ptr_type.array_type(size as u32);
         let vtable_ptr = self
@@ -75,12 +81,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load value of nth element of llvm struct
-    fn build_llvm_struct_ref<'a>(
-        &'a self,
-        object: inkwell::values::BasicValueEnum<'a>,
+    fn build_llvm_struct_ref(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
         idx: usize,
         name: &str,
-    ) -> inkwell::values::BasicValueEnum<'a> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = self
             .builder
             .build_struct_gep(

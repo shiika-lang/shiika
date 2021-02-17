@@ -84,6 +84,9 @@ pub enum AstExpressionBody {
         body_exprs: Vec<AstExpression>,
     },
     Break,
+    Return {
+        arg: Option<Box<AstExpression>>,
+    },
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
@@ -206,6 +209,12 @@ pub fn while_expr(cond_expr: AstExpression, body_exprs: Vec<AstExpression>) -> A
 
 pub fn break_expr() -> AstExpression {
     non_primary_expression(AstExpressionBody::Break {})
+}
+
+pub fn return_expr(arg: Option<AstExpression>) -> AstExpression {
+    non_primary_expression(AstExpressionBody::Return {
+        arg: arg.map(|x| Box::new(x)),
+    })
 }
 
 /// Create an expression for an assigment

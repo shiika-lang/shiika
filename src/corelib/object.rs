@@ -5,7 +5,7 @@ use inkwell::values::*;
 pub fn create_methods() -> Vec<SkMethod> {
     vec![
         create_method("Object", "initialize() -> Void", |code_gen, _function| {
-            code_gen.builder.build_return(None);
+            code_gen.build_return_void();
             Ok(())
         }),
         create_method("Object", "putd(n: Int) -> Void", |code_gen, function| {
@@ -26,7 +26,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             code_gen
                 .builder
                 .build_call(printf, &[tmpl_ptr.into(), n.into()], "");
-            code_gen.builder.build_return(None);
+            code_gen.build_return_void();
             Ok(())
         }),
         create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
@@ -47,7 +47,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             code_gen
                 .builder
                 .build_call(printf, &[tmpl_ptr.into(), n.into()], "");
-            code_gen.builder.build_return(None);
+            code_gen.build_return_void();
             Ok(())
         }),
         create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
@@ -56,12 +56,12 @@ pub fn create_methods() -> Vec<SkMethod> {
             let ptr = code_gen.unbox_i8ptr(sk_ptr);
             let func = code_gen.module.get_function("puts").unwrap();
             code_gen.builder.build_call(func, &[ptr.into()], "");
-            code_gen.builder.build_return(None);
+            code_gen.build_return_void();
             Ok(())
         }),
         create_method(
             "Object",
-            "exit(status: Int) -> Void",
+            "exit(status: Int) -> Never",
             |code_gen, function| {
                 let sk_int = function.get_params()[1];
                 let int64 = code_gen.unbox_int(sk_int);

@@ -79,7 +79,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     ],
                     "mem",
                 );
-                code_gen.builder.build_return(None);
+                code_gen.build_return_void();
                 Ok(())
             },
         ),

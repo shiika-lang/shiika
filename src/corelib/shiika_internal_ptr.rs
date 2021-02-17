@@ -30,7 +30,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                     .into_pointer_value();
                 let sk_obj = function.get_params()[1];
                 code_gen.builder.build_store(obj_ptr, sk_obj);
-                code_gen.builder.build_return(None);
+                code_gen.build_return_void();
                 Ok(())
             },
         ),
@@ -76,7 +76,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                     .build_int_truncate(i64val, code_gen.i8_type, "i8val");
 
                 code_gen.builder.build_store(i8ptr, i8val);
-                code_gen.builder.build_return(None);
+                code_gen.build_return_void();
                 Ok(())
             },
         ),

@@ -62,6 +62,20 @@ pub fn check_if_clauses_ty(then_ty: &TermTy, else_ty: &TermTy) -> Result<(), Err
     }
 }
 
+/// Check the type of the argument of `return`
+pub fn check_return_arg_type(class_dict: &ClassDict, return_arg_ty: &TermTy, method_sig: &MethodSignature) -> Result<(), Error> {
+    if return_arg_ty.conforms_to(&method_sig.ret_ty, class_dict) {
+        Ok(())
+    } else {
+        Err(type_error!(
+            "method {} should return {} but returns {}",
+            &method_sig.fullname,
+            &method_sig.ret_ty,
+            &return_arg_ty
+        ))
+    }
+}
+
 pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Result<(), Error> {
     if orig_ty.equals_to(new_ty) {
         Ok(())

@@ -85,6 +85,8 @@ impl HirMaker {
 
             AstExpressionBody::Break => self.convert_break_expr(),
 
+            AstExpressionBody::Return { arg } => self.convert_return_expr(arg),
+
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
                 self.convert_lvar_assign(name, &*rhs, is_var)
             }
@@ -185,6 +187,8 @@ impl HirMaker {
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
+        } else if then_hirs.ty.is_void_type() {
+            ty::raw("Void")
         } else {
             then_hirs.ty.clone()
         };
@@ -223,9 +227,47 @@ impl HirMaker {
         } else if self.ctx.current == CtxKind::While {
             from = HirBreakFrom::While;
         } else {
-            return Err(error::program_error("`break' outside of a loop"));
+            return Err(error::program_error("`break' outside a loop"));
         }
         Ok(Hir::break_expression(from))
+    }
+
+    fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
+        let from = self._validate_return()?;
+        let arg_expr = if let Some(x) = arg {
+            self.convert_expr(x)?
+        } else {
+            void_const_ref()
+        };
+        self._validate_return_type(&arg_expr.ty)?;
+        Ok(Hir::return_expression(from, arg_expr))
+    }
+
+    /// Check if `return' is valid in the current context
+    fn _validate_return(&self) -> Result<HirReturnFrom, Error> {
+        if let Some(lambda_ctx) = self.ctx.lambdas.last() {
+            if lambda_ctx.is_fn {
+                Ok(HirReturnFrom::Fn)
+            } else if self.ctx.method.is_some() {
+                Ok(HirReturnFrom::Block)
+            } else {
+                Err(error::program_error("`return' outside a loop"))
+            }
+        } else if self.ctx.method.is_some() {
+            Ok(HirReturnFrom::Method)
+        } else {
+            Err(error::program_error("`return' outside a loop"))
+        }
+    }
+
+    /// Check if the argument of `return' is valid
+    fn _validate_return_type(&self, arg_ty: &TermTy) -> Result<(), Error> {
+        if self.ctx.current_is_fn() {
+            // TODO
+        } else if let Some(method_ctx) = &self.ctx.method {
+            type_checking::check_return_arg_type(&self.class_dict, arg_ty, &method_ctx.signature)?;
+        }
+        Ok(())
     }
 
     fn convert_lvar_assign(

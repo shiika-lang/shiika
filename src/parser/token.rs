@@ -76,6 +76,7 @@ pub enum Token {
     KwUnless,
     KwWhile,
     KwBreak,
+    KwReturn,
     KwThen,
     KwElse,
     KwElsif,
@@ -84,6 +85,9 @@ pub enum Token {
     KwSelf,
     KwTrue,
     KwFalse,
+    // Keywords (modifier version)
+    ModIf,
+    ModUnless,
 }
 
 impl Token {
@@ -194,6 +198,7 @@ impl Token {
             Token::KwUnless => true,
             Token::KwWhile => true,
             Token::KwBreak => false,
+            Token::KwReturn => false,
             Token::KwThen => false,
             Token::KwElse => false,
             Token::KwElsif => false,
@@ -202,6 +207,9 @@ impl Token {
             Token::KwSelf => true,
             Token::KwTrue => true,
             Token::KwFalse => true,
+            // Keywords (modifier version)
+            Token::ModIf => false,
+            Token::ModUnless => false,
         }
     }
 }

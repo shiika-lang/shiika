@@ -70,15 +70,15 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_if_unless_modifier");
         let mut expr = self.parse_call_wo_paren()?;
-        if self.next_nonspace_token() == Token::KwIf {
+        if self.next_nonspace_token() == Token::ModIf {
             self.skip_ws();
-            assert!(self.consume(Token::KwIf));
+            assert!(self.consume(Token::ModIf));
             self.skip_ws();
             let cond = self.parse_call_wo_paren()?;
             expr = ast::if_expr(cond, vec![expr], None)
-        } else if self.next_nonspace_token() == Token::KwUnless {
+        } else if self.next_nonspace_token() == Token::ModUnless {
             self.skip_ws();
-            assert!(self.consume(Token::KwUnless));
+            assert!(self.consume(Token::ModUnless));
             self.skip_ws();
             let cond = ast::logical_not(self.parse_call_wo_paren()?);
             expr = ast::if_expr(cond, vec![expr], None)
@@ -96,29 +96,18 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_call_wo_paren");
 
         // If `LowerWord + Space`, see if the rest is an argument list
-        let token = self.current_token();
-        if let Token::LowerWord(s) = token.clone() {
-            let next_token = self.peek_next_token();
-            if next_token == Token::Space {
-                let cur = self.current_position();
-                self.consume_token();
-                self.set_lexer_state(LexerState::ExprArg);
-                assert!(self.consume(Token::Space));
-                let mut args = self.parse_operator_exprs()?;
-                self.debug_log(&format!("tried/args: {:?}", args));
-                if !args.is_empty() {
-                    self.skip_ws();
-                    if let Some(lambda) = self.parse_opt_do_block()? {
-                        args.push(lambda);
+        match &self.current_token() {
+            Token::LowerWord(_) | Token::KwReturn => {
+                if self.peek_next_token() == Token::Space {
+                    if let Some(expr) = self._try_parse_call_wo_paren()? {
+                        return Ok(expr)
                     }
-                    self.lv -= 1;
-                    return Ok(ast::method_call(None, &s, args, vec![], false, false));
                 }
-                self.rewind_to(cur)
             }
+            _ => ()
         }
 
-        // Otherwise, read an expression
+        // If not, read an expression
         let expr = self.parse_operator_expr()?;
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
@@ -142,12 +131,41 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_args(&mut self) -> Result<Vec<AstExpression>, Error> {
-        self.lv += 1;
-        self.debug_log("parse_args");
-        let expr = self.parse_operator_exprs()?;
-        self.lv -= 1;
-        Ok(expr)
+    // Returns `Some` if there is one of the following.
+    // Otherwise, returns `None` and rewind the lexer position.
+    // - `foo 1, 2, 3`
+    // - `return 1`
+    fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
+        let token = self.current_token().clone();
+        let cur = self.current_position();
+        self.consume_token();
+        self.set_lexer_state(LexerState::ExprArg);
+        assert!(self.consume(Token::Space));
+        let mut args = self.parse_operator_exprs()?;
+        self.debug_log(&format!("tried/args: {:?}", args));
+        if !args.is_empty() {
+            self.skip_ws();
+            if let Some(lambda) = self.parse_opt_do_block()? {
+                args.push(lambda);
+            }
+            self.lv -= 1;
+            match &token {
+                Token::LowerWord(s) => {
+                    return Ok(Some(ast::method_call(None, &s, args, vec![], false, false)));
+                }
+                Token::KwReturn => {
+                    if args.len() >= 2 {
+                        return Err(parse_error!(self, "`return' cannot take more than one args"));
+                    }
+                    return Ok(Some(ast::return_expr(Some(args.pop().unwrap()))));
+                }
+                _ => panic!("must not happen: {:?}", self.current_token())
+            }
+        }
+        // Failed. Rollback the lexer changes
+        self.rewind_to(cur);
+        self.set_lexer_state(LexerState::ExprArg);
+        Ok(None)
     }
 
     /// Parse successive operator_exprs delimited by `,`
@@ -695,7 +713,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::RParen) {
             args = vec![]
         } else {
-            args = self.parse_args()?;
+            args = self.parse_operator_exprs()?;
             self.skip_wsn();
             self.expect(Token::RParen)?;
         }
@@ -713,6 +731,10 @@ impl<'a> Parser<'a> {
                 let name = s.to_string();
                 self.consume_token();
                 self.parse_primary_method_call(&name)
+            }
+            Token::KwReturn => {
+                self.consume_token();
+                Ok(ast::return_expr(None))
             }
             Token::UpperWord(s) => {
                 let name = s.to_string();
