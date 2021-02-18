@@ -1,6 +1,7 @@
 class Fn
   EXIT_NORMAL = 0
   EXIT_BREAK = 1
+  EXIT_RETURN = 2
 
   def initialize(
     @func: Shiika::Internal::Ptr,

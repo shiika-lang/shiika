@@ -18,6 +18,8 @@ const FN_X_CAPTURES_IDX: usize = 2;
 const FN_X_EXIT_STATUS_IDX: usize = 3;
 /// Fn::EXIT_BREAK
 const EXIT_BREAK: u64 = 1;
+/// Fn::EXIT_RETURN
+const EXIT_RETURN: u64 = 2;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
@@ -283,13 +285,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg: &'hir HirExpression,
         from: &HirReturnFrom,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let value = self.gen_expr(ctx, arg)?;
+        if *from == HirReturnFrom::Block {
+            // This `return` escapes from the enclosing method
+            debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
+            // Set @exit_status
+            let fn_x = ctx.function.get_first_param().unwrap();
+            let i = self.box_int(&self.i64_type.const_int(EXIT_RETURN, false));
+            self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
+            self.builder.build_unconditional_branch(*ctx.current_func_end);
+        } else {
+            let value = self.gen_expr(ctx, arg)?;
+            // Jump to the end of the llvm func
+            self.builder
+                .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+            let block_end = self.builder.get_insert_block().unwrap();
+            ctx.returns.push((value, block_end));
+        }
         let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
-        // Jump to the end of the llvm func
-        self.builder
-            .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
-        let block_end = self.builder.get_insert_block().unwrap();
-        ctx.returns.push((value, block_end));
         Ok(dummy_value)
     }
 
@@ -383,7 +395,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Invoke the llvm function
         let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
 
-        // Check `break` in block
+        // Check `break`|`return` in block
         if method_fullname.is_fn_x_call() && ret_ty.is_void_type() {
             let fn_x = receiver_value;
             let exit_status = self.build_ivar_load(fn_x, FN_X_EXIT_STATUS_IDX, "@exit_status");

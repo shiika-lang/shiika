@@ -268,7 +268,7 @@ pub enum HirBreakFrom {
 }
 
 /// Denotes what a `return` escapes from
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum HirReturnFrom {
     Fn,
     Block,
