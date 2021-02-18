@@ -55,12 +55,12 @@ class A
     return 1
   end
 
-#  def self.return_from_block -> Int
-#    [1, 2, 3].each do |i: Int|
-#      return 99 # Jumps to the end of the lambda, then
-#    end         # jumps to the end of `each`, and then
-#    return 0    # jumps to the end of the method
-#  end
+  def self.return_from_block -> Int
+    [1, 2, 3].each do |i: Int|
+      return 99 # Jumps to the end of the lambda, then
+    end         # jumps to the end of `each`, and then
+    return 0    # jumps to the end of the method
+  end
 
   def self.return_from_fn -> Int
     f = fn(){ return 1; 2 } # Jumps to the end of this fn
@@ -71,7 +71,7 @@ A.wo_arg
 A.wo_arg_end
 unless A.w_arg == 2; puts "ng w_arg" end
 unless A.w_arg_end == 1; puts "ng w_arg_end" end
-#unless A.return_from_block == 99; puts "ng return_from_block" end
+unless A.return_from_block == 99; puts "ng return_from_block" end
 unless A.return_from_fn == 1; puts "ng return_from_fn" end
 
 puts "ok"
