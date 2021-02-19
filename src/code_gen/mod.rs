@@ -462,14 +462,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
-            let name = if i == 0 {
-                if is_lambda {
-                    "fn_x"
-                } else {
-                    "self"
+            let name = match i {
+                0 => if is_lambda { "fn_x" } else { "self" },
+                _ => {
+                    if is_lambda && i == 1 {
+                        "exit_status"
+                    }
+                    else {
+                        let header_len = if is_lambda {
+                            gen_exprs::LAMBDA_FUNC_ARG_HEADER_LEN
+                        } else {
+                            gen_exprs::METHOD_FUNC_ARG_HEADER_LEN
+                        };
+                        &params[i - (header_len as usize)].name
+                    }
                 }
-            } else {
-                &params[i - 1].name
             };
             inkwell_set_name(param, name);
         }

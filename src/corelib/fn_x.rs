@@ -20,17 +20,19 @@ macro_rules! create_fn_call {
             &format!("call({}) -> T", args_str),
             |code_gen, function| {
                 let fn_obj = function.get_params()[0];
+                let exit_status = code_gen.box_int(&code_gen.i64_type.const_int(0 as u64, false));
                 let sk_ptr = code_gen.build_ivar_load(fn_obj, FN_X_FUNC_IDX, "@func");
 
-                let mut args = vec![fn_obj];
+                let mut args = vec![fn_obj, exit_status];
                 for k in 1..=$i {
                     args.push(function.get_params()[k]);
                 }
 
                 // Create the type of lambda_xx()
                 let fn_x_type = code_gen.llvm_type(&ty::raw(&format!("Fn{}", $i)));
+                let exit_status_type = code_gen.llvm_type(&ty::raw("Int"));
                 let obj_type = code_gen.llvm_type(&ty::raw("Object"));
-                let mut arg_types = vec![fn_x_type.into()];
+                let mut arg_types = vec![fn_x_type.into(), exit_status_type.into()];
                 for _ in 1..=$i {
                     arg_types.push(obj_type.into());
                 }

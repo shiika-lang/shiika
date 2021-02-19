@@ -11,13 +11,15 @@ use inkwell::values::*;
 use std::rc::Rc;
 
 /// Number of items preceed actual arguments
-const METHOD_FUNC_ARG_HEADER_LEN: u32 = 1;
+pub const METHOD_FUNC_ARG_HEADER_LEN: u32 = 1;
 /// Index of the receiver object in arguments of llvm func for Shiika method
 const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
 /// Number of items preceed actual arguments
-const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 1;
+pub const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
 /// Index of the FnX object in arguments of llvm func for Shiika lambda
 const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
+/// Index of exit_status
+const LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX: u32 = 1;
 /// Index of @the_self of FnX
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
@@ -526,9 +528,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
+        let exit_status_type = &ty::raw("Int");
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
         arg_types.insert(0, &fn_x_type);
+        arg_types.insert(1, &exit_status_type);
         let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
