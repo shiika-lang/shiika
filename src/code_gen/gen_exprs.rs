@@ -10,6 +10,10 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
+/// Index of the receiver object in arguments of llvm func for Shiika method
+const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
+/// Index of the FnX object in arguments of llvm func for Shiika lambda
+const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
 /// Index of @the_self of FnX
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
@@ -579,13 +583,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         let the_main = if ctx.function.get_name().to_str().unwrap() == "user_main" {
+            // Toplevel
             self.the_main.unwrap()
         } else if ctx.function_origin == FunctionOrigin::Lambda {
-            let fn_x = ctx.function.get_first_param().unwrap();
+            // In a lambda
+            let fn_x = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_FN_X_IDX).unwrap();
             self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "@obj")
         } else {
-            // The first arg of llvm function is `self`
-            ctx.function.get_first_param().unwrap()
+            // In a method
+            ctx.function.get_nth_param(METHOD_FUNC_ARG_SELF_IDX).unwrap()
         };
         Ok(self
             .builder
