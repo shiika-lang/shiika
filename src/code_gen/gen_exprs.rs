@@ -10,8 +10,12 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
+/// Number of items preceed actual arguments
+const METHOD_FUNC_ARG_HEADER_LEN: u32 = 1;
 /// Index of the receiver object in arguments of llvm func for Shiika method
 const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
+/// Number of items preceed actual arguments
+const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 1;
 /// Index of the FnX object in arguments of llvm func for Shiika lambda
 const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
 /// Index of @the_self of FnX
@@ -462,15 +466,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         match ctx.function_origin {
             FunctionOrigin::Method => {
-                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
+                let n = METHOD_FUNC_ARG_HEADER_LEN + (*idx as u32);
+                Ok(ctx.function.get_nth_param(n).unwrap())
             }
             FunctionOrigin::Lambda => {
+                let n = LAMBDA_FUNC_ARG_HEADER_LEN + (*idx as u32);
                 // Bitcast is needed because lambda params are always `%Object*`
                 let obj = ctx
                     .function
-                    .get_nth_param((*idx as u32) + 1)
+                    .get_nth_param(n)
                     .unwrap_or_else(|| {
-                        // +1 for the first %self
                         panic!(format!(
                             "{:?}\ngen_arg_ref: no param of idx={}",
                             &ctx.function, idx
