@@ -54,7 +54,7 @@ class String
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
     @bytesize.times do |i: Int|
-      f.call(nth_byte(i))
+      f(nth_byte(i))
     end
   end
 

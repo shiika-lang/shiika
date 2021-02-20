@@ -7,7 +7,7 @@ class Array<T>
     ret = Array<U>.new
     ret.reserve(len)
     var i=0; while i<len
-      ret.push(f.call(i))
+      ret.push(f(i))
       i += 1
     end
     ret
@@ -78,7 +78,7 @@ class Array<T>
   def all(f: Fn1<T, Bool>) -> Bool
     var ret = true
     each do |item: T|
-      ret = false unless f.call(item)
+      ret = false unless f(item)
     end
     ret
   end
@@ -87,7 +87,7 @@ class Array<T>
   def any(f: Fn1<T, Bool>) -> Bool
     var ret = false
     each do |item: T|
-      ret = true if f.call(item)
+      ret = true if f(item)
     end
     ret
   end
@@ -126,7 +126,7 @@ class Array<T>
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
     var i = 0; while i < @n_items
-      f.call(self[i])
+      f(self[i])
       i += 1
     end
   end
@@ -148,7 +148,7 @@ class Array<T>
   def fold<SUM>(initial_sum: SUM, f: Fn2<SUM, T, SUM>) -> SUM
     var sum = initial_sum
     each do |item: T|
-      sum = f.call(sum, item)
+      sum = f(sum, item)
     end
     sum
   end
@@ -188,7 +188,7 @@ class Array<T>
   def is_all(f: Fn1<T, Bool>) -> Bool
     var ret = true
     each do |x: T|
-      unless f.call(x); ret = false; end
+      unless f(x); ret = false; end
     end
     ret
   end
@@ -225,7 +225,7 @@ class Array<T>
   def map<U>(f: Fn1<T, U>) -> Array<U>
     ret = Array<U>.new
     self.each do |item: T|
-      ret.push(f.call(item))
+      ret.push(f(item))
     end
     ret
   end
@@ -234,7 +234,7 @@ class Array<T>
   def none(f: Fn1<T, Bool>) -> Bool
     var ret = true
     each do |item: T|
-      ret = false if f.call(item)
+      ret = false if f(item)
     end
     ret
   end
@@ -268,7 +268,7 @@ class Array<T>
   def reject(f: Fn1<T, Bool>) -> Array<T>
     ret = Array<T>.new
     each do |item: T|
-      ret.push(item) unless f.call(item)
+      ret.push(item) unless f(item)
     end
     ret
   end
@@ -295,7 +295,7 @@ class Array<T>
   # Call `f` with each element of `self` in the reversed order
   def reverse_each(f: Fn1<T, Void>)
     var i = @n_items - 1; while i >= 0
-      f.call(self[i])
+      f(self[i])
       i -= 1
     end
   end
@@ -304,7 +304,7 @@ class Array<T>
   def select(f: Fn1<T, Bool>) -> Array<T>
     ret = Array<T>.new
     each do |item: T|
-      ret.push(item) if f.call(item)
+      ret.push(item) if f(item)
     end
     ret
   end
