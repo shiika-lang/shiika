@@ -278,13 +278,13 @@ impl HirMaker {
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
         // For `var x`, `x` should not be exist
-        if *is_var && self._lookup_var(name, false).unwrap().is_some() {
+        if *is_var && self._lookup_var(name).is_some() {
             return Err(error::program_error(&format!(
                 "variable `{}' already exists",
                 name
             )));
         }
-        if let Some(lvar_info) = self._lookup_var(name, true)? {
+        if let Some(lvar_info) = self._find_var(name, true)? {
             // Reassigning
             type_checking::check_reassign_var(&lvar_info.ty(), &expr.ty, name)?;
             Ok(lvar_info.assign_expr(expr))
@@ -384,15 +384,25 @@ impl HirMaker {
         arg_exprs: &[AstExpression],
         type_args: &[ConstName],
     ) -> Result<HirExpression, Error> {
+        let arg_hirs = arg_exprs
+            .iter()
+            .map(|arg_expr| self.convert_expr(arg_expr))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Check if this is a lambda invocation
+        if receiver_expr.is_none() {
+            if let Some(lvar) = self._lookup_var(&method_name.0) {
+                if let Some((ret_ty, method_fullname)) = lvar.ty().fn_x_info() {
+                    return Ok(Hir::method_call(ret_ty, lvar.ref_expr(), method_fullname, arg_hirs));
+                }
+            }
+        }
+
         let receiver_hir = match receiver_expr {
             Some(expr) => self.convert_expr(&expr)?,
             // Implicit self
             _ => self.convert_self_expr()?,
         };
-        let arg_hirs = arg_exprs
-            .iter()
-            .map(|arg_expr| self.convert_expr(arg_expr))
-            .collect::<Result<Vec<_>, _>>()?;
         let mut method_tyargs = vec![];
         for const_name in type_args {
             method_tyargs.push(self._resolve_method_tyarg(const_name)?);
@@ -531,7 +541,7 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
-        if let Some(lvar_info) = self._lookup_var(name, false)? {
+        if let Some(lvar_info) = self._find_var(name, false)? {
             Ok(lvar_info.ref_expr())
         } else {
             Err(error::program_error(&format!(
@@ -541,9 +551,14 @@ impl HirMaker {
         }
     }
 
-    /// Lookup variable of the given name.
+    /// Return the variable of the given name, if any
+    fn _lookup_var(&mut self, name: &str) -> Option<LVarInfo> {
+        self._find_var(name, false).unwrap()
+    }
+
+    /// Find the variable of the given name.
     /// If it is a free variable, ctx.captures will be modified
-    fn _lookup_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
+    fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
         let cidx = if self.ctx.current == CtxKind::Lambda {
             self.ctx.lambdas.last().unwrap().captures.len()
         } else {
