@@ -100,7 +100,7 @@ See [Issues](https://github.com/yhara/shiika/issues)
 
 ## Hacking
 
-### Prerequisits
+### Prerequisites
 
 - Rust
 - LLVM (`brew install llvm@9`)
