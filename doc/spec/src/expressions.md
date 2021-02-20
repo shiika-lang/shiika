@@ -47,13 +47,13 @@ Reassigning to `x` only allowed for the latter form.
 
 An instance of the classes `Fn0`, `Fn1`, ..., `Fn9` is called a _lambda_. Lambdas can be created by _lambda expression_.
 
-- `fn(){ p 1 }` evaluates to an instance of `Fn0<Void>`
+- `fn{ p 1 }` evaluates to an instance of `Fn0<Void>`
 - `fn(x: Int){ p x }` evaluates to an instance of `Fn1<Int, Void>`
 
 ### Invoking a function
 
 ```sk
-f = fn(){ p 1 }
+f = fn{ p 1 }
 f()
 ```
 

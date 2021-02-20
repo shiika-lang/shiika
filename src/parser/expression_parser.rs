@@ -870,11 +870,15 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_lambda");
         assert!(self.consume(Token::KwFn));
-        self.expect(Token::LParen)?;
-        let params = self.parse_params(false, vec![Token::RParen])?;
+        let params;
+        if self.consume(Token::LParen) {
+            params = self.parse_params(false, vec![Token::RParen])?;
+            self.skip_ws();
+        } else {
+            params = vec![];
+        }
         self.skip_ws();
         self.expect(Token::LBrace)?;
-        self.consume_token();
         let exprs = self.parse_exprs(vec![Token::RBrace])?;
         assert!(self.consume(Token::RBrace));
         self.lv -= 1;
