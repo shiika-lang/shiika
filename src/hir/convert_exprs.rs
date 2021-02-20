@@ -392,8 +392,8 @@ impl HirMaker {
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
             if let Some(lvar) = self._lookup_var(&method_name.0) {
-                if let Some((ret_ty, method_fullname)) = lvar.ty().fn_x_info() {
-                    return Ok(Hir::method_call(ret_ty, lvar.ref_expr(), method_fullname, arg_hirs));
+                if let Some(ret_ty) = lvar.ty().fn_x_info() {
+                    return Ok(Hir::lambda_invocation(ret_ty, lvar.ref_expr(), arg_hirs));
                 }
             }
         }
