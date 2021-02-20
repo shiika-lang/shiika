@@ -135,6 +135,23 @@ impl TermTy {
         }
     }
 
+    // Returns (ret_ty, method_fullname) if this is any of Fn0, .., Fn9
+    pub fn fn_x_info(&self) -> Option<(TermTy, MethodFullname)> {
+        match &self.body {
+            TySpe { base_name, type_args } => {
+                for i in 0..=9 {
+                    if *base_name == format!("Fn{}", i) {
+                        let ret_ty = type_args.last().unwrap().clone();
+                        let method_name = method_fullname(&class_fullname(format!("Fn{}", i)), "call");
+                        return Some((ret_ty, method_name));
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
     pub fn meta_ty(&self) -> TermTy {
         match &self.body {
             TyRaw => ty::meta(&self.fullname.0),
