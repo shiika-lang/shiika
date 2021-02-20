@@ -135,15 +135,14 @@ impl TermTy {
         }
     }
 
-    // Returns (ret_ty, method_fullname) if this is any of Fn0, .., Fn9
-    pub fn fn_x_info(&self) -> Option<(TermTy, MethodFullname)> {
+    // Returns ret_ty if this is any of Fn0, .., Fn9
+    pub fn fn_x_info(&self) -> Option<TermTy> {
         match &self.body {
             TySpe { base_name, type_args } => {
                 for i in 0..=9 {
                     if *base_name == format!("Fn{}", i) {
                         let ret_ty = type_args.last().unwrap().clone();
-                        let method_name = method_fullname(&class_fullname(format!("Fn{}", i)), "call");
-                        return Some((ret_ty, method_name));
+                        return Some(ret_ty);
                     }
                 }
                 None

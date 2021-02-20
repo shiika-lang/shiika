@@ -1,7 +1,7 @@
 var result = 0
 class A
   def self.one(f: Fn1<Int,Int>) -> Int
-    f.call(1)
+    f(1)
   end
 end
 

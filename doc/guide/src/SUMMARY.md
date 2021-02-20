@@ -9,5 +9,4 @@
   - Basic Types
 - [Classes and Objects](./classes.md)
 - [Expressions](./expressions.md)
-- Functions and Blocks
 - FAQ

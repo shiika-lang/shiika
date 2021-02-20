@@ -10,6 +10,8 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
+/// Index of @func of FnX
+const FN_X_FUNC_IDX: usize = 0;
 /// Index of @the_self of FnX
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
@@ -68,6 +70,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_fullname,
                 arg_exprs,
             } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
+            HirLambdaInvocation {
+                lambda_expr,
+                arg_exprs,
+            } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => self.gen_arg_ref(ctx, idx),
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx, self_ty } => self.gen_ivar_ref(ctx, name, idx, self_ty),
@@ -381,12 +387,66 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
 
         // Invoke the llvm function
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values)?;
+        self.builder.build_unconditional_branch(end_block);
+        self.builder.position_at_end(end_block);
+        Ok(result)
+    }
+
+    /// Generate invocation of a lambda
+    fn gen_lambda_invocation(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        lambda_expr: &'hir HirExpression,
+        arg_exprs: &'hir [HirExpression],
+        ret_ty: &TermTy,
+    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+        let lambda_obj = self.gen_expr(ctx, lambda_expr)?;
+        let n_args = arg_exprs.len();
+
+        // Prepare arguments
+        let mut args = vec![lambda_obj];
+        for e in arg_exprs {
+            args.push(self.gen_expr(ctx, e)?);
+        }
+
+        // Create basic block
+        let start_block = self
+            .context
+            .append_basic_block(ctx.function, "Invoke_lambda");
+        self.builder.build_unconditional_branch(start_block);
+        self.builder.position_at_end(start_block);
+        let end_block = self
+            .context
+            .append_basic_block(ctx.function, "Invoke_lambda_end");
+
+        // Create the type of lambda_xx()
+        let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
+        let mut arg_types = vec![fn_x_type.into()];
+        for e in arg_exprs {
+            arg_types.push(self.llvm_type(&e.ty));
+        }
+        let fntype = self.llvm_type(ret_ty).fn_type(&arg_types, false);
+        let fnptype = fntype.ptr_type(AddressSpace::Generic);
+
+        // Cast `fnptr` to that type
+        let fnptr = self.unbox_i8ptr(self.build_ivar_load(lambda_obj, FN_X_FUNC_IDX, "@func"));
+        let func = self
+            .builder
+            .build_bitcast(fnptr, fnptype, "")
+            .into_pointer_value();
+
+        // Generate function call
+        let result = self
+            .builder
+            .build_call(func, &args, "result")
+            .try_as_basic_value()
+            .left()
+            .unwrap();
 
         // Check `break` in block
-        if method_fullname.is_fn_x_call() && ret_ty.is_void_type() {
-            let fn_x = receiver_value;
-            let exit_status = self.build_ivar_load(fn_x, FN_X_EXIT_STATUS_IDX, "@exit_status");
+        if ret_ty.is_void_type() {
+            let exit_status = self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_llvm_func_call(
                 "Int#==",
                 exit_status,
@@ -396,10 +456,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             self.builder.build_unconditional_branch(end_block);
         }
-
         self.builder.position_at_end(end_block);
-
-        result
+        Ok(result)
     }
 
     /// Generate llvm function call
