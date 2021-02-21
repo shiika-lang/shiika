@@ -26,8 +26,6 @@ const FN_X_FUNC_IDX: usize = 0;
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
 const FN_X_CAPTURES_IDX: usize = 2;
-/// Index of @exit_status of FnX
-const FN_X_EXIT_STATUS_IDX: usize = 3;
 /// Fn::EXIT_BREAK
 const EXIT_BREAK: u64 = 1;
 /// Fn::EXIT_RETURN
@@ -282,11 +280,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             },
             HirBreakFrom::Block => {
                 debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
-                // Set @exit_status
-                let fn_x = ctx.function.get_first_param().unwrap();
-                let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
-
                 // Set exit_status
                 let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
                 let i = self.i64_type.const_int(EXIT_BREAK as u64, false);
@@ -309,11 +302,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         if *from == HirReturnFrom::Block {
             // This `return` escapes from the enclosing method
             debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
-            // Set @exit_status
-            let fn_x = ctx.function.get_first_param().unwrap();
-            let i = self.box_int(&self.i64_type.const_int(EXIT_RETURN, false));
-            self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
-            self.builder.build_unconditional_branch(*ctx.current_func_end);
             // Set exit_status
             let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
             let i = self.i64_type.const_int(EXIT_RETURN as u64, false);
@@ -436,7 +424,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj];
+        let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
+        let mut args = vec![lambda_obj, exit_status];
         for e in arg_exprs {
             args.push(self.gen_expr(ctx, e)?);
         }
@@ -453,7 +442,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Create the type of lambda_xx()
         let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
-        let mut arg_types = vec![fn_x_type.into()];
+        let exit_status_type = self.llvm_type(&ty::raw("Int"));
+        let mut arg_types = vec![fn_x_type.into(), exit_status_type.into()];
         for e in arg_exprs {
             arg_types.push(self.llvm_type(&e.ty));
         }
@@ -464,7 +454,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptr = self.unbox_i8ptr(self.build_ivar_load(lambda_obj, FN_X_FUNC_IDX, "@func"));
         let func = self
             .builder
-            .build_bitcast(fnptr, fnptype, "")
+            .build_bitcast(fnptr, fnptype, "func")
             .into_pointer_value();
 
         // Generate function call
@@ -477,7 +467,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Check `break` in block
         if ret_ty.is_void_type() {
-            let exit_status = self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_llvm_func_call(
                 "Int#==",
                 exit_status,
