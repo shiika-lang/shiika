@@ -281,6 +281,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
                 self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
 
+                // Set exit_status
+                let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
+                let i = self.i64_type.const_int(EXIT_BREAK as u64, false);
+                self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
+
                 // Jump to the end of the llvm func
                 self.builder
                     .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
@@ -303,6 +308,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let i = self.box_int(&self.i64_type.const_int(EXIT_RETURN, false));
             self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
             self.builder.build_unconditional_branch(*ctx.current_func_end);
+            // Set exit_status
+            let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
+            let i = self.i64_type.const_int(EXIT_RETURN as u64, false);
+            self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
         } else {
             let value = self.gen_expr(ctx, arg)?;
             // Jump to the end of the llvm func
