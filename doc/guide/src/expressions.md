@@ -118,8 +118,8 @@ The types of if branches must be the same, except `Void` (such as `puts`) and `N
 `x if y` is equivalent to
 
 ```sk
-if x
-  y
+if y
+  x
 end
 ```
 
@@ -146,8 +146,8 @@ Note: `unless` cannot take `elsif` or `else` clause.
 `x unless y` is equivalent to
 
 ```sk
-if !x
-  y
+if !y
+  x
 end
 ```
 
