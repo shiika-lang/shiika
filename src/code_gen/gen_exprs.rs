@@ -26,10 +26,10 @@ const FN_X_FUNC_IDX: usize = 0;
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
 const FN_X_CAPTURES_IDX: usize = 2;
-/// Fn::EXIT_BREAK
-const EXIT_BREAK: u64 = 1;
-/// Fn::EXIT_RETURN
-const EXIT_RETURN: u64 = 2;
+/// Value of exit_status indicates a block is terminated with `break`
+const EXIT_BREAK_IN_BLOCK: u64 = 1;
+/// Value of exit_status indicates a block is terminated with `return`
+const EXIT_RETURN_IN_BLOCK: u64 = 2;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
@@ -282,7 +282,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
                 // Set exit_status
                 let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
-                let i = self.i64_type.const_int(EXIT_BREAK as u64, false);
+                let i = self.i64_type.const_int(EXIT_BREAK_IN_BLOCK as u64, false);
                 self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
 
                 // Jump to the end of the llvm func
@@ -304,7 +304,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
             // Set exit_status
             let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
-            let i = self.i64_type.const_int(EXIT_RETURN as u64, false);
+            let i = self.i64_type.const_int(EXIT_RETURN_IN_BLOCK as u64, false);
             self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
         } else {
             let value = self.gen_expr(ctx, arg)?;
@@ -470,7 +470,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let eq = self.gen_llvm_func_call(
                 "Int#==",
                 exit_status,
-                vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
+                vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK_IN_BLOCK, false))],
             )?;
             self.gen_conditional_branch(eq, *ctx.current_func_end, end_block);
         } else {
