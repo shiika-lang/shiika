@@ -36,7 +36,7 @@ class Book
 end
 ```
 
-For convenence, this can be written as:
+For convenience, this can be written as:
 
 ```sk
 class Book
@@ -44,11 +44,11 @@ class Book
 end
 ```
 
-Instance variables are readonly by default. To make it reassignable, declare it with `var`.
+Instance variables are read-only by default. To make it reassignable, declare it with `var`.
 
 ## Accessors
 
-For each instance variable, accessor methods are automatically defined. A reader method for an readonly one, reader and setter method for an writable one.
+For each instance variable, accessor methods are automatically defined. A reader method for an read-only one, reader and setter method for an writable one.
 
 Example
 
