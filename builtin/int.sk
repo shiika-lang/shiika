@@ -20,7 +20,7 @@ class Int
   # Calls `f` by passing numbers from `self` to `n`.
   def downto(n: Int, f: Fn1<Int, Void>)
     var i = self; while i >= n
-      f.call(i)
+      f(i)
       i -= 1
     end
   end
@@ -44,7 +44,7 @@ class Int
   # Calls `f` for `self` times, passing numbers from zero to `self - 1`.
   def times(f: Fn1<Int, Void>)
     var i = 0; while i < self
-      f.call(i)
+      f(i)
       i += 1
     end
   end
@@ -88,7 +88,7 @@ class Int
   # Calls `f` by passing numbers from `self` to `n`.
   def upto(n: Int, f: Fn1<Int, Void>)
     var i = self; while i <= n
-      f.call(i)
+      f(i)
       i += 1
     end
   end

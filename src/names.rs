@@ -110,16 +110,6 @@ impl std::fmt::Display for MethodFullname {
 }
 
 impl MethodFullname {
-    /// Returns true if this is any of `Fn0#call`, ..., `Fn9#call`
-    pub fn is_fn_x_call(&self) -> bool {
-        for i in 0..=9 {
-            if self.full_name == format!("Fn{}#call", i) {
-                return true;
-            }
-        }
-        false
-    }
-
     /// Returns true if this method isn't an instance method
     pub fn is_class_method(&self) -> bool {
         self.full_name.starts_with("Meta:")

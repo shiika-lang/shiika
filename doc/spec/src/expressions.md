@@ -54,10 +54,10 @@ An instance of the classes `Fn0`, `Fn1`, ..., `Fn9` is called a _lambda_. Lambda
 
 ```sk
 f = fn{ p 1 }
-f.call
+f()
 ```
 
-TODO: `f()` should also be ok https://github.com/yhara/shiika/issues/264
+`f` must be an instance of `Fn`.
 
 ## Method call
 

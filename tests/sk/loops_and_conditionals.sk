@@ -64,7 +64,7 @@ class A
 
   def self.return_from_fn -> Int
     f = fn(){ return 1; 2 } # Jumps to the end of this fn
-    f.call
+    f()
   end
 end
 A.wo_arg

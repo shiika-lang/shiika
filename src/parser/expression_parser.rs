@@ -100,6 +100,7 @@ impl<'a> Parser<'a> {
             Token::LowerWord(_) | Token::KwReturn => {
                 if self.peek_next_token() == Token::Space {
                     if let Some(expr) = self._try_parse_call_wo_paren()? {
+                        self.lv -= 1;
                         return Ok(expr)
                     }
                 }
@@ -108,7 +109,7 @@ impl<'a> Parser<'a> {
         }
 
         // If not, read an expression
-        let expr = self.parse_operator_expr()?;
+        let mut expr = self.parse_operator_expr()?;
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
@@ -118,12 +119,11 @@ impl<'a> Parser<'a> {
                 if let Some(lambda) = self.parse_opt_do_block()? {
                     args.push(lambda);
                 }
-                self.lv -= 1;
-                return Ok(ast::set_method_call_args(expr, args));
+                expr = ast::set_method_call_args(expr, args);
             } else if self.next_nonspace_token() == Token::KwDo {
                 self.skip_ws();
                 let lambda = self.parse_do_block()?;
-                return Ok(ast::set_method_call_args(expr, vec![lambda]));
+                expr = ast::set_method_call_args(expr, vec![lambda]);
             }
         }
 
@@ -148,7 +148,6 @@ impl<'a> Parser<'a> {
             if let Some(lambda) = self.parse_opt_do_block()? {
                 args.push(lambda);
             }
-            self.lv -= 1;
             match &token {
                 Token::LowerWord(s) => {
                     return Ok(Some(ast::method_call(None, &s, args, vec![], false, false)));
@@ -197,13 +196,12 @@ impl<'a> Parser<'a> {
     fn parse_operator_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_operator_expr");
-        let expr = self.parse_conditional_expr()?;
+        let mut expr = self.parse_conditional_expr()?;
         if expr.is_lhs() && self.next_nonspace_token().is_assignment_token() {
-            self.parse_assignment_expr(expr)
-        } else {
-            self.lv -= 1;
-            Ok(expr)
+            expr = self.parse_assignment_expr(expr)?;
         }
+        self.lv -= 1;
+        Ok(expr)
     }
 
     // assignmentExpression:
@@ -487,6 +485,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_break_expr");
         assert!(self.consume(Token::KwBreak));
+        self.lv -= 1;
         Ok(ast::break_expr())
     }
 
@@ -567,12 +566,11 @@ impl<'a> Parser<'a> {
         let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
         self.skip_wsn();
         if self.consume(Token::KwElse) {
-            Err(parse_error!(self, "unless cannot have a else clause"))
-        } else {
-            self.expect(Token::KwEnd)?;
-            self.lv -= 1;
-            Ok(ast::if_expr(ast::logical_not(cond_expr), then_exprs, None))
+            return Err(parse_error!(self, "unless cannot have a else clause"));
         }
+        self.expect(Token::KwEnd)?;
+        self.lv -= 1;
+        Ok(ast::if_expr(ast::logical_not(cond_expr), then_exprs, None))
     }
 
     fn parse_while_expr(&mut self) -> Result<AstExpression, Error> {
@@ -872,11 +870,15 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_lambda");
         assert!(self.consume(Token::KwFn));
-        self.expect(Token::LParen)?;
-        let params = self.parse_params(false, vec![Token::RParen])?;
+        let params;
+        if self.consume(Token::LParen) {
+            params = self.parse_params(false, vec![Token::RParen])?;
+            self.skip_ws();
+        } else {
+            params = vec![];
+        }
         self.skip_ws();
         self.expect(Token::LBrace)?;
-        self.consume_token();
         let exprs = self.parse_exprs(vec![Token::RBrace])?;
         assert!(self.consume(Token::RBrace));
         self.lv -= 1;

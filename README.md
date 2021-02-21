@@ -61,9 +61,15 @@ A.new.fib(34)
 
 See `examples/*.sk` for more.
 
+## Documents
+
+- [Lanugage Guide](./doc/guide/src/SUMMARY.md)
+- [Lanugage Specification](./doc/spec/src/SUMMARY.md)
+- [Hacking Guide](./doc/shg/src/SUMMARY.md)
+
 ## Status
 
-Early-alpha
+Early-alpha but at least capable of solving algorithmic problems like [Advent of Code](https://github.com/yhara/adventofcode)
 
 ### Features already implemented
 
@@ -100,7 +106,7 @@ See [Issues](https://github.com/yhara/shiika/issues)
 
 ## Hacking
 
-### Prerequisits
+### Prerequisites
 
 - Rust
 - LLVM (`brew install llvm@9`)
