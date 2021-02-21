@@ -63,8 +63,8 @@ See `examples/*.sk` for more.
 
 ## Documents
 
-- [Lanugage Guide](./doc/guide/src/SUMMARY.md)
-- [Lanugage Specification](./doc/spec/src/SUMMARY.md)
+- [Language Guide](./doc/guide/src/SUMMARY.md)
+- [Language Specification](./doc/spec/src/SUMMARY.md)
 - [Hacking Guide](./doc/shg/src/SUMMARY.md)
 
 ## Status
