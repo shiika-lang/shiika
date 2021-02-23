@@ -630,7 +630,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Rc<inkwell::basic_block::BasicBlock<'run>>,
         CodeGenContext<'hir, 'run>,
     ) {
-        let end_block = self.context.append_basic_block(function, "End");
+        let end_block = self.context.append_basic_block(function, "LlvmFuncEnd");
         let ref_end_block1 = Rc::new(end_block);
         let ref_end_block2 = Rc::clone(&ref_end_block1);
         let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
