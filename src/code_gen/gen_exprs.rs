@@ -486,18 +486,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         func_name: &str,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
         arg_values: Vec<inkwell::values::BasicValueEnum<'run>>,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let function = self.get_llvm_func(func_name);
         self.gen_llvm_function_call(function, receiver_value, arg_values)
     }
 
-    // REFACTOR: why returns Result?
     fn gen_llvm_function_call<F>(
         &self,
         function: F,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
         mut arg_values: Vec<inkwell::values::BasicValueEnum<'run>>,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error>
+    ) -> inkwell::values::BasicValueEnum<'run>
     where
         F: Into<
             either::Either<inkwell::values::FunctionValue<'run>, inkwell::values::PointerValue<'run>>,
@@ -511,8 +510,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .try_as_basic_value()
             .left()
         {
-            Some(result_value) => Ok(result_value),
-            None => Ok(self.gen_const_ref(&const_fullname("::Void"))),
+            Some(result_value) => result_value,
+            None => self.gen_const_ref(&const_fullname("::Void")),
         }
     }
 
@@ -603,7 +602,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"))?;
         let arg_values = vec![sk_ptr, the_self, self.gen_lambda_captures(ctx, captures)?];
-        self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
+        Ok(self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values))
     }
 
     fn gen_lambda_captures(
@@ -615,7 +614,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
-        )?;
+        );
         for cap in captures {
             let item = match cap {
                 HirLambdaCapture::CaptureLVar { name } => {
@@ -636,7 +635,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.llvm_type(&ty::raw("Object")),
                 "capture_item",
             );
-            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
     }
@@ -673,13 +672,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
-        )?;
+        );
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?;
             let obj = self
                 .builder
                 .build_bitcast(item, self.llvm_type(&ty::raw("Object")), "obj");
-            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
     }
@@ -711,7 +710,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
         self.gen_llvm_function_call(func, receiver_value, arg_values)
-            .unwrap()
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum<'run> {
@@ -755,7 +753,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        )?;
+        );
         let ret = if deref {
             // `item` is a pointer
             let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
@@ -796,7 +794,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        )?;
+        );
         let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
         let ptr = self
             .builder
