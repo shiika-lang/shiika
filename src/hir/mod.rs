@@ -182,6 +182,7 @@ pub enum HirExpressionBase {
     HirLambdaInvocation {
         lambda_expr: Box<HirExpression>,
         arg_exprs: Vec<HirExpression>,
+        breakable: bool,
     },
     HirArgRef {
         idx: usize,
@@ -412,12 +413,14 @@ impl Hir {
         result_ty: TermTy,
         varref_expr: HirExpression,
         arg_hirs: Vec<HirExpression>,
+        breakable: bool,
     ) -> HirExpression {
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirLambdaInvocation {
                 lambda_expr: Box::new(varref_expr),
                 arg_exprs: arg_hirs,
+                breakable,
             },
         }
     }

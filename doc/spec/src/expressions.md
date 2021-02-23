@@ -199,7 +199,10 @@ Type of a while expressions is `Void`.
 1. Find the nearest `while`/fn/block
 1. If the found one is `while`, escape from the `while`
 1. If the found one is fn, compile-time error
-1. If the found one is block, escape from the method that given the block
+1. If the found one is a block passed to a method:
+  1. If the return type of the block is not `Void`, compile-time error
+  1. If the return type of the method is not `Void`, compile-time error
+  1. Otherwise, escape from the method
 1. If none found, compile-time error
 
 Example

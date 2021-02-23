@@ -145,10 +145,16 @@ impl HirMakerContext {
         }
     }
 
-    /// Returns true if current context is a fn
+    /// Whether current context is a fn
     pub fn current_is_fn(&self) -> bool {
         self.current == CtxKind::Lambda &&
             self.lambdas.last().unwrap().is_fn
+    }
+
+    /// Whether current context is a method whose ret_ty is Void
+    pub fn in_a_void_method(&self) -> bool {
+        self.current == CtxKind::Method &&
+            self.method.as_ref().unwrap().signature.ret_ty.is_void_type()
     }
 
     /// Set `c` to `self.current` and the original value to `c`

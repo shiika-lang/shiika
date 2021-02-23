@@ -393,7 +393,8 @@ impl HirMaker {
         if receiver_expr.is_none() {
             if let Some(lvar) = self._lookup_var(&method_name.0) {
                 if let Some(ret_ty) = lvar.ty().fn_x_info() {
-                    return Ok(Hir::lambda_invocation(ret_ty, lvar.ref_expr(), arg_hirs));
+                    let breakable = ret_ty.is_void_type() && self.ctx.in_a_void_method();
+                    return Ok(Hir::lambda_invocation(ret_ty, lvar.ref_expr(), arg_hirs, breakable));
                 }
             }
         }
