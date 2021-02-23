@@ -538,8 +538,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                             &ctx.function, idx
                         ))
                     });
-                let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
-                let value = self.builder.build_bitcast(obj, llvm_type, "value");
+                let value = self._gen_bitcast(obj, &ctx.function_params.unwrap()[*idx].ty); 
                 Ok(value)
             }
             _ => panic!("[BUG] arg ref in invalid place"),
@@ -630,11 +629,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_lambda_capture_ref(ctx, cidx, deref, ty)?
                 }
             };
-            let obj = self.builder.build_bitcast(
-                item,
-                self.llvm_type(&ty::raw("Object")),
-                "capture_item",
-            );
+            let obj = self._gen_bitcast(item, &ty::raw("Object"));
             self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
@@ -657,9 +652,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             // In a method
             ctx.function.get_nth_param(METHOD_FUNC_ARG_SELF_IDX).unwrap()
         };
-        Ok(self
-            .builder
-            .build_bitcast(the_main, self.llvm_type(ty), "the_main"))
+        Ok(self._gen_bitcast(the_main, ty))
     }
 
     /// Generate code for creating an array
@@ -675,9 +668,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?;
-            let obj = self
-                .builder
-                .build_bitcast(item, self.llvm_type(&ty::raw("Object")), "obj");
+            let obj = self._gen_bitcast(item, &ty::raw("Object"));
             self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
@@ -764,7 +755,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_load(ptr, "ret")
         } else {
             // `item` is a value
-            self.builder.build_bitcast(item, self.llvm_type(ty), "ret")
+            self._gen_bitcast(item, ty)
         };
 
         let block = self.context.append_basic_block(
@@ -827,8 +818,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         let obj = self.gen_expr(ctx, expr)?;
-        Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
+        Ok(self._gen_bitcast(obj, ty))
     }
+
+    /// Cast a inkwell obj to the given Shiika type
+    fn _gen_bitcast(
+        &self,
+        obj: inkwell::values::BasicValueEnum<'run>,
+        ty: &TermTy,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        self.builder.build_bitcast(obj, self.llvm_type(ty), "cast")
+    }
+
 
     #[allow(clippy::let_and_return)]
     fn gen_class_literal(
