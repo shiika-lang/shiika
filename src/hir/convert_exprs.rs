@@ -831,21 +831,27 @@ fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
 
 /// Check if `break` in block is valid
 fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> Result<(), Error> {
-    if let HirExpressionBase::HirLambdaExpr { has_break, .. } = last_arg.node {
-        if has_break {
-            if sig.ret_ty == ty::raw("Void") {
-                match &mut last_arg.node {
-                    HirExpressionBase::HirLambdaExpr { ret_ty, .. } => {
-                        std::mem::swap(ret_ty, &mut ty::raw("Void"));
-                    }
-                    _ => return Err(error::bug("unexpected type")),
-                }
-            } else {
+    if let HirExpressionBase::HirLambdaExpr { has_break, .. } = &mut last_arg.node {
+        // No break found
+        if !*has_break { return Ok(()) }
+        // Check the method is Void
+        if sig.ret_ty != ty::raw("Void") {
+            return Err(error::program_error(
+                "`break' not allowed here because this method is expected to return a value",
+            ));
+        }
+        // Check the block is Void
+        if let TyBody::TySpe { base_name, type_args, .. } = &sig.params.last().unwrap().ty.body {
+            debug_assert!(base_name.starts_with("Fn"));
+            if !type_args.last().unwrap().is_void_type() {
                 return Err(error::program_error(
                     "`break' not allowed because this block is expected to return a value",
                 ));
             }
-        }
+        } else { panic!("must not happen") }
+        Ok(())
+    } else {
+        // No block found
+        Ok(())
     }
-    Ok(())
 }
