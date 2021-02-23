@@ -83,7 +83,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaInvocation {
                 lambda_expr,
                 arg_exprs,
-            } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
+                breakable,
+            } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, breakable, &expr.ty),
             HirArgRef { idx } => self.gen_arg_ref(ctx, idx),
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx, self_ty } => self.gen_ivar_ref(ctx, name, idx, self_ty),
@@ -299,6 +300,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg: &'hir HirExpression,
         from: &HirReturnFrom,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+        let value = self.gen_expr(ctx, arg)?;
         if *from == HirReturnFrom::Block {
             // This `return` escapes from the enclosing method
             debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
@@ -306,14 +308,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
             let i = self.i64_type.const_int(EXIT_RETURN_IN_BLOCK as u64, false);
             self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
-        } else {
-            let value = self.gen_expr(ctx, arg)?;
-            // Jump to the end of the llvm func
-            self.builder
-                .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
-            let block_end = self.builder.get_insert_block().unwrap();
-            ctx.returns.push((value, block_end));
         }
+        // Jump to the end of the llvm func
+        self.builder
+            .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+        ctx.returns.push((value, self.builder.get_insert_block().unwrap()));
         let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
         Ok(dummy_value)
     }
@@ -406,8 +405,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
 
         // Invoke the llvm function
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values)?;
-        self.builder.build_unconditional_branch(end_block);
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+
+        // Check `return` in block
+//        if ret_ty.is_void_type() {
+//            let eq = self.gen_llvm_func_call(
+//                "Int#==",
+//                exit_status,
+//                vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK_IN_BLOCK, false))],
+//            )?;
+//            self.gen_conditional_branch(eq, *ctx.current_func_end, end_block);
+//        } else {
+            self.builder.build_unconditional_branch(end_block);
+//        }
         self.builder.position_at_end(end_block);
         Ok(result)
     }
@@ -418,6 +428,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         lambda_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        breakable: &bool,
         ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         let lambda_obj = self.gen_expr(ctx, lambda_expr)?;
@@ -433,12 +444,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Create basic block
         let start_block = self
             .context
-            .append_basic_block(ctx.function, "Invoke_lambda");
+            .append_basic_block(ctx.function, "InvokeLambda");
         self.builder.build_unconditional_branch(start_block);
         self.builder.position_at_end(start_block);
         let end_block = self
             .context
-            .append_basic_block(ctx.function, "Invoke_lambda_end");
+            .append_basic_block(ctx.function, "InvokeLambda_end");
 
         // Create the type of lambda_xx()
         let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
@@ -465,19 +476,71 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .left()
             .unwrap();
 
-        // Check `break` in block
-        if ret_ty.is_void_type() {
+        // Check `break`|`return` in case this lambda is a block
+        self._gen_lambda_result_check(ctx, breakable, result, exit_status, end_block);
+        self.builder.position_at_end(end_block);
+        Ok(result)
+    }
+
+    /// Handle break/return in a block
+    fn _gen_lambda_result_check(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        breakable: &bool,
+        result: inkwell::values::BasicValueEnum<'run>,
+        exit_status: inkwell::values::BasicValueEnum<'run>,
+        invocation_end_block: inkwell::basic_block::BasicBlock<'run>,
+    ) {
+        let check_return_block = self
+            .context
+            .append_basic_block(ctx.function, "InvokeLambda_check_return");
+        if *breakable {
+            // If the block is terminated with `break`, jump to the end of the method
             let eq = self.gen_llvm_func_call(
                 "Int#==",
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK_IN_BLOCK, false))],
-            )?;
-            self.gen_conditional_branch(eq, *ctx.current_func_end, end_block);
+            );
+            self.gen_conditional_branch(eq, *ctx.current_func_end, check_return_block);
         } else {
-            self.builder.build_unconditional_branch(end_block);
+            self.builder.build_unconditional_branch(check_return_block);
         }
-        self.builder.position_at_end(end_block);
-        Ok(result)
+        self.builder.position_at_end(check_return_block);
+
+        match ctx.function_origin {
+            // A block in block is terminated with `return x`
+            FunctionOrigin::Lambda => {
+                let eq = self.gen_llvm_func_call(
+                    "Int#==",
+                    exit_status,
+                    vec![self.box_int(&self.i64_type.const_int(EXIT_RETURN_IN_BLOCK, false))],
+                );
+                let fwd_return_block = self
+                    .context
+                    .append_basic_block(ctx.function, "InvokeLambda_fwd_return");
+                self.gen_conditional_branch(eq, fwd_return_block, invocation_end_block);
+                // Set exit_status
+                self.builder.position_at_end(fwd_return_block);
+                let exit_status = ctx.function.get_nth_param(LAMBDA_FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
+                let i = self.i64_type.const_int(EXIT_RETURN_IN_BLOCK as u64, false);
+                self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
+                self.builder.build_unconditional_branch(*ctx.current_func_end);
+                ctx.returns.push((result, self.builder.get_insert_block().unwrap()));
+            }
+            // A block in method is terminated with `return x`
+            FunctionOrigin::Method => {
+                let eq = self.gen_llvm_func_call(
+                    "Int#==",
+                    exit_status,
+                    vec![self.box_int(&self.i64_type.const_int(EXIT_RETURN_IN_BLOCK, false))],
+                );
+                // Forcefully bitcast the object to bypass llvm type check
+                let res = self.builder.build_bitcast(result, ctx.function.get_type().get_return_type().unwrap(), "res");
+                self.gen_conditional_branch(eq, *ctx.current_func_end, invocation_end_block);
+                ctx.returns.push((res, self.builder.get_insert_block().unwrap()));
+            }
+            _ => panic!("[BUG] invalid `return`")
+        }
     }
 
     /// Generate llvm function call
