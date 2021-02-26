@@ -49,8 +49,9 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     };
     let name = ivar.name.clone(); // Clone to embed into the closure
     let idx = ivar.idx;
+    // REFACTOR: hir should not access to code_gen...
     let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-        let this = function.get_params()[0];
+        let this = code_gen.get_method_receiver(function);
         let val = code_gen.build_ivar_load(this, idx, &name);
         code_gen.builder.build_return(Some(&val));
         Ok(())
@@ -80,8 +81,8 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let ivar_name = ivar.name.clone(); // Clone to embed into the closure
     let idx = ivar.idx;
     let setter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-        let this = function.get_params()[0];
-        let val = function.get_params()[1];
+        let this = code_gen.get_method_receiver(function);
+        let val = code_gen.get_method_param(function, 0);
         code_gen.build_ivar_store(&this, idx, val, &ivar_name);
         code_gen.builder.build_return(Some(&val));
         Ok(())

@@ -13,7 +13,7 @@ use std::rc::Rc;
 /// Number of items preceed actual arguments
 pub const METHOD_FUNC_ARG_HEADER_LEN: u32 = 1;
 /// Index of the receiver object in arguments of llvm func for Shiika method
-const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
+pub const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
 /// Number of items preceed actual arguments
 pub const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
 /// Index of the FnX object in arguments of llvm func for Shiika lambda

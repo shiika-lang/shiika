@@ -7,7 +7,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "sin(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
+                let arg = code_gen.get_method_param(function, 0);
                 let x = code_gen.unbox_float(arg);
                 let func = code_gen.module.get_function("sin").unwrap();
                 let result = code_gen
@@ -25,7 +25,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "cos(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
+                let arg = code_gen.get_method_param(function, 0);
                 let x = code_gen.unbox_float(arg);
                 let func = code_gen.module.get_function("cos").unwrap();
                 let result = code_gen
@@ -43,7 +43,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "sqrt(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
+                let arg = code_gen.get_method_param(function, 0);
                 let x = code_gen.unbox_float(arg);
                 let func = code_gen.module.get_function("sqrt").unwrap();
                 let result = code_gen

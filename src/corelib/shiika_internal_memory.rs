@@ -8,7 +8,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Shiika::Internal::Memory",
             "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr",
             |code_gen, function| {
-                let sk_int = function.get_params()[1];
+                let sk_int = code_gen.get_method_param(function, 0);
                 let n_bytes = code_gen.unbox_int(sk_int);
                 let n_bytes_64 =
                     code_gen
@@ -30,9 +30,8 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Shiika::Internal::Memory",
             "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr",
             |code_gen, function| {
-                let ptr = code_gen.unbox_i8ptr(function.get_params()[1]);
-                let sk_int = function.get_params()[2];
-                let n_bytes = code_gen.unbox_int(sk_int);
+                let ptr = code_gen.unbox_i8ptr(code_gen.get_method_param(function, 0));
+                let n_bytes = code_gen.unbox_int(code_gen.get_method_param(function, 1));
                 let n_bytes_64 =
                     code_gen
                         .builder
@@ -57,9 +56,9 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Shiika::Internal::Memory",
             "memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void",
             |code_gen, function| {
-                let dst = code_gen.unbox_i8ptr(function.get_params()[1]);
-                let src = code_gen.unbox_i8ptr(function.get_params()[2]);
-                let n_bytes = code_gen.unbox_int(function.get_params()[3]);
+                let dst = code_gen.unbox_i8ptr(code_gen.get_method_param(function, 0));
+                let src = code_gen.unbox_i8ptr(code_gen.get_method_param(function, 1));
+                let n_bytes = code_gen.unbox_int(code_gen.get_method_param(function, 2));
                 let n_bytes_64 =
                     code_gen
                         .builder

@@ -9,8 +9,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Object", "putd(n: Int) -> Void", |code_gen, function| {
-            let sk_int = function.get_params()[1];
-            let n = code_gen.unbox_int(sk_int);
+            let n = code_gen.unbox_int(code_gen.get_method_param(function, 0));
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module
@@ -30,8 +29,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
-            let arg = function.get_params()[1];
-            let n = code_gen.unbox_float(arg);
+            let n = code_gen.unbox_float(code_gen.get_method_param(function, 0));
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module
@@ -51,7 +49,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
-            let sk_str = function.get_params()[1];
+            let sk_str = code_gen.get_method_param(function, 0);
             let sk_ptr = code_gen.build_ivar_load(sk_str, 0, "@sk_ptr");
             let ptr = code_gen.unbox_i8ptr(sk_ptr);
             let func = code_gen.module.get_function("puts").unwrap();
@@ -63,8 +61,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             "Object",
             "exit(status: Int) -> Never",
             |code_gen, function| {
-                let sk_int = function.get_params()[1];
-                let int64 = code_gen.unbox_int(sk_int);
+                let int64 = code_gen.unbox_int(code_gen.get_method_param(function, 0));
                 let int32 = code_gen
                     .builder
                     .build_int_truncate(int64, code_gen.i32_type, "int32");
@@ -72,7 +69,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                 code_gen
                     .builder
                     .build_call(func, &[int32.as_basic_value_enum()], "");
-                code_gen.builder.build_return(None);
+                code_gen.builder.build_unreachable();
                 Ok(())
             },
         ),

@@ -9,10 +9,8 @@ macro_rules! create_comparison_method {
             "Float",
             format!("{}(other: Float) -> Bool", $operator).as_str(),
             |code_gen, function| {
-                let this = function.get_params()[0];
-                let val1 = code_gen.unbox_float(this);
-                let that = function.get_params()[1];
-                let val2 = code_gen.unbox_float(that);
+                let val1 = code_gen.unbox_float(code_gen.get_method_receiver(function));
+                let val2 = code_gen.unbox_float(code_gen.get_method_param(function, 0));
                 $body;
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_bool(result);
@@ -29,10 +27,8 @@ macro_rules! create_arithmetic_method {
             "Float",
             format!("{}(other: Float) -> Float", $operator).as_str(),
             |code_gen, function| {
-                let this = function.get_params()[0];
-                let val1 = code_gen.unbox_float(this);
-                let that = function.get_params()[1];
-                let val2 = code_gen.unbox_float(that);
+                let val1 = code_gen.unbox_float(code_gen.get_method_receiver(function));
+                let val2 = code_gen.unbox_float(code_gen.get_method_param(function, 0));
                 $body;
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_float(&result);
@@ -167,8 +163,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             }
         ),
         create_method("Float", "abs -> Float", |code_gen, function| {
-            let this = function.get_params()[0];
-            let x = code_gen.unbox_float(this);
+            let x = code_gen.unbox_float(code_gen.get_method_receiver(function));
             let func = code_gen.module.get_function("fabs").unwrap();
             let result = code_gen
                 .builder
@@ -181,8 +176,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Float", "floor -> Float", |code_gen, function| {
-            let this = function.get_params()[0];
-            let x = code_gen.unbox_float(this);
+            let x = code_gen.unbox_float(code_gen.get_method_receiver(function));
             let func = code_gen.module.get_function("floor").unwrap();
             let result = code_gen
                 .builder
@@ -195,8 +189,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Float", "to_i() -> Int", |code_gen, function| {
-            let this = function.get_params()[0];
-            let float = code_gen.unbox_float(this);
+            let float = code_gen.unbox_float(code_gen.get_method_receiver(function));
             let int = code_gen
                 .builder
                 .build_float_to_signed_int(float, code_gen.i64_type, "int");
@@ -205,8 +198,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Float", "-@ -> Float", |code_gen, function| {
-            let this = function.get_params()[0];
-            let float = code_gen.unbox_float(this);
+            let float = code_gen.unbox_float(code_gen.get_method_receiver(function));
             let zero = code_gen.f64_type.const_float(0.0);
             let result = code_gen.builder.build_float_sub(zero, float, "result");
             let sk_result = code_gen.box_float(&result);
