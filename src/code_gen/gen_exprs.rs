@@ -10,28 +10,6 @@ use crate::ty::*;
 use inkwell::values::*;
 use std::rc::Rc;
 
-// REFACTOR: Move to mod.rs
-/// Number of items preceed actual arguments
-pub const METHOD_FUNC_ARG_HEADER_LEN: u32 = 2;
-/// Index of the receiver object in arguments of llvm func for Shiika method
-pub const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
-/// Number of items preceed actual arguments
-pub const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
-/// Index of the FnX object in arguments of llvm func for Shiika lambda
-const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
-/// Index of exit_status (of both method and lambda llvm func)
-const FUNC_ARG_EXIT_STATUS_INDEX: u32 = 1;
-/// Index of @func of FnX
-const FN_X_FUNC_IDX: usize = 0;
-/// Index of @the_self of FnX
-const FN_X_THE_SELF_IDX: usize = 1;
-/// Index of @captures of FnX
-const FN_X_CAPTURES_IDX: usize = 2;
-/// Value of exit_status indicates a block is terminated with `break`
-const EXIT_BREAK_IN_BLOCK: u64 = 1;
-/// Value of exit_status indicates a block is terminated with `return`
-const EXIT_RETURN_IN_BLOCK: u64 = 2;
-
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_exprs(
         &self,

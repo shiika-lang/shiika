@@ -18,12 +18,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Get the `nth` parameter (0-oriign) of the method llvm function
     pub fn get_method_param(&self, function: &inkwell::values::FunctionValue<'run>, nth: usize) -> inkwell::values::BasicValueEnum<'run> {
-        function.get_params()[gen_exprs::METHOD_FUNC_ARG_HEADER_LEN as usize + nth]
+        function.get_params()[METHOD_FUNC_ARG_HEADER_LEN as usize + nth]
     }
 
     /// Get the receiver of the method llvm function
     pub fn get_method_receiver(&self, function: &inkwell::values::FunctionValue<'run>) -> inkwell::values::BasicValueEnum<'run> {
-        function.get_params()[gen_exprs::METHOD_FUNC_ARG_SELF_IDX as usize]
+        function.get_params()[METHOD_FUNC_ARG_SELF_IDX as usize]
     }
 
     /// Load value of an instance variable

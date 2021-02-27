@@ -20,6 +20,31 @@ use inkwell::AddressSpace;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+//
+// constants
+//
+
+/// Number of items preceed actual arguments
+const METHOD_FUNC_ARG_HEADER_LEN: u32 = 2;
+/// Index of the receiver object in arguments of llvm func for Shiika method
+const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
+/// Index of exit_status (of both method and lambda llvm func)
+const FUNC_ARG_EXIT_STATUS_INDEX: u32 = 1;
+/// Number of items preceed actual arguments
+const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
+/// Index of the FnX object in arguments of llvm func for Shiika lambda
+const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
+/// Index of @func of FnX
+const FN_X_FUNC_IDX: usize = 0;
+/// Index of @the_self of FnX
+const FN_X_THE_SELF_IDX: usize = 1;
+/// Index of @captures of FnX
+const FN_X_CAPTURES_IDX: usize = 2;
+/// Value of exit_status indicates a block is terminated with `break`
+const EXIT_BREAK_IN_BLOCK: u64 = 1;
+/// Value of exit_status indicates a block is terminated with `return`
+const EXIT_RETURN_IN_BLOCK: u64 = 2;
+
 /// CodeGen
 ///
 /// 'hir > 'ictx >= 'run
@@ -436,9 +461,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 1 => "exit_status",
                 _ => {
                     let header_len = if is_lambda {
-                        gen_exprs::LAMBDA_FUNC_ARG_HEADER_LEN
+                        LAMBDA_FUNC_ARG_HEADER_LEN
                     } else {
-                        gen_exprs::METHOD_FUNC_ARG_HEADER_LEN
+                        METHOD_FUNC_ARG_HEADER_LEN
                     };
                     &params[i - (header_len as usize)].name
                 }
@@ -567,7 +592,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
         }
         let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
-        let header_len = gen_exprs::METHOD_FUNC_ARG_HEADER_LEN as usize;
+        let header_len = METHOD_FUNC_ARG_HEADER_LEN as usize;
         let args = (0..(arity+header_len))
             .map(|i| {
                 match i {
