@@ -151,6 +151,20 @@ impl HirMakerContext {
             self.lambdas.last().unwrap().is_fn
     }
 
+    /// Returns a debugging string like "toplevel", "Class1", "Class1#method1", etc.
+    pub fn describe_current_place(&self) -> String {
+        if let Some(method_ctx) = &self.method {
+            method_ctx.signature.fullname.to_string().clone()
+        } else {
+            match self.current {
+                CtxKind::Toplevel => "toplevel".to_string(),
+                CtxKind::Class => self.classes.last().unwrap().namespace.0.clone(),
+                CtxKind::Lambda => "lambda".to_string(),
+                _ => panic!("must not happen"),
+            }
+        }
+    }
+
     /// Set `c` to `self.current` and the original value to `c`
     pub fn swap_current(&mut self, c: &mut CtxKind) {
         std::mem::swap(c, &mut self.current);
