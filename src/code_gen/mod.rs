@@ -25,21 +25,26 @@ use std::rc::Rc;
 //
 
 /// Number of items preceed actual arguments
-const METHOD_FUNC_ARG_HEADER_LEN: u32 = 2;
+const METHOD_FUNC_ARG_HEADER_LEN: u32 = 3;
 /// Index of the receiver object in arguments of llvm func for Shiika method
 const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
 /// Index of exit_status (of both method and lambda llvm func)
 const FUNC_ARG_EXIT_STATUS_INDEX: u32 = 1;
+/// Index of the forwarded return value (if any)
+const METHOD_FUNC_ARG_FWDRET_IDX: u32 = 2;
+
 /// Number of items preceed actual arguments
 const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
 /// Index of the FnX object in arguments of llvm func for Shiika lambda
 const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
+
 /// Index of @func of FnX
 const FN_X_FUNC_IDX: usize = 0;
 /// Index of @the_self of FnX
 const FN_X_THE_SELF_IDX: usize = 1;
 /// Index of @captures of FnX
 const FN_X_CAPTURES_IDX: usize = 2;
+
 /// Value of exit_status indicates a block is terminated with `break`
 const EXIT_BREAK_IN_BLOCK: u64 = 1;
 /// Value of exit_status indicates a block is terminated with `return`
@@ -451,21 +456,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         is_lambda: bool,
     ) -> Result<(), Error> {
         // LLVM function
-        // (Function for lambdas are created in gen_lambda_expr)
+        // Function for methods are created in gen_method_funcs
+        // Function for lambdas are created in gen_lambda_expr
         let function = self.get_llvm_func(func_name);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
-            let name = match i {
-                0 => if is_lambda { "fn_x" } else { "self" },
-                1 => "exit_status",
-                _ => {
-                    let header_len = if is_lambda {
-                        LAMBDA_FUNC_ARG_HEADER_LEN
-                    } else {
-                        METHOD_FUNC_ARG_HEADER_LEN
-                    };
-                    &params[i - (header_len as usize)].name
+            let name = if is_lambda {
+                match i {
+                    0 => "fn_x",
+                    1 => "exit_status",
+                    _ => &params[i - (LAMBDA_FUNC_ARG_HEADER_LEN as usize)].name,
+                } 
+            } else {
+                match i {
+                    0 => "self",
+                    1 => "exit_status",
+                    2 => "fwdret",
+                    _ => &params[i - (METHOD_FUNC_ARG_HEADER_LEN as usize)].name,
                 }
             };
             inkwell_set_name(param, name);
@@ -592,12 +600,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
         }
         let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
+        let fwdret = self.box_i8ptr(self.i8ptr_type.const_null());
         let header_len = METHOD_FUNC_ARG_HEADER_LEN as usize;
         let args = (0..(arity+header_len))
             .map(|i| {
                 match i {
                     0 => addr,
                     1 => exit_status,
+                    2 => fwdret,
                     _ => self.get_method_param(function, i - header_len),
                 }
             })

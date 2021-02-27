@@ -180,8 +180,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         param_tys: Vec<&TermTy>,
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let exit_status_type = ty::raw("Int");
-        let header = [self_ty, &exit_status_type];
+        let header = [
+            self_ty,
+            &ty::raw("Int"), // exit_status
+            &ty::raw("Shiika::Internal::Ptr"), // fwdret
+        ];
         let rest = param_tys.iter();
         let params = header.iter().chain(rest).map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
         self.llvm_func_type(&params, &ret_ty)
