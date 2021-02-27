@@ -173,6 +173,44 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         None
     }
 
+    /// Return llvm funcion type of a method
+    pub fn method_llvm_func_type(
+        &self,
+        self_ty: &TermTy,
+        param_tys: Vec<&TermTy>,
+        ret_ty: &TermTy,
+    ) -> inkwell::types::FunctionType<'ictx> {
+        let exit_status_type = ty::raw("Int");
+        let header = [self_ty, &exit_status_type];
+        let rest = param_tys.iter();
+        let params = header.iter().chain(rest).map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        self.llvm_func_type(&params, &ret_ty)
+    }
+
+    /// Return llvm funcion type of a lambda
+    pub fn lambda_llvm_func_type(
+        &self,
+        n_params: usize,
+        ret_ty: &TermTy,
+    ) -> inkwell::types::FunctionType<'ictx> {
+        let fn_x_ty = ty::raw(&format!("Fn{}", n_params));
+        let exit_status_ty = ty::raw("Int");
+        let obj_ty = ty::raw("Object");
+        let header = [&fn_x_ty, &exit_status_ty];
+        let rest = [&obj_ty].repeat(n_params);
+        let params = header.iter().chain(rest.iter()).map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        self.llvm_func_type(&params, &ret_ty)
+    }
+
+    /// Return llvm funcion type
+    fn llvm_func_type(
+        &self,
+        param_types: &[inkwell::types::BasicTypeEnum<'ictx>],
+        ret_ty: &TermTy,
+    ) -> inkwell::types::FunctionType<'ictx> {
+        self.llvm_type(&ret_ty).fn_type(&param_types, false)
+    }
+
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {

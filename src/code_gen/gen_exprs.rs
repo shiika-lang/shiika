@@ -586,8 +586,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         match ctx.function_origin {
             FunctionOrigin::Method => {
-                let n = METHOD_FUNC_ARG_HEADER_LEN + (*idx as u32);
-                Ok(ctx.function.get_nth_param(n).unwrap())
+                Ok(self.get_method_param(&ctx.function, *idx))
             }
             FunctionOrigin::Lambda => {
                 let n = LAMBDA_FUNC_ARG_HEADER_LEN + (*idx as u32);
@@ -644,13 +643,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
-        let exit_status_type = &ty::raw("Int");
-        let obj_type = ty::raw("Object");
-        let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
-        arg_types.insert(0, &fn_x_type);
-        arg_types.insert(1, &exit_status_type);
-        let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
+        let func_type = self.lambda_llvm_func_type(params.len(), &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
         // eg. Fn1.new(fnptr, the_self, captures)
@@ -747,7 +740,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum<'run> {
-        let func = self.get_llvm_func(&"Meta:String#new");
         let receiver_value = self.gen_const_ref(&const_fullname("::String"));
         let global = self
             .module
@@ -763,7 +755,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .const_int(self.str_literals[*idx].len() as u64, false);
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
-        self.gen_llvm_function_call(func, receiver_value, arg_values)
+        self.gen_llvm_func_call(&"Meta:String#new", receiver_value, arg_values)
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum<'run> {
@@ -892,7 +884,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         self.builder.build_bitcast(obj, self.llvm_type(ty), "cast")
     }
-
 
     #[allow(clippy::let_and_return)]
     fn gen_class_literal(
