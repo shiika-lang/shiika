@@ -185,9 +185,13 @@ impl HirMaker {
             type_checking::check_if_clauses_ty(&then_hirs.ty, &else_hirs.ty)?;
         }
 
-        let if_ty = if then_hirs.ty.is_never_type() {
+        let if_ty = if then_hirs.ty.is_never_type() && else_hirs.ty.is_never_type() {
+            ty::raw("Never")
+        } else if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
-        } else if then_hirs.ty.is_void_type() {
+        } else if else_hirs.ty.is_never_type() {
+            then_hirs.ty.clone()
+        } else if then_hirs.ty.is_void_type() || else_hirs.ty.is_void_type() {
             ty::raw("Void")
         } else {
             then_hirs.ty.clone()
