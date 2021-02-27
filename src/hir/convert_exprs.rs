@@ -482,8 +482,6 @@ impl HirMaker {
         exprs: &[AstExpression],
         is_fn: &bool,
     ) -> Result<HirExpression, Error> {
-        self.lambda_ct += 1;
-        let lambda_id = self.lambda_ct;
         let hir_params = signature::convert_params(
             params,
             &self.current_class_typarams(),
@@ -502,14 +500,21 @@ impl HirMaker {
 
         let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
         Ok(Hir::lambda_expr(
-            lambda_ty(&hir_params, &hir_exprs.ty), // ty
-            format!("lambda_{}", lambda_id),       // name
+            lambda_ty(&hir_params, &hir_exprs.ty),
+            self._create_lambda_name(),
             hir_params,
             hir_exprs,
             self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
             extract_lvars(&mut lambda_ctx.lvars),               // lvars
             lambda_ctx.has_break,
         ))
+    }
+
+    /// Returns a newly created name for a lambda
+    fn _create_lambda_name(&mut self) -> String {
+        self.lambda_ct += 1;
+        let lambda_id = self.lambda_ct;
+        format!("lambda_{}_in_{}", lambda_id, self.ctx.describe_current_place())
     }
 
     /// Resolve LambdaCapture into HirExpression
