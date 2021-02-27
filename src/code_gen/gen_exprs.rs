@@ -396,7 +396,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         exit_status: inkwell::values::BasicValueEnum<'run>,
         invocation_end_block: inkwell::basic_block::BasicBlock<'run>,
     ) {
-        let eq = self.gen_llvm_func_call(
+        let eq = self._gen_method_llvm_func_call(
             "Int#==",
             exit_status,
             vec![self.box_int(&self.i64_type.const_int(EXIT_RETURN_IN_BLOCK, false))],
@@ -494,7 +494,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, "InvokeLambda_check_return");
         if *breakable {
             // If the block is terminated with `break`, jump to the end of the method
-            let eq = self.gen_llvm_func_call(
+            let eq = self._gen_method_llvm_func_call(
                 "Int#==",
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK_IN_BLOCK, false))],
@@ -508,7 +508,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fwd_return_block = self
             .context
             .append_basic_block(ctx.function, "InvokeLambda_fwd_return");
-        let eq = self.gen_llvm_func_call(
+        let eq = self._gen_method_llvm_func_call(
             "Int#==",
             exit_status,
             vec![self.box_int(&self.i64_type.const_int(EXIT_RETURN_IN_BLOCK, false))],
@@ -526,8 +526,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Call a llvm function specified by `func_name`
-    // REFACTOR: gen_method_call or something
-    fn gen_llvm_func_call(
+    /// NB: this is for internal use only; does not handle `exit_status` nor `fwdret`
+    fn _gen_method_llvm_func_call(
         &self,
         func_name: &str,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
@@ -535,7 +535,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         let function = self.get_llvm_func(func_name);
         let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
-        let mut llvm_args = vec![receiver_value, exit_status];
+        let fwdret = self.box_i8ptr(self.i8ptr_type.const_null());
+        let mut llvm_args = vec![receiver_value, exit_status, fwdret];
         llvm_args.append(&mut arg_values);
         self.gen_llvm_function_call(function, llvm_args)
     }
@@ -638,7 +639,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"))?;
         let arg_values = vec![sk_ptr, the_self, self.gen_lambda_captures(ctx, captures)?];
-        Ok(self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values))
+        Ok(self._gen_method_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values))
     }
 
     fn gen_lambda_captures(
@@ -646,7 +647,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         captures: &'hir [HirLambdaCapture],
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let ary = self.gen_llvm_func_call(
+        let ary = self._gen_method_llvm_func_call(
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
@@ -667,7 +668,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             };
             let obj = self._gen_bitcast(item, &ty::raw("Object"));
-            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
+            self._gen_method_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
     }
@@ -698,7 +699,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir [HirExpression],
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let ary = self.gen_llvm_func_call(
+        let ary = self._gen_method_llvm_func_call(
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
@@ -706,7 +707,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?;
             let obj = self._gen_bitcast(item, &ty::raw("Object"));
-            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
+            self._gen_method_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
     }
@@ -736,7 +737,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .const_int(self.str_literals[*idx].len() as u64, false);
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
-        self.gen_llvm_func_call(&"Meta:String#new", receiver_value, arg_values)
+        self._gen_method_llvm_func_call(&"Meta:String#new", receiver_value, arg_values)
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum<'run> {
@@ -776,7 +777,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let item = self.gen_llvm_func_call(
+        let item = self._gen_method_llvm_func_call(
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
@@ -817,7 +818,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let ptr_ = self.gen_llvm_func_call(
+        let ptr_ = self._gen_method_llvm_func_call(
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
