@@ -227,9 +227,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(merge_block);
 
         if then_exprs.ty.is_never_type() {
-            Ok(then_value)
-        } else if else_exprs.ty.is_never_type() {
             Ok(else_value)
+        } else if else_exprs.ty.is_never_type() {
+            Ok(then_value)
         } else {
             let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
             phi_node.add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
