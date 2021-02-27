@@ -11,6 +11,7 @@ use crate::hir::*;
 use crate::mir;
 use crate::mir::*;
 use crate::names::*;
+use crate::ty;
 use crate::ty::*;
 use either::*;
 use inkwell::types::*;
@@ -432,18 +433,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (i, param) in function.get_param_iter().enumerate() {
             let name = match i {
                 0 => if is_lambda { "fn_x" } else { "self" },
+                1 => "exit_status",
                 _ => {
-                    if is_lambda && i == 1 {
-                        "exit_status"
-                    }
-                    else {
-                        let header_len = if is_lambda {
-                            gen_exprs::LAMBDA_FUNC_ARG_HEADER_LEN
-                        } else {
-                            gen_exprs::METHOD_FUNC_ARG_HEADER_LEN
-                        };
-                        &params[i - (header_len as usize)].name
-                    }
+                    let header_len = if is_lambda {
+                        gen_exprs::LAMBDA_FUNC_ARG_HEADER_LEN
+                    } else {
+                        gen_exprs::METHOD_FUNC_ARG_HEADER_LEN
+                    };
+                    &params[i - (header_len as usize)].name
                 }
             };
             inkwell_set_name(param, name);
@@ -505,38 +502,34 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let (end_block, mut ctx) =
             self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        let ret_block = if exprs.ty.is_never_type() {
-            if ret_ty.is_never_type() {
-                self.builder.build_unconditional_branch(*end_block);
-            }
+        if ret_ty.is_never_type() && ctx.returns.is_empty() {
+            // This method/lambda never returns (eg. `Object#panic`)
+            self.builder.build_unreachable();
+            return Ok(())
+        }
+
+        let last_value_block = if exprs.ty.is_never_type() {
+            self.builder.build_unreachable();
             None
         } else {
-            let b = self.context.append_basic_block(ctx.function, "Ret");
+            let b = self.context.append_basic_block(ctx.function, "LastValue");
             self.builder.build_unconditional_branch(b);
             self.builder.position_at_end(b);
             self.builder.build_unconditional_branch(*end_block);
             Some(b)
         };
-
         self.builder.position_at_end(*end_block);
 
-        if ret_ty.is_never_type() {
-            // `Never` does not have an instance
-            self.builder.build_return(None);
-        } else if ret_ty.is_void_type() {
-            self.build_return_void();
-        } else {
-            // Make a phi node from the `return`s
-            let mut incomings = ctx.returns.iter().map(|(v, b)| {
-                (v as &dyn inkwell::values::BasicValue, *b)
-            }).collect::<Vec<_>>();
-            if let Some(b) = ret_block {
-                incomings.push((&last_value, b));
-            }
-            let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
-            phi_node.add_incoming(incomings.as_slice());
-            self.builder.build_return(Some(&phi_node.as_basic_value()));
+        // Make a phi node from the `return`s
+        let mut incomings = ctx.returns.iter().map(|(v, b)| {
+            (v as &dyn inkwell::values::BasicValue, *b)
+        }).collect::<Vec<_>>();
+        if let Some(b) = last_value_block {
+            incomings.push((&last_value, b));
         }
+        let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
+        phi_node.add_incoming(incomings.as_slice());
+        self.builder.build_return(Some(&phi_node.as_basic_value()));
         Ok(())
     }
 
@@ -573,12 +566,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .ptr_type(inkwell::AddressSpace::Generic);
             addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
         }
-        let args = (0..=arity)
+        let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
+        let header_len = gen_exprs::METHOD_FUNC_ARG_HEADER_LEN as usize;
+        let args = (0..(arity+header_len))
             .map(|i| {
-                if i == 0 {
-                    addr
-                } else {
-                    function.get_params()[i]
+                match i {
+                    0 => addr,
+                    1 => exit_status,
+                    _ => self.get_method_param(function, i - header_len),
                 }
             })
             .collect::<Vec<_>>();
