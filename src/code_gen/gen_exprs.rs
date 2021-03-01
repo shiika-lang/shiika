@@ -260,7 +260,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             },
             HirBreakFrom::Block => {
                 debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
-                self._set_exit_status(ctx, EXIT_BREAK_IN_BLOCK);
+                self._gen_exit_status_set(ctx, EXIT_BREAK_IN_BLOCK);
+                ctx.returns.push((None, self.builder.get_insert_block().unwrap()));
                 self.builder
                     .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
                 Ok(dummy_value)
@@ -274,19 +275,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg: &'hir HirExpression,
         from: &HirReturnFrom,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let mut value = self.gen_expr(ctx, arg)?;
+        let value = self.gen_expr(ctx, arg)?;
         if *from == HirReturnFrom::Block {
             // This `return` escapes from the enclosing method
             debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
-            self._set_exit_status(ctx, EXIT_RETURN_IN_BLOCK);
-            // Forcefully bitcast the object (because the type of `value`
-            // should be the return type of the method, which may be
-            // different from the return type of this lambda)
-            value = self.builder.build_bitcast(value, ctx.function.get_type().get_return_type().unwrap(), "value");
+            self._gen_exit_status_set(ctx, EXIT_RETURN_IN_BLOCK);
+            self._gen_fwdret_set(ctx, value);
+            ctx.returns.push((None, self.builder.get_insert_block().unwrap()));
+        } else {
+            ctx.returns.push((Some(value), self.builder.get_insert_block().unwrap()));
         }
         self.builder
             .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
-        ctx.returns.push((value, self.builder.get_insert_block().unwrap()));
         let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
         Ok(dummy_value)
     }
@@ -349,7 +349,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let method_name = &method_fullname.first_name;
         let receiver_value = self.gen_expr(ctx, receiver_expr)?;
         let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
-        let mut arg_values = vec![receiver_value, exit_status];
+        let fwdret = self.box_i8ptr(self.i8ptr_type.const_null());
+        let mut arg_values = vec![receiver_value, exit_status, fwdret];
         for arg_expr in arg_exprs {
             arg_values.push(self.gen_expr(ctx, arg_expr)?);
         }
@@ -378,7 +379,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Invoke the llvm function
         let result = self.gen_llvm_function_call(func, arg_values);
         if ctx.function_origin != FunctionOrigin::Other {
-            self._gen_method_result_check(ctx, result, exit_status, end_block);
+            self._gen_method_result_check(ctx, exit_status, fwdret, end_block);
         } else {
             self.builder.build_unconditional_branch(end_block);
         }
@@ -392,10 +393,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn _gen_method_result_check(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        result: inkwell::values::BasicValueEnum<'run>,
         exit_status: inkwell::values::BasicValueEnum<'run>,
+        fwdret: inkwell::values::BasicValueEnum<'run>,
         invocation_end_block: inkwell::basic_block::BasicBlock<'run>,
     ) {
+        // Check exit_status is EXIT_RETURN_IN_BLOCK
         let eq = self._gen_method_llvm_func_call(
             "Int#==",
             exit_status,
@@ -406,13 +408,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, "InvokeMethod_fwd_return");
         self.gen_conditional_branch(eq, fwd_return_block, invocation_end_block);
 
+        // If the method call is halted with "return in block", come to this block
         self.builder.position_at_end(fwd_return_block);
-        self._set_exit_status(ctx, EXIT_RETURN_IN_BLOCK);
-        // Forcefully bitcast the object (because the type of `result`
-        // is the ret_ty of the block, which may be different from
-        // the ret_ty of the method)
-        let res = self.builder.build_bitcast(result, ctx.function.get_type().get_return_type().unwrap(), "res");
-        ctx.returns.push((res, self.builder.get_insert_block().unwrap()));
+        let forwarded_ret_value = self._gen_fwdret_unpack(fwdret);
+        match ctx.function_origin {
+            FunctionOrigin::Lambda => {
+                // Forward the value
+                self._gen_exit_status_set(ctx, EXIT_BREAK_IN_BLOCK);
+                self._gen_fwdret_set(ctx, forwarded_ret_value);
+                ctx.returns.push((None, self.builder.get_insert_block().unwrap()));
+            }
+            FunctionOrigin::Method => {
+                // The return value of this method is decided by "return in block"
+                let ret_type = ctx.function.get_type().get_return_type().unwrap();
+                let result = self.builder.build_bitcast(forwarded_ret_value, ret_type, "result");
+                ctx.returns.push((Some(result), fwd_return_block));
+            }
+            _ => panic!("must not happen")
+        }
         self.builder.build_unconditional_branch(*ctx.current_func_end);
     }
 
@@ -430,7 +443,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Prepare arguments
         let exit_status = self.box_int(&self.i64_type.const_int(0 as u64, false));
-        let mut args = vec![lambda_obj, exit_status];
+        let fwdret = self.box_i8ptr(self.i8ptr_type.const_null());
+        let mut args = vec![lambda_obj, exit_status, fwdret];
         for e in arg_exprs {
             args.push(self.gen_expr(ctx, e)?);
         }
@@ -446,13 +460,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, "InvokeLambda_end");
 
         // Create the type of lambda_xx()
-        let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
-        let exit_status_type = self.llvm_type(&ty::raw("Int"));
-        let mut arg_types = vec![fn_x_type.into(), exit_status_type.into()];
-        for e in arg_exprs {
-            arg_types.push(self.llvm_type(&e.ty));
-        }
-        let fntype = self.llvm_type(ret_ty).fn_type(&arg_types, false);
+        let arg_types = arg_exprs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
+        let fntype = self.lambda_llvm_func_type(n_args, &arg_types, &ret_ty);
         let fnptype = fntype.ptr_type(AddressSpace::Generic);
 
         // Cast `fnptr` to that type
@@ -472,7 +481,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Check `break`|`return` in case this lambda is a block
         if ctx.function_origin != FunctionOrigin::Other {
-            self._gen_lambda_result_check(ctx, breakable, result, exit_status, end_block);
+            self._gen_lambda_result_check(ctx, breakable, exit_status, fwdret, end_block);
         } else {
             self.builder.build_unconditional_branch(end_block);
         }
@@ -485,15 +494,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         breakable: &bool,
-        result: inkwell::values::BasicValueEnum<'run>,
         exit_status: inkwell::values::BasicValueEnum<'run>,
+        fwdret: inkwell::values::BasicValueEnum<'run>,
         invocation_end_block: inkwell::basic_block::BasicBlock<'run>,
     ) {
         let check_return_block = self
             .context
             .append_basic_block(ctx.function, "InvokeLambda_check_return");
         if *breakable {
-            // If the block is terminated with `break`, jump to the end of the method
+            // Check exit_status is EXIT_BREAK_IN_BLOCK
             let eq = self._gen_method_llvm_func_call(
                 "Int#==",
                 exit_status,
@@ -504,6 +513,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_unconditional_branch(check_return_block);
         }
 
+        // Check exit_status is EXIT_RETURN_IN_BLOCK
         self.builder.position_at_end(check_return_block);
         let fwd_return_block = self
             .context
@@ -515,13 +525,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.gen_conditional_branch(eq, fwd_return_block, invocation_end_block);
 
+        // If the lambda call is halted with "return in block", come to this block
         self.builder.position_at_end(fwd_return_block);
-        self._set_exit_status(ctx, EXIT_RETURN_IN_BLOCK);
-        // Forcefully bitcast the object (because the type of `result`
-        // is the ret_ty of the block, which may be different from
-        // the ret_ty of the method)
-        let res = self.builder.build_bitcast(result, ctx.function.get_type().get_return_type().unwrap(), "res");
-        ctx.returns.push((res, self.builder.get_insert_block().unwrap()));
+        self._gen_exit_status_set(ctx, EXIT_RETURN_IN_BLOCK);
+        self._gen_fwdret_set(ctx, self._gen_fwdret_unpack(fwdret));
+        ctx.returns.push((None, self.builder.get_insert_block().unwrap()));
         self.builder.build_unconditional_branch(*ctx.current_func_end);
     }
 
@@ -625,10 +633,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let func_type = self.lambda_llvm_func_type(params.len(), &ret_ty);
+        let param_tys = params.iter().map(|param| &param.ty).collect::<Vec<_>>();
+        let func_type = self.lambda_llvm_func_type(params.len(), &param_tys, &ret_ty);
         self.module.add_function(&func_name, func_type, None);
 
-        // eg. Fn1.new(fnptr, the_self, captures)
+        // Call FnX.new
         let cls_name = format!("Fn{}", params.len());
         let meta = self.gen_const_ref(&const_fullname(&("::".to_string() + &cls_name)));
         let fnptr = self
@@ -885,7 +894,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Store `status` into the `exit_status` of the current llvm function
-    fn _set_exit_status(
+    fn _gen_exit_status_set(
         &self,
         ctx: &CodeGenContext<'hir, 'run>,
         status: u64,
@@ -893,5 +902,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let exit_status = ctx.function.get_nth_param(FUNC_ARG_EXIT_STATUS_INDEX).unwrap();
         let i = self.i64_type.const_int(status as u64, false);
         self.build_ivar_store(&exit_status, 0, i.into(), "exit_status");
+    }
+
+    /// Store `value` into the `fwdret` of the method llvm function
+    fn _gen_fwdret_set(
+        &self,
+        ctx: &CodeGenContext<'hir, 'run>,
+        value: inkwell::values::BasicValueEnum<'run>,
+    ) {
+        let fwdret = ctx.function.get_nth_param(FUNC_ARG_FWDRET_IDX).unwrap();
+        let ptr = self.builder.build_bitcast(value, self.i8ptr_type, "ptr");
+        self.build_ivar_store(&fwdret, 0, ptr.into(), "content_of_fwdret");
+    }
+
+    /// Returns the content of `fwdret` of the current llvm function.
+    /// Bitcast if type is given
+    fn _gen_fwdret_unpack(
+        &self,
+        fwdret: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> { 
+        self.build_ivar_load(fwdret, 0, "content_of_fwdret")
     }
 }

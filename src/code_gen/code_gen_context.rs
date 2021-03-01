@@ -18,7 +18,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// End of the current llvm function. Only used for lambdas
     pub current_func_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
     /// Arguments of `return` found in this context
-    pub returns: Vec<(inkwell::values::BasicValueEnum<'run>, inkwell::basic_block::BasicBlock<'run>)>,
+    pub returns: Vec<(Option<inkwell::values::BasicValueEnum<'run>>, inkwell::basic_block::BasicBlock<'run>)>,
 }
 
 #[derive(Debug, PartialEq)]

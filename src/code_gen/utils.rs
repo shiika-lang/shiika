@@ -194,14 +194,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn lambda_llvm_func_type(
         &self,
         n_params: usize,
+        param_tys: &[&TermTy],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let fn_x_ty = ty::raw(&format!("Fn{}", n_params));
-        let exit_status_ty = ty::raw("Int");
-        let obj_ty = ty::raw("Object");
-        let header = [&fn_x_ty, &exit_status_ty];
-        let rest = [&obj_ty].repeat(n_params);
-        let params = header.iter().chain(rest.iter()).map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
+        let header = [
+            &ty::raw(&format!("Fn{}", n_params)), // self
+            &ty::raw("Int"), // exit_status
+            &ty::raw("Shiika::Internal::Ptr"), // fwdret
+        ];
+        let rest = param_tys.iter();
+        let params = header.iter().chain(rest).map(|ty| self.llvm_type(ty)).collect::<Vec<_>>();
         self.llvm_func_type(&params, &ret_ty)
     }
 

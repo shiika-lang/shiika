@@ -82,12 +82,12 @@ Instances of `Fn1`, `Fn2`, ... are called "lambda" in Shiika. There are two ways
 In both cases, a llvm function is defined for it. For example:
 
 ```llvm
-define %Object @lambda_1(%Fn1* %fn_x, %Object* %arg1, %Object* %arg2) {
+define %Object @lambda_1(%Fn1* %fn_x, %Int* exit_status, %Object* %arg1, %Object* %arg2) {
   ...
 }
 ```
 
-Note that all arguments and return value are handled as `%Object*`, regardless of their original type. This is because all lambdas that accepts one argument are invoked by `Fn1#call`.
+Note that all arguments and return value are handled as `%Object*`, regardless of their original type. This is because the type information is lost once the function `@lambda_1` is stored in `Fn2`.
 
 ### FnX
 
@@ -96,3 +96,57 @@ Note that all arguments and return value are handled as `%Object*`, regardless o
 - `@func` is a pointer to `@lambda_xx`.
 - `@the_self` is the object pointed by `self` in the lambda.
 - `@captures` is an array of outer variables the lambda captures.
+
+## Jump expressions
+
+### `break`
+
+`break` can be occurred in a `while` or a block. Implementation of the former is rather simple but the latter is not, because we need to inform the caller that the block is terminated with `break`. For example:
+
+```sk
+  ary.each do |i|
+    p i
+    break if i == 2
+  end
+```
+
+This `break` escapes from `each`, not only the block. The definition of `Array#each` is like this:
+
+```sk
+  def each(f: Fn1<T, Void>)
+    var i = 0; while i < @n_items
+      f(self[i])
+      i += 1
+    end
+  end
+```
+
+To check the call of `f` is terminated with `break`, `@lambda_xx` has second argument `exit_status`. Its type `%Int*` is used just for encapsulate a number here and not visible from Shiika code. 
+
+```llvm
+define %Object @lambda_1(%Fn1* %fn_x, %Int* exit_status, %Object* %arg1, %Object* %arg2) {
+  ...
+}
+```
+
+### `return`
+
+Implementation of `return` is similar to `break` but more complicated because 
+
+1. it may have an argument, and
+2. any method call (with a block) may be terminated by `return` in a block.
+
+Example:
+
+```sk
+  def foo -> Int
+    bar do
+      baz do
+        return 1
+      end
+    end
+    2
+  end
+```
+
+In this case the `return 1` escapes `foo`, not only `bar`, `baz` and its blocks.

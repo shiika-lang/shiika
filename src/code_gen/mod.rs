@@ -31,10 +31,10 @@ const METHOD_FUNC_ARG_SELF_IDX: u32 = 0;
 /// Index of exit_status (of both method and lambda llvm func)
 const FUNC_ARG_EXIT_STATUS_INDEX: u32 = 1;
 /// Index of the forwarded return value (if any)
-const METHOD_FUNC_ARG_FWDRET_IDX: u32 = 2;
+const FUNC_ARG_FWDRET_IDX: u32 = 2;
 
 /// Number of items preceed actual arguments
-const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 2;
+const LAMBDA_FUNC_ARG_HEADER_LEN: u32 = 3;
 /// Index of the FnX object in arguments of llvm func for Shiika lambda
 const LAMBDA_FUNC_ARG_FN_X_IDX: u32 = 0;
 
@@ -466,6 +466,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 match i {
                     0 => "fn_x",
                     1 => "exit_status",
+                    2 => "fwdret",
                     _ => &params[i - (LAMBDA_FUNC_ARG_HEADER_LEN as usize)].name,
                 } 
             } else {
@@ -534,32 +535,29 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<(), Error> {
         let (end_block, mut ctx) =
             self.new_ctx(function_origin, function, function_params, lvars);
-        let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        if ret_ty.is_never_type() && ctx.returns.is_empty() {
-            // This method/lambda never returns (eg. `Object#panic`)
-            self.builder.build_unreachable();
-            return Ok(())
+        let mut last_value = self.gen_exprs(&mut ctx, exprs)?;
+        if exprs.ty.is_never_type() {
+            last_value = self.llvm_type(&ty::raw("Never"))
+                .into_pointer_type().const_null().as_basic_value_enum();
         }
-
-        let last_value_block = if exprs.ty.is_never_type() {
-            self.builder.build_unreachable();
-            None
-        } else {
-            let b = self.context.append_basic_block(ctx.function, "LastValue");
-            self.builder.build_unconditional_branch(b);
-            self.builder.position_at_end(b);
-            self.builder.build_unconditional_branch(*end_block);
-            Some(b)
-        };
+        let last_value_block = self.context.append_basic_block(ctx.function, "LastValue");
+        self.builder.build_unconditional_branch(last_value_block);
+        self.builder.position_at_end(last_value_block);
+        self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
 
         // Make a phi node from the `return`s
-        let mut incomings = ctx.returns.iter().map(|(v, b)| {
-            (v as &dyn inkwell::values::BasicValue, *b)
+        let null_value = function.get_type().get_return_type().unwrap().
+                    into_pointer_type().const_null()
+                    .as_basic_value_enum();
+        let mut incomings = ctx.returns.iter().map(|(opt_v, b)| {
+            if let Some(v) = opt_v {
+                (v as &dyn inkwell::values::BasicValue, *b)
+            } else {
+                (&null_value as &dyn inkwell::values::BasicValue, *b)
+            }
         }).collect::<Vec<_>>();
-        if let Some(b) = last_value_block {
-            incomings.push((&last_value, b));
-        }
+        incomings.push((&last_value, last_value_block));
         let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
         phi_node.add_incoming(incomings.as_slice());
         self.builder.build_return(Some(&phi_node.as_basic_value()));
