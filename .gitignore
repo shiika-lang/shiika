@@ -3,5 +3,6 @@
 /coverage
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
+/rusty-tags.vi
 /target
 /tests/tmp.*
