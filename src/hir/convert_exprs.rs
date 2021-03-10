@@ -249,7 +249,8 @@ impl HirMaker {
             if lambda_ctx.is_fn {
                 Ok(HirReturnFrom::Fn)
             } else if self.ctx.method.is_some() {
-                Ok(HirReturnFrom::Block)
+                Err(error::program_error("`return' in a block is not supported (#266)"))
+                //Ok(HirReturnFrom::Block)
             } else {
                 Err(error::program_error("`return' outside a loop"))
             }
