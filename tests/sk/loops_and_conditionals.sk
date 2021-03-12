@@ -5,6 +5,16 @@ while i < 3
 end
 unless i == 3 then puts "ng 1" end
 
+# nested while
+i = 0
+var j = 0
+while i < 1
+  i += 1
+  while j < 1
+    j += 1
+  end
+end
+
 # while in lambda
 [3].each do |n: Int|
   i = 0; while i < n
@@ -55,6 +65,7 @@ class A
     return 1
   end
 
+# #266
 #  def self.return_from_block -> Int
 #    [1, 2, 3].each do |i: Int|
 #      return 99 # Jumps to the end of the lambda, then
