@@ -70,7 +70,7 @@ impl MethodCtx {
             signature,
             lvars: Default::default(),
             iivars: Default::default(),
-            super_ivars: super_ivars.unwrap_or(Default::default()),
+            super_ivars: super_ivars.unwrap_or_default(),
         }
     }
 }
@@ -153,7 +153,7 @@ impl HirMakerContext {
     /// Returns a debugging string like "toplevel", "Class1", "Class1#method1", etc.
     pub fn describe_current_place(&self) -> String {
         if let Some(method_ctx) = &self.method {
-            method_ctx.signature.fullname.to_string().clone()
+            method_ctx.signature.fullname.to_string()
         } else {
             match self.current {
                 CtxKind::Toplevel => "toplevel".to_string(),
@@ -215,11 +215,11 @@ impl HirMakerContext {
             CtxKind::Method => &mut self.method.as_mut().unwrap().lvars,
             CtxKind::Lambda => &mut self.lambdas.last_mut().unwrap().lvars,
             CtxKind::While => {
-                if self.lambdas.len() > 0 {
+                if !self.lambdas.is_empty() {
                     &mut self.lambdas.last_mut().unwrap().lvars
                 } else if self.method.is_some() {
                     &mut self.method.as_mut().unwrap().lvars
-                } else if self.classes.len() > 0 {
+                } else if !self.classes.is_empty() {
                     &mut self.classes.last_mut().unwrap().lvars
                 } else {
                     &mut self.toplevel.lvars

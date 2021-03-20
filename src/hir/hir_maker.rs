@@ -7,7 +7,6 @@ use crate::hir::method_dict::MethodDict;
 use crate::hir::*;
 use crate::names;
 use crate::type_checking;
-use log;
 
 #[derive(Debug)]
 pub struct HirMaker {

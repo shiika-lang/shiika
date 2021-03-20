@@ -312,7 +312,7 @@ impl HirMaker {
 
         if self.ctx.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty.clone()));
+            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
         }
 
         if let Some(ivar) = self.class_dict.find_ivar(&self_ty.fullname, name) {
@@ -564,7 +564,7 @@ impl HirMaker {
         let found = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
-        if let Some((sig, found_class_name)) = found.ok() {
+        if let Ok((sig, found_class_name)) = found {
             self._make_method_call(self_expr, vec![], sig, found_class_name)
         } else {
             Err(error::program_error(&format!(

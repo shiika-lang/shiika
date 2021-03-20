@@ -422,7 +422,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Create the type of lambda_xx()
         let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
-        let mut arg_types = vec![fn_x_type.into()];
+        let mut arg_types = vec![fn_x_type];
         for e in arg_exprs {
             arg_types.push(self.llvm_type(&e.ty));
         }

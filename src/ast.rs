@@ -213,7 +213,7 @@ pub fn break_expr() -> AstExpression {
 
 pub fn return_expr(arg: Option<AstExpression>) -> AstExpression {
     non_primary_expression(AstExpressionBody::Return {
-        arg: arg.map(|x| Box::new(x)),
+        arg: arg.map(Box::new),
     })
 }
 

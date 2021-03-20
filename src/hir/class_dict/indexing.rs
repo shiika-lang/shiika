@@ -6,6 +6,8 @@ use crate::hir::*;
 use crate::names::*;
 use std::collections::HashMap;
 
+type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
+
 impl ClassDict {
     /// Define ivars of a class
     pub fn define_ivars(
@@ -125,13 +127,7 @@ impl ClassDict {
         fullname: &ClassFullname,
         typarams: &[String],
         defs: &[ast::Definition],
-    ) -> Result<
-        (
-            HashMap<MethodFirstname, MethodSignature>,
-            HashMap<MethodFirstname, MethodSignature>,
-        ),
-        Error,
-    > {
+    ) -> Result<(MethodSignatures, MethodSignatures), Error> {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
         for def in defs {
