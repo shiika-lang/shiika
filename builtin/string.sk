@@ -58,6 +58,14 @@ class String
     end
   end
 
+  # Call `f` for each char
+  # TODO: support multibyte
+  def each_char(f: Fn1<String, Void>)
+    @bytesize.times do |i: Int|
+      f(slice_bytes(i, 1))
+    end
+  end
+
   # Call `f` for each line
   def each_line(f: Fn1<String, Void>)
     self.lines.each(f)
