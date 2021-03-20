@@ -408,7 +408,10 @@ impl HirMaker {
         for const_name in type_args {
             method_tyargs.push(self._resolve_method_tyarg(const_name)?);
         }
-        self._make_method_call(receiver_hir, &method_name, arg_hirs, &method_tyargs)
+        let (sig, found_class_name) =
+            self.class_dict
+                .lookup_method(&receiver_hir.ty, method_name, &method_tyargs)?;
+        self._make_method_call(receiver_hir, arg_hirs, sig, found_class_name)
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
@@ -423,20 +426,15 @@ impl HirMaker {
         Ok(ret)
     }
 
-    /// Resolve the method and create HirMethodCall
+    /// Check the arguments and create HirMethodCall
     fn _make_method_call(
         &self,
         receiver_hir: HirExpression,
-        method_name: &MethodFirstname,
         mut arg_hirs: Vec<HirExpression>,
-        method_tyargs: &[TermTy],
+        sig: MethodSignature,
+        found_class_name: ClassFullname,
     ) -> Result<HirExpression, Error> {
         let specialized = receiver_hir.ty.is_specialized();
-        let class_fullname = &receiver_hir.ty.fullname;
-        let (sig, found_class_name) =
-            self.class_dict
-                .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
-
         let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(
             &self.class_dict,
@@ -449,7 +447,7 @@ impl HirMaker {
             check_break_in_block(&sig, last_arg)?;
         }
 
-        let receiver = if &found_class_name != class_fullname {
+        let receiver = if found_class_name != receiver_hir.ty.fullname {
             // Upcast needed
             Hir::bit_cast(found_class_name.instance_ty(), receiver_hir)
         } else {
@@ -547,11 +545,20 @@ impl HirMaker {
 
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
+        // Found a local variable
         if let Some(lvar_info) = self._find_var(name, false)? {
-            Ok(lvar_info.ref_expr())
+            return Ok(lvar_info.ref_expr())
+        }
+
+        // Search method
+        let self_expr = self.convert_self_expr()?;
+        let found = self.class_dict
+            .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
+        if let Some((sig, found_class_name)) = found.ok() {
+            self._make_method_call(self_expr, vec![], sig, found_class_name)
         } else {
             Err(error::program_error(&format!(
-                "variable `{}' was not found",
+                "variable or method `{}' was not found",
                 name
             )))
         }
@@ -800,6 +807,7 @@ impl HirMaker {
         Ok(Hir::array_literal(item_exprs, ary_ty))
     }
 
+    // REFACTOR: Unnecessary Result
     fn convert_self_expr(&self) -> Result<HirExpression, Error> {
         Ok(Hir::self_expression(self.ctx.self_ty()))
     }
