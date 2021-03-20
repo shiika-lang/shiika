@@ -1,3 +1,10 @@
+## HEAD
+
+- feat: Added more methods
+- feat: Generic methods like `Array<T>#map<U>` (#237)
+- feat: `Array#[]`, `[]=` now accepts negative index (f3898fa)
+- feat: `Class#inspect` now works (#247)
+
 ## v0.5.3 (2021-01-11)
 
 - feat: Added many methods
