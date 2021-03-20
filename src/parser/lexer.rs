@@ -244,7 +244,10 @@ impl<'a> Lexer<'a> {
         } else {
             let (t, s) = match self.char_type(c) {
                 CharType::Space => (self.read_space(&mut next_cur), None),
-                CharType::Separator => (self.read_separator(&mut next_cur), Some(LexerState::ExprBegin)),
+                CharType::Separator => (
+                    self.read_separator(&mut next_cur),
+                    Some(LexerState::ExprBegin),
+                ),
                 CharType::Comment => (self.read_comment(&mut next_cur), None),
                 CharType::UpperWord => (
                     self.read_upper_word(&mut next_cur, None),

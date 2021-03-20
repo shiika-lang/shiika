@@ -446,7 +446,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Check `break` in block
         if ret_ty.is_void_type() {
-            let exit_status = self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
+            let exit_status =
+                self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_llvm_func_call(
                 "Int#==",
                 exit_status,
@@ -480,7 +481,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error>
     where
         F: Into<
-            either::Either<inkwell::values::FunctionValue<'run>, inkwell::values::PointerValue<'run>>,
+            either::Either<
+                inkwell::values::FunctionValue<'run>,
+                inkwell::values::PointerValue<'run>,
+            >,
         >,
     {
         let mut llvm_args = vec![receiver_value];

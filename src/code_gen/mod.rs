@@ -482,12 +482,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
                 SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => {
-                    self.gen_shiika_function_body(function, None, FunctionOrigin::Method, ret_ty, &exprs, lvar_ptrs)?
-                }
+                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_function_body(
+                    function,
+                    None,
+                    FunctionOrigin::Method,
+                    ret_ty,
+                    &exprs,
+                    lvar_ptrs,
+                )?,
             },
             Right(exprs) => {
-                self.gen_shiika_function_body(function, Some(params), FunctionOrigin::Lambda, ret_ty, &exprs, lvar_ptrs)?;
+                self.gen_shiika_function_body(
+                    function,
+                    Some(params),
+                    FunctionOrigin::Lambda,
+                    ret_ty,
+                    &exprs,
+                    lvar_ptrs,
+                )?;
             }
         }
         Ok(())
@@ -527,8 +539,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
-        let (end_block, mut ctx) =
-            self.new_ctx(function_origin, function, function_params, lvars);
+        let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         let ret_block = if exprs.ty.is_never_type() {
             if ret_ty.is_never_type() {
@@ -552,13 +563,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.build_return_void();
         } else {
             // Make a phi node from the `return`s
-            let mut incomings = ctx.returns.iter().map(|(v, b)| {
-                (v as &dyn inkwell::values::BasicValue, *b)
-            }).collect::<Vec<_>>();
+            let mut incomings = ctx
+                .returns
+                .iter()
+                .map(|(v, b)| (v as &dyn inkwell::values::BasicValue, *b))
+                .collect::<Vec<_>>();
             if let Some(b) = ret_block {
                 incomings.push((&last_value, b));
             }
-            let phi_node = self.builder.build_phi(self.llvm_type(ret_ty), "methodResult");
+            let phi_node = self
+                .builder
+                .build_phi(self.llvm_type(ret_ty), "methodResult");
             phi_node.add_incoming(incomings.as_slice());
             self.builder.build_return(Some(&phi_node.as_basic_value()));
         }

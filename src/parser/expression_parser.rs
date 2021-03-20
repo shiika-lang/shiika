@@ -101,11 +101,11 @@ impl<'a> Parser<'a> {
                 if self.peek_next_token() == Token::Space {
                     if let Some(expr) = self._try_parse_call_wo_paren()? {
                         self.lv -= 1;
-                        return Ok(expr)
+                        return Ok(expr);
                     }
                 }
             }
-            _ => ()
+            _ => (),
         }
 
         // If not, read an expression
@@ -154,11 +154,14 @@ impl<'a> Parser<'a> {
                 }
                 Token::KwReturn => {
                     if args.len() >= 2 {
-                        return Err(parse_error!(self, "`return' cannot take more than one args"));
+                        return Err(parse_error!(
+                            self,
+                            "`return' cannot take more than one args"
+                        ));
                     }
                     return Ok(Some(ast::return_expr(Some(args.pop().unwrap()))));
                 }
-                _ => panic!("must not happen: {:?}", self.current_token())
+                _ => panic!("must not happen: {:?}", self.current_token()),
             }
         }
         // Failed. Rollback the lexer changes

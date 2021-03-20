@@ -147,8 +147,7 @@ impl HirMakerContext {
 
     /// Returns true if current context is a fn
     pub fn current_is_fn(&self) -> bool {
-        self.current == CtxKind::Lambda &&
-            self.lambdas.last().unwrap().is_fn
+        self.current == CtxKind::Lambda && self.lambdas.last().unwrap().is_fn
     }
 
     /// Returns a debugging string like "toplevel", "Class1", "Class1#method1", etc.

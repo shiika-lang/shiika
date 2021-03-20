@@ -349,7 +349,10 @@ impl Hir {
     pub fn return_expression(from: HirReturnFrom, arg_expr: HirExpression) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
-            node: HirExpressionBase::HirReturnExpression { from, arg: Box::new(arg_expr) },
+            node: HirExpressionBase::HirReturnExpression {
+                from,
+                arg: Box::new(arg_expr),
+            },
         }
     }
 

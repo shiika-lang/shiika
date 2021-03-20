@@ -232,7 +232,10 @@ impl HirMaker {
         Ok(Hir::break_expression(from))
     }
 
-    fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression, Error> {
+    fn convert_return_expr(
+        &mut self,
+        arg: &Option<Box<AstExpression>>,
+    ) -> Result<HirExpression, Error> {
         let from = self._validate_return()?;
         let arg_expr = if let Some(x) = arg {
             self.convert_expr(x)?
@@ -249,8 +252,10 @@ impl HirMaker {
             if lambda_ctx.is_fn {
                 Ok(HirReturnFrom::Fn)
             } else if self.ctx.method.is_some() {
-                Err(error::program_error("`return' in a block is not supported (#266)"))
-                //Ok(HirReturnFrom::Block)
+                Err(error::program_error(
+                    "`return' in a block is not supported (#266)",
+                ))
+            //Ok(HirReturnFrom::Block)
             } else {
                 Err(error::program_error("`return' outside a loop"))
             }
@@ -508,7 +513,11 @@ impl HirMaker {
     fn _create_lambda_name(&mut self) -> String {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
-        format!("lambda_{}_in_{}", lambda_id, self.ctx.describe_current_place())
+        format!(
+            "lambda_{}_in_{}",
+            lambda_id,
+            self.ctx.describe_current_place()
+        )
     }
 
     /// Resolve LambdaCapture into HirExpression
@@ -547,12 +556,13 @@ impl HirMaker {
     fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression, Error> {
         // Found a local variable
         if let Some(lvar_info) = self._find_var(name, false)? {
-            return Ok(lvar_info.ref_expr())
+            return Ok(lvar_info.ref_expr());
         }
 
         // Search method
         let self_expr = self.convert_self_expr()?;
-        let found = self.class_dict
+        let found = self
+            .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
         if let Some((sig, found_class_name)) = found.ok() {
             self._make_method_call(self_expr, vec![], sig, found_class_name)

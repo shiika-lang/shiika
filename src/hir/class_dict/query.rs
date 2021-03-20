@@ -36,7 +36,10 @@ impl ClassDict {
                     .expect("[BUG] base_cls not found")
                     .instance_ty;
                 let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
-                Ok((base_sig.specialize(Some(&type_args), Some(method_tyargs)), found_cls))
+                Ok((
+                    base_sig.specialize(Some(&type_args), Some(method_tyargs)),
+                    found_cls,
+                ))
             }
             TyBody::TyParamRef { .. } => {
                 let o = ty::raw("Object");

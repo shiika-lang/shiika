@@ -138,7 +138,10 @@ impl TermTy {
     // Returns ret_ty if this is any of Fn0, .., Fn9
     pub fn fn_x_info(&self) -> Option<TermTy> {
         match &self.body {
-            TySpe { base_name, type_args } => {
+            TySpe {
+                base_name,
+                type_args,
+            } => {
                 for i in 0..=9 {
                     if *base_name == format!("Fn{}", i) {
                         let ret_ty = type_args.last().unwrap().clone();
@@ -180,7 +183,7 @@ impl TermTy {
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
         // `Never` is bottom type (i.e. subclass of any class)
         if self.is_never_type() {
-            return true
+            return true;
         }
         if let TyParamRef { name, .. } = &self.body {
             if let TyParamRef { name: name2, .. } = &other.body {
@@ -265,7 +268,11 @@ impl TermTy {
     ///   can have a generic method)
     /// - method_tyargs: None if not in a method context (eg. when creating
     ///   `Array<Int>` from `Array<T>`)
-    pub fn substitute(&self, class_tyargs: Option<&[TermTy]>, method_tyargs: Option<&[TermTy]>) -> TermTy {
+    pub fn substitute(
+        &self,
+        class_tyargs: Option<&[TermTy]>,
+        method_tyargs: Option<&[TermTy]>,
+    ) -> TermTy {
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
                 TyParamKind::Class => {
@@ -283,7 +290,10 @@ impl TermTy {
                     }
                 }
             },
-            TySpe { base_name, type_args } => {
+            TySpe {
+                base_name,
+                type_args,
+            } => {
                 let args = type_args
                     .iter()
                     .map(|t| t.substitute(class_tyargs, method_tyargs))

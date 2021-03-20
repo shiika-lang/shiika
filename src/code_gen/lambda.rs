@@ -75,7 +75,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_lambda_funcs_in_expr(expr)?;
                 }
             }
-            HirLambdaInvocation { lambda_expr, arg_exprs } => {
+            HirLambdaInvocation {
+                lambda_expr,
+                arg_exprs,
+            } => {
                 self.gen_lambda_funcs_in_expr(lambda_expr)?;
                 for expr in arg_exprs {
                     self.gen_lambda_funcs_in_expr(expr)?;
@@ -119,13 +122,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
         lvars: &[(String, TermTy)],
     ) -> Result<(), Error> {
-        self.gen_llvm_func_body(
-            &func_name,
-            params,
-            Right(exprs),
-            lvars,
-            ret_ty,
-            true,
-        )
+        self.gen_llvm_func_body(&func_name, params, Right(exprs), lvars, ret_ty, true)
     }
 }
