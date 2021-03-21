@@ -810,7 +810,7 @@ impl HirMaker {
         };
 
         for expr in &item_exprs {
-            item_ty = self.nearest_common_ancestor_type(&item_ty, &expr.ty)
+            item_ty = ty::nearest_common_ancestor(&item_ty, &expr.ty)
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
 
@@ -831,18 +831,6 @@ impl HirMaker {
         let idx = self.str_literals.len();
         self.str_literals.push(content.to_string());
         idx
-    }
-
-    /// Return the nearest common ancestor of the classes
-    fn nearest_common_ancestor_type(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
-        let ancestors1 = self.class_dict.ancestor_types(ty1);
-        let ancestors2 = self.class_dict.ancestor_types(ty2);
-        for t2 in ancestors2 {
-            if let Some(eq) = ancestors1.iter().find(|t1| t1.equals_to(&t2)) {
-                return eq.clone();
-            }
-        }
-        panic!("[BUG] nearest_common_ancestor_type not found");
     }
 }
 
