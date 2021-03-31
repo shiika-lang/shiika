@@ -439,7 +439,7 @@ pub struct TyParam {
 }
 
 /// Return the nearest common ancestor of the classes
-pub fn nearest_common_ancestor(ty1: &TermTy, ty2: &TermTy, class_dict: &ClassDict) {
+pub fn nearest_common_ancestor(ty1: &TermTy, ty2: &TermTy, class_dict: &ClassDict) -> TermTy {
     let ancestors1 = class_dict.ancestor_types(ty1);
     let ancestors2 = class_dict.ancestor_types(ty2);
     for t2 in ancestors2 {

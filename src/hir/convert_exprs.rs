@@ -177,20 +177,25 @@ impl HirMaker {
             None => HirExpressions::new(vec![]),
         };
 
-        if then_hirs.ty.is_void_type() && !else_hirs.ty.is_never_type() {
-            else_hirs.voidify();
-        } else if else_hirs.ty.is_void_type() && !then_hirs.ty.is_never_type() {
-            then_hirs.voidify();
-        } else {
-            type_checking::check_if_clauses_ty(&then_hirs.ty, &else_hirs.ty)?;
-        }
-
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
+        } else if else_hirs.ty.is_never_type() {
+            then_hirs.ty.clone()
         } else if then_hirs.ty.is_void_type() {
+            else_hirs.voidify();
+            ty::raw("Void")
+        } else if else_hirs.ty.is_void_type() {
+            then_hirs.voidify();
             ty::raw("Void")
         } else {
-            then_hirs.ty.clone()
+            let ty = ty::nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty, &self.class_dict);
+            if !then_hirs.ty.equals_to(&ty) {
+                then_hirs = then_hirs.bitcast_to(ty.clone());
+            }
+            if !else_hirs.ty.equals_to(&ty) {
+                else_hirs = else_hirs.bitcast_to(ty.clone());
+            }
+            ty
         };
 
         Ok(Hir::if_expression(if_ty, cond_hir, then_hirs, else_hirs))
@@ -810,7 +815,7 @@ impl HirMaker {
         };
 
         for expr in &item_exprs {
-            item_ty = ty::nearest_common_ancestor(&item_ty, &expr.ty)
+            item_ty = ty::nearest_common_ancestor(&item_ty, &expr.ty, &self.class_dict);
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
 
