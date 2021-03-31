@@ -3,4 +3,11 @@
   0
 end
 
+class A
+  # `Never` conforms to `Int`
+  def self.todo -> Int
+    panic "todo"
+  end
+end
+
 puts "ok"
