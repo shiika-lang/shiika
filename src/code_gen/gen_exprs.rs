@@ -205,20 +205,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // IfThen:
         self.builder.position_at_end(then_block);
         let then_value = self.gen_exprs(ctx, then_exprs)?;
-        self.builder.build_unconditional_branch(merge_block);
+        if then_exprs.ty.is_never_type() {
+            self.builder.build_unreachable();
+        } else {
+            self.builder.build_unconditional_branch(merge_block);
+        }
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
         let else_value = self.gen_exprs(ctx, else_exprs)?;
-        self.builder.build_unconditional_branch(merge_block);
+        if else_exprs.ty.is_never_type() {
+            self.builder.build_unreachable();
+        } else {
+            self.builder.build_unconditional_branch(merge_block);
+        }
         let else_block_end = self.builder.get_insert_block().unwrap();
         // IfEnd:
         self.builder.position_at_end(merge_block);
 
         if then_exprs.ty.is_never_type() {
-            Ok(then_value)
-        } else if else_exprs.ty.is_never_type() {
             Ok(else_value)
+        } else if else_exprs.ty.is_never_type() {
+            Ok(then_value)
         } else {
             let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
             phi_node.add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
@@ -808,7 +816,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
     ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
         let obj = self.gen_expr(ctx, expr)?;
-        Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
+        if expr.ty.equals_to(&ty) {
+            // No bitcast needed
+            Ok(obj)
+        } else {
+            Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
+        }
     }
 
     #[allow(clippy::let_and_return)]

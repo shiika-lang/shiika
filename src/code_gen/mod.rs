@@ -542,9 +542,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
         let ret_block = if exprs.ty.is_never_type() {
-            if ret_ty.is_never_type() {
-                self.builder.build_unconditional_branch(*end_block);
-            }
+            self.builder.build_unreachable();
             None
         } else {
             let b = self.context.append_basic_block(ctx.function, "Ret");
@@ -559,6 +557,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if ret_ty.is_never_type() {
             // `Never` does not have an instance
             self.builder.build_return(None);
+        } else if exprs.ty.is_never_type() && ctx.returns.is_empty() {
+            // `exprs` ends with `panic` and there is no `return`
+            let null = self.llvm_type(&ret_ty).into_pointer_type().const_null();
+            self.builder.build_return(Some(&null));
         } else if ret_ty.is_void_type() {
             self.build_return_void();
         } else {

@@ -437,3 +437,15 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
 pub struct TyParam {
     pub name: String,
 }
+
+/// Return the nearest common ancestor of the classes
+pub fn nearest_common_ancestor(ty1: &TermTy, ty2: &TermTy, class_dict: &ClassDict) -> TermTy {
+    let ancestors1 = class_dict.ancestor_types(ty1);
+    let ancestors2 = class_dict.ancestor_types(ty2);
+    for t2 in ancestors2 {
+        if let Some(eq) = ancestors1.iter().find(|t1| t1.equals_to(&t2)) {
+            return eq.clone();
+        }
+    }
+    panic!("[BUG] nearest_common_ancestor_type not found");
+}

@@ -118,6 +118,14 @@ impl HirExpressions {
         self.exprs.push(void_const_ref());
         self.ty = ty::raw("Void");
     }
+
+    /// Change the type of `self` to `ty` by bitcasting the result
+    pub fn bitcast_to(mut self, ty: TermTy) -> Self {
+        let last_expr = self.exprs.pop().unwrap();
+        self.exprs.push(Hir::bit_cast(ty.clone(), last_expr));
+        self.ty = ty;
+        self
+    }
 }
 /// Make a HirExpression to refer `::Void`
 fn void_const_ref() -> HirExpression {
