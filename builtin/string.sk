@@ -111,10 +111,10 @@ class String
   # Create a string which has a partial content of `self`
   def slice_bytes(from: Int, bytes: Int) -> String
     if from < 0
-      panic "[String#slice_bytes: `from` is less than zero]"
+      panic "[String#slice_bytes: `from` is less than zero (from: \{from}, bytes: \{bytes})]"
     end
     if from + bytes > @bytesize
-      panic "[String#slice_bytes: `from + bytes` too large]"
+      panic "[String#slice_bytes: `from + bytes` too large (from: \{from}, bytes: \{bytes}, self.bytesize: \{@bytesize})]"
     end
     newptr = Shiika::Internal::Memory.gc_malloc(bytes+1)
     Shiika::Internal::Memory.memcpy(newptr, @ptr+from, bytes)
