@@ -82,8 +82,8 @@ but some behaviors, `break` and `return` for example, are different between _fn_
 The type of these expressions are `Bool`.
 
 - `!x`
-- `x && y`
-- `x || y`
+- `x and y`
+- `x or y`
 
 ## Conditional expression
 

@@ -351,7 +351,7 @@ class Array<T>
   end
   def _choose_pivot(i: Int, j: Int) -> Int
     var k = i + 1
-    while k <= j && self[i] == self[k]
+    while k <= j and self[i] == self[k]
       k += 1
     end
     if k > j
@@ -366,10 +366,10 @@ class Array<T>
     var l = i
     var r = j
     while l <= r
-      while l <= j && self[l] < pivot
+      while l <= j and self[l] < pivot
         l += 1
       end
-      while r >= i && self[r] >= pivot
+      while r >= i and self[r] >= pivot
         r -= 1
       end
       if l > r

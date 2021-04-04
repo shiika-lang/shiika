@@ -347,6 +347,8 @@ impl<'a> Lexer<'a> {
             "end" => (Token::KwEnd, LexerState::ExprEnd),
             "def" => (Token::KwDef, LexerState::ExprBegin),
             "var" => (Token::KwVar, LexerState::ExprBegin),
+            "and" => (Token::KwAnd, LexerState::ExprBegin),
+            "or" => (Token::KwOr, LexerState::ExprBegin),
             "if" => {
                 if self.state == LexerState::ExprBegin {
                     (Token::KwIf, LexerState::ExprBegin)
@@ -540,16 +542,7 @@ impl<'a> Lexer<'a> {
                 }
             }
             '&' => {
-                if c2 == Some('&') {
-                    next_cur.proceed(self.src);
-                    let c3 = next_cur.peek(self.src);
-                    if c3 == Some('=') {
-                        next_cur.proceed(self.src);
-                        (Token::AndAndEq, LexerState::ExprBegin)
-                    } else {
-                        (Token::AndAnd, LexerState::ExprBegin)
-                    }
-                } else if c2 == Some('=') {
+                if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::AndEq, LexerState::ExprBegin)
                 } else {
@@ -557,16 +550,7 @@ impl<'a> Lexer<'a> {
                 }
             }
             '|' => {
-                if c2 == Some('|') {
-                    next_cur.proceed(self.src);
-                    let c3 = next_cur.peek(self.src);
-                    if c3 == Some('=') {
-                        next_cur.proceed(self.src);
-                        (Token::OrOrEq, LexerState::ExprBegin)
-                    } else {
-                        (Token::OrOr, LexerState::ExprBegin)
-                    }
-                } else if c2 == Some('=') {
+                if c2 == Some('=') {
                     next_cur.proceed(self.src);
                     (Token::OrEq, LexerState::ExprBegin)
                 } else {

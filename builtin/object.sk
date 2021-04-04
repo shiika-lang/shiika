@@ -14,11 +14,11 @@ class Object
   end
 
   def <=(other: Object) -> Bool
-    self < other || self == other
+    self < other or self == other
   end
 
   def >=(other: Object) -> Bool
-    self > other || self == other
+    self > other or self == other
   end
 
   def hash -> Int

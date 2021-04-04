@@ -179,11 +179,11 @@ class String
     # TODO: Use each_byte (#177)
     var i = start; while i < @bytesize
       b = self.nth_byte(i)
-      if 48 <= b && b <= 57
+      if 48 <= b and b <= 57
         n *= 10
         n += b - 48
       end
-      if b < 48 || b > 57
+      if b < 48 or b > 57
         break
       end
       i += 1
