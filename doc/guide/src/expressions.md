@@ -91,10 +91,12 @@ Type annotations are mandatory now but it should be inferred in the future versi
 The type of these expressions are `Bool`.
 
 - `!x`
-- `x && y`
-- `x || y`
+- `x and y`
+- `x or y`
 
 Both `x` and `y` must be `Bool`.
+
+Note for Rubyists: Instead of having both `&&/||` and `and/or`, Shiika only has the latter and its precedence is the same as Ruby's `&&/||`. In short, just use `and/or` as Ruby's `&&/||`.
 
 ## Conditional expression
 
