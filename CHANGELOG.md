@@ -1,5 +1,7 @@
-## HEAD
+## v0.5.4 (2021-04-04)
 
+- Breaking change: Moved repository to shiika-lang/shiika. Also renamed
+  branch `master` to `main`
 - Breaking change: Removed `Fn#call`. Use `f()` instead (#269)
 - Breaking change: Removed `&&/||`. Use `and/or` instead (#278)
 - feat: Generic methods like `Array<T>#map<U>` (#237)
