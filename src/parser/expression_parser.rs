@@ -282,16 +282,16 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    /// `||`
+    /// `or`
     fn parse_operator_or(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_operator_or");
         let mut expr = self.parse_operator_and()?;
         let mut token = &self.next_nonspace_token();
         loop {
-            if *token == Token::OrOr {
+            if *token == Token::KwOr {
                 self.skip_ws();
-                assert!(self.consume(Token::OrOr));
+                assert!(self.consume(Token::KwOr));
                 self.skip_wsn();
                 expr = ast::logical_or(expr, self.parse_operator_and()?);
                 self.skip_ws();
@@ -304,16 +304,16 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    /// `&&`
+    /// `and`
     fn parse_operator_and(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_operator_and");
         let mut expr = self.parse_equality_expr()?;
         let mut token = &self.next_nonspace_token();
         loop {
-            if *token == Token::AndAnd {
+            if *token == Token::KwAnd {
                 self.skip_ws();
-                assert!(self.consume(Token::AndAnd));
+                assert!(self.consume(Token::KwAnd));
                 self.skip_wsn();
                 expr = ast::logical_and(expr, self.parse_equality_expr()?);
                 self.skip_ws();
