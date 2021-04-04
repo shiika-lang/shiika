@@ -93,7 +93,7 @@ class Sphere
     c = rs.dot(rs) - @radius * @radius
     d = b * b - c
     t = -b - Math.sqrt(d)
-    if d > 0.0 && t > EPS && t < isect.distance
+    if d > 0.0 and t > EPS and t < isect.distance
       isect.hit_point = ray.origin.add(ray.dir.mul(t))
       isect.normal = isect.hit_point.sub(@position).normalize
       isect.color = @color.mul(Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0))
@@ -115,13 +115,13 @@ class Plane
     d = -(@position.dot(@normal))
     v = ray.dir.dot(@normal)
     t = -(ray.origin.dot(@normal) + d) / v
-    if t > EPS && t < isect.distance
+    if t > EPS and t < isect.distance
       isect.hit_point = ray.origin.add(ray.dir.mul(t))
       isect.normal = @normal
       d2 = Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0)
       m = isect.hit_point.x % 2
       n = isect.hit_point.z % 2
-      d3 = if (m > 1.0 && n > 1.0) || (m < 1.0 && n < 1.0)
+      d3 = if (m > 1.0 and n > 1.0) or (m < 1.0 and n < 1.0)
              d2*0.5
            else
              d2

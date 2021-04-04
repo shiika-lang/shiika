@@ -235,8 +235,6 @@ impl<'a> Parser<'a> {
             Token::AndEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "&", rhs)),
             Token::OrEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "|", rhs)),
             Token::XorEq => ast::assignment(lhs.clone(), ast::bin_op_expr(lhs, "^", rhs)),
-            Token::AndAndEq => ast::assignment(lhs.clone(), ast::logical_and(lhs, rhs)),
-            Token::OrOrEq => ast::assignment(lhs.clone(), ast::logical_or(lhs, rhs)),
             _unexpected => unimplemented!(),
         })
     }
