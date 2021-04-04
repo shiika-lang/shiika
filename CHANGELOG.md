@@ -1,9 +1,14 @@
 ## HEAD
 
-- feat: Added more methods
+- Breaking change: Removed `Fn#call`. Use `f()` instead (#269)
+- Breaking change: Removed `&&/||`. Use `and/or` instead (#278)
 - feat: Generic methods like `Array<T>#map<U>` (#237)
+- feat: `return` (#263)
 - feat: `Array#[]`, `[]=` now accepts negative index (f3898fa)
 - feat: `Class#inspect` now works (#247)
+- feat: When `if` branches has different type, the type of `if` is the
+  nearest common ancestor of them (#274)
+- feat: Added more methods
 
 ## v0.5.3 (2021-01-11)
 
@@ -42,7 +47,7 @@
 
 ## v0.4.0 (2020-09-06)
 
-- feat: [Anonymous function](https://github.com/yhara/shiika/projects/2)
+- feat: [Anonymous function](https://github.com/shiika-lang/shiika/projects/2)
 - feat: Now you don't need Ruby to build shiika (#148)
 - fixes: #130 #138
 

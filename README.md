@@ -1,4 +1,4 @@
-# Shiika
+# ![logo](shiika_logo_small.png) Shiika
 
 Shiika is a statically-typed, Ruby-like programming language.
 
@@ -73,12 +73,12 @@ Early-alpha but at least capable of solving algorithmic problems like [Advent of
 
 ### Features already implemented
 
-See [tests/sk/](https://github.com/yhara/shiika/tree/master/tests/sk) and
-[examples/](https://github.com/yhara/shiika/tree/master/examples)
+See [tests/sk/](https://github.com/shiika-lang/shiika/tree/master/tests/sk) and
+[examples/](https://github.com/shiika-lang/shiika/tree/master/examples)
 
 ### Features not yet implemented
 
-See [Issues](https://github.com/yhara/shiika/issues)
+See [Issues](https://github.com/shiika-lang/shiika/issues)
 
 ### Roadmap (tentative)
 
@@ -160,4 +160,4 @@ MIT
 
 ## Contact
 
-https://github.com/yhara/shiika/issues
+https://github.com/shiika-lang/shiika/issues
