@@ -21,6 +21,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    if matches.subcommand_matches("build_corelib").is_some() {
+        build_corelib();
+    }
+
     Ok(())
 }
 
@@ -36,6 +40,12 @@ fn compile(filepath: &str) -> bool {
 
 fn run(filepath: &str) {
     runner::run(filepath).unwrap_or_else(|err| {
+        print_err(err);
+    });
+}
+
+fn build_corelib() {
+    runner::build_corelib().unwrap_or_else(|err| {
         print_err(err);
     });
 }
