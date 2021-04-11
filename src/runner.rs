@@ -1,6 +1,8 @@
 use crate::error::*;
+use crate::library;
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -11,20 +13,48 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
         .to_str()
         .expect("failed to unwrap filepath")
         .to_string();
-    let builtin = wrap_error(load_builtin())?;
-    let str = builtin
-        + &fs::read_to_string(filepath)
-            .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
+    let str = fs::read_to_string(filepath)
+        .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
     let ast = crate::parser::Parser::parse(&str)?;
     log::debug!("created ast");
-    let corelib = crate::corelib::Corelib::create();
-    log::debug!("loaded corelib");
-    let hir = crate::hir::build(ast, corelib)?;
+    let hir = crate::hir::build(ast, load_builtin_exports()?)?;
     log::debug!("created hir");
     let mir = crate::mir::build(hir);
     log::debug!("created mir");
-    crate::code_gen::run(&mir, &(path + ".ll"))?;
+    crate::code_gen::run(&mir, &(path + ".ll"), true)?;
     log::debug!("created .ll");
+    Ok(())
+}
+
+fn load_builtin_exports() -> Result<library::ImportedItems, Error> {
+    let mut f = fs::File::open("builtin/exports.json")
+        .map_err(|e| runner_error("builtin exports not found", Box::new(e)))?;
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .map_err(|e| runner_error("failed to read builtin exports", Box::new(e)))?;
+    let exports: library::LibraryExports = serde_json::from_str(&contents)
+        .map_err(|e| runner_error("builtin exports is broken", Box::new(e)))?;
+    Ok(exports.into_imported_items())
+}
+
+pub fn build_corelib() -> Result<(), Error> {
+    let builtin = wrap_error(load_builtin())?;
+    let ast = crate::parser::Parser::parse(&builtin)?;
+    log::debug!("created ast");
+    let corelib = crate::corelib::create();
+    log::debug!("loaded corelib");
+    let hir = crate::hir::build(ast, corelib)?;
+    log::debug!("created hir");
+    let exports = library::LibraryExports::new(&hir);
+    let mir = crate::mir::build(hir);
+    log::debug!("created mir");
+    crate::code_gen::run(&mir, "builtin/builtin.ll", false)?;
+    log::debug!("created .ll");
+
+    let json = serde_json::to_string_pretty(&exports).unwrap();
+    let mut f = fs::File::create("builtin/exports.json").unwrap();
+    f.write_all(json.as_bytes()).unwrap();
+    log::debug!("created .json");
     Ok(())
 }
 

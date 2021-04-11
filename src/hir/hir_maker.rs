@@ -5,6 +5,7 @@ use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
 use crate::hir::method_dict::MethodDict;
 use crate::hir::*;
+use crate::library::ImportedItems;
 use crate::names;
 use crate::type_checking;
 
@@ -25,13 +26,13 @@ pub struct HirMaker {
     pub(super) lambda_ct: usize,
 }
 
-pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
-    let class_dict = class_dict::create(&ast, corelib.sk_classes)?;
+pub fn make_hir(ast: ast::Program, imports: ImportedItems) -> Result<Hir, Error> {
+    let class_dict = class_dict::create(&ast, imports.sk_classes)?;
     let mut hir = convert_program(class_dict, ast)?;
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
-    hir.add_methods(corelib.sk_methods);
+    hir.add_methods(imports.sk_methods);
 
     Ok(hir)
 }

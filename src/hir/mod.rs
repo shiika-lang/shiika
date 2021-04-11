@@ -7,11 +7,11 @@ mod method_dict;
 pub mod signature;
 pub mod sk_class;
 use crate::ast;
-use crate::corelib::Corelib;
 pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
+use crate::library::ImportedItems;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
@@ -29,8 +29,8 @@ pub struct Hir {
     pub main_lvars: HirLVars,
 }
 
-pub fn build(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
-    hir_maker::make_hir(ast, corelib)
+pub fn build(ast: ast::Program, imports: ImportedItems) -> Result<Hir, crate::error::Error> {
+    hir_maker::make_hir(ast, imports)
 }
 
 impl Hir {

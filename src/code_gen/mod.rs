@@ -27,6 +27,7 @@ use std::rc::Rc;
 /// 'ictx: inkwell context
 /// 'run: code_gen::run()
 pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
+    pub generate_main: bool,
     pub context: &'ictx inkwell::context::Context,
     pub module: &'run inkwell::module::Module<'ictx>,
     pub builder: &'run inkwell::builder::Builder<'ictx>,
@@ -45,11 +46,11 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(mir: &Mir, outpath: &str) -> Result<(), Error> {
+pub fn run(mir: &Mir, outpath: &str, generate_main: bool) -> Result<(), Error> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
-    let mut code_gen = CodeGen::new(&mir, &context, &module, &builder);
+    let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir)?;
     code_gen
         .module
@@ -64,8 +65,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         context: &'ictx inkwell::context::Context,
         module: &'run inkwell::module::Module<'ictx>,
         builder: &'run inkwell::builder::Builder<'ictx>,
+        generate_main: &bool,
     ) -> CodeGen<'hir, 'run, 'ictx> {
         CodeGen {
+            generate_main: *generate_main,
             context,
             module,
             builder,
@@ -94,9 +97,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.impl_boxing_funcs();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
-        self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
         self.gen_lambda_funcs(&hir)?;
-        self.gen_main()?;
+        if self.generate_main {
+            self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
+            self.gen_main()?;
+        }
         Ok(())
     }
 
