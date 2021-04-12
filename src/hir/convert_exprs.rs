@@ -54,7 +54,7 @@ impl LVarInfo {
     }
 }
 
-impl HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn convert_exprs(
         &mut self,
         exprs: &[AstExpression],

@@ -7,6 +7,7 @@ mod method_dict;
 pub mod signature;
 pub mod sk_class;
 use crate::ast;
+use crate::corelib::Corelib;
 pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
@@ -24,7 +25,6 @@ pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
-    pub imported_constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
     pub main_exprs: HirExpressions,
@@ -32,8 +32,12 @@ pub struct Hir {
     pub main_lvars: HirLVars,
 }
 
-pub fn build(ast: ast::Program, imports: ImportedItems) -> Result<Hir, crate::error::Error> {
-    hir_maker::make_hir(ast, imports)
+pub fn build(
+    ast: ast::Program,
+    corelib: Option<Corelib>,
+    imports: &ImportedItems,
+) -> Result<Hir, crate::error::Error> {
+    hir_maker::make_hir(ast, corelib, imports)
 }
 
 impl Hir {
@@ -76,6 +80,8 @@ pub struct SkMethod {
     pub body: SkMethodBody,
     pub lvars: HirLVars,
 }
+
+pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
 
 pub enum SkMethodBody {
     ShiikaMethodBody { exprs: HirExpressions },

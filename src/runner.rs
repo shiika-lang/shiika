@@ -17,9 +17,10 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
         .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
     let ast = crate::parser::Parser::parse(&str)?;
     log::debug!("created ast");
-    let hir = crate::hir::build(ast, load_builtin_exports()?)?;
+    let imports = load_builtin_exports()?;
+    let hir = crate::hir::build(ast, None, &imports)?;
     log::debug!("created hir");
-    let mir = crate::mir::build(hir);
+    let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
     crate::code_gen::run(&mir, &(path + ".ll"), true)?;
     log::debug!("created .ll");
@@ -43,11 +44,12 @@ pub fn build_corelib() -> Result<(), Error> {
     log::debug!("created ast");
     let corelib = crate::corelib::create();
     log::debug!("loaded corelib");
-    let hir = crate::hir::build(ast, corelib)?;
+    let imports = library::ImportedItems::empty();
+    let hir = crate::hir::build(ast, Some(corelib), &imports)?;
     log::debug!("created hir");
-    let exports = library::LibraryExports::new(&hir);
-    let mir = crate::mir::build(hir);
+    let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
+    let exports = library::LibraryExports::new(&mir);
     crate::code_gen::run(&mir, "builtin/builtin.ll", false)?;
     log::debug!("created .ll");
 

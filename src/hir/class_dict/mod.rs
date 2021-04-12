@@ -6,22 +6,25 @@ use crate::hir;
 use crate::hir::*;
 use crate::names::*;
 use crate::ty::*;
-use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Default)]
-pub struct ClassDict {
+#[derive(Debug, PartialEq)]
+pub struct ClassDict<'hir_maker> {
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub sk_classes: HashMap<ClassFullname, SkClass>,
+    pub sk_classes: SkClasses,
+    /// Imported classes
+    imported_classes: &'hir_maker SkClasses,
 }
 
-pub fn create(
+pub fn create<'hir_maker>(
     ast: &ast::Program,
-    corelib: HashMap<ClassFullname, SkClass>,
-) -> Result<ClassDict, Error> {
-    let mut dict = ClassDict::default();
-    dict.index_corelib(corelib);
+    imported_classes: &'hir_maker SkClasses,
+) -> Result<ClassDict<'hir_maker>, Error> {
+    let mut dict = ClassDict {
+        sk_classes: Default::default(),
+        imported_classes: imported_classes,
+    };
     let defs = ast
         .toplevel_items
         .iter()
@@ -34,7 +37,7 @@ pub fn create(
     Ok(dict)
 }
 
-impl ClassDict {
+impl<'hir_maker> ClassDict<'hir_maker> {
     /// Return parameters of `initialize`
     fn initializer_params(
         &self,

@@ -11,18 +11,21 @@ mod shiika_internal_memory;
 mod shiika_internal_ptr;
 mod void;
 use crate::hir::*;
-use crate::library::ImportedItems;
 use crate::names::*;
 use crate::parser;
 use crate::ty;
 use std::collections::HashMap;
 
-pub fn create() -> ImportedItems {
+pub struct Corelib {
+    pub sk_classes: SkClasses,
+    pub sk_methods: SkMethods,
+}
+
+pub fn create() -> Corelib {
     let (sk_classes, sk_methods) = make_classes(rust_body_items());
-    ImportedItems {
+    Corelib {
         sk_classes,
         sk_methods,
-        constants: Default::default(),
     }
 }
 

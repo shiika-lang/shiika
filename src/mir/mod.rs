@@ -1,36 +1,20 @@
 pub mod vtable;
-use crate::hir::{Hir, SkClasses};
+use crate::hir::Hir;
+use crate::library::ImportedItems;
 pub use crate::mir::vtable::VTables;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Mir {
     pub hir: Hir,
     pub vtables: VTables,
-    pub imported_classes: SkClasses,
+    pub imports: ImportedItems,
 }
 
-pub fn build(orig_hir: Hir) -> Mir {
-    let vtables = VTables::build(&orig_hir.sk_classes);
-    let (hir, imported_classes) = extract_imported_classes(orig_hir);
+pub fn build(hir: Hir, imports: ImportedItems) -> Mir {
+    let vtables = VTables::build(&hir.sk_classes);
     Mir {
         hir,
         vtables,
-        imported_classes,
+        imports,
     }
-}
-
-/// Remove imported classes from hir.sk_classes
-fn extract_imported_classes(mut hir: Hir) -> (Hir, SkClasses) {
-    let mut sk_classes = HashMap::new();
-    let mut imported_classes = HashMap::new();
-    for (name, class) in hir.sk_classes {
-        if class.foreign {
-            imported_classes.insert(name, class);
-        } else {
-            sk_classes.insert(name, class);
-        }
-    }
-    hir.sk_classes = sk_classes;
-    (hir, imported_classes)
 }

@@ -5,7 +5,7 @@ use crate::hir::*;
 use crate::names::*;
 use crate::ty::*;
 
-impl ClassDict {
+impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method from class name and first name
     pub fn find_method(
         &self,

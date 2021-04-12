@@ -1,27 +1,42 @@
 use crate::hir::*;
+use crate::mir::*;
 use crate::names::*;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Default)]
 pub struct ImportedItems {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
 }
 
+impl ImportedItems {
+    pub fn empty() -> ImportedItems {
+        Default::default()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LibraryExports {
     classes: Vec<ClassInfo>,
+    vtable_size: HashMap<ClassFullname, usize>,
     constants: HashMap<ConstFullname, TermTy>,
 }
 
 impl LibraryExports {
-    pub fn new(hir: &Hir) -> LibraryExports {
-        let classes = hir.sk_classes.values().map(ClassInfo::new).collect();
+    pub fn new(mir: &Mir) -> LibraryExports {
+        let classes = mir.hir.sk_classes.values().map(ClassInfo::new).collect();
+        let vtable_size = mir
+            .vtables
+            .iter()
+            .map(|(name, vtable)| (name.clone(), vtable.size()))
+            .collect::<HashMap<_, _>>();
         LibraryExports {
             classes,
-            constants: hir.constants.clone(),
+            vtable_size,
+            constants: mir.hir.constants.clone(),
         }
     }
 

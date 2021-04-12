@@ -348,7 +348,7 @@ pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
         .collect::<Vec<_>>()
 }
 
-impl HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
     /// Returns type parameter of the current class
     pub(super) fn current_class_typarams(&self) -> Vec<String> {
         if let Some(class_ctx) = self.ctx.classes.last() {

@@ -10,15 +10,15 @@ use crate::names;
 use crate::type_checking;
 
 #[derive(Debug)]
-pub struct HirMaker {
+pub struct HirMaker<'hir_maker> {
     /// List of classes found so far
-    pub(super) class_dict: ClassDict,
+    pub(super) class_dict: ClassDict<'hir_maker>,
     /// List of methods found so far
     pub(super) method_dict: MethodDict,
     /// List of constants found so far
     pub(super) constants: HashMap<ConstFullname, TermTy>,
     /// Constants defined from other library
-    pub(super) imported_constants: HashMap<ConstFullname, TermTy>,
+    pub(super) imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
     /// Expressions that initialize constants
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
@@ -29,20 +29,26 @@ pub struct HirMaker {
     pub(super) lambda_ct: usize,
 }
 
-pub fn make_hir(ast: ast::Program, imports: ImportedItems) -> Result<Hir, Error> {
-    let class_dict = class_dict::create(&ast, imports.sk_classes)?;
-    let mut hir = convert_program(class_dict, imports.constants, ast)?;
+pub fn make_hir(
+    ast: ast::Program,
+    corelib: Option<Corelib>,
+    imports: &ImportedItems,
+) -> Result<Hir, Error> {
+    let class_dict = class_dict::create(&ast, &imports.sk_classes)?;
+    let mut hir = convert_program(class_dict, &imports.constants, ast)?;
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
-    hir.add_methods(imports.sk_methods);
+    if let Some(Corelib { sk_methods, .. }) = corelib {
+        hir.add_methods(sk_methods);
+    }
 
     Ok(hir)
 }
 
 fn convert_program(
     class_dict: ClassDict,
-    imported_constants: HashMap<ConstFullname, TermTy>,
+    imported_constants: &HashMap<ConstFullname, TermTy>,
     prog: ast::Program,
 ) -> Result<Hir, Error> {
     let mut hir_maker = HirMaker::new(class_dict, imported_constants);
@@ -50,8 +56,11 @@ fn convert_program(
     Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
 
-impl HirMaker {
-    fn new(class_dict: ClassDict, imported_constants: HashMap<ConstFullname, TermTy>) -> HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
+    fn new(
+        class_dict: ClassDict<'hir_maker>,
+        imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
+    ) -> HirMaker<'hir_maker> {
         HirMaker {
             class_dict,
             method_dict: MethodDict::new(),
@@ -71,8 +80,6 @@ impl HirMaker {
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
-        let mut imported_constants = HashMap::new();
-        std::mem::swap(&mut imported_constants, &mut self.imported_constants);
         let mut str_literals = vec![];
         std::mem::swap(&mut str_literals, &mut self.str_literals);
         let mut const_inits = vec![];
@@ -85,7 +92,6 @@ impl HirMaker {
             sk_classes,
             sk_methods,
             constants,
-            imported_constants,
             str_literals,
             const_inits,
             main_exprs,

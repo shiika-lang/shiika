@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
-impl ClassDict {
+impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(
         &mut self,
@@ -40,12 +40,6 @@ impl ClassDict {
         sk_class
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
-    }
-
-    pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
-        corelib.into_iter().for_each(|(_, c)| {
-            self.add_class(c)
-        });
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {

@@ -52,7 +52,7 @@ impl VTable {
     }
 
     /// Returns the size
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.fullnames.len()
     }
 
@@ -69,25 +69,25 @@ impl VTable {
 
 #[derive(Debug)]
 pub struct VTables {
-    contents: HashMap<ClassFullname, VTable>,
+    vtables: HashMap<ClassFullname, VTable>,
 }
 
 impl VTables {
     pub fn build(sk_classes: &HashMap<ClassFullname, SkClass>) -> VTables {
-        let mut contents = HashMap::new();
+        let mut vtables = HashMap::new();
         let mut queue = sk_classes.keys().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if contents.contains_key(name) {
+            if vtables.contains_key(name) {
                 continue;
             }
 
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
             if let Some(super_name) = &class.superclass_fullname {
-                if let Some(x) = contents.get(super_name) {
+                if let Some(x) = vtables.get(super_name) {
                     super_vtable = x;
                 } else {
                     queue.push_front(&super_name);
@@ -99,22 +99,21 @@ impl VTables {
                 super_vtable = &null_vtable;
             }
             let vtable = VTable::build(super_vtable, class);
-            contents.insert(class.fullname.clone(), vtable);
+            vtables.insert(class.fullname.clone(), vtable);
         }
-        VTables { contents }
+        VTables { vtables }
     }
 
     /// Return the index of the method when invoking it on the object
     pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
         let vtable = must_be_some(
-            self.contents.get(&obj_ty.vtable_name()),
+            self.vtables.get(&obj_ty.vtable_name()),
             format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname),
         );
         (vtable.get(&method_name), vtable.size())
     }
 
-    // REFACTOR: it's better to implement Iterator (I just don't know how to)
     pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
-        self.contents.iter()
+        self.vtables.iter()
     }
 }

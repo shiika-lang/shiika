@@ -8,6 +8,7 @@ use crate::code_gen::utils::llvm_vtable_name;
 use crate::error;
 use crate::error::Error;
 use crate::hir::*;
+use crate::library::ImportedItems;
 use crate::mir;
 use crate::mir::*;
 use crate::names::*;
@@ -51,7 +52,7 @@ pub fn run(mir: &Mir, outpath: &str, generate_main: bool) -> Result<(), Error> {
     let module = context.create_module("main");
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
-    code_gen.gen_program(&mir.hir, &mir.imported_classes)?;
+    code_gen.gen_program(&mir.hir, &mir.imports)?;
     code_gen
         .module
         .print_to_file(outpath)
@@ -86,14 +87,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(
-        &mut self,
-        hir: &'hir Hir,
-        imported_classes: &SkClasses,
-    ) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &ImportedItems) -> Result<(), Error> {
         self.gen_declares();
-        self.gen_import_classes(imported_classes);
-        self.gen_import_constants(&hir.imported_constants);
+        self.gen_import_classes(&imports.sk_classes);
+        self.gen_import_constants(&imports.constants);
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
