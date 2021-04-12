@@ -175,6 +175,7 @@ fn make_classes(
                     .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                     .collect(),
                 const_is_obj: (name == "Void"),
+                foreign: false,
             },
         );
         sk_methods.insert(class_fullname(&name), imethods);
@@ -199,6 +200,7 @@ fn make_classes(
                         .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                         .collect(),
                     const_is_obj: false,
+                    foreign: false,
                 },
             );
             sk_methods.insert(metaclass_fullname(&name), cmethods);

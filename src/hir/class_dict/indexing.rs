@@ -44,15 +44,7 @@ impl ClassDict {
 
     pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
         corelib.into_iter().for_each(|(_, c)| {
-            self.add_class(SkClass {
-                fullname: c.fullname,
-                typarams: c.typarams,
-                superclass_fullname: c.superclass_fullname,
-                instance_ty: c.instance_ty,
-                ivars: c.ivars,
-                method_sigs: c.method_sigs,
-                const_is_obj: c.const_is_obj,
-            })
+            self.add_class(c)
         });
     }
 
@@ -188,6 +180,7 @@ impl ClassDict {
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
             const_is_obj: false,
+            foreign: false,
         });
 
         // Crete metaclass (which is a subclass of `Class`)
@@ -201,6 +194,7 @@ impl ClassDict {
             ivars: meta_ivars,
             method_sigs: class_methods,
             const_is_obj: false,
+            foreign: false,
         });
         Ok(())
     }

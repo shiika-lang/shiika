@@ -15,6 +15,8 @@ pub struct SkClass {
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
     /// eg. `Void` is an instance, not the class
     pub const_is_obj: bool,
+    /// true if this class is an imported one
+    pub foreign: bool,
 }
 
 impl SkClass {
@@ -59,6 +61,7 @@ impl SkClass {
             ivars: self.ivars.clone(),
             method_sigs,
             const_is_obj: self.const_is_obj,
+            foreign: false,
         }
     }
 }

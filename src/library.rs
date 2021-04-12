@@ -70,6 +70,7 @@ impl ClassInfo {
             ivars: Default::default(),
             method_sigs: self.method_sigs,
             const_is_obj: self.const_is_obj,
+            foreign: true,
         }
     }
 }
