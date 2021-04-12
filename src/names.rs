@@ -70,6 +70,10 @@ impl ClassFullname {
             ClassFullname("Meta:".to_string() + &self.0)
         }
     }
+
+    pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
+        method_fullname(self, &method_firstname.0)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]

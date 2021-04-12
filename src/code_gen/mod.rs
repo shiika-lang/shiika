@@ -51,7 +51,7 @@ pub fn run(mir: &Mir, outpath: &str, generate_main: bool) -> Result<(), Error> {
     let module = context.create_module("main");
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
-    code_gen.gen_program(&mir.hir)?;
+    code_gen.gen_program(&mir.hir, &mir.imported_classes)?;
     code_gen
         .module
         .print_to_file(outpath)
@@ -86,8 +86,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &'hir Hir) -> Result<(), Error> {
+    pub fn gen_program(
+        &mut self,
+        hir: &'hir Hir,
+        imported_classes: &SkClasses,
+    ) -> Result<(), Error> {
         self.gen_declares();
+        self.gen_import_classes(imported_classes);
+        self.gen_import_constants(&hir.imported_constants);
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
@@ -165,6 +171,51 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.i8_type.const_int(0, false),
         ]));
         global.set_constant(true);
+    }
+
+    /// Generate information to use imported class
+    fn gen_import_classes(&mut self, imported_classes: &SkClasses) {
+        // LLVM type
+        for name in imported_classes.keys() {
+            self.llvm_struct_types
+                .insert(name.clone(), self.context.opaque_struct_type(&name.0));
+        }
+        self.define_class_struct_fields(imported_classes);
+
+        for class in imported_classes {
+            // Vtable
+            // TODO
+        }
+
+        // Methods
+        for (classname, class) in imported_classes {
+            for (firstname, sig) in &class.method_sigs {
+                let ret_type = self.llvm_type(&sig.ret_ty);
+                let arg_types = sig
+                    .params
+                    .iter()
+                    .map(|param| self.llvm_type(&param.ty))
+                    .collect::<Vec<_>>();
+                let func_type = ret_type.fn_type(&arg_types, true);
+                let func_name = classname.method_fullname(&firstname);
+                self.module
+                    .add_function(&func_name.full_name, func_type, None);
+            }
+        }
+    }
+
+    /// Declare `external global` for each imported constant
+    fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
+        for (fullname, ty) in imported_constants {
+            let name = &fullname.0;
+            let global = self.module.add_global(self.llvm_type(&ty), None, name);
+            global.set_linkage(inkwell::module::Linkage::External);
+            let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
+            match self.llvm_zero_value(ty) {
+                Some(zero) => global.set_initializer(&zero),
+                None => global.set_initializer(&null),
+            }
+        }
     }
 
     // Generate vtable constants
@@ -250,13 +301,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Create llvm struct types for Shiika objects
     fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
-        // Create all the struct types in advance
+        // Create all the struct types in advance (because it may be used as other class's ivar)
         for name in classes.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
 
-        // Set fields for ivars
+        self.define_class_struct_fields(classes);
+    }
+
+    /// Set fields for ivars
+    fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
         let vt = self.llvm_vtable_ref_type().into();
         for (name, class) in classes {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
@@ -320,7 +375,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (fullname, ty) in constants {
             let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(&ty), None, name);
-            global.set_linkage(inkwell::module::Linkage::Internal);
             let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
             match self.llvm_zero_value(ty) {
                 Some(zero) => global.set_initializer(&zero),

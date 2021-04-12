@@ -17,11 +17,14 @@ use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
+pub type SkClasses = HashMap<ClassFullname, SkClass>;
+
 #[derive(Debug)]
 pub struct Hir {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
     pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
+    pub imported_constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
     pub main_exprs: HirExpressions,
