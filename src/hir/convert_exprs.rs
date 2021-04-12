@@ -703,6 +703,8 @@ impl HirMaker {
         let fullname = name.to_const_fullname();
         if let Some(found) = self.constants.get(&fullname) {
             return Some((found, fullname));
+        } else if let Some(found) = self.imported_constants.get(&fullname) {
+            return Some((found, fullname));
         }
 
         let fullname = name.under_namespace(&self.ctx.namespace());
