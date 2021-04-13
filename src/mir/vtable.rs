@@ -2,10 +2,11 @@ use crate::error::*;
 use crate::hir::sk_class::SkClass;
 use crate::names::*;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VTable {
     /// List of methods, ordered by index
     fullnames: Vec<MethodFullname>,
@@ -67,7 +68,7 @@ impl VTable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VTables {
     vtables: HashMap<ClassFullname, VTable>,
 }

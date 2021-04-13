@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Debug, Default)]
 pub struct ImportedItems {
     pub sk_classes: HashMap<ClassFullname, SkClass>,
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub vtables: VTables,
     pub constants: HashMap<ConstFullname, TermTy>,
 }
 
@@ -21,21 +21,16 @@ impl ImportedItems {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LibraryExports {
     classes: Vec<ClassInfo>,
-    vtable_size: HashMap<ClassFullname, usize>,
+    vtables: VTables,
     constants: HashMap<ConstFullname, TermTy>,
 }
 
 impl LibraryExports {
     pub fn new(mir: &Mir) -> LibraryExports {
         let classes = mir.hir.sk_classes.values().map(ClassInfo::new).collect();
-        let vtable_size = mir
-            .vtables
-            .iter()
-            .map(|(name, vtable)| (name.clone(), vtable.size()))
-            .collect::<HashMap<_, _>>();
         LibraryExports {
             classes,
-            vtable_size,
+            vtables: mir.vtables.clone(), // PERF: how not to clone?
             constants: mir.hir.constants.clone(),
         }
     }
@@ -48,7 +43,7 @@ impl LibraryExports {
         }
         ImportedItems {
             sk_classes,
-            sk_methods: Default::default(),
+            vtables: self.vtables,
             constants: self.constants,
         }
     }

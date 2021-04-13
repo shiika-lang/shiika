@@ -19,10 +19,12 @@ pub struct ClassDict<'hir_maker> {
 
 pub fn create<'hir_maker>(
     ast: &ast::Program,
+    // Corelib classes (REFACTOR: corelib should provide methods only)
+    initial_sk_classes: SkClasses,
     imported_classes: &'hir_maker SkClasses,
 ) -> Result<ClassDict<'hir_maker>, Error> {
     let mut dict = ClassDict {
-        sk_classes: Default::default(),
+        sk_classes: initial_sk_classes,
         imported_classes: imported_classes,
     };
     let defs = ast

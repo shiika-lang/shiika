@@ -12,8 +12,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class_fullname: &ClassFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
-        self.sk_classes
-            .get(class_fullname)
+        self.find_class(class_fullname)
             .and_then(|class| class.method_sigs.get(method_name))
     }
 
@@ -80,7 +79,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Find a class
     pub fn find_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.sk_classes.get(class_fullname)
+        self.sk_classes
+            .get(class_fullname)
+            .or_else(|| self.imported_classes.get(class_fullname))
     }
 
     /// Find a class. Panic if not found

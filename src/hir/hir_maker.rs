@@ -34,14 +34,17 @@ pub fn make_hir(
     corelib: Option<Corelib>,
     imports: &ImportedItems,
 ) -> Result<Hir, Error> {
-    let class_dict = class_dict::create(&ast, &imports.sk_classes)?;
+    let (core_classes, core_methods) = if let Some(c) = corelib {
+        (c.sk_classes, c.sk_methods)
+    } else {
+        (Default::default(), Default::default())
+    };
+    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
     let mut hir = convert_program(class_dict, &imports.constants, ast)?;
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
-    if let Some(Corelib { sk_methods, .. }) = corelib {
-        hir.add_methods(sk_methods);
-    }
+    hir.add_methods(core_methods);
 
     Ok(hir)
 }
