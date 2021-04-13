@@ -42,6 +42,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     vtables: &'hir mir::VTables,
+    imported_vtables: &'hir mir::VTables,
     /// Toplevel `self`
     the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
 }
@@ -83,14 +84,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             llvm_struct_types: HashMap::new(),
             str_literals: &mir.hir.str_literals,
             vtables: &mir.vtables,
+            imported_vtables: &mir.imports.vtables,
             the_main: None,
         }
     }
 
     pub fn gen_program(&mut self, hir: &'hir Hir, imports: &ImportedItems) -> Result<(), Error> {
         self.gen_declares();
-        self.gen_import_classes(&imports.sk_classes);
-        self.gen_import_constants(&imports.constants);
+        self.gen_imports(imports);
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
@@ -170,7 +171,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
-    /// Generate information to use imported class
+    /// Generate information to use imported items
+    fn gen_imports(&mut self, imports: &ImportedItems) {
+        self.gen_import_classes(&imports.sk_classes);
+        self.gen_import_vtables(&imports.vtables);
+        self.gen_import_constants(&imports.constants);
+    }
+
     fn gen_import_classes(&mut self, imported_classes: &SkClasses) {
         // LLVM type
         for name in imported_classes.keys() {
@@ -178,11 +185,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
         self.define_class_struct_fields(imported_classes);
-
-        for class in imported_classes {
-            // Vtable
-            // TODO
-        }
 
         // Methods
         for (classname, class) in imported_classes {
@@ -201,17 +203,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    /// Declare `external global` for vtable of each class
+    fn gen_import_vtables(&self, vtables: &VTables) {
+        for (fullname, vtable) in vtables.iter() {
+            let name = llvm_vtable_name(fullname);
+            let ary_type = self.i8ptr_type.array_type(vtable.size() as u32);
+            let _global = self.module.add_global(ary_type, None, &name);
+        }
+    }
+
     /// Declare `external global` for each imported constant
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in imported_constants {
             let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(&ty), None, name);
             global.set_linkage(inkwell::module::Linkage::External);
-            let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
-            match self.llvm_zero_value(ty) {
-                Some(zero) => global.set_initializer(&zero),
-                None => global.set_initializer(&null),
-            }
         }
     }
 
@@ -224,7 +230,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .module
                 .add_global(ary_type, None, &llvm_vtable_name(class_fullname));
             global.set_constant(true);
-            global.set_linkage(inkwell::module::Linkage::Internal);
             let func_ptrs = method_names
                 .iter()
                 .map(|name| {

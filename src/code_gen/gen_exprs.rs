@@ -380,7 +380,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
 
         // Get the llvm function from vtable
-        let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
+        let (idx, size) = self.lookup_vtable(&receiver_expr.ty, &method_name)?;
         let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
         let func_type = self
             .llvm_func_type(
@@ -399,6 +399,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(end_block);
         self.builder.position_at_end(end_block);
         Ok(result)
+    }
+
+    /// Get the idx and size of vtable
+    fn lookup_vtable(
+        &self,
+        ty: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Result<(&usize, usize), Error> {
+        let found = self.vtables.method_idx(ty, method_name);
+        if found.is_ok() {
+            found
+        } else {
+            self.imported_vtables.method_idx(ty, method_name)
+        }
     }
 
     /// Generate invocation of a lambda

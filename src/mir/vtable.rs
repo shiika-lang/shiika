@@ -106,14 +106,22 @@ impl VTables {
     }
 
     /// Return the index of the method when invoking it on the object
-    pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
-        let vtable = must_be_some(
-            self.vtables.get(&obj_ty.vtable_name()),
-            format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname),
-        );
-        (vtable.get(&method_name), vtable.size())
+    pub fn method_idx(
+        &self,
+        obj_ty: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Result<(&usize, usize), Error> {
+        if let Some(vtable) = self.vtables.get(&obj_ty.vtable_name()) {
+            Ok((vtable.get(&method_name), vtable.size()))
+        } else {
+            Err(bug(format!(
+                "[BUG] method_idx: vtable of {} not found",
+                &obj_ty.fullname
+            )))
+        }
     }
 
+    /// Returns iterator over each vtable
     pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
         self.vtables.iter()
     }
