@@ -98,13 +98,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_boxing_funcs();
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_vtables();
-        self.impl_boxing_funcs();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         self.gen_lambda_funcs(&hir)?;
         if self.generate_main {
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
             self.gen_main()?;
+        } else {
+            // generating builtin
+            self.impl_boxing_funcs();
         }
         Ok(())
     }
