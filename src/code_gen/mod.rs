@@ -102,11 +102,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_const_inits(&hir.const_inits)?;
         self.gen_lambda_funcs(&hir)?;
         if self.generate_main {
+            self.gen_init_constants(&hir.const_inits, &imports.constants);
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
             self.gen_main()?;
         } else {
             // generating builtin
             self.impl_boxing_funcs();
+            self.gen_init_void();
         }
         Ok(())
     }
@@ -220,6 +222,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(&ty), None, name);
             global.set_linkage(inkwell::module::Linkage::External);
+            // @init_::XX
+            let fn_type = self.void_type.fn_type(&[], false);
+            self.module
+                .add_function(&format!("init_{}", fullname.0), fn_type, None);
         }
     }
 
@@ -246,6 +252,57 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .collect::<Vec<_>>();
             global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
         }
+    }
+
+    /// Generate `init_constants()`
+    // TODO: imported_constants should be Vec (order matters)
+    fn gen_init_constants(
+        &self,
+        const_inits: &'hir [HirExpression],
+        imported_constants: &HashMap<ConstFullname, TermTy>,
+    ) {
+        // define void @init_constants()
+        let fn_type = self.void_type.fn_type(&[], false);
+        let function = self.module.add_function("init_constants", fn_type, None);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        // call void @"init_::XX"()
+        for fullname in imported_constants.keys() {
+            let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+            self.builder.build_call(func, &[], "");
+        }
+        for expr in const_inits {
+            match &expr.node {
+                HirExpressionBase::HirConstAssign { fullname, .. } => {
+                    let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+                    self.builder.build_call(func, &[], "");
+                }
+                _ => panic!("gen_init_constants: Not a HirConstAssign"),
+            }
+        }
+
+        self.builder.build_return(None);
+    }
+
+    fn gen_init_void(&mut self) {
+        // define void @"init_::XX"
+        let fullname = const_fullname("::Void");
+        let fn_type = self.void_type.fn_type(&[], false);
+        let function = self
+            .module
+            .add_function(&format!("init_{}", fullname.0), fn_type, None);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+        // Create ::Void
+        let ptr = self
+            .module
+            .get_global(&"::Void")
+            .unwrap()
+            .as_pointer_value();
+        let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");
+        self.builder.build_store(ptr, value);
+        self.builder.build_return(None);
     }
 
     #[allow(clippy::ptr_arg)]
@@ -409,33 +466,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             }
         }
 
-        // define void @init_constants()
-        let fn_type = self.void_type.fn_type(&[], false);
-        let function = self.module.add_function("init_constants", fn_type, None);
-        let basic_block = self.context.append_basic_block(function, "");
-        self.builder.position_at_end(basic_block);
-
-        // call void @"init_::XX"()
-        for expr in const_inits {
-            match &expr.node {
-                HirExpressionBase::HirConstAssign { fullname, .. } => {
-                    let func = self.get_llvm_func(&format!("init_{}", fullname.0));
-                    self.builder.build_call(func, &[], "");
-                }
-                _ => panic!("gen_const_inits: Not a HirConstAssign"),
-            }
-        }
-
-        // Generate ::Void
-        let ptr = self
-            .module
-            .get_global(&"::Void")
-            .unwrap()
-            .as_pointer_value();
-        let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");
-        self.builder.build_store(ptr, value);
-
-        self.builder.build_return(None);
         Ok(())
     }
 
