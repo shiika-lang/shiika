@@ -1,6 +1,6 @@
 use crate::error::*;
 use crate::hir::*;
-use crate::library::ImportedItems;
+use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
@@ -77,7 +77,7 @@ pub struct VTables {
 
 impl VTables {
     /// Build vtables of the classes
-    pub fn build(sk_classes: &SkClasses, imports: &ImportedItems) -> VTables {
+    pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
         let mut queue = sk_classes.keys().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();

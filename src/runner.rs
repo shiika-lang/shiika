@@ -27,7 +27,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_builtin_exports() -> Result<library::ImportedItems, Error> {
+fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     let mut f = fs::File::open("builtin/exports.json")
         .map_err(|e| runner_error("builtin exports not found", Box::new(e)))?;
     let mut contents = String::new();
@@ -35,7 +35,7 @@ fn load_builtin_exports() -> Result<library::ImportedItems, Error> {
         .map_err(|e| runner_error("failed to read builtin exports", Box::new(e)))?;
     let exports: library::LibraryExports = serde_json::from_str(&contents)
         .map_err(|e| runner_error("builtin exports is broken", Box::new(e)))?;
-    Ok(exports.into_imported_items())
+    Ok(exports)
 }
 
 pub fn build_corelib() -> Result<(), Error> {
@@ -44,7 +44,7 @@ pub fn build_corelib() -> Result<(), Error> {
     log::debug!("created ast");
     let corelib = crate::corelib::create();
     log::debug!("loaded corelib");
-    let imports = library::ImportedItems::empty();
+    let imports = Default::default();
     let hir = crate::hir::build(ast, Some(corelib), &imports)?;
     log::debug!("created hir");
     let mir = crate::mir::build(hir, imports);

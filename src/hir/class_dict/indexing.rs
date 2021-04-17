@@ -141,6 +141,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok((instance_methods, class_methods))
     }
 
+    /// Register a class and its metaclass to self
     fn add_new_class(
         &mut self,
         fullname: &ClassFullname,

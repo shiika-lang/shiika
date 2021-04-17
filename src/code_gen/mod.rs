@@ -7,7 +7,7 @@ use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_name;
 use crate::error::Error;
 use crate::hir::*;
-use crate::library::ImportedItems;
+use crate::library::LibraryExports;
 use crate::mir;
 use crate::mir::*;
 use crate::names::*;
@@ -90,7 +90,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &ImportedItems) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<(), Error> {
         self.gen_declares();
         self.gen_imports(imports);
         self.gen_class_structs(&hir.sk_classes);
@@ -177,7 +177,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate information to use imported items
-    fn gen_imports(&mut self, imports: &ImportedItems) {
+    fn gen_imports(&mut self, imports: &LibraryExports) {
         self.gen_import_classes(&imports.sk_classes);
         self.gen_import_vtables(&imports.vtables);
         self.gen_import_constants(&imports.constants);

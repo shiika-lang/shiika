@@ -12,10 +12,11 @@ pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
-use crate::library::ImportedItems;
+use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub type SkClasses = HashMap<ClassFullname, SkClass>;
@@ -35,7 +36,7 @@ pub struct Hir {
 pub fn build(
     ast: ast::Program,
     corelib: Option<Corelib>,
-    imports: &ImportedItems,
+    imports: &LibraryExports,
 ) -> Result<Hir, crate::error::Error> {
     hir_maker::make_hir(ast, corelib, imports)
 }
@@ -55,7 +56,7 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkIVar {
     pub idx: usize,
     pub name: String, // Includes `@`

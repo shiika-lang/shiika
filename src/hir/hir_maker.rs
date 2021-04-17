@@ -5,7 +5,7 @@ use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
 use crate::hir::method_dict::MethodDict;
 use crate::hir::*;
-use crate::library::ImportedItems;
+use crate::library::LibraryExports;
 use crate::names;
 use crate::type_checking;
 
@@ -32,7 +32,7 @@ pub struct HirMaker<'hir_maker> {
 pub fn make_hir(
     ast: ast::Program,
     corelib: Option<Corelib>,
-    imports: &ImportedItems,
+    imports: &LibraryExports,
 ) -> Result<Hir, Error> {
     let (core_classes, core_methods) = if let Some(c) = corelib {
         (c.sk_classes, c.sk_methods)

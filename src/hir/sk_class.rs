@@ -2,10 +2,11 @@ use crate::hir::signature::MethodSignature;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// A Shiika class, possibly generic
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub typarams: Vec<TyParam>,
