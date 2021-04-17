@@ -19,7 +19,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(super_cls) => super_cls.ivars.clone(),
             None => HashMap::new(),
         };
-        let class = self.get_class_mut(&classname, "ClassDict::define_ivars");
+        let class = self.get_class_mut(&classname);
         debug_assert!(class.ivars.is_empty());
         class.ivars = super_ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
@@ -161,8 +161,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
         if !self.class_exists(&super_name.0) {
             return Err(error::name_error(&format!(
-                "unknown superclass: {:?}",
-                super_name
+                "superclass {:?} of {:?} does not exist",
+                super_name, fullname,
             )));
         }
 
@@ -178,7 +178,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
 
         // Crete metaclass (which is a subclass of `Class`)
-        let the_class = self.get_class(&class_fullname("Class"), "index_class");
+        let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
             fullname: fullname.meta_name(),

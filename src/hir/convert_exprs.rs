@@ -773,10 +773,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .collect::<Vec<_>>();
         let cls = self
             .class_dict
-            .find_class(&class_fullname(
+            .get_class(&class_fullname(
                 "Meta:".to_string() + &name.names.join("::"),
             ))
-            .unwrap()
             .specialized_meta(&tyargs);
         let ty = cls.instance_ty.clone();
         self.class_dict.add_class(cls);

@@ -11,7 +11,7 @@ pub struct Mir {
 }
 
 pub fn build(hir: Hir, imports: ImportedItems) -> Mir {
-    let vtables = VTables::build(&hir.sk_classes);
+    let vtables = VTables::build(&hir.sk_classes, &imports);
     Mir {
         hir,
         vtables,

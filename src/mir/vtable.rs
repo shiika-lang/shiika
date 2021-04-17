@@ -1,5 +1,6 @@
 use crate::error::*;
-use crate::hir::sk_class::SkClass;
+use crate::hir::*;
+use crate::library::ImportedItems;
 use crate::names::*;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
@@ -70,18 +71,20 @@ impl VTable {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VTables {
+    // REFACTOR: how about just use `type`
     vtables: HashMap<ClassFullname, VTable>,
 }
 
 impl VTables {
-    pub fn build(sk_classes: &HashMap<ClassFullname, SkClass>) -> VTables {
+    /// Build vtables of the classes
+    pub fn build(sk_classes: &SkClasses, imports: &ImportedItems) -> VTables {
         let mut vtables = HashMap::new();
         let mut queue = sk_classes.keys().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if vtables.contains_key(name) {
+            if vtables.contains_key(name) || imports.sk_classes.contains_key(name) {
                 continue;
             }
 
@@ -89,6 +92,8 @@ impl VTables {
             let super_vtable;
             if let Some(super_name) = &class.superclass_fullname {
                 if let Some(x) = vtables.get(super_name) {
+                    super_vtable = x;
+                } else if let Some(x) = imports.vtables.vtables.get(super_name) {
                     super_vtable = x;
                 } else {
                     queue.push_front(&super_name);
