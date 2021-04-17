@@ -22,8 +22,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     log::debug!("created hir");
     let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
-    crate::code_gen::run(&mir, &(path + ".ll"), true)?;
-    log::debug!("created .ll");
+    crate::code_gen::run(&mir, &(path + ".bc"), true)?;
+    log::debug!("created .bc");
     Ok(())
 }
 
@@ -50,8 +50,8 @@ pub fn build_corelib() -> Result<(), Error> {
     let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
     let exports = library::LibraryExports::new(&mir);
-    crate::code_gen::run(&mir, "builtin/builtin.ll", false)?;
-    log::debug!("created .ll");
+    crate::code_gen::run(&mir, "builtin/builtin.bc", false)?;
+    log::debug!("created .bc");
 
     let json = serde_json::to_string_pretty(&exports).unwrap();
     let mut f = fs::File::create("builtin/exports.json").unwrap();
@@ -95,10 +95,10 @@ fn run_<P: AsRef<Path>>(
     capture_out: bool,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let ll_path = s.to_string() + ".ll";
+    //let ll_path = s.to_string() + ".ll";
     //let opt_ll_path = s.to_string() + ".opt.ll";
-    //let bc_path = s.to_string() + ".bc";
-    let asm_path = s.to_string() + ".s";
+    let bc_path = s.to_string() + ".bc";
+    //let asm_path = s.to_string() + ".s";
     let out_path = s.to_string() + ".out";
 
     //    let mut cmd = Command::new("opt");
@@ -117,13 +117,13 @@ fn run_<P: AsRef<Path>>(
     //    cmd.arg(opt_ll_path);
     //    cmd.output()?;
 
-    let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
-    cmd.arg(ll_path);
-    cmd.output()
-        .map_err(|e| runner_error("failed to run llc", Box::new(e)))?;
-    if !cmd.status()?.success() {
-        return Err(Box::new(plain_runner_error("llc failed")));
-    }
+    // let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
+    // cmd.arg(ll_path);
+    // cmd.output()
+    //     .map_err(|e| runner_error("failed to run llc", Box::new(e)))?;
+    // if !cmd.status()?.success() {
+    //     return Err(Box::new(plain_runner_error("llc failed")));
+    // }
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
@@ -134,13 +134,14 @@ fn run_<P: AsRef<Path>>(
     cmd.arg("-lgc");
     cmd.arg("-o");
     cmd.arg(out_path.clone());
-    cmd.arg(asm_path.clone());
+    cmd.arg("builtin/builtin.bc");
+    cmd.arg(bc_path.clone());
     if !cmd.status()?.success() {
         return Err(Box::new(plain_runner_error("clang failed")));
     }
 
-    //fs::remove_file(bc_path)?;
-    fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", Box::new(e)))?;
+    fs::remove_file(bc_path)?;
+    //fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", Box::new(e)))?;
 
     let mut cmd = Command::new(format!("./{}", out_path));
     if capture_out {
@@ -156,13 +157,13 @@ fn run_<P: AsRef<Path>>(
     }
 }
 
-/// Remove .ll and .out
+/// Remove .bc and .out
 pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Error>> {
     let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let ll_path = s.to_string() + ".ll";
+    let bc_path = s.to_string() + ".bc";
     let out_path = s.to_string() + ".out";
-    fs::remove_file(ll_path)?;
-    fs::remove_file(out_path)?;
+    let _ = fs::remove_file(bc_path);
+    let _ = fs::remove_file(out_path);
     Ok(())
 }
 
@@ -175,6 +176,7 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
     }
 }
 
+/// Wrap std::error::Error with shiika::error::Error
 fn wrap_error<T>(result: Result<T, Box<dyn std::error::Error>>) -> Result<T, Error> {
     result.map_err(|err| runner_error(format!("{}", err), err))
 }

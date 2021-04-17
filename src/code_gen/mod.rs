@@ -5,7 +5,6 @@ mod lambda;
 mod utils;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_name;
-use crate::error;
 use crate::error::Error;
 use crate::hir::*;
 use crate::library::ImportedItems;
@@ -18,6 +17,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use std::collections::HashMap;
+use std::path::Path;
 use std::rc::Rc;
 
 /// CodeGen
@@ -54,10 +54,11 @@ pub fn run(mir: &Mir, outpath: &str, generate_main: bool) -> Result<(), Error> {
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir, &mir.imports)?;
-    code_gen
-        .module
-        .print_to_file(outpath)
-        .map_err(|llvm_str| error::plain_runner_error(llvm_str.to_string()))?;
+    code_gen.module.write_bitcode_to_path(Path::new(outpath));
+    //    code_gen
+    //        .module
+    //        .print_to_file(outpath)
+    //        .map_err(|llvm_str| crate::error::plain_runner_error(llvm_str.to_string()))?;
     Ok(())
 }
 
@@ -193,13 +194,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Methods
         for (classname, class) in imported_classes {
             for (firstname, sig) in &class.method_sigs {
-                let ret_type = self.llvm_type(&sig.ret_ty);
-                let arg_types = sig
-                    .params
-                    .iter()
-                    .map(|param| self.llvm_type(&param.ty))
-                    .collect::<Vec<_>>();
-                let func_type = ret_type.fn_type(&arg_types, true);
+                let func_type = self.method_llvm_func_type(&class.instance_ty, sig);
                 let func_name = classname.method_fullname(&firstname);
                 self.module
                     .add_function(&func_name.full_name, func_type, None);
