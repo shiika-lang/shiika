@@ -22,7 +22,9 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     log::debug!("created hir");
     let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
-    crate::code_gen::run(&mir, &(path + ".bc"), true)?;
+    let bc_path = path.clone() + ".bc";
+    let ll_path = path + ".ll";
+    crate::code_gen::run(&mir, &bc_path, Some(&ll_path), true)?;
     log::debug!("created .bc");
     Ok(())
 }
@@ -50,7 +52,7 @@ pub fn build_corelib() -> Result<(), Error> {
     let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
     let exports = library::LibraryExports::new(&mir);
-    crate::code_gen::run(&mir, "builtin/builtin.bc", false)?;
+    crate::code_gen::run(&mir, "builtin/builtin.bc", Some("builtin/builtin.ll"), false)?;
     log::debug!("created .bc");
 
     let json = serde_json::to_string_pretty(&exports).unwrap();

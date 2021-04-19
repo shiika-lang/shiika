@@ -48,17 +48,24 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(mir: &Mir, outpath: &str, generate_main: bool) -> Result<(), Error> {
+pub fn run(
+    mir: &Mir,
+    bc_path: &str,
+    opt_ll_path: Option<&str>,
+    generate_main: bool,
+) -> Result<(), Error> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir, &mir.imports)?;
-    code_gen.module.write_bitcode_to_path(Path::new(outpath));
-    //    code_gen
-    //        .module
-    //        .print_to_file(outpath)
-    //        .map_err(|llvm_str| crate::error::plain_runner_error(llvm_str.to_string()))?;
+    code_gen.module.write_bitcode_to_path(Path::new(bc_path));
+    if let Some(ll_path) = opt_ll_path {
+        code_gen
+            .module
+            .print_to_file(ll_path)
+            .map_err(|llvm_str| crate::error::plain_runner_error(llvm_str.to_string()))?;
+    }
     Ok(())
 }
 
@@ -629,15 +636,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<(), Error> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
         let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        let ret_block = if exprs.ty.is_never_type() {
-            self.builder.build_unreachable();
-            None
-        } else {
+        let last_value_block = if last_value.is_some() {
             let b = self.context.append_basic_block(ctx.function, "Ret");
             self.builder.build_unconditional_branch(b);
             self.builder.position_at_end(b);
             self.builder.build_unconditional_branch(*end_block);
             Some(b)
+        } else {
+            None
         };
 
         self.builder.position_at_end(*end_block);
@@ -645,7 +651,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if ret_ty.is_never_type() {
             // `Never` does not have an instance
             self.builder.build_return(None);
-        } else if exprs.ty.is_never_type() && ctx.returns.is_empty() {
+        } else if last_value.is_none() && ctx.returns.is_empty() {
             // `exprs` ends with `panic` and there is no `return`
             let null = self.llvm_type(&ret_ty).into_pointer_type().const_null();
             self.builder.build_return(Some(&null));
@@ -658,8 +664,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .iter()
                 .map(|(v, b)| (v as &dyn inkwell::values::BasicValue, *b))
                 .collect::<Vec<_>>();
-            if let Some(b) = ret_block {
-                incomings.push((&last_value, b));
+            let v;
+            if let Some(b) = last_value_block {
+                v = last_value.unwrap();
+                incomings.push((&v, b));
             }
             let phi_node = self
                 .builder
