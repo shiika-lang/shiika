@@ -224,10 +224,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let else_block_end = self.builder.get_insert_block().unwrap();
 
         // IfEnd:
+        self.builder.position_at_end(merge_block);
         if then_value.is_none() && else_value.is_none() {
+            self.builder.build_unreachable();
             Ok(None)
         } else {
-            self.builder.position_at_end(merge_block);
             if then_value.is_none() {
                 Ok(else_value)
             } else if else_value.is_none() {
