@@ -108,7 +108,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_vtables();
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
-        self.gen_lambda_funcs(&hir)?;
         if self.generate_main {
             self.gen_init_constants(&hir.const_inits, &imports.constants);
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
@@ -118,6 +117,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.impl_boxing_funcs();
             self.gen_init_void();
         }
+        self.gen_lambda_funcs(&hir)?;
         Ok(())
     }
 
