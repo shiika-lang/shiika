@@ -1,5 +1,7 @@
 *.ll
 *.out
+/builtin/builtin.bc
+/builtin/exports.json
 /coverage
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
