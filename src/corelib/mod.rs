@@ -17,26 +17,15 @@ use crate::ty;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: HashMap<ClassFullname, SkClass>,
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub sk_classes: SkClasses,
+    pub sk_methods: SkMethods,
 }
 
-impl Corelib {
-    /// Create empty Corelib (for tests)
-    pub fn empty() -> Corelib {
-        Corelib {
-            sk_classes: HashMap::new(),
-            sk_methods: HashMap::new(),
-        }
-    }
-
-    pub fn create() -> Corelib {
-        let items = rust_body_items();
-        let (sk_classes, sk_methods) = make_classes(items);
-        Corelib {
-            sk_classes,
-            sk_methods,
-        }
+pub fn create() -> Corelib {
+    let (sk_classes, sk_methods) = make_classes(rust_body_items());
+    Corelib {
+        sk_classes,
+        sk_methods,
     }
 }
 
@@ -189,6 +178,7 @@ fn make_classes(
                     .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                     .collect(),
                 const_is_obj: (name == "Void"),
+                foreign: false,
             },
         );
         sk_methods.insert(class_fullname(&name), imethods);
@@ -213,6 +203,7 @@ fn make_classes(
                         .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                         .collect(),
                     const_is_obj: false,
+                    foreign: false,
                 },
             );
             sk_methods.insert(metaclass_fullname(&name), cmethods);

@@ -1,5 +1,6 @@
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassFirstname(pub String);
@@ -18,7 +19,7 @@ pub fn class_firstname(s: &str) -> ClassFirstname {
     ClassFirstname(s.to_string())
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct ClassFullname(pub String);
 
 impl std::fmt::Display for ClassFullname {
@@ -69,9 +70,13 @@ impl ClassFullname {
             ClassFullname("Meta:".to_string() + &self.0)
         }
     }
+
+    pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
+        method_fullname(self, &method_firstname.0)
+    }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct MethodFirstname(pub String);
 
 impl std::fmt::Display for MethodFirstname {
@@ -90,7 +95,7 @@ impl MethodFirstname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct MethodFullname {
     pub full_name: String,
     pub first_name: MethodFirstname,
@@ -135,7 +140,7 @@ pub fn const_firstname(s: &str) -> ConstFirstname {
     ConstFirstname(s.to_string())
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstFullname(pub String);
 
 impl std::fmt::Display for ConstFullname {

@@ -20,3 +20,6 @@ subcommands:
                 help: "Shiika source (*.sk)"
                 required: true
                 index: 1
+    
+    - build_corelib:
+        about: "Build corelib"

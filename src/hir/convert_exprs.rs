@@ -54,7 +54,7 @@ impl LVarInfo {
     }
 }
 
-impl HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn convert_exprs(
         &mut self,
         exprs: &[AstExpression],
@@ -703,6 +703,8 @@ impl HirMaker {
         let fullname = name.to_const_fullname();
         if let Some(found) = self.constants.get(&fullname) {
             return Some((found, fullname));
+        } else if let Some(found) = self.imported_constants.get(&fullname) {
+            return Some((found, fullname));
         }
 
         let fullname = name.under_namespace(&self.ctx.namespace());
@@ -771,10 +773,9 @@ impl HirMaker {
             .collect::<Vec<_>>();
         let cls = self
             .class_dict
-            .find_class(&class_fullname(
+            .get_class(&class_fullname(
                 "Meta:".to_string() + &name.names.join("::"),
             ))
-            .unwrap()
             .specialized_meta(&tyargs);
         let ty = cls.instance_ty.clone();
         self.class_dict.add_class(cls);

@@ -1,6 +1,8 @@
 use crate::error::*;
+use crate::library;
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -11,20 +13,52 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
         .to_str()
         .expect("failed to unwrap filepath")
         .to_string();
-    let builtin = wrap_error(load_builtin())?;
-    let str = builtin
-        + &fs::read_to_string(filepath)
-            .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
+    let str = fs::read_to_string(filepath)
+        .map_err(|e| runner_error(format!("{} is not utf8", path), Box::new(e)))?;
     let ast = crate::parser::Parser::parse(&str)?;
     log::debug!("created ast");
-    let corelib = crate::corelib::Corelib::create();
-    log::debug!("loaded corelib");
-    let hir = crate::hir::build(ast, corelib)?;
+    let imports = load_builtin_exports()?;
+    let hir = crate::hir::build(ast, None, &imports)?;
     log::debug!("created hir");
-    let mir = crate::mir::build(hir);
+    let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
-    crate::code_gen::run(&mir, &(path + ".ll"))?;
-    log::debug!("created .ll");
+    let bc_path = path.clone() + ".bc";
+    let ll_path = path + ".ll";
+    crate::code_gen::run(&mir, &bc_path, Some(&ll_path), true)?;
+    log::debug!("created .bc");
+    Ok(())
+}
+
+fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
+    let mut f = fs::File::open("builtin/exports.json")
+        .map_err(|e| runner_error("builtin exports not found", Box::new(e)))?;
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .map_err(|e| runner_error("failed to read builtin exports", Box::new(e)))?;
+    let exports: library::LibraryExports = serde_json::from_str(&contents)
+        .map_err(|e| runner_error("builtin exports is broken", Box::new(e)))?;
+    Ok(exports)
+}
+
+pub fn build_corelib() -> Result<(), Error> {
+    let builtin = wrap_error(load_builtin())?;
+    let ast = crate::parser::Parser::parse(&builtin)?;
+    log::debug!("created ast");
+    let corelib = crate::corelib::create();
+    log::debug!("loaded corelib");
+    let imports = Default::default();
+    let hir = crate::hir::build(ast, Some(corelib), &imports)?;
+    log::debug!("created hir");
+    let mir = crate::mir::build(hir, imports);
+    log::debug!("created mir");
+    let exports = library::LibraryExports::new(&mir);
+    crate::code_gen::run(&mir, "builtin/builtin.bc", Some("builtin/builtin.ll"), false)?;
+    log::debug!("created .bc");
+
+    let json = serde_json::to_string_pretty(&exports).unwrap();
+    let mut f = fs::File::create("builtin/exports.json").unwrap();
+    f.write_all(json.as_bytes()).unwrap();
+    log::debug!("created .json");
     Ok(())
 }
 
@@ -63,10 +97,10 @@ fn run_<P: AsRef<Path>>(
     capture_out: bool,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let ll_path = s.to_string() + ".ll";
+    //let ll_path = s.to_string() + ".ll";
     //let opt_ll_path = s.to_string() + ".opt.ll";
-    //let bc_path = s.to_string() + ".bc";
-    let asm_path = s.to_string() + ".s";
+    let bc_path = s.to_string() + ".bc";
+    //let asm_path = s.to_string() + ".s";
     let out_path = s.to_string() + ".out";
 
     //    let mut cmd = Command::new("opt");
@@ -85,13 +119,13 @@ fn run_<P: AsRef<Path>>(
     //    cmd.arg(opt_ll_path);
     //    cmd.output()?;
 
-    let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
-    cmd.arg(ll_path);
-    cmd.output()
-        .map_err(|e| runner_error("failed to run llc", Box::new(e)))?;
-    if !cmd.status()?.success() {
-        return Err(Box::new(plain_runner_error("llc failed")));
-    }
+    // let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
+    // cmd.arg(ll_path);
+    // cmd.output()
+    //     .map_err(|e| runner_error("failed to run llc", Box::new(e)))?;
+    // if !cmd.status()?.success() {
+    //     return Err(Box::new(plain_runner_error("llc failed")));
+    // }
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
@@ -102,13 +136,14 @@ fn run_<P: AsRef<Path>>(
     cmd.arg("-lgc");
     cmd.arg("-o");
     cmd.arg(out_path.clone());
-    cmd.arg(asm_path.clone());
+    cmd.arg("builtin/builtin.bc");
+    cmd.arg(bc_path.clone());
     if !cmd.status()?.success() {
         return Err(Box::new(plain_runner_error("clang failed")));
     }
 
-    //fs::remove_file(bc_path)?;
-    fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", Box::new(e)))?;
+    fs::remove_file(bc_path)?;
+    //fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", Box::new(e)))?;
 
     let mut cmd = Command::new(format!("./{}", out_path));
     if capture_out {
@@ -124,13 +159,13 @@ fn run_<P: AsRef<Path>>(
     }
 }
 
-/// Remove .ll and .out
+/// Remove .bc and .out
 pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<(), Box<dyn std::error::Error>> {
     let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let ll_path = s.to_string() + ".ll";
+    let bc_path = s.to_string() + ".bc";
     let out_path = s.to_string() + ".out";
-    fs::remove_file(ll_path)?;
-    fs::remove_file(out_path)?;
+    let _ = fs::remove_file(bc_path);
+    let _ = fs::remove_file(out_path);
     Ok(())
 }
 
@@ -143,6 +178,7 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
     }
 }
 
+/// Wrap std::error::Error with shiika::error::Error
 fn wrap_error<T>(result: Result<T, Box<dyn std::error::Error>>) -> Result<T, Error> {
     result.map_err(|err| runner_error(format!("{}", err), err))
 }

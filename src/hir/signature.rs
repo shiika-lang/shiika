@@ -2,8 +2,9 @@ use crate::ast;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
@@ -35,7 +36,7 @@ impl MethodSignature {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,

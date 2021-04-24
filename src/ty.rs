@@ -1,4 +1,6 @@
 use crate::hir::class_dict::ClassDict;
+use serde::{Deserialize, Serialize};
+
 /// Shiika types
 ///
 /// ```text
@@ -18,7 +20,7 @@ use crate::names::*;
 use crate::ty;
 
 // Types for a term (types of Shiika values)
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub struct TermTy {
     pub fullname: ClassFullname,
     pub body: TyBody,
@@ -73,7 +75,7 @@ fn _dbg_type_args(type_args: &[TermTy]) -> String {
         .join(", ")
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TyBody {
     // Types corresponds to non-generic class
     // eg. "Int", "String", "Object"
@@ -108,7 +110,7 @@ pub enum TyBody {
     },
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TyParamKind {
     /// eg. `class A<B>`
     Class,
@@ -433,7 +435,7 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
 
 /// A type parameter
 /// In the future, may have something like +T/-T or in/out
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TyParam {
     pub name: String,
 }

@@ -12,10 +12,14 @@ pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
+use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+pub type SkClasses = HashMap<ClassFullname, SkClass>;
 
 #[derive(Debug)]
 pub struct Hir {
@@ -29,8 +33,12 @@ pub struct Hir {
     pub main_lvars: HirLVars,
 }
 
-pub fn build(ast: ast::Program, corelib: Corelib) -> Result<Hir, crate::error::Error> {
-    hir_maker::make_hir(ast, corelib)
+pub fn build(
+    ast: ast::Program,
+    corelib: Option<Corelib>,
+    imports: &LibraryExports,
+) -> Result<Hir, crate::error::Error> {
+    hir_maker::make_hir(ast, corelib, imports)
 }
 
 impl Hir {
@@ -48,7 +56,7 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkIVar {
     pub idx: usize,
     pub name: String, // Includes `@`
@@ -73,6 +81,8 @@ pub struct SkMethod {
     pub body: SkMethodBody,
     pub lvars: HirLVars,
 }
+
+pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
 
 pub enum SkMethodBody {
     ShiikaMethodBody { exprs: HirExpressions },

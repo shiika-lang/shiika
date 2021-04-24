@@ -2,10 +2,11 @@ use crate::hir::signature::MethodSignature;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// A Shiika class, possibly generic
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkClass {
     pub fullname: ClassFullname,
     pub typarams: Vec<TyParam>,
@@ -15,6 +16,8 @@ pub struct SkClass {
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
     /// eg. `Void` is an instance, not the class
     pub const_is_obj: bool,
+    /// true if this class is an imported one
+    pub foreign: bool,
 }
 
 impl SkClass {
@@ -59,6 +62,7 @@ impl SkClass {
             ivars: self.ivars.clone(),
             method_sigs,
             const_is_obj: self.const_is_obj,
+            foreign: false,
         }
     }
 }

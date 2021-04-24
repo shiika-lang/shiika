@@ -5,17 +5,21 @@ use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
 use crate::hir::method_dict::MethodDict;
 use crate::hir::*;
+use crate::library::LibraryExports;
 use crate::names;
 use crate::type_checking;
 
 #[derive(Debug)]
-pub struct HirMaker {
+pub struct HirMaker<'hir_maker> {
     /// List of classes found so far
-    pub(super) class_dict: ClassDict,
+    pub(super) class_dict: ClassDict<'hir_maker>,
     /// List of methods found so far
     pub(super) method_dict: MethodDict,
     /// List of constants found so far
     pub(super) constants: HashMap<ConstFullname, TermTy>,
+    /// Constants defined from other library
+    pub(super) imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
+    /// Expressions that initialize constants
     pub(super) const_inits: Vec<HirExpression>,
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
@@ -25,29 +29,46 @@ pub struct HirMaker {
     pub(super) lambda_ct: usize,
 }
 
-pub fn make_hir(ast: ast::Program, corelib: Corelib) -> Result<Hir, Error> {
-    let class_dict = class_dict::create(&ast, corelib.sk_classes)?;
-    let mut hir = convert_program(class_dict, ast)?;
+pub fn make_hir(
+    ast: ast::Program,
+    corelib: Option<Corelib>,
+    imports: &LibraryExports,
+) -> Result<Hir, Error> {
+    let (core_classes, core_methods) = if let Some(c) = corelib {
+        (c.sk_classes, c.sk_methods)
+    } else {
+        (Default::default(), Default::default())
+    };
+    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
+    let mut hir = convert_program(class_dict, &imports.constants, ast)?;
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
-    hir.add_methods(corelib.sk_methods);
+    hir.add_methods(core_methods);
 
     Ok(hir)
 }
 
-fn convert_program(class_dict: ClassDict, prog: ast::Program) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(class_dict);
+fn convert_program(
+    class_dict: ClassDict,
+    imported_constants: &HashMap<ConstFullname, TermTy>,
+    prog: ast::Program,
+) -> Result<Hir, Error> {
+    let mut hir_maker = HirMaker::new(class_dict, imported_constants);
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
     Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
 
-impl HirMaker {
-    fn new(class_dict: ClassDict) -> HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
+    fn new(
+        class_dict: ClassDict<'hir_maker>,
+        imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
+    ) -> HirMaker<'hir_maker> {
         HirMaker {
             class_dict,
             method_dict: MethodDict::new(),
             constants: HashMap::new(),
+            imported_constants,
             const_inits: vec![],
             str_literals: vec![],
             ctx: HirMakerContext::new(),

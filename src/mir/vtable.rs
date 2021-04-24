@@ -1,11 +1,13 @@
 use crate::error::*;
-use crate::hir::sk_class::SkClass;
+use crate::hir::*;
+use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VTable {
     /// List of methods, ordered by index
     fullnames: Vec<MethodFullname>,
@@ -52,7 +54,7 @@ impl VTable {
     }
 
     /// Returns the size
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.fullnames.len()
     }
 
@@ -67,27 +69,31 @@ impl VTable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VTables {
-    contents: HashMap<ClassFullname, VTable>,
+    // REFACTOR: how about just use `type`
+    vtables: HashMap<ClassFullname, VTable>,
 }
 
 impl VTables {
-    pub fn build(sk_classes: &HashMap<ClassFullname, SkClass>) -> VTables {
-        let mut contents = HashMap::new();
+    /// Build vtables of the classes
+    pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
+        let mut vtables = HashMap::new();
         let mut queue = sk_classes.keys().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if contents.contains_key(name) {
+            if vtables.contains_key(name) || imports.sk_classes.contains_key(name) {
                 continue;
             }
 
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
             if let Some(super_name) = &class.superclass_fullname {
-                if let Some(x) = contents.get(super_name) {
+                if let Some(x) = vtables.get(super_name) {
+                    super_vtable = x;
+                } else if let Some(x) = imports.vtables.vtables.get(super_name) {
                     super_vtable = x;
                 } else {
                     queue.push_front(&super_name);
@@ -99,22 +105,29 @@ impl VTables {
                 super_vtable = &null_vtable;
             }
             let vtable = VTable::build(super_vtable, class);
-            contents.insert(class.fullname.clone(), vtable);
+            vtables.insert(class.fullname.clone(), vtable);
         }
-        VTables { contents }
+        VTables { vtables }
     }
 
     /// Return the index of the method when invoking it on the object
-    pub fn method_idx(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
-        let vtable = must_be_some(
-            self.contents.get(&obj_ty.vtable_name()),
-            format!("[BUG] method_idx: vtable of {} not found", &obj_ty.fullname),
-        );
-        (vtable.get(&method_name), vtable.size())
+    pub fn method_idx(
+        &self,
+        obj_ty: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Result<(&usize, usize), Error> {
+        if let Some(vtable) = self.vtables.get(&obj_ty.vtable_name()) {
+            Ok((vtable.get(&method_name), vtable.size()))
+        } else {
+            Err(bug(format!(
+                "[BUG] method_idx: vtable of {} not found",
+                &obj_ty.fullname
+            )))
+        }
     }
 
-    // REFACTOR: it's better to implement Iterator (I just don't know how to)
+    /// Returns iterator over each vtable
     pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
-        self.contents.iter()
+        self.vtables.iter()
     }
 }

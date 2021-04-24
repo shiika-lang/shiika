@@ -6,10 +6,11 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 
 [dependencies]
 backtrace = "0.3"
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm9-0" }
-llvm-sys = "90.2.0"
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm9-0"] }
 failure = "0.1.6"
-clap = { git = "https://github.com/clap-rs/clap", version = "3.0.0-beta.1", features = ["yaml"]}
+clap = { version = "3.0.0-beta.2", features = ["yaml"] }
 either = "1.5.3"
 env_logger = "0.8.2"
 log = "0.4.11"
+serde = { version = "1.0.125", features = ["derive"] }
+serde_json = "1.0"

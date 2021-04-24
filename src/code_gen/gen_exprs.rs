@@ -26,21 +26,26 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir HirExpressions,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        debug_assert!(!exprs.exprs.is_empty());
         let mut last_value = None;
-        exprs.exprs.iter().try_for_each(|expr| {
-            let value: inkwell::values::BasicValueEnum = self.gen_expr(ctx, &expr)?;
-            last_value = Some(value);
-            Ok(())
-        })?;
-        Ok(last_value.expect("[BUG] HirExpressions must have at least one expr"))
+        for expr in &exprs.exprs {
+            let value = self.gen_expr(ctx, &expr)?;
+            if value.is_none() {
+                log::warn!("detected unreachable code");
+                return Ok(None)
+            } else {
+                last_value = Some(value);
+            }
+        }
+        Ok(last_value.unwrap())
     }
 
     pub fn gen_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         match &expr.node {
             HirLogicalNot { expr } => self.gen_logical_not(ctx, &expr),
             HirLogicalAnd { left, right } => self.gen_logical_and(ctx, &left, &right),
@@ -74,10 +79,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 lambda_expr,
                 arg_exprs,
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
-            HirArgRef { idx } => self.gen_arg_ref(ctx, idx),
+            HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
             HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
             HirIVarRef { name, idx, self_ty } => self.gen_ivar_ref(ctx, name, idx, self_ty),
-            HirConstRef { fullname } => Ok(self.gen_const_ref(fullname)),
+            HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
                 params,
@@ -85,15 +90,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ret_ty,
                 ..
             } => self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
-            HirSelfExpression => self.gen_self_expression(ctx, &expr.ty),
+            HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
-            HirFloatLiteral { value } => Ok(self.gen_float_literal(*value)),
-            HirDecimalLiteral { value } => Ok(self.gen_decimal_literal(*value)),
-            HirStringLiteral { idx } => Ok(self.gen_string_literal(idx)),
-            HirBooleanLiteral { value } => Ok(self.gen_boolean_literal(*value)),
+            HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
+            HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
+            HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
+            HirBooleanLiteral { value } => Ok(Some(self.gen_boolean_literal(*value))),
 
             HirLambdaCaptureRef { idx, readonly } => {
-                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)
+                Ok(Some(self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)))
             }
             HirLambdaCaptureWrite { cidx, rhs } => {
                 self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
@@ -102,7 +107,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
-            } => Ok(self.gen_class_literal(fullname, str_literal_idx)),
+            } => Ok(Some(self.gen_class_literal(fullname, str_literal_idx))),
         }
     }
 
@@ -110,12 +115,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let b = self.gen_expr(ctx, expr)?;
-        let i = self.unbox_bool(b);
-        let one = self.i1_type.const_int(1, false);
-        let b2 = self.builder.build_int_sub(one, i, "b2");
-        Ok(self.box_bool(b2))
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        if let Some(b) = self.gen_expr(ctx, expr)? {
+            let i = self.unbox_bool(b);
+            let b2 = self.builder.build_not(i, "b2");
+            Ok(Some(self.box_bool(b2)))
+        } else {
+            Ok(None)
+        }
     }
 
     fn gen_logical_and(
@@ -123,20 +130,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        // REFACTOR: use `and` of LLVM
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let begin_block = self.context.append_basic_block(ctx.function, "AndBegin");
         let more_block = self.context.append_basic_block(ctx.function, "AndMore");
         let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
         // AndBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
-        let left_value = self.gen_expr(ctx, left)?;
+        let left_value = self.gen_expr(ctx, left)?.unwrap();
         self.gen_conditional_branch(left_value, more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
         self.builder.position_at_end(more_block);
-        let right_value = self.gen_expr(ctx, right)?;
+        let right_value = self.gen_expr(ctx, right)?.unwrap();
         self.builder.build_unconditional_branch(merge_block);
         let more_block_end = self.builder.get_insert_block().unwrap();
         // AndEnd:
@@ -149,7 +155,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (&left_value, begin_block_end),
             (&right_value, more_block_end),
         ]);
-        Ok(phi_node.as_basic_value())
+        Ok(Some(phi_node.as_basic_value()))
     }
 
     fn gen_logical_or(
@@ -157,19 +163,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let begin_block = self.context.append_basic_block(ctx.function, "OrBegin");
         let else_block = self.context.append_basic_block(ctx.function, "OrElse");
         let merge_block = self.context.append_basic_block(ctx.function, "OrEnd");
         // OrBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
-        let left_value = self.gen_expr(ctx, left)?;
+        let left_value = self.gen_expr(ctx, left)?.unwrap();
         self.gen_conditional_branch(left_value, merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
         self.builder.position_at_end(else_block);
-        let right_value = self.gen_expr(ctx, right)?;
+        let right_value = self.gen_expr(ctx, right)?.unwrap();
         self.builder.build_unconditional_branch(merge_block);
         let else_block_end = self.builder.get_insert_block().unwrap();
         // OrEnd:
@@ -182,7 +188,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (&left_value, begin_block_end),
             (&right_value, else_block_end),
         ]);
-        Ok(phi_node.as_basic_value())
+        Ok(Some(phi_node.as_basic_value()))
     }
 
     fn gen_if_expr(
@@ -192,7 +198,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         cond_expr: &'hir HirExpression,
         then_exprs: &'hir HirExpressions,
         else_exprs: &'hir HirExpressions,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
@@ -200,37 +206,40 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // IfBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
-        let cond_value = self.gen_expr(ctx, cond_expr)?;
+        let cond_value = self.gen_expr(ctx, cond_expr)?.unwrap();
         self.gen_conditional_branch(cond_value, then_block, else_block);
         // IfThen:
         self.builder.position_at_end(then_block);
         let then_value = self.gen_exprs(ctx, then_exprs)?;
-        if then_exprs.ty.is_never_type() {
-            self.builder.build_unreachable();
-        } else {
+        if then_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
         let else_value = self.gen_exprs(ctx, else_exprs)?;
-        if else_exprs.ty.is_never_type() {
-            self.builder.build_unreachable();
-        } else {
+        if else_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }
         let else_block_end = self.builder.get_insert_block().unwrap();
+
         // IfEnd:
         self.builder.position_at_end(merge_block);
-
-        if then_exprs.ty.is_never_type() {
-            Ok(else_value)
-        } else if else_exprs.ty.is_never_type() {
-            Ok(then_value)
+        if then_value.is_none() && else_value.is_none() {
+            self.builder.build_unreachable();
+            Ok(None)
         } else {
-            let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-            phi_node.add_incoming(&[(&then_value, then_block_end), (&else_value, else_block_end)]);
-            Ok(phi_node.as_basic_value())
+            if then_value.is_none() {
+                Ok(else_value)
+            } else if else_value.is_none() {
+                Ok(then_value)
+            } else {
+                let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
+                let v1 = then_value.unwrap();
+                let v2 = else_value.unwrap();
+                phi_node.add_incoming(&[(&v1, then_block_end), (&v2, else_block_end)]);
+                Ok(Some(phi_node.as_basic_value()))
+            }
         }
     }
 
@@ -239,12 +248,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         cond_expr: &'hir HirExpression,
         body_exprs: &'hir HirExpressions,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
         self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
         self.builder.position_at_end(begin_block);
-        let cond_value = self.gen_expr(ctx, cond_expr)?;
+        let cond_value = self.gen_expr(ctx, cond_expr)?.unwrap();
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
         let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
         self.gen_conditional_branch(cond_value, body_block, end_block);
@@ -260,20 +269,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // WhileEnd:
         self.builder.position_at_end(*rc2);
-        Ok(self.gen_const_ref(&const_fullname("::Void")))
+        Ok(Some(self.gen_const_ref(&const_fullname("::Void"))))
     }
 
     fn gen_break_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         from: &HirBreakFrom,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         match from {
             HirBreakFrom::While => match &ctx.current_loop_end {
                 Some(b) => {
                     self.builder.build_unconditional_branch(*Rc::clone(b));
-                    Ok(dummy_value)
+                    Ok(None)
                 }
                 None => Err(error::bug("break outside of a loop")),
             },
@@ -287,7 +295,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // Jump to the end of the llvm func
                 self.builder
                     .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
-                Ok(dummy_value)
+                Ok(None)
             }
         }
     }
@@ -296,15 +304,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         arg: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let value = self.gen_expr(ctx, arg)?;
-        let dummy_value = self.i1_type.const_int(0, false).as_basic_value_enum();
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let value = self.gen_expr(ctx, arg)?.unwrap();
         // Jump to the end of the llvm func
         self.builder
             .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
         let block_end = self.builder.get_insert_block().unwrap();
         ctx.returns.push((value, block_end));
-        Ok(dummy_value)
+        Ok(None)
     }
 
     fn gen_lvar_assign(
@@ -312,14 +319,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         rhs: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let value = self.gen_expr(ctx, rhs)?;
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let value = self.gen_expr(ctx, rhs)?.unwrap();
         let ptr = ctx
             .lvars
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
         self.builder.build_store(*ptr, value);
-        Ok(value)
+        Ok(Some(value))
     }
 
     fn gen_ivar_assign(
@@ -329,11 +336,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
         rhs: &'hir HirExpression,
         self_ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let object = self.gen_self_expression(ctx, self_ty)?;
-        let value = self.gen_expr(ctx, rhs)?;
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let object = self.gen_self_expression(ctx, self_ty);
+        let value = self.gen_expr(ctx, rhs)?.unwrap();
         self.build_ivar_store(&object, *idx, value, name);
-        Ok(value)
+        Ok(Some(value))
     }
 
     fn gen_const_assign(
@@ -341,15 +348,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         fullname: &ConstFullname,
         rhs: &'hir HirExpression,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let value = self.gen_expr(ctx, rhs)?;
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let value = self.gen_expr(ctx, rhs)?.unwrap();
         let ptr = self
             .module
             .get_global(&fullname.0)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0))
             .as_pointer_value();
         self.builder.build_store(ptr, value);
-        Ok(value)
+        Ok(Some(value))
     }
 
     /// Generate method call
@@ -360,14 +367,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         // Prepare arguments
         let method_name = &method_fullname.first_name;
-        let receiver_value = self.gen_expr(ctx, receiver_expr)?;
-        let arg_values = arg_exprs
-            .iter()
-            .map(|arg_expr| self.gen_expr(ctx, arg_expr))
-            .collect::<Result<Vec<_>, _>>()?;
+        let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_values = vec![];
+        for arg_expr in arg_exprs {
+            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        }
 
         // Create basic block
         let start_block = self
@@ -375,12 +382,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, &format!("Invoke_{}", method_fullname));
         self.builder.build_unconditional_branch(start_block);
         self.builder.position_at_end(start_block);
-        let end_block = self
-            .context
-            .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
 
         // Get the llvm function from vtable
-        let (idx, size) = self.vtables.method_idx(&receiver_expr.ty, &method_name);
+        let (idx, size) = self.lookup_vtable(&receiver_expr.ty, &method_name)?;
         let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
         let func_type = self
             .llvm_func_type(
@@ -395,10 +399,32 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
 
         // Invoke the llvm function
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values)?;
-        self.builder.build_unconditional_branch(end_block);
-        self.builder.position_at_end(end_block);
-        Ok(result)
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        if ret_ty.is_never_type() {
+            self.builder.build_unreachable();
+            Ok(None)
+        } else {
+            let end_block = self
+                .context
+                .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
+            self.builder.build_unconditional_branch(end_block);
+            self.builder.position_at_end(end_block);
+            Ok(Some(result))
+        }
+    }
+
+    /// Get the idx and size of vtable
+    fn lookup_vtable(
+        &self,
+        ty: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Result<(&usize, usize), Error> {
+        let found = self.vtables.method_idx(ty, method_name);
+        if found.is_ok() {
+            found
+        } else {
+            self.imported_vtables.method_idx(ty, method_name)
+        }
     }
 
     /// Generate invocation of a lambda
@@ -408,14 +434,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         lambda_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let lambda_obj = self.gen_expr(ctx, lambda_expr)?;
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let lambda_obj = self.gen_expr(ctx, lambda_expr)?.unwrap();
         let n_args = arg_exprs.len();
 
         // Prepare arguments
         let mut args = vec![lambda_obj];
         for e in arg_exprs {
-            args.push(self.gen_expr(ctx, e)?);
+            args.push(self.gen_expr(ctx, e)?.unwrap());
         }
 
         // Create basic block
@@ -460,13 +486,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 "Int#==",
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
-            )?;
+            );
             self.gen_conditional_branch(eq, *ctx.current_func_end, end_block);
         } else {
             self.builder.build_unconditional_branch(end_block);
         }
         self.builder.position_at_end(end_block);
-        Ok(result)
+        Ok(Some(result))
     }
 
     /// Generate llvm function call
@@ -475,18 +501,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         func_name: &str,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
         arg_values: Vec<inkwell::values::BasicValueEnum<'run>>,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let function = self.get_llvm_func(func_name);
         self.gen_llvm_function_call(function, receiver_value, arg_values)
     }
 
-    // REFACTOR: why returns Result?
     fn gen_llvm_function_call<F>(
         &self,
         function: F,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
         mut arg_values: Vec<inkwell::values::BasicValueEnum<'run>>,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error>
+    ) -> inkwell::values::BasicValueEnum<'run>
     where
         F: Into<
             either::Either<
@@ -503,8 +528,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .try_as_basic_value()
             .left()
         {
-            Some(result_value) => Ok(result_value),
-            None => Ok(self.gen_const_ref(&const_fullname("::Void"))),
+            Some(result_value) => result_value,
+            None => self.gen_const_ref(&const_fullname("::Void")),
         }
     }
 
@@ -513,10 +538,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx: &usize,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         match ctx.function_origin {
             FunctionOrigin::Method => {
-                Ok(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
+                ctx.function.get_nth_param((*idx as u32) + 1).unwrap() // +1 for the first %self
             }
             FunctionOrigin::Lambda => {
                 // Bitcast is needed because lambda params are always `%Object*`
@@ -531,8 +556,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                         ))
                     });
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
-                let value = self.builder.build_bitcast(obj, llvm_type, "value");
-                Ok(value)
+                self.builder.build_bitcast(obj, llvm_type, "value")
             }
             _ => panic!("[BUG] arg ref in invalid place"),
         }
@@ -542,9 +566,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
-        Ok(self.builder.build_load(*ptr, name))
+        Ok(Some(self.builder.build_load(*ptr, name)))
     }
 
     fn gen_ivar_ref(
@@ -553,9 +577,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         name: &str,
         idx: &usize,
         self_ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let object = self.gen_self_expression(ctx, self_ty)?;
-        Ok(self.build_ivar_load(object, *idx, name))
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        let object = self.gen_self_expression(ctx, self_ty);
+        Ok(Some(self.build_ivar_load(object, *idx, name)))
     }
 
     pub fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum<'run> {
@@ -573,7 +597,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         params: &[MethodParam],
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
@@ -590,12 +614,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
-        let the_self = self.gen_self_expression(ctx, &ty::raw("Object"))?;
-        let arg_values = vec![sk_ptr, the_self, self.gen_lambda_captures(ctx, captures)?];
-        self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
+        let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
+        let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)?];
+        Ok(Some(self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)))
     }
 
-    fn gen_lambda_captures(
+    fn _gen_lambda_captures(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         captures: &'hir [HirLambdaCapture],
@@ -604,7 +628,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
-        )?;
+        );
         for cap in captures {
             let item = match cap {
                 HirLambdaCapture::CaptureLVar { name } => {
@@ -613,11 +637,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
                 HirLambdaCapture::CaptureArg { idx } => {
                     // Args are captured by value
-                    self.gen_arg_ref(ctx, idx)?
+                    self.gen_arg_ref(ctx, idx)
                 }
                 HirLambdaCapture::CaptureFwd { cidx, ty } => {
                     let deref = false; // When forwarding, pass the item as is
-                    self.gen_lambda_capture_ref(ctx, cidx, deref, ty)?
+                    self.gen_lambda_capture_ref(ctx, cidx, deref, ty)
                 }
             };
             let obj = self.builder.build_bitcast(
@@ -625,7 +649,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.llvm_type(&ty::raw("Object")),
                 "capture_item",
             );
-            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
         Ok(ary)
     }
@@ -635,7 +659,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let the_main = if ctx.function.get_name().to_str().unwrap() == "user_main" {
             self.the_main.unwrap()
         } else if ctx.function_origin == FunctionOrigin::Lambda {
@@ -645,9 +669,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             // The first arg of llvm function is `self`
             ctx.function.get_first_param().unwrap()
         };
-        Ok(self
+        self
             .builder
-            .build_bitcast(the_main, self.llvm_type(ty), "the_main"))
+            .build_bitcast(the_main, self.llvm_type(ty), "the_main")
     }
 
     /// Generate code for creating an array
@@ -655,20 +679,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir [HirExpression],
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
             vec![],
-        )?;
+        );
         for expr in exprs {
-            let item = self.gen_expr(ctx, expr)?;
+            let item = self.gen_expr(ctx, expr)?.unwrap();
             let obj = self
                 .builder
                 .build_bitcast(item, self.llvm_type(&ty::raw("Object")), "obj");
-            self.gen_llvm_func_call("Array#push", ary, vec![obj])?;
+            self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
-        Ok(ary)
+        Ok(Some(ary))
     }
 
     fn gen_float_literal(&self, value: f64) -> inkwell::values::BasicValueEnum<'run> {
@@ -698,7 +722,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
 
         self.gen_llvm_function_call(func, receiver_value, arg_values)
-            .unwrap()
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum<'run> {
@@ -730,7 +753,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx_in_captures: &usize,
         deref: bool,
         ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let block = self
             .context
             .append_basic_block(ctx.function, &format!("CaptureRef_{}th", idx_in_captures));
@@ -742,7 +765,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        )?;
+        );
         let ret = if deref {
             // `item` is a pointer
             let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
@@ -762,7 +785,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
-        Ok(ret)
+        ret
     }
 
     fn gen_lambda_capture_write(
@@ -771,7 +794,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx_in_captures: &usize,
         rhs: &'hir HirExpression,
         ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let block = self
             .context
             .append_basic_block(ctx.function, &format!("CaptureWrite_{}th", idx_in_captures));
@@ -783,13 +806,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             "Array#[]",
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        )?;
+        );
         let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
         let ptr = self
             .builder
             .build_bitcast(ptr_, ptr_type, "ptr")
             .into_pointer_value();
-        let value = self.gen_expr(ctx, rhs)?;
+        let value = self.gen_expr(ctx, rhs)?.unwrap();
         self.builder.build_store(ptr, value);
 
         let block = self.context.append_basic_block(
@@ -798,7 +821,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.builder.build_unconditional_branch(block);
         self.builder.position_at_end(block);
-        Ok(value)
+        Ok(Some(value))
     }
 
     fn _gen_get_lambda_captures(
@@ -814,13 +837,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
         ty: &TermTy,
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
-        let obj = self.gen_expr(ctx, expr)?;
-        if expr.ty.equals_to(&ty) {
-            // No bitcast needed
-            Ok(obj)
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+        if let Some(obj) = self.gen_expr(ctx, expr)? {
+            if expr.ty.equals_to(&ty) {
+                // No bitcast needed
+                Ok(Some(obj))
+            } else {
+                Ok(Some(self.builder.build_bitcast(obj, self.llvm_type(ty), "as")))
+            }
         } else {
-            Ok(self.builder.build_bitcast(obj, self.llvm_type(ty), "as"))
+            Ok(None)
         }
     }
 

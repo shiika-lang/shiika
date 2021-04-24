@@ -1,9 +1,9 @@
-// #![feature(nll)]  // QUESTION: Do we still need this?
 pub mod ast;
 pub mod code_gen;
 pub mod corelib;
 pub mod error;
 pub mod hir;
+pub mod library;
 pub mod mir;
 pub mod names;
 pub mod parser;

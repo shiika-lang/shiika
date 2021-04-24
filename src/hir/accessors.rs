@@ -2,7 +2,7 @@ use crate::code_gen::CodeGen;
 use crate::hir::hir_maker::HirMaker;
 use crate::hir::*;
 
-impl HirMaker {
+impl<'hir_maker> HirMaker<'hir_maker> {
     /// Define getters and setters (unless there is a method of the same name)
     pub(super) fn define_accessors(
         &mut self,

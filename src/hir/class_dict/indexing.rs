@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
-impl ClassDict {
+impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(
         &mut self,
@@ -19,7 +19,7 @@ impl ClassDict {
             Some(super_cls) => super_cls.ivars.clone(),
             None => HashMap::new(),
         };
-        let class = self.get_class_mut(&classname, "ClassDict::define_ivars");
+        let class = self.get_class_mut(&classname);
         debug_assert!(class.ivars.is_empty());
         class.ivars = super_ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
@@ -40,20 +40,6 @@ impl ClassDict {
         sk_class
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
-    }
-
-    pub fn index_corelib(&mut self, corelib: HashMap<ClassFullname, SkClass>) {
-        corelib.into_iter().for_each(|(_, c)| {
-            self.add_class(SkClass {
-                fullname: c.fullname,
-                typarams: c.typarams,
-                superclass_fullname: c.superclass_fullname,
-                instance_ty: c.instance_ty,
-                ivars: c.ivars,
-                method_sigs: c.method_sigs,
-                const_is_obj: c.const_is_obj,
-            })
-        });
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
@@ -155,6 +141,7 @@ impl ClassDict {
         Ok((instance_methods, class_methods))
     }
 
+    /// Register a class and its metaclass to self
     fn add_new_class(
         &mut self,
         fullname: &ClassFullname,
@@ -175,8 +162,8 @@ impl ClassDict {
         class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
         if !self.class_exists(&super_name.0) {
             return Err(error::name_error(&format!(
-                "unknown superclass: {:?}",
-                super_name
+                "superclass {:?} of {:?} does not exist",
+                super_name, fullname,
             )));
         }
 
@@ -188,10 +175,11 @@ impl ClassDict {
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
             const_is_obj: false,
+            foreign: false,
         });
 
         // Crete metaclass (which is a subclass of `Class`)
-        let the_class = self.get_class(&class_fullname("Class"), "index_class");
+        let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
             fullname: fullname.meta_name(),
@@ -201,6 +189,7 @@ impl ClassDict {
             ivars: meta_ivars,
             method_sigs: class_methods,
             const_is_obj: false,
+            foreign: false,
         });
         Ok(())
     }
