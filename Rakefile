@@ -2,6 +2,7 @@
 # Rakefile
 #
 # Basically you don't need to run this. Miscellaneous tasks
+require 'yaml'
 
 task :doc do
   chdidr "doc/shg" do
@@ -12,13 +13,13 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff --cached"
-  v = File.read('CHANGELOG.md')[/v[\d\.]+/]
+  v = "v" + YAML.load_file("cli.yml")["version"]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
   sh "git ci -m '#{v}'"
   sh "git tag '#{v}'"
-  sh "git push origin master --tags"
+  sh "git push origin main --tags"
 end
 
 task :default => :test
@@ -55,8 +56,17 @@ task :test do
 end
 
 task :tmp do
-  #sh "cargo run"
-  sh "llc examples/a.sk.ll"
-  sh "cc -lgc -o examples/a.sk.out examples/a.sk.s"
-  sh "./examples/a.sk.out"
+  sh "llvm-as builtin/builtin.ll"
+  sh "llvm-as examples/a.sk.ll"
+  sh "clang" +
+    " -L/usr/local/opt/bdw-gc/lib/" +
+    " -lgc" +
+    " -o a.out" +
+    " --verbose" +
+    " examples/a.sk.bc builtin/builtin.bc"
+end
+
+task :tmp2 do
+  sh "cargo run -- build_corelib"
+  sh "cargo run -- run examples/a.sk"
 end
