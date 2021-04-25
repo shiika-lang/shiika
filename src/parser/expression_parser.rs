@@ -472,7 +472,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_secondary_expr");
         let expr = match self.current_token() {
-            Token::KwBreak => self.parse_break_expr(),
+            Token::KwBreak => Ok(self.parse_break_expr()),
             Token::KwIf => self.parse_if_expr(),
             Token::KwUnless => self.parse_unless_expr(),
             Token::KwWhile => self.parse_while_expr(),
@@ -482,12 +482,12 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_break_expr(&mut self) -> Result<AstExpression, Error> {
+    fn parse_break_expr(&mut self) -> AstExpression {
         self.lv += 1;
         self.debug_log("parse_break_expr");
         assert!(self.consume(Token::KwBreak));
         self.lv -= 1;
-        Ok(ast::break_expr())
+        ast::break_expr()
     }
 
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {

@@ -57,6 +57,7 @@ fn ivars() -> HashMap<String, SkIVar> {
     ivars
 }
 
+#[allow(clippy::reversed_empty_ranges)]
 pub fn fn_items() -> Vec<ClassItem> {
     vec![
         fn_item!(0),

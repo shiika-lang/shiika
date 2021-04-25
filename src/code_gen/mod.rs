@@ -115,7 +115,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if self.generate_main {
             self.gen_init_constants(&hir.const_inits, &imports.constants);
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
-            self.gen_main()?;
+            self.gen_main();
         } else {
             // generating builtin
             self.impl_boxing_funcs();
@@ -343,7 +343,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
-    fn gen_main(&mut self) -> Result<(), Error> {
+    fn gen_main(&mut self) {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
@@ -363,7 +363,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // ret i32 0
         self.builder
             .build_return(Some(&self.i32_type.const_int(0, false)));
-        Ok(())
     }
 
     /// Create llvm struct types for Shiika objects

@@ -3,7 +3,7 @@ use shiika::runner;
 #[macro_use]
 extern crate clap;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     env_logger::init();
 
     let yaml = load_yaml!("cli.yml");
@@ -24,8 +24,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if matches.subcommand_matches("build_corelib").is_some() {
         build_corelib();
     }
-
-    Ok(())
 }
 
 fn compile(filepath: &str) -> bool {

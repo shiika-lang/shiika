@@ -127,7 +127,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::DecimalLiteral { value } => Ok(Hir::decimal_literal(*value)),
 
-            AstExpressionBody::StringLiteral { content } => self.convert_string_literal(content),
+            AstExpressionBody::StringLiteral { content } => {
+                Ok(self.convert_string_literal(content))
+            }
             //x => panic!("TODO: {:?}", x)
         }
     }
@@ -412,11 +414,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let receiver_hir = match receiver_expr {
             Some(expr) => self.convert_expr(&expr)?,
             // Implicit self
-            _ => self.convert_self_expr()?,
+            _ => self.convert_self_expr(),
         };
         let mut method_tyargs = vec![];
         for const_name in type_args {
-            method_tyargs.push(self._resolve_method_tyarg(const_name)?);
+            method_tyargs.push(self._resolve_method_tyarg(const_name));
         }
         let (sig, found_class_name) =
             self.class_dict
@@ -429,11 +431,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///     ary.map<Array<T>>(f)
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
-    fn _resolve_method_tyarg(&self, name: &ConstName) -> Result<TermTy, Error> {
+    fn _resolve_method_tyarg(&self, name: &ConstName) -> TermTy {
         let class_typarams = self.current_class_typarams();
         let method_typarams = self.current_method_typarams();
-        let ret = name.to_ty(&class_typarams, &method_typarams);
-        Ok(ret)
+        name.to_ty(&class_typarams, &method_typarams)
     }
 
     /// Check the arguments and create HirMethodCall
@@ -565,7 +566,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Search method
-        let self_expr = self.convert_self_expr()?;
+        let self_expr = self.convert_self_expr();
         let found = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
@@ -784,7 +785,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {
         match token {
-            Token::KwSelf => self.convert_self_expr(),
+            Token::KwSelf => Ok(self.convert_self_expr()),
             Token::KwTrue => Ok(Hir::boolean_literal(true)),
             Token::KwFalse => Ok(Hir::boolean_literal(false)),
             _ => panic!("[BUG] not a pseudo variable token: {:?}", token),
@@ -801,13 +802,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        self.convert_array_literal_(item_exprs)
+        Ok(self.convert_array_literal_(item_exprs))
     }
 
-    fn convert_array_literal_(
-        &mut self,
-        item_exprs: Vec<HirExpression>,
-    ) -> Result<HirExpression, Error> {
+    fn convert_array_literal_(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
         // TODO #102: Support empty array literal
         let mut item_ty = if item_exprs.is_empty() {
             ty::raw("Object")
@@ -820,17 +818,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
 
-        Ok(Hir::array_literal(item_exprs, ary_ty))
+        Hir::array_literal(item_exprs, ary_ty)
     }
 
-    // REFACTOR: Unnecessary Result
-    fn convert_self_expr(&self) -> Result<HirExpression, Error> {
-        Ok(Hir::self_expression(self.ctx.self_ty()))
+    fn convert_self_expr(&self) -> HirExpression {
+        Hir::self_expression(self.ctx.self_ty())
     }
 
-    fn convert_string_literal(&mut self, content: &str) -> Result<HirExpression, Error> {
+    fn convert_string_literal(&mut self, content: &str) -> HirExpression {
         let idx = self.register_string_literal(content);
-        Ok(Hir::string_literal(idx))
+        Hir::string_literal(idx)
     }
 
     pub(super) fn register_string_literal(&mut self, content: &str) -> usize {

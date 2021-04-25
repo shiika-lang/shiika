@@ -7,7 +7,7 @@ pub struct ClassFirstname(pub String);
 
 impl ClassFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
-        if namespace == "" {
+        if namespace.is_empty() {
             ClassFullname(self.0.clone())
         } else {
             ClassFullname(namespace.to_string() + "::" + &self.0)

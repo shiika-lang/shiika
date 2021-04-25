@@ -91,12 +91,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
         if let Some(c) = self.sk_classes.get_mut(class_fullname) {
             c
+        } else if self.imported_classes.contains_key(class_fullname) {
+            panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
         } else {
-            if self.imported_classes.contains_key(class_fullname) {
-                panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
-            } else {
-                panic!("[BUG] class `{}' not found", class_fullname)
-            }
+            panic!("[BUG] class `{}' not found", class_fullname)
         }
     }
 

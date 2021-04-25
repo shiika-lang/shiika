@@ -25,7 +25,7 @@ pub fn create<'hir_maker>(
 ) -> Result<ClassDict<'hir_maker>, Error> {
     let mut dict = ClassDict {
         sk_classes: initial_sk_classes,
-        imported_classes: imported_classes,
+        imported_classes,
     };
     let defs = ast
         .toplevel_items

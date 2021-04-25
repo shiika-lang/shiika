@@ -317,10 +317,7 @@ impl TermTy {
     }
 
     pub fn is_specialized(&self) -> bool {
-        match self.body {
-            TySpe { .. } | TySpeMeta { .. } => true,
-            _ => false,
-        }
+        matches!(self.body, TySpe { .. } | TySpeMeta { .. })
     }
 
     pub fn upper_bound(&self) -> TermTy {

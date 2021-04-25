@@ -80,8 +80,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 arg_exprs,
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
-            HirLVarRef { name } => self.gen_lvar_ref(ctx, name),
-            HirIVarRef { name, idx, self_ty } => self.gen_ivar_ref(ctx, name, idx, self_ty),
+            HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, name))),
+            HirIVarRef { name, idx, self_ty } => {
+                Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
+            }
             HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
@@ -89,7 +91,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 captures,
                 ret_ty,
                 ..
-            } => self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
+            } => Ok(Some(
+                self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
+            )),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
@@ -225,19 +229,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // IfEnd:
         self.builder.position_at_end(merge_block);
-        if then_value.is_none() && else_value.is_none() {
-            self.builder.build_unreachable();
-            Ok(None)
-        } else {
-            if then_value.is_none() {
-                Ok(else_value)
-            } else if else_value.is_none() {
-                Ok(then_value)
-            } else {
+        match (then_value, else_value) {
+            (None, None) => {
+                self.builder.build_unreachable();
+                Ok(None)
+            }
+            (None, _) => Ok(else_value),
+            (_, None) => Ok(then_value),
+            (Some(then_val), Some(else_val)) => {
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
-                let v1 = then_value.unwrap();
-                let v2 = else_value.unwrap();
-                phi_node.add_incoming(&[(&v1, then_block_end), (&v2, else_block_end)]);
+                phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Ok(Some(phi_node.as_basic_value()))
             }
         }
@@ -563,9 +564,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
-    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
-        Ok(Some(self.builder.build_load(*ptr, name)))
+        self.builder.build_load(*ptr, name)
     }
 
     fn gen_ivar_ref(
@@ -574,9 +575,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         name: &str,
         idx: &usize,
         self_ty: &TermTy,
-    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let object = self.gen_self_expression(ctx, self_ty);
-        Ok(Some(self.build_ivar_load(object, *idx, name)))
+        self.build_ivar_load(object, *idx, name)
     }
 
     pub fn gen_const_ref(&self, fullname: &ConstFullname) -> inkwell::values::BasicValueEnum<'run> {
@@ -594,7 +595,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         params: &[MethodParam],
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
-    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
@@ -612,19 +613,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
-        let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)?];
-        Ok(Some(self.gen_llvm_func_call(
-            &format!("Meta:{}#new", cls_name),
-            meta,
-            arg_values,
-        )))
+        let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)];
+        self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
     }
 
     fn _gen_lambda_captures(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         captures: &'hir [HirLambdaCapture],
-    ) -> Result<inkwell::values::BasicValueEnum<'run>, Error> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
             self.gen_const_ref(&const_fullname("::Array")),
@@ -652,7 +649,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             );
             self.gen_llvm_func_call("Array#push", ary, vec![obj]);
         }
-        Ok(ary)
+        ary
     }
 
     /// Get the object referred by `self`

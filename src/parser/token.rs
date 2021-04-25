@@ -104,22 +104,22 @@ impl Token {
     }
 
     pub fn is_assignment_token(&self) -> bool {
-        match self {
-            Token::Equal => true,
-            Token::PlusEq => true,
-            Token::MinusEq => true,
-            Token::MulEq => true,
-            Token::DivEq => true,
-            Token::ModEq => true,
-            Token::LShiftEq => true,
-            Token::RShiftEq => true,
-            Token::AndEq => true,
-            Token::OrEq => true,
-            Token::XorEq => true,
-            Token::AndAndEq => true,
-            Token::OrOrEq => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Token::Equal
+                | Token::PlusEq
+                | Token::MinusEq
+                | Token::MulEq
+                | Token::DivEq
+                | Token::ModEq
+                | Token::LShiftEq
+                | Token::RShiftEq
+                | Token::AndEq
+                | Token::OrEq
+                | Token::XorEq
+                | Token::AndAndEq
+                | Token::OrOrEq
+        )
     }
 
     /// Return true if a value may start with this token
