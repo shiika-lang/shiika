@@ -1,3 +1,4 @@
+pub mod targets;
 pub mod ast;
 pub mod code_gen;
 pub mod corelib;

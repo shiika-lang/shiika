@@ -1,5 +1,6 @@
 use crate::error::*;
 use crate::library;
+use crate::targets;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -24,7 +25,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     log::debug!("created mir");
     let bc_path = path.clone() + ".bc";
     let ll_path = path + ".ll";
-    crate::code_gen::run(&mir, &bc_path, Some(&ll_path), true)?;
+    let triple = targets::default_triple();
+    crate::code_gen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
     log::debug!("created .bc");
     Ok(())
 }
@@ -52,7 +54,8 @@ pub fn build_corelib() -> Result<(), Error> {
     let mir = crate::mir::build(hir, imports);
     log::debug!("created mir");
     let exports = library::LibraryExports::new(&mir);
-    crate::code_gen::run(&mir, "builtin/builtin.bc", Some("builtin/builtin.ll"), false)?;
+    let triple = targets::default_triple();
+    crate::code_gen::run(&mir, "builtin/builtin.bc", Some("builtin/builtin.ll"), false, Some(&triple))?;
     log::debug!("created .bc");
 
     let json = serde_json::to_string_pretty(&exports).unwrap();
@@ -96,6 +99,7 @@ fn run_<P: AsRef<Path>>(
     sk_path: P,
     capture_out: bool,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let triple = targets::default_triple();
     let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
     //let ll_path = s.to_string() + ".ll";
     //let opt_ll_path = s.to_string() + ".opt.ll";
@@ -131,7 +135,9 @@ fn run_<P: AsRef<Path>>(
     add_args_from_env(&mut cmd, "CFLAGS");
     add_args_from_env(&mut cmd, "LDFLAGS");
     add_args_from_env(&mut cmd, "LDLIBS");
-    cmd.arg("-no-pie");
+    //cmd.arg("-no-pie");
+    cmd.arg("-target");
+    cmd.arg(triple.as_str().to_str().unwrap());
     cmd.arg("-lm");
     cmd.arg("-lgc");
     cmd.arg("-o");
@@ -143,7 +149,6 @@ fn run_<P: AsRef<Path>>(
     }
 
     fs::remove_file(bc_path)?;
-    //fs::remove_file(asm_path).map_err(|e| runner_error("failed to remove .s", Box::new(e)))?;
 
     let mut cmd = Command::new(format!("./{}", out_path));
     if capture_out {
