@@ -9,14 +9,25 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: Install other dependencies
         run: |
           set -eux
           sudo apt install -y llvm-9 clang-9 libgc-dev
+
       - name: Output versions
         run: |
           set -eux
@@ -24,6 +35,7 @@ jobs:
           cargo --version
           llc-9 --version
           clang-9 --version
+
       - name: Build and test
         run: |
           set -eux
