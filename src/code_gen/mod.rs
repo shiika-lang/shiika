@@ -53,9 +53,13 @@ pub fn run(
     bc_path: &str,
     opt_ll_path: Option<&str>,
     generate_main: bool,
+    opt_target_triple: Option<&inkwell::targets::TargetTriple>,
 ) -> Result<(), Error> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
+    if let Some(triple) = opt_target_triple {
+        module.set_triple(triple);
+    }
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir, &mir.imports)?;
