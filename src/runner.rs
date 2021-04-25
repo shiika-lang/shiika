@@ -55,7 +55,13 @@ pub fn build_corelib() -> Result<(), Error> {
     log::debug!("created mir");
     let exports = library::LibraryExports::new(&mir);
     let triple = targets::default_triple();
-    crate::code_gen::run(&mir, "builtin/builtin.bc", Some("builtin/builtin.ll"), false, Some(&triple))?;
+    crate::code_gen::run(
+        &mir,
+        "builtin/builtin.bc",
+        Some("builtin/builtin.ll"),
+        false,
+        Some(&triple),
+    )?;
     log::debug!("created .bc");
 
     let json = serde_json::to_string_pretty(&exports).unwrap();

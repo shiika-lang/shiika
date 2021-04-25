@@ -1,4 +1,3 @@
-pub mod targets;
 pub mod ast;
 pub mod code_gen;
 pub mod corelib;
@@ -9,5 +8,6 @@ pub mod mir;
 pub mod names;
 pub mod parser;
 pub mod runner;
+pub mod targets;
 pub mod ty;
 pub mod type_checking;

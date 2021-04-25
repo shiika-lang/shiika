@@ -33,7 +33,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let value = self.gen_expr(ctx, &expr)?;
             if value.is_none() {
                 log::warn!("detected unreachable code");
-                return Ok(None)
+                return Ok(None);
             } else {
                 last_value = Some(value);
             }
@@ -97,9 +97,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
             HirBooleanLiteral { value } => Ok(Some(self.gen_boolean_literal(*value))),
 
-            HirLambdaCaptureRef { idx, readonly } => {
-                Ok(Some(self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)))
-            }
+            HirLambdaCaptureRef { idx, readonly } => Ok(Some(
+                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
+            )),
             HirLambdaCaptureWrite { cidx, rhs } => {
                 self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
             }
@@ -616,7 +616,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_ptr = self.box_i8ptr(fnptr_i8.into_pointer_value());
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)?];
-        Ok(Some(self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)))
+        Ok(Some(self.gen_llvm_func_call(
+            &format!("Meta:{}#new", cls_name),
+            meta,
+            arg_values,
+        )))
     }
 
     fn _gen_lambda_captures(
@@ -669,8 +673,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             // The first arg of llvm function is `self`
             ctx.function.get_first_param().unwrap()
         };
-        self
-            .builder
+        self.builder
             .build_bitcast(the_main, self.llvm_type(ty), "the_main")
     }
 
@@ -843,7 +846,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // No bitcast needed
                 Ok(Some(obj))
             } else {
-                Ok(Some(self.builder.build_bitcast(obj, self.llvm_type(ty), "as")))
+                Ok(Some(self.builder.build_bitcast(
+                    obj,
+                    self.llvm_type(ty),
+                    "as",
+                )))
             }
         } else {
             Ok(None)
