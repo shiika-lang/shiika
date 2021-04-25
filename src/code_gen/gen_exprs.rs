@@ -550,10 +550,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     .get_nth_param((*idx as u32) + 1)
                     .unwrap_or_else(|| {
                         // +1 for the first %self
-                        panic!(format!(
-                            "{:?}\ngen_arg_ref: no param of idx={}",
-                            &ctx.function, idx
-                        ))
+                        panic!("{:?}\ngen_arg_ref: no param of idx={}", &ctx.function, idx)
                     });
                 let llvm_type = self.llvm_type(&ctx.function_params.unwrap()[*idx].ty);
                 self.builder.build_bitcast(obj, llvm_type, "value")

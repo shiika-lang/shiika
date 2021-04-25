@@ -13,7 +13,7 @@ macro_rules! create_comparison_method {
                 let val1 = code_gen.unbox_int(this);
                 let that = function.get_params()[1];
                 let val2 = code_gen.unbox_int(that);
-                $body;
+                $body
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_bool(result);
                 code_gen.builder.build_return(Some(&sk_result));
@@ -33,7 +33,7 @@ macro_rules! create_arithmetic_method {
                 let val1 = code_gen.unbox_int(this);
                 let that = function.get_params()[1];
                 let val2 = code_gen.unbox_int(that);
-                $body;
+                $body
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_int(&result);
                 code_gen.builder.build_return(Some(&sk_result));
