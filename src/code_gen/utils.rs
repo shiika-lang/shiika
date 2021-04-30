@@ -127,7 +127,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_store(ptr, value);
     }
 
-    /// Generate call of GC_malloc and returns a ptr to Shiika object
+    /// Generate call of malloc and returns a ptr to Shiika object
     pub fn allocate_sk_obj(
         &self,
         class_fullname: &ClassFullname,
@@ -139,8 +139,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .size_of()
             .expect("[BUG] object_type has no size");
 
-        // %mem = call i8* @GC_malloc(i64 %size)",
-        let func = self.get_llvm_func("GC_malloc");
+        // %mem = call i8* @shiika_malloc(i64 %size)",
+        let func = self.get_llvm_func("shiika_malloc");
         let raw_addr = self
             .builder
             .build_call(func, &[size.as_basic_value_enum()], "mem")

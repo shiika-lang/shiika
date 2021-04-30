@@ -14,7 +14,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     code_gen
                         .builder
                         .build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
-                let func = code_gen.module.get_function("GC_malloc").unwrap();
+                let func = code_gen.module.get_function("shiika_malloc").unwrap();
                 let mem = code_gen
                     .builder
                     .build_call(func, &[n_bytes_64.into()], "mem")
@@ -37,7 +37,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     code_gen
                         .builder
                         .build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
-                let func = code_gen.module.get_function("GC_realloc").unwrap();
+                let func = code_gen.module.get_function("shiika_realloc").unwrap();
                 let mem = code_gen
                     .builder
                     .build_call(func, &[ptr.into(), n_bytes_64.into()], "mem")
