@@ -1,11 +1,19 @@
 # Corelib
 
-Directory: `src/corelib`, `builtin`
+Directory: `src/corelib`, `src/rustlib`, `builtin`
 
 ## corelib
 
 `src/corelib` defines the core classes like `Object`, `Bool`, `Int` together with its methods.
 
-`builtin/*.sk` also defines core methods but written in Shiika. These are compiled together with user program.
+`src/rustlib` also defines core methods but written Rust. 
 
-When adding a core method, you should add it to `builtin` unless it needs some Rust-level feature.
+`builtin/*.sk` are Shiika code to define core library.
+
+### Compilation
+
+`builtin/*.sk` and `src/corelib` are compiled into `builtin/builtin.bc` by `shiika build_corelib`.
+
+`src/rustlib` is compiled by running `cargo build` under `src/rustlib`.
+
+`shiika run` executes `clang` to link these with user program.

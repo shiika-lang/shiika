@@ -56,17 +56,10 @@ task :test do
 end
 
 task :tmp do
-  sh "llvm-as builtin/builtin.ll"
-  sh "llvm-as examples/a.sk.ll"
-  sh "clang" +
-    " -L/usr/local/opt/bdw-gc/lib/" +
-    " -lgc" +
-    " -o a.out" +
-    " --verbose" +
-    " examples/a.sk.bc builtin/builtin.bc"
-end
-
-task :tmp2 do
+  cd "src/rustlib" do
+    sh "cargo fmt"
+    sh "cargo build"
+  end
   sh "cargo run -- build_corelib"
   sh "cargo run -- run examples/a.sk"
 end

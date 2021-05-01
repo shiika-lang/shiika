@@ -110,17 +110,17 @@ See [Issues](https://github.com/shiika-lang/shiika/issues)
 
 - Rust
 - LLVM (`brew install llvm@9`)
-- bdw-gc (`brew install bdw-gc`)
 
 ```sh
 export PATH="$(brew --prefix)/opt/llvm@9/bin":$PATH
-export LDFLAGS="-L$(brew --prefix)/opt/llvm@9/lib -L$(brew --prefix)/opt/bdw-gc/lib"
+export LDFLAGS="-L$(brew --prefix)/opt/llvm@9/lib"
 export CPPFLAGS="-I$(brew --prefix)/opt/llvm@9/include"
 ```
 
 ### Compile
 
 ```
+$ cd src/rustlib; cargo build; cd ../../
 $ cargo build
 $ cargo run -- build_corelib
 ```

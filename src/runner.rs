@@ -145,11 +145,13 @@ fn run_<P: AsRef<Path>>(
     cmd.arg("-target");
     cmd.arg(triple.as_str().to_str().unwrap());
     cmd.arg("-lm");
-    cmd.arg("-lgc");
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");
+    cmd.arg("src/rustlib/target/debug/librustlib.a");
     cmd.arg(bc_path.clone());
+    cmd.arg("-ldl");
+    cmd.arg("-lpthread");
     if !cmd.status()?.success() {
         return Err(Box::new(plain_runner_error("clang failed")));
     }
