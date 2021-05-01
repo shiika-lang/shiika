@@ -5,7 +5,7 @@ Directory: `src/parser/`
 ## Overview
 
 - Hand-written parser (i.e. no parser generator)
-- Stateful lexer
+- Stateful lexer (to allow omission of method call parentheses)
 
 ## Lexer
 
