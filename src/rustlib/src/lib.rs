@@ -1,26 +1,14 @@
-use bdwgc_alloc::Allocator;
-use std::alloc::Layout;
-use std::os::raw::c_void;
+mod alloc;
+mod sk_obj;
 
-#[global_allocator]
-static GLOBAL_ALLOCATOR: Allocator = Allocator;
-
-const DEFAULT_ALIGNMENT: usize = 8;
+use sk_obj::*;
+use std::io::Write;
 
 #[no_mangle]
-pub extern "C" fn shiika_malloc(size: usize) -> *mut c_void {
-    (unsafe { std::alloc::alloc(Layout::from_size_align(size, DEFAULT_ALIGNMENT).unwrap()) })
-        as *mut c_void
-}
-
-#[no_mangle]
-pub extern "C" fn shiika_realloc(pointer: *mut c_void, size: usize) -> *mut c_void {
-    // Layouts are ignored by the bdwgc global allocator.
-    (unsafe {
-        std::alloc::realloc(
-            pointer as *mut u8,
-            Layout::from_size_align(0, DEFAULT_ALIGNMENT).unwrap(),
-            size,
-        )
-    }) as *mut c_void
+pub extern "C" fn shiika_puts(sk_str: *const i8) {
+    unsafe {
+        let s = sk_str as *const SkString;
+        let _result = std::io::stdout().write_all((*s).as_slice());
+        println!("");
+    }
 }

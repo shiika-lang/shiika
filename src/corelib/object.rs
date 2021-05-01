@@ -52,10 +52,10 @@ pub fn create_methods() -> Vec<SkMethod> {
         }),
         create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
             let sk_str = function.get_params()[1];
-            let sk_ptr = code_gen.build_ivar_load(sk_str, 0, "@sk_ptr");
-            let ptr = code_gen.unbox_i8ptr(sk_ptr);
-            let func = code_gen.module.get_function("puts").unwrap();
-            code_gen.builder.build_call(func, &[ptr.into()], "");
+            let s = code_gen.builder
+                        .build_bitcast(sk_str, code_gen.i8ptr_type, "");
+            let func = code_gen.module.get_function("shiika_puts").unwrap();
+            code_gen.builder.build_call(func, &[s.into()], "");
             code_gen.build_return_void();
             Ok(())
         }),
