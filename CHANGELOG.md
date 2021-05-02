@@ -1,3 +1,7 @@
+## v0.6.0 (WIP)
+
+- Breaking change: Changed build process (see README) (#280, #284)
+
 ## v0.5.4 (2021-04-04)
 
 - Breaking change: Moved repository to shiika-lang/shiika. Also renamed
