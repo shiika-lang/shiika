@@ -55,7 +55,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             let s = code_gen.builder
                         .build_bitcast(sk_str, code_gen.i8ptr_type, "");
             let func = code_gen.module.get_function("shiika_puts").unwrap();
-            code_gen.builder.build_call(func, &[s.into()], "");
+            code_gen.builder.build_call(func, &[s], "");
             code_gen.build_return_void();
             Ok(())
         }),
