@@ -129,8 +129,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::StringLiteral { content } => {
                 Ok(self.convert_string_literal(content))
-            }
-            //x => panic!("TODO: {:?}", x)
+            } //x => panic!("TODO: {:?}", x)
         }
     }
 

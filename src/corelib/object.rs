@@ -52,8 +52,9 @@ pub fn create_methods() -> Vec<SkMethod> {
         }),
         create_method("Object", "puts(s: String) -> Void", |code_gen, function| {
             let sk_str = function.get_params()[1];
-            let s = code_gen.builder
-                        .build_bitcast(sk_str, code_gen.i8ptr_type, "");
+            let s = code_gen
+                .builder
+                .build_bitcast(sk_str, code_gen.i8ptr_type, "");
             let func = code_gen.module.get_function("shiika_puts").unwrap();
             code_gen.builder.build_call(func, &[s], "");
             code_gen.build_return_void();
