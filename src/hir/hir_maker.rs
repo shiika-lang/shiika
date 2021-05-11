@@ -136,7 +136,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 self.process_defs_in_class(&full, typarams.clone(), defs)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
-                self.register_const(name, expr)?;
+                self.register_toplevel_const(name, expr)?;
             }
             _ => panic!("should be checked in hir::class_dict"),
         }
@@ -240,7 +240,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<(), Error> {
         for def in defs {
             if let ast::Definition::ConstDefinition { name, expr } = def {
-                let full = name.add_namespace(&fullname.0);
+                // FIXME: works for A::B but not for A::B::C
+                let full = const_fullname(&format!("::{}::{}", fullname.0, name));
                 let hir_expr = self.convert_expr(expr)?;
                 self.register_const_full(full, hir_expr);
             }
@@ -303,16 +304,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
-    /// Resolve and register a constant
-    pub(super) fn register_const(
+    /// Register a constant defined in the toplevel
+    pub(super) fn register_toplevel_const(
         &mut self,
-        name: &ConstFirstname,
+        name: &str,
         expr: &AstExpression,
-    ) -> Result<ConstFullname, Error> {
-        // TODO: resolve name using ctx
-        let fullname = const_fullname(&format!("{}::{}", self.ctx.namespace(), &name.0));
+    ) -> Result<(), Error> {
         let hir_expr = self.convert_expr(expr)?;
-        Ok(self.register_const_full(fullname, hir_expr))
+        self.constants.insert(const_fullname(name), hir_expr.ty.clone());
+        let op = Hir::const_assign(const_fullname(name), hir_expr);
+        self.const_inits.push(op);
+        Ok(())
     }
 
     /// Register a constant
@@ -320,11 +322,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         fullname: ConstFullname,
         hir_expr: HirExpression,
-    ) -> ConstFullname {
+    ) {
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::const_assign(fullname.clone(), hir_expr);
         self.const_inits.push(op);
-        fullname
     }
 
     fn convert_method_def(

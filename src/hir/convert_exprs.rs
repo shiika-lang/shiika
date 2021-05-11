@@ -379,14 +379,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
+    /// Constant assignment (only occurs in the toplevel)
     fn convert_const_assign(
         &mut self,
         names: &[String],
         rhs: &AstExpression,
     ) -> Result<HirExpression, Error> {
-        let name = const_firstname(&names.join("::")); // TODO: pass entire `names` rather than ConstFirstname?
-        let fullname = self.register_const(&name, &rhs)?;
-        Ok(Hir::const_assign(fullname, self.convert_expr(rhs)?))
+        let fullname = const_fullname(&format!("::{}", &names.join("::")));
+        let hir_expr = self.convert_expr(rhs)?;
+        self.constants.insert(fullname.clone(), hir_expr.ty.clone());
+        Ok(Hir::const_assign(fullname, hir_expr))
     }
 
     fn convert_method_call(

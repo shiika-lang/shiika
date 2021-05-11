@@ -121,25 +121,6 @@ impl MethodFullname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
-pub struct ConstFirstname(pub String);
-
-impl std::fmt::Display for ConstFirstname {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl ConstFirstname {
-    pub fn add_namespace(&self, namespace: &str) -> ConstFullname {
-        const_fullname(&("::".to_string() + namespace + "::" + &self.0))
-    }
-}
-
-pub fn const_firstname(s: &str) -> ConstFirstname {
-    ConstFirstname(s.to_string())
-}
-
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstFullname(pub String);
 
