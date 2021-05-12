@@ -130,10 +130,13 @@ impl std::fmt::Display for ConstFullname {
     }
 }
 
-pub fn const_fullname(s: &str) -> ConstFullname {
-    debug_assert!(s.starts_with("::"));
-    debug_assert!(!s.starts_with("::::"));
-    ConstFullname(s.to_string())
+pub fn const_fullname(namespace: &ConstFullname, first_name: &str) -> ConstFullname {
+    ConstFullname(format!("{}::{}", namespace.0, first_name))
+}
+
+pub fn toplevel_const(first_name: &str) -> ConstFullname {
+    debug_assert!(!first_name.starts_with("::"));
+    ConstFullname(format!("::{}", first_name))
 }
 
 #[derive(Debug, PartialEq, Clone)]

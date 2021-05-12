@@ -270,7 +270,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // WhileEnd:
         self.builder.position_at_end(*rc2);
-        Ok(Some(self.gen_const_ref(&const_fullname("::Void"))))
+        Ok(Some(self.gen_const_ref(&toplevel_const("Void"))))
     }
 
     fn gen_break_expr(
@@ -530,7 +530,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .left()
         {
             Some(result_value) => result_value,
-            None => self.gen_const_ref(&const_fullname("::Void")),
+            None => self.gen_const_ref(&toplevel_const("Void")),
         }
     }
 
@@ -605,7 +605,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
-        let meta = self.gen_const_ref(&const_fullname(&("::".to_string() + &cls_name)));
+        let meta = self.gen_const_ref(&toplevel_const(&cls_name));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
@@ -624,7 +624,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
-            self.gen_const_ref(&const_fullname("::Array")),
+            self.gen_const_ref(&toplevel_const("Array")),
             vec![],
         );
         for cap in captures {
@@ -679,7 +679,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         let ary = self.gen_llvm_func_call(
             "Meta:Array#new",
-            self.gen_const_ref(&const_fullname("::Array")),
+            self.gen_const_ref(&toplevel_const("Array")),
             vec![],
         );
         for expr in exprs {
@@ -703,7 +703,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum<'run> {
         let func = self.get_llvm_func(&"Meta:String#new");
-        let receiver_value = self.gen_const_ref(&const_fullname("::String"));
+        let receiver_value = self.gen_const_ref(&toplevel_const("String"));
         let global = self
             .module
             .get_global(&format!("str_{}", idx))

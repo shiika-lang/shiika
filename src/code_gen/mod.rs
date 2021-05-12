@@ -293,7 +293,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_init_void(&mut self) {
         // define void @"init_::XX"
-        let fullname = const_fullname("::Void");
+        let fullname = toplevel_const("::Void");
         let fn_type = self.void_type.fn_type(&[], false);
         let function = self
             .module

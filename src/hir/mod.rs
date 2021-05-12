@@ -139,7 +139,7 @@ impl HirExpressions {
 }
 /// Make a HirExpression to refer `::Void`
 fn void_const_ref() -> HirExpression {
-    Hir::const_ref(ty::raw("Void"), const_fullname("::Void"))
+    Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
 }
 
 #[derive(Debug)]

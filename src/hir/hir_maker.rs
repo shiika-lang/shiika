@@ -89,7 +89,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
         // Register void
-        constants.insert(const_fullname("::Void"), ty::raw("Void"));
+        constants.insert(toplevel_const("Void"), ty::raw("Void"));
 
         Hir {
             sk_classes,
@@ -311,8 +311,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         expr: &AstExpression,
     ) -> Result<(), Error> {
         let hir_expr = self.convert_expr(expr)?;
-        self.constants.insert(const_fullname(name), hir_expr.ty.clone());
-        let op = Hir::const_assign(const_fullname(name), hir_expr);
+        self.constants.insert(toplevel_const(name), hir_expr.ty.clone());
+        let op = Hir::const_assign(toplevel_const(name), hir_expr);
         self.const_inits.push(op);
         Ok(())
     }
