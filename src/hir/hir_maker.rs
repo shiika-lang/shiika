@@ -155,7 +155,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.ctx.swap_current(&mut current);
         self.ctx
             .classes
-            .push(ClassCtx::new(fullname.clone(), typarams));
+            .push(ClassCtx::new(fullname.to_namespace(), typarams));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, fullname)?;
@@ -241,7 +241,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for def in defs {
             if let ast::Definition::ConstDefinition { name, expr } = def {
                 // FIXME: works for A::B but not for A::B::C
-                let full = const_fullname(&format!("::{}::{}", fullname.0, name));
+                let full = const_fullname(&fullname.to_const_fullname(), name);
                 let hir_expr = self.convert_expr(expr)?;
                 self.register_const_full(full, hir_expr);
             }

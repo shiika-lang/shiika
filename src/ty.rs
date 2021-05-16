@@ -64,6 +64,11 @@ impl TermTy {
             _ => self.fullname.0.clone(),
         }
     }
+
+    /// Returns if value of this type is class
+    pub fn is_metaclass(&self) -> bool {
+        matches!(&self.body, TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass)
+    }
 }
 
 /// Format `type_args` with .dbg_str

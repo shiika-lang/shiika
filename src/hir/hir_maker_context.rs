@@ -33,7 +33,7 @@ impl ToplevelCtx {
 #[derive(Debug)]
 pub struct ClassCtx {
     /// Current namespace
-    pub namespace: ClassFullname,
+    pub namespace: Namespace,
     /// Names of class type parameters
     pub typarams: Vec<String>,
     /// Current local variables
@@ -41,7 +41,7 @@ pub struct ClassCtx {
 }
 
 impl ClassCtx {
-    pub fn new(namespace: ClassFullname, typarams: Vec<String>) -> ClassCtx {
+    pub fn new(namespace: Namespace, typarams: Vec<String>) -> ClassCtx {
         ClassCtx {
             namespace,
             typarams,
@@ -157,7 +157,7 @@ impl HirMakerContext {
         } else {
             match self.current {
                 CtxKind::Toplevel => "toplevel".to_string(),
-                CtxKind::Class => self.classes.last().unwrap().namespace.0.clone(),
+                CtxKind::Class => self.classes.last().unwrap().namespace.to_string(),
                 CtxKind::Lambda => "lambda".to_string(),
                 _ => panic!("must not happen"),
             }
@@ -174,32 +174,28 @@ impl HirMakerContext {
         self.lambdas.last_mut().unwrap()
     }
 
-    /// Returns the current namespace
-    pub fn namespace(&self) -> &str {
-        if let Some(class_ctx) = self.classes.last() {
-            &class_ctx.namespace.0
-        } else {
-            ""
-        }
-    }
-
     /// The type of `self` in the current scope
     pub fn self_ty(&self) -> TermTy {
         match self.current {
             CtxKind::Toplevel => ty::raw("Object"),
             CtxKind::Class => {
                 let class_ctx = self.classes.last().unwrap();
-                ty::meta(&class_ctx.namespace.0)
+                ty::meta(&class_ctx.namespace.to_string())
             }
             _ => {
                 if let Some(class_ctx) = self.classes.last() {
-                    ty::raw(&class_ctx.namespace.0)
+                    ty::raw(&class_ctx.namespace.to_string())
                 } else {
                     // This lambda is on the toplevel
                     ty::raw("Object")
                 }
             }
         }
+    }
+
+    /// Iterates over constant scopes starting from the current one
+    pub fn const_scopes(&self) -> NamespaceIter {
+        NamespaceIter::new(self)
     }
 
     /// Iterates over lvar scopes starting from the current scope
@@ -249,6 +245,26 @@ impl HirMakerContext {
         let lambda_ctx = self.lambdas.last_mut().expect("not in lambda");
         lambda_ctx.captures.push(cap);
         lambda_ctx.captures.len() - 1
+    }
+
+    /// If there is a method or class typaram named `name`, returns its type
+    pub fn lookup_typaram(&self, name: &str) -> Option<TermTy> {
+        if let Some(method_ctx) = &self.method {
+            let typarams = &method_ctx.signature.typarams;
+            if let Some(i) = typarams.iter().position(|s| *name == *s) {
+                return Some(ty::typaram(name, ty::TyParamKind::Method, i))
+            }
+            if let Some(class_ctx) = self.classes.last() {
+                if method_ctx.signature.fullname.is_class_method() {
+                    return None;
+                }
+                let typarams = &class_ctx.typarams;
+                if let Some(i) = typarams.iter().position(|s| *name == *s) {
+                    return Some(ty::typaram(name, ty::TyParamKind::Class, i))
+                }
+            }
+        }
+        None
     }
 }
 
@@ -348,6 +364,65 @@ pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
         .collect::<Vec<_>>()
 }
 
+/// Iterates over each constant scope.
+pub struct NamespaceIter<'a> {
+    ctx: &'a HirMakerContext,
+    cur: Option<CtxKind>,
+    idx: usize,
+}
+
+impl<'a> NamespaceIter<'a> {
+    fn new(ctx: &HirMakerContext) -> NamespaceIter {
+        let c = ctx.current.clone();
+        let (cur, idx) = match &c {
+            CtxKind::Toplevel => (c, 0),
+            CtxKind::Class => (c, ctx.classes.len() - 1),
+            CtxKind::Method => (CtxKind::Class, ctx.classes.len() - 1),
+            // These does not make a constant scope, so find the nearest one
+            CtxKind::Lambda | CtxKind::While => {
+                if !ctx.classes.is_empty() {
+                    (CtxKind::Class, ctx.classes.len() - 1)
+                } else {
+                    (CtxKind::Toplevel, 0)
+                }
+            }
+        };
+        NamespaceIter {
+            ctx,
+            cur: Some(cur),
+            idx,
+        }
+    }
+}
+
+impl<'a> Iterator for NamespaceIter<'a> {
+    /// Yields namespace
+    type Item = Namespace;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.cur {
+            // Toplevel -> end.
+            Some(CtxKind::Toplevel) => {
+                self.cur = None;
+                Some(Namespace::root())
+            }
+            // Classes -> end.
+            Some(CtxKind::Class) => {
+                let class_ctx = self.ctx.classes.get(self.idx).unwrap();
+                if self.idx == 0 {
+                    self.cur = None;
+                } else {
+                    self.idx -= 1;
+                }
+                Some(class_ctx.namespace.clone())
+            }
+            Some(_) => panic!("must not happen"),
+            None => None,
+        }
+    }
+}
+
+// REFACTOR: Move to HirMakerContext
 impl<'hir_maker> HirMaker<'hir_maker> {
     /// Returns type parameter of the current class
     pub(super) fn current_class_typarams(&self) -> Vec<String> {

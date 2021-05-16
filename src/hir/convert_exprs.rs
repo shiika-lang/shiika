@@ -385,7 +385,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         names: &[String],
         rhs: &AstExpression,
     ) -> Result<HirExpression, Error> {
-        let fullname = const_fullname(&format!("::{}", &names.join("::")));
+        // TODO: forbid `A::B = 1`
+        let fullname = toplevel_const(&names.join("::"));
         let hir_expr = self.convert_expr(rhs)?;
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         Ok(Hir::const_assign(fullname, hir_expr))
@@ -419,7 +420,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         };
         let mut method_tyargs = vec![];
         for const_name in type_args {
-            method_tyargs.push(self._resolve_method_tyarg(const_name));
+            method_tyargs.push(self._resolve_method_tyarg(const_name)?);
         }
         let (sig, found_class_name) =
             self.class_dict
@@ -432,10 +433,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///     ary.map<Array<T>>(f)
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
-    fn _resolve_method_tyarg(&self, name: &ConstName) -> TermTy {
-        let class_typarams = self.current_class_typarams();
-        let method_typarams = self.current_method_typarams();
-        name.to_ty(&class_typarams, &method_typarams)
+    fn _resolve_method_tyarg(&self, name: &ConstName) -> Result<TermTy, Error> {
+        let (ty, _) = self._resolve_const(name)?;
+        Ok(ty)
     }
 
     /// Check the arguments and create HirMethodCall
@@ -691,71 +691,91 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Resolve constant name
     fn convert_const_ref(&mut self, name: &ConstName) -> Result<HirExpression, Error> {
-        if let Some((ty, fullname)) = self._lookup_const(name) {
-            return Ok(Hir::const_ref(ty.clone(), fullname));
+        let (ty, resolved) = self._resolve_const(name)?;
+        let full = resolved.to_const_fullname();
+        if self._lookup_const(&full).is_some() {
+            Ok(Hir::const_ref(ty, full))
+        } else {
+            debug_assert!(resolved.has_type_args());
+            let class_ty = self._create_class_const(&resolved);
+            Ok(Hir::const_ref(class_ty, full))
         }
-        // Check if it refers to a class
-        self._check_class_exists(name)?;
-        let class_ty = self._create_class_const(name);
-        Ok(Hir::const_ref(class_ty, name.to_const_fullname()))
+    }
+
+    /// Resolve const name (which may be a class)
+    fn _resolve_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
+        self.__resolve_const(name, false)
+    }
+
+    /// Resolve const name which *must be* a class
+    fn _resolve_class_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
+        self.__resolve_const(name, true)
     }
 
     /// Lookup a constant from current scope
-    fn _lookup_const(&self, name: &ConstName) -> Option<(&TermTy, ConstFullname)> {
-        let fullname = name.to_const_fullname();
-        if let Some(found) = self.constants.get(&fullname) {
-            return Some((found, fullname));
-        } else if let Some(found) = self.imported_constants.get(&fullname) {
-            return Some((found, fullname));
+    fn __resolve_const(&self, name: &ConstName, class_only: bool) -> Result<(TermTy, ResolvedConstName), Error> {
+        let (base_ty, base_resolved) = self.__resolve_simple_const(&name.names)?;
+        // Given `A<B>`, `A` and `B` must be a class
+        if (name.has_type_args() && !base_ty.is_metaclass()) || class_only {
+            return Err(error::program_error(&format!(
+                    "`{}' is not a class", base_resolved)));
         }
-
-        let fullname = name.under_namespace(&self.ctx.namespace());
-        self.constants.get(&fullname).map(|found| (found, fullname))
+        let mut arg_types = vec![];
+        let mut args_resolved = vec![];
+        for tyarg in &name.args {
+            let (ty, resolved) = self._resolve_class_const(tyarg)?;
+            arg_types.push(ty);
+            args_resolved.push(resolved);
+        }
+        let ty = ty::spe(&base_resolved.string(), arg_types);
+        let resolved = base_resolved.with_type_args(args_resolved);
+        Ok((ty, resolved))
     }
 
-    /// Check `name` refers proper class name
-    /// eg. For `A<B<C>>`, check A, B and C exists
-    fn _check_class_exists(&self, name: &ConstName) -> Result<(), Error> {
-        if !self.class_dict.class_exists(&name.names.join("::")) {
-            return Err(error::program_error(&format!(
-                "constant `{:?}' was not found",
-                name.names.join("::")
-            )));
-        }
-        if name.args.is_empty() {
-            return Ok(());
-        }
-        let mut typarams = self.current_class_typarams();
-        typarams.append(&mut self.current_method_typarams());
-        for arg in &name.args {
-            if typarams.contains(&arg.string()) {
-                // ok.
-            } else {
-                self._check_class_exists(arg)?;
+    /// Resolve a constant name without tyargs
+    fn __resolve_simple_const(&self, names: &[String]) -> Result<(TermTy, ResolvedConstName), Error> {
+        if names.len() == 1 {
+            // Check if it is a typaram ref
+            let name = names.first().unwrap();
+            if let Some(ty) = self.ctx.lookup_typaram(name) {
+                return Ok((ty, typaram_as_resolved_const_name(name)))
             }
         }
-        Ok(())
+        for namespace in self.ctx.const_scopes() {
+            let resolved = resolved_const_name(namespace, names.to_vec());
+            let full = resolved.to_const_fullname();
+            if let Some(ty) = self._lookup_const(&full) {
+                return Ok((ty, resolved))
+            }
+        }
+        Err(error::program_error(&format!(
+                    "constant `{:?}' was not found",
+                    names.join("::")
+        )))
     }
 
-    /// Register constant of a class object
+    /// Check if a constant is registered
+    fn _lookup_const(&self, full: &ConstFullname) -> Option<TermTy> {
+        self.constants.get(full).or_else(||
+        self.imported_constants.get(full))
+            .map(|ty| ty.clone())
+    }
+
+    /// Register constant of a class object (especially, specialized class)
     /// Return class_ty
-    // TODO: why not create the constant on class definition?
-    fn _create_class_const(&mut self, name: &ConstName) -> TermTy {
-        let ty = if name.args.is_empty() {
-            name.to_ty(&[], &[]).meta_ty()
-        } else {
-            // If the const is `A<B>`, also create its type `Meta:A<B>`
-            self._create_specialized_meta_class(name)
-        };
+    fn _create_class_const(&mut self, name: &ResolvedConstName) -> TermTy {
+        debug_assert!(name.has_type_args());
+        // For `A<B>`, create its type `Meta:A<B>`
+        let ty = self._create_specialized_meta_class(name);
         let idx = self.register_string_literal(&name.string());
-        let expr = Hir::class_literal(ty.clone(), name, idx);
+        let expr = Hir::class_literal(ty.clone(), name.to_class_fullname(), idx);
         self.register_const_full(name.to_const_fullname(), expr);
         ty
     }
 
     /// Create `Meta:A<B>` when there is a const `A<B>`
     /// Return class_ty
-    fn _create_specialized_meta_class(&mut self, name: &ConstName) -> TermTy {
+    fn _create_specialized_meta_class(&mut self, name: &ResolvedConstName) -> TermTy {
         let mut ivars = HashMap::new();
         ivars.insert(
             "name".to_string(),

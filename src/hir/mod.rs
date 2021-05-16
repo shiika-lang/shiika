@@ -546,11 +546,11 @@ impl Hir {
         }
     }
 
-    pub fn class_literal(ty: TermTy, name: &ConstName, str_literal_idx: usize) -> HirExpression {
+    pub fn class_literal(ty: TermTy, fullname: ClassFullname, str_literal_idx: usize) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirClassLiteral {
-                fullname: name.to_class_fullname(),
+                fullname,
                 str_literal_idx,
             },
         }
