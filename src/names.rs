@@ -78,11 +78,6 @@ impl ClassFullname {
     pub fn to_const_fullname(&self) -> ConstFullname {
         toplevel_const(&self.0)
     }
-
-    // FIXME: a ClassFullname cannot be converted into Namespace. To be refactored
-    pub fn to_namespace(&self) -> Namespace {
-        Namespace::new(vec![self.0.clone()])
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -167,6 +162,18 @@ impl Namespace {
     /// Returns a toplevel namespace
     pub fn root() -> Namespace {
         Namespace::new(vec![])
+    }
+
+    /// Add `name` to the end of `self`
+    pub fn add(&self, name: &ClassFirstname) -> Namespace {
+        let mut v = self.0.clone();
+        v.push(name.0.clone());
+        Namespace::new(v)
+    }
+
+    /// Join Namespace and ClassFirstname
+    pub fn class_fullname(&self, name: &ClassFirstname) -> ClassFullname {
+        class_fullname(self.to_string() + &name.0)
     }
 
     /// Returns string representation of self
