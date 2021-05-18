@@ -29,7 +29,9 @@ impl std::fmt::Display for ClassFullname {
 }
 
 pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
-    ClassFullname(s.into())
+    let name = s.into();
+    debug_assert!(!name.starts_with("::"));
+    ClassFullname(name)
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
@@ -173,7 +175,12 @@ impl Namespace {
 
     /// Join Namespace and ClassFirstname
     pub fn class_fullname(&self, name: &ClassFirstname) -> ClassFullname {
-        class_fullname(self.to_string() + &name.0)
+        let n = self.to_string();
+        if n.is_empty() {
+            class_fullname(&name.0)
+        } else {
+            class_fullname(format!("{}::{}", n, &name.0))
+        }
     }
 
     /// Returns string representation of self

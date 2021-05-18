@@ -377,6 +377,7 @@ pub fn class() -> TermTy {
 }
 
 pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+    debug_assert!(!type_args.is_empty());
     let tyarg_names = type_args
         .iter()
         .map(|x| x.fullname.0.to_string())
