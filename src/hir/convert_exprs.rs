@@ -716,20 +716,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn __resolve_const(&self, name: &ConstName, class_only: bool) -> Result<(TermTy, ResolvedConstName), Error> {
         let (base_ty, base_resolved) = self.__resolve_simple_const(&name.names)?;
         // Given `A<B>`, `A` and `B` must be a class
-        if (name.has_type_args() && !base_ty.is_metaclass()) || class_only {
+        if !base_ty.is_metaclass() && (name.has_type_args() || class_only) {
             return Err(error::program_error(&format!(
                     "`{}' is not a class", base_resolved)));
         }
-        let mut arg_types = vec![];
-        let mut args_resolved = vec![];
-        for tyarg in &name.args {
-            let (ty, resolved) = self._resolve_class_const(tyarg)?;
-            arg_types.push(ty);
-            args_resolved.push(resolved);
+        if !name.has_type_args() {
+            Ok((base_ty, base_resolved))
+        } else {
+            let mut arg_types = vec![];
+            let mut args_resolved = vec![];
+            for tyarg in &name.args {
+                let (ty, resolved) = self._resolve_class_const(tyarg)?;
+                arg_types.push(ty);
+                args_resolved.push(resolved);
+            }
+            let ty = ty::spe(&base_resolved.string(), arg_types);
+            let resolved = base_resolved.with_type_args(args_resolved);
+            Ok((ty, resolved))
         }
-        let ty = ty::spe(&base_resolved.string(), arg_types);
-        let resolved = base_resolved.with_type_args(args_resolved);
-        Ok((ty, resolved))
     }
 
     /// Resolve a constant name without tyargs
@@ -763,10 +767,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Register constant of a class object (especially, specialized class)
     /// Return class_ty
-    fn _create_class_const(&mut self, name: &ResolvedConstName) -> TermTy {
-        debug_assert!(name.has_type_args());
-        // For `A<B>`, create its type `Meta:A<B>`
-        let ty = self._create_specialized_meta_class(name);
+    pub fn _create_class_const(&mut self, name: &ResolvedConstName) -> TermTy {
+        let ty = if name.has_type_args() {
+            // For `A<B>`, create its type `Meta:A<B>`
+            self._create_specialized_meta_class(name)
+        } else {
+            ty::meta(&name.string())
+        };
         let idx = self.register_string_literal(&name.string());
         let expr = Hir::class_literal(ty.clone(), name.to_class_fullname(), idx);
         self.register_const_full(name.to_const_fullname(), expr);

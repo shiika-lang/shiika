@@ -159,6 +159,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .classes
             .push(ClassCtx::new(namespace.add(firstname), typarams));
 
+        // Register class constant of self
+        self._create_class_const(&resolved_const_name(namespace.clone(), vec![firstname.0.clone()]));
+
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, &fullname)?;
 
