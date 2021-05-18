@@ -55,12 +55,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Ok((sig.clone(), class.fullname.clone()))
         } else {
             // Look up in superclass
-            let sk_class = self.lookup_class(&class.fullname).unwrap_or_else(|| {
-                panic!(
-                    "[BUG] lookup_method: asked to find `{}' but class `{}' not found",
+            let sk_class = self.lookup_class(&class.fullname).ok_or_else(|| {
+                error::bug(&format!(
+                    "lookup_method: asked to find `{}' but class `{}' not found",
                     &method_name.0, &class.fullname.0
-                )
-            });
+                    ))
+            })?;
             if let Some(super_name) = &sk_class.superclass_fullname {
                 // TODO #115: super may not be a ty::raw
                 let super_class = ty::raw(&super_name.0);
