@@ -406,11 +406,11 @@ impl<'a> Iterator for NamespaceIter<'a> {
                 self.cur = None;
                 Some(Namespace::root())
             }
-            // Classes -> end.
+            // Classes -> Toplevel
             Some(CtxKind::Class) => {
                 let class_ctx = self.ctx.classes.get(self.idx).unwrap();
                 if self.idx == 0 {
-                    self.cur = None;
+                    self.cur = Some(CtxKind::Toplevel);
                 } else {
                     self.idx -= 1;
                 }
