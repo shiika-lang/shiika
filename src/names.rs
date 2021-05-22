@@ -167,6 +167,11 @@ impl Namespace {
         Namespace::new(vec![])
     }
 
+    /// Returns the hidden namespace
+    pub fn internal() -> Namespace {
+        Namespace::new(vec!["<internal>".to_string()])
+    }
+
     /// Add `name` to the end of `self`
     pub fn add(&self, name: &ClassFirstname) -> Namespace {
         let mut v = self.0.clone();
@@ -323,4 +328,11 @@ pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> Resolved
 // ad hoc. Not sure I'm doing right
 pub fn typaram_as_resolved_const_name(name: impl Into<String>) -> ResolvedConstName {
     resolved_const_name(Namespace::root(), vec![name.into()])
+}
+
+// The constant `::Void` is an *instance* of the class `Void`. However we need
+// the class object for `::Void.class`; Returns name for this internal constant
+pub fn const_is_obj_class_internal_const_name(name: &ResolvedConstName) -> ResolvedConstName {
+    debug_assert!(!name.has_type_args());
+    resolved_const_name(Namespace::internal(), name.names.clone())
 }

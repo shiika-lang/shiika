@@ -40,9 +40,8 @@ pub fn make_hir(
         (Default::default(), Default::default())
     };
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
-    let class_names = class_dict.sk_classes.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
-    hir_maker.define_class_constants(class_names);
+    hir_maker.define_class_constants();
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
@@ -82,9 +81,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut const_inits = vec![];
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
-        // Register void
-        constants.insert(toplevel_const("Void"), ty::raw("Void"));
-
         Hir {
             sk_classes,
             sk_methods,
@@ -96,11 +92,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn define_class_constants(&mut self, class_names: Vec<String>) {
-        for name in class_names {
-            if !name.starts_with("Meta:") {
-                self._create_class_const(&ResolvedConstName::unsafe_create(name));
-            }
+    fn define_class_constants(&mut self) { //, class_names: Vec<String>) {
+        for (name, const_is_obj) in self.class_dict.constant_list() {
+            self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
         }
     }
 
@@ -164,7 +158,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register class constant of self
         let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
         if !self.constants.contains_key(&const_name.to_const_fullname()) { // eg. `Object` is defined both in src/corelib and builtin/
-            self._create_class_const(&const_name);
+            self._create_class_const(&const_name, false);
         }
 
         // Register constants before processing #initialize

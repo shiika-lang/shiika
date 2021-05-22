@@ -697,7 +697,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Ok(Hir::const_ref(ty, full))
         } else {
             debug_assert!(resolved.has_type_args());
-            let class_ty = self._create_class_const(&resolved);
+            let class_ty = self._create_class_const(&resolved, false);
             Ok(Hir::const_ref(class_ty, full))
         }
     }
@@ -775,18 +775,40 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Register constant of a class object (especially, specialized class)
     /// Return class_ty
-    pub fn _create_class_const(&mut self, name: &ResolvedConstName) -> TermTy {
+    pub fn _create_class_const(&mut self, name: &ResolvedConstName, const_is_obj: bool) -> TermTy {
         let ty = if name.has_type_args() {
             // For `A<B>`, create its type `Meta:A<B>`
             self._create_specialized_meta_class(name)
+        } else if const_is_obj {
+            ty::raw(&name.string())
         } else {
             debug_assert!(!name.string().starts_with("Meta:"));
             ty::meta(&name.string())
         };
-        let idx = self.register_string_literal(&name.string());
-        let expr = Hir::class_literal(ty.clone(), name.to_class_fullname(), idx);
-        self.register_const_full(name.to_const_fullname(), expr);
+        self.__register_class_const(name, &ty, const_is_obj);
         ty
+    }
+
+    /// Register class constant and optionally constant for its only instance
+    fn __register_class_const(&mut self, name: &ResolvedConstName, ty: &TermTy, const_is_obj: bool) {
+        let str_idx = self.register_string_literal(&name.string());
+        if const_is_obj { // eg. "Void"
+            // The class
+            let meta_name = const_is_obj_class_internal_const_name(name);
+            let expr = Hir::class_literal(ty.meta_ty(), name.to_class_fullname(), str_idx);
+            self.register_const_full(meta_name.to_const_fullname(), expr);
+            // The instance
+            let expr = Hir::method_call(
+                ty.clone(),
+                Hir::const_ref(ty.clone(), meta_name.to_const_fullname()),
+                method_fullname(&metaclass_fullname(&name.string()), "new"),
+                vec![]);
+            self.register_const_full(name.to_const_fullname(), expr);
+        } else {
+            // The class
+            let expr = Hir::class_literal(ty.clone(), name.to_class_fullname(), str_idx);
+            self.register_const_full(name.to_const_fullname(), expr);
+        }
     }
 
     /// Create `Meta:A<B>` when there is a const `A<B>`
