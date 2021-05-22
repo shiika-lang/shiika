@@ -69,6 +69,11 @@ impl TermTy {
     pub fn is_metaclass(&self) -> bool {
         matches!(&self.body, TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass)
     }
+
+    /// Returns if this is TyParamRef
+    pub fn is_typaram_ref(&self) -> bool {
+        matches!(&self.body, TyParamRef { .. })
+    }
 }
 
 /// Format `type_args` with .dbg_str
@@ -173,6 +178,15 @@ impl TermTy {
             } => ty::spe_meta(&base_name, type_args.clone()),
             TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
+        }
+    }
+
+    pub fn instance_ty(&self) -> TermTy {
+        match &self.body {
+            TyMeta { base_fullname } => ty::raw(base_fullname),
+            TyClass => ty::class(),
+            TySpeMeta { base_name, type_args } => ty::spe(base_name, type_args.to_vec()),
+            _ => panic!("undefined: {:?}", self),
         }
     }
 

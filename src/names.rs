@@ -31,6 +31,7 @@ impl std::fmt::Display for ClassFullname {
 pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
     let name = s.into();
     debug_assert!(!name.starts_with("::"));
+    debug_assert!(!name.starts_with("Meta:Meta:"));
     ClassFullname(name)
 }
 
@@ -252,6 +253,10 @@ impl std::fmt::Display for ResolvedConstName {
 }
 
 impl ResolvedConstName {
+    pub fn unsafe_create(s: String) -> ResolvedConstName {
+        ResolvedConstName { names: vec![s], args: vec![] }
+    }
+
     /// Returns if generic
     pub fn has_type_args(&self) -> bool {
         !self.args.is_empty()

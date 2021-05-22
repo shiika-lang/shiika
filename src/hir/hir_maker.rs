@@ -40,23 +40,17 @@ pub fn make_hir(
         (Default::default(), Default::default())
     };
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
-    let mut hir = convert_program(class_dict, &imports.constants, ast)?;
+    let class_names = class_dict.sk_classes.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
+    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
+    hir_maker.define_class_constants(class_names);
+    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
+    let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
     hir.add_methods(core_methods);
 
     Ok(hir)
-}
-
-fn convert_program(
-    class_dict: ClassDict,
-    imported_constants: &HashMap<ConstFullname, TermTy>,
-    prog: ast::Program,
-) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(class_dict, imported_constants);
-    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
-    Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
 
 impl<'hir_maker> HirMaker<'hir_maker> {
@@ -99,6 +93,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             const_inits,
             main_exprs,
             main_lvars,
+        }
+    }
+
+    fn define_class_constants(&mut self, class_names: Vec<String>) {
+        for name in class_names {
+            if !name.starts_with("Meta:") {
+                self._create_class_const(&ResolvedConstName::unsafe_create(name));
+            }
         }
     }
 
@@ -160,7 +162,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .push(ClassCtx::new(namespace.add(firstname), typarams));
 
         // Register class constant of self
-        self._create_class_const(&resolved_const_name(namespace.clone(), vec![firstname.0.clone()]));
+        let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
+        if !self.constants.contains_key(&const_name.to_const_fullname()) { // eg. `Object` is defined both in src/corelib and builtin/
+            self._create_class_const(&const_name);
+        }
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, &fullname)?;
@@ -328,6 +333,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         fullname: ConstFullname,
         hir_expr: HirExpression,
     ) {
+        debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::const_assign(fullname.clone(), hir_expr);
         self.const_inits.push(op);

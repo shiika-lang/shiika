@@ -434,7 +434,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&self, name: &ConstName) -> Result<TermTy, Error> {
-        let (ty, _) = self._resolve_const(name)?;
+        let (ty, _) = self.__resolve_class_const(name)?;
         Ok(ty)
     }
 
@@ -708,15 +708,23 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve const name which *must be* a class
-    fn _resolve_class_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
-        self.__resolve_const(name, true)
+    fn __resolve_class_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
+        let (resolved_ty, resolved_name) = self.__resolve_const(name, true)?;
+        // `ty` is `Meta:XX` here but we want to remove `Meta:`
+        // unless `ty` is typaram ref
+        let ty = if matches!(&resolved_ty.body, TyBody::TyParamRef { .. }) {
+            resolved_ty
+        } else {
+            resolved_ty.instance_ty()
+        };
+        Ok((ty, resolved_name))
     }
 
     /// Lookup a constant from current scope
     fn __resolve_const(&self, name: &ConstName, class_only: bool) -> Result<(TermTy, ResolvedConstName), Error> {
         let (base_ty, base_resolved) = self.__resolve_simple_const(&name.names)?;
         // Given `A<B>`, `A` and `B` must be a class
-        if !base_ty.is_metaclass() && (name.has_type_args() || class_only) {
+        if !base_ty.is_metaclass() && !base_ty.is_typaram_ref() && (name.has_type_args() || class_only) {
             return Err(error::program_error(&format!(
                     "`{}' is not a class", base_resolved)));
         }
@@ -726,11 +734,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let mut arg_types = vec![];
             let mut args_resolved = vec![];
             for tyarg in &name.args {
-                let (ty, resolved) = self._resolve_class_const(tyarg)?;
+                let (ty, resolved) = self.__resolve_class_const(tyarg)?;
                 arg_types.push(ty);
                 args_resolved.push(resolved);
             }
-            let ty = ty::spe(&base_resolved.string(), arg_types);
+            let ty = ty::spe_meta(&base_resolved.string(), arg_types);
             let resolved = base_resolved.with_type_args(args_resolved);
             Ok((ty, resolved))
         }
@@ -772,6 +780,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             // For `A<B>`, create its type `Meta:A<B>`
             self._create_specialized_meta_class(name)
         } else {
+            debug_assert!(!name.string().starts_with("Meta:"));
             ty::meta(&name.string())
         };
         let idx = self.register_string_literal(&name.string());
@@ -800,15 +809,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .map(|arg| arg.to_ty(&class_typarams, &method_typarams))
             .collect::<Vec<_>>();
-        let cls = self
+        let metacls = self
             .class_dict
             .get_class(&class_fullname(
                 "Meta:".to_string() + &name.names.join("::"),
             ))
             .specialized_meta(&tyargs);
-        let ty = cls.instance_ty.clone();
-        self.class_dict.add_class(cls);
-        ty
+        let class_ty = metacls.instance_ty.clone();
+        self.class_dict.add_class(metacls);
+        class_ty
     }
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {
