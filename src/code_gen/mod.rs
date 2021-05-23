@@ -119,7 +119,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         } else {
             // generating builtin
             self.impl_boxing_funcs();
-            self.gen_init_void();
         }
         self.gen_lambda_funcs(&hir)?;
         Ok(())
@@ -275,8 +274,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // call void @"init_::XX"()
         for fullname in imported_constants.keys() {
-            let func = self.get_llvm_func(&format!("init_{}", fullname.0));
-            self.builder.build_call(func, &[], "");
+            if !fullname.is_internal() {
+                let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+                self.builder.build_call(func, &[], "");
+            }
         }
         for expr in const_inits {
             match &expr.node {
@@ -288,26 +289,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             }
         }
 
-        self.builder.build_return(None);
-    }
-
-    fn gen_init_void(&mut self) {
-        // define void @"init_::XX"
-        let fullname = const_fullname("::Void");
-        let fn_type = self.void_type.fn_type(&[], false);
-        let function = self
-            .module
-            .add_function(&format!("init_{}", fullname.0), fn_type, None);
-        let basic_block = self.context.append_basic_block(function, "");
-        self.builder.position_at_end(basic_block);
-        // Create ::Void
-        let ptr = self
-            .module
-            .get_global(&"::Void")
-            .unwrap()
-            .as_pointer_value();
-        let value = self.allocate_sk_obj(&class_fullname("Void"), "void_obj");
-        self.builder.build_store(ptr, value);
         self.builder.build_return(None);
     }
 
@@ -449,8 +430,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    /// Define `void @"init_::XX"`
     fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<(), Error> {
-        // define void @"init_::XX"
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {

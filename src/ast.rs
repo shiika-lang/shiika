@@ -29,7 +29,7 @@ pub enum Definition {
         body_exprs: Vec<AstExpression>,
     },
     ConstDefinition {
-        name: ConstFirstname,
+        name: String,
         expr: AstExpression,
     },
 }

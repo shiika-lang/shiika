@@ -40,23 +40,16 @@ pub fn make_hir(
         (Default::default(), Default::default())
     };
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
-    let mut hir = convert_program(class_dict, &imports.constants, ast)?;
+    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
+    hir_maker.define_class_constants();
+    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
+    let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
     // While corelib classes are included in `class_dict`,
     // corelib methods are not. Here we need to add them manually
     hir.add_methods(core_methods);
 
     Ok(hir)
-}
-
-fn convert_program(
-    class_dict: ClassDict,
-    imported_constants: &HashMap<ConstFullname, TermTy>,
-    prog: ast::Program,
-) -> Result<Hir, Error> {
-    let mut hir_maker = HirMaker::new(class_dict, imported_constants);
-    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&prog.toplevel_items)?;
-    Ok(hir_maker.extract_hir(main_exprs, main_lvars))
 }
 
 impl<'hir_maker> HirMaker<'hir_maker> {
@@ -88,9 +81,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut const_inits = vec![];
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
-        // Register void
-        constants.insert(const_fullname("::Void"), ty::raw("Void"));
-
         Hir {
             sk_classes,
             sk_methods,
@@ -99,6 +89,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             const_inits,
             main_exprs,
             main_lvars,
+        }
+    }
+
+    fn define_class_constants(&mut self) { //, class_names: Vec<String>) {
+        for (name, const_is_obj) in self.class_dict.constant_list() {
+            self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
         }
     }
 
@@ -132,47 +128,56 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 defs,
                 ..
             } => {
-                let full = name.add_namespace("");
-                self.process_defs_in_class(&full, typarams.clone(), defs)?;
+                let namespace = Namespace::root();
+                self.process_class_def(&namespace, name, typarams.clone(), defs)?;
             }
             ast::Definition::ConstDefinition { name, expr } => {
-                self.register_const(name, expr)?;
+                self.register_toplevel_const(name, expr)?;
             }
             _ => panic!("should be checked in hir::class_dict"),
         }
         Ok(())
     }
 
-    /// Process each method def and const def
-    fn process_defs_in_class(
+    /// Process a class definition and its inner defs
+    fn process_class_def(
         &mut self,
-        fullname: &ClassFullname,
+        namespace: &Namespace,
+        firstname: &ClassFirstname,
         typarams: Vec<String>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
         let mut current = CtxKind::Class;
         self.ctx.swap_current(&mut current);
         self.ctx
             .classes
-            .push(ClassCtx::new(fullname.clone(), typarams));
+            .push(ClassCtx::new(namespace.add(firstname), typarams));
+
+        // Register class constant of self
+        let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
+        if !self.constants.contains_key(&const_name.to_const_fullname()) { // eg. `Object` is defined both in src/corelib and builtin/
+            self._create_class_const(&const_name, false);
+        }
 
         // Register constants before processing #initialize
-        self._process_const_defs_in_class(defs, fullname)?;
+        self._process_const_defs_in_class(defs, &fullname)?;
 
         // Register #initialize and ivars
         let own_ivars =
-            self._process_initialize(fullname, defs.iter().find(|d| d.is_initializer()))?;
+            self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
-            self.class_dict.define_ivars(fullname, own_ivars.clone())?;
-            self.define_accessors(fullname, own_ivars, defs);
+            self.class_dict.define_ivars(&fullname, own_ivars.clone())?;
+            self.define_accessors(&fullname, own_ivars, defs);
         }
 
         // Register .new
         self.method_dict
             .add_method(&meta_name, self.create_new(&fullname)?);
 
+        let inner_namespace = namespace.add(firstname);
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition {
@@ -202,8 +207,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     typarams,
                     ..
                 } => {
-                    let full = name.add_namespace(&fullname.0);
-                    self.process_defs_in_class(&full, typarams.clone(), defs)?;
+                    self.process_class_def(&inner_namespace, name, typarams.clone(), defs)?;
                 }
             }
         }
@@ -240,7 +244,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<(), Error> {
         for def in defs {
             if let ast::Definition::ConstDefinition { name, expr } = def {
-                let full = name.add_namespace(&fullname.0);
+                // FIXME: works for A::B but not for A::B::C
+                let full = const_fullname(&fullname.to_const_fullname(), name);
                 let hir_expr = self.convert_expr(expr)?;
                 self.register_const_full(full, hir_expr);
             }
@@ -303,16 +308,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
-    /// Resolve and register a constant
-    pub(super) fn register_const(
+    /// Register a constant defined in the toplevel
+    pub(super) fn register_toplevel_const(
         &mut self,
-        name: &ConstFirstname,
+        name: &str,
         expr: &AstExpression,
-    ) -> Result<ConstFullname, Error> {
-        // TODO: resolve name using ctx
-        let fullname = const_fullname(&format!("{}::{}", self.ctx.namespace(), &name.0));
+    ) -> Result<(), Error> {
         let hir_expr = self.convert_expr(expr)?;
-        Ok(self.register_const_full(fullname, hir_expr))
+        self.constants.insert(toplevel_const(name), hir_expr.ty.clone());
+        let op = Hir::const_assign(toplevel_const(name), hir_expr);
+        self.const_inits.push(op);
+        Ok(())
     }
 
     /// Register a constant
@@ -320,11 +326,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         fullname: ConstFullname,
         hir_expr: HirExpression,
-    ) -> ConstFullname {
+    ) {
+        debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::const_assign(fullname.clone(), hir_expr);
         self.const_inits.push(op);
-        fullname
+    }
+
+    /// Register a special constant
+    pub(super) fn register_internal_const(
+        &mut self,
+        fullname: ConstFullname,
+        hir_expr: HirExpression,
+    ) -> HirExpression {
+        debug_assert!(!self.constants.contains_key(&fullname));
+        self.constants.insert(fullname.clone(), hir_expr.ty.clone());
+        Hir::const_assign(fullname.clone(), hir_expr)
     }
 
     fn convert_method_def(

@@ -29,7 +29,10 @@ impl std::fmt::Display for ClassFullname {
 }
 
 pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
-    ClassFullname(s.into())
+    let name = s.into();
+    debug_assert!(!name.starts_with("::"));
+    debug_assert!(!name.starts_with("Meta:Meta:"));
+    ClassFullname(name)
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
@@ -73,6 +76,10 @@ impl ClassFullname {
 
     pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
         method_fullname(self, &method_firstname.0)
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        toplevel_const(&self.0)
     }
 }
 
@@ -121,25 +128,6 @@ impl MethodFullname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
-pub struct ConstFirstname(pub String);
-
-impl std::fmt::Display for ConstFirstname {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl ConstFirstname {
-    pub fn add_namespace(&self, namespace: &str) -> ConstFullname {
-        const_fullname(&("::".to_string() + namespace + "::" + &self.0))
-    }
-}
-
-pub fn const_firstname(s: &str) -> ConstFirstname {
-    ConstFirstname(s.to_string())
-}
-
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstFullname(pub String);
 
@@ -149,11 +137,71 @@ impl std::fmt::Display for ConstFullname {
     }
 }
 
-pub fn const_fullname(s: &str) -> ConstFullname {
-    debug_assert!(s.starts_with("::"));
-    debug_assert!(!s.starts_with("::::"));
-    ConstFullname(s.to_string())
+pub fn const_fullname(namespace: &ConstFullname, first_name: &str) -> ConstFullname {
+    ConstFullname(format!("{}::{}", namespace.0, first_name))
 }
+
+pub fn toplevel_const(first_name: &str) -> ConstFullname {
+    debug_assert!(!first_name.starts_with("::"));
+    ConstFullname(format!("::{}", first_name))
+}
+
+impl ConstFullname {
+    /// Returns true if this const is not visible in Shiika level
+    pub fn is_internal(&self) -> bool {
+        self.0.contains("<internal>")
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Namespace(pub Vec<String>);
+
+impl std::fmt::Display for Namespace {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "::{}", &self.to_string())
+    }
+}
+
+impl Namespace {
+    /// Create a namespace object
+    pub fn new(names: Vec<String>) -> Namespace {
+        // TODO: should check each name does not contain `::`
+        Namespace(names)
+    }
+
+    /// Returns a toplevel namespace
+    pub fn root() -> Namespace {
+        Namespace::new(vec![])
+    }
+
+    /// Returns the hidden namespace
+    pub fn internal() -> Namespace {
+        Namespace::new(vec!["<internal>".to_string()])
+    }
+
+    /// Add `name` to the end of `self`
+    pub fn add(&self, name: &ClassFirstname) -> Namespace {
+        let mut v = self.0.clone();
+        v.push(name.0.clone());
+        Namespace::new(v)
+    }
+
+    /// Join Namespace and ClassFirstname
+    pub fn class_fullname(&self, name: &ClassFirstname) -> ClassFullname {
+        let n = self.to_string();
+        if n.is_empty() {
+            class_fullname(&name.0)
+        } else {
+            class_fullname(format!("{}::{}", n, &name.0))
+        }
+    }
+
+    /// Returns string representation of self
+    pub fn to_string(&self) -> String {
+        format!("{}", self.0.join("::"))
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConstName {
@@ -162,19 +210,15 @@ pub struct ConstName {
 }
 
 impl ConstName {
-    /// Make ConstFullname prefixed by `namespace`
-    pub fn under_namespace(&self, namespace: &str) -> ConstFullname {
-        let s = if namespace.is_empty() {
-            "::".to_string() + &self.string()
-        } else {
-            "::".to_string() + namespace + "::" + &self.string()
-        };
-        const_fullname(&s)
+    /// Convert self to ResolvedConstName. `args` must be empty
+    pub fn resolved(&self) -> ResolvedConstName {
+        debug_assert!(self.args.is_empty());
+        ResolvedConstName { names: self.names.clone(), args: vec![] }
     }
 
-    /// Make ConstFullname from self
-    pub fn to_const_fullname(&self) -> ConstFullname {
-        const_fullname(&self.fullname())
+    /// Returns if generic
+    pub fn has_type_args(&self) -> bool {
+        !self.args.is_empty()
     }
 
     /// Make ClassFullname from self
@@ -197,6 +241,66 @@ impl ConstName {
             s += ">";
         }
         s
+    }
+}
+
+pub fn const_name(names: Vec<String>) -> ConstName {
+    ConstName {
+        names,
+        args: vec![],
+    }
+}
+
+/// Fully qualified const name.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ResolvedConstName {
+    pub names: Vec<String>,
+    pub args: Vec<ResolvedConstName>,
+}
+
+impl std::fmt::Display for ResolvedConstName {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", &self.string())
+    }
+}
+
+impl ResolvedConstName {
+    pub fn unsafe_create(s: String) -> ResolvedConstName {
+        ResolvedConstName { names: vec![s], args: vec![] }
+    }
+
+    /// Returns if generic
+    pub fn has_type_args(&self) -> bool {
+        !self.args.is_empty()
+    }
+
+    /// Convert to ConstFullname
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        toplevel_const(&self.string())
+    }
+
+    /// Convert to ClassFullname
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        class_fullname(self.string())
+    }
+
+    /// Returns string representation
+    pub fn string(&self) -> String {
+        let mut s = self.names.join("::");
+        // Type args (optional)
+        if !self.args.is_empty() {
+            s += "<";
+            let v = self.args.iter().map(|arg| arg.string()).collect::<Vec<_>>();
+            s += &v.join(",");
+            s += ">";
+        }
+        s
+    }
+
+    /// Apply type args to `self`. `self.args` must be empty.
+    pub fn with_type_args(&self, args: Vec<ResolvedConstName>) -> ResolvedConstName {
+        debug_assert!(self.args.is_empty());
+        ResolvedConstName { names: self.names.clone(), args }
     }
 
     /// Returns the instance type when this const refers to a class
@@ -222,9 +326,20 @@ impl ConstName {
     }
 }
 
-pub fn const_name(names: Vec<String>) -> ConstName {
-    ConstName {
-        names,
-        args: vec![],
-    }
+/// Create a ResolvedConstName (which is not generic).
+pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> ResolvedConstName {
+    let new_names = namespace.0.into_iter().chain(names.into_iter()).collect::<Vec<String>>();
+    ResolvedConstName { names: new_names, args: vec![] }
+}
+
+// ad hoc. Not sure I'm doing right
+pub fn typaram_as_resolved_const_name(name: impl Into<String>) -> ResolvedConstName {
+    resolved_const_name(Namespace::root(), vec![name.into()])
+}
+
+// The constant `::Void` is an *instance* of the class `Void`. However we need
+// the class object for `::Void.class`; Returns name for this internal constant
+pub fn const_is_obj_class_internal_const_name(name: &ResolvedConstName) -> ResolvedConstName {
+    debug_assert!(!name.has_type_args());
+    resolved_const_name(Namespace::internal(), name.names.clone())
 }

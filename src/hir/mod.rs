@@ -139,7 +139,7 @@ impl HirExpressions {
 }
 /// Make a HirExpression to refer `::Void`
 fn void_const_ref() -> HirExpression {
-    Hir::const_ref(ty::raw("Void"), const_fullname("::Void"))
+    Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
 }
 
 #[derive(Debug)]
@@ -546,11 +546,11 @@ impl Hir {
         }
     }
 
-    pub fn class_literal(ty: TermTy, name: &ConstName, str_literal_idx: usize) -> HirExpression {
+    pub fn class_literal(ty: TermTy, fullname: ClassFullname, str_literal_idx: usize) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirClassLiteral {
-                fullname: name.to_class_fullname(),
+                fullname,
                 str_literal_idx,
             },
         }

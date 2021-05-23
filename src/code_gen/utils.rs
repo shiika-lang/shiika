@@ -12,7 +12,7 @@ const OBJ_VTABLE_IDX: usize = 0;
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return ::Void
     pub fn build_return_void(&self) {
-        let v = self.gen_const_ref(&const_fullname("::Void"));
+        let v = self.gen_const_ref(&toplevel_const("Void"));
         self.builder.build_return(Some(&v));
     }
 

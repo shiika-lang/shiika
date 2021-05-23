@@ -64,6 +64,16 @@ impl TermTy {
             _ => self.fullname.0.clone(),
         }
     }
+
+    /// Returns if value of this type is class
+    pub fn is_metaclass(&self) -> bool {
+        matches!(&self.body, TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass)
+    }
+
+    /// Returns if this is TyParamRef
+    pub fn is_typaram_ref(&self) -> bool {
+        matches!(&self.body, TyParamRef { .. })
+    }
 }
 
 /// Format `type_args` with .dbg_str
@@ -168,6 +178,15 @@ impl TermTy {
             } => ty::spe_meta(&base_name, type_args.clone()),
             TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
+        }
+    }
+
+    pub fn instance_ty(&self) -> TermTy {
+        match &self.body {
+            TyMeta { base_fullname } => ty::raw(base_fullname),
+            TyClass => ty::class(),
+            TySpeMeta { base_name, type_args } => ty::spe(base_name, type_args.to_vec()),
+            _ => panic!("undefined: {:?}", self),
         }
     }
 
@@ -372,6 +391,7 @@ pub fn class() -> TermTy {
 }
 
 pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+    debug_assert!(!type_args.is_empty());
     let tyarg_names = type_args
         .iter()
         .map(|x| x.fullname.0.to_string())
