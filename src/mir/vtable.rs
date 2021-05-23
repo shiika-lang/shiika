@@ -1,4 +1,3 @@
-use crate::error::*;
 use crate::hir::*;
 use crate::library::LibraryExports;
 use crate::names::*;
@@ -60,7 +59,9 @@ impl VTable {
 
     /// Returns the index of the method
     pub fn get(&self, name: &MethodFirstname) -> &usize {
-        self.index.get(name).unwrap()
+        self.index.get(name).unwrap_or_else(|| {
+            panic!("not in vtable: {}", name)
+        })
     }
 
     /// Returns the list of method names, ordered by the index.
@@ -115,15 +116,10 @@ impl VTables {
         &self,
         obj_ty: &TermTy,
         method_name: &MethodFirstname,
-    ) -> Result<(&usize, usize), Error> {
-        if let Some(vtable) = self.vtables.get(&obj_ty.vtable_name()) {
-            Ok((vtable.get(&method_name), vtable.size()))
-        } else {
-            Err(bug(format!(
-                "[BUG] method_idx: vtable of {} not found",
-                &obj_ty.fullname
-            )))
-        }
+    ) -> Option<(&usize, usize)> {
+        self.vtables.get(&obj_ty.vtable_name()).map(|vtable|
+            (vtable.get(&method_name), vtable.size())
+        )
     }
 
     /// Returns iterator over each vtable

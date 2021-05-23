@@ -420,11 +420,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
         method_name: &MethodFirstname,
     ) -> Result<(&usize, usize), Error> {
-        let found = self.vtables.method_idx(ty, method_name);
-        if found.is_ok() {
-            found
+        if let Some(found) = self.vtables.method_idx(ty, method_name) {
+            return Ok(found)
+        } else if let Some(found) = self.imported_vtables.method_idx(ty, method_name) {
+            return Ok(found)
         } else {
-            self.imported_vtables.method_idx(ty, method_name)
+            Err(error::bug(format!(
+                "[BUG] method_idx: vtable of {} not found",
+                &ty.fullname
+            )))
         }
     }
 
@@ -851,6 +855,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
+    /// Create a class object
     #[allow(clippy::let_and_return)]
     fn gen_class_literal(
         &self,
@@ -864,6 +869,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.gen_string_literal(str_literal_idx),
             "@name",
         );
+        // We assume class objects never have custom `initialize` method
 
         cls_obj
     }
