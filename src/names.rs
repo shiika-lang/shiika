@@ -146,6 +146,13 @@ pub fn toplevel_const(first_name: &str) -> ConstFullname {
     ConstFullname(format!("::{}", first_name))
 }
 
+impl ConstFullname {
+    /// Returns true if this const is not visible in Shiika level
+    pub fn is_internal(&self) -> bool {
+        self.0.contains("<internal>")
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
 

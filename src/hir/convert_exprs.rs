@@ -795,12 +795,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if const_is_obj { // eg. "Void"
             // The class
             let meta_name = const_is_obj_class_internal_const_name(name);
-            let expr = Hir::class_literal(ty.meta_ty(), name.to_class_fullname(), str_idx);
-            self.register_const_full(meta_name.to_const_fullname(), expr);
+            let meta_const_name = meta_name.to_const_fullname();
+            let cls_obj = Hir::class_literal(ty.meta_ty(), name.to_class_fullname(), str_idx);
+            let meta_const_assign = self.register_internal_const(meta_const_name.clone(), cls_obj);
             // The instance
             let expr = Hir::method_call(
                 ty.clone(),
-                Hir::const_ref(ty.clone(), meta_name.to_const_fullname()),
+                meta_const_assign,
                 method_fullname(&metaclass_fullname(&name.string()), "new"),
                 vec![]);
             self.register_const_full(name.to_const_fullname(), expr);

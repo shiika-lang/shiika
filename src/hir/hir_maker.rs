@@ -333,6 +333,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.const_inits.push(op);
     }
 
+    /// Register a special constant
+    pub(super) fn register_internal_const(
+        &mut self,
+        fullname: ConstFullname,
+        hir_expr: HirExpression,
+    ) -> HirExpression {
+        debug_assert!(!self.constants.contains_key(&fullname));
+        self.constants.insert(fullname.clone(), hir_expr.ty.clone());
+        Hir::const_assign(fullname.clone(), hir_expr)
+    }
+
     fn convert_method_def(
         &mut self,
         class_fullname: &ClassFullname,
