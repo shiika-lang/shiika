@@ -92,7 +92,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn define_class_constants(&mut self) { //, class_names: Vec<String>) {
+    fn define_class_constants(&mut self) {
+        //, class_names: Vec<String>) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
         }
@@ -157,7 +158,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register class constant of self
         let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
-        if !self.constants.contains_key(&const_name.to_const_fullname()) { // eg. `Object` is defined both in src/corelib and builtin/
+        if !self.constants.contains_key(&const_name.to_const_fullname()) {
+            // eg. `Object` is defined both in src/corelib and builtin/
             self._create_class_const(&const_name, false);
         }
 
@@ -315,18 +317,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         expr: &AstExpression,
     ) -> Result<(), Error> {
         let hir_expr = self.convert_expr(expr)?;
-        self.constants.insert(toplevel_const(name), hir_expr.ty.clone());
+        self.constants
+            .insert(toplevel_const(name), hir_expr.ty.clone());
         let op = Hir::const_assign(toplevel_const(name), hir_expr);
         self.const_inits.push(op);
         Ok(())
     }
 
     /// Register a constant
-    pub(super) fn register_const_full(
-        &mut self,
-        fullname: ConstFullname,
-        hir_expr: HirExpression,
-    ) {
+    pub(super) fn register_const_full(&mut self, fullname: ConstFullname, hir_expr: HirExpression) {
         debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::const_assign(fullname.clone(), hir_expr);

@@ -63,12 +63,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Returns information for creating class constants
     pub fn constant_list(&self) -> Vec<(String, bool)> {
-        self.sk_classes.iter().filter_map(|(name, class)| {
-            if name.is_meta() {
-                None
-            } else {
-                Some((name.0.clone(), class.const_is_obj))
-            }
-        }).collect()
+        self.sk_classes
+            .iter()
+            .filter_map(|(name, class)| {
+                if name.is_meta() {
+                    None
+                } else {
+                    Some((name.0.clone(), class.const_is_obj))
+                }
+            })
+            .collect()
     }
 }

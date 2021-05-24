@@ -421,9 +421,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_name: &MethodFirstname,
     ) -> Result<(&usize, usize), Error> {
         if let Some(found) = self.vtables.method_idx(ty, method_name) {
-            return Ok(found)
+            return Ok(found);
         } else if let Some(found) = self.imported_vtables.method_idx(ty, method_name) {
-            return Ok(found)
+            return Ok(found);
         } else {
             Err(error::bug(format!(
                 "[BUG] method_idx: vtable of {} not found",

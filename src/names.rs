@@ -202,7 +202,6 @@ impl Namespace {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConstName {
     pub names: Vec<String>,
@@ -213,7 +212,10 @@ impl ConstName {
     /// Convert self to ResolvedConstName. `args` must be empty
     pub fn resolved(&self) -> ResolvedConstName {
         debug_assert!(self.args.is_empty());
-        ResolvedConstName { names: self.names.clone(), args: vec![] }
+        ResolvedConstName {
+            names: self.names.clone(),
+            args: vec![],
+        }
     }
 
     /// Returns if generic
@@ -266,7 +268,10 @@ impl std::fmt::Display for ResolvedConstName {
 
 impl ResolvedConstName {
     pub fn unsafe_create(s: String) -> ResolvedConstName {
-        ResolvedConstName { names: vec![s], args: vec![] }
+        ResolvedConstName {
+            names: vec![s],
+            args: vec![],
+        }
     }
 
     /// Returns if generic
@@ -300,7 +305,10 @@ impl ResolvedConstName {
     /// Apply type args to `self`. `self.args` must be empty.
     pub fn with_type_args(&self, args: Vec<ResolvedConstName>) -> ResolvedConstName {
         debug_assert!(self.args.is_empty());
-        ResolvedConstName { names: self.names.clone(), args }
+        ResolvedConstName {
+            names: self.names.clone(),
+            args,
+        }
     }
 
     /// Returns the instance type when this const refers to a class
@@ -328,8 +336,15 @@ impl ResolvedConstName {
 
 /// Create a ResolvedConstName (which is not generic).
 pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> ResolvedConstName {
-    let new_names = namespace.0.into_iter().chain(names.into_iter()).collect::<Vec<String>>();
-    ResolvedConstName { names: new_names, args: vec![] }
+    let new_names = namespace
+        .0
+        .into_iter()
+        .chain(names.into_iter())
+        .collect::<Vec<String>>();
+    ResolvedConstName {
+        names: new_names,
+        args: vec![],
+    }
 }
 
 // ad hoc. Not sure I'm doing right

@@ -252,7 +252,7 @@ impl HirMakerContext {
         if let Some(method_ctx) = &self.method {
             let typarams = &method_ctx.signature.typarams;
             if let Some(i) = typarams.iter().position(|s| *name == *s) {
-                return Some(ty::typaram(name, ty::TyParamKind::Method, i))
+                return Some(ty::typaram(name, ty::TyParamKind::Method, i));
             }
             if let Some(class_ctx) = self.classes.last() {
                 if method_ctx.signature.fullname.is_class_method() {
@@ -260,7 +260,7 @@ impl HirMakerContext {
                 }
                 let typarams = &class_ctx.typarams;
                 if let Some(i) = typarams.iter().position(|s| *name == *s) {
-                    return Some(ty::typaram(name, ty::TyParamKind::Class, i))
+                    return Some(ty::typaram(name, ty::TyParamKind::Class, i));
                 }
             }
         }

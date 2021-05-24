@@ -435,9 +435,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         let name;
         match self.current_token() {
-            Token::UpperWord(s) => {
-                name = s.to_string()
-            }
+            Token::UpperWord(s) => name = s.to_string(),
             _ => panic!("must be called on an UpperWord"),
         }
         self.consume_token();

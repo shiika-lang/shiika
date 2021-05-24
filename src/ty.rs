@@ -67,7 +67,10 @@ impl TermTy {
 
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
-        matches!(&self.body, TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass)
+        matches!(
+            &self.body,
+            TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass
+        )
     }
 
     /// Returns if this is TyParamRef
@@ -185,7 +188,10 @@ impl TermTy {
         match &self.body {
             TyMeta { base_fullname } => ty::raw(base_fullname),
             TyClass => ty::class(),
-            TySpeMeta { base_name, type_args } => ty::spe(base_name, type_args.to_vec()),
+            TySpeMeta {
+                base_name,
+                type_args,
+            } => ty::spe(base_name, type_args.to_vec()),
             _ => panic!("undefined: {:?}", self),
         }
     }

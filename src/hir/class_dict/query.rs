@@ -59,7 +59,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 error::bug(&format!(
                     "lookup_method: asked to find `{}' but class `{}' not found",
                     &method_name.0, &class.fullname.0
-                    ))
+                ))
             })?;
             if let Some(super_name) = &sk_class.superclass_fullname {
                 // TODO #115: super may not be a ty::raw

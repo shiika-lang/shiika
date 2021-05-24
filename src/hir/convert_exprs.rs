@@ -708,7 +708,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve const name which *must be* a class
-    fn __resolve_class_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
+    fn __resolve_class_const(
+        &self,
+        name: &ConstName,
+    ) -> Result<(TermTy, ResolvedConstName), Error> {
         let (resolved_ty, resolved_name) = self.__resolve_const(name, true)?;
         // `ty` is `Meta:XX` here but we want to remove `Meta:`
         // unless `ty` is typaram ref
@@ -721,12 +724,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Lookup a constant from current scope
-    fn __resolve_const(&self, name: &ConstName, class_only: bool) -> Result<(TermTy, ResolvedConstName), Error> {
+    fn __resolve_const(
+        &self,
+        name: &ConstName,
+        class_only: bool,
+    ) -> Result<(TermTy, ResolvedConstName), Error> {
         let (base_ty, base_resolved) = self.__resolve_simple_const(&name.names)?;
         // Given `A<B>`, `A` and `B` must be a class
-        if !base_ty.is_metaclass() && !base_ty.is_typaram_ref() && (name.has_type_args() || class_only) {
+        if !base_ty.is_metaclass()
+            && !base_ty.is_typaram_ref()
+            && (name.has_type_args() || class_only)
+        {
             return Err(error::program_error(&format!(
-                    "`{}' is not a class", base_resolved)));
+                "`{}' is not a class",
+                base_resolved
+            )));
         }
         if !name.has_type_args() {
             Ok((base_ty, base_resolved))
@@ -745,31 +757,35 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve a constant name without tyargs
-    fn __resolve_simple_const(&self, names: &[String]) -> Result<(TermTy, ResolvedConstName), Error> {
+    fn __resolve_simple_const(
+        &self,
+        names: &[String],
+    ) -> Result<(TermTy, ResolvedConstName), Error> {
         if names.len() == 1 {
             // Check if it is a typaram ref
             let name = names.first().unwrap();
             if let Some(ty) = self.ctx.lookup_typaram(name) {
-                return Ok((ty, typaram_as_resolved_const_name(name)))
+                return Ok((ty, typaram_as_resolved_const_name(name)));
             }
         }
         for namespace in self.ctx.const_scopes() {
             let resolved = resolved_const_name(namespace, names.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
-                return Ok((ty, resolved))
+                return Ok((ty, resolved));
             }
         }
         Err(error::program_error(&format!(
-                    "constant `{:?}' was not found",
-                    names.join("::")
+            "constant `{:?}' was not found",
+            names.join("::")
         )))
     }
 
     /// Check if a constant is registered
     fn _lookup_const(&self, full: &ConstFullname) -> Option<TermTy> {
-        self.constants.get(full).or_else(||
-        self.imported_constants.get(full))
+        self.constants
+            .get(full)
+            .or_else(|| self.imported_constants.get(full))
             .map(|ty| ty.clone())
     }
 
@@ -790,9 +806,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Register class constant and optionally constant for its only instance
-    fn __register_class_const(&mut self, name: &ResolvedConstName, ty: &TermTy, const_is_obj: bool) {
+    fn __register_class_const(
+        &mut self,
+        name: &ResolvedConstName,
+        ty: &TermTy,
+        const_is_obj: bool,
+    ) {
         let str_idx = self.register_string_literal(&name.string());
-        if const_is_obj { // eg. "Void"
+        if const_is_obj {
+            // eg. "Void"
             // The class
             let meta_name = const_is_obj_class_internal_const_name(name);
             let meta_const_name = meta_name.to_const_fullname();
@@ -803,7 +825,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 ty.clone(),
                 meta_const_assign,
                 method_fullname(&metaclass_fullname(&name.string()), "new"),
-                vec![]);
+                vec![],
+            );
             self.register_const_full(name.to_const_fullname(), expr);
         } else {
             // The class
