@@ -69,6 +69,8 @@ pub enum Token {
     SetMethod,    //  []=
     // Keywords
     KwClass,
+    KwEnum,
+    KwCase,
     KwEnd,
     KwDef,
     KwVar,
@@ -193,6 +195,8 @@ impl Token {
             Token::SetMethod => false,    //  []=
             // Keywords
             Token::KwClass => false,
+            Token::KwEnum => false,
+            Token::KwCase => false,
             Token::KwEnd => false,
             Token::KwDef => false,
             Token::KwVar => false,

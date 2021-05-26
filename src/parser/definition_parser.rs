@@ -16,6 +16,7 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<Option<ast::Definition>, Error> {
         match self.current_token() {
             Token::KwClass => Ok(Some(self.parse_class_definition()?)),
+            Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
             Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
             _ => Ok(None),
@@ -51,7 +52,7 @@ impl<'a> Parser<'a> {
         let typarams = if self.current_token_is(Token::LessThan) {
             self.parse_typarams()?
         } else {
-            vec![]
+            Default::default()
         };
 
         // Superclass name (optional)
@@ -102,6 +103,119 @@ impl<'a> Parser<'a> {
             super_name,
             defs,
         })
+    }
+
+    pub fn parse_enum_definition(&mut self) -> Result<ast::Definition, Error> {
+        self.debug_log("parse_enum_definition");
+        self.lv += 1;
+        let name;
+        let cases;
+
+        // `enum'
+        assert!(self.consume(Token::KwEnum));
+        self.skip_ws();
+
+        // Enum class name
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                name = class_firstname(s);
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "enum name must start with A-Z but got {:?}",
+                    token
+                ))
+            }
+        }
+
+        // Type parameters (optional)
+        let typarams = if self.current_token_is(Token::LessThan) {
+            self.parse_typarams()?
+        } else {
+            Default::default()
+        };
+
+        self.expect_sep()?;
+
+        // Enum cases
+        self.skip_wsn();
+        cases = self.parse_enum_cases()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for enum {:?}; got {:?}",
+                    name,
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(ast::Definition::EnumDefinition {
+            name,
+            typarams,
+            cases,
+        })
+    }
+
+    fn parse_enum_cases(&mut self) -> Result<Vec<ast::EnumCase>, Error> {
+        let mut cases = vec![];
+        loop {
+            match self.current_token() {
+                Token::KwCase => {
+                    cases.push(self.parse_enum_case()?);
+                    self.skip_wsn();
+                }
+                Token::KwEnd => {
+                    break;
+                }
+                token => return Err(parse_error!(self, "unexpected token in enum: {:?}", token)),
+            }
+        }
+        Ok(cases)
+    }
+
+    fn parse_enum_case(&mut self) -> Result<ast::EnumCase, Error> {
+        self.expect(Token::KwCase);
+        self.skip_wsn();
+        let name;
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                name = class_firstname(s);
+                self.consume_token();
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "enum case name must start with A-Z but got {:?}",
+                    token
+                ))
+            }
+        }
+        let params = match self.current_token() {
+            Token::Separator => vec![],
+            Token::LParen => {
+                self.consume_token();
+                let is_initialize = false;
+                self.parse_params(is_initialize, vec![Token::RParen])?
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "unexpected token after enum case name: {:?}",
+                    token
+                ))
+            }
+        };
+        Ok(ast::EnumCase { name, params })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {

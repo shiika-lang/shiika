@@ -344,6 +344,8 @@ impl<'a> Lexer<'a> {
         let s = &self.src[begin..next_cur.pos];
         let (token, state) = match s {
             "class" => (Token::KwClass, LexerState::ExprBegin),
+            "enum" => (Token::KwEnum, LexerState::ExprBegin),
+            "case" => (Token::KwCase, LexerState::ExprBegin),
             "end" => (Token::KwEnd, LexerState::ExprEnd),
             "def" => (Token::KwDef, LexerState::ExprBegin),
             "var" => (Token::KwVar, LexerState::ExprBegin),

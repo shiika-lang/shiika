@@ -20,6 +20,11 @@ pub enum Definition {
         super_name: ClassFullname,
         defs: Vec<Definition>,
     },
+    EnumDefinition {
+        name: ClassFirstname,
+        typarams: Vec<String>,
+        cases: Vec<EnumCase>,
+    },
     InstanceMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
@@ -32,6 +37,12 @@ pub enum Definition {
         name: String,
         expr: AstExpression,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub struct EnumCase {
+    pub name: ClassFirstname,
+    pub params: Vec<Param>,
 }
 
 #[derive(Debug, PartialEq)]
