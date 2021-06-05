@@ -49,11 +49,7 @@ impl<'a> Parser<'a> {
         }
 
         // Type parameters (optional)
-        let typarams = if self.current_token_is(Token::LessThan) {
-            self.parse_typarams()?
-        } else {
-            Default::default()
-        };
+        let typarams = self.parse_opt_typarams()?;
 
         // Superclass name (optional)
         let mut super_name = class_fullname("Object");
@@ -131,12 +127,7 @@ impl<'a> Parser<'a> {
         }
 
         // Type parameters (optional)
-        let typarams = if self.current_token_is(Token::LessThan) {
-            self.parse_typarams()?
-        } else {
-            Default::default()
-        };
-
+        let typarams = self.parse_opt_typarams()?;
         self.expect_sep()?;
 
         // Enum cases
@@ -184,7 +175,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enum_case(&mut self) -> Result<ast::EnumCase, Error> {
-        self.expect(Token::KwCase);
+        debug_assert!(self.consume(Token::KwCase));
         self.skip_wsn();
         let name;
         match self.current_token() {
@@ -200,6 +191,7 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
+        let typarams = self.parse_opt_typarams()?;
         let params = match self.current_token() {
             Token::Separator => vec![],
             Token::LParen => {
@@ -215,7 +207,7 @@ impl<'a> Parser<'a> {
                 ))
             }
         };
-        Ok(ast::EnumCase { name, params })
+        Ok(ast::EnumCase { name, typarams, params })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
@@ -285,11 +277,7 @@ impl<'a> Parser<'a> {
         }
 
         // Method-wise type parameters (Optional)
-        let typarams = if self.current_token_is(Token::LessThan) {
-            self.parse_typarams()?
-        } else {
-            vec![]
-        };
+        let typarams = self.parse_opt_typarams()?;
 
         // Params (optional)
         match self.current_token() {
@@ -363,7 +351,10 @@ impl<'a> Parser<'a> {
     // Parse type parameters of a class or a method
     // - `class Foo<A, B, C>`
     // - `def foo<A, B, C>( ... )`
-    fn parse_typarams(&mut self) -> Result<Vec<String>, Error> {
+    fn parse_opt_typarams(&mut self) -> Result<Vec<String>, Error> {
+        if !self.current_token_is(Token::LessThan) {
+            return Ok(Default::default());
+        }
         let mut typarams = vec![];
         debug_assert!(self.consume(Token::LessThan));
         self.skip_wsn();

@@ -121,6 +121,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn process_toplevel_def(&mut self, def: &ast::Definition) -> Result<(), Error> {
+        let namespace = Namespace::root();
         match def {
             // Extract instance/class methods
             ast::Definition::ClassDefinition {
@@ -129,9 +130,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 defs,
                 ..
             } => {
-                let namespace = Namespace::root();
                 self.process_class_def(&namespace, name, typarams.clone(), defs)?;
             }
+            ast::Definition::EnumDefinition {
+                name,
+                typarams,
+                cases,
+            } => self.process_enum_def(&namespace, name, typarams.clone(), cases)?,
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_toplevel_const(name, expr)?;
             }
@@ -179,6 +184,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.method_dict
             .add_method(&meta_name, self.create_new(&fullname)?);
 
+        // Process inner defs
         let inner_namespace = namespace.add(firstname);
         for def in defs {
             match def {
@@ -208,9 +214,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     defs,
                     typarams,
                     ..
-                } => {
-                    self.process_class_def(&inner_namespace, name, typarams.clone(), defs)?;
-                }
+                } => self.process_class_def(&inner_namespace, name, typarams.clone(), defs)?,
+                ast::Definition::EnumDefinition {
+                    name,
+                    typarams,
+                    cases,
+                } => self.process_enum_def(&inner_namespace, name, typarams.clone(), cases)?,
             }
         }
         self.ctx.classes.pop();
@@ -397,5 +406,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             },
             method_ctx.iivars,
         ))
+    }
+
+    /// Process a enum definition
+    fn process_enum_def(
+        &mut self,
+        _namespace: &Namespace,
+        _firstname: &ClassFirstname,
+        _typarams: Vec<String>,
+        _cases: &[ast::EnumCase],
+    ) -> Result<(), Error> {
+        // TODO: self._register_enum_case_class
+        Ok(())
+    }
+
+    fn _register_enum_case_class(
+        &mut self,
+        _namespace: &Namespace,
+        _typarams: Vec<String>,
+        _case: &EnumCase,
+    ) {
+        // TODO: Register class constant of self
+        // TODO: Register #initialize
+        // TODO: Register ivars
+        // TODO: Register accessors
+        // Register .new
     }
 }
