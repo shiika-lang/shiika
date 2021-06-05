@@ -43,22 +43,29 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
-        toplevel_defs.iter().try_for_each(|def| match def {
-            ast::Definition::ClassDefinition {
-                name,
-                typarams,
-                super_name,
-                defs,
-            } => {
-                self.index_class(&name.add_namespace(""), &typarams, &super_name, &defs)?;
-                Ok(())
+        for def in toplevel_defs {
+            match def {
+                ast::Definition::ClassDefinition {
+                    name,
+                    typarams,
+                    super_name,
+                    defs,
+                } => self.index_class(&name.add_namespace(""), &typarams, &super_name, &defs)?,
+                ast::Definition::EnumDefinition {
+                    name,
+                    typarams,
+                    cases,
+                } => self.index_enum(&name.add_namespace(""), &typarams, &cases)?,
+                ast::Definition::ConstDefinition { .. } => (),
+                _ => {
+                    return Err(error::syntax_error(&format!(
+                        "must not be toplevel: {:?}",
+                        def
+                    )))
+                }
             }
-            ast::Definition::ConstDefinition { .. } => Ok(()),
-            _ => Err(error::syntax_error(&format!(
-                "must not be toplevel: {:?}",
-                def
-            ))),
-        })
+        }
+        Ok(())
     }
 
     fn index_class(
@@ -100,11 +107,43 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 fullname,
                 typarams,
                 super_name,
-                new_sig,
+                Some(new_sig),
                 instance_methods,
                 class_methods,
             )?,
         }
+        Ok(())
+    }
+
+    fn index_enum(
+        &mut self,
+        fullname: &ClassFullname,
+        typarams: &[String],
+        cases: &[ast::EnumCase],
+    ) -> Result<(), Error> {
+        let instance_methods = Default::default();
+        // TODO: getters and setters
+        self.add_new_class(
+            fullname,
+            typarams,
+            &class_fullname("Object"),
+            None,
+            instance_methods,
+            Default::default(),
+        )?;
+        for case in cases {
+            self.index_enum_case(fullname, typarams, case)?;
+        }
+        Ok(())
+    }
+
+    fn index_enum_case(
+        &mut self,
+        _fullname: &ClassFullname,
+        _typarams: &[String],
+        _case: &ast::EnumCase,
+    ) -> Result<(), Error> {
+        // TODO
         Ok(())
     }
 
@@ -136,6 +175,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     let full = name.add_namespace(&fullname.0);
                     self.index_class(&full, &typarams, &super_name, &defs)?;
                 }
+                ast::Definition::EnumDefinition {
+                    name,
+                    typarams,
+                    cases,
+                } => {
+                    let full = name.add_namespace(&fullname.0);
+                    self.index_enum(&full, &typarams, &cases)?;
+                }
             }
         }
         Ok((instance_methods, class_methods))
@@ -147,7 +194,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &ClassFullname,
         typaram_names: &[String],
         super_name: &ClassFullname,
-        new_sig: MethodSignature,
+        new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
     ) -> Result<(), Error> {
@@ -159,7 +206,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .collect::<Vec<_>>();
 
         // Add `.new` to the metaclass
-        class_methods.insert(new_sig.fullname.first_name.clone(), new_sig);
+        if let Some(sig) = new_sig {
+            class_methods.insert(sig.fullname.first_name.clone(), sig);
+        }
+
         if !self.class_exists(&super_name.0) {
             return Err(error::name_error(&format!(
                 "superclass {:?} of {:?} does not exist",

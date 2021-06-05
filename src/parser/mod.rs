@@ -73,7 +73,11 @@ impl<'a> Parser<'a> {
                 Token::KwClass => {
                     items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
                 }
+                Token::KwEnum => {
+                    items.push(ast::TopLevelItem::Def(self.parse_enum_definition()?));
+                }
                 Token::KwDef => {
+                    // REFACTOR: Raise error here (rather than on ClassDict::index_program)
                     items.push(ast::TopLevelItem::Def(self.parse_method_definition()?));
                 }
                 Token::Eof | Token::KwEnd => break,
