@@ -791,7 +791,8 @@ impl<'a> Parser<'a> {
         Ok(ast::const_ref(self.parse_const_name(s)?))
     }
 
-    fn parse_const_name(&mut self, s: String) -> Result<ConstName, Error> {
+    /// Parse a constant name. `s` must be consumed beforehand
+    pub(super) fn parse_const_name(&mut self, s: String) -> Result<ConstName, Error> {
         self.lv += 1;
         self.debug_log("parse_const_name");
         self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
