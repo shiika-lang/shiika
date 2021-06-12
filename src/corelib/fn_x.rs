@@ -7,7 +7,7 @@ macro_rules! fn_item {
 
         (
             format!("Fn{}", $i),
-            Some(class_fullname("Fn")),
+            Some(Superclass::simple("Fn")),
             vec![],
             vec![],
             ivars(),

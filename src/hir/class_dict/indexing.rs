@@ -48,9 +48,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    super_name,
+                    superclass,
                     defs,
-                } => self.index_class(&name.add_namespace(""), &typarams, &super_name, &defs)?,
+                } => self.index_class(&name.add_namespace(""), &typarams, &superclass, &defs)?,
                 ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -72,13 +72,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[String],
-        super_name: &ClassFullname,
+        ast_superclass: &Option<ConstName>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let metaclass_fullname = fullname.meta_name();
+        // TODO: check ast_superclass is valid
+        let superclass = if let Some(n) = ast_superclass {
+            Superclass::from_const_name(n, typarams)
+        } else {
+            Superclass::default()
+        };
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            self.initializer_params(typarams, &super_name.instance_ty(), &defs),
+            self.initializer_params(typarams, &superclass, &defs),
             &ty::return_type_of_new(fullname, typarams),
         );
 
@@ -106,7 +112,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None => self.add_new_class(
                 fullname,
                 typarams,
-                super_name,
+                superclass,
                 Some(new_sig),
                 instance_methods,
                 class_methods,
@@ -126,7 +132,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_new_class(
             fullname,
             typarams,
-            &class_fullname("Object"),
+            Superclass::simple("Object"),
             None,
             instance_methods,
             Default::default(),
@@ -169,11 +175,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    super_name,
+                    superclass,
                     defs,
                 } => {
                     let full = name.add_namespace(&fullname.0);
-                    self.index_class(&full, &typarams, &super_name, &defs)?;
+                    self.index_class(&full, &typarams, &superclass, &defs)?;
                 }
                 ast::Definition::EnumDefinition {
                     name,
@@ -193,7 +199,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typaram_names: &[String],
-        super_name: &ClassFullname,
+        superclass: Superclass,
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
@@ -213,14 +219,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         if !self.class_exists(&super_name.0) {
             return Err(error::name_error(&format!(
                 "superclass {:?} of {:?} does not exist",
-                super_name, fullname,
+                superclass, fullname,
             )));
         }
 
         self.add_class(SkClass {
             fullname: fullname.clone(),
             typarams: typarams.clone(),
-            superclass_fullname: Some(super_name.clone()),
+            superclass: Some(superclass),
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
@@ -234,7 +240,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_class(SkClass {
             fullname: fullname.meta_name(),
             typarams,
-            superclass_fullname: Some(class_fullname("Class")),
+            superclass: Some(Superclass::simple("Class")),
             instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
             method_sigs: class_methods,

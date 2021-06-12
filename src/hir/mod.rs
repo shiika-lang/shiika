@@ -12,6 +12,7 @@ pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
+pub use crate::hir::sk_class::Superclass;
 use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty;

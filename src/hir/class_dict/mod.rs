@@ -40,11 +40,13 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Return parameters of `initialize`
+    /// Return parameters of `initialize` which is defined by
+    /// - `#initialize` in `defs` (if any) or,
+    /// - `#initialize` inherited from ancestors.
     fn initializer_params(
         &self,
         typarams: &[String],
-        super_class: &TermTy,
+        superclass: &Superclass,
         defs: &[ast::Definition],
     ) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
