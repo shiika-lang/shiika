@@ -207,7 +207,11 @@ impl<'a> Parser<'a> {
                 ))
             }
         };
-        Ok(ast::EnumCase { name, typarams, params })
+        Ok(ast::EnumCase {
+            name,
+            typarams,
+            params,
+        })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
