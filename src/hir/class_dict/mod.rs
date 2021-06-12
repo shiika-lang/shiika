@@ -5,7 +5,6 @@ use crate::error::*;
 use crate::hir;
 use crate::hir::*;
 use crate::names::*;
-use crate::ty::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
@@ -57,9 +56,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&super_class, &method_firstname("initialize"), &[])
+                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
-            sig.params
+            specialized_initialize(&sig, superclass).params
         }
     }
 
@@ -94,4 +93,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
         Ok(())
     }
+}
+
+/// Returns signature of `#initialize` inherited from generic class
+/// eg.
+///   class Foo<A>
+///     def initialize(a: A) ...
+///   class Bar<S, T> : Foo<Array<T>>
+///     # no explicit initialize
+/// Foo will have `#initialize(a: Array<T>)`
+fn specialized_initialize(sig: &MethodSignature, superclass: &Superclass) -> MethodSignature {
+    sig.specialize(Some(superclass.ty().tyargs()), None)
 }
