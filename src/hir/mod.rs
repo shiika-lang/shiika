@@ -69,6 +69,13 @@ impl SkIVar {
     pub fn accessor_name(&self) -> String {
         self.name.replace("@", "")
     }
+
+    /// Apply type arguments
+    fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
+        let mut ivar = self.clone();
+        ivar.ty = self.ty.substitute(Some(tyargs), None);
+        ivar
+    }
 }
 
 type SkIVars = HashMap<String, SkIVar>;
