@@ -49,7 +49,11 @@ impl TermTy {
             TySpe {
                 base_name,
                 type_args,
-            } => format!("{}<{}>", base_name, _dbg_type_args(type_args)),
+            } => format!(
+                "{}\x1b[32m<\x1b[0m{}\x1b[32m>\x1b[0m",
+                base_name,
+                _dbg_type_args(type_args)
+            ),
             TySpeMeta {
                 base_name,
                 type_args,
