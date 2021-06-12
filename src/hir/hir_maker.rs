@@ -272,10 +272,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars), Error> {
-        let super_ivars = self
-            .class_dict
-            .get_superclass(class_fullname)
-            .map(|super_cls| super_cls.ivars.clone());
+        let super_ivars = self.class_dict.superclass_ivars(class_fullname);
         self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
     }
 

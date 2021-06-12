@@ -76,4 +76,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             })
             .collect()
     }
+
+    /// Define ivars of a class
+    pub fn define_ivars(
+        &mut self,
+        classname: &ClassFullname,
+        own_ivars: HashMap<String, SkIVar>,
+    ) -> Result<(), Error> {
+        let ivars = self
+            .superclass_ivars(classname)
+            .unwrap_or_else(|| Default::default());
+        let class = self.get_class_mut(&classname);
+        debug_assert!(class.ivars.is_empty());
+        class.ivars = ivars;
+        own_ivars.into_iter().for_each(|(k, v)| {
+            class.ivars.insert(k, v);
+        });
+        Ok(())
+    }
 }

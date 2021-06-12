@@ -9,25 +9,6 @@ use std::collections::HashMap;
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Define ivars of a class
-    pub fn define_ivars(
-        &mut self,
-        classname: &ClassFullname,
-        own_ivars: HashMap<String, SkIVar>,
-    ) -> Result<(), Error> {
-        let super_ivars = match self.get_superclass(&classname) {
-            Some(super_cls) => super_cls.ivars.clone(),
-            None => HashMap::new(),
-        };
-        let class = self.get_class_mut(&classname);
-        debug_assert!(class.ivars.is_empty());
-        class.ivars = super_ivars;
-        own_ivars.into_iter().for_each(|(k, v)| {
-            class.ivars.insert(k, v);
-        });
-        Ok(())
-    }
-
     /// Register a class
     pub fn add_class(&mut self, class: SkClass) {
         self.sk_classes.insert(class.fullname.clone(), class);

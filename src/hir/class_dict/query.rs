@@ -150,4 +150,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
         class.ivars.get(ivar_name)
     }
+
+    /// Returns instance variables of the superclass of `classname`
+    pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
+        self.get_class(&classname).superclass.as_ref().map(|scls| {
+            let ty = scls.ty();
+            let ivars = &self.get_class(&ty.erasure()).ivars;
+            let tyargs = ty.tyargs();
+            ivars
+                .iter()
+                .map(|(name, ivar)| (name.clone(), ivar.substitute(tyargs)))
+                .collect()
+        })
+    }
 }
