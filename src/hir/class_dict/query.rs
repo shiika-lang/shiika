@@ -180,3 +180,112 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::error::Error;
+    use crate::hir::class_dict::ClassDict;
+    use crate::ty;
+
+    fn test_class_dict<F>(s: &str, f: F) -> Result<(), Error>
+    where
+        F: FnOnce(ClassDict) -> (),
+    {
+        let core = crate::runner::load_builtin_exports()?;
+        let ast = crate::parser::Parser::parse(s)?;
+        let class_dict =
+            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_classes)?;
+        f(class_dict);
+        Ok(())
+    }
+
+    #[test]
+    fn test_supertype_default() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            assert_eq!(
+                class_dict.supertype(&ty::ary(ty::raw("Int"))),
+                Some(ty::raw("Object"))
+            )
+        })
+    }
+
+    #[test]
+    fn test_supertype_gen() -> Result<(), Error> {
+        let src = "
+          class A<S, T> : Array<T>
+          end
+        ";
+        test_class_dict(src, |class_dict| {
+            assert_eq!(
+                class_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
+                Some(ty::ary(ty::raw("Bool")))
+            )
+        })
+    }
+
+    #[test]
+    fn test_is_descendant_simple() -> Result<(), Error> {
+        let src = "class A; end";
+        test_class_dict(src, |class_dict| {
+            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::raw("Object")));
+        })
+    }
+
+    #[test]
+    fn test_is_descendant_simple_inheritance() -> Result<(), Error> {
+        let src = "
+          class A; end
+          class B : A; end
+        ";
+        test_class_dict(src, |class_dict| {
+            assert!(class_dict.is_descendant(&ty::raw("B"), &ty::raw("A")));
+            assert!(class_dict.is_descendant(&ty::raw("B"), &ty::raw("Object")));
+        })
+    }
+
+    #[test]
+    fn test_is_descendant_inherit_spe() -> Result<(), Error> {
+        let src = "class A : Array<Int>; end";
+        test_class_dict(src, |class_dict| {
+            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::ary(ty::raw("Int"))));
+            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::raw("Object")));
+        })
+    }
+
+    #[test]
+    fn test_is_descendant_inherit_gen() -> Result<(), Error> {
+        let src = "
+            class MyMaybe<T>; end
+            class MySome<T> : MyMaybe<T>; end
+        ";
+        test_class_dict(src, |class_dict| {
+            let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
+            let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
+            assert!(class_dict.is_descendant(&some_int, &maybe_int));
+        })
+    }
+
+    #[test]
+    fn test_is_descendant_invariant() -> Result<(), Error> {
+        let src = "class A<T>; end";
+        test_class_dict(src, |class_dict| {
+            let a_int = ty::spe("A", vec![ty::raw("Int")]);
+            let a_obj = ty::spe("A", vec![ty::raw("Object")]);
+            assert!(!class_dict.is_descendant(&a_int, &a_obj));
+        })
+    }
+
+    #[test]
+    fn test_conforms_to_gen() -> Result<(), Error> {
+        let src = "
+            class MyMaybe<T>; end
+            class MySome<T> : MyMaybe<T>; end
+        ";
+        test_class_dict(src, |class_dict| {
+            let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
+            let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
+            assert!(some_int.conforms_to(&maybe_int, &class_dict));
+        })
+    }
+}
