@@ -210,61 +210,6 @@ impl TermTy {
         }
     }
 
-    /// Return true if `self` conforms to `other` i.e.
-    /// an object of the type `self` is included in the set of objects represented by the type `other`
-    // REFACTOR: move to class_dict
-    pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
-        // `Never` is bottom type (i.e. subclass of any class)
-        if self.is_never_type() {
-            return true;
-        }
-        if let TyParamRef { name, .. } = &self.body {
-            if let TyParamRef { name: name2, .. } = &other.body {
-                name == name2
-            } else {
-                other == &ty::raw("Object") // The upper bound
-            }
-        } else if let TyParamRef { name, .. } = &other.body {
-            if let TyParamRef { name: name2, .. } = &self.body {
-                name == name2
-            } else {
-                false
-            }
-        } else if let TySpe {
-            base_name,
-            type_args,
-        } = &self.body
-        {
-            if let TySpe {
-                base_name: b2,
-                type_args: a2,
-            } = &other.body
-            {
-                if base_name != b2 {
-                    // eg. Some<Int> vs. Maybe<Int>
-                    if !class_dict.is_descendant(&self, &other) {
-                        return false;
-                    }
-                }
-                for (i, a) in type_args.iter().enumerate() {
-                    // Invariant
-                    if a.equals_to(&a2[i]) || a2[i].is_void_type() {
-                        // ok
-                    } else {
-                        return false;
-                    }
-                }
-                true
-            } else {
-                // eg. Passing a `Array<String>` for `Object`
-                let base = ty::raw(base_name);
-                class_dict.is_descendant(&base, other)
-            }
-        } else {
-            self.equals_to(other) || class_dict.is_descendant(self, other)
-        }
-    }
-
     /// Return true if two types are identical
     pub fn equals_to(&self, other: &TermTy) -> bool {
         self == other

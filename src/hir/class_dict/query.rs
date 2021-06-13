@@ -157,6 +157,59 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         false
     }
 
+    /// Return true if `self` conforms to `other` i.e.
+    /// an object of the type `self` is included in the set of objects represented by the type `other`
+    pub fn conforms(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
+        // `Never` is bottom type (i.e. subclass of any class)
+        if ty1.is_never_type() {
+            return true;
+        }
+        if let TyBody::TyParamRef { name, .. } = &ty1.body {
+            if let TyBody::TyParamRef { name: name2, .. } = &ty2.body {
+                name == name2
+            } else {
+                ty2 == &ty::raw("Object") // The upper bound
+            }
+        } else if let TyBody::TyParamRef { name, .. } = &ty2.body {
+            if let TyBody::TyParamRef { name: name2, .. } = &ty1.body {
+                name == name2
+            } else {
+                false
+            }
+        } else if let TyBody::TySpe {
+            base_name: b1,
+            type_args: a1,
+        } = &ty1.body
+        {
+            if let TyBody::TySpe {
+                base_name: b2,
+                type_args: a2,
+            } = &ty2.body
+            {
+                if b1 != b2 {
+                    // eg. Some<Int> vs. Maybe<Int>
+                    if !self.is_descendant(&ty1, &ty2) {
+                        return false;
+                    }
+                }
+                for (i, a) in a1.iter().enumerate() {
+                    // Invariant
+                    if a.equals_to(&a2[i]) || a2[i].is_void_type() {
+                        // ok
+                    } else {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                // eg. Passing a `Array<String>` for `Object`
+                self.is_descendant(&ty::raw(b1), ty2)
+            }
+        } else {
+            ty1.equals_to(ty2) || self.is_descendant(ty1, ty2)
+        }
+    }
+
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(&classname).unwrap_or_else(|| {
             panic!(
@@ -277,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conforms_to_gen() -> Result<(), Error> {
+    fn test_conforms_to_some() -> Result<(), Error> {
         let src = "
             class MyMaybe<T>; end
             class MySome<T> : MyMaybe<T>; end
@@ -285,7 +338,20 @@ mod tests {
         test_class_dict(src, |class_dict| {
             let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(some_int.conforms_to(&maybe_int, &class_dict));
+            assert!(class_dict.conforms(&some_int, &maybe_int));
+        })
+    }
+
+    #[test]
+    fn test_conforms_to_none() -> Result<(), Error> {
+        let src = "
+            class MyMaybe<T>; end
+            class MyNone : MyMaybe<Never>; end
+        ";
+        test_class_dict(src, |class_dict| {
+            let none = ty::raw("MyNone");
+            let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
+            assert!(class_dict.conforms(&none, &maybe_int));
         })
     }
 }
