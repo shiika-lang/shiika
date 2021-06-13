@@ -105,6 +105,7 @@ pub enum TyBody {
     // This object belongs to the class `Class` (i.e. this is a class object)
     TyClass,
     // Types for generic metaclass eg. `Meta:Pair<S, T>`
+    // REFACTOR: remove this?
     TyGenMeta {
         base_name: String,          // eg. "Pair"
         typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
@@ -211,6 +212,7 @@ impl TermTy {
 
     /// Return true if `self` conforms to `other` i.e.
     /// an object of the type `self` is included in the set of objects represented by the type `other`
+    // REFACTOR: move to class_dict
     pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
         // `Never` is bottom type (i.e. subclass of any class)
         if self.is_never_type() {
@@ -239,8 +241,11 @@ impl TermTy {
             } = &other.body
             {
                 if base_name != b2 {
-                    return false;
-                } // TODO: Relax this condition
+                    // eg. Some<Int> vs. Maybe<Int>
+                    if !class_dict.is_descendant(&self, &other) {
+                        return false;
+                    }
+                }
                 for (i, a) in type_args.iter().enumerate() {
                     // Invariant
                     if a.equals_to(&a2[i]) || a2[i].is_void_type() {
@@ -265,32 +270,30 @@ impl TermTy {
         self == other
     }
 
-    /// Return the supertype of self
-    pub fn supertype(&self, class_dict: &ClassDict) -> Option<TermTy> {
+    /// Return class name without type arguments
+    /// eg.
+    ///   Array<Int>      =>  Array
+    ///   Pair<Int,Bool>  =>  Pair
+    pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw => class_dict
-                .get_superclass(&self.fullname)
-                .map(|scls| ty::raw(&scls.fullname.0)),
-            TyMeta { base_fullname } => {
-                match class_dict.get_superclass(&class_fullname(base_fullname)) {
-                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
-                    None => Some(ty::class()), // Meta:Object < Class
-                }
+            TyRaw => self.fullname.clone(),
+            TyMeta { base_fullname } => class_fullname(base_fullname),
+            TyClass => class_fullname("Class"),
+            TySpe { base_name, .. } | TySpeMeta { base_name, .. } | TyGenMeta { base_name, .. } => {
+                class_fullname(base_name)
             }
-            TyClass => Some(ty::raw("Object")),
-            TySpe { base_name, .. } => {
-                match class_dict.get_superclass(&class_fullname(base_name)) {
-                    Some(scls) => Some(ty::raw(&scls.fullname.0)),
-                    None => panic!("unexpected"),
-                }
-            }
-            TySpeMeta { base_name, .. } => {
-                match class_dict.get_superclass(&class_fullname(base_name)) {
-                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
-                    None => panic!("unexpected"),
-                }
-            }
-            _ => panic!("TODO: {}", self),
+            // TyParamRef => ??
+            _ => panic!("must not happen"),
+        }
+        // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
+        // To do this, TySpe.base_name etc. should be a ClassFullname rather than a String.
+    }
+
+    /// Returns type arguments, if any
+    pub fn tyargs(&self) -> &[TermTy] {
+        match &self.body {
+            TySpe { type_args, .. } | TySpeMeta { type_args, .. } => type_args,
+            _ => &[],
         }
     }
 
@@ -367,6 +370,15 @@ impl TermTy {
                 type_args.iter().map(|t| t.upper_bound()).collect(),
             ),
             _ => self.clone(),
+        }
+    }
+
+    pub fn contains_typaram_ref(&self) -> bool {
+        match &self.body {
+            TyParamRef { .. } => true,
+            TySpe { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
+            TySpeMeta { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
+            _ => false,
         }
     }
 }

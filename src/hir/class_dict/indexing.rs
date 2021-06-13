@@ -1,7 +1,7 @@
 use crate::ast;
 use crate::error;
 use crate::error::*;
-use crate::hir::class_dict::class_dict::ClassDict;
+use crate::hir::class_dict::class_dict::*;
 use crate::hir::*;
 use crate::names::*;
 use std::collections::HashMap;
@@ -197,7 +197,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        if !self.class_exists(&super_name.0) {
+        if !self.is_valid_superclass(superclass.ty(), typaram_names) {
             return Err(error::name_error(&format!(
                 "superclass {:?} of {:?} does not exist",
                 superclass, fullname,

@@ -20,29 +20,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns Err if not found.
     pub fn lookup_method(
         &self,
-        class: &TermTy,
+        receiver_class: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, ClassFullname), Error> {
-        match &class.body {
-            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyClass => {
-                let (base_sig, found_cls) = self.lookup_method_(class, class, method_name)?;
-                Ok((base_sig.specialize(None, Some(method_tyargs)), found_cls))
-            }
-            TyBody::TySpe { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
-                let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
-                let (base_sig, found_cls) = self.lookup_method_(base_cls, base_cls, method_name)?;
-                Ok((
-                    base_sig.specialize(Some(&type_args), Some(method_tyargs)),
-                    found_cls,
-                ))
-            }
-            TyBody::TyParamRef { .. } => {
-                let o = ty::raw("Object");
-                self.lookup_method_(&o, &o, method_name)
-            }
-            _ => todo!("{}", class),
-        }
+        let (base_sig, found_cls) =
+            self.lookup_method_(receiver_class, receiver_class, method_name)?;
+        //        let (base_sig, found_cls) = self.lookup_method_(receiver_class, start_class, method_name)?;
+        let sig = base_sig.specialize(None, Some(&method_tyargs));
+        Ok((sig, found_cls))
     }
 
     fn lookup_method_(
@@ -51,20 +37,23 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class: &TermTy,
         method_name: &MethodFirstname,
     ) -> Result<(MethodSignature, ClassFullname), Error> {
+        let ty_obj = ty::raw("Object");
+        let (class, class_tyargs) = match &class.body {
+            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyClass => (class, None),
+            TyBody::TySpe { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
+                let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
+                (base_cls, Some(type_args.as_slice()))
+            }
+            TyBody::TyParamRef { .. } => (&ty_obj, None),
+            _ => todo!("{}", class),
+        };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.clone(), class.fullname.clone()))
+            Ok((sig.specialize(class_tyargs, None), class.fullname.clone()))
         } else {
             // Look up in superclass
-            let sk_class = self.lookup_class(&class.fullname).ok_or_else(|| {
-                error::bug(&format!(
-                    "lookup_method: asked to find `{}' but class `{}' not found",
-                    &method_name.0, &class.fullname.0
-                ))
-            })?;
-            if let Some(super_name) = &sk_class.superclass_fullname {
-                // TODO #115: super may not be a ty::raw
-                let super_class = ty::raw(&super_name.0);
-                self.lookup_method_(receiver_class, &super_class, method_name)
+            let sk_class = self.get_class(&class.erasure());
+            if let Some(superclass) = &sk_class.superclass {
+                self.lookup_method_(receiver_class, superclass.ty(), method_name)
             } else {
                 Err(error::program_error(&format!(
                     "method {:?} not found on {:?}",
@@ -103,40 +92,67 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.lookup_class(&class_fullname(fullname)).is_some()
     }
 
-    /// Find the superclass
-    /// Return None if the class is `Object`
-    pub fn get_superclass(&self, classname: &ClassFullname) -> Option<&SkClass> {
-        let cls = self.get_class(&classname);
-        cls.superclass_fullname
-            .as_ref()
-            .map(|super_name| self.get_class(&super_name))
+    /// Check if given superclass can exist
+    /// (TODO: consider namespace)
+    pub fn is_valid_superclass(&self, ty: &TermTy, typaram_names: &[String]) -> bool {
+        match &ty.body {
+            TyBody::TyRaw => self.class_exists(&ty.fullname.0),
+            TyBody::TySpe {
+                base_name,
+                type_args,
+            } => {
+                if !self.class_exists(&base_name) {
+                    return false;
+                }
+                for t in type_args {
+                    if !self.is_valid_superclass(&t, typaram_names) {
+                        return false;
+                    }
+                }
+                true
+            }
+            TyBody::TyParamRef {
+                kind: TyParamKind::Class,
+                name,
+                idx,
+            } => {
+                let s = typaram_names.get(*idx);
+                debug_assert!(s.is_some());
+                debug_assert!(s.unwrap() == name);
+                true
+            }
+            _ => panic!("must not happen"),
+        }
     }
 
-    /// Return supertype of `ty`
-    pub fn supertype_of(&self, ty: &TermTy) -> Option<TermTy> {
-        ty.supertype(self)
+    /// Returns supertype of `ty` (except it is `Object`)
+    pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
+        self.get_class(&ty.erasure())
+            .superclass
+            .as_ref()
+            .map(|scls| scls.ty().substitute(Some(ty.tyargs()), None))
     }
 
     /// Return ancestor types of `ty`, including itself.
     pub fn ancestor_types(&self, ty: &TermTy) -> Vec<TermTy> {
         let mut v = vec![];
         let mut t = Some(ty.clone());
-        while t.is_some() {
-            v.push(t.unwrap());
-            t = self.supertype_of(&v.last().unwrap())
+        while let Some(tt) = t {
+            t = self.supertype(&tt);
+            v.push(tt);
         }
         v
     }
 
     /// Return true if ty1 is an descendant of ty2
+    /// Return value is unspecified when ty1 == ty2
     pub fn is_descendant(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
-        let expected = Some(ty2.clone());
         let mut t = Some(ty1.clone());
-        while t.is_some() {
-            t = self.supertype_of(&t.unwrap());
-            if t == expected {
+        while let Some(tt) = t {
+            if tt == *ty2 {
                 return true;
             }
+            t = self.supertype(&tt);
         }
         false
     }
