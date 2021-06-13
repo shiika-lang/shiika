@@ -80,25 +80,29 @@ impl VTables {
     /// Build vtables of the classes
     pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
-        let mut queue = sk_classes.keys().collect::<VecDeque<_>>();
+        let mut queue = sk_classes
+            .keys()
+            .map(|k| k.clone())
+            .collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if vtables.contains_key(name) || imports.sk_classes.contains_key(name) {
+            if vtables.contains_key(&name) || imports.sk_classes.contains_key(&name) {
                 continue;
             }
 
             let class = sk_classes.get(&name).unwrap();
             let super_vtable;
-            if let Some(super_name) = &class.superclass_fullname {
-                if let Some(x) = vtables.get(super_name) {
+            if let Some(superclass) = &class.superclass {
+                let super_name = superclass.ty().erasure();
+                if let Some(x) = vtables.get(&super_name) {
                     super_vtable = x;
-                } else if let Some(x) = imports.vtables.vtables.get(super_name) {
+                } else if let Some(x) = imports.vtables.vtables.get(&super_name) {
                     super_vtable = x;
                 } else {
-                    queue.push_front(&super_name);
-                    queue.push_back(&class.fullname);
+                    queue.push_front(super_name);
+                    queue.push_back(class.fullname.clone());
                     continue;
                 }
             } else {
