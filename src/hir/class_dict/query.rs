@@ -134,7 +134,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return ancestor types of `ty`, including itself.
-    pub fn ancestor_types(&self, ty: &TermTy) -> Vec<TermTy> {
+    fn ancestor_types(&self, ty: &TermTy) -> Vec<TermTy> {
         let mut v = vec![];
         let mut t = Some(ty.clone());
         while let Some(tt) = t {
@@ -142,6 +142,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             v.push(tt);
         }
         v
+    }
+
+    /// Return the nearest common ancestor of the classes
+    pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
+        let ancestors1 = self.ancestor_types(ty1);
+        let ancestors2 = self.ancestor_types(ty2);
+        for t2 in ancestors2 {
+            if let Some(eq) = ancestors1.iter().find(|t1| t1.equals_to(&t2)) {
+                return eq.clone();
+            }
+        }
+        panic!("[BUG] nearest_common_ancestor_type not found");
     }
 
     /// Return true if ty1 is an descendant of ty2
@@ -163,8 +175,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // `Never` is bottom type (i.e. subclass of any class)
         if ty1.is_never_type() {
             return true;
-        }
-        if let TyBody::TyParamRef { name, .. } = &ty1.body {
+        } else if let TyBody::TyParamRef { name, .. } = &ty1.body {
             if let TyBody::TyParamRef { name: name2, .. } = &ty2.body {
                 name == name2
             } else {
