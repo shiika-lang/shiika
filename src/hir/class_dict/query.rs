@@ -174,7 +174,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn conforms(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
         // `Never` is bottom type (i.e. subclass of any class)
         if ty1.is_never_type() {
-            return true;
+            true
+        } else if ty1.equals_to(ty2) {
+            true
         } else if let TyBody::TyParamRef { name, .. } = &ty1.body {
             if let TyBody::TyParamRef { name: name2, .. } = &ty2.body {
                 name == name2
@@ -187,37 +189,28 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             } else {
                 false
             }
-        } else if let TyBody::TySpe {
-            base_name: b1,
-            type_args: a1,
-        } = &ty1.body
-        {
-            if let TyBody::TySpe {
-                base_name: b2,
-                type_args: a2,
-            } = &ty2.body
-            {
-                if b1 != b2 {
-                    // eg. Some<Int> vs. Maybe<Int>
-                    if !self.is_descendant(&ty1, &ty2) {
-                        return false;
-                    }
-                }
-                for (i, a) in a1.iter().enumerate() {
-                    // Invariant
-                    if a.equals_to(&a2[i]) || a2[i].is_void_type() {
-                        // ok
+        } else {
+            let ancestors1 = self.ancestor_types(ty1);
+            let ancestors2 = self.ancestor_types(ty2);
+            for t2 in ancestors2 {
+                if let Some(t1) = ancestors1.iter().find(|t1| t1.same_base(&t2)) {
+                    // eg.
+                    // - Maybe<Never> conforms to Maybe<Object>
+                    // - Maybe<Bool> does not conform to Maybe<Object>
+                    if t1.equals_to(&t2) {
+                        return true;
+                    } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
+                        return true;
+                    } else if t1.erasure().0.starts_with("Fn") {
+                        // FIXME: typarams should have variance information
+                        return self
+                            .conforms(t1.tyargs().last().unwrap(), t2.tyargs().last().unwrap());
                     } else {
                         return false;
                     }
                 }
-                true
-            } else {
-                // eg. Passing a `Array<String>` for `Object`
-                self.is_descendant(&ty::raw(b1), ty2)
             }
-        } else {
-            ty1.equals_to(ty2) || self.is_descendant(ty1, ty2)
+            false
         }
     }
 
@@ -363,6 +356,19 @@ mod tests {
             let none = ty::raw("MyNone");
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
             assert!(class_dict.conforms(&none, &maybe_int));
+        })
+    }
+
+    #[test]
+    fn test_conforms_to_not() -> Result<(), Error> {
+        let src = "
+            class A : Array<Int>; end
+            class B : Array<Bool>; end
+        ";
+        test_class_dict(src, |class_dict| {
+            let a = ty::raw("A");
+            let b = ty::raw("B");
+            assert!(!class_dict.conforms(&a, &b));
         })
     }
 }

@@ -214,6 +214,12 @@ impl TermTy {
         self == other
     }
 
+    /// Return true when two types are the same if type args are removed
+    pub fn same_base(&self, other: &TermTy) -> bool {
+        // PERF: building strings is not necesarry
+        self.erasure() == other.erasure()
+    }
+
     /// Return class name without type arguments
     /// eg.
     ///   Array<Int>      =>  Array
