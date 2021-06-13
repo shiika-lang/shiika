@@ -424,7 +424,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for const_name in type_args {
             v.push(self._resolve_method_tyarg(const_name)?);
         }
-        let method_tyargs = if v.is_empty() { None } else { Some(v.as_slice()) };
+        let method_tyargs = if v.is_empty() {
+            None
+        } else {
+            Some(v.as_slice())
+        };
         let (sig, found_class_name) =
             self.class_dict
                 .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
