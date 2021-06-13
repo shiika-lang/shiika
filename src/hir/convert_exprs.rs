@@ -420,13 +420,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             // Implicit self
             _ => self.convert_self_expr(),
         };
-        let mut method_tyargs = vec![];
+        let mut v = vec![];
         for const_name in type_args {
-            method_tyargs.push(self._resolve_method_tyarg(const_name)?);
+            v.push(self._resolve_method_tyarg(const_name)?);
         }
+        let method_tyargs = if v.is_empty() { None } else { Some(v.as_slice()) };
         let (sig, found_class_name) =
             self.class_dict
-                .lookup_method(&receiver_hir.ty, method_name, &method_tyargs)?;
+                .lookup_method(&receiver_hir.ty, method_name, method_tyargs)?;
         self._make_method_call(receiver_hir, arg_hirs, sig, found_class_name)
     }
 
@@ -572,7 +573,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let self_expr = self.convert_self_expr();
         let found = self
             .class_dict
-            .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
+            .lookup_method(&self_expr.ty, &method_firstname(name), None);
         if let Ok((sig, found_class_name)) = found {
             self._make_method_call(self_expr, vec![], sig, found_class_name)
         } else {

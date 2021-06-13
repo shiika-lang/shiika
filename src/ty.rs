@@ -257,6 +257,7 @@ impl TermTy {
         class_tyargs: Option<&[TermTy]>,
         method_tyargs: Option<&[TermTy]>,
     ) -> TermTy {
+        debug_assert!(method_tyargs != Some(&[]));
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
                 TyParamKind::Class => {

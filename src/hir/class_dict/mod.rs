@@ -56,7 +56,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
+                .lookup_method(&superclass.ty(), &method_firstname("initialize"), None)
                 .expect("[BUG] initialize not found");
             specialized_initialize(&sig, superclass).params
         }

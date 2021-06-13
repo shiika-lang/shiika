@@ -22,12 +22,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         receiver_class: &TermTy,
         method_name: &MethodFirstname,
-        method_tyargs: &[TermTy],
+        method_tyargs: Option<&[TermTy]>,
     ) -> Result<(MethodSignature, ClassFullname), Error> {
         let (base_sig, found_cls) =
             self.lookup_method_(receiver_class, receiver_class, method_name)?;
-        //        let (base_sig, found_cls) = self.lookup_method_(receiver_class, start_class, method_name)?;
-        let sig = base_sig.specialize(None, Some(&method_tyargs));
+        let sig = base_sig.specialize(None, method_tyargs);
         Ok((sig, found_cls))
     }
 
