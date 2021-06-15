@@ -333,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conforms_to_some() -> Result<(), Error> {
+    fn test_conforms_some() -> Result<(), Error> {
         let src = "
             class MyMaybe<T>; end
             class MySome<T> : MyMaybe<T>; end
@@ -346,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conforms_to_none() -> Result<(), Error> {
+    fn test_conforms_none() -> Result<(), Error> {
         let src = "
             class MyMaybe<T>; end
             class MyNone : MyMaybe<Never>; end
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conforms_to_not() -> Result<(), Error> {
+    fn test_conforms_not() -> Result<(), Error> {
         let src = "
             class A : Array<Int>; end
             class B : Array<Bool>; end
