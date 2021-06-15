@@ -93,6 +93,7 @@ pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Resu
     }
 }
 
+/// Check argument types of a method call
 pub fn check_method_args(
     class_dict: &ClassDict,
     sig: &MethodSignature,
@@ -105,6 +106,7 @@ pub fn check_method_args(
     Ok(())
 }
 
+/// Check number of method call args
 fn check_method_arity(
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
@@ -124,6 +126,7 @@ fn check_method_arity(
     Ok(())
 }
 
+/// Check types of method call args
 fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
