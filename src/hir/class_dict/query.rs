@@ -24,10 +24,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         method_tyargs: Option<&[TermTy]>,
     ) -> Result<(MethodSignature, ClassFullname), Error> {
-        let (base_sig, found_cls) =
-            self.lookup_method_(receiver_class, receiver_class, method_name)?;
-        let sig = base_sig.specialize(None, method_tyargs);
-        Ok((sig, found_cls))
+        self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
     }
 
     fn lookup_method_(
@@ -35,6 +32,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_class: &TermTy,
         class: &TermTy,
         method_name: &MethodFirstname,
+        method_tyargs: Option<&[TermTy]>,
     ) -> Result<(MethodSignature, ClassFullname), Error> {
         let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
@@ -47,12 +45,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             _ => todo!("{}", class),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.specialize(class_tyargs, None), class.fullname.clone()))
+            Ok((sig.specialize(class_tyargs, method_tyargs), class.fullname.clone()))
         } else {
             // Look up in superclass
             let sk_class = self.get_class(&class.erasure());
             if let Some(superclass) = &sk_class.superclass {
-                self.lookup_method_(receiver_class, superclass.ty(), method_name)
+                self.lookup_method_(receiver_class, superclass.ty(), method_name, method_tyargs)
             } else {
                 Err(error::program_error(&format!(
                     "method {:?} not found on {:?}",
