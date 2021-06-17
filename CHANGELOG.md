@@ -1,6 +1,7 @@
 ## v0.6.0 (WIP)
 
 - Breaking change: Changed build process (see README) (#280, #284)
+- feat: Inheritance from generic class (#287)
 
 ## v0.5.4 (2021-04-04)
 
