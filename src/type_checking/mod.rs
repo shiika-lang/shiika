@@ -15,7 +15,7 @@ pub fn check_return_value(
     sig: &MethodSignature,
     ty: &TermTy,
 ) -> Result<(), Error> {
-    if sig.ret_ty.is_void_type() || ty.conforms_to(&sig.ret_ty, class_dict) {
+    if sig.ret_ty.is_void_type() || class_dict.conforms(ty, &sig.ret_ty) {
         Ok(())
     } else {
         Err(type_error!(
@@ -68,7 +68,7 @@ pub fn check_return_arg_type(
     return_arg_ty: &TermTy,
     method_sig: &MethodSignature,
 ) -> Result<(), Error> {
-    if return_arg_ty.conforms_to(&method_sig.ret_ty, class_dict) {
+    if class_dict.conforms(return_arg_ty, &method_sig.ret_ty) {
         Ok(())
     } else {
         Err(type_error!(
@@ -93,6 +93,7 @@ pub fn check_reassign_var(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Resu
     }
 }
 
+/// Check argument types of a method call
 pub fn check_method_args(
     class_dict: &ClassDict,
     sig: &MethodSignature,
@@ -105,6 +106,7 @@ pub fn check_method_args(
     Ok(())
 }
 
+/// Check number of method call args
 fn check_method_arity(
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
@@ -124,6 +126,7 @@ fn check_method_arity(
     Ok(())
 }
 
+/// Check types of method call args
 fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
@@ -132,7 +135,7 @@ fn check_arg_types(
     arg_hirs: &[hir::HirExpression],
 ) -> Result<(), Error> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
-        if !arg_ty.conforms_to(&param.ty, class_dict) {
+        if !class_dict.conforms(arg_ty, &param.ty) {
             return Err(type_error!(
                 "the argument `{}' of `{}' should be {} but got {} (receiver: {:?}, args: {:?})",
                 param.name,

@@ -52,15 +52,16 @@ impl<'a> Parser<'a> {
         let typarams = self.parse_opt_typarams()?;
 
         // Superclass name (optional)
-        let mut super_name = class_fullname("Object");
+        let mut superclass = None;
         self.skip_ws();
         if self.current_token_is(Token::Colon) {
             self.consume_token();
             self.skip_wsn();
             match self.current_token() {
                 Token::UpperWord(s) => {
-                    super_name = class_fullname(s);
+                    let ss = s.to_string();
                     self.consume_token();
+                    superclass = Some(self.parse_const_name(ss)?);
                 }
                 token => {
                     return Err(parse_error!(
@@ -96,7 +97,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Definition::ClassDefinition {
             name,
             typarams,
-            super_name,
+            superclass,
             defs,
         })
     }
@@ -207,7 +208,11 @@ impl<'a> Parser<'a> {
                 ))
             }
         };
-        Ok(ast::EnumCase { name, typarams, params })
+        Ok(ast::EnumCase {
+            name,
+            typarams,
+            params,
+        })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {

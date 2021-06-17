@@ -31,7 +31,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
+pub fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     let mut f = fs::File::open("builtin/exports.json")
         .map_err(|e| runner_error("builtin exports not found", Box::new(e)))?;
     let mut contents = String::new();

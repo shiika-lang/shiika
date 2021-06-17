@@ -1,4 +1,3 @@
-use crate::hir::class_dict::ClassDict;
 use serde::{Deserialize, Serialize};
 
 /// Shiika types
@@ -49,7 +48,11 @@ impl TermTy {
             TySpe {
                 base_name,
                 type_args,
-            } => format!("{}<{}>", base_name, _dbg_type_args(type_args)),
+            } => format!(
+                "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m",
+                base_name,
+                _dbg_type_args(type_args)
+            ),
             TySpeMeta {
                 base_name,
                 type_args,
@@ -101,6 +104,7 @@ pub enum TyBody {
     // This object belongs to the class `Class` (i.e. this is a class object)
     TyClass,
     // Types for generic metaclass eg. `Meta:Pair<S, T>`
+    // REFACTOR: remove this?
     TyGenMeta {
         base_name: String,          // eg. "Pair"
         typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
@@ -205,88 +209,41 @@ impl TermTy {
         }
     }
 
-    /// Return true if `self` conforms to `other` i.e.
-    /// an object of the type `self` is included in the set of objects represented by the type `other`
-    pub fn conforms_to(&self, other: &TermTy, class_dict: &ClassDict) -> bool {
-        // `Never` is bottom type (i.e. subclass of any class)
-        if self.is_never_type() {
-            return true;
-        }
-        if let TyParamRef { name, .. } = &self.body {
-            if let TyParamRef { name: name2, .. } = &other.body {
-                name == name2
-            } else {
-                other == &ty::raw("Object") // The upper bound
-            }
-        } else if let TyParamRef { name, .. } = &other.body {
-            if let TyParamRef { name: name2, .. } = &self.body {
-                name == name2
-            } else {
-                false
-            }
-        } else if let TySpe {
-            base_name,
-            type_args,
-        } = &self.body
-        {
-            if let TySpe {
-                base_name: b2,
-                type_args: a2,
-            } = &other.body
-            {
-                if base_name != b2 {
-                    return false;
-                } // TODO: Relax this condition
-                for (i, a) in type_args.iter().enumerate() {
-                    // Invariant
-                    if a.equals_to(&a2[i]) || a2[i].is_void_type() {
-                        // ok
-                    } else {
-                        return false;
-                    }
-                }
-                true
-            } else {
-                // eg. Passing a `Array<String>` for `Object`
-                let base = ty::raw(base_name);
-                class_dict.is_descendant(&base, other)
-            }
-        } else {
-            self.equals_to(other) || class_dict.is_descendant(self, other)
-        }
-    }
-
     /// Return true if two types are identical
     pub fn equals_to(&self, other: &TermTy) -> bool {
         self == other
     }
 
-    /// Return the supertype of self
-    pub fn supertype(&self, class_dict: &ClassDict) -> Option<TermTy> {
+    /// Return true when two types are the same if type args are removed
+    pub fn same_base(&self, other: &TermTy) -> bool {
+        // PERF: building strings is not necesarry
+        self.erasure() == other.erasure()
+    }
+
+    /// Return class name without type arguments
+    /// eg.
+    ///   Array<Int>      =>  Array
+    ///   Pair<Int,Bool>  =>  Pair
+    pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw => class_dict
-                .get_superclass(&self.fullname)
-                .map(|scls| ty::raw(&scls.fullname.0)),
-            TyMeta { base_fullname } => {
-                match class_dict.get_superclass(&class_fullname(base_fullname)) {
-                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
-                    None => Some(ty::class()), // Meta:Object < Class
-                }
+            TyRaw => self.fullname.clone(),
+            TyMeta { base_fullname } => class_fullname(base_fullname),
+            TyClass => class_fullname("Class"),
+            TySpe { base_name, .. } | TySpeMeta { base_name, .. } | TyGenMeta { base_name, .. } => {
+                class_fullname(base_name)
             }
-            TyClass => Some(ty::raw("Object")),
-            TySpe { base_name, .. } => {
-                match class_dict.get_superclass(&class_fullname(base_name)) {
-                    Some(scls) => Some(ty::raw(&scls.fullname.0)),
-                    None => panic!("unexpected"),
-                }
-            }
-            TySpeMeta { base_name, .. } => {
-                match class_dict.get_superclass(&class_fullname(base_name)) {
-                    Some(scls) => Some(ty::meta(&scls.fullname.0)),
-                    None => panic!("unexpected"),
-                }
-            }
-            _ => panic!("TODO: {}", self),
+            // TyParamRef => ??
+            _ => panic!("must not happen"),
+        }
+        // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
+        // To do this, TySpe.base_name etc. should be a ClassFullname rather than a String.
+    }
+
+    /// Returns type arguments, if any
+    pub fn tyargs(&self) -> &[TermTy] {
+        match &self.body {
+            TySpe { type_args, .. } | TySpeMeta { type_args, .. } => type_args,
+            _ => &[],
         }
     }
 
@@ -300,6 +257,7 @@ impl TermTy {
         class_tyargs: Option<&[TermTy]>,
         method_tyargs: Option<&[TermTy]>,
     ) -> TermTy {
+        debug_assert!(method_tyargs != Some(&[]));
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
                 TyParamKind::Class => {
@@ -363,6 +321,15 @@ impl TermTy {
                 type_args.iter().map(|t| t.upper_bound()).collect(),
             ),
             _ => self.clone(),
+        }
+    }
+
+    pub fn contains_typaram_ref(&self) -> bool {
+        match &self.body {
+            TyParamRef { .. } => true,
+            TySpe { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
+            TySpeMeta { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
+            _ => false,
         }
     }
 }
@@ -465,16 +432,4 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TyParam {
     pub name: String,
-}
-
-/// Return the nearest common ancestor of the classes
-pub fn nearest_common_ancestor(ty1: &TermTy, ty2: &TermTy, class_dict: &ClassDict) -> TermTy {
-    let ancestors1 = class_dict.ancestor_types(ty1);
-    let ancestors2 = class_dict.ancestor_types(ty2);
-    for t2 in ancestors2 {
-        if let Some(eq) = ancestors1.iter().find(|t1| t1.equals_to(&t2)) {
-            return eq.clone();
-        }
-    }
-    panic!("[BUG] nearest_common_ancestor_type not found");
 }

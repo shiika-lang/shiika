@@ -272,10 +272,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars), Error> {
-        let super_ivars = self
-            .class_dict
-            .get_superclass(class_fullname)
-            .map(|super_cls| super_cls.ivars.clone());
+        let super_ivars = self.class_dict.superclass_ivars(class_fullname);
         self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
     }
 
@@ -286,7 +283,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let (signature, _) = self.class_dict.lookup_method(
             &class_fullname.class_ty(),
             &method_firstname("new"),
-            &[],
+            None,
         )?;
         let arity = signature.params.len();
         let classname = class_fullname.clone();
@@ -315,7 +312,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
         let (_, found_cls) =
             self.class_dict
-                .lookup_method(&class, &method_firstname("initialize"), &[])?;
+                .lookup_method(&class, &method_firstname("initialize"), None)?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 

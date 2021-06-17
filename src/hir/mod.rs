@@ -12,6 +12,7 @@ pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
+pub use crate::hir::sk_class::Superclass;
 use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty;
@@ -68,6 +69,13 @@ impl SkIVar {
     /// Return "foo" for `@foo`
     pub fn accessor_name(&self) -> String {
         self.name.replace("@", "")
+    }
+
+    /// Apply type arguments
+    fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
+        let mut ivar = self.clone();
+        ivar.ty = self.ty.substitute(Some(tyargs), None);
+        ivar
     }
 }
 

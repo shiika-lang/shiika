@@ -17,7 +17,7 @@ pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
         typarams: Vec<String>,
-        super_name: ClassFullname,
+        superclass: Option<ConstName>,
         defs: Vec<Definition>,
     },
     EnumDefinition {

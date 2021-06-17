@@ -5,7 +5,6 @@ use crate::error::*;
 use crate::hir;
 use crate::hir::*;
 use crate::names::*;
-use crate::ty::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
@@ -40,11 +39,13 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Return parameters of `initialize`
+    /// Return parameters of `initialize` which is defined by
+    /// - `#initialize` in `defs` (if any) or,
+    /// - `#initialize` inherited from ancestors.
     fn initializer_params(
         &self,
         typarams: &[String],
-        super_class: &TermTy,
+        superclass: &Superclass,
         defs: &[ast::Definition],
     ) -> Vec<MethodParam> {
         if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
@@ -55,9 +56,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&super_class, &method_firstname("initialize"), &[])
+                .lookup_method(&superclass.ty(), &method_firstname("initialize"), None)
                 .expect("[BUG] initialize not found");
-            sig.params
+            specialized_initialize(&sig, superclass).params
         }
     }
 
@@ -74,4 +75,33 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             })
             .collect()
     }
+
+    /// Define ivars of a class
+    pub fn define_ivars(
+        &mut self,
+        classname: &ClassFullname,
+        own_ivars: HashMap<String, SkIVar>,
+    ) -> Result<(), Error> {
+        let ivars = self
+            .superclass_ivars(classname)
+            .unwrap_or_else(|| Default::default());
+        let class = self.get_class_mut(&classname);
+        debug_assert!(class.ivars.is_empty());
+        class.ivars = ivars;
+        own_ivars.into_iter().for_each(|(k, v)| {
+            class.ivars.insert(k, v);
+        });
+        Ok(())
+    }
+}
+
+/// Returns signature of `#initialize` inherited from generic class
+/// eg.
+///   class Foo<A>
+///     def initialize(a: A) ...
+///   class Bar<S, T> : Foo<Array<T>>
+///     # no explicit initialize
+/// Foo will have `#initialize(a: Array<T>)`
+fn specialized_initialize(sig: &MethodSignature, superclass: &Superclass) -> MethodSignature {
+    sig.specialize(Some(superclass.ty().tyargs()), None)
 }

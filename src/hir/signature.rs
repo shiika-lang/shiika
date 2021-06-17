@@ -23,6 +23,7 @@ impl MethodSignature {
         class_tyargs: Option<&[TermTy]>,
         method_tyargs: Option<&[TermTy]>,
     ) -> MethodSignature {
+        debug_assert!(method_tyargs != Some(&[]));
         MethodSignature {
             fullname: self.fullname.clone(),
             ret_ty: self.ret_ty.substitute(class_tyargs, method_tyargs),
