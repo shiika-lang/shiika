@@ -45,7 +45,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             _ => todo!("{}", class),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.specialize(class_tyargs, method_tyargs), class.fullname.clone()))
+            Ok((
+                sig.specialize(class_tyargs, method_tyargs),
+                class.fullname.clone(),
+            ))
         } else {
             // Look up in superclass
             let sk_class = self.get_class(&class.erasure());
