@@ -168,8 +168,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         false
     }
 
-    /// Return true if `self` conforms to `other` i.e.
-    /// an object of the type `self` is included in the set of objects represented by the type `other`
+    /// Return true if `ty1` conforms to `ty2` i.e.
+    /// an object of the type `ty1` is included in the set of objects represented by the type `ty2`
     pub fn conforms(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
         // `Never` is bottom type (i.e. subclass of any class)
         if ty1.is_never_type() {
@@ -189,24 +189,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 false
             }
         } else {
-            let ancestors1 = self.ancestor_types(ty1);
-            let ancestors2 = self.ancestor_types(ty2);
-            for t2 in ancestors2 {
-                if let Some(t1) = ancestors1.iter().find(|t1| t1.same_base(&t2)) {
-                    // eg.
-                    // - Maybe<Never> conforms to Maybe<Object>
-                    // - Maybe<Bool> does not conform to Maybe<Object>
-                    if t1.equals_to(&t2) {
-                        return true;
-                    } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
-                        return true;
-                    } else if t1.erasure().0.starts_with("Fn") {
-                        // FIXME: typarams should have variance information
-                        return self
-                            .conforms(t1.tyargs().last().unwrap(), t2.tyargs().last().unwrap());
-                    } else {
-                        return false;
-                    }
+            let is_void_fn = if let Some(ret_ty) = ty2.fn_x_info() {
+                ret_ty.is_void_type()
+            } else {
+                false
+            };
+            if let Some(t1) = self.ancestor_types(ty1).iter().find(|t| t.same_base(&ty2)) {
+                if t1.equals_to(&ty2) {
+                    return true;
+                } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
+                    return true;
+                } else {
+                    // Special care for void funcs
+                    return is_void_fn;
                 }
             }
             false
@@ -359,6 +354,16 @@ mod tests {
     }
 
     #[test]
+    fn test_conforms_invalid() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let a = ty::raw("Int");
+            let b = ty::raw("Bool");
+            assert!(!class_dict.conforms(&a, &b));
+        })
+    }
+
+    #[test]
     fn test_conforms_not() -> Result<(), Error> {
         let src = "
             class A : Array<Int>; end
@@ -368,6 +373,16 @@ mod tests {
             let a = ty::raw("A");
             let b = ty::raw("B");
             assert!(!class_dict.conforms(&a, &b));
+        })
+    }
+
+    #[test]
+    fn test_conforms_void_func() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let a = ty::spe("Fn0", vec![ty::raw("Int")]);
+            let b = ty::spe("Fn0", vec![ty::raw("Void")]);
+            assert!(class_dict.conforms(&a, &b));
         })
     }
 }
