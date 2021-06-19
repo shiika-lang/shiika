@@ -10,14 +10,24 @@ pub struct Superclass(TermTy);
 
 impl Superclass {
     /// Create a `Superclass`
-    pub fn new(t: TermTy) -> Superclass {
+    fn from_ty(t: TermTy) -> Superclass {
         debug_assert!(matches!(t.body, TyBody::TyRaw | TyBody::TySpe { .. }));
         Superclass(t)
     }
 
+    /// Create a (possiblly generic) `Superclass`
+    pub fn new(base_name: &ClassFullname, tyargs: Vec<TermTy>) -> Superclass {
+        let t = if tyargs.is_empty() {
+            ty::raw(&base_name.0)
+        } else {
+            ty::spe(&base_name.0, tyargs)
+        };
+        Superclass::from_ty(t)
+    }
+
     /// Shortcut from a class name
     pub fn simple(s: &str) -> Superclass {
-        Superclass(ty::raw(s))
+        Superclass::from_ty(ty::raw(s))
     }
 
     /// Default superclass (= Object)
@@ -26,7 +36,7 @@ impl Superclass {
     }
 
     pub fn from_const_name(name: &ConstName, typarams: &[String]) -> Superclass {
-        Superclass::new(name.to_ty(typarams))
+        Superclass::from_ty(name.to_ty(typarams))
     }
 
     pub fn ty(&self) -> &TermTy {
@@ -36,6 +46,6 @@ impl Superclass {
     /// Create concrete superclass of a generic class
     pub fn substitute(&self, tyargs: &[TermTy]) -> Superclass {
         let t = self.0.substitute(tyargs, Default::default());
-        Superclass::new(t)
+        Superclass::from_ty(t)
     }
 }
