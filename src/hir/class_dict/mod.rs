@@ -56,7 +56,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&superclass.ty(), &method_firstname("initialize"), None)
+                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
             specialized_initialize(&sig, superclass).params
         }
@@ -103,5 +103,5 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 ///     # no explicit initialize
 /// Foo will have `#initialize(a: Array<T>)`
 fn specialized_initialize(sig: &MethodSignature, superclass: &Superclass) -> MethodSignature {
-    sig.specialize(Some(superclass.ty().tyargs()), None)
+    sig.specialize(superclass.ty().tyargs(), &[])
 }

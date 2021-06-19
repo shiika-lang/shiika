@@ -35,7 +35,7 @@ impl Superclass {
 
     /// Create concrete superclass of a generic class
     pub fn substitute(&self, tyargs: &[TermTy]) -> Superclass {
-        let t = self.0.substitute(Some(tyargs), None);
+        let t = self.0.substitute(tyargs, Default::default());
         Superclass::new(t)
     }
 }

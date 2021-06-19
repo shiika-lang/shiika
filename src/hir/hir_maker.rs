@@ -283,7 +283,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let (signature, _) = self.class_dict.lookup_method(
             &class_fullname.class_ty(),
             &method_firstname("new"),
-            None,
+            Default::default(),
         )?;
         let arity = signature.params.len();
         let classname = class_fullname.clone();
@@ -310,9 +310,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
-        let (_, found_cls) =
-            self.class_dict
-                .lookup_method(&class, &method_firstname("initialize"), None)?;
+        let (_, found_cls) = self.class_dict.lookup_method(
+            &class,
+            &method_firstname("initialize"),
+            Default::default(),
+        )?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 

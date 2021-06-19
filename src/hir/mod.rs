@@ -75,7 +75,7 @@ impl SkIVar {
     /// Apply type arguments
     fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
         let mut ivar = self.clone();
-        ivar.ty = self.ty.substitute(Some(tyargs), None);
+        ivar.ty = self.ty.substitute(tyargs, &[]);
         ivar
     }
 }
