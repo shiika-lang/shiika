@@ -93,7 +93,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn define_class_constants(&mut self) {
-        //, class_names: Vec<String>) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
         }
@@ -410,25 +409,33 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Process a enum definition
     fn process_enum_def(
         &mut self,
-        _namespace: &Namespace,
-        _firstname: &ClassFirstname,
-        _typarams: Vec<String>,
-        _cases: &[ast::EnumCase],
+        namespace: &Namespace,
+        firstname: &ClassFirstname,
+        typarams: Vec<String>,
+        cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
-        // TODO: self._register_enum_case_class
+        let inner_namespace = namespace.add(firstname);
+        for case in cases {
+            self._register_enum_case_class(&inner_namespace, &typarams, case)?;
+        }
         Ok(())
     }
 
     fn _register_enum_case_class(
         &mut self,
-        _namespace: &Namespace,
-        _typarams: Vec<String>,
-        _case: &EnumCase,
-    ) {
-        // TODO: Register class constant of self
+        namespace: &Namespace,
+        _enum_typarams: &[String],
+        case: &EnumCase,
+    ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(&case.name);
+        let meta_name = fullname.meta_name();
         // TODO: Register #initialize
         // TODO: Register ivars
         // TODO: Register accessors
+
         // Register .new
+        self.method_dict
+            .add_method(&meta_name, self.create_new(&fullname)?);
+        Ok(())
     }
 }
