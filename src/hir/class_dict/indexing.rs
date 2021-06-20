@@ -97,6 +97,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 Some(new_sig),
                 instance_methods,
                 class_methods,
+                false,
             )?,
         }
         Ok(())
@@ -116,6 +117,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None,
             instance_methods,
             Default::default(),
+            false,
         )?;
         for case in cases {
             self.index_enum_case(fullname, typarams, case)?;
@@ -143,6 +145,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(new_sig),
             instance_methods,
             Default::default(),
+            enum_typarams.is_empty(),
         )?;
         Ok(())
     }
@@ -197,6 +200,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+        const_is_obj: bool,
     ) -> Result<(), Error> {
         let typarams = typaram_names
             .iter()
@@ -224,7 +228,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
-            const_is_obj: false,
+            const_is_obj,
             foreign: false,
         });
 
