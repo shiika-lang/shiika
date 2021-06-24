@@ -252,26 +252,21 @@ impl TermTy {
     ///   can have a generic method)
     /// - method_tyargs: None if not in a method context (eg. when creating
     ///   `Array<Int>` from `Array<T>`)
-    pub fn substitute(
-        &self,
-        class_tyargs: Option<&[TermTy]>,
-        method_tyargs: Option<&[TermTy]>,
-    ) -> TermTy {
-        debug_assert!(method_tyargs != Some(&[]));
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
             TyParamRef { kind, idx, .. } => match kind {
                 TyParamKind::Class => {
-                    if let Some(tyargs) = class_tyargs {
-                        tyargs[*idx].clone()
-                    } else {
+                    if class_tyargs.is_empty() {
                         self.clone()
+                    } else {
+                        class_tyargs[*idx].clone()
                     }
                 }
                 TyParamKind::Method => {
-                    if let Some(tyargs) = method_tyargs {
-                        tyargs[*idx].clone()
-                    } else {
+                    if method_tyargs.is_empty() {
                         self.clone()
+                    } else {
+                        method_tyargs[*idx].clone()
                     }
                 }
             },

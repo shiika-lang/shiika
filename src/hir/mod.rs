@@ -6,13 +6,14 @@ mod hir_maker_context;
 mod method_dict;
 pub mod signature;
 pub mod sk_class;
+mod superclass;
 use crate::ast;
 use crate::corelib::Corelib;
 pub use crate::hir::class_dict::ClassDict;
 pub use crate::hir::signature::MethodParam;
 pub use crate::hir::signature::MethodSignature;
 pub use crate::hir::sk_class::SkClass;
-pub use crate::hir::sk_class::Superclass;
+pub use crate::hir::superclass::Superclass;
 use crate::library::LibraryExports;
 use crate::names::*;
 use crate::ty;
@@ -74,7 +75,7 @@ impl SkIVar {
     /// Apply type arguments
     fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
         let mut ivar = self.clone();
-        ivar.ty = self.ty.substitute(Some(tyargs), None);
+        ivar.ty = self.ty.substitute(tyargs, &[]);
         ivar
     }
 }

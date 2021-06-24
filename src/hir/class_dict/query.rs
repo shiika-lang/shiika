@@ -22,7 +22,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         receiver_class: &TermTy,
         method_name: &MethodFirstname,
-        method_tyargs: Option<&[TermTy]>,
+        method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, ClassFullname), Error> {
         self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
     }
@@ -32,16 +32,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_class: &TermTy,
         class: &TermTy,
         method_name: &MethodFirstname,
-        method_tyargs: Option<&[TermTy]>,
+        method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, ClassFullname), Error> {
         let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
-            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyClass => (class, None),
+            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyClass => (class, Default::default()),
             TyBody::TySpe { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
-                (base_cls, Some(type_args.as_slice()))
+                (base_cls, type_args.as_slice())
             }
-            TyBody::TyParamRef { .. } => (&ty_obj, None),
+            TyBody::TyParamRef { .. } => (&ty_obj, Default::default()),
             _ => todo!("{}", class),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
@@ -64,7 +64,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
         self.sk_classes
             .get(class_fullname)
             .or_else(|| self.imported_classes.get(class_fullname))
@@ -130,7 +130,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.get_class(&ty.erasure())
             .superclass
             .as_ref()
-            .map(|scls| scls.ty().substitute(Some(ty.tyargs()), None))
+            .map(|scls| scls.ty().substitute(ty.tyargs(), &[]))
     }
 
     /// Return ancestor types of `ty`, including itself.

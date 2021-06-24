@@ -97,6 +97,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 Some(new_sig),
                 instance_methods,
                 class_methods,
+                false,
             )?,
         }
         Ok(())
@@ -109,7 +110,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
         let instance_methods = Default::default();
-        // TODO: getters and setters
         self.add_new_class(
             fullname,
             typarams,
@@ -117,6 +117,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None,
             instance_methods,
             Default::default(),
+            false,
         )?;
         for case in cases {
             self.index_enum_case(fullname, typarams, case)?;
@@ -126,11 +127,26 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_enum_case(
         &mut self,
-        _fullname: &ClassFullname,
-        _typarams: &[String],
-        _case: &ast::EnumCase,
+        enum_fullname: &ClassFullname,
+        enum_typarams: &[String],
+        case: &ast::EnumCase,
     ) -> Result<(), Error> {
-        // TODO
+        // TODO: getters and setters
+        let fullname = case.name.add_namespace(&enum_fullname.0);
+        // TODO: check case.typarams is a subset of enum_typarams
+        let superclass = enum_case_superclass(enum_fullname, enum_typarams, case);
+        let new_sig = enum_case_new_sig(&fullname, case);
+
+        let instance_methods = Default::default();
+        self.add_new_class(
+            &fullname,
+            &case.typarams,
+            superclass,
+            Some(new_sig),
+            instance_methods,
+            Default::default(),
+            enum_typarams.is_empty(),
+        )?;
         Ok(())
     }
 
@@ -184,6 +200,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+        const_is_obj: bool,
     ) -> Result<(), Error> {
         let typarams = typaram_names
             .iter()
@@ -211,7 +228,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
-            const_is_obj: false,
+            const_is_obj,
             foreign: false,
         });
 
@@ -230,4 +247,42 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
         Ok(())
     }
+}
+
+/// Returns superclass of a enum case
+fn enum_case_superclass(
+    enum_fullname: &ClassFullname,
+    enum_typarams: &[String],
+    case: &ast::EnumCase,
+) -> Superclass {
+    if case.params.is_empty() {
+        let tyargs = enum_typarams
+            .iter()
+            .map(|_| ty::raw("Never"))
+            .collect::<Vec<_>>();
+        Superclass::new(enum_fullname, tyargs)
+    } else {
+        let tyargs = enum_typarams
+            .iter()
+            .enumerate()
+            .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))
+            .collect::<Vec<_>>();
+        Superclass::new(enum_fullname, tyargs)
+    }
+}
+
+fn enum_case_new_sig(fullname: &ClassFullname, case: &ast::EnumCase) -> MethodSignature {
+    let params = signature::convert_params(&case.params, &case.typarams, &[]);
+    let ret_ty = if case.typarams.is_empty() {
+        ty::raw(&fullname.0)
+    } else {
+        let tyargs = case
+            .typarams
+            .iter()
+            .enumerate()
+            .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))
+            .collect::<Vec<_>>();
+        ty::spe(&fullname.0, tyargs)
+    };
+    signature::signature_of_new(&fullname.meta_name(), params, &ret_ty)
 }

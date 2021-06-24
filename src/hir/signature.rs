@@ -18,12 +18,7 @@ impl MethodSignature {
     }
 
     /// Substitute type parameters with type arguments
-    pub fn specialize(
-        &self,
-        class_tyargs: Option<&[TermTy]>,
-        method_tyargs: Option<&[TermTy]>,
-    ) -> MethodSignature {
-        debug_assert!(method_tyargs != Some(&[]));
+    pub fn specialize(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
             ret_ty: self.ret_ty.substitute(class_tyargs, method_tyargs),
@@ -44,11 +39,7 @@ pub struct MethodParam {
 }
 
 impl MethodParam {
-    pub fn substitute(
-        &self,
-        class_tyargs: Option<&[TermTy]>,
-        method_tyargs: Option<&[TermTy]>,
-    ) -> MethodParam {
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodParam {
         MethodParam {
             name: self.name.clone(),
             ty: self.ty.substitute(class_tyargs, method_tyargs),

@@ -93,10 +93,41 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn define_class_constants(&mut self) {
-        //, class_names: Vec<String>) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
-            self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
+            let resolved = ResolvedConstName::unsafe_create(name);
+            if const_is_obj {
+                self._create_single_instance_const(&resolved);
+            } else {
+                let ty = ty::meta(&resolved.string());
+                let str_idx = self.register_string_literal(&resolved.string());
+                let expr = Hir::class_literal(
+                    ty.clone(),
+                    resolved.to_class_fullname().meta_name(),
+                    str_idx,
+                );
+                self.register_const_full(resolved.to_const_fullname(), expr);
+            }
         }
+    }
+
+    /// Create constant like `Void`, `Maybe::None`.
+    fn _create_single_instance_const(&mut self, name: &ResolvedConstName) {
+        let str_idx = self.register_string_literal(&name.string());
+        let ty = ty::raw(&name.string());
+        // The class
+        let meta_name = const_is_obj_class_internal_const_name(name);
+        let meta_const_name = meta_name.to_const_fullname();
+        let cls_obj =
+            Hir::class_literal(ty.meta_ty(), name.to_class_fullname().meta_name(), str_idx);
+        let meta_const_assign = self.register_internal_const(meta_const_name.clone(), cls_obj);
+        // The instance
+        let expr = Hir::method_call(
+            ty.clone(),
+            meta_const_assign,
+            method_fullname(&metaclass_fullname(&name.string()), "new"),
+            vec![],
+        );
+        self.register_const_full(name.to_const_fullname(), expr);
     }
 
     fn convert_toplevel_items(
@@ -160,13 +191,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.ctx
             .classes
             .push(ClassCtx::new(namespace.add(firstname), typarams));
-
-        // Register class constant of self
-        let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
-        if !self.constants.contains_key(&const_name.to_const_fullname()) {
-            // eg. `Object` is defined both in src/corelib and builtin/
-            self._create_class_const(&const_name, false);
-        }
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, &fullname)?;
@@ -283,7 +307,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let (signature, _) = self.class_dict.lookup_method(
             &class_fullname.class_ty(),
             &method_firstname("new"),
-            None,
+            Default::default(),
         )?;
         let arity = signature.params.len();
         let classname = class_fullname.clone();
@@ -310,9 +334,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
-        let (_, found_cls) =
-            self.class_dict
-                .lookup_method(&class, &method_firstname("initialize"), None)?;
+        let (_, found_cls) = self.class_dict.lookup_method(
+            &class,
+            &method_firstname("initialize"),
+            Default::default(),
+        )?;
         Ok((names::method_fullname(&found_cls, "initialize"), found_cls))
     }
 
@@ -408,25 +434,33 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Process a enum definition
     fn process_enum_def(
         &mut self,
-        _namespace: &Namespace,
-        _firstname: &ClassFirstname,
-        _typarams: Vec<String>,
-        _cases: &[ast::EnumCase],
+        namespace: &Namespace,
+        firstname: &ClassFirstname,
+        typarams: Vec<String>,
+        cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
-        // TODO: self._register_enum_case_class
+        let inner_namespace = namespace.add(firstname);
+        for case in cases {
+            self._register_enum_case_class(&inner_namespace, &typarams, case)?;
+        }
         Ok(())
     }
 
     fn _register_enum_case_class(
         &mut self,
-        _namespace: &Namespace,
-        _typarams: Vec<String>,
-        _case: &EnumCase,
-    ) {
-        // TODO: Register class constant of self
+        namespace: &Namespace,
+        _enum_typarams: &[String],
+        case: &EnumCase,
+    ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(&case.name);
+        let meta_name = fullname.meta_name();
         // TODO: Register #initialize
         // TODO: Register ivars
         // TODO: Register accessors
+
         // Register .new
+        self.method_dict
+            .add_method(&meta_name, self.create_new(&fullname)?);
+        Ok(())
     }
 }
