@@ -862,7 +862,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         fullname: &ClassFullname,
         str_literal_idx: &usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let cls_obj = self.allocate_sk_obj(&fullname.meta_name(), &format!("class_{}", fullname.0));
+        let cls_obj = self.allocate_sk_obj(&fullname, &format!("{}", fullname.0));
         self.build_ivar_store(
             &cls_obj,
             0,

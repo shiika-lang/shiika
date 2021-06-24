@@ -64,7 +64,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
         self.sk_classes
             .get(class_fullname)
             .or_else(|| self.imported_classes.get(class_fullname))

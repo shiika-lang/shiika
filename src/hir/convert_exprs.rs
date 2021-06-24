@@ -694,21 +694,26 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve constant name
+    /// Also, register specialized class constant and its type eg. for
+    /// `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
     fn convert_const_ref(&mut self, name: &ConstName) -> Result<HirExpression, Error> {
         let (ty, resolved) = self._resolve_const(name)?;
         let full = resolved.to_const_fullname();
-        if self._lookup_const(&full).is_some() {
-            Ok(Hir::const_ref(ty, full))
-        } else {
+        if self._lookup_const(&full).is_none() {
             debug_assert!(resolved.has_type_args());
-            let class_ty = self._create_class_const(&resolved, false);
-            Ok(Hir::const_ref(class_ty, full))
+            // For `A<B>`, create its type `Meta:A<B>`
+            self._create_specialized_meta_class(&ty);
+            // Register const `A<B>`
+            let str_idx = self.register_string_literal(&resolved.string());
+            let expr = Hir::class_literal(ty.clone(), ty.fullname.clone(), str_idx);
+            self.register_const_full(full.clone(), expr);
         }
+        Ok(Hir::const_ref(ty, full))
     }
 
     /// Resolve const name (which may be a class)
     fn _resolve_const(&self, name: &ConstName) -> Result<(TermTy, ResolvedConstName), Error> {
-        self.__resolve_const(name, false)
+        self.__resolve_const(name, false) // class_only=false
     }
 
     /// Resolve const name which *must be* a class
@@ -716,7 +721,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &self,
         name: &ConstName,
     ) -> Result<(TermTy, ResolvedConstName), Error> {
-        let (resolved_ty, resolved_name) = self.__resolve_const(name, true)?;
+        let (resolved_ty, resolved_name) = self.__resolve_const(name, true)?; // class_only=true
+
         // `ty` is `Meta:XX` here but we want to remove `Meta:`
         // unless `ty` is typaram ref
         let ty = if matches!(&resolved_ty.body, TyBody::TyParamRef { .. }) {
@@ -754,7 +760,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 arg_types.push(ty);
                 args_resolved.push(resolved);
             }
-            let ty = ty::spe_meta(&base_resolved.string(), arg_types);
+            let base_name = match &base_ty.body {
+                TyBody::TyMeta { base_fullname } => base_fullname,
+                _ => panic!("unexpected"),
+            };
+            let ty = ty::spe_meta(base_name, arg_types);
             let resolved = base_resolved.with_type_args(args_resolved);
             Ok((ty, resolved))
         }
@@ -793,55 +803,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .map(|ty| ty.clone())
     }
 
-    /// Register constant of a class object (especially, specialized class)
-    /// Return class_ty
-    pub fn _create_class_const(&mut self, name: &ResolvedConstName, const_is_obj: bool) -> TermTy {
-        let ty = if name.has_type_args() {
-            // For `A<B>`, create its type `Meta:A<B>`
-            self._create_specialized_meta_class(name)
-        } else if const_is_obj {
-            ty::raw(&name.string())
-        } else {
-            debug_assert!(!name.string().starts_with("Meta:"));
-            ty::meta(&name.string())
-        };
-        self.__register_class_const(name, &ty, const_is_obj);
-        ty
-    }
-
-    /// Register class constant and optionally constant for its only instance
-    fn __register_class_const(
-        &mut self,
-        name: &ResolvedConstName,
-        ty: &TermTy,
-        const_is_obj: bool,
-    ) {
-        let str_idx = self.register_string_literal(&name.string());
-        if const_is_obj {
-            // eg. "Void"
-            // The class
-            let meta_name = const_is_obj_class_internal_const_name(name);
-            let meta_const_name = meta_name.to_const_fullname();
-            let cls_obj = Hir::class_literal(ty.meta_ty(), name.to_class_fullname(), str_idx);
-            let meta_const_assign = self.register_internal_const(meta_const_name.clone(), cls_obj);
-            // The instance
-            let expr = Hir::method_call(
-                ty.clone(),
-                meta_const_assign,
-                method_fullname(&metaclass_fullname(&name.string()), "new"),
-                vec![],
-            );
-            self.register_const_full(name.to_const_fullname(), expr);
-        } else {
-            // The class
-            let expr = Hir::class_literal(ty.clone(), name.to_class_fullname(), str_idx);
-            self.register_const_full(name.to_const_fullname(), expr);
+    /// Create `Meta:A<B>` for type `A<B>` (unless already exists)
+    fn _create_specialized_meta_class(&mut self, ty: &TermTy) {
+        let meta_name = ty.fullname.meta_name();
+        if self.class_dict.lookup_class(&meta_name).is_some() {
+            return;
         }
-    }
-
-    /// Create `Meta:A<B>` when there is a const `A<B>`
-    /// Return class_ty
-    fn _create_specialized_meta_class(&mut self, name: &ResolvedConstName) -> TermTy {
+        let meta_base = ty.erasure().meta_name(); // `Meta:A`
         let mut ivars = HashMap::new();
         ivars.insert(
             "name".to_string(),
@@ -852,22 +820,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 readonly: true,
             },
         );
-        let class_typarams = self.current_class_typarams();
-        let method_typarams = self.current_method_typarams();
-        let tyargs = name
-            .args
-            .iter()
-            .map(|arg| arg.to_ty(&class_typarams, &method_typarams))
-            .collect::<Vec<_>>();
         let metacls = self
             .class_dict
-            .get_class(&class_fullname(
-                "Meta:".to_string() + &name.names.join("::"),
-            ))
-            .specialized_meta(&tyargs);
-        let class_ty = metacls.instance_ty.clone();
+            .get_class(&meta_base)
+            .specialized_meta(ty.tyargs());
         self.class_dict.add_class(metacls);
-        class_ty
     }
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression, Error> {

@@ -94,8 +94,40 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
-            self._create_class_const(&ResolvedConstName::unsafe_create(name), const_is_obj);
+            let resolved = ResolvedConstName::unsafe_create(name);
+            if const_is_obj {
+                self._create_single_instance_const(&resolved);
+            } else {
+                let ty = ty::meta(&resolved.string());
+                let str_idx = self.register_string_literal(&resolved.string());
+                let expr = Hir::class_literal(
+                    ty.clone(),
+                    resolved.to_class_fullname().meta_name(),
+                    str_idx,
+                );
+                self.register_const_full(resolved.to_const_fullname(), expr);
+            }
         }
+    }
+
+    /// Create constant like `Void`, `Maybe::None`.
+    fn _create_single_instance_const(&mut self, name: &ResolvedConstName) {
+        let str_idx = self.register_string_literal(&name.string());
+        let ty = ty::raw(&name.string());
+        // The class
+        let meta_name = const_is_obj_class_internal_const_name(name);
+        let meta_const_name = meta_name.to_const_fullname();
+        let cls_obj =
+            Hir::class_literal(ty.meta_ty(), name.to_class_fullname().meta_name(), str_idx);
+        let meta_const_assign = self.register_internal_const(meta_const_name.clone(), cls_obj);
+        // The instance
+        let expr = Hir::method_call(
+            ty.clone(),
+            meta_const_assign,
+            method_fullname(&metaclass_fullname(&name.string()), "new"),
+            vec![],
+        );
+        self.register_const_full(name.to_const_fullname(), expr);
     }
 
     fn convert_toplevel_items(
@@ -159,13 +191,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.ctx
             .classes
             .push(ClassCtx::new(namespace.add(firstname), typarams));
-
-        // Register class constant of self
-        let const_name = resolved_const_name(namespace.clone(), vec![firstname.0.clone()]);
-        if !self.constants.contains_key(&const_name.to_const_fullname()) {
-            // eg. `Object` is defined both in src/corelib and builtin/
-            self._create_class_const(&const_name, false);
-        }
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(defs, &fullname)?;

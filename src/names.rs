@@ -294,6 +294,14 @@ impl ResolvedConstName {
         !self.args.is_empty()
     }
 
+    /// Returns `self` without type arguments
+    pub fn base(&self) -> ResolvedConstName {
+        ResolvedConstName {
+            names: self.names.clone(),
+            args: Default::default(),
+        }
+    }
+
     /// Convert to ConstFullname
     pub fn to_const_fullname(&self) -> ConstFullname {
         toplevel_const(&self.string())
