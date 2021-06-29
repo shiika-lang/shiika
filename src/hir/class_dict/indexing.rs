@@ -131,9 +131,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         enum_typarams: &[String],
         case: &ast::EnumCase,
     ) -> Result<(), Error> {
+        validate_enum_case_typarams(enum_fullname, enum_typarams, case)?;
         // TODO: getters and setters
         let fullname = case.name.add_namespace(&enum_fullname.0);
-        // TODO: check case.typarams is a subset of enum_typarams
         let superclass = enum_case_superclass(enum_fullname, enum_typarams, case);
         let new_sig = enum_case_new_sig(&fullname, case);
 
@@ -249,6 +249,23 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 }
 
+/// Check if `case_typarams` is subset of `enum_typarams`
+fn validate_enum_case_typarams(
+    enum_fullname: &ClassFullname,
+    enum_typarams: &[String],
+    case: &ast::EnumCase,
+) -> Result<(), Error> {
+    for c in &case.typarams {
+        if !enum_typarams.contains(&c) {
+            return Err(name_error(&format!(
+                "`{}::{}' has undefined type parameter `{}'",
+                enum_fullname, &case.name, c
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Returns superclass of a enum case
 fn enum_case_superclass(
     enum_fullname: &ClassFullname,
@@ -271,6 +288,7 @@ fn enum_case_superclass(
     }
 }
 
+/// Returns signature of `.new` of an enum case
 fn enum_case_new_sig(fullname: &ClassFullname, case: &ast::EnumCase) -> MethodSignature {
     let params = signature::convert_params(&case.params, &case.typarams, &[]);
     let ret_ty = if case.typarams.is_empty() {
