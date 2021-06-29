@@ -200,7 +200,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
-            self.class_dict.define_ivars(&fullname, own_ivars.clone())?;
+            self.class_dict.define_ivars(&fullname, own_ivars.clone());
             self.define_accessors(&fullname, own_ivars, defs);
         }
 
@@ -436,27 +436,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: Vec<String>,
+        _typarams: Vec<String>,
         cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
         let inner_namespace = namespace.add(firstname);
         for case in cases {
-            self._register_enum_case_class(&inner_namespace, &typarams, case)?;
+            self._register_enum_case_class(&inner_namespace, case)?;
         }
         Ok(())
     }
 
+    /// Create a enum case class
     fn _register_enum_case_class(
         &mut self,
         namespace: &Namespace,
-        _enum_typarams: &[String],
         case: &EnumCase,
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(&case.name);
         let meta_name = fullname.meta_name();
         // TODO: Register #initialize
-        // TODO: Register ivars
-        // TODO: Register accessors
+        // Register accessors
+        let ivars = self.class_dict.get_class(&fullname).ivars.clone();
+        self.define_accessors(&fullname, ivars, Default::default());
 
         // Register .new
         self.method_dict

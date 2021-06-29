@@ -73,7 +73,11 @@ pub fn create_signature(
 }
 
 // TODO: pass the list of visible classes
-fn convert_typ(typ: &ast::Typ, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
+pub fn convert_typ(
+    typ: &ast::Typ,
+    class_typarams: &[String],
+    method_typarams: &[String],
+) -> TermTy {
     if let Some(idx) = class_typarams.iter().position(|s| *s == typ.name) {
         ty::typaram(&typ.name, ty::TyParamKind::Class, idx)
     } else if let Some(idx) = method_typarams.iter().position(|s| *s == typ.name) {

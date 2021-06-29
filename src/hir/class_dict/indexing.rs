@@ -132,12 +132,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         case: &ast::EnumCase,
     ) -> Result<(), Error> {
         validate_enum_case_typarams(enum_fullname, enum_typarams, case)?;
-        // TODO: getters and setters
+        let ivar_list = enum_case_ivars(case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
         let superclass = enum_case_superclass(enum_fullname, enum_typarams, case);
         let new_sig = enum_case_new_sig(&fullname, case);
 
-        let instance_methods = Default::default();
+        let instance_methods = enum_case_getters(&fullname, &ivar_list);
         self.add_new_class(
             &fullname,
             &case.typarams,
@@ -147,6 +147,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Default::default(),
             enum_typarams.is_empty(),
         )?;
+        let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
+        self.define_ivars(&fullname, ivars);
         Ok(())
     }
 
@@ -266,6 +268,22 @@ fn validate_enum_case_typarams(
     Ok(())
 }
 
+/// List up ivars of an enum case
+fn enum_case_ivars(case: &ast::EnumCase) -> Result<Vec<SkIVar>, Error> {
+    let mut ivars = vec![];
+    for (idx, param) in case.params.iter().enumerate() {
+        let ty = signature::convert_typ(&param.typ, &case.typarams, &[]);
+        let ivar = SkIVar {
+            idx,
+            name: param.name.clone(),
+            ty,
+            readonly: true,
+        };
+        ivars.push(ivar);
+    }
+    Ok(ivars)
+}
+
 /// Returns superclass of a enum case
 fn enum_case_superclass(
     enum_fullname: &ClassFullname,
@@ -303,4 +321,20 @@ fn enum_case_new_sig(fullname: &ClassFullname, case: &ast::EnumCase) -> MethodSi
         ty::spe(&fullname.0, tyargs)
     };
     signature::signature_of_new(&fullname.meta_name(), params, &ret_ty)
+}
+
+/// Create signatures of getters of an enum case
+fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
+    ivars
+        .iter()
+        .map(|ivar| {
+            let sig = MethodSignature {
+                fullname: method_fullname(case_fullname, &ivar.accessor_name()),
+                ret_ty: ivar.ty.clone(),
+                params: Default::default(),
+                typarams: Default::default(),
+            };
+            (method_firstname(&ivar.name), sig)
+        })
+        .collect()
 }
