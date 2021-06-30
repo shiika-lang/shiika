@@ -453,15 +453,39 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         case: &EnumCase,
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(&case.name);
-        let meta_name = fullname.meta_name();
-        // TODO: Register #initialize
+
+        // Register #initialize
+        let signature = self
+            .class_dict
+            .find_method(&fullname, &method_firstname("initialize"))
+            .unwrap();
+        let self_ty = ty::raw(&fullname.0);
+        let exprs = signature
+            .params
+            .iter()
+            .enumerate()
+            .map(|(idx, param)| {
+                let argref = Hir::arg_ref(param.ty.clone(), idx);
+                Hir::ivar_assign(&param.name, idx, argref, false, self_ty.clone())
+            })
+            .collect();
+        let body = SkMethodBody::ShiikaMethodBody {
+            exprs: HirExpressions::new(exprs),
+        };
+        let initialize = SkMethod {
+            signature: signature.clone(),
+            body,
+            lvars: Default::default(),
+        };
+        self.method_dict.add_method(&fullname, initialize);
+
         // Register accessors
         let ivars = self.class_dict.get_class(&fullname).ivars.clone();
         self.define_accessors(&fullname, ivars, Default::default());
 
         // Register .new
         self.method_dict
-            .add_method(&meta_name, self.create_new(&fullname)?);
+            .add_method(&fullname.meta_name(), self.create_new(&fullname)?);
         Ok(())
     }
 }

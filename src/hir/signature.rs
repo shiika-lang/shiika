@@ -121,3 +121,16 @@ pub fn signature_of_new(
         typarams: vec![],
     }
 }
+
+/// Create a signature of a `initialize` method
+pub fn signature_of_initialize(
+    class_fullname: &ClassFullname,
+    params: Vec<MethodParam>,
+) -> MethodSignature {
+    MethodSignature {
+        fullname: method_fullname(class_fullname, "initialize"),
+        ret_ty: ty::raw("Void"),
+        params,
+        typarams: vec![],
+    }
+}

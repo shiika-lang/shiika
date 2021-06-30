@@ -135,9 +135,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let ivar_list = enum_case_ivars(case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
         let superclass = enum_case_superclass(enum_fullname, enum_typarams, case);
-        let new_sig = enum_case_new_sig(&fullname, case);
+        let (new_sig, initialize_sig) = enum_case_new_sig(&fullname, case);
 
-        let instance_methods = enum_case_getters(&fullname, &ivar_list);
+        let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
+        instance_methods.insert(method_firstname("initialize"), initialize_sig);
+
         self.add_new_class(
             &fullname,
             &case.typarams,
@@ -306,8 +308,11 @@ fn enum_case_superclass(
     }
 }
 
-/// Returns signature of `.new` of an enum case
-fn enum_case_new_sig(fullname: &ClassFullname, case: &ast::EnumCase) -> MethodSignature {
+/// Returns signature of `.new` and `#initialize` of an enum case
+fn enum_case_new_sig(
+    fullname: &ClassFullname,
+    case: &ast::EnumCase,
+) -> (MethodSignature, MethodSignature) {
     let params = signature::convert_params(&case.params, &case.typarams, &[]);
     let ret_ty = if case.typarams.is_empty() {
         ty::raw(&fullname.0)
@@ -320,7 +325,10 @@ fn enum_case_new_sig(fullname: &ClassFullname, case: &ast::EnumCase) -> MethodSi
             .collect::<Vec<_>>();
         ty::spe(&fullname.0, tyargs)
     };
-    signature::signature_of_new(&fullname.meta_name(), params, &ret_ty)
+    (
+        signature::signature_of_new(&fullname.meta_name(), params.clone(), &ret_ty),
+        signature::signature_of_initialize(&fullname, params),
+    )
 }
 
 /// Create signatures of getters of an enum case
