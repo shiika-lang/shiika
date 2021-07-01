@@ -1,14 +1,8 @@
-enum Maybe<V>
-  case Some<V>(value: V)
-  case None
-end
-Some = Maybe::Some
-None = Maybe::None
-a = Some<Int>.new(1)
-b = None
+a = Maybe::Some<Int>.new(1)
+b = Maybe::None
 f = fn(x: Maybe<Int>) { x }
 f(a)
 f(b)
-# TODO: unless a.value == 1; puts "ng Some#value"; end
+unless a.value == 1; puts "ng Some#value"; end
 
 puts "ok"
