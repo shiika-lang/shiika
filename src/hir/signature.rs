@@ -73,7 +73,11 @@ pub fn create_signature(
 }
 
 // TODO: pass the list of visible classes
-fn convert_typ(typ: &ast::Typ, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
+pub fn convert_typ(
+    typ: &ast::Typ,
+    class_typarams: &[String],
+    method_typarams: &[String],
+) -> TermTy {
     if let Some(idx) = class_typarams.iter().position(|s| *s == typ.name) {
         ty::typaram(&typ.name, ty::TyParamKind::Class, idx)
     } else if let Some(idx) = method_typarams.iter().position(|s| *s == typ.name) {
@@ -114,6 +118,19 @@ pub fn signature_of_new(
         fullname: method_fullname(metaclass_fullname, "new"),
         ret_ty: instance_ty.clone(),
         params: initialize_params,
+        typarams: vec![],
+    }
+}
+
+/// Create a signature of a `initialize` method
+pub fn signature_of_initialize(
+    class_fullname: &ClassFullname,
+    params: Vec<MethodParam>,
+) -> MethodSignature {
+    MethodSignature {
+        fullname: method_fullname(class_fullname, "initialize"),
+        ret_ty: ty::raw("Void"),
+        params,
         typarams: vec![],
     }
 }

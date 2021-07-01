@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassFirstname(pub String);
 
+impl std::fmt::Display for ClassFirstname {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl ClassFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
         if namespace.is_empty() {
