@@ -52,6 +52,11 @@ task :clean do
 end
 
 task :test do
+  cd "src/rustlib" do
+    sh "cargo fmt"
+    sh "cargo build"
+  end
+  sh "cargo run -- build_corelib"
   sh "cargo test"
 end
 
