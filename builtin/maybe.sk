@@ -1,5 +1,5 @@
 enum Maybe<V>
-  case Some<V>(value: V)
+  case Some(value: V)
   case None
 end
 #Some = Maybe::Some

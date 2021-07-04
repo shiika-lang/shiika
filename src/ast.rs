@@ -42,7 +42,6 @@ pub enum Definition {
 #[derive(Debug, PartialEq)]
 pub struct EnumCase {
     pub name: ClassFirstname,
-    pub typarams: Vec<String>,
     pub params: Vec<Param>,
 }
 

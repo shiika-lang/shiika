@@ -192,7 +192,6 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
-        let typarams = self.parse_opt_typarams()?;
         let params = match self.current_token() {
             Token::Separator => vec![],
             Token::LParen => {
@@ -210,7 +209,6 @@ impl<'a> Parser<'a> {
         };
         Ok(ast::EnumCase {
             name,
-            typarams,
             params,
         })
     }

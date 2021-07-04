@@ -1,0 +1,4 @@
+enum Result<V, E>
+  case Ok(value: V)
+  case Err(err: E)
+end
