@@ -1,0 +1,6 @@
+# Represents an error
+class Error
+  def initialize(@msg: String); end
+
+  # def backtrace
+end

@@ -128,26 +128,25 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_enum_case(
         &mut self,
         enum_fullname: &ClassFullname,
-        enum_typarams: &[String],
+        typarams: &[String],
         case: &ast::EnumCase,
     ) -> Result<(), Error> {
-        validate_enum_case_typarams(enum_fullname, enum_typarams, case)?;
-        let ivar_list = enum_case_ivars(case)?;
+        let ivar_list = enum_case_ivars(typarams, case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
-        let superclass = enum_case_superclass(enum_fullname, enum_typarams, case);
-        let (new_sig, initialize_sig) = enum_case_new_sig(&fullname, case);
+        let superclass = enum_case_superclass(enum_fullname, typarams, case);
+        let (new_sig, initialize_sig) = enum_case_new_sig(typarams, &fullname, case);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
         instance_methods.insert(method_firstname("initialize"), initialize_sig);
 
         self.add_new_class(
             &fullname,
-            &case.typarams,
+            &typarams,
             superclass,
             Some(new_sig),
             instance_methods,
             Default::default(),
-            enum_typarams.is_empty(),
+            case.params.is_empty(),
         )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
@@ -253,28 +252,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 }
 
-/// Check if `case_typarams` is subset of `enum_typarams`
-fn validate_enum_case_typarams(
-    enum_fullname: &ClassFullname,
-    enum_typarams: &[String],
-    case: &ast::EnumCase,
-) -> Result<(), Error> {
-    for c in &case.typarams {
-        if !enum_typarams.contains(&c) {
-            return Err(name_error(&format!(
-                "`{}::{}' has undefined type parameter `{}'",
-                enum_fullname, &case.name, c
-            )));
-        }
-    }
-    Ok(())
-}
-
 /// List up ivars of an enum case
-fn enum_case_ivars(case: &ast::EnumCase) -> Result<Vec<SkIVar>, Error> {
+fn enum_case_ivars(typarams: &[String], case: &ast::EnumCase) -> Result<Vec<SkIVar>, Error> {
     let mut ivars = vec![];
     for (idx, param) in case.params.iter().enumerate() {
-        let ty = signature::convert_typ(&param.typ, &case.typarams, &[]);
+        let ty = signature::convert_typ(&param.typ, &typarams, &[]);
         let ivar = SkIVar {
             idx,
             name: param.name.clone(),
@@ -289,17 +271,17 @@ fn enum_case_ivars(case: &ast::EnumCase) -> Result<Vec<SkIVar>, Error> {
 /// Returns superclass of a enum case
 fn enum_case_superclass(
     enum_fullname: &ClassFullname,
-    enum_typarams: &[String],
+    typarams: &[String],
     case: &ast::EnumCase,
 ) -> Superclass {
     if case.params.is_empty() {
-        let tyargs = enum_typarams
+        let tyargs = typarams
             .iter()
             .map(|_| ty::raw("Never"))
             .collect::<Vec<_>>();
         Superclass::new(enum_fullname, tyargs)
     } else {
-        let tyargs = enum_typarams
+        let tyargs = typarams
             .iter()
             .enumerate()
             .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))
@@ -310,15 +292,15 @@ fn enum_case_superclass(
 
 /// Returns signature of `.new` and `#initialize` of an enum case
 fn enum_case_new_sig(
+    typarams: &[String],
     fullname: &ClassFullname,
     case: &ast::EnumCase,
 ) -> (MethodSignature, MethodSignature) {
-    let params = signature::convert_params(&case.params, &case.typarams, &[]);
-    let ret_ty = if case.typarams.is_empty() {
+    let params = signature::convert_params(&case.params, &typarams, &[]);
+    let ret_ty = if case.params.is_empty() {
         ty::raw(&fullname.0)
     } else {
-        let tyargs = case
-            .typarams
+        let tyargs = typarams
             .iter()
             .enumerate()
             .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))

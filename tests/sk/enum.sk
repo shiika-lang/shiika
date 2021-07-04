@@ -5,4 +5,7 @@ f(a)
 f(b)
 unless a.value == 1; puts "ng Some#value"; end
 
+o = Result::Ok<Int, Error>.new(0)
+e = Result::Err<Int, Error>.new(Error.new("fail"))
+
 puts "ok"
