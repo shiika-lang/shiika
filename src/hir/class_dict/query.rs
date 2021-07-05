@@ -70,6 +70,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .or_else(|| self.imported_classes.get(class_fullname))
     }
 
+    /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)

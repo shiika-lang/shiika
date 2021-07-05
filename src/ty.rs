@@ -329,6 +329,14 @@ impl TermTy {
     }
 }
 
+pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
+    if args.is_empty() {
+        ty::raw(&names.join("::"))
+    } else {
+        ty::spe(&names.join("::"), args)
+    }
+}
+
 pub fn raw(fullname: &str) -> TermTy {
     debug_assert!(!fullname.contains('<'), "{}", fullname.to_string());
     TermTy {

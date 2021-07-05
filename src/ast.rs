@@ -50,20 +50,14 @@ pub struct AstMethodSignature {
     pub name: MethodFirstname,
     pub typarams: Vec<String>,
     pub params: Vec<Param>,
-    pub ret_typ: Typ,
+    pub ret_typ: Option<ConstName>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Param {
     pub name: String,
-    pub typ: Typ,
+    pub typ: ConstName,
     pub is_iparam: bool, // eg. `def initialize(@a: Int)`
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Typ {
-    pub name: String,
-    pub typ_args: Vec<Typ>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -138,10 +138,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[String],
         case: &ast::EnumCase,
     ) -> Result<(), Error> {
-        let ivar_list = enum_case_ivars(typarams, case)?;
+        let ivar_list = self._enum_case_ivars(namespace, typarams, case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
         let superclass = enum_case_superclass(enum_fullname, typarams, case);
-        let (new_sig, initialize_sig) = enum_case_new_sig(typarams, &fullname, case);
+        let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, typarams, &fullname);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
         instance_methods.insert(method_firstname("initialize"), initialize_sig);
@@ -160,6 +160,27 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(())
     }
 
+    /// List up ivars of an enum case
+    fn _enum_case_ivars(
+        &self,
+        namespace: &Namespace,
+        typarams: &[String],
+        case: &ast::EnumCase,
+    ) -> Result<Vec<SkIVar>, Error> {
+        let mut ivars = vec![];
+        for (idx, param) in case.params.iter().enumerate() {
+            let ty = self._resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
+            let ivar = SkIVar {
+                idx,
+                name: param.name.clone(),
+                ty,
+                readonly: true,
+            };
+            ivars.push(ivar);
+        }
+        Ok(ivars)
+    }
+
     fn index_defs_in_class(
         &mut self,
         namespace: &Namespace,
@@ -172,11 +193,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&fullname, sig, typarams);
+                    let hir_sig = self._create_signature(namespace, &fullname, sig, typarams)?;
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = signature::create_signature(&fullname.meta_name(), sig, &[]);
+                    let hir_sig = self._create_signature(
+                        namespace,
+                        &fullname.meta_name(),
+                        sig,
+                        Default::default(),
+                    )?;
                     class_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ConstDefinition { .. } => (),
@@ -256,22 +282,80 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
         Ok(())
     }
-}
 
-/// List up ivars of an enum case
-fn enum_case_ivars(typarams: &[String], case: &ast::EnumCase) -> Result<Vec<SkIVar>, Error> {
-    let mut ivars = vec![];
-    for (idx, param) in case.params.iter().enumerate() {
-        let ty = signature::convert_typ(&param.typ, &typarams, &[]);
-        let ivar = SkIVar {
-            idx,
-            name: param.name.clone(),
-            ty,
-            readonly: true,
+    fn _create_signature(
+        &self,
+        namespace: &Namespace,
+        class_fullname: &ClassFullname,
+        sig: &ast::AstMethodSignature,
+        class_typarams: &[String],
+    ) -> Result<MethodSignature, Error> {
+        let fullname = method_fullname(class_fullname, &sig.name.0);
+        let ret_ty = if let Some(typ) = &sig.ret_typ {
+            self._resolve_typename(namespace, class_typarams, &sig.typarams, typ)?
+        } else {
+            ty::raw("Void") // Default return type.
         };
-        ivars.push(ivar);
+        let mut params = vec![];
+        for param in &sig.params {
+            params.push(MethodParam {
+                name: param.name.to_string(),
+                ty: self._resolve_typename(namespace, class_typarams, &sig.typarams, &param.typ)?,
+            });
+        }
+        Ok(MethodSignature {
+            fullname,
+            ret_ty,
+            params,
+            typarams: sig.typarams.clone(),
+        })
     }
-    Ok(ivars)
+
+    /// Resolve the given type name to fullname
+    fn _resolve_typename(
+        &self,
+        namespace: &Namespace,
+        class_typarams: &[String],
+        method_typarams: &[String],
+        name: &ConstName,
+    ) -> Result<TermTy, Error> {
+        // Check it is a typaram
+        if name.args.is_empty() && name.names.len() == 1 {
+            let s = name.names.first().unwrap();
+            if let Some(idx) = class_typarams.iter().position(|t| s == t) {
+                return Ok(ty::typaram(s, TyParamKind::Class, idx));
+            } else if let Some(idx) = method_typarams.iter().position(|t| s == t) {
+                return Ok(ty::typaram(s, TyParamKind::Method, idx));
+            }
+        }
+        // Otherwise:
+        let mut tyargs = vec![];
+        for arg in &name.args {
+            tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
+        }
+        let resolved_base = self._resolve_simple_typename(namespace, &name.names)?;
+        Ok(ty::nonmeta(&resolved_base, tyargs))
+    }
+
+    /// Resolve the given type name (without type arguments) to fullname
+    fn _resolve_simple_typename(
+        &self,
+        namespace: &Namespace,
+        names: &[String],
+    ) -> Result<Vec<String>, Error> {
+        let n = namespace.len();
+        for k in 0..n {
+            let mut resolved = namespace.head(n - k).to_vec();
+            resolved.append(&mut names.to_vec());
+            if self.class_exists(&resolved.join("::")) {
+                return Ok(resolved);
+            }
+        }
+        Err(error::name_error(&format!(
+            "unknown type {:?} in {:?}",
+            names, namespace,
+        )))
+    }
 }
 
 /// Returns superclass of a enum case
@@ -298,12 +382,18 @@ fn enum_case_superclass(
 
 /// Returns signature of `.new` and `#initialize` of an enum case
 fn enum_case_new_sig(
+    ivar_list: &[SkIVar],
     typarams: &[String],
     fullname: &ClassFullname,
-    case: &ast::EnumCase,
 ) -> (MethodSignature, MethodSignature) {
-    let params = signature::convert_params(&case.params, &typarams, &[]);
-    let ret_ty = if case.params.is_empty() {
+    let params = ivar_list
+        .iter()
+        .map(|ivar| MethodParam {
+            name: ivar.name.to_string(),
+            ty: ivar.ty.clone(),
+        })
+        .collect::<Vec<_>>();
+    let ret_ty = if ivar_list.is_empty() {
         ty::raw(&fullname.0)
     } else {
         let tyargs = typarams
