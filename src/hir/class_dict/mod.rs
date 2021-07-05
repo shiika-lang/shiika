@@ -2,7 +2,6 @@ mod indexing;
 mod query;
 use crate::ast;
 use crate::error::*;
-use crate::hir;
 use crate::hir::*;
 use crate::names::*;
 
@@ -39,29 +38,6 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Return parameters of `initialize` which is defined by
-    /// - `#initialize` in `defs` (if any) or,
-    /// - `#initialize` inherited from ancestors.
-    fn initializer_params(
-        &self,
-        typarams: &[String],
-        superclass: &Superclass,
-        defs: &[ast::Definition],
-    ) -> Vec<MethodParam> {
-        if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
-            defs.iter().find(|d| d.is_initializer())
-        {
-            // Has explicit initializer definition
-            hir::signature::convert_params(&sig.params, typarams, &[])
-        } else {
-            // Inherit #initialize from superclass
-            let (sig, _) = self
-                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
-                .expect("[BUG] initialize not found");
-            specialized_initialize(&sig, superclass).params
-        }
-    }
-
     /// Returns information for creating class constants
     pub fn constant_list(&self) -> Vec<(String, bool)> {
         self.sk_classes

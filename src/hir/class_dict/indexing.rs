@@ -68,7 +68,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            self.initializer_params(typarams, &superclass, &defs),
+            self.initializer_params(namespace, typarams, &superclass, &defs)?,
             &ty::return_type_of_new(&fullname, typarams),
         );
 
@@ -105,6 +105,30 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             )?,
         }
         Ok(())
+    }
+
+    /// Return parameters of `initialize` which is defined by
+    /// - `#initialize` in `defs` (if any) or,
+    /// - `#initialize` inherited from ancestors.
+    fn initializer_params(
+        &self,
+        namespace: &Namespace,
+        typarams: &[String],
+        superclass: &Superclass,
+        defs: &[ast::Definition],
+    ) -> Result<Vec<MethodParam>, Error> {
+        if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
+            defs.iter().find(|d| d.is_initializer())
+        {
+            // Has explicit initializer definition
+            self._convert_params(namespace, &sig.params, typarams, Default::default())
+        } else {
+            // Inherit #initialize from superclass
+            let (sig, _) = self
+                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
+                .expect("[BUG] initialize not found");
+            Ok(specialized_initialize(&sig, superclass).params)
+        }
     }
 
     fn index_enum(
@@ -296,19 +320,35 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             ty::raw("Void") // Default return type.
         };
-        let mut params = vec![];
-        for param in &sig.params {
-            params.push(MethodParam {
-                name: param.name.to_string(),
-                ty: self._resolve_typename(namespace, class_typarams, &sig.typarams, &param.typ)?,
-            });
-        }
         Ok(MethodSignature {
             fullname,
             ret_ty,
-            params,
+            params: self._convert_params(namespace, &sig.params, class_typarams, &sig.typarams)?,
             typarams: sig.typarams.clone(),
         })
+    }
+
+    /// Convert ast params to hir params
+    fn _convert_params(
+        &self,
+        namespace: &Namespace,
+        ast_params: &[ast::Param],
+        class_typarams: &[String],
+        method_typarams: &[String],
+    ) -> Result<Vec<MethodParam>, Error> {
+        let mut hir_params = vec![];
+        for param in ast_params {
+            hir_params.push(MethodParam {
+                name: param.name.to_string(),
+                ty: self._resolve_typename(
+                    namespace,
+                    class_typarams,
+                    method_typarams,
+                    &param.typ,
+                )?,
+            });
+        }
+        Ok(hir_params)
     }
 
     /// Resolve the given type name to fullname
