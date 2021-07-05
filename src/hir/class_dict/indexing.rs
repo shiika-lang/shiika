@@ -24,6 +24,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&ast::Definition]) -> Result<(), Error> {
+        let namespace = Namespace::root();
         for def in toplevel_defs {
             match def {
                 ast::Definition::ClassDefinition {
@@ -31,12 +32,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     typarams,
                     superclass,
                     defs,
-                } => self.index_class(&name.add_namespace(""), &typarams, &superclass, &defs)?,
+                } => self.index_class(&namespace, &name, &typarams, &superclass, &defs)?,
                 ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
-                } => self.index_enum(&name.add_namespace(""), &typarams, &cases)?,
+                } => self.index_enum(&namespace, &name, &typarams, &cases)?,
                 ast::Definition::ConstDefinition { .. } => (),
                 _ => {
                     return Err(error::syntax_error(&format!(
@@ -51,11 +52,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_class(
         &mut self,
-        fullname: &ClassFullname,
+        namespace: &Namespace,
+        firstname: &ClassFirstname,
         typarams: &[String],
         ast_superclass: &Option<ConstName>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
         // TODO: check ast_superclass is valid
         let superclass = if let Some(n) = ast_superclass {
@@ -66,11 +69,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
             self.initializer_params(typarams, &superclass, &defs),
-            &ty::return_type_of_new(fullname, typarams),
+            &ty::return_type_of_new(&fullname, typarams),
         );
 
+        let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
-            self.index_defs_in_class(fullname, typarams, defs)?;
+            self.index_defs_in_class(&inner_namespace, &fullname, typarams, defs)?;
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
@@ -91,7 +95,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
             None => self.add_new_class(
-                fullname,
+                &fullname,
                 typarams,
                 superclass,
                 Some(new_sig),
@@ -105,13 +109,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_enum(
         &mut self,
-        fullname: &ClassFullname,
+        namespace: &Namespace,
+        firstname: &ClassFirstname,
         typarams: &[String],
         cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(firstname);
         let instance_methods = Default::default();
         self.add_new_class(
-            fullname,
+            &fullname,
             typarams,
             Superclass::simple("Object"),
             None,
@@ -120,13 +126,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             false,
         )?;
         for case in cases {
-            self.index_enum_case(fullname, typarams, case)?;
+            self.index_enum_case(namespace, &fullname, typarams, case)?;
         }
         Ok(())
     }
 
     fn index_enum_case(
         &mut self,
+        namespace: &Namespace,
         enum_fullname: &ClassFullname,
         typarams: &[String],
         case: &ast::EnumCase,
@@ -155,6 +162,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_defs_in_class(
         &mut self,
+        namespace: &Namespace,
         fullname: &ClassFullname,
         typarams: &[String],
         defs: &[ast::Definition],
@@ -178,16 +186,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    let full = name.add_namespace(&fullname.0);
-                    self.index_class(&full, &typarams, &superclass, &defs)?;
+                    self.index_class(namespace, &name, &typarams, &superclass, &defs)?;
                 }
                 ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
                 } => {
-                    let full = name.add_namespace(&fullname.0);
-                    self.index_enum(&full, &typarams, &cases)?;
+                    self.index_enum(namespace, &name, &typarams, &cases)?;
                 }
             }
         }
