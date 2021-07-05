@@ -55,27 +55,6 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
         .find(|(_, param)| param.name == name)
 }
 
-/// Create `hir::MethodSignature` from `ast::MethodSignature`
-pub fn create_signature(
-    class_fullname: &ClassFullname,
-    sig: &ast::AstMethodSignature,
-    class_typarams: &[String],
-) -> MethodSignature {
-    let fullname = method_fullname(class_fullname, &sig.name.0);
-    let ret_ty = if let Some(typ) = &sig.ret_typ {
-        convert_typ(&typ, class_typarams, &sig.typarams)
-    } else {
-        ty::raw("Void") // Default return type.
-    };
-    let params = convert_params(&sig.params, class_typarams, &sig.typarams);
-    MethodSignature {
-        fullname,
-        ret_ty,
-        params,
-        typarams: sig.typarams.clone(),
-    }
-}
-
 pub fn convert_typ(
     typ: &ConstName,
     class_typarams: &[String],

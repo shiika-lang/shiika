@@ -225,15 +225,49 @@ fn create_method_generic(
     let mut parser = parser::Parser::new_with_state(sig_str, parser::lexer::LexerState::MethodName);
     let (ast_sig, _) = parser.parse_method_signature().unwrap();
     parser.expect_eof().unwrap();
-    let sig = crate::hir::signature::create_signature(
-        &class_fullname(class_name),
-        &ast_sig,
-        typaram_names,
-    );
 
+    let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
+        _convert_typ(&typ, typaram_names, &ast_sig.typarams)
+    } else {
+        ty::raw("Void")
+    };
+    let params = ast_sig
+        .params
+        .iter()
+        .map(|param| MethodParam {
+            name: param.name.to_string(),
+            ty: _convert_typ(&param.typ, typaram_names, &ast_sig.typarams),
+        })
+        .collect();
+    let sig = MethodSignature {
+        fullname: method_fullname(&class_fullname(class_name), &ast_sig.name.0),
+        ret_ty,
+        params,
+        typarams: ast_sig.typarams.clone(),
+    };
     SkMethod {
         signature: sig,
         body: SkMethodBody::RustMethodBody { gen },
         lvars: vec![],
+    }
+}
+
+fn _convert_typ(
+    typ: &ConstName,
+    class_typarams: &[String],
+    method_typarams: &[String],
+) -> ty::TermTy {
+    let s = typ.names.join("::");
+    if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
+        ty::typaram(s, ty::TyParamKind::Class, idx)
+    } else if let Some(idx) = method_typarams.iter().position(|t| s == *t) {
+        ty::typaram(s, ty::TyParamKind::Method, idx)
+    } else {
+        let tyargs = typ
+            .args
+            .iter()
+            .map(|arg| _convert_typ(arg, class_typarams, method_typarams))
+            .collect::<Vec<_>>();
+        ty::nonmeta(&typ.names, tyargs)
     }
 }
