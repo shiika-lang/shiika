@@ -71,6 +71,7 @@ pub fn build_corelib() -> Result<(), Error> {
     Ok(())
 }
 
+/// Load ./builtin/*.sk into a String
 fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
     let dir =
