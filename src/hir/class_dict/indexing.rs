@@ -60,15 +60,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
-        // TODO: check ast_superclass is valid
-        let superclass = if let Some(n) = ast_superclass {
-            Superclass::from_const_name(n, typarams)
+        let superclass = if let Some(name) = ast_superclass {
+            Superclass::from_ty(self._resolve_typename(
+                namespace,
+                typarams,
+                Default::default(),
+                name,
+            )?)
         } else {
             Superclass::default()
         };
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            self.initializer_params(namespace, typarams, &superclass, &defs)?,
+            self._initializer_params(namespace, typarams, &superclass, &defs)?,
             &ty::return_type_of_new(&fullname, typarams),
         );
 
@@ -110,7 +114,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Return parameters of `initialize` which is defined by
     /// - `#initialize` in `defs` (if any) or,
     /// - `#initialize` inherited from ancestors.
-    fn initializer_params(
+    fn _initializer_params(
         &self,
         namespace: &Namespace,
         typarams: &[String],

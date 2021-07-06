@@ -10,7 +10,7 @@ pub struct Superclass(TermTy);
 
 impl Superclass {
     /// Create a `Superclass`
-    fn from_ty(t: TermTy) -> Superclass {
+    pub fn from_ty(t: TermTy) -> Superclass {
         debug_assert!(matches!(t.body, TyBody::TyRaw | TyBody::TySpe { .. }));
         Superclass(t)
     }
@@ -33,10 +33,6 @@ impl Superclass {
     /// Default superclass (= Object)
     pub fn default() -> Superclass {
         Superclass::simple("Object")
-    }
-
-    pub fn from_const_name(name: &ConstName, typarams: &[String]) -> Superclass {
-        Superclass::from_ty(name.to_ty(typarams))
     }
 
     pub fn ty(&self) -> &TermTy {
