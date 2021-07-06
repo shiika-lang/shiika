@@ -92,6 +92,14 @@ fn rust_body_items() -> Vec<ClassItem> {
             vec![],
         ),
         (
+            "String".to_string(),
+            Some(Superclass::simple("Object")),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        ),
+        (
             "Void".to_string(),
             Some(Superclass::simple("Object")),
             void::create_methods(),
