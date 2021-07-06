@@ -384,7 +384,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         names: &[String],
     ) -> Result<Vec<String>, Error> {
         let n = namespace.len();
-        for k in 0..n {
+        for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
             if self.class_exists(&resolved.join("::")) {
