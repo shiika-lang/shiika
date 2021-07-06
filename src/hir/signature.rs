@@ -1,4 +1,3 @@
-use crate::ast;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
@@ -53,42 +52,6 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
         .iter()
         .enumerate()
         .find(|(_, param)| param.name == name)
-}
-
-pub fn convert_typ(
-    typ: &ConstName,
-    class_typarams: &[String],
-    method_typarams: &[String],
-) -> TermTy {
-    let name = typ.names.join("::");
-    let args = &typ.args;
-    if let Some(idx) = class_typarams.iter().position(|s| *s == name) {
-        ty::typaram(&name, ty::TyParamKind::Class, idx)
-    } else if let Some(idx) = method_typarams.iter().position(|s| *s == name) {
-        ty::typaram(&name, ty::TyParamKind::Method, idx)
-    } else if args.is_empty() {
-        ty::raw(&name)
-    } else {
-        let tyargs = args
-            .iter()
-            .map(|t| convert_typ(t, class_typarams, method_typarams))
-            .collect();
-        ty::spe(&name, tyargs)
-    }
-}
-
-pub fn convert_params(
-    params: &[ast::Param],
-    class_typarams: &[String],
-    method_typarams: &[String],
-) -> Vec<MethodParam> {
-    params
-        .iter()
-        .map(|param| MethodParam {
-            name: param.name.to_string(),
-            ty: convert_typ(&param.typ, class_typarams, method_typarams),
-        })
-        .collect()
 }
 
 /// Create a signature of a `new` method

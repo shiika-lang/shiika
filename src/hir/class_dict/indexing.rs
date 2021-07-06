@@ -121,7 +121,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
-            self._convert_params(namespace, &sig.params, typarams, Default::default())
+            self.convert_params(namespace, &sig.params, typarams, Default::default())
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
@@ -323,13 +323,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(MethodSignature {
             fullname,
             ret_ty,
-            params: self._convert_params(namespace, &sig.params, class_typarams, &sig.typarams)?,
+            params: self.convert_params(namespace, &sig.params, class_typarams, &sig.typarams)?,
             typarams: sig.typarams.clone(),
         })
     }
 
     /// Convert ast params to hir params
-    fn _convert_params(
+    pub fn convert_params(
         &self,
         namespace: &Namespace,
         ast_params: &[ast::Param],

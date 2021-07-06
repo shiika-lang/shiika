@@ -492,11 +492,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         exprs: &[AstExpression],
         is_fn: &bool,
     ) -> Result<HirExpression, Error> {
-        let hir_params = signature::convert_params(
+        let namespace = self.ctx.const_scopes().next().unwrap();
+        let hir_params = self.class_dict.convert_params(
+            &namespace,
             params,
             &self.current_class_typarams(),
             &self.current_method_typarams(),
-        );
+        )?;
 
         // Convert lambda body
         self.ctx
