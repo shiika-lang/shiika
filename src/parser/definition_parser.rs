@@ -207,10 +207,7 @@ impl<'a> Parser<'a> {
                 ))
             }
         };
-        Ok(ast::EnumCase {
-            name,
-            params,
-        })
+        Ok(ast::EnumCase { name, params })
     }
 
     pub fn parse_method_definition(&mut self) -> Result<ast::Definition, Error> {
@@ -303,13 +300,10 @@ impl<'a> Parser<'a> {
             Token::RightArrow => {
                 self.consume_token();
                 self.skip_ws();
-                ret_typ = self.parse_typ()?;
+                ret_typ = Some(self.parse_typ()?);
             }
             _ => {
-                ret_typ = ast::Typ {
-                    name: "Void".to_string(),
-                    typ_args: vec![],
-                };
+                ret_typ = None;
                 self.skip_ws();
             }
         }
@@ -480,61 +474,15 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_typ(&mut self) -> Result<ast::Typ, Error> {
-        let mut name = String::new();
-        loop {
-            match self.current_token() {
-                Token::UpperWord(s) => {
-                    name += s;
-                    self.consume_token();
-                }
-                Token::ColonColon => {
-                    name += "::";
-                    self.consume_token();
-                }
-                Token::LessThan => {
-                    self.consume_token();
-                    self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
-                    let typ_args = self.parse_typ_args()?;
-                    self.set_lexer_gtgt_mode(false);
-                    return Ok(ast::Typ { name, typ_args });
-                }
-                token => {
-                    if name.is_empty() {
-                        return Err(parse_error!(self, "invalid token as type: {:?}", token));
-                    } else {
-                        return Ok(ast::Typ {
-                            name,
-                            typ_args: vec![],
-                        });
-                    }
-                }
+    fn parse_typ(&mut self) -> Result<ConstName, Error> {
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                let name = s.to_string();
+                self.consume_token();
+                self.parse_const_name(name)
             }
-        }
-    }
-
-    fn parse_typ_args(&mut self) -> Result<Vec<ast::Typ>, Error> {
-        let mut typ_args = vec![];
-        loop {
-            self.skip_wsn();
-            typ_args.push(self.parse_typ()?);
-            self.skip_wsn();
-            match self.current_token() {
-                Token::Comma => {
-                    self.consume_token();
-                }
-                Token::GreaterThan => {
-                    self.consume_token();
-                    return Ok(typ_args);
-                }
-                token => {
-                    return Err(parse_error!(
-                        self,
-                        "invalid token in type args: {:?}",
-                        token
-                    ));
-                }
-            }
+            Token::ColonColon => Err(parse_error!(self, "TODO: parse types starting with `::'")),
+            token => Err(parse_error!(self, "invalid token as type: {:?}", token)),
         }
     }
 

@@ -70,6 +70,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .or_else(|| self.imported_classes.get(class_fullname))
     }
 
+    /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)
@@ -90,39 +91,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Return true if there is a class of the name
     pub fn class_exists(&self, fullname: &str) -> bool {
         self.lookup_class(&class_fullname(fullname)).is_some()
-    }
-
-    /// Check if given superclass can exist
-    /// (TODO: consider namespace)
-    pub fn is_valid_superclass(&self, ty: &TermTy, typaram_names: &[String]) -> bool {
-        match &ty.body {
-            TyBody::TyRaw => self.class_exists(&ty.fullname.0),
-            TyBody::TySpe {
-                base_name,
-                type_args,
-            } => {
-                if !self.class_exists(&base_name) {
-                    return false;
-                }
-                for t in type_args {
-                    if !self.is_valid_superclass(&t, typaram_names) {
-                        return false;
-                    }
-                }
-                true
-            }
-            TyBody::TyParamRef {
-                kind: TyParamKind::Class,
-                name,
-                idx,
-            } => {
-                let s = typaram_names.get(*idx);
-                debug_assert!(s.is_some());
-                debug_assert!(s.unwrap() == name);
-                true
-            }
-            _ => panic!("must not happen"),
-        }
     }
 
     /// Returns supertype of `ty` (except it is `Object`)

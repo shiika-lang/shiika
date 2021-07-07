@@ -1,4 +1,3 @@
-use crate::ast;
 use crate::names::*;
 use crate::ty;
 use crate::ty::*;
@@ -53,59 +52,6 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
         .iter()
         .enumerate()
         .find(|(_, param)| param.name == name)
-}
-
-/// Create `hir::MethodSignature` from `ast::MethodSignature`
-pub fn create_signature(
-    class_fullname: &ClassFullname,
-    sig: &ast::AstMethodSignature,
-    class_typarams: &[String],
-) -> MethodSignature {
-    let fullname = method_fullname(class_fullname, &sig.name.0);
-    let ret_ty = convert_typ(&sig.ret_typ, class_typarams, &sig.typarams);
-    let params = convert_params(&sig.params, class_typarams, &sig.typarams);
-    MethodSignature {
-        fullname,
-        ret_ty,
-        params,
-        typarams: sig.typarams.clone(),
-    }
-}
-
-// TODO: pass the list of visible classes
-pub fn convert_typ(
-    typ: &ast::Typ,
-    class_typarams: &[String],
-    method_typarams: &[String],
-) -> TermTy {
-    if let Some(idx) = class_typarams.iter().position(|s| *s == typ.name) {
-        ty::typaram(&typ.name, ty::TyParamKind::Class, idx)
-    } else if let Some(idx) = method_typarams.iter().position(|s| *s == typ.name) {
-        ty::typaram(&typ.name, ty::TyParamKind::Method, idx)
-    } else if typ.typ_args.is_empty() {
-        ty::raw(&typ.name)
-    } else {
-        let tyargs = typ
-            .typ_args
-            .iter()
-            .map(|t| convert_typ(t, class_typarams, method_typarams))
-            .collect();
-        ty::spe(&typ.name, tyargs)
-    }
-}
-
-pub fn convert_params(
-    params: &[ast::Param],
-    class_typarams: &[String],
-    method_typarams: &[String],
-) -> Vec<MethodParam> {
-    params
-        .iter()
-        .map(|param| MethodParam {
-            name: param.name.to_string(),
-            ty: convert_typ(&param.typ, class_typarams, method_typarams),
-        })
-        .collect()
 }
 
 /// Create a signature of a `new` method

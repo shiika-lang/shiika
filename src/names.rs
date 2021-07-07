@@ -171,7 +171,7 @@ impl std::fmt::Display for Namespace {
 impl Namespace {
     /// Create a namespace object
     pub fn new(names: Vec<String>) -> Namespace {
-        // TODO: should check each name does not contain `::`
+        debug_assert!(names.iter().all(|x| !x.contains("::")));
         Namespace(names)
     }
 
@@ -200,6 +200,15 @@ impl Namespace {
         } else {
             class_fullname(format!("{}::{}", n, &name.0))
         }
+    }
+
+    pub fn head(&self, n: usize) -> &[String] {
+        &self.0[0..n]
+    }
+
+    /// Number of names
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     /// Returns string representation of self
@@ -288,6 +297,10 @@ impl std::fmt::Display for ResolvedConstName {
 }
 
 impl ResolvedConstName {
+    pub fn new(names: Vec<String>, args: Vec<ResolvedConstName>) -> ResolvedConstName {
+        ResolvedConstName { names, args }
+    }
+
     pub fn unsafe_create(s: String) -> ResolvedConstName {
         ResolvedConstName {
             names: vec![s],

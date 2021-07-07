@@ -1,13 +1,15 @@
+mod class_index;
 mod indexing;
 mod query;
 use crate::ast;
 use crate::error::*;
-use crate::hir;
 use crate::hir::*;
 use crate::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
+    /// List of classes (without method) collected prior to sk_classes
+    class_index: class_index::ClassIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
@@ -22,10 +24,6 @@ pub fn create<'hir_maker>(
     initial_sk_classes: SkClasses,
     imported_classes: &'hir_maker SkClasses,
 ) -> Result<ClassDict<'hir_maker>, Error> {
-    let mut dict = ClassDict {
-        sk_classes: initial_sk_classes,
-        imported_classes,
-    };
     let defs = ast
         .toplevel_items
         .iter()
@@ -34,34 +32,16 @@ pub fn create<'hir_maker>(
             ast::TopLevelItem::Expr(_) => None,
         })
         .collect::<Vec<_>>();
+    let mut dict = ClassDict {
+        class_index: class_index::create(&defs, &initial_sk_classes, imported_classes),
+        sk_classes: initial_sk_classes,
+        imported_classes,
+    };
     dict.index_program(&defs)?;
     Ok(dict)
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Return parameters of `initialize` which is defined by
-    /// - `#initialize` in `defs` (if any) or,
-    /// - `#initialize` inherited from ancestors.
-    fn initializer_params(
-        &self,
-        typarams: &[String],
-        superclass: &Superclass,
-        defs: &[ast::Definition],
-    ) -> Vec<MethodParam> {
-        if let Some(ast::Definition::InstanceMethodDefinition { sig, .. }) =
-            defs.iter().find(|d| d.is_initializer())
-        {
-            // Has explicit initializer definition
-            hir::signature::convert_params(&sig.params, typarams, &[])
-        } else {
-            // Inherit #initialize from superclass
-            let (sig, _) = self
-                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
-                .expect("[BUG] initialize not found");
-            specialized_initialize(&sig, superclass).params
-        }
-    }
-
     /// Returns information for creating class constants
     pub fn constant_list(&self) -> Vec<(String, bool)> {
         self.sk_classes

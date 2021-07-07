@@ -329,6 +329,14 @@ impl TermTy {
     }
 }
 
+pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
+    if args.is_empty() {
+        ty::raw(&names.join("::"))
+    } else {
+        ty::spe(&names.join("::"), args)
+    }
+}
+
 pub fn raw(fullname: &str) -> TermTy {
     debug_assert!(!fullname.contains('<'), "{}", fullname.to_string());
     TermTy {
@@ -420,6 +428,15 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
         fullname: class_fullname(s.clone()),
         body: TyParamRef { kind, name: s, idx },
     }
+}
+
+pub fn typarams(names: &[String]) -> Vec<TyParam> {
+    names
+        .iter()
+        .map(|s| TyParam {
+            name: s.to_string(),
+        })
+        .collect()
 }
 
 /// A type parameter
