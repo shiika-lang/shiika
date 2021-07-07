@@ -5,7 +5,6 @@ mod float;
 mod fn_x;
 mod int;
 mod math;
-mod never;
 mod object;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
@@ -92,25 +91,9 @@ fn rust_body_items() -> Vec<ClassItem> {
             vec![],
         ),
         (
-            "String".to_string(),
-            Some(Superclass::simple("Object")),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        ),
-        (
             "Void".to_string(),
             Some(Superclass::simple("Object")),
             void::create_methods(),
-            vec![],
-            HashMap::new(),
-            vec![],
-        ),
-        (
-            "Never".to_string(),
-            Some(Superclass::simple("Object")),
-            never::create_methods(),
             vec![],
             HashMap::new(),
             vec![],

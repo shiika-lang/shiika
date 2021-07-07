@@ -430,6 +430,15 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
     }
 }
 
+pub fn typarams(names: &[String]) -> Vec<TyParam> {
+    names
+        .iter()
+        .map(|s| TyParam {
+            name: s.to_string(),
+        })
+        .collect()
+}
+
 /// A type parameter
 /// In the future, may have something like +T/-T or in/out
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

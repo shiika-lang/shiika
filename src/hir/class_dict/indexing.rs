@@ -377,22 +377,30 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for arg in &name.args {
             tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
         }
-        let resolved_base = self._resolve_simple_typename(namespace, &name.names)?;
+        let (resolved_base, base_typarams) =
+            self._resolve_simple_typename(namespace, &name.names)?;
+        if name.args.len() != base_typarams.len() {
+            return Err(error::type_error(&format!(
+                "wrong number of type arguments: {:?}",
+                name
+            )));
+        }
         Ok(ty::nonmeta(&resolved_base, tyargs))
     }
 
     /// Resolve the given type name (without type arguments) to fullname
+    /// Also returns the typarams of the class, if any
     fn _resolve_simple_typename(
         &self,
         namespace: &Namespace,
         names: &[String],
-    ) -> Result<Vec<String>, Error> {
+    ) -> Result<(Vec<String>, &[TyParam]), Error> {
         let n = namespace.len();
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if self.class_exists(&resolved.join("::")) {
-                return Ok(resolved);
+            if let Some(typarams) = self.class_index.get(&class_fullname(resolved.join("::"))) {
+                return Ok((resolved, typarams));
             }
         }
         Err(error::name_error(&format!(
