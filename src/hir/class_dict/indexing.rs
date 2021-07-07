@@ -277,13 +277,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        if !self.is_valid_superclass(superclass.ty(), typaram_names) {
-            return Err(error::name_error(&format!(
-                "superclass {:?} of {:?} does not exist",
-                superclass, fullname,
-            )));
-        }
-
         self.add_class(SkClass {
             fullname: fullname.clone(),
             typarams: typarams.clone(),
