@@ -1,6 +1,8 @@
 use crate::error::*;
 use crate::library;
 use crate::targets;
+use rand::prelude::SliceRandom;
+use rand::SeedableRng;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -76,12 +78,19 @@ fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut s = String::new();
     let dir =
         fs::read_dir("builtin").map_err(|e| runner_error("./builtin not found", Box::new(e)))?;
-    for item in dir {
+    let mut files = dir.collect::<Vec<_>>();
+    if false {
+        // Randomize loading order (for debugging purpose)
+        let mut rng = rand_pcg::Pcg64::seed_from_u64(123);
+        files.shuffle(&mut rng);
+    }
+    for item in files {
         let pathbuf = item?.path();
         let path = pathbuf
             .to_str()
             .ok_or_else(|| plain_runner_error("Filename not utf8"))?;
         if path.ends_with(".sk") {
+            //dbg!(&path);
             s += &fs::read_to_string(path)
                 .map_err(|e| runner_error(format!("failed to load {}", path), Box::new(e)))?;
         }
