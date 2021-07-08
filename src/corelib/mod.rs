@@ -234,7 +234,7 @@ fn create_method_generic(
         fullname: method_fullname(&class_fullname(class_name), &ast_sig.name.0),
         ret_ty,
         params,
-        typarams: ast_sig.typarams.clone(),
+        typarams: ast_sig.typarams,
     };
     SkMethod {
         signature: sig,

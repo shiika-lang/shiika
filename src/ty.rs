@@ -352,7 +352,7 @@ pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
     TermTy {
         fullname: metaclass_fullname(&base_fullname),
         body: TyMeta {
-            base_fullname: base_fullname,
+            base_fullname,
         },
     }
 }

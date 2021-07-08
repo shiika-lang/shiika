@@ -106,7 +106,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 instance_methods,
                 class_methods,
                 false,
-            )?,
+            ),
         }
         Ok(())
     }
@@ -152,7 +152,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_methods,
             Default::default(),
             false,
-        )?;
+        );
         for case in cases {
             self.index_enum_case(namespace, &fullname, typarams, case)?;
         }
@@ -182,7 +182,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_methods,
             Default::default(),
             case.params.is_empty(),
-        )?;
+        );
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
         Ok(())
@@ -264,7 +264,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
         const_is_obj: bool,
-    ) -> Result<(), Error> {
+    ) {
         let typarams = typaram_names
             .iter()
             .map(|s| TyParam {
@@ -301,7 +301,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             const_is_obj: false,
             foreign: false,
         });
-        Ok(())
     }
 
     fn _create_signature(
