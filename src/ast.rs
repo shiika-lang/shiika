@@ -410,7 +410,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
             primary: false,
             body: AstExpressionBody::MethodCall {
                 receiver_expr: None,
-                method_name: method_firstname(&s),
+                method_name: method_firstname(s),
                 arg_exprs: args,
                 type_args: vec![],
                 may_have_paren_wo_args: false,

@@ -337,24 +337,22 @@ pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
     }
 }
 
-pub fn raw(fullname: &str) -> TermTy {
-    debug_assert!(!fullname.contains('<'), "{}", fullname.to_string());
+pub fn raw(fullname_: impl Into<String>) -> TermTy {
+    let fullname = fullname_.into();
+    debug_assert!(!fullname.contains('<'));
     TermTy {
         fullname: class_fullname(fullname),
         body: TyRaw,
     }
 }
 
-pub fn meta(base_fullname: &str) -> TermTy {
-    debug_assert!(
-        !base_fullname.contains('<'),
-        "{}",
-        base_fullname.to_string()
-    );
+pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
+    let base_fullname = base_fullname_.into();
+    debug_assert!(!base_fullname.contains('<'));
     TermTy {
-        fullname: metaclass_fullname(base_fullname),
+        fullname: metaclass_fullname(&base_fullname),
         body: TyMeta {
-            base_fullname: base_fullname.to_string(),
+            base_fullname: base_fullname,
         },
     }
 }
@@ -366,7 +364,8 @@ pub fn class() -> TermTy {
     }
 }
 
-pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
+    let base_name = base_name_.into();
     debug_assert!(!type_args.is_empty());
     let tyarg_names = type_args
         .iter()
@@ -375,13 +374,14 @@ pub fn spe(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     TermTy {
         fullname: class_fullname(&format!("{}<{}>", &base_name, &tyarg_names.join(","))),
         body: TySpe {
-            base_name: base_name.to_string(),
+            base_name,
             type_args,
         },
     }
 }
 
-pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
+pub fn spe_meta(base_name_: &str, type_args: Vec<TermTy>) -> TermTy {
+    let base_name = base_name_.into();
     let tyarg_names = type_args
         .iter()
         .map(|x| x.fullname.0.to_string())
@@ -389,7 +389,7 @@ pub fn spe_meta(base_name: &str, type_args: Vec<TermTy>) -> TermTy {
     TermTy {
         fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
         body: TySpeMeta {
-            base_name: base_name.to_string(),
+            base_name,
             type_args,
         },
     }

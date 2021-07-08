@@ -21,8 +21,8 @@ impl ClassFirstname {
     }
 }
 
-pub fn class_firstname(s: &str) -> ClassFirstname {
-    ClassFirstname(s.to_string())
+pub fn class_firstname(s: impl Into<String>) -> ClassFirstname {
+    ClassFirstname(s.into())
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -98,8 +98,8 @@ impl std::fmt::Display for MethodFirstname {
     }
 }
 
-pub fn method_firstname(s: &str) -> MethodFirstname {
-    MethodFirstname(s.to_string())
+pub fn method_firstname(s: impl Into<String>) -> MethodFirstname {
+    MethodFirstname(s.into())
 }
 
 impl MethodFirstname {
@@ -114,10 +114,11 @@ pub struct MethodFullname {
     pub first_name: MethodFirstname,
 }
 
-pub fn method_fullname(class_name: &ClassFullname, first_name: &str) -> MethodFullname {
+pub fn method_fullname(class_name: &ClassFullname, first_name_: impl Into<String>) -> MethodFullname {
+    let first_name = first_name_.into();
     MethodFullname {
-        full_name: class_name.0.clone() + "#" + first_name,
-        first_name: MethodFirstname(first_name.to_string()),
+        full_name: class_name.0.clone() + "#" + &first_name,
+        first_name: MethodFirstname(first_name),
     }
 }
 
