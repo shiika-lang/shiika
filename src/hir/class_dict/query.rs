@@ -163,8 +163,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             } else {
                 false
             };
-            if let Some(t1) = self.ancestor_types(ty1).iter().find(|t| t.same_base(&ty2)) {
-                if t1.equals_to(&ty2) {
+            if let Some(t1) = self.ancestor_types(ty1).iter().find(|t| t.same_base(ty2)) {
+                if t1.equals_to(ty2) {
                     return true;
                 } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
                     return true;
@@ -178,7 +178,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
-        let class = self.sk_classes.get(&classname).unwrap_or_else(|| {
+        let class = self.sk_classes.get(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] ClassDict::find_ivar: class `{}' not found",
                 &classname
@@ -189,7 +189,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Returns instance variables of the superclass of `classname`
     pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
-        self.get_class(&classname).superclass.as_ref().map(|scls| {
+        self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
             let ivars = &self.get_class(&ty.erasure()).ivars;
             let tyargs = ty.tyargs();
@@ -209,7 +209,7 @@ mod tests {
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<(), Error>
     where
-        F: FnOnce(ClassDict) -> (),
+        F: FnOnce(ClassDict),
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;

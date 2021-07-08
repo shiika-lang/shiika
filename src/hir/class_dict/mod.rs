@@ -60,8 +60,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let ivars = self
             .superclass_ivars(classname)
-            .unwrap_or_else(|| Default::default());
-        let class = self.get_class_mut(&classname);
+            .unwrap_or_else(Default::default);
+        let class = self.get_class_mut(classname);
         debug_assert!(class.ivars.is_empty());
         class.ivars = ivars;
         own_ivars.into_iter().for_each(|(k, v)| {

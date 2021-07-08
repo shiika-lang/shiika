@@ -27,9 +27,9 @@ impl LVarInfo {
     /// The type of the lvar
     fn ty(&self) -> &TermTy {
         match self {
-            LVarInfo::CurrentScope { ty, .. } => &ty,
-            LVarInfo::Argument { ty, .. } => &ty,
-            LVarInfo::OuterScope { ty, .. } => &ty,
+            LVarInfo::CurrentScope { ty, .. } => ty,
+            LVarInfo::Argument { ty, .. } => ty,
+            LVarInfo::OuterScope { ty, .. } => ty,
         }
     }
 
@@ -300,7 +300,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         if let Some(lvar_info) = self._find_var(name, true)? {
             // Reassigning
-            type_checking::check_reassign_var(&lvar_info.ty(), &expr.ty, name)?;
+            type_checking::check_reassign_var(lvar_info.ty(), &expr.ty, name)?;
             Ok(lvar_info.assign_expr(expr))
         } else {
             // Create new lvar
@@ -416,7 +416,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         let receiver_hir = match receiver_expr {
-            Some(expr) => self.convert_expr(&expr)?,
+            Some(expr) => self.convert_expr(expr)?,
             // Implicit self
             _ => self.convert_self_expr(),
         };
@@ -637,7 +637,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
             }
             // Arg
-            if let Some((idx, param)) = signature::find_param(&params, name) {
+            if let Some((idx, param)) = signature::find_param(params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
                         "you cannot reassign to argument `{}'",
@@ -801,8 +801,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _lookup_const(&self, full: &ConstFullname) -> Option<TermTy> {
         self.constants
             .get(full)
-            .or_else(|| self.imported_constants.get(full))
-            .map(|ty| ty.clone())
+            .or_else(|| self.imported_constants.get(full)).cloned()
     }
 
     /// Create `Meta:A<B>` for type `A<B>` (unless already exists)

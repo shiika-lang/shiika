@@ -61,7 +61,7 @@ pub fn run(
         module.set_triple(triple);
     }
     let builder = context.create_builder();
-    let mut code_gen = CodeGen::new(&mir, &context, &module, &builder, &generate_main);
+    let mut code_gen = CodeGen::new(mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir, &mir.imports)?;
     code_gen.module.write_bitcode_to_path(Path::new(bc_path));
     if let Some(ll_path) = opt_ll_path {
@@ -120,7 +120,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // generating builtin
             self.impl_boxing_funcs();
         }
-        self.gen_lambda_funcs(&hir)?;
+        self.gen_lambda_funcs(hir)?;
         Ok(())
     }
 
@@ -205,7 +205,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (classname, class) in imported_classes {
             for (firstname, sig) in &class.method_sigs {
                 let func_type = self.method_llvm_func_type(&class.instance_ty, sig);
-                let func_name = classname.method_fullname(&firstname);
+                let func_name = classname.method_fullname(firstname);
                 self.module
                     .add_function(&func_name.full_name, func_type, None);
             }
@@ -225,7 +225,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in imported_constants {
             let name = &fullname.0;
-            let global = self.module.add_global(self.llvm_type(&ty), None, name);
+            let global = self.module.add_global(self.llvm_type(ty), None, name);
             global.set_linkage(inkwell::module::Linkage::External);
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
@@ -316,7 +316,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(user_main_block);
 
         let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, None, lvar_ptrs);
-        self.gen_exprs(&mut ctx, &main_exprs)?;
+        self.gen_exprs(&mut ctx, main_exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
         self.builder.build_return(None);
@@ -421,7 +421,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in constants {
             let name = &fullname.0;
-            let global = self.module.add_global(self.llvm_type(&ty), None, name);
+            let global = self.module.add_global(self.llvm_type(ty), None, name);
             let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
             match self.llvm_zero_value(ty) {
                 Some(zero) => global.set_initializer(&zero),
@@ -443,7 +443,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     self.builder.position_at_end(basic_block);
                     let (end_block, mut ctx) =
                         self.new_ctx(FunctionOrigin::Other, function, None, HashMap::new());
-                    self.gen_expr(&mut ctx, &expr)?;
+                    self.gen_expr(&mut ctx, expr)?;
                     self.builder.build_unconditional_branch(*end_block);
                     self.builder.position_at_end(*end_block);
                     self.builder.build_return(None);
@@ -497,7 +497,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // `Never` does not have an instance
             self.void_type.fn_type(&arg_types, false)
         } else {
-            self.llvm_type(&ret_ty).fn_type(&arg_types, false)
+            self.llvm_type(ret_ty).fn_type(&arg_types, false)
         }
     }
 
@@ -508,14 +508,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
-                .try_for_each(|method| self.gen_method(&method))
+                .try_for_each(|method| self.gen_method(method))
         })
     }
 
     fn gen_method(&self, method: &'hir SkMethod) -> Result<(), Error> {
         let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(
-            &func_name,
+            func_name,
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
@@ -566,7 +566,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     None,
                     FunctionOrigin::Method,
                     ret_ty,
-                    &exprs,
+                    exprs,
                     lvar_ptrs,
                 )?,
             },
@@ -576,7 +576,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     Some(params),
                     FunctionOrigin::Lambda,
                     ret_ty,
-                    &exprs,
+                    exprs,
                     lvar_ptrs,
                 )?;
             }
@@ -599,7 +599,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let alloca_start = self.context.append_basic_block(function, "alloca");
         self.builder.position_at_end(alloca_start);
         for (name, ty) in lvars {
-            let ptr = self.builder.build_alloca(self.llvm_type(&ty), name);
+            let ptr = self.builder.build_alloca(self.llvm_type(ty), name);
             lvar_ptrs.insert(name.to_string(), ptr);
         }
         let alloca_end = self.context.append_basic_block(function, "alloca_End");
@@ -637,7 +637,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_return(None);
         } else if last_value.is_none() && ctx.returns.is_empty() {
             // `exprs` ends with `panic` and there is no `return`
-            let null = self.llvm_type(&ret_ty).into_pointer_type().const_null();
+            let null = self.llvm_type(ret_ty).into_pointer_type().const_null();
             self.builder.build_return(Some(&null));
         } else if ret_ty.is_void_type() {
             self.build_return_void();
@@ -679,7 +679,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let need_bitcast = init_cls_name != class_fullname;
 
         // Allocate memory
-        let obj = self.allocate_sk_obj(&class_fullname, "addr");
+        let obj = self.allocate_sk_obj(class_fullname, "addr");
 
         // Call initialize
         let initialize = self
@@ -690,7 +690,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if need_bitcast {
             let ances_type = self
                 .llvm_struct_types
-                .get(&init_cls_name)
+                .get(init_cls_name)
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
             addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");

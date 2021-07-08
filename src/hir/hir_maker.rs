@@ -72,7 +72,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Destructively convert self to Hir
     fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
-        let sk_classes = std::mem::replace(&mut self.class_dict.sk_classes, HashMap::new());
+        let sk_classes = std::mem::take(&mut self.class_dict.sk_classes);
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
@@ -119,10 +119,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let meta_const_name = meta_name.to_const_fullname();
         let cls_obj =
             Hir::class_literal(ty.meta_ty(), name.to_class_fullname().meta_name(), str_idx);
-        let meta_const_assign = self.register_internal_const(meta_const_name.clone(), cls_obj);
+        let meta_const_assign = self.register_internal_const(meta_const_name, cls_obj);
         // The instance
         let expr = Hir::method_call(
-            ty.clone(),
+            ty,
             meta_const_assign,
             method_fullname(&metaclass_fullname(&name.string()), "new"),
             vec![],
@@ -138,10 +138,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for item in items {
             match item {
                 ast::TopLevelItem::Def(def) => {
-                    self.process_toplevel_def(&def)?;
+                    self.process_toplevel_def(def)?;
                 }
                 ast::TopLevelItem::Expr(expr) => {
-                    main_exprs.push(self.convert_expr(&expr)?);
+                    main_exprs.push(self.convert_expr(expr)?);
                 }
             }
         }
@@ -219,7 +219,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         // Already processed above
                     } else {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&fullname, &sig.name, &body_exprs)?;
+                        let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
                         self.method_dict.add_method(&fullname, method);
                     }
                 }
@@ -227,7 +227,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     sig, body_exprs, ..
                 } => {
                     log::trace!("method {}.{}", &fullname, &sig.name);
-                    let method = self.convert_method_def(&meta_name, &sig.name, &body_exprs)?;
+                    let method = self.convert_method_def(&meta_name, &sig.name, body_exprs)?;
                     self.method_dict.add_method(&meta_name, method);
                 }
                 ast::Definition::ConstDefinition { .. } => {
@@ -264,8 +264,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         {
             log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
-                self.create_initialize(&fullname, &sig.name, &body_exprs)?;
-            self.method_dict.add_method(&fullname, sk_method);
+                self.create_initialize(fullname, &sig.name, body_exprs)?;
+            self.method_dict.add_method(fullname, sk_method);
             own_ivars = found_ivars;
         }
         Ok(own_ivars)
@@ -335,7 +335,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname), Error> {
         let (_, found_cls) = self.class_dict.lookup_method(
-            &class,
+            class,
             &method_firstname("initialize"),
             Default::default(),
         )?;
@@ -360,7 +360,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn register_const_full(&mut self, fullname: ConstFullname, hir_expr: HirExpression) {
         debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        let op = Hir::const_assign(fullname.clone(), hir_expr);
+        let op = Hir::const_assign(fullname, hir_expr);
         self.const_inits.push(op);
     }
 
@@ -372,7 +372,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> HirExpression {
         debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        Hir::const_assign(fullname.clone(), hir_expr)
+        Hir::const_assign(fullname, hir_expr)
     }
 
     fn convert_method_def(

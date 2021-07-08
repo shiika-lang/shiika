@@ -133,7 +133,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_fullname: &ClassFullname,
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'ictx> {
-        let object_type = self.llvm_struct_type(&class_fullname);
+        let object_type = self.llvm_struct_type(class_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
             .size_of()
@@ -152,7 +152,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let obj = self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name);
 
         // Store reference to vtable
-        self.build_store_vtable(obj, &class_fullname);
+        self.build_store_vtable(obj, class_fullname);
 
         obj
     }
@@ -166,7 +166,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {
-            TyBody::TySpe { base_name, .. } => &base_name,
+            TyBody::TySpe { base_name, .. } => base_name,
             TyBody::TyParamRef { .. } => "Object", // its upper bound
             _ => &ty.fullname.0,
         };
@@ -178,7 +178,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Get the llvm struct type for a class
     fn llvm_struct_type(&self, name: &ClassFullname) -> &inkwell::types::StructType<'ictx> {
         self.llvm_struct_types
-            .get(&name)
+            .get(name)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", name))
     }
 

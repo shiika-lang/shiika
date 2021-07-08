@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
             }
             match &token {
                 Token::LowerWord(s) => {
-                    return Ok(Some(ast::method_call(None, &s, args, vec![], false, false)));
+                    return Ok(Some(ast::method_call(None, s, args, vec![], false, false)));
                 }
                 Token::KwReturn => {
                     if args.len() >= 2 {
@@ -781,7 +781,7 @@ impl<'a> Parser<'a> {
                     false,  // may_have_paren_wo_args
                 )
             }
-            _ => ast::bare_name(&bare_name_str),
+            _ => ast::bare_name(bare_name_str),
         };
         self.lv -= 1;
         Ok(expr)

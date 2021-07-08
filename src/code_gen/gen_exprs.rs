@@ -30,7 +30,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         debug_assert!(!exprs.exprs.is_empty());
         let mut last_value = None;
         for expr in &exprs.exprs {
-            let value = self.gen_expr(ctx, &expr)?;
+            let value = self.gen_expr(ctx, expr)?;
             if value.is_none() {
                 log::warn!("detected unreachable code");
                 return Ok(None);
@@ -47,18 +47,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         expr: &'hir HirExpression,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         match &expr.node {
-            HirLogicalNot { expr } => self.gen_logical_not(ctx, &expr),
-            HirLogicalAnd { left, right } => self.gen_logical_and(ctx, &left, &right),
-            HirLogicalOr { left, right } => self.gen_logical_or(ctx, &left, &right),
+            HirLogicalNot { expr } => self.gen_logical_not(ctx, expr),
+            HirLogicalAnd { left, right } => self.gen_logical_and(ctx, left, right),
+            HirLogicalOr { left, right } => self.gen_logical_or(ctx, left, right),
             HirIfExpression {
                 cond_expr,
                 then_exprs,
                 else_exprs,
-            } => self.gen_if_expr(ctx, &expr.ty, &cond_expr, &then_exprs, &else_exprs),
+            } => self.gen_if_expr(ctx, &expr.ty, cond_expr, then_exprs, else_exprs),
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
-            } => self.gen_while_expr(ctx, &cond_expr, &body_exprs),
+            } => self.gen_while_expr(ctx, cond_expr, body_exprs),
             HirBreakExpression { from } => self.gen_break_expr(ctx, from),
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
@@ -385,7 +385,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(start_block);
 
         // Get the llvm function from vtable
-        let (idx, size) = self.lookup_vtable(&receiver_expr.ty, &method_name)?;
+        let (idx, size) = self.lookup_vtable(&receiver_expr.ty, method_name)?;
         let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
         let func_type = self
             .llvm_func_type(
@@ -421,9 +421,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_name: &MethodFirstname,
     ) -> Result<(&usize, usize), Error> {
         if let Some(found) = self.vtables.method_idx(ty, method_name) {
-            return Ok(found);
+            Ok(found)
         } else if let Some(found) = self.imported_vtables.method_idx(ty, method_name) {
-            return Ok(found);
+            Ok(found)
         } else {
             Err(error::bug(format!(
                 "[BUG] method_idx: vtable of {} not found",
@@ -603,15 +603,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
-        arg_types.insert(0, &fn_x_type);
-        let func_type = self.llvm_func_type(None, &arg_types, &ret_ty);
-        self.module.add_function(&func_name, func_type, None);
+        arg_types.insert(0, fn_x_type);
+        let func_type = self.llvm_func_type(None, &arg_types, ret_ty);
+        self.module.add_function(func_name, func_type, None);
 
         // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
         let meta = self.gen_const_ref(&toplevel_const(&cls_name));
         let fnptr = self
-            .get_llvm_func(&func_name)
+            .get_llvm_func(func_name)
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
@@ -706,7 +706,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum<'run> {
-        let func = self.get_llvm_func(&"Meta:String#new");
+        let func = self.get_llvm_func("Meta:String#new");
         let receiver_value = self.gen_const_ref(&toplevel_const("String"));
         let global = self
             .module
@@ -840,7 +840,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         if let Some(obj) = self.gen_expr(ctx, expr)? {
-            if expr.ty.equals_to(&ty) {
+            if expr.ty.equals_to(ty) {
                 // No bitcast needed
                 Ok(Some(obj))
             } else {
@@ -862,7 +862,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         fullname: &ClassFullname,
         str_literal_idx: &usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let cls_obj = self.allocate_sk_obj(&fullname, &format!("{}", fullname.0));
+        let cls_obj = self.allocate_sk_obj(fullname, &fullname.0.to_string());
         self.build_ivar_store(
             &cls_obj,
             0,

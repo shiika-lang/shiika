@@ -218,7 +218,7 @@ fn create_method_generic(
     parser.expect_eof().unwrap();
 
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
-        _convert_typ(&typ, typaram_names, &ast_sig.typarams)
+        _convert_typ(typ, typaram_names, &ast_sig.typarams)
     } else {
         ty::raw("Void")
     };

@@ -182,7 +182,7 @@ impl TermTy {
             TySpe {
                 base_name,
                 type_args,
-            } => ty::spe_meta(&base_name, type_args.clone()),
+            } => ty::spe_meta(base_name, type_args.clone()),
             TySpeMeta { .. } => ty::class(),
             _ => panic!("TODO"),
         }

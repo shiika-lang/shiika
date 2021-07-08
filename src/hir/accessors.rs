@@ -23,18 +23,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for ivar in ivars.values() {
             let accessor_name = ivar.accessor_name();
             if !method_names.iter().any(|x| ***x == accessor_name) {
-                let getter = create_getter(&clsname, &ivar);
+                let getter = create_getter(clsname, ivar);
                 let sig = getter.signature.clone();
-                self.method_dict.add_method(&clsname, getter);
-                self.class_dict.add_method(&clsname, sig);
+                self.method_dict.add_method(clsname, getter);
+                self.class_dict.add_method(clsname, sig);
             }
 
             let setter_name = format!("{}=", accessor_name);
             if !method_names.iter().any(|x| ***x == setter_name) {
-                let setter = create_setter(&clsname, &ivar);
+                let setter = create_setter(clsname, ivar);
                 let sig = setter.signature.clone();
-                self.method_dict.add_method(&clsname, setter);
-                self.class_dict.add_method(&clsname, sig);
+                self.method_dict.add_method(clsname, setter);
+                self.class_dict.add_method(clsname, sig);
             }
         }
     }

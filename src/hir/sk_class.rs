@@ -48,7 +48,7 @@ impl SkClass {
         } else {
             panic!("SkClass::specialize: not TyMeta")
         };
-        let instance_ty = ty::spe_meta(&base_name, tyargs.to_vec());
+        let instance_ty = ty::spe_meta(base_name, tyargs.to_vec());
         let method_sigs = self
             .method_sigs
             .iter()

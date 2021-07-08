@@ -34,12 +34,12 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&ast::Definitio
                 typarams,
                 defs,
                 ..
-            } => index_class(cindex, &namespace, &name, &typarams, &defs),
+            } => index_class(cindex, &namespace, name, typarams, defs),
             ast::Definition::EnumDefinition {
                 name,
                 typarams,
                 cases,
-            } => index_enum(cindex, &namespace, &name, &typarams, &cases),
+            } => index_enum(cindex, &namespace, name, typarams, cases),
             _ => (),
         }
     }
@@ -53,7 +53,7 @@ fn index_class(
     defs: &[ast::Definition],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname.clone(), ty::typarams(typarams));
+    cindex.insert(fullname, ty::typarams(typarams));
     let inner_namespace = namespace.add(firstname);
     for def in defs {
         match def {
@@ -63,14 +63,14 @@ fn index_class(
                 defs,
                 ..
             } => {
-                index_class(cindex, &inner_namespace, &name, &typarams, &defs);
+                index_class(cindex, &inner_namespace, name, typarams, defs);
             }
             ast::Definition::EnumDefinition {
                 name,
                 typarams,
                 cases,
             } => {
-                index_enum(cindex, &inner_namespace, &name, &typarams, &cases);
+                index_enum(cindex, &inner_namespace, name, typarams, cases);
             }
             _ => (),
         }
@@ -85,11 +85,11 @@ fn index_enum(
     cases: &[ast::EnumCase],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname.clone(), ty::typarams(typarams));
+    cindex.insert(fullname, ty::typarams(typarams));
 
     let inner_namespace = namespace.add(firstname);
     for case in cases {
         let case_fullname = inner_namespace.class_fullname(&case.name);
-        cindex.insert(case_fullname, ty::typarams(&typarams));
+        cindex.insert(case_fullname, ty::typarams(typarams));
     }
 }

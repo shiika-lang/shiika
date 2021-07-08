@@ -213,7 +213,7 @@ impl Namespace {
 
     /// Returns string representation of self
     pub fn to_string(&self) -> String {
-        format!("{}", self.0.join("::"))
+        self.0.join("::")
     }
 }
 

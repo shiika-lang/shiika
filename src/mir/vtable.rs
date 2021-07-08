@@ -81,8 +81,7 @@ impl VTables {
     pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
         let mut queue = sk_classes
-            .keys()
-            .map(|k| k.clone())
+            .keys().cloned()
             .collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
@@ -123,7 +122,7 @@ impl VTables {
     ) -> Option<(&usize, usize)> {
         self.vtables
             .get(&obj_ty.vtable_name())
-            .map(|vtable| (vtable.get(&method_name), vtable.size()))
+            .map(|vtable| (vtable.get(method_name), vtable.size()))
     }
 
     /// Returns iterator over each vtable

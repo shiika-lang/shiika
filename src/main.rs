@@ -16,12 +16,12 @@ fn main_() -> Result<(), Error> {
     let yaml = load_yaml!("cli.yml");
     let matches = clap::App::from(yaml).get_matches();
 
-    if let Some(ref matches) = matches.subcommand_matches("compile") {
+    if let Some(matches) = matches.subcommand_matches("compile") {
         let filepath = matches.value_of("INPUT").unwrap();
         runner::compile(filepath)?;
     }
 
-    if let Some(ref matches) = matches.subcommand_matches("run") {
+    if let Some(matches) = matches.subcommand_matches("run") {
         let filepath = matches.value_of("INPUT").unwrap();
         runner::compile(filepath)?;
         runner::run(filepath)?;

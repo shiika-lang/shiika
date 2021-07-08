@@ -17,7 +17,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Add a method
     /// Used to add auto-defined accessors
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
-        let sk_class = self.sk_classes.get_mut(&clsname).unwrap();
+        let sk_class = self.sk_classes.get_mut(clsname).unwrap();
         sk_class
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
@@ -32,12 +32,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     typarams,
                     superclass,
                     defs,
-                } => self.index_class(&namespace, &name, &typarams, &superclass, &defs)?,
+                } => self.index_class(&namespace, name, typarams, superclass, defs)?,
                 ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
-                } => self.index_enum(&namespace, &name, &typarams, &cases)?,
+                } => self.index_enum(&namespace, name, typarams, cases)?,
                 ast::Definition::ConstDefinition { .. } => (),
                 _ => {
                     return Err(error::syntax_error(&format!(
@@ -72,7 +72,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         let new_sig = signature::signature_of_new(
             &metaclass_fullname,
-            self._initializer_params(namespace, typarams, &superclass, &defs)?,
+            self._initializer_params(namespace, typarams, &superclass, defs)?,
             &ty::return_type_of_new(&fullname, typarams),
         );
 
@@ -129,7 +129,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let (sig, _) = self
-                .lookup_method(&superclass.ty(), &method_firstname("initialize"), &[])
+                .lookup_method(superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
             Ok(specialized_initialize(&sig, superclass).params)
         }
@@ -176,7 +176,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
         self.add_new_class(
             &fullname,
-            &typarams,
+            typarams,
             superclass,
             Some(new_sig),
             instance_methods,
@@ -221,7 +221,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = self._create_signature(namespace, &fullname, sig, typarams)?;
+                    let hir_sig = self._create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 ast::Definition::ClassMethodDefinition { sig, .. } => {
@@ -240,14 +240,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    self.index_class(namespace, &name, &typarams, &superclass, &defs)?;
+                    self.index_class(namespace, name, typarams, superclass, defs)?;
                 }
                 ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
                 } => {
-                    self.index_enum(namespace, &name, &typarams, &cases)?;
+                    self.index_enum(namespace, name, typarams, cases)?;
                 }
             }
         }
@@ -450,7 +450,7 @@ fn enum_case_new_sig(
     };
     (
         signature::signature_of_new(&fullname.meta_name(), params.clone(), &ret_ty),
-        signature::signature_of_initialize(&fullname, params),
+        signature::signature_of_initialize(fullname, params),
     )
 }
 
