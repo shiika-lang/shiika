@@ -157,7 +157,7 @@ impl HirMakerContext {
         } else {
             match self.current {
                 CtxKind::Toplevel => "toplevel".to_string(),
-                CtxKind::Class => self.classes.last().unwrap().namespace.to_string(),
+                CtxKind::Class => self.classes.last().unwrap().namespace.string(),
                 CtxKind::Lambda => "lambda".to_string(),
                 _ => panic!("must not happen"),
             }
@@ -180,11 +180,11 @@ impl HirMakerContext {
             CtxKind::Toplevel => ty::raw("Object"),
             CtxKind::Class => {
                 let class_ctx = self.classes.last().unwrap();
-                ty::meta(&class_ctx.namespace.to_string())
+                ty::meta(&class_ctx.namespace.string())
             }
             _ => {
                 if let Some(class_ctx) = self.classes.last() {
-                    ty::raw(&class_ctx.namespace.to_string())
+                    ty::raw(&class_ctx.namespace.string())
                 } else {
                     // This lambda is on the toplevel
                     ty::raw("Object")

@@ -388,7 +388,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         names: &[String],
     ) -> Result<(Vec<String>, &[TyParam]), Error> {
-        let n = namespace.len();
+        let n = namespace.size();
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());

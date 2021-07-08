@@ -617,7 +617,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ty: lvar.ty.clone(),
                         name: name.to_string(),
                     });
-                    break;
                 } else {
                     // !first == there are more than one scope == we're in a lambda
                     // and capturing outer lvar
@@ -633,8 +632,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         cidx,
                         readonly: false,
                     });
-                    break;
                 }
+                break;
             }
             // Arg
             if let Some((idx, param)) = signature::find_param(params, name) {
@@ -801,7 +800,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _lookup_const(&self, full: &ConstFullname) -> Option<TermTy> {
         self.constants
             .get(full)
-            .or_else(|| self.imported_constants.get(full)).cloned()
+            .or_else(|| self.imported_constants.get(full))
+            .cloned()
     }
 
     /// Create `Meta:A<B>` for type `A<B>` (unless already exists)

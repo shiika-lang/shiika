@@ -80,9 +80,7 @@ impl VTables {
     /// Build vtables of the classes
     pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
-        let mut queue = sk_classes
-            .keys().cloned()
-            .collect::<VecDeque<_>>();
+        let mut queue = sk_classes.keys().cloned().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();

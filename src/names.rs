@@ -164,7 +164,7 @@ pub struct Namespace(pub Vec<String>);
 
 impl std::fmt::Display for Namespace {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "::{}", &self.to_string())
+        write!(f, "::{}", &self.string())
     }
 }
 
@@ -194,7 +194,7 @@ impl Namespace {
 
     /// Join Namespace and ClassFirstname
     pub fn class_fullname(&self, name: &ClassFirstname) -> ClassFullname {
-        let n = self.to_string();
+        let n = self.string();
         if n.is_empty() {
             class_fullname(&name.0)
         } else {
@@ -207,12 +207,12 @@ impl Namespace {
     }
 
     /// Number of names
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.0.len()
     }
 
     /// Returns string representation of self
-    pub fn to_string(&self) -> String {
+    pub fn string(&self) -> String {
         self.0.join("::")
     }
 }
@@ -264,7 +264,7 @@ impl ConstName {
     }
 
     /// Return class name as String
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         let mut s = self.names.join("::");
         if !self.args.is_empty() {
             s += "<";

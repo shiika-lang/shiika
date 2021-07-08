@@ -829,10 +829,8 @@ impl<'a> Parser<'a> {
                     // `A<B>`
                     if lessthan_seen {
                         self.consume_token();
-                        break;
-                    } else {
-                        break;
                     }
+                    break;
                 }
                 Token::Comma => {
                     // `A<B, C>`

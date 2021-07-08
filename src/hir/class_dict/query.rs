@@ -139,6 +139,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Return true if `ty1` conforms to `ty2` i.e.
     /// an object of the type `ty1` is included in the set of objects represented by the type `ty2`
+    #[allow(clippy::if_same_then_else)]
     pub fn conforms(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
         // `Never` is bottom type (i.e. subclass of any class)
         if ty1.is_never_type() {
