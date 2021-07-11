@@ -560,6 +560,7 @@ impl Hir {
         fullname: ClassFullname,
         str_literal_idx: usize,
     ) -> HirExpression {
+        debug_assert!(ty.is_metaclass());
         HirExpression {
             ty,
             node: HirExpressionBase::HirClassLiteral {

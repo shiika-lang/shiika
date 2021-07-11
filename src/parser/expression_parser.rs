@@ -1,4 +1,3 @@
-use crate::names::ConstName;
 use crate::parser::base::*;
 use std::collections::HashMap;
 
@@ -664,13 +663,13 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_type_arguments(&mut self, s: String) -> Result<Vec<ConstName>, Error> {
+    fn parse_type_arguments(&mut self, s: String) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1;
         self.debug_log("parse_type_arguments");
         let mut name = s;
         let mut type_args = vec![];
         loop {
-            type_args.push(self.parse_const_name(name)?);
+            type_args.push(self.parse_specialize_expression(name)?);
             self.skip_ws();
             match self.current_token() {
                 Token::Comma => {
@@ -738,7 +737,7 @@ impl<'a> Parser<'a> {
             Token::UpperWord(s) => {
                 let name = s.to_string();
                 self.consume_token();
-                self.parse_const_ref(name)
+                self.parse_specialize_expression(name)
             }
             Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
@@ -787,23 +786,22 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn parse_const_ref(&mut self, s: String) -> Result<AstExpression, Error> {
-        Ok(ast::const_ref(self.parse_const_name(s)?))
-    }
-
     /// Parse a constant name. `s` must be consumed beforehand
-    pub(super) fn parse_const_name(&mut self, s: String) -> Result<ConstName, Error> {
+    pub(super) fn parse_specialize_expression(
+        &mut self,
+        s: String,
+    ) -> Result<AstExpression, Error> {
         self.lv += 1;
-        self.debug_log("parse_const_name");
+        self.debug_log("parse_specialize_expression");
         self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
-        let name = self._parse_const_name(s)?;
+        let name = self._parse_specialize_expr(s)?;
         self.set_lexer_gtgt_mode(false); // End special mode
         self.lv -= 1;
         Ok(name)
     }
 
-    /// Main routine of parse_const_name
-    fn _parse_const_name(&mut self, s: String) -> Result<ConstName, Error> {
+    /// Main routine of parse_specialize_expression
+    fn _parse_specialize_expr(&mut self, s: String) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("_parse_const_ref");
         let mut names = vec![s];
@@ -845,7 +843,7 @@ impl<'a> Parser<'a> {
                     let name = s.to_string();
                     self.consume_token();
                     if lessthan_seen {
-                        let inner = self._parse_const_name(name)?;
+                        let inner = self._parse_specialize_expr(name)?;
                         args.push(inner);
                         self.skip_wsn();
                     } else {
@@ -862,7 +860,11 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(ConstName { names, args })
+        if args.is_empty() {
+            Ok(ast::const_ref(names))
+        } else {
+            Ok(ast::specialize_expr(names, args))
+        }
     }
 
     /// Parse `fn(){}`

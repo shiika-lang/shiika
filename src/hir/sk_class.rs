@@ -41,12 +41,11 @@ impl SkClass {
     /// Create a specialized metaclass of a generic metaclass
     /// eg. create `Meta:Array<Int>` from `Meta:Array`
     pub fn specialized_meta(&self, tyargs: &[TermTy]) -> SkClass {
-        // `self` must be a generic metaclass.
-        debug_assert!(!self.typarams.is_empty());
+        debug_assert!(self.typarams.len() == tyargs.len());
         let base_name = if let TyBody::TyMeta { base_fullname } = &self.instance_ty.body {
             base_fullname
         } else {
-            panic!("SkClass::specialize: not TyMeta")
+            panic!("SkClass::specialize: not TyMeta: {:?}", &self.fullname)
         };
         let instance_ty = ty::spe_meta(base_name, tyargs.to_vec());
         let method_sigs = self
@@ -54,7 +53,6 @@ impl SkClass {
             .iter()
             .map(|(name, sig)| (name.clone(), sig.specialize(tyargs, Default::default())))
             .collect();
-
         SkClass {
             fullname: instance_ty.fullname.clone(),
             typarams: vec![],

@@ -112,7 +112,7 @@ pub enum AstExpressionBody {
         receiver_expr: Option<Box<AstExpression>>, // Box is needed to aboid E0072
         method_name: MethodFirstname,
         arg_exprs: Vec<AstExpression>,
-        type_args: Vec<ConstName>,
+        type_args: Vec<AstExpression>,
         may_have_paren_wo_args: bool,
     },
     LambdaExpr {
@@ -124,7 +124,11 @@ pub enum AstExpressionBody {
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
     IVarRef(String),
-    ConstRef(ConstName),
+    ConstRef(UnresolvedConstName),
+    SpecializeExpression {
+        base_name: UnresolvedConstName,
+        args: Vec<AstExpression>,
+    },
     PseudoVariable(Token),
     ArrayLiteral(Vec<AstExpression>),
     FloatLiteral {
@@ -235,8 +239,8 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
             rhs: Box::new(rhs),
             is_var: false,
         },
-        AstExpressionBody::ConstRef(const_name) => AstExpressionBody::ConstAssign {
-            names: const_name.names,
+        AstExpressionBody::ConstRef(names) => AstExpressionBody::ConstAssign {
+            names: names.0,
             rhs: Box::new(rhs),
         },
         AstExpressionBody::MethodCall {
@@ -287,7 +291,7 @@ pub fn method_call(
     receiver_expr: Option<AstExpression>,
     method_name: &str,
     arg_exprs: Vec<AstExpression>,
-    type_args: Vec<ConstName>,
+    type_args: Vec<AstExpression>,
     primary: bool,
     may_have_paren_wo_args: bool,
 ) -> AstExpression {
@@ -311,8 +315,15 @@ pub fn ivar_ref(name: String) -> AstExpression {
     primary_expression(AstExpressionBody::IVarRef(name))
 }
 
-pub fn const_ref(name: ConstName) -> AstExpression {
-    primary_expression(AstExpressionBody::ConstRef(name))
+pub fn const_ref(name: Vec<String>) -> AstExpression {
+    primary_expression(AstExpressionBody::ConstRef(UnresolvedConstName(name)))
+}
+
+pub fn specialize_expr(base_name: Vec<String>, args: Vec<AstExpression>) -> AstExpression {
+    primary_expression(AstExpressionBody::SpecializeExpression {
+        base_name: UnresolvedConstName(base_name),
+        args,
+    })
 }
 
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
