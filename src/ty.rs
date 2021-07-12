@@ -80,6 +80,24 @@ impl TermTy {
     pub fn is_typaram_ref(&self) -> bool {
         matches!(&self.body, TyParamRef { .. })
     }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        match &self.body {
+            TyMeta { base_fullname } => toplevel_const(base_fullname),
+            TySpeMeta {
+                base_name,
+                type_args,
+            } => {
+                let args = type_args
+                    .iter()
+                    .map(|t| t.fullname.0.clone())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                toplevel_const(&format!("{}<{}>", base_name, args))
+            }
+            _ => panic!("[BUG] to_const_fullname called on {:?}", &self),
+        }
+    }
 }
 
 /// Format `type_args` with .dbg_str
@@ -196,7 +214,7 @@ impl TermTy {
                 base_name,
                 type_args,
             } => ty::spe(base_name, type_args.to_vec()),
-            _ => panic!("undefined: {:?}", self),
+            _ => panic!("instance_ty is undefined for {:?}", self),
         }
     }
 
@@ -229,9 +247,8 @@ impl TermTy {
             TyRaw => self.fullname.clone(),
             TyMeta { base_fullname } => class_fullname(base_fullname),
             TyClass => class_fullname("Class"),
-            TySpe { base_name, .. } | TySpeMeta { base_name, .. } | TyGenMeta { base_name, .. } => {
-                class_fullname(base_name)
-            }
+            TySpe { base_name, .. } => class_fullname(base_name),
+            TySpeMeta { base_name, .. } => metaclass_fullname(base_name),
             // TyParamRef => ??
             _ => panic!("must not happen"),
         }
@@ -351,9 +368,7 @@ pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
     debug_assert!(!base_fullname.contains('<'));
     TermTy {
         fullname: metaclass_fullname(&base_fullname),
-        body: TyMeta {
-            base_fullname,
-        },
+        body: TyMeta { base_fullname },
     }
 }
 
@@ -366,6 +381,7 @@ pub fn class() -> TermTy {
 
 pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     let base_name = base_name_.into();
+    debug_assert!(!base_name.starts_with("Meta:"));
     debug_assert!(!type_args.is_empty());
     let tyarg_names = type_args
         .iter()
@@ -380,7 +396,7 @@ pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     }
 }
 
-pub fn spe_meta(base_name_: &str, type_args: Vec<TermTy>) -> TermTy {
+pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     let base_name = base_name_.into();
     let tyarg_names = type_args
         .iter()

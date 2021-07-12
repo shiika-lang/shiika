@@ -1,5 +1,4 @@
 use shiika::ast;
-use shiika::names;
 use shiika::parser::Parser;
 
 fn parse_expr(src: &str) -> Result<ast::AstExpression, shiika::error::Error> {
@@ -39,7 +38,7 @@ fn test_const_assign() {
     assert_eq!(
         result.unwrap(),
         ast::assignment(
-            ast::const_ref(names::const_name(vec!["X".to_string()])),
+            ast::const_ref(vec!["X".to_string()]),
             ast::decimal_literal(1)
         )
     )

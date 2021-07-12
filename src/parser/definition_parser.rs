@@ -57,20 +57,7 @@ impl<'a> Parser<'a> {
         if self.current_token_is(Token::Colon) {
             self.consume_token();
             self.skip_wsn();
-            match self.current_token() {
-                Token::UpperWord(s) => {
-                    let ss = s.to_string();
-                    self.consume_token();
-                    superclass = Some(self.parse_const_name(ss)?);
-                }
-                token => {
-                    return Err(parse_error!(
-                        self,
-                        "superclass name must start with A-Z but got {:?}",
-                        token
-                    ))
-                }
-            }
+            superclass = Some(self.parse_typ()?);
         }
 
         self.expect_sep()?;
@@ -477,13 +464,79 @@ impl<'a> Parser<'a> {
     fn parse_typ(&mut self) -> Result<ConstName, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
-                let name = s.to_string();
+                let head = s.to_string();
                 self.consume_token();
-                self.parse_const_name(name)
+                self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
+                let name = self._parse_typ(head)?;
+                self.set_lexer_gtgt_mode(false); // End special mode
+                Ok(name)
             }
             Token::ColonColon => Err(parse_error!(self, "TODO: parse types starting with `::'")),
             token => Err(parse_error!(self, "invalid token as type: {:?}", token)),
         }
+    }
+
+    /// Parse a constant name. `s` must be consumed beforehand
+    fn _parse_typ(&mut self, s: String) -> Result<ConstName, Error> {
+        self.lv += 1;
+        self.debug_log("_parse_typ");
+        let mut names = vec![s];
+        let mut lessthan_seen = false;
+        let mut args = vec![];
+        loop {
+            let tok = self.current_token();
+            match tok {
+                Token::ColonColon => {
+                    // `A::B`
+                    if lessthan_seen {
+                        return Err(parse_error!(self, "unexpected `::'"));
+                    }
+                    self.consume_token();
+                }
+                Token::LessThan => {
+                    // `A<B>`
+                    lessthan_seen = true;
+                    self.consume_token();
+                    self.skip_wsn();
+                }
+                Token::GreaterThan => {
+                    // `A<B>`
+                    if lessthan_seen {
+                        self.consume_token();
+                    }
+                    break;
+                }
+                Token::Comma => {
+                    // `A<B, C>`
+                    if lessthan_seen {
+                        self.consume_token();
+                        self.skip_wsn();
+                    } else {
+                        break;
+                    }
+                }
+                Token::UpperWord(s) => {
+                    let name = s.to_string();
+                    self.consume_token();
+                    if lessthan_seen {
+                        let inner = self._parse_typ(name)?;
+                        args.push(inner);
+                        self.skip_wsn();
+                    } else {
+                        names.push(name);
+                    }
+                }
+                token => {
+                    if lessthan_seen {
+                        return Err(parse_error!(self, "unexpected token: {:?}", token));
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        self.lv -= 1;
+        Ok(ConstName { names, args })
     }
 
     fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {

@@ -193,7 +193,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .push(ClassCtx::new(namespace.add(firstname), typarams));
 
         // Register constants before processing #initialize
-        self._process_const_defs_in_class(defs, &fullname)?;
+        let inner_namespace = namespace.add(firstname);
+        self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
         let own_ivars =
@@ -209,7 +210,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .add_method(&meta_name, self.create_new(&fullname)?);
 
         // Process inner defs
-        let inner_namespace = namespace.add(firstname);
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition {
@@ -274,13 +274,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Register constants defined in a class
     fn _process_const_defs_in_class(
         &mut self,
+        namespace: &Namespace,
         defs: &[ast::Definition],
-        fullname: &ClassFullname,
     ) -> Result<(), Error> {
         for def in defs {
             if let ast::Definition::ConstDefinition { name, expr } = def {
-                // FIXME: works for A::B but not for A::B::C
-                let full = const_fullname(&fullname.to_const_fullname(), name);
+                let full = namespace.const_fullname(name);
                 let hir_expr = self.convert_expr(expr)?;
                 self.register_const_full(full, hir_expr);
             }

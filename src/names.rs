@@ -42,6 +42,7 @@ pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
+    debug_assert!(!base.starts_with("Meta:"));
     if base == "Class" {
         class_fullname("Class")
     } else {
@@ -73,6 +74,7 @@ impl ClassFullname {
     }
 
     pub fn meta_name(&self) -> ClassFullname {
+        debug_assert!(!self.0.starts_with("Meta:"));
         if self.0 == "Class" {
             self.clone()
         } else {
@@ -114,7 +116,10 @@ pub struct MethodFullname {
     pub first_name: MethodFirstname,
 }
 
-pub fn method_fullname(class_name: &ClassFullname, first_name_: impl Into<String>) -> MethodFullname {
+pub fn method_fullname(
+    class_name: &ClassFullname,
+    first_name_: impl Into<String>,
+) -> MethodFullname {
     let first_name = first_name_.into();
     MethodFullname {
         full_name: class_name.0.clone() + "#" + &first_name,
@@ -144,8 +149,10 @@ impl std::fmt::Display for ConstFullname {
     }
 }
 
-pub fn const_fullname(namespace: &ConstFullname, first_name: &str) -> ConstFullname {
-    ConstFullname(format!("{}::{}", namespace.0, first_name))
+pub fn const_fullname(s_: impl Into<String>) -> ConstFullname {
+    let s = s_.into();
+    debug_assert!(!s.starts_with("::"));
+    ConstFullname(format!("::{}", &s))
 }
 
 pub fn toplevel_const(first_name: &str) -> ConstFullname {
@@ -203,6 +210,16 @@ impl Namespace {
         }
     }
 
+    /// Returns fullname of the constant in this namespace
+    pub fn const_fullname(&self, name: &str) -> ConstFullname {
+        let n = self.string();
+        if n.is_empty() {
+            const_fullname(name)
+        } else {
+            const_fullname(format!("{}::{}", &n, name))
+        }
+    }
+
     pub fn head(&self, n: usize) -> &[String] {
         &self.0[0..n]
     }
@@ -218,6 +235,7 @@ impl Namespace {
     }
 }
 
+// REFACTOR: Rename to `UnresolvedTypeName` or something.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConstName {
     pub names: Vec<String>,
@@ -283,6 +301,10 @@ pub fn const_name(names: Vec<String>) -> ConstName {
         args: vec![],
     }
 }
+
+/// A const name not resolved yet
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnresolvedConstName(pub Vec<String>);
 
 /// Fully qualified const name.
 #[derive(Debug, PartialEq, Clone)]
