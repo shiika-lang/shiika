@@ -176,9 +176,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
         instance_methods.insert(method_firstname("initialize"), initialize_sig);
 
+        let case_typarams = if case.params.is_empty() {
+            Default::default()
+        } else {
+            typarams
+        };
         self.add_new_class(
             &fullname,
-            typarams,
+            case_typarams,
             superclass,
             Some(new_sig),
             instance_methods,
