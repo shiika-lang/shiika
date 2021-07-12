@@ -15,6 +15,10 @@ pub struct SkClass {
     pub instance_ty: TermTy,
     pub ivars: HashMap<String, super::SkIVar>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
+    /// true if this class cannot be a explicit superclass.
+    /// None if not applicable (eg. metaclasses cannot be a explicit superclass because there is no
+    /// such syntax)
+    pub is_final: Option<bool>,
     /// eg. `Void` is an instance, not the class
     pub const_is_obj: bool,
     /// true if this class is an imported one
@@ -60,6 +64,7 @@ impl SkClass {
             instance_ty,
             ivars: self.ivars.clone(),
             method_sigs,
+            is_final: None,
             const_is_obj: self.const_is_obj,
             foreign: false,
         }

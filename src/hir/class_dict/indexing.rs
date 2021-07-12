@@ -61,12 +61,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
         let superclass = if let Some(name) = ast_superclass {
-            Superclass::from_ty(self._resolve_typename(
-                namespace,
-                typarams,
-                Default::default(),
-                name,
-            )?)
+            let ty = self._resolve_typename(namespace, typarams, Default::default(), name)?;
+
+            if self.get_class(&ty.erasure()).is_final.unwrap() {
+                return Err(error::program_error(&format!("cannot inherit from {}", ty)));
+            }
+            Superclass::from_ty(ty)
         } else {
             Superclass::default()
         };
@@ -105,6 +105,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 Some(new_sig),
                 instance_methods,
                 class_methods,
+                Some(false),
                 false,
             ),
         }
@@ -151,6 +152,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None,
             instance_methods,
             Default::default(),
+            Some(true),
             false,
         );
         for case in cases {
@@ -181,6 +183,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(new_sig),
             instance_methods,
             Default::default(),
+            Some(true),
             case.params.is_empty(),
         );
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
@@ -263,6 +266,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+        is_final: Option<bool>,
         const_is_obj: bool,
     ) {
         let typarams = typaram_names
@@ -284,6 +288,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
+            is_final,
             const_is_obj,
             foreign: false,
         });
@@ -298,6 +303,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
             method_sigs: class_methods,
+            is_final: None,
             const_is_obj: false,
             foreign: false,
         });
