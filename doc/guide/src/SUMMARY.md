@@ -6,7 +6,8 @@
 - Getting Started
 - Basics
   - Everything is Object
-  - Basic Types
+  - [Basic Types](./basic_types.md)
 - [Classes and Objects](./classes.md)
+- [Enums](./enums.md)
 - [Expressions](./expressions.md)
 - FAQ
