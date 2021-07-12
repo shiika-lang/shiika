@@ -168,6 +168,7 @@ fn make_classes(
                     .iter()
                     .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                     .collect(),
+                is_final: Some(false),
                 const_is_obj: (name == "Void"),
                 foreign: false,
             },
@@ -193,6 +194,7 @@ fn make_classes(
                         .iter()
                         .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                         .collect(),
+                    is_final: None,
                     const_is_obj: false,
                     foreign: false,
                 },
