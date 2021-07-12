@@ -6,6 +6,6 @@ class Class
   end
 
   def inspect -> String
-    "#<Class:" + @name + ">"
+    "#<class " + @name + ">"
   end
 end
