@@ -13,7 +13,7 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff --cached"
-  v = "v" + YAML.load_file("cli.yml")["version"]
+  v = "v" + YAML.load_file("src/cli.yml")["version"]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
