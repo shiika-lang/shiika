@@ -1,7 +1,9 @@
-## v0.6.0 (WIP)
+## v0.5.5 (2021-07-12)
 
 - Breaking change: Changed build process (see README) (#280, #284)
+- feat: Enums (#142)
 - feat: Inheritance from generic class (#287)
+- feat: Relative reference of constants (#285) and type names (#291)
 
 ## v0.5.4 (2021-04-04)
 
