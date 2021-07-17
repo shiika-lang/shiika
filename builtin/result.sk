@@ -1,4 +1,6 @@
 enum Result<V, E>
   case Ok(value: V)
-  case Err(err: E)
+  case Fail(err: E)
 end
+Ok = Result::Ok
+Fail = Result::Fail
