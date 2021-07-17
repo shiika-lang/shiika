@@ -113,11 +113,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
-            self.gen_init_constants(&hir.const_inits, &imports.constants);
+            self.gen_init_constants(&hir.const_inits, true);
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
             self.gen_main();
         } else {
             // generating builtin
+            self.gen_init_constants(&hir.const_inits, false);
             self.impl_boxing_funcs();
         }
         self.gen_lambda_funcs(hir)?;
@@ -261,24 +262,29 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate `init_constants()`
     // TODO: imported_constants should be Vec (order matters)
-    fn gen_init_constants(
-        &self,
-        const_inits: &'hir [HirExpression],
-        imported_constants: &HashMap<ConstFullname, TermTy>,
-    ) {
-        // define void @init_constants()
+    fn gen_init_constants(&self, const_inits: &'hir [HirExpression], is_main: bool) {
+        let package_name = if is_main { "main" } else { "builtin" };
+        // define void @xxx_init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
-        let function = self.module.add_function("init_constants", fn_type, None);
+        let function =
+            self.module
+                .add_function(&format!("{}_init_constants", package_name), fn_type, None);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        // call void @"init_::XX"()
-        for fullname in imported_constants.keys() {
-            if !fullname.is_internal() {
-                let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+        // Initialize imported constants
+        if is_main {
+            let imports = vec!["builtin"];
+            for s in imports {
+                let fn_type = self.void_type.fn_type(&[], false);
+                self.module
+                    .add_function(&format!("{}_init_constants", s), fn_type, None);
+                let func = self.get_llvm_func(&format!("{}_init_constants", s));
                 self.builder.build_call(func, &[], "");
             }
         }
+
+        // Initialize own constants
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
@@ -336,7 +342,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_call(func, &[], "");
 
         // Call init_constants, user_main
-        let func = self.get_llvm_func("init_constants");
+        let func = self.get_llvm_func("main_init_constants");
         self.builder.build_call(func, &[], "");
         let func = self.get_llvm_func("user_main");
         self.builder.build_call(func, &[], "");

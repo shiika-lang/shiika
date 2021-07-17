@@ -77,12 +77,19 @@ impl<'a> Parser<'a> {
                     items.push(ast::TopLevelItem::Def(self.parse_enum_definition()?));
                 }
                 Token::KwDef => {
-                    // REFACTOR: Raise error here (rather than on ClassDict::index_program)
-                    items.push(ast::TopLevelItem::Def(self.parse_method_definition()?));
+                    return Err(parse_error!(
+                        self,
+                        "you cannot define toplevel method in Shiika"
+                    ));
                 }
                 Token::Eof | Token::KwEnd => break,
                 _ => {
-                    items.push(ast::TopLevelItem::Expr(self.parse_expr()?));
+                    let expr = self.parse_expr()?;
+                    if let Some(constdef) = expr.as_const_def() {
+                        items.push(ast::TopLevelItem::Def(constdef));
+                    } else {
+                        items.push(ast::TopLevelItem::Expr(expr));
+                    }
                 }
             }
             self.skip_wsn();

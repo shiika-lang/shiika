@@ -175,6 +175,18 @@ impl AstExpression {
             _ => false,
         }
     }
+
+    /// If `self` is ConstAssign, convert it to a ConstDefinition
+    pub fn as_const_def(&self) -> Option<Definition> {
+        if let AstExpressionBody::ConstAssign { names, rhs } = &self.body {
+            Some(Definition::ConstDefinition {
+                name: names.join("::"),
+                expr: *rhs.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 pub fn logical_not(expr: AstExpression) -> AstExpression {
