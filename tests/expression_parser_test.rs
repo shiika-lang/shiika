@@ -33,18 +33,6 @@ fn test_if_expr_with_sep() {
 }
 
 #[test]
-fn test_const_assign() {
-    let result = parse_expr("X = 1");
-    assert_eq!(
-        result.unwrap(),
-        ast::assignment(
-            ast::const_ref(vec!["X".to_string()]),
-            ast::decimal_literal(1)
-        )
-    )
-}
-
-#[test]
 fn test_equality_expr() {
     let result = parse_expr("1 != 2");
     assert_eq!(
