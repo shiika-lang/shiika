@@ -24,47 +24,33 @@ end
 
 task :default => :test
 
-task :run do
-  sh "cargo run"
-  sh "llc a.ll"
-  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s"
-  sh "./a.out"
-end
-
-task :opt do
-  sh "cargo run"
-  sh "opt -O3 a.ll > a.bc"
-  sh "llvm-dis a.bc -o a2.ll"
-  sh "llc a.bc"
-  sh "cc -I/usr/local/Cellar/bdw-gc/7.6.0/include/ -L/usr/local/Cellar/bdw-gc/7.6.0/lib/ -lgc -o a.out a.s"
-  sh "./a.out"
-end
-
-task :build do
-  sh "cargo build"
-end
-
-task :clean do
-  files = `git status -sz --untracked-files=normal --ignored`.
-            lines("\0", chomp: true).
-            filter_map { |l| /\A!! /.match(l)&.post_match }
-  rm_rf files
-end
-
 task :test do
   cd "src/rustlib" do
-    sh "cargo fmt"
     sh "cargo build"
   end
   sh "cargo run -- build_corelib"
   sh "cargo test"
 end
 
-task :tmp do
+RUST_FILES = Dir["src/**/*.rs"]
+
+RUSTLIB_FILES = Dir["src/rustlib/src/**/*.rs"] + ["src/rustlib/Cargo.toml"]
+RUSTLIB = "src/rustlib/target/debug/librustlib.a"
+file RUSTLIB => RUSTLIB_FILES do
   cd "src/rustlib" do
     sh "cargo fmt"
     sh "cargo build"
   end
+end
+
+BUILTIN = "builtin/builtin.bc"
+file BUILTIN => RUST_FILES + Dir["builtin/*.sk"] do
   sh "cargo run -- build_corelib"
+end
+
+A_OUT = "examples/a.sk.out"
+file A_OUT => RUST_FILES + [BUILTIN, RUSTLIB, "examples/a.sk"] do
   sh "cargo run -- run examples/a.sk"
 end
+
+task :a => A_OUT
