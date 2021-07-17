@@ -1,3 +1,7 @@
+## HEAD
+
+- feat: Class alias (#296)
+
 ## v0.5.5 (2021-07-12)
 
 - Breaking change: Changed build process (see README) (#280, #284)
