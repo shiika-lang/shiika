@@ -385,6 +385,3 @@ class Array<T>
     l
   end
 end
-
-# Create `Meta:Array` by this ConstRef for array literals (#178)
-Array
