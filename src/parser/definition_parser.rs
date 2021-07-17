@@ -539,7 +539,7 @@ impl<'a> Parser<'a> {
         Ok(ConstName { names, args })
     }
 
-    fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
+    pub fn parse_const_definition(&mut self) -> Result<ast::Definition, Error> {
         self.debug_log("parse_const_definition");
         self.lv += 1;
         let name;
