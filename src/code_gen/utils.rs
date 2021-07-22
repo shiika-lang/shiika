@@ -207,10 +207,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // %foo = bitcast i8* %mem to %#{t}*",
         let obj = self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name);
 
-        // Store reference to class obj
-        self.set_class_of_obj(&obj, class_obj);
         // Store reference to vtable
         self.set_vtable_of_obj(&obj, self.vtable_ref(class_fullname));
+        // Store reference to class obj
+        self.set_class_of_obj(&obj, class_obj);
 
         obj
     }
