@@ -5,9 +5,12 @@ use inkwell::types::*;
 use inkwell::AddressSpace;
 
 /// Number of elements before ivars
-const OBJ_HEADER_SIZE: usize = 1;
-/// 0th: reference to the class object
-const OBJ_CLASS_IDX: usize = 0;
+const OBJ_HEADER_SIZE: usize = 2;
+/// 0th: reference to the vtable
+const OBJ_VTABLE_IDX: usize = 0;
+/// 1st: reference to the class object
+const OBJ_CLASS_IDX: usize = 1;
+
 /// @vtable of class
 const CLASS_VTABLE_IDX: usize = 1;
 
@@ -39,6 +42,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_llvm_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
     }
 
+    /// Get the vtable of an object as i8ptr
+    pub fn get_vtable_of_obj(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable")
+    }
+
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(
         &self,
@@ -62,13 +73,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_llvm_struct_set(object, OBJ_CLASS_IDX, self.into_i8ptr(class_obj), "class");
     }
 
-    /// Get vtable of a class object as *i8
-    pub fn get_vtable_of_class(
+    /// Set `vtable` to `object`
+    pub fn set_vtable_of_obj(
         &self,
-        class: inkwell::values::BasicValueEnum<'run>,
-    ) -> inkwell::values::PointerValue<'run> {
-        self.unbox_i8ptr(self.build_ivar_load(class, CLASS_VTABLE_IDX, "@vtable"))
+        object: &inkwell::values::BasicValueEnum<'run>,
+        vtable: inkwell::values::BasicValueEnum<'run>,
+    ) {
+        self.build_llvm_struct_set(object, OBJ_VTABLE_IDX, vtable, "vtable");
     }
+
+    //    /// Get vtable of a class object as *i8
+    //    pub fn get_vtable_of_class(
+    //        &self,
+    //        class: inkwell::values::BasicValueEnum<'run>,
+    //    ) -> inkwell::values::PointerValue<'run> {
+    //        self.unbox_i8ptr(self.build_ivar_load(class, CLASS_VTABLE_IDX, "@vtable"))
+    //    }
 
     /// Get vtable of the class of the given name as *i8
     pub fn vtable_ref(&self, classname: &ClassFullname) -> inkwell::values::BasicValueEnum<'run> {
@@ -197,6 +217,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Store reference to class obj
         self.set_class_of_obj(&obj, class_obj);
+        // Store reference to vtable
+        self.set_vtable_of_obj(&obj, self.vtable_ref(class_fullname));
 
         obj
     }

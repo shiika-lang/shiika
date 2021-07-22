@@ -418,8 +418,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_value: inkwell::values::BasicValueEnum<'run>,
         func_type: inkwell::types::FunctionType<'run>,
     ) -> inkwell::values::PointerValue<'run> {
-        let class = self.get_class_of_obj(receiver_value);
-        let vtable = self.get_vtable_of_class(class);
+        //let class = self.get_class_of_obj(receiver_value);
+        let vtable = self.get_vtable_of_obj(receiver_value).into_pointer_value();
         let (idx, size) = self.__lookup_vtable(&receiver_ty, &method_name);
         let func_raw = self.build_vtable_ref(vtable, *idx, size);
         self.builder

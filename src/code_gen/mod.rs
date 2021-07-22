@@ -11,6 +11,7 @@ use crate::library::LibraryExports;
 use crate::mir;
 use crate::mir::*;
 use crate::names::*;
+use crate::ty;
 use crate::ty::*;
 use either::*;
 use inkwell::types::*;
@@ -375,20 +376,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Set fields for ivars
     fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
         let vt = self.llvm_vtable_ref_type().into();
+        let ct = self.class_object_ref_type().into();
         for (name, class) in classes {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match name.0.as_str() {
                 "Int" => {
-                    struct_type.set_body(&[vt, self.i64_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
                 }
                 "Float" => {
-                    struct_type.set_body(&[vt, self.f64_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
                 }
                 "Bool" => {
-                    struct_type.set_body(&[vt, self.i1_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
                 }
                 "Shiika::Internal::Ptr" => {
-                    struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
                 }
                 _ => {
                     struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
@@ -685,7 +687,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// LLVM type of a reference to a class object
     fn class_object_ref_type(&self) -> inkwell::types::PointerType {
-        self.llvm_type(&ty::raw("Class"))
+        self.llvm_type(&ty::raw("Class")).into_pointer_type()
     }
 
     /// Generate body of `.new`
