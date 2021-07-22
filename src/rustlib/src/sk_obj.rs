@@ -1,8 +1,3 @@
-//extern "C" {
-//    fn box_int(int: i64) -> *const SkInt;
-//    fn unbox_int(sk_int: *const SkInt) -> i64;
-//}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkInt {

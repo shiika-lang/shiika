@@ -365,6 +365,7 @@ pub fn raw(fullname_: impl Into<String>) -> TermTy {
 
 pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
     let base_fullname = base_fullname_.into();
+    debug_assert!(!base_fullname.is_empty());
     debug_assert!(!base_fullname.contains('<'));
     TermTy {
         fullname: metaclass_fullname(&base_fullname),

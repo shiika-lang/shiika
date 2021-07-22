@@ -827,7 +827,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self._create_specialized_meta_class(&meta_ty);
         // Register const `A<B>`
         let str_idx = self.register_string_literal(&full.0);
-        let expr = Hir::class_literal(meta_ty.clone(), meta_ty.fullname.clone(), str_idx);
+        let expr = Hir::class_literal(
+            meta_ty.clone(),
+            meta_ty.instance_ty().fullname.clone(),
+            str_idx,
+        );
         self.register_const_full(full.clone(), expr);
     }
 

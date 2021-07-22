@@ -38,6 +38,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .i8ptr_type
             .fn_type(&[self.llvm_type(&ty::raw("Shiika::Internal::Ptr"))], false);
         self.module.add_function("unbox_i8ptr", fn_type, None);
+        let fn_type = self
+            .llvm_type(&ty::raw("String"))
+            .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
+        self.module
+            .add_function("gen_literal_string", fn_type, None);
     }
 
     /// Generate body of llvm funcs about boxing
@@ -117,6 +122,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_ptr = function.get_params()[0];
         let i8ptr = self.build_ivar_load(sk_ptr, 0, "@llvm_i8ptr");
         self.builder.build_return(Some(&i8ptr));
+
+        // gen_literal_string
+        self.impl_gen_literal_string();
+    }
+
+    fn impl_gen_literal_string(&self) {
+        let function = self.module.get_function("gen_literal_string").unwrap();
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
+        let func = self.get_llvm_func("Meta:String#new");
+        let receiver_value = self.gen_const_ref(&toplevel_const("String"));
+        let str_i8ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let bytesize = function.get_nth_param(1).unwrap().into_int_value();
+        let arg_values = vec![self.box_i8ptr(str_i8ptr), self.box_int(&bytesize)];
+        let sk_str = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        self.builder.build_return(Some(&sk_str));
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
@@ -207,7 +229,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function("box_i8ptr").unwrap();
         self.builder
-            .build_call(f, &[p.as_basic_value_enum()], "i8ptr")
+            .build_call(f, &[p.as_basic_value_enum()], "sk_ptr")
             .try_as_basic_value()
             .left()
             .unwrap()

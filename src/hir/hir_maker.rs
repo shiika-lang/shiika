@@ -92,42 +92,36 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
+    /// Register constants which hold class object
+    /// eg.
+    /// - ::Int
+    /// - ::Meta:Int
+    /// - ::<internal>::Maybe::None
     fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             let resolved = ResolvedConstName::unsafe_create(name);
             if const_is_obj {
-                self._create_single_instance_const(&resolved);
+                // Create constant like `Void`, `Maybe::None`.
+                let str_idx = self.register_string_literal(&resolved.string());
+                let ty = ty::raw(&resolved.string());
+                // The class
+                let cls_obj =
+                    Hir::class_literal(ty.meta_ty(), resolved.to_class_fullname(), str_idx);
+                // The instance
+                let expr = Hir::method_call(
+                    ty,
+                    cls_obj,
+                    method_fullname(&metaclass_fullname(&resolved.string()), "new"),
+                    vec![],
+                );
+                self.register_const_full(resolved.to_const_fullname(), expr);
             } else {
                 let ty = ty::meta(&resolved.string());
                 let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(
-                    ty.clone(),
-                    resolved.to_class_fullname().meta_name(),
-                    str_idx,
-                );
+                let expr = Hir::class_literal(ty.clone(), resolved.to_class_fullname(), str_idx);
                 self.register_const_full(resolved.to_const_fullname(), expr);
             }
         }
-    }
-
-    /// Create constant like `Void`, `Maybe::None`.
-    fn _create_single_instance_const(&mut self, name: &ResolvedConstName) {
-        let str_idx = self.register_string_literal(&name.string());
-        let ty = ty::raw(&name.string());
-        // The class
-        let meta_name = const_is_obj_class_internal_const_name(name);
-        let meta_const_name = meta_name.to_const_fullname();
-        let cls_obj =
-            Hir::class_literal(ty.meta_ty(), name.to_class_fullname().meta_name(), str_idx);
-        let meta_const_assign = self.register_internal_const(meta_const_name, cls_obj);
-        // The instance
-        let expr = Hir::method_call(
-            ty,
-            meta_const_assign,
-            method_fullname(&metaclass_fullname(&name.string()), "new"),
-            vec![],
-        );
-        self.register_const_full(name.to_const_fullname(), expr);
     }
 
     fn convert_toplevel_items(
@@ -207,7 +201,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register .new
         self.method_dict
-            .add_method(&meta_name, self.create_new(&fullname)?);
+            .add_method(&meta_name, self.create_new(&fullname, false)?);
 
         // Process inner defs
         for def in defs {
@@ -300,7 +294,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Create .new
-    fn create_new(&self, class_fullname: &ClassFullname) -> Result<SkMethod, Error> {
+    fn create_new(
+        &self,
+        class_fullname: &ClassFullname,
+        const_is_obj: bool,
+    ) -> Result<SkMethod, Error> {
         let (initialize_name, init_cls_name) =
             self._find_initialize(&class_fullname.instance_ty())?;
         let (signature, _) = self.class_dict.lookup_method(
@@ -313,11 +311,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
             code_gen.gen_body_of_new(
-                function,
+                function.get_params(),
                 &classname,
                 &initialize_name,
                 &init_cls_name,
                 arity,
+                const_is_obj,
             );
             Ok(())
         };
@@ -361,17 +360,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
         let op = Hir::const_assign(fullname, hir_expr);
         self.const_inits.push(op);
-    }
-
-    /// Register a special constant
-    pub(super) fn register_internal_const(
-        &mut self,
-        fullname: ConstFullname,
-        hir_expr: HirExpression,
-    ) -> HirExpression {
-        debug_assert!(!self.constants.contains_key(&fullname));
-        self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        Hir::const_assign(fullname, hir_expr)
     }
 
     fn convert_method_def(
@@ -483,8 +471,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.define_accessors(&fullname, ivars, Default::default());
 
         // Register .new
-        self.method_dict
-            .add_method(&fullname.meta_name(), self.create_new(&fullname)?);
+        let const_is_obj = case.params.is_empty();
+        self.method_dict.add_method(
+            &fullname.meta_name(),
+            self.create_new(&fullname, const_is_obj)?,
+        );
         Ok(())
     }
 }
