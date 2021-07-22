@@ -245,7 +245,7 @@ impl TermTy {
     pub fn erasure(&self) -> ClassFullname {
         match &self.body {
             TyRaw => self.fullname.clone(),
-            TyMeta { base_fullname } => class_fullname(base_fullname),
+            TyMeta { base_fullname } => metaclass_fullname(base_fullname),
             TyClass => class_fullname("Class"),
             TySpe { base_name, .. } => class_fullname(base_name),
             TySpeMeta { base_name, .. } => metaclass_fullname(base_name),
