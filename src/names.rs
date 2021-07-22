@@ -2,8 +2,6 @@ use crate::ty;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
 
-pub const INTERNAL_CONST_NAMESPACE: &str = "<internal>";
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassFirstname(pub String);
 
@@ -169,13 +167,6 @@ pub fn toplevel_const(first_name: &str) -> ConstFullname {
     ConstFullname(format!("::{}", first_name))
 }
 
-impl ConstFullname {
-    /// Returns true if this const is not visible in Shiika level
-    pub fn is_internal(&self) -> bool {
-        self.0.contains(INTERNAL_CONST_NAMESPACE)
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
 
@@ -195,11 +186,6 @@ impl Namespace {
     /// Returns a toplevel namespace
     pub fn root() -> Namespace {
         Namespace::new(vec![])
-    }
-
-    /// Returns the hidden namespace
-    pub fn internal() -> Namespace {
-        Namespace::new(vec![INTERNAL_CONST_NAMESPACE.to_string()])
     }
 
     /// Add `name` to the end of `self`
@@ -424,11 +410,4 @@ pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> Resolved
 // ad hoc. Not sure I'm doing right
 pub fn typaram_as_resolved_const_name(name: impl Into<String>) -> ResolvedConstName {
     resolved_const_name(Namespace::root(), vec![name.into()])
-}
-
-// The constant `::Void` is an *instance* of the class `Void`. However we need
-// the class object for `::Void.class`; Returns name for this internal constant
-fn const_is_obj_class_internal_const_name(name: &ResolvedConstName) -> ResolvedConstName {
-    debug_assert!(!name.has_type_args());
-    resolved_const_name(Namespace::internal(), name.names.clone())
 }
