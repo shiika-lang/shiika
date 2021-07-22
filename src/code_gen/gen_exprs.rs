@@ -882,12 +882,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.gen_string_literal(str_literal_idx),
             "@name",
         );
-        self.build_ivar_store(
-            &cls_obj,
-            1,
-            self.box_i8ptr(self.vtable_ref(&meta_name).into_pointer_value()),
-            "@vtable",
-        );
 
         if fullname.0 == "Class" {
             // We need a trick here to achieve `Class.class == Class`.

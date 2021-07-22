@@ -82,14 +82,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_llvm_struct_set(object, OBJ_VTABLE_IDX, vtable, "vtable");
     }
 
-    //    /// Get vtable of a class object as *i8
-    //    pub fn get_vtable_of_class(
-    //        &self,
-    //        class: inkwell::values::BasicValueEnum<'run>,
-    //    ) -> inkwell::values::PointerValue<'run> {
-    //        self.unbox_i8ptr(self.build_ivar_load(class, CLASS_VTABLE_IDX, "@vtable"))
-    //    }
-
     /// Get vtable of the class of the given name as *i8
     pub fn vtable_ref(&self, classname: &ClassFullname) -> inkwell::values::BasicValueEnum<'run> {
         let vtable_const_name = llvm_vtable_const_name(classname);

@@ -13,14 +13,5 @@ pub fn ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
-    ivars.insert(
-        "@vtable".to_string(),
-        SkIVar {
-            name: "@vtable".to_string(),
-            idx: 1,
-            ty: ty::raw("Shiika::Internal::Ptr"),
-            readonly: true,
-        },
-    );
     ivars
 }
