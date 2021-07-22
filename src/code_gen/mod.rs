@@ -104,6 +104,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<(), Error> {
         self.gen_declares();
+        self.define_class_class();
         self.gen_imports(imports);
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -186,6 +187,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.i8_type.const_int(0, false),
         ]));
         global.set_constant(true);
+    }
+
+    /// Define llvm struct type for `Class`
+    fn define_class_class(&mut self) {
+        self.llvm_struct_types.insert(
+            class_fullname("Class"),
+            self.context.opaque_struct_type("Class"),
+        );
     }
 
     /// Generate information to use imported items

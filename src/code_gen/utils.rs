@@ -11,9 +11,6 @@ const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
 const OBJ_CLASS_IDX: usize = 1;
 
-/// @vtable of class
-const CLASS_VTABLE_IDX: usize = 1;
-
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return ::Void
     pub fn build_return_void(&self) {
@@ -70,7 +67,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         object: &inkwell::values::BasicValueEnum<'run>,
         class_obj: inkwell::values::BasicValueEnum<'run>,
     ) {
-        self.build_llvm_struct_set(object, OBJ_CLASS_IDX, self.into_i8ptr(class_obj), "class");
+        let cast =
+            self.builder
+                .build_bitcast(class_obj, self.llvm_type(&ty::raw("Class")), "class");
+        self.build_llvm_struct_set(object, OBJ_CLASS_IDX, cast, "my_class");
     }
 
     /// Set `vtable` to `object`
