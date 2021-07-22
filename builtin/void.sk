@@ -1,0 +1,5 @@
+class Void
+  def to_s -> String
+    "Void"
+  end
+end
