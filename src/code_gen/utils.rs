@@ -223,7 +223,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkObj(self.call_llvm_func(func_name, &llvm_args, reg_name))
     }
 
-    /// Call llvm function
+    /// Call llvm function (whose return type is not `void`)
     pub fn call_llvm_func(
         &self,
         func_name: &str,
@@ -236,6 +236,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .try_as_basic_value()
             .left()
             .unwrap()
+    }
+
+    /// Call llvm function whose return type is `void`
+    pub fn call_llvm_void_func(
+        &self,
+        func_name: &str,
+        args: &[inkwell::values::BasicValueEnum<'run>],
+    ) {
+        let f = self.module.get_function(func_name).unwrap();
+        self.builder.build_call(f, args, "");
     }
 
     /// Get nth parameter of llvm func as SkObj

@@ -50,7 +50,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     code_gen
                         .builder
                         .build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
-                code_gen.call_llvm_func(
+                code_gen.call_llvm_void_func(
                     "llvm.memcpy.p0i8.p0i8.i64",
                     &[
                         dst.0.into(),
@@ -59,7 +59,6 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                         code_gen.i32_type.const_int(0, false).into(),
                         code_gen.i1_type.const_int(0, false).into(),
                     ],
-                    "mem",
                 );
                 code_gen.build_return_void();
                 Ok(())
