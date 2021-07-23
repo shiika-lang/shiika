@@ -30,7 +30,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                         .builder
                         .build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
                 let mem = code_gen.call_llvm_func(
-                    "shiika_malloc",
+                    "shiika_realloc",
                     &[ptr.0.into(), n_bytes_64.into()],
                     "mem",
                 );
