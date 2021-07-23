@@ -168,13 +168,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_fullname: &ClassFullname,
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'ictx> {
+        let class_obj = self.load_class_object(class_fullname);
+        self._allocate_sk_obj(class_fullname, reg_name, class_obj)
+    }
+
+    /// Load a class object
+    fn load_class_object(
+        &self,
+        class_fullname: &ClassFullname,
+    ) -> inkwell::values::BasicValueEnum<'ictx> {
         let class_const_name = llvm_class_const_name(class_fullname);
-        let class_obj = self
+        let class_obj_addr = self
             .module
             .get_global(&class_const_name)
             .unwrap_or_else(|| panic!("global `{}' not found", class_const_name))
-            .as_basic_value_enum();
-        self._allocate_sk_obj(class_fullname, reg_name, class_obj)
+            .as_pointer_value();
+        self.builder.build_load(class_obj_addr, "class_obj")
     }
 
     pub fn _allocate_sk_obj(
