@@ -52,13 +52,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         object: inkwell::values::BasicValueEnum<'run>,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let i8ptr = self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class");
-        let class_type = self.llvm_struct_type(&class_fullname("Class"));
-        self.builder.build_bitcast(
-            i8ptr,
-            class_type.ptr_type(AddressSpace::Generic),
-            "sk_class",
-        )
+        self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class")
     }
 
     /// Set `class_obj` to the class object field of `object`
