@@ -1,22 +1,22 @@
 /// Shiika object (eg. `Int*`, `String*`)
-#[derive(Debug)]
-pub struct SkObj<'ictx>(pub inkwell::values::BasicValueEnum<'ictx>);
+#[derive(Clone, Debug)]
+pub struct SkObj<'run>(pub inkwell::values::BasicValueEnum<'run>);
 
 /// Shiika class object (eg. `Meta:Int*`, `Meta:String*`)
 #[derive(Debug)]
-pub struct SkClassObj<'ictx>(pub inkwell::values::BasicValueEnum<'ictx>);
+pub struct SkClassObj<'run>(pub inkwell::values::BasicValueEnum<'run>);
 
-impl<'ictx> SkClassObj<'ictx> {
+impl<'run> SkClassObj<'run> {
     /// A class object is a Shiika object.
-    pub fn as_sk_obj(self) -> SkObj<'ictx> {
+    pub fn as_sk_obj(self) -> SkObj<'run> {
         SkObj(self.0)
     }
 }
 
 /// Reference to vtable (eg. `shiika_vtable_Int`)
 #[derive(Debug)]
-pub struct VTableRef<'ictx>(pub inkwell::values::BasicValueEnum<'ictx>);
+pub struct VTableRef<'run>(pub inkwell::values::BasicValueEnum<'run>);
 
 /// i8*
 #[derive(Debug)]
-pub struct I8Ptr<'ictx>(pub inkwell::values::PointerValue<'ictx>);
+pub struct I8Ptr<'run>(pub inkwell::values::PointerValue<'run>);

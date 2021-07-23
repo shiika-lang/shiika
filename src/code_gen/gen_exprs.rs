@@ -143,7 +143,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.unwrap();
-        self.gen_conditional_branch(left_value, more_block, merge_block);
+        self.gen_conditional_branch(left_value.clone(), more_block, merge_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
         self.builder.position_at_end(more_block);
@@ -176,7 +176,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.unwrap();
-        self.gen_conditional_branch(left_value, merge_block, else_block);
+        self.gen_conditional_branch(left_value.clone(), merge_block, else_block);
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
         self.builder.position_at_end(else_block);
@@ -235,8 +235,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.builder.build_unreachable();
                 Ok(None)
             }
-            (None, _) => Ok(else_value),
-            (_, None) => Ok(then_value),
+            (None, else_value) => Ok(else_value),
+            (then_value, None) => Ok(then_value),
             (Some(then_val), Some(else_val)) => {
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
                 phi_node
@@ -342,7 +342,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>, Error> {
         let object = self.gen_self_expression(ctx, self_ty);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        self.build_ivar_store(&object, *idx, value, name);
+        self.build_ivar_store(&object, *idx, value.clone(), name);
         Ok(Some(value))
     }
 
@@ -394,7 +394,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func = self._get_method_func(
             &method_fullname.first_name,
             &receiver_expr.ty,
-            receiver_value,
+            receiver_value.clone(),
             func_type,
         );
 
@@ -418,7 +418,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_name: &MethodFirstname,
         receiver_ty: &TermTy,
         receiver_value: SkObj<'run>,
-        func_type: inkwell::types::FunctionType<'run>,
+        func_type: inkwell::types::FunctionType<'ictx>,
     ) -> inkwell::values::PointerValue<'run> {
         //let class = self.get_class_of_obj(receiver_value);
         let vtable = self.get_vtable_of_obj(receiver_value);
@@ -452,7 +452,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj.0];
+        let mut args = vec![lambda_obj.0.clone()];
         for e in arg_exprs {
             args.push(self.gen_expr(ctx, e)?.unwrap().0);
         }
@@ -477,7 +477,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptype = fntype.ptr_type(AddressSpace::Generic);
 
         // Cast `fnptr` to that type
-        let fnptr = self.unbox_i8ptr(self.build_ivar_load(lambda_obj, FN_X_FUNC_IDX, "@func"));
+        let fnptr =
+            self.unbox_i8ptr(self.build_ivar_load(lambda_obj.clone(), FN_X_FUNC_IDX, "@func"));
         let func = self
             .builder
             .build_bitcast(fnptr.0, fnptype, "")
@@ -524,7 +525,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: F,
         receiver_value: SkObj<'run>,
-        mut arg_values: Vec<SkObj<'run>>,
+        arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run>
     where
         F: Into<
@@ -642,7 +643,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             };
             let obj = self.bitcast(item, &ty::raw("Object"), "capture_item");
-            self.call_method_func("Array#push", ary, &[obj], "_");
+            self.call_method_func("Array#push", ary.clone(), &[obj], "_");
         }
         ary
     }
@@ -654,7 +655,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
     ) -> SkObj<'run> {
         let the_main = if ctx.function.get_name().to_str().unwrap() == "user_main" {
-            self.the_main.unwrap()
+            self.the_main.clone().unwrap()
         } else if ctx.function_origin == FunctionOrigin::Lambda {
             let fn_x = self.get_nth_param(&ctx.function, 0);
             self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "@obj")
@@ -679,7 +680,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?.unwrap();
             let obj = self.bitcast(item, &ty::raw("Object"), "obj");
-            self.call_method_func("Array#push", ary, &[obj], "_");
+            self.call_method_func("Array#push", ary.clone(), &[obj], "_");
         }
         Ok(Some(ary))
     }

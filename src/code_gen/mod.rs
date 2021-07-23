@@ -25,11 +25,13 @@ use std::rc::Rc;
 
 /// CodeGen
 ///
-/// 'hir > 'ictx >= 'run
+/// 'hir > 'ictx > 'run
 ///
 /// 'hir: the Hir
 /// 'ictx: inkwell context
-/// 'run: code_gen::run()
+/// 'run: code_gen::run() after 'ictx is created
+///
+/// Basically inkwell types has 'ictx and inkwell values has 'run.
 pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub generate_main: bool,
     pub context: &'ictx inkwell::context::Context,
@@ -47,7 +49,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     vtables: &'hir mir::VTables,
     imported_vtables: &'hir mir::VTables,
     /// Toplevel `self`
-    the_main: Option<SkObj<'ictx>>,
+    the_main: Option<SkObj<'run>>,
 }
 
 /// Compile hir and dump it to `outpath`
@@ -725,7 +727,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .module
             .get_function(&initialize_name.full_name)
             .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
-        let mut addr = obj;
+        let mut addr = obj.clone();
         if need_bitcast {
             let ances_type = self
                 .llvm_struct_types

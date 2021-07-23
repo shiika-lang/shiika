@@ -13,7 +13,6 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     code_gen
                         .builder
                         .build_int_z_extend(n_bytes, code_gen.i64_type, "n_bytes_64");
-                let func = code_gen.module.get_function("shiika_malloc").unwrap();
                 let mem = code_gen.call_llvm_func("shiika_malloc", &[n_bytes_64.into()], "mem");
                 let skptr = code_gen.box_i8ptr(I8Ptr(mem.into_pointer_value()));
                 code_gen.build_return(&skptr);

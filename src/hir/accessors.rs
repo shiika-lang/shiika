@@ -83,6 +83,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         let this = code_gen.get_nth_param(function, 0);
         let val = code_gen.get_nth_param(function, 1);
         code_gen.build_ivar_store(&this, idx, val, &ivar_name);
+        let val = code_gen.get_nth_param(function, 1);
         code_gen.build_return(&val);
         Ok(())
     };

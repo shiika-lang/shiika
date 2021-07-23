@@ -14,7 +14,7 @@ const OBJ_CLASS_IDX: usize = 1;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return Shiika object
-    pub fn build_return(&self, obj: &SkObj) {
+    pub fn build_return(&self, obj: &SkObj<'run>) {
         self.builder.build_return(Some(&obj.0));
     }
 
@@ -162,13 +162,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate call of malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> SkObj<'ictx> {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> SkObj<'run> {
         let class_obj = self.load_class_object(class_fullname);
         self._allocate_sk_obj(class_fullname, reg_name, class_obj)
     }
 
     /// Load a class object
-    fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'ictx> {
+    fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
         let class_const_name = llvm_class_const_name(class_fullname);
         let class_obj_addr = self
             .module
@@ -183,7 +183,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_fullname: &ClassFullname,
         reg_name: &str,
         class_obj: SkClassObj,
-    ) -> SkObj<'ictx> {
+    ) -> SkObj<'run> {
         let object_type = self.llvm_struct_type(class_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
@@ -214,10 +214,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn call_method_func(
         &self,
         func_name: &str,
-        receiver: SkObj,
-        args: &[SkObj],
+        receiver: SkObj<'run>,
+        args: &[SkObj<'run>],
         reg_name: &str,
-    ) -> SkObj {
+    ) -> SkObj<'run> {
         let mut llvm_args = vec![receiver.0];
         llvm_args.append(&mut args.iter().map(|x| x.0).collect());
         SkObj(self.call_llvm_func(func_name, &llvm_args, reg_name))
@@ -227,9 +227,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn call_llvm_func(
         &self,
         func_name: &str,
-        args: &[inkwell::values::BasicValueEnum<'ictx>],
+        args: &[inkwell::values::BasicValueEnum<'run>],
         reg_name: &str,
-    ) -> inkwell::values::BasicValueEnum<'ictx> {
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self.module.get_function(func_name).unwrap();
         self.builder
             .build_call(f, args, reg_name)
@@ -239,12 +239,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get nth parameter of llvm func as SkObj
-    pub fn get_nth_param(&self, function: &inkwell::values::FunctionValue, n: usize) -> SkObj {
+    pub fn get_nth_param(
+        &self,
+        function: &inkwell::values::FunctionValue<'run>,
+        n: usize,
+    ) -> SkObj<'run> {
         SkObj(function.get_nth_param(n as u32).unwrap())
     }
 
     /// Cast an object to different Shiika type
-    pub fn bitcast(&self, obj: SkObj, ty: &TermTy, reg_name: &str) -> SkObj {
+    pub fn bitcast(&self, obj: SkObj<'run>, ty: &TermTy, reg_name: &str) -> SkObj<'run> {
         SkObj(
             self.builder
                 .build_bitcast(obj.0, self.llvm_type(ty), reg_name),
@@ -272,7 +276,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Return the llvm func
     /// Panic if not found
-    pub(super) fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'ictx> {
+    pub(super) fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'run> {
         self.module
             .get_function(name)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))

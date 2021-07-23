@@ -140,45 +140,45 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM bool(i1) into Shiika Bool
-    pub fn box_bool(&self, b: inkwell::values::IntValue<'ictx>) -> SkObj<'ictx> {
+    pub fn box_bool(&self, b: inkwell::values::IntValue<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func("box_bool", &[b.into()], "sk_bool"))
     }
 
     /// Convert Shiika Bool into LLVM bool(i1)
-    pub fn unbox_bool(&self, sk_bool: SkObj<'ictx>) -> inkwell::values::IntValue<'ictx> {
+    pub fn unbox_bool(&self, sk_bool: SkObj<'run>) -> inkwell::values::IntValue<'run> {
         self.call_llvm_func("unbox_bool", &[sk_bool.0], "llvm_bool")
             .into_int_value()
     }
 
     /// Convert LLVM int into Shiika Int
-    pub fn box_int(&self, i: &inkwell::values::IntValue<'ictx>) -> SkObj<'ictx> {
+    pub fn box_int(&self, i: &inkwell::values::IntValue<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func("box_int", &[i.as_basic_value_enum()], "sk_int"))
     }
 
     /// Convert Shiika Int into LLVM int
-    pub fn unbox_int(&self, sk_int: SkObj<'ictx>) -> inkwell::values::IntValue<'ictx> {
+    pub fn unbox_int(&self, sk_int: SkObj<'run>) -> inkwell::values::IntValue<'run> {
         self.call_llvm_func("unbox_int", &[sk_int.0], "llvm_int")
             .into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
-    pub fn box_float(&self, fl: &inkwell::values::FloatValue<'ictx>) -> SkObj<'ictx> {
+    pub fn box_float(&self, fl: &inkwell::values::FloatValue<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func("box_float", &[fl.as_basic_value_enum()], "sk_float"))
     }
 
     /// Convert Shiika Float into LLVM float
-    pub fn unbox_float(&self, sk_float: SkObj<'ictx>) -> inkwell::values::FloatValue<'ictx> {
+    pub fn unbox_float(&self, sk_float: SkObj<'run>) -> inkwell::values::FloatValue<'run> {
         self.call_llvm_func("unbox_float", &[sk_float.0], "llvm_float")
             .into_float_value()
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
-    pub fn box_i8ptr(&self, p: I8Ptr<'ictx>) -> SkObj<'ictx> {
+    pub fn box_i8ptr(&self, p: I8Ptr<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func("box_i8ptr", &[p.0.into()], "sk_ptr"))
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*
-    pub fn unbox_i8ptr(&self, sk_obj: SkObj<'ictx>) -> I8Ptr<'ictx> {
+    pub fn unbox_i8ptr(&self, sk_obj: SkObj<'run>) -> I8Ptr<'run> {
         I8Ptr(
             self.call_llvm_func("unbox_i8ptr", &[sk_obj.0], "llvm_ptr")
                 .into_pointer_value(),

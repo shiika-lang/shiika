@@ -226,7 +226,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                 .builder
                 .build_signed_int_to_float(int, code_gen.f64_type, "float");
             let sk_result = code_gen.box_float(&float);
-            code_gen.builder.build_return(Some(&sk_result));
+            code_gen.build_return(&sk_result);
             Ok(())
         }),
         create_method("Int", "-@ -> Int", |code_gen, function| {
@@ -235,7 +235,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             let zero = code_gen.i64_type.const_int(0, false);
             let result = code_gen.builder.build_int_sub(zero, i, "result");
             let sk_result = code_gen.box_int(&result);
-            code_gen.builder.build_return(Some(&sk_result));
+            code_gen.build_return(&sk_result);
             Ok(())
         }),
     ]
