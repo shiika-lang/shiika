@@ -132,7 +132,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let receiver = self.gen_const_ref(&toplevel_const("String"));
-        let str_i8ptr = I8Ptr(function.get_nth_param(0).unwrap().into_pointer_value());
+        let str_i8ptr = function.get_nth_param(0).unwrap();
         let bytesize = function.get_nth_param(1).unwrap().into_int_value();
         let args = vec![self.box_i8ptr(str_i8ptr), self.box_int(&bytesize)];
         let sk_str = self.call_method_func("Meta:String#new", receiver, &args, "sk_str");
@@ -173,8 +173,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
-    pub fn box_i8ptr(&self, p: I8Ptr<'run>) -> SkObj<'run> {
-        SkObj(self.call_llvm_func("box_i8ptr", &[p.0.into()], "sk_ptr"))
+    pub fn box_i8ptr(&self, p: inkwell::values::BasicValueEnum<'run>) -> SkObj<'run> {
+        SkObj(self.call_llvm_func("box_i8ptr", &[p], "sk_ptr"))
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*

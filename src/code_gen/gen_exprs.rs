@@ -611,7 +611,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
-        let sk_ptr = self.box_i8ptr(I8Ptr(fnptr_i8.into_pointer_value()));
+        let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)];
         self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)

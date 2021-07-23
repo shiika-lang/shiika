@@ -1,4 +1,3 @@
-use crate::code_gen::values::I8Ptr;
 use crate::corelib::create_method;
 use crate::hir::*;
 use crate::ty;
@@ -12,7 +11,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                 let ptr = code_gen.unbox_i8ptr(code_gen.get_nth_param(function, 0));
                 let n_bytes = code_gen.unbox_int(code_gen.get_nth_param(function, 1));
                 let newptr = unsafe { code_gen.builder.build_gep(ptr.0, &[n_bytes], "newptr") };
-                let skptr = code_gen.box_i8ptr(I8Ptr(newptr));
+                let skptr = code_gen.box_i8ptr(newptr.into());
                 code_gen.build_return(&skptr);
                 Ok(())
             },
