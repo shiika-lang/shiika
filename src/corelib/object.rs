@@ -24,9 +24,7 @@ pub fn create_methods() -> Vec<SkMethod> {
                     other,
                     "eq",
                 );
-                code_gen
-                    .builder
-                    .build_return(Some(&code_gen.box_bool(result)));
+                code_gen.build_return(&code_gen.box_bool(result));
                 Ok(())
             },
         ),
@@ -35,14 +33,13 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Object", "class() -> Class", |code_gen, function| {
-            let receiver = function.get_nth_param(0).unwrap();
+            let receiver = code_gen.get_nth_param(function, 0);
             let cls_obj = code_gen.get_class_of_obj(receiver);
-            code_gen.builder.build_return(Some(&cls_obj));
+            code_gen.build_return(&cls_obj.as_sk_obj());
             Ok(())
         }),
         create_method("Object", "putd(n: Int) -> Void", |code_gen, function| {
-            let sk_int = function.get_params()[1];
-            let n = code_gen.unbox_int(sk_int);
+            let n = code_gen.unbox_int(code_gen.get_nth_param(function, 1));
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module
@@ -62,8 +59,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Object", "putf(n: Float) -> Void", |code_gen, function| {
-            let arg = function.get_params()[1];
-            let n = code_gen.unbox_float(arg);
+            let n = code_gen.unbox_float(code_gen.get_nth_param(function, 1));
             let printf = code_gen.module.get_function("printf").unwrap();
             let tmpl = code_gen
                 .module
@@ -96,8 +92,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             "Object",
             "exit(status: Int) -> Never",
             |code_gen, function| {
-                let sk_int = function.get_params()[1];
-                let int64 = code_gen.unbox_int(sk_int);
+                let int64 = code_gen.unbox_int(code_gen.get_nth_param(function, 1));
                 let int32 = code_gen
                     .builder
                     .build_int_truncate(int64, code_gen.i32_type, "int32");

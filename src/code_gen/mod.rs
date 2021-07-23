@@ -3,8 +3,10 @@ mod code_gen_context;
 mod gen_exprs;
 mod lambda;
 mod utils;
+pub mod values;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_const_name;
+use crate::code_gen::values::*;
 use crate::error::Error;
 use crate::hir::*;
 use crate::library::LibraryExports;
@@ -23,11 +25,13 @@ use std::rc::Rc;
 
 /// CodeGen
 ///
-/// 'hir > 'ictx >= 'run
+/// 'hir > 'ictx > 'run
 ///
 /// 'hir: the Hir
 /// 'ictx: inkwell context
-/// 'run: code_gen::run()
+/// 'run: code_gen::run() after 'ictx is created
+///
+/// Basically inkwell types has 'ictx and inkwell values has 'run.
 pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub generate_main: bool,
     pub context: &'ictx inkwell::context::Context,
@@ -45,7 +49,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     vtables: &'hir mir::VTables,
     imported_vtables: &'hir mir::VTables,
     /// Toplevel `self`
-    the_main: Option<inkwell::values::BasicValueEnum<'ictx>>,
+    the_main: Option<SkObj<'run>>,
 }
 
 /// Compile hir and dump it to `outpath`
@@ -450,10 +454,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(ty), None, name);
             let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
-            match self.llvm_zero_value(ty) {
-                Some(zero) => global.set_initializer(&zero),
-                None => global.set_initializer(&null),
-            }
+            global.set_initializer(&null);
         }
     }
 
@@ -673,12 +674,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let mut incomings = ctx
                 .returns
                 .iter()
-                .map(|(v, b)| (v as &dyn inkwell::values::BasicValue, *b))
+                .map(|(v, b)| (&v.0 as &dyn inkwell::values::BasicValue, *b))
                 .collect::<Vec<_>>();
             let v;
             if let Some(b) = last_value_block {
                 v = last_value.unwrap();
-                incomings.push((&v, b));
+                incomings.push((&v.0, b));
             }
             let phi_node = self
                 .builder
@@ -702,7 +703,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate body of `.new`
     pub fn gen_body_of_new(
         &self,
-        params: Vec<inkwell::values::BasicValueEnum>,
+        llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
         initialize_name: &MethodFullname,
         init_cls_name: &ClassFullname,
@@ -715,7 +716,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let obj = if const_is_obj {
             // Normally class object can be retrieved via constants,
             // but there is no such constant if `const_is_obj` is true.
-            let class_obj = params[0];
+            let class_obj = SkClassObj(llvm_func_args[0]);
             self._allocate_sk_obj(class_fullname, "addr", class_obj)
         } else {
             self.allocate_sk_obj(class_fullname, "addr")
@@ -726,21 +727,24 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .module
             .get_function(&initialize_name.full_name)
             .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
-        let mut addr = obj;
+        let mut addr = obj.clone();
         if need_bitcast {
             let ances_type = self
                 .llvm_struct_types
                 .get(init_cls_name)
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
-            addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
+            addr = SkObj(
+                self.builder
+                    .build_bitcast(addr.0, ances_type, "obj_as_super"),
+            );
         }
         let args = (0..=arity)
-            .map(|i| if i == 0 { addr } else { params[i] })
+            .map(|i| if i == 0 { addr.0 } else { llvm_func_args[i] })
             .collect::<Vec<_>>();
         self.builder.build_call(initialize, &args, "");
 
-        self.builder.build_return(Some(&obj));
+        self.build_return(&obj);
     }
 
     /// Create a CodeGenContext

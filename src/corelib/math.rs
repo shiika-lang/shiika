@@ -7,8 +7,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "sin(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
-                let x = code_gen.unbox_float(arg);
+                let x = code_gen.unbox_float(code_gen.get_nth_param(function, 1));
                 let func = code_gen.module.get_function("sin").unwrap();
                 let result = code_gen
                     .builder
@@ -17,7 +16,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     .left()
                     .unwrap();
                 let sk_result = code_gen.box_float(&result.into_float_value());
-                code_gen.builder.build_return(Some(&sk_result));
+                code_gen.build_return(&sk_result);
                 Ok(())
             },
         ),
@@ -25,8 +24,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "cos(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
-                let x = code_gen.unbox_float(arg);
+                let x = code_gen.unbox_float(code_gen.get_nth_param(function, 1));
                 let func = code_gen.module.get_function("cos").unwrap();
                 let result = code_gen
                     .builder
@@ -35,7 +33,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     .left()
                     .unwrap();
                 let sk_result = code_gen.box_float(&result.into_float_value());
-                code_gen.builder.build_return(Some(&sk_result));
+                code_gen.build_return(&sk_result);
                 Ok(())
             },
         ),
@@ -43,8 +41,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
             "Meta:Math",
             "sqrt(x: Float) -> Float",
             |code_gen, function| {
-                let arg = function.get_params()[1];
-                let x = code_gen.unbox_float(arg);
+                let x = code_gen.unbox_float(code_gen.get_nth_param(function, 1));
                 let func = code_gen.module.get_function("sqrt").unwrap();
                 let result = code_gen
                     .builder
@@ -53,7 +50,7 @@ pub fn create_class_methods() -> Vec<SkMethod> {
                     .left()
                     .unwrap();
                 let sk_result = code_gen.box_float(&result.into_float_value());
-                code_gen.builder.build_return(Some(&sk_result));
+                code_gen.build_return(&sk_result);
                 Ok(())
             },
         ),
