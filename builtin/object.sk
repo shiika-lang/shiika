@@ -1,9 +1,4 @@
 class Object
-  def ==(other: Object) -> Bool
-    panic "[`==` not yet implemented for this class]"
-    false
-  end
-
   def <(other: Object) -> Bool
     panic "[`< is not implemented for this class]"
     false

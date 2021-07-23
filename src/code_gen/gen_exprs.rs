@@ -370,7 +370,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>, Error> {
         // Prepare arguments
-        let method_name = &method_fullname.first_name;
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
         let mut arg_values = vec![];
         for arg_expr in arg_exprs {
@@ -384,22 +383,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(start_block);
         self.builder.position_at_end(start_block);
 
-        // Get the llvm function from vtable
-        let (idx, size) = self.lookup_vtable(&receiver_expr.ty, method_name)?;
-        let func_raw = self.build_vtable_ref(receiver_value, *idx, size);
-        let func_type = self
-            .llvm_func_type(
-                Some(&receiver_expr.ty),
-                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-                ret_ty,
-            )
-            .ptr_type(AddressSpace::Generic);
-        let func = self
-            .builder
-            .build_bitcast(func_raw, func_type, "func")
-            .into_pointer_value();
+        // Get the llvm function from vtable of the class of the object
+        let func_type = self.llvm_func_type(
+            Some(&receiver_expr.ty),
+            &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
+            ret_ty,
+        );
+        let func = self._get_method_func(
+            &method_fullname.first_name,
+            &receiver_expr.ty,
+            receiver_value,
+            func_type,
+        );
 
-        // Invoke the llvm function
         let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
@@ -414,21 +410,31 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    /// Get the idx and size of vtable
-    fn lookup_vtable(
+    /// Retrieve the llvm func
+    fn _get_method_func(
         &self,
-        ty: &TermTy,
         method_name: &MethodFirstname,
-    ) -> Result<(&usize, usize), Error> {
+        receiver_ty: &TermTy,
+        receiver_value: inkwell::values::BasicValueEnum<'run>,
+        func_type: inkwell::types::FunctionType<'run>,
+    ) -> inkwell::values::PointerValue<'run> {
+        //let class = self.get_class_of_obj(receiver_value);
+        let vtable = self.get_vtable_of_obj(receiver_value).into_pointer_value();
+        let (idx, size) = self.__lookup_vtable(&receiver_ty, &method_name);
+        let func_raw = self.build_vtable_ref(vtable, *idx, size);
+        self.builder
+            .build_bitcast(func_raw, func_type.ptr_type(AddressSpace::Generic), "func")
+            .into_pointer_value()
+    }
+
+    /// Get the idx and size of vtable
+    fn __lookup_vtable(&self, ty: &TermTy, method_name: &MethodFirstname) -> (&usize, usize) {
         if let Some(found) = self.vtables.method_idx(ty, method_name) {
-            Ok(found)
+            found
         } else if let Some(found) = self.imported_vtables.method_idx(ty, method_name) {
-            Ok(found)
+            found
         } else {
-            Err(error::bug(format!(
-                "[BUG] method_idx: vtable of {} not found",
-                &ty.fullname
-            )))
+            panic!("[BUG] method_idx: vtable of {} not found", &ty.fullname);
         }
     }
 
@@ -501,6 +507,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate llvm function call
+    // REFACTOR: make this public and make `receiver_value` optional
     fn gen_llvm_func_call(
         &self,
         func_name: &str,
@@ -511,7 +518,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.gen_llvm_function_call(function, receiver_value, arg_values)
     }
 
-    fn gen_llvm_function_call<F>(
+    pub(super) fn gen_llvm_function_call<F>(
         &self,
         function: F,
         receiver_value: inkwell::values::BasicValueEnum<'run>,
@@ -668,7 +675,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let fn_x = ctx.function.get_first_param().unwrap();
             self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "@obj")
         } else {
-            // The first arg of llvm function is `self`
             ctx.function.get_first_param().unwrap()
         };
         self.builder
@@ -706,23 +712,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Create a string object
     fn gen_string_literal(&self, idx: &usize) -> inkwell::values::BasicValueEnum<'run> {
-        let func = self.get_llvm_func("Meta:String#new");
-        let receiver_value = self.gen_const_ref(&toplevel_const("String"));
         let global = self
             .module
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let glob_i8 = self
-            .builder
-            .build_bitcast(global, self.i8ptr_type, "")
-            .into_pointer_value();
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
-        let arg_values = vec![self.box_i8ptr(glob_i8), self.box_int(&bytesize)];
-
-        self.gen_llvm_function_call(func, receiver_value, arg_values)
+        let func = self.get_llvm_func("gen_literal_string");
+        self.builder
+            .build_call(func, &[self.into_i8ptr(global), bytesize.into()], "sk_str")
+            .try_as_basic_value()
+            .left()
+            .unwrap()
     }
 
     fn gen_boolean_literal(&self, value: bool) -> inkwell::values::BasicValueEnum<'run> {
@@ -856,21 +859,36 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create a class object
-    #[allow(clippy::let_and_return)]
+    /// ("class literal" is a special Hir that will not appear directly
+    /// on a source text.)
     fn gen_class_literal(
         &self,
         fullname: &ClassFullname,
         str_literal_idx: &usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let cls_obj = self.allocate_sk_obj(fullname, &fullname.0.to_string());
+        debug_assert!(!fullname.is_meta());
+        let meta_name = fullname.meta_name();
+        let reg_name = format!("class_{}", fullname);
+        let cls_obj = if fullname.0 == "Class" {
+            // We need a trick here to achieve `Class.class == Class`.
+            let null = self.i8ptr_type.const_null();
+            self._allocate_sk_obj(&meta_name, &reg_name, null.into())
+        } else {
+            self.allocate_sk_obj(&meta_name, &reg_name)
+        };
         self.build_ivar_store(
             &cls_obj,
             0,
             self.gen_string_literal(str_literal_idx),
             "@name",
         );
-        // We assume class objects never have custom `initialize` method
 
+        if fullname.0 == "Class" {
+            // We need a trick here to achieve `Class.class == Class`.
+            self.set_class_of_obj(&cls_obj, cls_obj);
+        }
+
+        // We assume class objects never have custom `initialize` method
         cls_obj
     }
 }

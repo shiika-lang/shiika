@@ -307,6 +307,7 @@ impl<'a> Parser<'a> {
     fn get_method_name(&mut self) -> Result<&str, Error> {
         let name = match self.current_token() {
             Token::LowerWord(s) => s,
+            Token::KwClass => "class",
             Token::UPlusMethod => "+@",
             Token::UMinusMethod => "-@",
             Token::GetMethod => "[]",

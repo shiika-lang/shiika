@@ -1,12 +1,8 @@
-//extern "C" {
-//    fn box_int(int: i64) -> *const SkInt;
-//    fn unbox_int(sk_int: *const SkInt) -> i64;
-//}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkInt {
     vtable: *const u8,
+    class_obj: *const u8,
     value: i64,
 }
 
@@ -14,6 +10,7 @@ pub struct SkInt {
 #[derive(Debug)]
 pub struct SkPtr {
     vtable: *const u8,
+    class_obj: *const u8,
     value: *const u8,
 }
 
@@ -21,6 +18,7 @@ pub struct SkPtr {
 #[derive(Debug)]
 pub struct SkString {
     vtable: *const u8,
+    class_obj: *const u8,
     ptr: *const SkPtr,
     bytesize: *const SkInt,
 }

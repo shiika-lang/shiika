@@ -624,6 +624,7 @@ impl<'a> Parser<'a> {
         // Method name
         let method_name = match self.current_token() {
             Token::LowerWord(s) => s.clone(),
+            Token::KwClass => "class".to_string(),
             token => return Err(parse_error!(self, "invalid method name: {:?}", token)),
         };
         self.consume_token();

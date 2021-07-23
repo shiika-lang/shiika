@@ -1,13 +1,15 @@
+use crate::code_gen::*;
 /// Provides utility functions used by code_gen/*.rs
 /// (some are also used by corelib/*.rs)
-use crate::code_gen::*;
 use inkwell::types::*;
 use inkwell::AddressSpace;
 
 /// Number of elements before ivars
-const OBJ_HEADER_SIZE: usize = 1;
-/// 0th: reference to vtable
+const OBJ_HEADER_SIZE: usize = 2;
+/// 0th: reference to the vtable
 const OBJ_VTABLE_IDX: usize = 0;
+/// 1st: reference to the class object
+const OBJ_CLASS_IDX: usize = 1;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return ::Void
@@ -37,19 +39,66 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_llvm_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
     }
 
+    /// Get the vtable of an object as i8ptr
+    pub fn get_vtable_of_obj(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable")
+    }
+
+    /// Get the class object of an object as `*Class`
+    pub fn get_class_of_obj(
+        &self,
+        object: inkwell::values::BasicValueEnum<'run>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class")
+    }
+
+    /// Set `class_obj` to the class object field of `object`
+    pub fn set_class_of_obj(
+        &self,
+        object: &inkwell::values::BasicValueEnum<'run>,
+        class_obj: inkwell::values::BasicValueEnum<'run>,
+    ) {
+        let cast =
+            self.builder
+                .build_bitcast(class_obj, self.llvm_type(&ty::raw("Class")), "class");
+        self.build_llvm_struct_set(object, OBJ_CLASS_IDX, cast, "my_class");
+    }
+
+    /// Set `vtable` to `object`
+    pub fn set_vtable_of_obj(
+        &self,
+        object: &inkwell::values::BasicValueEnum<'run>,
+        vtable: inkwell::values::BasicValueEnum<'run>,
+    ) {
+        self.build_llvm_struct_set(object, OBJ_VTABLE_IDX, vtable, "vtable");
+    }
+
+    /// Get vtable of the class of the given name as *i8
+    pub fn vtable_ref(&self, classname: &ClassFullname) -> inkwell::values::BasicValueEnum<'run> {
+        let vtable_const_name = llvm_vtable_const_name(classname);
+        let llvm_ary_ptr = self
+            .module
+            .get_global(&vtable_const_name)
+            .unwrap_or_else(|| panic!("[BUG] global `{}' not found", &vtable_const_name))
+            .as_pointer_value();
+        self.into_i8ptr(llvm_ary_ptr)
+    }
+
     /// Lookup llvm func from vtable of an object
     pub fn build_vtable_ref(
         &self,
-        object: inkwell::values::BasicValueEnum<'run>,
+        vtable_i8ptr: inkwell::values::PointerValue<'run>,
         idx: usize,
         size: usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let vtable_ref = self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable_ref");
         let ary_type = self.i8ptr_type.array_type(size as u32);
         let vtable_ptr = self
             .builder
             .build_bitcast(
-                vtable_ref,
+                vtable_i8ptr,
                 ary_type.ptr_type(AddressSpace::Generic),
                 "vtable_ptr",
             )
@@ -63,23 +112,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap()
     }
 
-    /// Store reference to vtable into an object
-    pub fn build_store_vtable<'a>(
-        &'a self,
-        object: inkwell::values::BasicValueEnum<'a>,
-        class_fullname: &ClassFullname,
-    ) {
-        let vtable_ref = self
-            .module
-            .get_global(&llvm_vtable_name(class_fullname))
-            .unwrap()
-            .as_pointer_value();
-        let vtable = self
-            .builder
-            .build_bitcast(vtable_ref, self.i8ptr_type, "vtable");
-        self.build_llvm_struct_set(&object, OBJ_VTABLE_IDX, vtable, "vtable")
-    }
-
     /// Load value of nth element of llvm struct
     fn build_llvm_struct_ref(
         &self,
@@ -87,17 +119,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
+        let obj_ptr = object.into_pointer_value();
+        let obj_ptr_ty = obj_ptr.get_type();
         let ptr = self
             .builder
             .build_struct_gep(
-                object.into_pointer_value(),
+                obj_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
             )
             .unwrap_or_else(|_| {
+                let pointee_ty = obj_ptr_ty.get_element_type();
                 panic!(
-                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, object: {:?})",
-                    &idx, &name, &object
+                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, pointee_ty: {:?}, object: {:?})",
+                    &idx, &name, &pointee_ty, &object
                 )
             });
         self.builder.build_load(ptr, name)
@@ -133,6 +168,30 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_fullname: &ClassFullname,
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'ictx> {
+        let class_obj = self.load_class_object(class_fullname);
+        self._allocate_sk_obj(class_fullname, reg_name, class_obj)
+    }
+
+    /// Load a class object
+    fn load_class_object(
+        &self,
+        class_fullname: &ClassFullname,
+    ) -> inkwell::values::BasicValueEnum<'ictx> {
+        let class_const_name = llvm_class_const_name(class_fullname);
+        let class_obj_addr = self
+            .module
+            .get_global(&class_const_name)
+            .unwrap_or_else(|| panic!("global `{}' not found", class_const_name))
+            .as_pointer_value();
+        self.builder.build_load(class_obj_addr, "class_obj")
+    }
+
+    pub fn _allocate_sk_obj(
+        &self,
+        class_fullname: &ClassFullname,
+        reg_name: &str,
+        class_obj: inkwell::values::BasicValueEnum,
+    ) -> inkwell::values::BasicValueEnum<'ictx> {
         let object_type = self.llvm_struct_type(class_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
@@ -152,7 +211,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let obj = self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name);
 
         // Store reference to vtable
-        self.build_store_vtable(obj, class_fullname);
+        self.set_vtable_of_obj(&obj, self.vtable_ref(class_fullname));
+        // Store reference to class obj
+        self.set_class_of_obj(&obj, class_obj);
 
         obj
     }
@@ -189,9 +250,26 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_function(name)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))
     }
+
+    /// Cast `sk_obj` to `i8*`
+    pub(super) fn into_i8ptr<V>(&self, sk_obj: V) -> inkwell::values::BasicValueEnum<'run>
+    where
+        V: inkwell::values::BasicValue<'run>,
+    {
+        self.builder.build_bitcast(sk_obj, self.i8ptr_type, "i8ptr")
+    }
 }
 
 /// Name of llvm constant of a vtable
-pub(super) fn llvm_vtable_name(classname: &ClassFullname) -> String {
-    format!("vtable_{}", classname)
+pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
+    format!("shiika_vtable_{}", classname.0)
+}
+
+/// Name of llvm constant of a class object
+fn llvm_class_const_name(classname: &ClassFullname) -> String {
+    if classname.is_meta() {
+        "::Class".to_string()
+    } else {
+        format!("::{}", classname.0)
+    }
 }

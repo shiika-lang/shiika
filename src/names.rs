@@ -14,9 +14,9 @@ impl std::fmt::Display for ClassFirstname {
 impl ClassFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
         if namespace.is_empty() {
-            ClassFullname(self.0.clone())
+            class_fullname(self.0.clone())
         } else {
-            ClassFullname(namespace.to_string() + "::" + &self.0)
+            class_fullname(namespace.to_string() + "::" + &self.0)
         }
     }
 }
@@ -36,12 +36,14 @@ impl std::fmt::Display for ClassFullname {
 
 pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
     let name = s.into();
+    debug_assert!(name != "Meta:");
     debug_assert!(!name.starts_with("::"));
     debug_assert!(!name.starts_with("Meta:Meta:"));
     ClassFullname(name)
 }
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
+    debug_assert!(!base.is_empty());
     debug_assert!(!base.starts_with("Meta:"));
     if base == "Class" {
         class_fullname("Class")
@@ -63,6 +65,11 @@ impl ClassFullname {
         self.0.starts_with("Meta:")
     }
 
+    /// Whether this is the class `Class`
+    pub fn is_the_class(&self) -> bool {
+        self.0 == "Class"
+    }
+
     pub fn to_ty(&self) -> TermTy {
         if self.is_meta() {
             let mut name = self.0.clone();
@@ -78,7 +85,7 @@ impl ClassFullname {
         if self.0 == "Class" {
             self.clone()
         } else {
-            ClassFullname("Meta:".to_string() + &self.0)
+            metaclass_fullname(&self.0)
         }
     }
 
@@ -160,13 +167,6 @@ pub fn toplevel_const(first_name: &str) -> ConstFullname {
     ConstFullname(format!("::{}", first_name))
 }
 
-impl ConstFullname {
-    /// Returns true if this const is not visible in Shiika level
-    pub fn is_internal(&self) -> bool {
-        self.0.contains("<internal>")
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
 
@@ -186,11 +186,6 @@ impl Namespace {
     /// Returns a toplevel namespace
     pub fn root() -> Namespace {
         Namespace::new(vec![])
-    }
-
-    /// Returns the hidden namespace
-    pub fn internal() -> Namespace {
-        Namespace::new(vec!["<internal>".to_string()])
     }
 
     /// Add `name` to the end of `self`
@@ -415,11 +410,4 @@ pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> Resolved
 // ad hoc. Not sure I'm doing right
 pub fn typaram_as_resolved_const_name(name: impl Into<String>) -> ResolvedConstName {
     resolved_const_name(Namespace::root(), vec![name.into()])
-}
-
-// The constant `::Void` is an *instance* of the class `Void`. However we need
-// the class object for `::Void.class`; Returns name for this internal constant
-pub fn const_is_obj_class_internal_const_name(name: &ResolvedConstName) -> ResolvedConstName {
-    debug_assert!(!name.has_type_args());
-    resolved_const_name(Namespace::internal(), name.names.clone())
 }

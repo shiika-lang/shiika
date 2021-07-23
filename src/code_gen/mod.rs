@@ -4,13 +4,14 @@ mod gen_exprs;
 mod lambda;
 mod utils;
 use crate::code_gen::code_gen_context::*;
-use crate::code_gen::utils::llvm_vtable_name;
+use crate::code_gen::utils::llvm_vtable_const_name;
 use crate::error::Error;
 use crate::hir::*;
 use crate::library::LibraryExports;
 use crate::mir;
 use crate::mir::*;
 use crate::names::*;
+use crate::ty;
 use crate::ty::*;
 use either::*;
 use inkwell::types::*;
@@ -103,6 +104,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<(), Error> {
         self.gen_declares();
+        self.define_class_class();
         self.gen_imports(imports);
         self.gen_class_structs(&hir.sk_classes);
         self.gen_string_literals(&hir.str_literals);
@@ -187,6 +189,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
+    /// Define llvm struct type for `Class`
+    fn define_class_class(&mut self) {
+        self.llvm_struct_types.insert(
+            class_fullname("Class"),
+            self.context.opaque_struct_type("Class"),
+        );
+    }
+
     /// Generate information to use imported items
     fn gen_imports(&mut self, imports: &LibraryExports) {
         self.gen_import_classes(&imports.sk_classes);
@@ -216,7 +226,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Declare `external global` for vtable of each class
     fn gen_import_vtables(&self, vtables: &VTables) {
         for (fullname, vtable) in vtables.iter() {
-            let name = llvm_vtable_name(fullname);
+            let name = llvm_vtable_const_name(fullname);
             let ary_type = self.i8ptr_type.array_type(vtable.size() as u32);
             let _global = self.module.add_global(ary_type, None, &name);
         }
@@ -240,9 +250,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
             let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-            let global = self
-                .module
-                .add_global(ary_type, None, &llvm_vtable_name(class_fullname));
+            let tmp = llvm_vtable_const_name(class_fullname);
+            let global = self.module.add_global(ary_type, None, &tmp);
             global.set_constant(true);
             let func_ptrs = method_names
                 .iter()
@@ -285,11 +294,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // Initialize own constants
+        let basic_classes = vec!["::Class", "::Shiika::Internal::Ptr"];
+        if !is_main {
+            // These builtin classes must be created first
+            for name in &basic_classes {
+                let func = self.get_llvm_func(&format!("init_{}", name));
+                self.builder.build_call(func, &[], "");
+            }
+        }
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
-                    let func = self.get_llvm_func(&format!("init_{}", fullname.0));
-                    self.builder.build_call(func, &[], "");
+                    if !basic_classes.iter().any(|s| *s == fullname.0) {
+                        let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+                        self.builder.build_call(func, &[], "");
+                    }
                 }
                 _ => panic!("gen_init_constants: Not a HirConstAssign"),
             }
@@ -366,20 +385,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Set fields for ivars
     fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
         let vt = self.llvm_vtable_ref_type().into();
+        let ct = self.class_object_ref_type().into();
         for (name, class) in classes {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match name.0.as_str() {
                 "Int" => {
-                    struct_type.set_body(&[vt, self.i64_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
                 }
                 "Float" => {
-                    struct_type.set_body(&[vt, self.f64_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
                 }
                 "Bool" => {
-                    struct_type.set_body(&[vt, self.i1_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
                 }
                 "Shiika::Internal::Ptr" => {
-                    struct_type.set_body(&[vt, self.i8ptr_type.into()], false);
+                    struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
                 }
                 _ => {
                     struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
@@ -400,6 +420,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .map(|ivar| self.llvm_type(&ivar.ty))
             .collect::<Vec<_>>();
         types.insert(0, self.llvm_vtable_ref_type().into());
+        types.insert(1, self.class_object_ref_type().into());
         types
     }
 
@@ -673,19 +694,32 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.i8ptr_type
     }
 
+    /// LLVM type of a reference to a class object
+    fn class_object_ref_type(&self) -> inkwell::types::PointerType {
+        self.llvm_type(&ty::raw("Class")).into_pointer_type()
+    }
+
     /// Generate body of `.new`
     pub fn gen_body_of_new(
         &self,
-        function: &inkwell::values::FunctionValue,
+        params: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
         initialize_name: &MethodFullname,
         init_cls_name: &ClassFullname,
         arity: usize,
+        const_is_obj: bool,
     ) {
         let need_bitcast = init_cls_name != class_fullname;
 
         // Allocate memory
-        let obj = self.allocate_sk_obj(class_fullname, "addr");
+        let obj = if const_is_obj {
+            // Normally class object can be retrieved via constants,
+            // but there is no such constant if `const_is_obj` is true.
+            let class_obj = params[0];
+            self._allocate_sk_obj(class_fullname, "addr", class_obj)
+        } else {
+            self.allocate_sk_obj(class_fullname, "addr")
+        };
 
         // Call initialize
         let initialize = self
@@ -702,13 +736,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             addr = self.builder.build_bitcast(addr, ances_type, "obj_as_super");
         }
         let args = (0..=arity)
-            .map(|i| {
-                if i == 0 {
-                    addr
-                } else {
-                    function.get_params()[i]
-                }
-            })
+            .map(|i| if i == 0 { addr } else { params[i] })
             .collect::<Vec<_>>();
         self.builder.build_call(initialize, &args, "");
 
