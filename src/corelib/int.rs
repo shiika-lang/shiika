@@ -9,14 +9,14 @@ macro_rules! create_comparison_method {
             "Int",
             format!("{}(other: Int) -> Bool", $operator).as_str(),
             |code_gen, function| {
-                let this = function.get_params()[0];
+                let this = code_gen.get_nth_param(function, 0);
                 let val1 = code_gen.unbox_int(this);
-                let that = function.get_params()[1];
+                let that = code_gen.get_nth_param(function, 1);
                 let val2 = code_gen.unbox_int(that);
                 $body
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_bool(result);
-                code_gen.builder.build_return(Some(&sk_result));
+                code_gen.build_return(&sk_result);
                 Ok(())
             },
         )
@@ -29,14 +29,14 @@ macro_rules! create_arithmetic_method {
             "Int",
             format!("{}(other: Int) -> Int", $operator).as_str(),
             |code_gen, function| {
-                let this = function.get_params()[0];
+                let this = code_gen.get_nth_param(function, 0);
                 let val1 = code_gen.unbox_int(this);
-                let that = function.get_params()[1];
+                let that = code_gen.get_nth_param(function, 1);
                 let val2 = code_gen.unbox_int(that);
                 $body
                 let result = f(code_gen, val1, val2);
                 let sk_result = code_gen.box_int(&result);
-                code_gen.builder.build_return(Some(&sk_result));
+                code_gen.build_return(&sk_result);
                 Ok(())
             },
         )
@@ -220,7 +220,7 @@ pub fn create_methods() -> Vec<SkMethod> {
             }
         ),
         create_method("Int", "to_f() -> Float", |code_gen, function| {
-            let this = function.get_params()[0];
+            let this = code_gen.get_nth_param(function, 0);
             let int = code_gen.unbox_int(this);
             let float = code_gen
                 .builder
@@ -230,10 +230,10 @@ pub fn create_methods() -> Vec<SkMethod> {
             Ok(())
         }),
         create_method("Int", "-@ -> Int", |code_gen, function| {
-            let sk_int = function.get_params()[0];
-            let this = code_gen.unbox_int(sk_int);
+            let this = code_gen.get_nth_param(function, 0);
+            let i = code_gen.unbox_int(this);
             let zero = code_gen.i64_type.const_int(0, false);
-            let result = code_gen.builder.build_int_sub(zero, this, "result");
+            let result = code_gen.builder.build_int_sub(zero, i, "result");
             let sk_result = code_gen.box_int(&result);
             code_gen.builder.build_return(Some(&sk_result));
             Ok(())
