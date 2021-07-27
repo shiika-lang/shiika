@@ -168,8 +168,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load a class object
-    fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
-        let class_const_name = llvm_class_const_name(class_fullname);
+    pub fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
+        let class_const_name = format!("::{}", class_fullname.0);
         let class_obj_addr = self
             .module
             .get_global(&class_const_name)
@@ -296,13 +296,4 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 /// Name of llvm constant of a vtable
 pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
     format!("shiika_vtable_{}", classname.0)
-}
-
-/// Name of llvm constant of a class object
-fn llvm_class_const_name(classname: &ClassFullname) -> String {
-    if classname.is_meta() {
-        "::Class".to_string()
-    } else {
-        format!("::{}", classname.0)
-    }
 }

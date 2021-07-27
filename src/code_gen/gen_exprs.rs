@@ -833,32 +833,52 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create a class object
-    /// ("class literal" is a special Hir that will not appear directly
+    /// ("class literal" is a special Hir that does not appear directly
     /// on a source text.)
     fn gen_class_literal(&self, fullname: &ClassFullname, str_literal_idx: &usize) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
-        let meta_name = fullname.meta_name();
-        let reg_name = format!("class_{}", fullname);
-        let cls_obj = if fullname.0 == "Class" {
-            // We need a trick here to achieve `Class.class == Class`.
-            let null = self.i8ptr_type.const_null().as_basic_value_enum();
-            self._allocate_sk_obj(&meta_name, &reg_name, SkClassObj(null))
+        if fullname.0 == "Metaclass" {
+            self.gen_the_metaclass(str_literal_idx)
         } else {
-            self.allocate_sk_obj(&meta_name, &reg_name)
-        };
+            let meta_name = fullname.meta_name(); // eg. "Meta:Int"
+
+            // Create metaclass object
+            let metacls_obj = self.allocate_sk_obj(&class_fullname("Metaclass"), "metaclass_obj");
+            self.build_ivar_store(
+                &metacls_obj,
+                0,
+                self.gen_string_literal(str_literal_idx),
+                "@base_name",
+            );
+
+            let cls_obj = self._allocate_sk_obj(&meta_name, "cls_obj", metacls_obj.as_class_obj());
+            self.build_ivar_store(
+                &cls_obj,
+                0,
+                self.gen_string_literal(str_literal_idx),
+                "@name",
+            );
+
+            // We assume class objects never have custom `initialize` method
+            cls_obj
+        }
+    }
+
+    fn gen_the_metaclass(&self, str_literal_idx: &usize) -> SkObj<'run> {
+        // We need a trick here to achieve `Metaclass.class == Metaclass`.
+        let null = self.i8ptr_type.const_null().as_basic_value_enum();
+        let cls_obj = self._allocate_sk_obj(
+            &class_fullname("Metaclass"),
+            "the_metaclass",
+            SkClassObj(null),
+        );
         self.build_ivar_store(
             &cls_obj,
             0,
             self.gen_string_literal(str_literal_idx),
-            "@name",
+            "@base_name",
         );
-
-        if fullname.0 == "Class" {
-            // We need a trick here to achieve `Class.class == Class`.
-            self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
-        }
-
-        // We assume class objects never have custom `initialize` method
+        self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj
     }
 }

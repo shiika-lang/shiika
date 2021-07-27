@@ -70,11 +70,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             Superclass::default()
         };
-        let new_sig = signature::signature_of_new(
-            &metaclass_fullname,
-            self._initializer_params(namespace, typarams, &superclass, defs)?,
-            &ty::return_type_of_new(&fullname, typarams),
-        );
+        let new_sig = if fullname.0 == "Class" {
+            None
+        } else {
+            Some(signature::signature_of_new(
+                &metaclass_fullname,
+                self._initializer_params(namespace, typarams, &superclass, defs)?,
+                &ty::return_type_of_new(&fullname, typarams),
+            ))
+        };
 
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
@@ -92,17 +96,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     .expect("[BUG] Only class is indexed");
                 metaclass.method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
-                if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
-                    metaclass
-                        .method_sigs
-                        .insert(new_sig.fullname.first_name.clone(), new_sig);
+                if let Some(sig) = new_sig {
+                    if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
+                        metaclass
+                            .method_sigs
+                            .insert(sig.fullname.first_name.clone(), sig);
+                    }
                 }
             }
             None => self.add_new_class(
                 &fullname,
                 typarams,
                 superclass,
-                Some(new_sig),
+                new_sig,
                 instance_methods,
                 class_methods,
                 Some(false),

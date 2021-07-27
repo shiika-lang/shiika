@@ -1,0 +1,15 @@
+# Class of metaclasses
+# see also: src/corelib/
+class Metaclass
+  def name -> String
+    if @base_name == "Metaclass"
+      "Metaclass"
+    else
+      "Meta:" + @base_name
+    end
+  end
+
+  def inspect -> String
+    "#<class " + self.name + ">"
+  end
+end

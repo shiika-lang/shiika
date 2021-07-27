@@ -5,6 +5,7 @@ mod float;
 mod fn_x;
 mod int;
 mod math;
+mod metaclass;
 mod object;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
@@ -48,6 +49,14 @@ fn rust_body_items() -> Vec<ClassItem> {
             Default::default(),
             vec![],
             class::ivars(),
+            vec![],
+        ),
+        (
+            "Metaclass".to_string(),
+            Some(Superclass::simple("Object")),
+            Default::default(),
+            vec![],
+            metaclass::ivars(),
             vec![],
         ),
         (
@@ -175,8 +184,10 @@ fn make_classes(
         );
         sk_methods.insert(class_fullname(&name), imethods);
 
-        if name == "Class" {
-            // The class of `Class` is `Class` itself. So we don't need to create again
+        if name == "Metaclass" {
+            // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
+        } else if name == "Class" {
+            // The class of `Class` is `Metaclass`. So we don't need to create again
         } else {
             let meta_ivars = class::ivars(); // `Meta::XX` inherits `Class`
             sk_classes.insert(

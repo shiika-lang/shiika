@@ -65,3 +65,34 @@ p taro.name #=> "Taro"
 p taro.age  #=> 20
 taro.age += 1
 ```
+
+## Class hierarchy
+
+```
+^ ... superclass-subclass relationship
+~ ... class-instance relationship
+
+               Object       Object       Object
+                  ^            ^            ^
+                Class     ~ MetaClass  ~ MetaClass
+                  ^
+     Object ~ Meta:Object ~ MetaClass
+        ^         ^ 
+        |         |       
+        |         |        
+123 ~  Int ~   Meta:Int   ~ MetaClass
+```
+
+Example:
+
+```sk
+p 123                   #=> 123
+p 123.class             #=> #<class Int>
+p Int                   #=> #<class Int>
+p 123.class == Int      #=> true
+
+p Int.class             #=> #<class Meta:Int>
+p Int.class.class       #=> #<class Metaclass>
+p Int.class.class.class #=> #<class Metaclass>
+```
+
