@@ -50,7 +50,12 @@ end
 
 A_OUT = "examples/a.sk.out"
 file A_OUT => RUST_FILES + [BUILTIN, RUSTLIB, "examples/a.sk"] do
+  sh "cargo fmt"
   sh "cargo run -- run examples/a.sk"
 end
 
 task :a => A_OUT
+
+task :asm do
+  sh "llc examples/a.sk.ll"
+end
