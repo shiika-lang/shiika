@@ -1,6 +1,7 @@
 ## HEAD
 
 - feat: Class alias (#296)
+- misc: Added class Metaclass (#301)
 
 ## v0.5.5 (2021-07-12)
 
