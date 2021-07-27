@@ -72,7 +72,7 @@ impl TermTy {
     pub fn is_metaclass(&self) -> bool {
         matches!(
             &self.body,
-            TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyClass
+            TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyMetaclass
         )
     }
 
@@ -119,8 +119,8 @@ pub enum TyBody {
     TyMeta {
         base_fullname: String,
     },
-    // This object belongs to the class `Class` (i.e. this is a class object)
-    TyClass,
+    // This object belongs to the class `Metaclass` (i.e. this is a class object)
+    TyMetaclass,
     // Types for generic metaclass eg. `Meta:Pair<S, T>`
     // REFACTOR: remove this?
     TyGenMeta {
@@ -194,14 +194,14 @@ impl TermTy {
     pub fn meta_ty(&self) -> TermTy {
         match &self.body {
             TyRaw => ty::meta(&self.fullname.0),
-            TyMeta { .. } => ty::class(),
-            TyClass => ty::class(),
-            TyGenMeta { .. } => ty::class(),
+            TyMeta { .. } => ty::metaclass(),
+            TyMetaclass => ty::metaclass(),
+            TyGenMeta { .. } => ty::metaclass(),
             TySpe {
                 base_name,
                 type_args,
             } => ty::spe_meta(base_name, type_args.clone()),
-            TySpeMeta { .. } => ty::class(),
+            TySpeMeta { .. } => ty::metaclass(),
             _ => panic!("TODO"),
         }
     }
@@ -209,7 +209,6 @@ impl TermTy {
     pub fn instance_ty(&self) -> TermTy {
         match &self.body {
             TyMeta { base_fullname } => ty::raw(base_fullname),
-            TyClass => ty::class(),
             TySpeMeta {
                 base_name,
                 type_args,
@@ -246,7 +245,7 @@ impl TermTy {
         match &self.body {
             TyRaw => self.fullname.clone(),
             TyMeta { base_fullname } => metaclass_fullname(base_fullname),
-            TyClass => class_fullname("Class"),
+            TyMetaclass => class_fullname("Metaclass"),
             TySpe { base_name, .. } => class_fullname(base_name),
             TySpeMeta { base_name, .. } => metaclass_fullname(base_name),
             // TyParamRef => ??
@@ -373,10 +372,10 @@ pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
     }
 }
 
-pub fn class() -> TermTy {
+pub fn metaclass() -> TermTy {
     TermTy {
-        fullname: class_fullname("Class"),
-        body: TyClass,
+        fullname: class_fullname("Metaclass"),
+        body: TyMetaclass,
     }
 }
 

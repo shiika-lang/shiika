@@ -44,9 +44,8 @@ pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
 
 pub fn metaclass_fullname(base: &str) -> ClassFullname {
     debug_assert!(!base.is_empty());
-    debug_assert!(!base.starts_with("Meta:"));
-    if base == "Class" {
-        class_fullname("Class")
+    if base == "Class" || base == "Metaclass" || base.starts_with("Meta:") {
+        class_fullname("Metaclass")
     } else {
         class_fullname(&("Meta:".to_string() + base))
     }
@@ -81,12 +80,7 @@ impl ClassFullname {
     }
 
     pub fn meta_name(&self) -> ClassFullname {
-        debug_assert!(!self.0.starts_with("Meta:"));
-        if self.0 == "Class" {
-            self.clone()
-        } else {
-            metaclass_fullname(&self.0)
-        }
+        metaclass_fullname(&self.0)
     }
 
     pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {

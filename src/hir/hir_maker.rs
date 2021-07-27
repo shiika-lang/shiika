@@ -96,7 +96,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// eg.
     /// - ::Int
     /// - ::Meta:Int
-    /// - ::<internal>::Maybe::None
     fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             let resolved = ResolvedConstName::unsafe_create(name);
@@ -200,8 +199,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Register .new
-        self.method_dict
-            .add_method(&meta_name, self.create_new(&fullname, false)?);
+        if fullname.0 != "Class" {
+            self.method_dict
+                .add_method(&meta_name, self.create_new(&fullname, false)?);
+        }
 
         // Process inner defs
         for def in defs {
