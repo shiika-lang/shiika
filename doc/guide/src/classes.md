@@ -86,3 +86,51 @@ In this case `Person.new._secret_count` is valid but normally you should avoid t
 
 Shiika allows this for in case you _really_ need it.
 
+## Classes and metaclasses
+
+(Usually you don't need to care about this topic. This section is written in case you are curious)
+
+In Shiika, classes are objects too. For example, constant `::Int` holds the _class object_ of the class `Int`.
+
+```sk
+p Int #=> #<class Int>
+```
+
+Every object has `.class` method which returns the class object of its class.
+
+```sk
+p 123.class        #=> #<class Int>
+p 123.class == Int #=> #<class Int>
+```
+
+So what happens if you call `.class` on `Int`? Let's see.
+
+```sk
+p Int.class        #=> #<class Meta:Int>
+```
+
+`Int` belongs to a secret class named `Meta:Int`. This class is called _metaclass_ of `Int` and has the class methods of `Int`.
+
+This _metaclass object_ also belongs to a class `Metaclass`. But this relationship is not infinite because the class of `Metaclass` is defined as itself.
+
+```sk
+p Int.class.class        #=> #<class Metaclass>
+p Int.class.class.class  #=> #<class Metaclass>
+```
+
+Last but not least, don't confuse this class-instance relationship with class inheritance (in other word, subclass-superclass relationship.) In the figure below, class-instance relationship is shown horizontally. Inheritance is shown vertically with `^`.
+
+```
+~ ... class-instance relationship
+^ ... superclass-subclass relationship
+
+                Object       Object       Object
+                  ^            ^            ^
+                Class     ~ MetaClass  ~ MetaClass
+                  ^
+     Object ~ Meta:Object ~ MetaClass
+        ^         ^ 
+        |         |       
+        |         |        
+123 ~  Int ~   Meta:Int   ~ MetaClass
+```
