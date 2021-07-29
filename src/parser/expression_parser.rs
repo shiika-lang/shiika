@@ -180,10 +180,9 @@ impl<'a> Parser<'a> {
             v.push(self.parse_operator_expr()?);
             loop {
                 self.skip_ws()?;
-                if !self.current_token_is(Token::Comma) {
+                if !self.consume(Token::Comma)? {
                     break;
                 }
-                self.consume_token()?;
                 self.skip_wsn()?;
                 v.push(self.parse_operator_expr()?);
             }
@@ -474,6 +473,7 @@ impl<'a> Parser<'a> {
             Token::KwBreak => self.parse_break_expr(),
             Token::KwIf => self.parse_if_expr(),
             Token::KwUnless => self.parse_unless_expr(),
+            Token::KwMatch => self.parse_match_expr(),
             Token::KwWhile => self.parse_while_expr(),
             _ => self.parse_primary_expr(),
         }?;
@@ -570,6 +570,49 @@ impl<'a> Parser<'a> {
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
         Ok(ast::if_expr(ast::logical_not(cond_expr), then_exprs, None))
+    }
+
+    fn parse_match_expr(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_match_expr");
+        assert!(self.consume(Token::KwMatch)?);
+        self.skip_ws()?;
+        let cond_expr = self.parse_call_wo_paren()?;
+        self.skip_wsn()?;
+
+        let mut clauses = vec![];
+        loop {
+            match self.current_token() {
+                Token::KwWhen => {
+                    self.consume_token()?;
+                    self.skip_ws()?;
+                    let pattern = self.parse_pattern()?;
+                    self.expect_sep()?; // TODO: Allow KwThen instead of a separator here
+                    let exprs =
+                        self.parse_exprs(vec![Token::KwEnd, Token::KwWhen, Token::KwElse])?;
+                    clauses.push((pattern, exprs));
+                }
+                Token::KwElse => {
+                    self.consume_token()?;
+                    let exprs = self.parse_exprs(vec![Token::KwEnd])?;
+                    let pattern = ast::AstPattern::VariablePattern("_".to_string());
+                    clauses.push((pattern, exprs));
+                }
+                Token::KwEnd => {
+                    self.consume_token()?;
+                    break;
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "expected `when', `else' or `end' but got {:?}",
+                        token
+                    ));
+                }
+            }
+        }
+        self.lv -= 1;
+        Ok(ast::match_expr(cond_expr, clauses))
     }
 
     fn parse_while_expr(&mut self) -> Result<AstExpression, Error> {
@@ -1126,5 +1169,92 @@ impl<'a> Parser<'a> {
         let params = self.parse_params(false, vec![Token::Or])?;
         self.lv -= 1;
         Ok(params)
+    }
+
+    /// Parse pattern of match expr
+    fn parse_pattern(&mut self) -> Result<AstPattern, Error> {
+        self.lv += 1;
+        self.debug_log("parse_pattern");
+        let token = self.current_token();
+        let item = match token {
+            Token::LowerWord(s) => {
+                let name = s.to_string();
+                self.consume_token()?;
+                ast::AstPattern::VariablePattern(name)
+            }
+            Token::UpperWord(s) => {
+                let name = s.to_string();
+                self.consume_token()?;
+                self.parse_extractor_pattern(name)?
+            }
+            Token::KwTrue | Token::KwFalse => {
+                let t = token.clone();
+                self.consume_token()?;
+                todo!();
+                //ast::AstPattern::BoolLiteralPattern(t)
+            }
+            Token::Number(s) => {
+                if s.contains('.') {
+                    todo!()
+                    //let value = s.parse().unwrap();
+                    //ast::AstPattern::FloatLiteralPattern(value)
+                } else {
+                    let value = s.parse().unwrap();
+                    ast::AstPattern::IntegerLiteralPattern(value)
+                }
+            }
+            // Not sure we'll need these
+            // Token::Str(content) => {
+            //     ast::AstPattern::StringLiteralPattern(content)
+            // }
+            // Token::StrWithInterpolation { .. } =>
+            _ => {
+                return Err(parse_error!(self, "expected a pattern but got {:?}", token));
+            }
+        };
+        self.lv -= 1;
+        Ok(item)
+    }
+
+    /// Parse pattern like `Some(val)`
+    fn parse_extractor_pattern(&mut self, upper_word: String) -> Result<AstPattern, Error> {
+        self.lv += 1;
+        self.debug_log("parse_extractor_pattern");
+
+        // Class name
+        let mut names = vec![upper_word];
+        loop {
+            if self.consume(Token::ColonColon)? {
+                let token = self.current_token();
+                if let Token::UpperWord(s) = token {
+                    names.push(s.to_string());
+                    self.consume_token()?;
+                } else {
+                    return Err(parse_error!(self, "unexpected token: {:?}", token));
+                }
+            } else {
+                break;
+            }
+        }
+
+        // Parameters (optional)
+        let mut params = vec![];
+        if self.consume(Token::LParen)? {
+            self.skip_wsn()?;
+            loop {
+                if self.consume(Token::RParen)? {
+                    break;
+                }
+                if !params.is_empty() {
+                    self.expect(Token::Comma)?;
+                    self.skip_wsn()?;
+                }
+                params.push(self.parse_pattern()?);
+                self.skip_wsn()?;
+            }
+        }
+
+        self.lv -= 1;
+        Ok(ast::AstPattern::ExtractorPattern { names, params })
     }
 }

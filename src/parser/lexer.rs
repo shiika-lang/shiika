@@ -367,6 +367,8 @@ impl<'a> Lexer<'a> {
                     (Token::ModUnless, LexerState::ExprBegin)
                 }
             }
+            "match" => (Token::KwMatch, LexerState::ExprBegin),
+            "when" => (Token::KwWhen, LexerState::ExprBegin),
             "while" => (Token::KwWhile, LexerState::ExprBegin),
             "break" => (Token::KwBreak, LexerState::ExprEnd),
             "return" => (Token::KwReturn, LexerState::ExprBegin),

@@ -79,6 +79,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 else_exprs,
             } => self.convert_if_expr(cond_expr, then_exprs, else_exprs),
 
+            AstExpressionBody::Match { .. } => todo!(),
+
             AstExpressionBody::While {
                 cond_expr,
                 body_exprs,
