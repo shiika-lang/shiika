@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_program(&mut self) -> Result<ast::Program, Error> {
-        self.skip_wsn();
+        self.skip_wsn()?;
         let toplevel_items = self.parse_toplevel_items()?;
         self.expect_eof()?;
         Ok(ast::Program { toplevel_items })
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            self.skip_wsn();
+            self.skip_wsn()?;
         }
         Ok(items)
     }

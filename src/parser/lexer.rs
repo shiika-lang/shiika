@@ -1,4 +1,5 @@
 use super::token::Token;
+use crate::error::{Error, ErrorDetails};
 
 #[derive(Debug)]
 pub struct Lexer<'a> {
@@ -124,7 +125,7 @@ impl<'a> Lexer<'a> {
             space_seen: false,
             rshift_is_gtgt: false,
         };
-        lexer.read_token();
+        lexer.read_token().unwrap();
         lexer
     }
 
@@ -160,11 +161,11 @@ impl<'a> Lexer<'a> {
     /// lexer.consume_token();
     /// assert_eq!(lexer.current_token, Token::number("1"));
     /// ```
-    pub fn consume_token(&mut self) -> Token {
+    pub fn consume_token(&mut self) -> Result<Token, Error> {
         self.cur = self.next_cur.take().unwrap();
         let tok = self.current_token.clone(); // PERF: how not to clone?
-        self.read_token();
-        tok
+        self.read_token()?;
+        Ok(tok)
     }
 
     /// Move lexer position to `cur`
@@ -184,9 +185,9 @@ impl<'a> Lexer<'a> {
     /// lexer.set_position(cur);
     /// assert_eq!(lexer.current_token, Token::BinaryPlus);
     /// ```
-    pub fn set_position(&mut self, cur: Cursor) {
+    pub fn set_position(&mut self, cur: Cursor) -> Result<(), Error> {
         self.cur = cur;
-        self.read_token();
+        self.read_token()
     }
 
     /// Return the next token while keeping the current one
@@ -201,15 +202,15 @@ impl<'a> Lexer<'a> {
     /// let mut lexer = Lexer::new(src);
     ///
     /// // Return the next token but does not move the position
-    /// assert_eq!(lexer.peek_next(), Token::number("1"));
+    /// assert_eq!(lexer.peek_next().unwrap(), Token::number("1"));
     /// assert_eq!(lexer.current_token, Token::UnaryPlus);
     ///
     /// // Return Eof when called on the end
-    /// lexer.consume_token();
-    /// lexer.consume_token();
-    /// assert_eq!(lexer.peek_next(), Token::Eof);
+    /// lexer.consume_token().unwrap();
+    /// lexer.consume_token().unwrap();
+    /// assert_eq!(lexer.peek_next().unwrap(), Token::Eof);
     /// ```
-    pub fn peek_next(&mut self) -> Token {
+    pub fn peek_next(&mut self) -> Result<Token, Error> {
         let next_cur = self.next_cur.as_ref().unwrap().clone();
         let c = next_cur.peek(self.src);
         let mut next_next_cur = next_cur.clone();
@@ -223,23 +224,23 @@ impl<'a> Lexer<'a> {
             ),
             CharType::LowerWord => self.read_lower_word(&mut next_next_cur, Some(&next_cur)),
             CharType::IVar => (self.read_ivar(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Symbol => self.read_symbol(&mut next_next_cur),
-            CharType::Number => (self.read_number(&mut next_next_cur, Some(&next_cur)), None),
-            CharType::Str => (self.read_str(&mut next_next_cur, false), None),
+            CharType::Symbol => self.read_symbol(&mut next_next_cur)?,
+            CharType::Number => (self.read_number(&mut next_next_cur, Some(&next_cur))?, None),
+            CharType::Str => (self.read_str(&mut next_next_cur, false)?, None),
             CharType::Eof => (self.read_eof(), None),
         };
-        token
+        Ok(token)
     }
 
     /// Read a token and set it to `current_token`
     #[allow(clippy::useless_let_if_seq)]
-    fn read_token(&mut self) {
+    fn read_token(&mut self) -> Result<(), Error> {
         let c = self.cur.peek(self.src);
         let mut next_cur = self.cur.clone();
         let token;
         let new_state;
         if self.state == LexerState::StrLiteral {
-            token = self.read_str(&mut next_cur, true);
+            token = self.read_str(&mut next_cur, true)?;
             new_state = None;
         } else {
             let (t, s) = match self.char_type(c) {
@@ -258,13 +259,13 @@ impl<'a> Lexer<'a> {
                     self.read_ivar(&mut next_cur, None),
                     Some(LexerState::ExprEnd),
                 ),
-                CharType::Symbol => self.read_symbol(&mut next_cur),
+                CharType::Symbol => self.read_symbol(&mut next_cur)?,
                 CharType::Number => (
-                    self.read_number(&mut next_cur, None),
+                    self.read_number(&mut next_cur, None)?,
                     Some(LexerState::ExprEnd),
                 ),
                 CharType::Str => (
-                    self.read_str(&mut next_cur, false),
+                    self.read_str(&mut next_cur, false)?,
                     Some(LexerState::ExprEnd),
                 ),
                 CharType::Eof => (self.read_eof(), None),
@@ -276,7 +277,8 @@ impl<'a> Lexer<'a> {
         if let Some(state) = new_state {
             self.state = state;
         }
-        self.next_cur = Some(next_cur)
+        self.next_cur = Some(next_cur);
+        Ok(())
     }
 
     fn read_space(&mut self, next_cur: &mut Cursor) -> Token {
@@ -399,7 +401,7 @@ impl<'a> Lexer<'a> {
         Token::IVar(s.to_string())
     }
 
-    fn read_symbol(&mut self, next_cur: &mut Cursor) -> (Token, Option<LexerState>) {
+    fn read_symbol(&mut self, next_cur: &mut Cursor) -> Result<(Token, Option<LexerState>), Error> {
         let c1 = next_cur.proceed(self.src);
         let c2 = next_cur.peek(self.src);
         let (token, state) = match c1 {
@@ -565,7 +567,7 @@ impl<'a> Lexer<'a> {
                 panic!("unknown symbol: {}", c)
             }
         };
-        (token, Some(state))
+        Ok((token, Some(state)))
     }
 
     fn is_unary(&self, next_char: Option<char>) -> bool {
@@ -580,7 +582,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn read_number(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
+    fn read_number(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Result<Token, Error> {
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Number => {
@@ -588,7 +590,7 @@ impl<'a> Lexer<'a> {
                 }
                 CharType::UpperWord | CharType::LowerWord => {
                     // TODO: this should be lexing error
-                    panic!("need space after a number")
+                    return Err(self.lex_error("need space after a number"));
                 }
                 CharType::Symbol => {
                     if next_cur.peek(self.src) == Some('.') {
@@ -609,13 +611,13 @@ impl<'a> Lexer<'a> {
             Some(c) => c.pos,
             None => self.cur.pos,
         };
-        Token::Number(self.src[begin..next_cur.pos].to_string())
+        Ok(Token::Number(self.src[begin..next_cur.pos].to_string()))
     }
 
     /// Read a string literal
     /// Also parse escape sequences here
     /// - cont: true if reading string after `#{}'
-    fn read_str(&mut self, next_cur: &mut Cursor, cont: bool) -> Token {
+    fn read_str(&mut self, next_cur: &mut Cursor, cont: bool) -> Result<Token, Error> {
         let mut buf = String::new();
         if !cont {
             // Consume the beginning `"'
@@ -624,8 +626,7 @@ impl<'a> Lexer<'a> {
         loop {
             match next_cur.peek(self.src) {
                 None => {
-                    // TODO: should be a LexError
-                    panic!("found unterminated string");
+                    return Err(self.lex_error("found unterminated string"));
                 }
                 Some('"') => {
                     next_cur.proceed(self.src);
@@ -636,12 +637,12 @@ impl<'a> Lexer<'a> {
                     let c2 = next_cur.peek(self.src);
                     if c2 == Some('{') {
                         next_cur.proceed(self.src);
-                        return Token::StrWithInterpolation {
+                        return Ok(Token::StrWithInterpolation {
                             head: buf,
                             inspect: true,
-                        };
+                        });
                     } else {
-                        let c = self._read_escape_sequence(next_cur.peek(self.src));
+                        let c = self._read_escape_sequence(next_cur.peek(self.src))?;
                         next_cur.proceed(self.src);
                         buf.push(c);
                     }
@@ -651,10 +652,10 @@ impl<'a> Lexer<'a> {
                     let c2 = next_cur.peek(self.src);
                     if c2 == Some('{') {
                         next_cur.proceed(self.src);
-                        return Token::StrWithInterpolation {
+                        return Ok(Token::StrWithInterpolation {
                             head: buf,
                             inspect: false,
-                        };
+                        });
                     } else {
                         buf.push('#');
                     }
@@ -665,22 +666,21 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        Token::Str(buf)
+        Ok(Token::Str(buf))
     }
 
     /// Return special char written with '\'
-    fn _read_escape_sequence(&self, c: Option<char>) -> char {
+    fn _read_escape_sequence(&self, c: Option<char>) -> Result<char, Error> {
         match c {
             None => {
-                // TODO: should be a LexError
-                panic!("found unterminated string");
+                return Err(self.lex_error("found unterminated string"));
             }
-            Some('\\') => '\\',
-            Some('"') => '"',
-            Some('n') => '\n',
-            Some('t') => '\t',
-            Some('r') => '\r',
-            Some(c) => c,
+            Some('\\') => Ok('\\'),
+            Some('"') => Ok('"'),
+            Some('n') => Ok('\n'),
+            Some('t') => Ok('\t'),
+            Some('r') => Ok('\r'),
+            Some(c) => Ok(c),
         }
     }
 
@@ -703,6 +703,17 @@ impl<'a> Lexer<'a> {
             | '!' | '^' | '.' | '~' | '?' | ',' | ':' | '|' | '&' => CharType::Symbol,
             'A'..='Z' => CharType::UpperWord,
             _ => CharType::LowerWord,
+        }
+    }
+
+    fn lex_error(&self, msg: &str) -> Error {
+        Error {
+            msg: msg.to_string(),
+            backtrace: backtrace::Backtrace::new(),
+            details: ErrorDetails::ParseError {
+                location: self.cur.clone(),
+            },
+            source: None,
         }
     }
 }
