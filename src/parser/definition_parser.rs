@@ -8,7 +8,7 @@ impl<'a> Parser<'a> {
         let mut defs = vec![];
         while let Some(def) = self.parse_definition()? {
             defs.push(def);
-            self.skip_wsn();
+            self.skip_wsn()?;
         }
         Ok(defs)
     }
@@ -30,14 +30,14 @@ impl<'a> Parser<'a> {
         let defs;
 
         // `class'
-        assert!(self.consume(Token::KwClass));
-        self.skip_ws();
+        assert!(self.consume(Token::KwClass)?);
+        self.skip_ws()?;
 
         // Class name
         match self.current_token() {
             Token::UpperWord(s) => {
                 name = class_firstname(s);
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -53,10 +53,10 @@ impl<'a> Parser<'a> {
 
         // Superclass name (optional)
         let mut superclass = None;
-        self.skip_ws();
+        self.skip_ws()?;
         if self.current_token_is(Token::Colon) {
-            self.consume_token();
-            self.skip_wsn();
+            self.consume_token()?;
+            self.skip_wsn()?;
             superclass = Some(self.parse_typ()?);
         }
 
@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
         // `end'
         match self.current_token() {
             Token::KwEnd => {
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -96,14 +96,14 @@ impl<'a> Parser<'a> {
         let cases;
 
         // `enum'
-        assert!(self.consume(Token::KwEnum));
-        self.skip_ws();
+        assert!(self.consume(Token::KwEnum)?);
+        self.skip_ws()?;
 
         // Enum class name
         match self.current_token() {
             Token::UpperWord(s) => {
                 name = class_firstname(s);
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -119,13 +119,13 @@ impl<'a> Parser<'a> {
         self.expect_sep()?;
 
         // Enum cases
-        self.skip_wsn();
+        self.skip_wsn()?;
         cases = self.parse_enum_cases()?;
 
         // `end'
         match self.current_token() {
             Token::KwEnd => {
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
             match self.current_token() {
                 Token::KwCase => {
                     cases.push(self.parse_enum_case()?);
-                    self.skip_wsn();
+                    self.skip_wsn()?;
                 }
                 Token::KwEnd => {
                     break;
@@ -163,13 +163,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enum_case(&mut self) -> Result<ast::EnumCase, Error> {
-        debug_assert!(self.consume(Token::KwCase));
-        self.skip_wsn();
+        debug_assert!(self.consume(Token::KwCase)?);
+        self.skip_wsn()?;
         let name;
         match self.current_token() {
             Token::UpperWord(s) => {
                 name = class_firstname(s);
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
         let params = match self.current_token() {
             Token::Separator => vec![],
             Token::LParen => {
-                self.consume_token();
+                self.consume_token()?;
                 let is_initialize = false;
                 self.parse_params(is_initialize, vec![Token::RParen])?
             }
@@ -202,12 +202,12 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         // `def'
         self.set_lexer_state(LexerState::MethodName);
-        assert!(self.consume(Token::KwDef));
-        self.skip_ws();
+        assert!(self.consume(Token::KwDef)?);
+        self.skip_ws()?;
 
         // `foo(bar) -> Baz`
         let (sig, is_class_method) = self.parse_method_signature()?;
-        self.skip_ws();
+        self.skip_ws()?;
         self.expect_sep()?;
 
         // Body (optional)
@@ -215,10 +215,10 @@ impl<'a> Parser<'a> {
         body_exprs.append(&mut self.parse_exprs(vec![Token::KwEnd])?);
 
         // `end'
-        self.skip_wsn();
+        self.skip_wsn()?;
         match self.current_token() {
             Token::KwEnd => {
-                self.consume_token();
+                self.consume_token()?;
             }
             token => {
                 return Err(parse_error!(
@@ -246,11 +246,11 @@ impl<'a> Parser<'a> {
         let mut is_class_method = false;
 
         // `self.` (Optional)
-        if self.consume(Token::KwSelf) {
+        if self.consume(Token::KwSelf)? {
             if self.current_token_is(Token::Dot) {
                 is_class_method = true;
                 self.set_lexer_state(LexerState::MethodName);
-                self.consume_token();
+                self.consume_token()?;
             } else {
                 // Defining a method named `self` :thinking_face:
                 name = Some(method_firstname("self"));
@@ -260,7 +260,7 @@ impl<'a> Parser<'a> {
         // Method name
         if name == None {
             name = Some(method_firstname(self.get_method_name()?));
-            self.consume_token();
+            self.consume_token()?;
         }
 
         // Method-wise type parameters (Optional)
@@ -269,8 +269,8 @@ impl<'a> Parser<'a> {
         // Params (optional)
         match self.current_token() {
             Token::LParen => {
-                self.consume_token();
-                self.skip_wsn();
+                self.consume_token()?;
+                self.skip_wsn()?;
                 let is_initialize =
                     !is_class_method && name == Some(method_firstname("initialize"));
                 params = self.parse_params(is_initialize, vec![Token::RParen])?;
@@ -280,18 +280,18 @@ impl<'a> Parser<'a> {
                 params = vec![];
             }
         }
-        self.skip_ws();
+        self.skip_ws()?;
 
         // Return type (optional)
         match self.current_token() {
             Token::RightArrow => {
-                self.consume_token();
-                self.skip_ws();
+                self.consume_token()?;
+                self.skip_ws()?;
                 ret_typ = Some(self.parse_typ()?);
             }
             _ => {
                 ret_typ = None;
-                self.skip_ws();
+                self.skip_ws()?;
             }
         }
 
@@ -341,22 +341,22 @@ impl<'a> Parser<'a> {
             return Ok(Default::default());
         }
         let mut typarams = vec![];
-        debug_assert!(self.consume(Token::LessThan));
-        self.skip_wsn();
+        debug_assert!(self.consume(Token::LessThan)?);
+        self.skip_wsn()?;
         loop {
             match self.current_token() {
                 Token::GreaterThan => {
-                    self.consume_token();
+                    self.consume_token()?;
                     break;
                 }
                 Token::UpperWord(s) => {
                     typarams.push(s.to_string());
-                    self.consume_token();
-                    self.skip_wsn();
+                    self.consume_token()?;
+                    self.skip_wsn()?;
                 }
                 Token::Comma => {
-                    self.consume_token();
-                    self.skip_wsn();
+                    self.consume_token()?;
+                    self.skip_wsn()?;
                 }
                 token => {
                     return Err(parse_error!(
@@ -398,17 +398,17 @@ impl<'a> Parser<'a> {
                         ))
                     }
                 }
-                self.skip_wsn();
+                self.skip_wsn()?;
             }
             // Next param or exit
             if stop_toks.contains(self.current_token()) {
-                self.consume_token();
+                self.consume_token()?;
                 break;
             }
             match self.current_token() {
                 Token::Comma => {
-                    self.consume_token();
-                    self.skip_wsn();
+                    self.consume_token()?;
+                    self.skip_wsn()?;
                 }
                 token => {
                     return Err(parse_error!(
@@ -430,12 +430,12 @@ impl<'a> Parser<'a> {
         match self.current_token() {
             Token::LowerWord(s) => {
                 name = s.to_string();
-                self.consume_token();
+                self.consume_token()?;
                 is_iparam = false;
             }
             Token::IVar(s) => {
                 name = s.to_string();
-                self.consume_token();
+                self.consume_token()?;
                 is_iparam = true;
             }
             token => {
@@ -446,11 +446,11 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
-        self.skip_ws();
+        self.skip_ws()?;
 
         // `:'
         self.expect(Token::Colon)?;
-        self.skip_ws();
+        self.skip_ws()?;
 
         // Type
         let typ = self.parse_typ()?;
@@ -466,7 +466,7 @@ impl<'a> Parser<'a> {
         match self.current_token() {
             Token::UpperWord(s) => {
                 let head = s.to_string();
-                self.consume_token();
+                self.consume_token()?;
                 self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
                 let name = self._parse_typ(head)?;
                 self.set_lexer_gtgt_mode(false); // End special mode
@@ -492,37 +492,37 @@ impl<'a> Parser<'a> {
                     if lessthan_seen {
                         return Err(parse_error!(self, "unexpected `::'"));
                     }
-                    self.consume_token();
+                    self.consume_token()?;
                 }
                 Token::LessThan => {
                     // `A<B>`
                     lessthan_seen = true;
-                    self.consume_token();
-                    self.skip_wsn();
+                    self.consume_token()?;
+                    self.skip_wsn()?;
                 }
                 Token::GreaterThan => {
                     // `A<B>`
                     if lessthan_seen {
-                        self.consume_token();
+                        self.consume_token()?;
                     }
                     break;
                 }
                 Token::Comma => {
                     // `A<B, C>`
                     if lessthan_seen {
-                        self.consume_token();
-                        self.skip_wsn();
+                        self.consume_token()?;
+                        self.skip_wsn()?;
                     } else {
                         break;
                     }
                 }
                 Token::UpperWord(s) => {
                     let name = s.to_string();
-                    self.consume_token();
+                    self.consume_token()?;
                     if lessthan_seen {
                         let inner = self._parse_typ(name)?;
                         args.push(inner);
-                        self.skip_wsn();
+                        self.skip_wsn()?;
                     } else {
                         names.push(name);
                     }
@@ -548,11 +548,11 @@ impl<'a> Parser<'a> {
             Token::UpperWord(s) => name = s.to_string(),
             _ => panic!("must be called on an UpperWord"),
         }
-        self.consume_token();
+        self.consume_token()?;
 
-        self.skip_wsn();
+        self.skip_wsn()?;
         self.expect(Token::Equal)?;
-        self.skip_wsn();
+        self.skip_wsn()?;
 
         let expr = self.parse_expr()?;
 
