@@ -2,7 +2,7 @@ use crate::ty;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct ClassFirstname(pub String);
 
 impl std::fmt::Display for ClassFirstname {
@@ -296,7 +296,7 @@ pub fn const_name(names: Vec<String>) -> ConstName {
 pub struct UnresolvedConstName(pub Vec<String>);
 
 /// Fully qualified const name.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct ResolvedConstName {
     pub names: Vec<String>,
     pub args: Vec<ResolvedConstName>,
