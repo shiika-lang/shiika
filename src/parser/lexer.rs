@@ -404,170 +404,168 @@ impl<'a> Lexer<'a> {
     fn read_symbol(&mut self, next_cur: &mut Cursor) -> Result<(Token, Option<LexerState>), Error> {
         let c1 = next_cur.proceed(self.src);
         let c2 = next_cur.peek(self.src);
-        let (token, state) = match c1 {
-            '(' => (Token::LParen, LexerState::ExprBegin),
-            ')' => (Token::RParen, LexerState::ExprEnd),
+        match c1 {
+            '(' => Ok((Token::LParen, Some(LexerState::ExprBegin))),
+            ')' => Ok((Token::RParen, Some(LexerState::ExprEnd))),
             '[' => {
                 if self.state == LexerState::MethodName && c2 == Some(']') {
                     next_cur.proceed(self.src);
                     let c3 = next_cur.peek(self.src);
                     if c3 == Some('=') {
                         next_cur.proceed(self.src);
-                        (Token::SetMethod, LexerState::ExprBegin)
+                        Ok((Token::SetMethod, Some(LexerState::ExprBegin)))
                     } else {
-                        (Token::GetMethod, LexerState::ExprBegin)
+                        Ok((Token::GetMethod, Some(LexerState::ExprBegin)))
                     }
                 } else {
-                    (Token::LSqBracket, LexerState::ExprBegin)
+                    Ok((Token::LSqBracket, Some(LexerState::ExprBegin)))
                 }
             }
-            ']' => (Token::RSqBracket, LexerState::ExprEnd),
-            '{' => (Token::LBrace, LexerState::ExprBegin),
-            '}' => (Token::RBrace, LexerState::ExprEnd),
+            ']' => Ok((Token::RSqBracket, Some(LexerState::ExprEnd))),
+            '{' => Ok((Token::LBrace, Some(LexerState::ExprBegin))),
+            '}' => Ok((Token::RBrace, Some(LexerState::ExprEnd))),
             '+' => {
                 if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
-                    (Token::UPlusMethod, LexerState::ExprBegin)
+                    Ok((Token::UPlusMethod, Some(LexerState::ExprBegin)))
                 } else if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::PlusEq, LexerState::ExprBegin)
+                    Ok((Token::PlusEq, Some(LexerState::ExprBegin)))
                 } else if self.is_unary(c2) {
-                    (Token::UnaryPlus, LexerState::ExprBegin)
+                    Ok((Token::UnaryPlus, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::BinaryPlus, LexerState::ExprBegin)
+                    Ok((Token::BinaryPlus, Some(LexerState::ExprBegin)))
                 }
             }
             '-' => {
                 if self.state == LexerState::MethodName && c2 == Some('@') {
                     next_cur.proceed(self.src);
-                    (Token::UMinusMethod, LexerState::ExprBegin)
+                    Ok((Token::UMinusMethod, Some(LexerState::ExprBegin)))
                 } else if c2 == Some('>') {
                     next_cur.proceed(self.src);
-                    (Token::RightArrow, LexerState::ExprBegin)
+                    Ok((Token::RightArrow, Some(LexerState::ExprBegin)))
                 } else if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::MinusEq, LexerState::ExprBegin)
+                    Ok((Token::MinusEq, Some(LexerState::ExprBegin)))
                 } else if self.is_unary(c2) {
-                    (Token::UnaryMinus, LexerState::ExprBegin)
+                    Ok((Token::UnaryMinus, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::BinaryMinus, LexerState::ExprBegin)
+                    Ok((Token::BinaryMinus, Some(LexerState::ExprBegin)))
                 }
             }
             '*' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::MulEq, LexerState::ExprBegin)
+                    Ok((Token::MulEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Mul, LexerState::ExprBegin)
+                    Ok((Token::Mul, Some(LexerState::ExprBegin)))
                 }
             }
             '/' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::DivEq, LexerState::ExprBegin)
+                    Ok((Token::DivEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Div, LexerState::ExprBegin)
+                    Ok((Token::Div, Some(LexerState::ExprBegin)))
                 }
             }
             '%' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::ModEq, LexerState::ExprBegin)
+                    Ok((Token::ModEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Mod, LexerState::ExprBegin)
+                    Ok((Token::Mod, Some(LexerState::ExprBegin)))
                 }
             }
             '=' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::EqEq, LexerState::ExprBegin)
+                    Ok((Token::EqEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Equal, LexerState::ExprBegin)
+                    Ok((Token::Equal, Some(LexerState::ExprBegin)))
                 }
             }
             '!' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::NotEq, LexerState::ExprBegin)
+                    Ok((Token::NotEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Bang, LexerState::ExprBegin)
+                    Ok((Token::Bang, Some(LexerState::ExprBegin)))
                 }
             }
             '<' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::LessEq, LexerState::ExprBegin)
+                    Ok((Token::LessEq, Some(LexerState::ExprBegin)))
                 } else if c2 == Some('<') {
                     next_cur.proceed(self.src);
                     let c3 = next_cur.peek(self.src);
                     if c3 == Some('=') {
                         next_cur.proceed(self.src);
-                        (Token::LShiftEq, LexerState::ExprBegin)
+                        Ok((Token::LShiftEq, Some(LexerState::ExprBegin)))
                     } else {
-                        (Token::LShift, LexerState::ExprBegin)
+                        Ok((Token::LShift, Some(LexerState::ExprBegin)))
                     }
                 } else {
-                    (Token::LessThan, LexerState::ExprBegin)
+                    Ok((Token::LessThan, Some(LexerState::ExprBegin)))
                 }
             }
             '>' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::GreaterEq, LexerState::ExprBegin)
+                    Ok((Token::GreaterEq, Some(LexerState::ExprBegin)))
                 } else if c2 == Some('>') {
                     if self.rshift_is_gtgt {
                         // Don't make it RShift (eg. `Array<Array<Int>>`)
-                        (Token::GreaterThan, LexerState::ExprBegin)
+                        Ok((Token::GreaterThan, Some(LexerState::ExprBegin)))
                     } else {
                         next_cur.proceed(self.src);
                         let c3 = next_cur.peek(self.src);
                         if c3 == Some('=') {
                             next_cur.proceed(self.src);
-                            (Token::RShiftEq, LexerState::ExprBegin)
+                            Ok((Token::RShiftEq, Some(LexerState::ExprBegin)))
                         } else {
-                            (Token::RShift, LexerState::ExprBegin)
+                            Ok((Token::RShift, Some(LexerState::ExprBegin)))
                         }
                     }
                 } else {
-                    (Token::GreaterThan, LexerState::ExprBegin)
+                    Ok((Token::GreaterThan, Some(LexerState::ExprBegin)))
                 }
             }
-            '.' => (Token::Dot, LexerState::ExprBegin),
-            '@' => (Token::At, LexerState::ExprBegin),
-            '~' => (Token::Tilde, LexerState::ExprBegin),
-            '?' => (Token::Question, LexerState::ExprBegin),
-            ',' => (Token::Comma, LexerState::ExprBegin),
+            '.' => Ok((Token::Dot, Some(LexerState::ExprBegin))),
+            '@' => Ok((Token::At, Some(LexerState::ExprBegin))),
+            '~' => Ok((Token::Tilde, Some(LexerState::ExprBegin))),
+            '?' => Ok((Token::Question, Some(LexerState::ExprBegin))),
+            ',' => Ok((Token::Comma, Some(LexerState::ExprBegin))),
             ':' => {
                 if c2 == Some(':') {
                     next_cur.proceed(self.src);
-                    (Token::ColonColon, LexerState::ExprBegin)
+                    Ok((Token::ColonColon, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Colon, LexerState::ExprBegin)
+                    Ok((Token::Colon, Some(LexerState::ExprBegin)))
                 }
             }
             '&' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::AndEq, LexerState::ExprBegin)
+                    Ok((Token::AndEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::And, LexerState::ExprBegin)
+                    Ok((Token::And, Some(LexerState::ExprBegin)))
                 }
             }
             '|' => {
                 if c2 == Some('=') {
                     next_cur.proceed(self.src);
-                    (Token::OrEq, LexerState::ExprBegin)
+                    Ok((Token::OrEq, Some(LexerState::ExprBegin)))
                 } else {
-                    (Token::Or, LexerState::ExprBegin)
+                    Ok((Token::Or, Some(LexerState::ExprBegin)))
                 }
             }
-            '^' => (Token::Xor, LexerState::ExprBegin),
+            '^' => Ok((Token::Xor, Some(LexerState::ExprBegin))),
             c => {
-                // TODO: this should be lexing error
-                panic!("unknown symbol: {}", c)
+                Err(self.lex_error(&format!("unknown symbol: {}", c)))
             }
-        };
-        Ok((token, Some(state)))
+        }
     }
 
     fn is_unary(&self, next_char: Option<char>) -> bool {
