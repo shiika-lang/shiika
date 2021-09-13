@@ -139,9 +139,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
             }
         }
+        debug_assert!(self.ctx_stack.len() == 1);
+        let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
         Ok((
             HirExpressions::new(main_exprs),
-            extract_lvars(&mut self.ctx.toplevel.lvars),
+            extract_lvars(&mut toplevel_ctx.lvars),
         ))
     }
 
@@ -180,11 +182,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
-        let mut current = CtxKind::Class;
-        self.ctx.swap_current(&mut current);
-        self.ctx
-            .classes
-            .push(ClassCtx::new(namespace.add(firstname), typarams));
+        self.ctx_stack
+            .push(HirMakerContext::class(namespace.add(firstname), typarams));
 
         // Register constants before processing #initialize
         let inner_namespace = namespace.add(firstname);
@@ -242,8 +241,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 } => self.process_enum_def(&inner_namespace, name, typarams.clone(), cases)?,
             }
         }
-        self.ctx.classes.pop();
-        self.ctx.swap_current(&mut current);
+        self.ctx_stack.pop();
         Ok(())
     }
 
@@ -394,18 +392,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .expect(&err)
             .clone();
 
-        self.ctx.method = Some(MethodCtx::new(signature.clone(), super_ivars));
-
-        let mut current = CtxKind::Method;
-        self.ctx.swap_current(&mut current);
+        self.ctx_stack
+            .push(HirMakerContext::method(signature.clone(), super_ivars));
         let mut hir_exprs = self.convert_exprs(body_exprs)?;
         // Insert ::Void so that last expr always matches to ret_ty
         if signature.ret_ty.is_void_type() {
             hir_exprs.voidify();
         }
-        self.ctx.swap_current(&mut current);
-
-        let mut method_ctx = self.ctx.method.take().unwrap();
+        let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
 
