@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::error;
 use crate::error::Error;
+use crate::hir::hir_maker::extract_lvars;
 use crate::hir::hir_maker::HirMaker;
 use crate::hir::hir_maker_context::*;
 use crate::hir::*;
@@ -216,30 +217,32 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
 
-        let mut current = CtxKind::While;
-        self.ctx.swap_current(&mut current);
+        self.ctx_stack.push(HirMakerContext::while_ctx());
         let body_hirs = self.convert_exprs(body_exprs)?;
-        self.ctx.swap_current(&mut current);
+        self.ctx_stack.pop();
 
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
 
     fn convert_break_expr(&mut self) -> Result<HirExpression, Error> {
         let from;
-        if self.ctx.current == CtxKind::Lambda {
-            let lambda_ctx = self.ctx.lambda_mut();
-            if lambda_ctx.is_fn {
-                return Err(error::program_error("`break' inside a fn"));
-            } else {
-                // OK for now. This `break` still may be invalid
-                // (eg. `ary.map{ break }`) but it cannot be checked here
-                lambda_ctx.has_break = true;
-                from = HirBreakFrom::Block;
+        match self.ctx_stack.top_mut() {
+            HirMakerContext::Lambda(lambda_ctx) => {
+                if lambda_ctx.is_fn {
+                    return Err(error::program_error("`break' inside a fn"));
+                } else {
+                    // OK for now. This `break` still may be invalid
+                    // (eg. `ary.map{ break }`) but it cannot be checked here
+                    lambda_ctx.has_break = true;
+                    from = HirBreakFrom::Block;
+                }
             }
-        } else if self.ctx.current == CtxKind::While {
-            from = HirBreakFrom::While;
-        } else {
-            return Err(error::program_error("`break' outside a loop"));
+            HirMakerContext::While(_) => {
+                from = HirBreakFrom::While;
+            }
+            _ => {
+                return Err(error::program_error("`break' outside a loop"));
+            }
         }
         Ok(Hir::break_expression(from))
     }
@@ -260,18 +263,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Check if `return' is valid in the current context
     fn _validate_return(&self) -> Result<HirReturnFrom, Error> {
-        if let Some(lambda_ctx) = self.ctx.lambdas.last() {
+        if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
             if lambda_ctx.is_fn {
                 Ok(HirReturnFrom::Fn)
-            } else if self.ctx.method.is_some() {
+            } else if self.ctx_stack.method_ctx().is_some() {
                 Err(error::program_error(
                     "`return' in a block is not supported (#266)",
                 ))
-            //Ok(HirReturnFrom::Block)
+                //Ok(HirReturnFrom::Block)
             } else {
                 Err(error::program_error("`return' outside a loop"))
             }
-        } else if self.ctx.method.is_some() {
+        } else if self.ctx_stack.method_ctx().is_some() {
             Ok(HirReturnFrom::Method)
         } else {
             Err(error::program_error("`return' outside a loop"))
@@ -280,9 +283,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Check if the argument of `return' is valid
     fn _validate_return_type(&self, arg_ty: &TermTy) -> Result<(), Error> {
-        if self.ctx.current_is_fn() {
-            // TODO
-        } else if let Some(method_ctx) = &self.ctx.method {
+        if self.ctx_stack.lambda_ctx().is_some() {
+            // TODO: check arg_ty matches to fn's return type
+        } else if let Some(method_ctx) = &self.ctx_stack.method_ctx() {
             type_checking::check_return_arg_type(&self.class_dict, arg_ty, &method_ctx.signature)?;
         }
         Ok(())
@@ -308,7 +311,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Ok(lvar_info.assign_expr(expr))
         } else {
             // Create new lvar
-            self.ctx.declare_lvar(name, expr.ty.clone(), !is_var);
+            self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
             Ok(Hir::lvar_assign(name, expr))
         }
     }
@@ -320,9 +323,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let self_ty = self.ctx.self_ty();
+        let self_ty = self.ctx_stack.self_ty();
 
-        if self.ctx.in_initializer() {
+        if self.ctx_stack.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
             return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
         }
@@ -352,8 +355,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Declare a new ivar
     fn declare_ivar(&mut self, name: &str, ty: &TermTy, readonly: bool) -> Result<usize, Error> {
-        let self_ty = &self.ctx.self_ty();
-        let method_ctx = self.ctx.method.as_mut().unwrap();
+        let self_ty = &self.ctx_stack.self_ty();
+        let method_ctx = self.ctx_stack.method_ctx_mut().unwrap();
         if let Some(super_ivar) = method_ctx.super_ivars.get(name) {
             if super_ivar.ty != *ty {
                 return Err(error::type_error(&format!(
@@ -502,25 +505,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         exprs: &[AstExpression],
         is_fn: &bool,
     ) -> Result<HirExpression, Error> {
-        let namespace = self.ctx.const_scopes().next().unwrap();
+        let namespace = self.ctx_stack.const_scopes().next().unwrap();
         let hir_params = self.class_dict.convert_params(
             &namespace,
             params,
-            &self.current_class_typarams(),
-            &self.current_method_typarams(),
+            &self.ctx_stack.current_class_typarams(),
+            &self.ctx_stack.current_method_typarams(),
         )?;
 
         // Convert lambda body
-        self.ctx
-            .lambdas
-            .push(LambdaCtx::new(*is_fn, hir_params.clone()));
-
-        let mut current = CtxKind::Lambda;
-        self.ctx.swap_current(&mut current);
+        self.ctx_stack
+            .push(HirMakerContext::lambda(*is_fn, hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
-        self.ctx.swap_current(&mut current);
-
-        let mut lambda_ctx = self.ctx.lambdas.pop().unwrap();
+        let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
         Ok(Hir::lambda_expr(
             lambda_ty(&hir_params, &hir_exprs.ty),
             self._create_lambda_name(),
@@ -539,7 +536,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         format!(
             "lambda_{}_in_{}",
             lambda_id,
-            self.ctx.describe_current_place()
+            self.ctx_stack.describe_current_place()
         )
     }
 
@@ -551,9 +548,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Vec<HirLambdaCapture> {
         let mut ret = vec![];
         for cap in lambda_captures {
-            let captured_here = match self.ctx.current {
-                CtxKind::Lambda => cap.ctx_depth == (self.ctx.lambdas.len() as isize) - 1,
-                _ => cap.ctx_depth == -1,
+            let captured_here = if let HirMakerContext::Lambda(_) = self.ctx_stack.top() {
+                cap.ctx_depth == (self.ctx_stack.len() as isize) - 1
+            } else {
+                cap.ctx_depth == -1
             };
             if captured_here {
                 // The variable is in this scope
@@ -568,7 +566,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
-                let cidx = self.ctx.push_lambda_capture(cap);
+                let cidx = self.ctx_stack.push_lambda_capture(cap);
                 ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
             }
         }
@@ -603,17 +601,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Find the variable of the given name.
-    /// If it is a free variable, ctx.captures will be modified
+    /// If it is a free variable, lambda_ctx.captures will be modified
     fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        let cidx = if self.ctx.current == CtxKind::Lambda {
-            self.ctx.lambdas.last().unwrap().captures.len()
+        let cidx = if let HirMakerContext::Lambda(lambda_ctx) = self.ctx_stack.top() {
+            lambda_ctx.captures.len()
         } else {
-            0 // this value is never used
+            0
         };
         let mut first = true;
         let mut caps = vec![];
         let mut ret = None;
-        for (lvars, params, depth) in self.ctx.lvar_scopes() {
+        for (lvars, params, depth) in self.ctx_stack.lvar_scopes() {
             // Local
             if let Some(lvar) = lvars.get(name) {
                 if updating && lvar.readonly {
@@ -678,18 +676,25 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         if !caps.is_empty() {
             caps.into_iter().for_each(|cap| {
-                self.ctx.push_lambda_capture(cap);
+                self.ctx_stack.push_lambda_capture(cap);
             });
         }
         Ok(ret)
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
-        let self_ty = self.ctx.self_ty();
+        let self_ty = self.ctx_stack.self_ty();
         let found = self
             .class_dict
             .find_ivar(&self_ty.fullname, name)
-            .or_else(|| self.ctx.method.as_ref().unwrap().iivars.get(name));
+            .or_else(|| {
+                self.ctx_stack
+                    .method_ctx()
+                    .as_ref()
+                    .unwrap()
+                    .iivars
+                    .get(name)
+            });
         match found {
             Some(ivar) => Ok(Hir::ivar_ref(
                 ivar.ty.clone(),
@@ -720,11 +725,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if name.0.len() == 1 {
             // Check if it is a typaram ref
             let s = name.0.first().unwrap();
-            if let Some(ty) = self.ctx.lookup_typaram(s) {
+            if let Some(ty) = self.ctx_stack.lookup_typaram(s) {
                 return Ok((ty, typaram_as_resolved_const_name(s)));
             }
         }
-        for namespace in self.ctx.const_scopes() {
+        for namespace in self.ctx_stack.const_scopes() {
             let resolved = resolved_const_name(namespace, name.0.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
@@ -874,7 +879,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn convert_self_expr(&self) -> HirExpression {
-        Hir::self_expression(self.ctx.self_ty())
+        Hir::self_expression(self.ctx_stack.self_ty())
     }
 
     fn convert_string_literal(&mut self, content: &str) -> HirExpression {
