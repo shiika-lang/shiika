@@ -8,6 +8,7 @@ use crate::hir::*;
 use crate::library::LibraryExports;
 use crate::names;
 use crate::type_checking;
+use ctx_stack::CtxStack;
 
 #[derive(Debug)]
 pub struct HirMaker<'hir_maker> {
@@ -24,7 +25,7 @@ pub struct HirMaker<'hir_maker> {
     /// List of string literals found so far
     pub(super) str_literals: Vec<String>,
     /// Contextual information
-    pub(super) ctx: HirMakerContext,
+    pub(super) ctx_stack: CtxStack,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
 }
@@ -64,7 +65,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             imported_constants,
             const_inits: vec![],
             str_literals: vec![],
-            ctx: HirMakerContext::new(),
+            ctx_stack: CtxStack::new(vec![HirMakerContext::toplevel()]),
             lambda_ct: 0,
         }
     }
@@ -479,4 +480,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         );
         Ok(())
     }
+}
+
+/// Destructively extract list of local variables
+pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
+    std::mem::take(lvars)
+        .into_iter()
+        .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
+        .collect::<Vec<_>>()
 }
