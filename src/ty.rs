@@ -217,6 +217,14 @@ impl TermTy {
         }
     }
 
+    pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
+        match &self.body {
+            TySpe { base_name, .. } => ty::spe(base_name, tyargs),
+            TySpeMeta { base_name, .. } => ty::spe_meta(base_name, tyargs),
+            _ => panic!("unexpected"),
+        }
+    }
+
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {

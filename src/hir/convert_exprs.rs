@@ -79,7 +79,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 else_exprs,
             } => self.convert_if_expr(cond_expr, then_exprs, else_exprs),
 
-            AstExpressionBody::Match { .. } => todo!(),
+            AstExpressionBody::Match { cond_expr, clauses } => {
+                let x = self.convert_match_expr(cond_expr, clauses);
+                //dbg!(&x);
+                x
+            }
 
             AstExpressionBody::While {
                 cond_expr,
@@ -179,36 +183,23 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
-        let mut then_hirs = self.convert_exprs(then_exprs)?;
-        let mut else_hirs = match else_exprs {
+        let then_hirs = self.convert_exprs(then_exprs)?;
+        let else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
             None => HirExpressions::new(vec![]),
         };
 
-        let if_ty = if then_hirs.ty.is_never_type() {
-            else_hirs.ty.clone()
-        } else if else_hirs.ty.is_never_type() {
-            then_hirs.ty.clone()
-        } else if then_hirs.ty.is_void_type() {
-            else_hirs.voidify();
-            ty::raw("Void")
-        } else if else_hirs.ty.is_void_type() {
-            then_hirs.voidify();
-            ty::raw("Void")
-        } else {
-            let ty = self
-                .class_dict
-                .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
-            if !then_hirs.ty.equals_to(&ty) {
-                then_hirs = then_hirs.bitcast_to(ty.clone());
-            }
-            if !else_hirs.ty.equals_to(&ty) {
-                else_hirs = else_hirs.bitcast_to(ty.clone());
-            }
-            ty
-        };
-
+        let (if_ty, then_hirs, else_hirs) =
+            type_checking::merge_ifs(then_hirs, else_hirs, &self.class_dict);
         Ok(Hir::if_expression(if_ty, cond_hir, then_hirs, else_hirs))
+    }
+
+    fn convert_match_expr(
+        &mut self,
+        cond_expr: &AstExpression,
+        clauses: &[AstMatchClause],
+    ) -> Result<HirExpression, Error> {
+        pattern_match::convert_match_expr(self, cond_expr, clauses)
     }
 
     fn convert_while_expr(
@@ -448,7 +439,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy, Error> {
         match &arg.body {
-            AstExpressionBody::ConstRef(name) => Ok(self._resolve_class_const(name)?.0),
+            AstExpressionBody::ConstRef(name) => Ok(self.resolve_class_const(name)?.0),
             AstExpressionBody::SpecializeExpression { base_name, args } => Ok(self
                 .convert_specialize_expr(base_name, args)?
                 .ty
@@ -501,7 +492,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(ret)
     }
 
-    fn convert_lambda_expr(
+    pub(super) fn convert_lambda_expr(
         &mut self,
         params: &[ast::Param],
         exprs: &[AstExpression],
@@ -522,7 +513,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
         Ok(Hir::lambda_expr(
             lambda_ty(&hir_params, &hir_exprs.ty),
-            self._create_lambda_name(),
+            self.create_lambda_name(),
             hir_params,
             hir_exprs,
             self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
@@ -532,7 +523,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Returns a newly created name for a lambda
-    fn _create_lambda_name(&mut self) -> String {
+    pub fn create_lambda_name(&mut self) -> String {
         self.lambda_ct += 1;
         let lambda_id = self.lambda_ct;
         format!(
@@ -745,7 +736,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve const name which *must be* a class
-    fn _resolve_class_const(
+    pub(super) fn resolve_class_const(
         &self,
         name: &UnresolvedConstName,
     ) -> Result<(TermTy, ResolvedConstName), Error> {
@@ -775,7 +766,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Create `Meta:A<B>` for type `A<B>` (unless already exists)
-    fn _create_specialized_meta_class(&mut self, meta_ty: &TermTy) {
+    pub fn create_specialized_meta_class(&mut self, meta_ty: &TermTy) {
         debug_assert!(meta_ty.is_metaclass());
         if self.class_dict.lookup_class(&meta_ty.fullname).is_some() {
             return;
@@ -804,11 +795,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         args: &[AstExpression],
     ) -> Result<HirExpression, Error> {
         debug_assert!(!args.is_empty());
-        let (base_ty, _) = self._resolve_class_const(base_name)?;
+        let (base_ty, _) = self.resolve_class_const(base_name)?;
         let mut type_args = vec![];
         for arg in args {
             let ty = match &arg.body {
-                AstExpressionBody::ConstRef(n) => self._resolve_class_const(n)?.0,
+                AstExpressionBody::ConstRef(n) => self.resolve_class_const(n)?.0,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
@@ -831,7 +822,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _register_specialized_const(&mut self, meta_ty: &TermTy, full: &ConstFullname) {
         debug_assert!(meta_ty.is_metaclass());
         // For `A<B>`, create its type `Meta:A<B>`
-        self._create_specialized_meta_class(&meta_ty);
+        self.create_specialized_meta_class(&meta_ty);
         // Register const `A<B>`
         let str_idx = self.register_string_literal(&full.0);
         let expr = Hir::class_literal(

@@ -58,10 +58,9 @@ impl VTable {
     }
 
     /// Returns the index of the method
-    pub fn get(&self, name: &MethodFirstname) -> &usize {
-        self.index
-            .get(name)
-            .unwrap_or_else(|| panic!("not in vtable: {}", name))
+    pub fn get(&self, name: &MethodFirstname) -> Option<&usize> {
+        self.index.get(name)
+        //.unwrap_or_else(|| panic!("not in vtable: {}", name))
     }
 
     /// Returns the list of method names, ordered by the index.
@@ -118,9 +117,12 @@ impl VTables {
         obj_ty: &TermTy,
         method_name: &MethodFirstname,
     ) -> Option<(&usize, usize)> {
-        self.vtables
-            .get(&obj_ty.vtable_name())
-            .map(|vtable| (vtable.get(method_name), vtable.size()))
+        self.vtables.get(&obj_ty.vtable_name()).map(|vtable| {
+            let idx = vtable
+                .get(method_name)
+                .unwrap_or_else(|| panic!("[BUG] `{}' not found in {}", &method_name, &obj_ty));
+            (idx, vtable.size())
+        })
     }
 
     /// Returns iterator over each vtable

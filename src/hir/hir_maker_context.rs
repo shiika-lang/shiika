@@ -10,6 +10,7 @@ pub enum HirMakerContext {
     Method(MethodCtx),
     Lambda(LambdaCtx),
     While(WhileCtx),
+    MatchClause(MatchClauseCtx),
 }
 
 impl HirMakerContext {
@@ -20,6 +21,7 @@ impl HirMakerContext {
             HirMakerContext::Class(c) => Some(&mut c.lvars),
             HirMakerContext::Method(c) => Some(&mut c.lvars),
             HirMakerContext::Lambda(c) => Some(&mut c.lvars),
+            HirMakerContext::MatchClause(c) => Some(&mut c.lvars),
             HirMakerContext::While(_) => None,
         }
     }
@@ -60,6 +62,12 @@ impl HirMakerContext {
     // `while' is Rust's keyword
     pub fn while_ctx() -> HirMakerContext {
         HirMakerContext::While(WhileCtx {})
+    }
+
+    pub fn match_clause() -> HirMakerContext {
+        HirMakerContext::MatchClause(MatchClauseCtx {
+            lvars: Default::default(),
+        })
     }
 }
 
@@ -110,6 +118,13 @@ pub struct LambdaCtx {
 /// Indicates we're in a while expr
 #[derive(Debug)]
 pub struct WhileCtx;
+
+/// Each clause of match expression has its own lvars
+#[derive(Debug)]
+pub struct MatchClauseCtx {
+    /// Local variables introduced when matched
+    pub lvars: HashMap<String, CtxLVar>,
+}
 
 /// A local variable
 #[derive(Debug)]

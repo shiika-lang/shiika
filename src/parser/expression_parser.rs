@@ -1188,7 +1188,7 @@ impl<'a> Parser<'a> {
                 self.parse_extractor_pattern(name)?
             }
             Token::KwTrue | Token::KwFalse => {
-                let t = token.clone();
+                //let t = token.clone();
                 self.consume_token()?;
                 todo!();
                 //ast::AstPattern::BoolLiteralPattern(t)

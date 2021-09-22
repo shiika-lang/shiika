@@ -122,10 +122,15 @@ pub fn method_fullname(
     first_name_: impl Into<String>,
 ) -> MethodFullname {
     let first_name = first_name_.into();
+    debug_assert!(!first_name.is_empty());
     MethodFullname {
         full_name: class_name.0.clone() + "#" + &first_name,
         first_name: MethodFirstname(first_name),
     }
+}
+
+pub fn method_fullname_raw(cls: impl Into<String>, method: impl Into<String>) -> MethodFullname {
+    method_fullname(&class_fullname(cls), method)
 }
 
 impl std::fmt::Display for MethodFullname {

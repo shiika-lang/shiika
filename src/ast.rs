@@ -86,7 +86,7 @@ pub enum AstExpressionBody {
     },
     Match {
         cond_expr: Box<AstExpression>,
-        clauses: Vec<(AstPattern, Vec<AstExpression>)>,
+        clauses: Vec<AstMatchClause>,
     },
     While {
         cond_expr: Box<AstExpression>,
@@ -158,6 +158,8 @@ pub enum AstPattern {
     FloatLiteralPattern(f64),
     IntegerLiteralPattern(i64),
 }
+
+pub type AstMatchClause = (AstPattern, Vec<AstExpression>);
 
 impl Definition {
     pub fn is_initializer(&self) -> bool {
@@ -238,10 +240,7 @@ pub fn if_expr(
     })
 }
 
-pub fn match_expr(
-    cond_expr: AstExpression,
-    clauses: Vec<(AstPattern, Vec<AstExpression>)>,
-) -> AstExpression {
+pub fn match_expr(cond_expr: AstExpression, clauses: Vec<AstMatchClause>) -> AstExpression {
     non_primary_expression(AstExpressionBody::Match {
         cond_expr: Box::new(cond_expr),
         clauses,

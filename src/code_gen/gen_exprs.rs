@@ -24,6 +24,9 @@ const FN_X_EXIT_STATUS_IDX: usize = 3;
 const EXIT_BREAK: u64 = 1;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
+    /// Generate LLVM IR from HirExpressions.
+    /// May return `None` when, for example, it ends with a `return`
+    /// expression.
     pub fn gen_exprs(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
@@ -114,6 +117,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 fullname,
                 str_literal_idx,
             } => Ok(Some(self.gen_class_literal(fullname, str_literal_idx))),
+            HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
     }
 
