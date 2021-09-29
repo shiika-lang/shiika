@@ -647,15 +647,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<(), Error> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
-        let last_value = self.gen_exprs(&mut ctx, exprs)?;
-        let last_value_block = if last_value.is_some() {
+        let (last_value, last_value_block) = if let Some(v) = self.gen_exprs(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");
             self.builder.build_unconditional_branch(b);
             self.builder.position_at_end(b);
+            let last_value = self.bitcast(v, ret_ty, "as");
             self.builder.build_unconditional_branch(*end_block);
-            Some(b)
+            (Some(last_value), Some(b))
         } else {
-            None
+            (None, None)
         };
 
         self.builder.position_at_end(*end_block);
