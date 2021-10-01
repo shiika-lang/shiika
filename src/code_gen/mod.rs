@@ -453,7 +453,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (fullname, ty) in constants {
             let name = &fullname.0;
             let global = self.module.add_global(self.llvm_type(ty), None, name);
-            let null = self.i32_type.ptr_type(AddressSpace::Generic).const_null();
+            let null = self.llvm_type(ty).into_pointer_type().const_null();
             global.set_initializer(&null);
         }
     }
