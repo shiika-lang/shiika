@@ -26,19 +26,19 @@ jobs:
       - name: Install other dependencies
         run: |
           set -eux
-          sudo apt install -y llvm-9 clang-9 libgc-dev
+          sudo apt install -y llvm-12 clang-12 libgc-dev
 
       - name: Output versions
         run: |
           set -eux
           rustc --version
           cargo --version
-          llc-9 --version
-          clang-9 --version
+          llc-12 --version
+          clang-12 --version
 
       - name: Build and test
         run: |
           set -eux
           cd src/rustlib; cargo build; cd ../../
-          env -- LLC=llc-9 CLANG=clang-9 cargo run -- build_corelib
-          env -- LLC=llc-9 CLANG=clang-9 cargo test
+          env -- LLC=llc-12 CLANG=clang-12 cargo run -- build_corelib
+          env -- LLC=llc-12 CLANG=clang-12 cargo test

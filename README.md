@@ -109,12 +109,12 @@ See [Issues](https://github.com/shiika-lang/shiika/issues)
 ### Prerequisites
 
 - Rust
-- LLVM (`brew install llvm@9`)
+- LLVM (eg. `brew install llvm@12`)
 
 ```sh
-export PATH="$(brew --prefix)/opt/llvm@9/bin":$PATH
-export LDFLAGS="-L$(brew --prefix)/opt/llvm@9/lib"
-export CPPFLAGS="-I$(brew --prefix)/opt/llvm@9/include"
+export PATH="$(brew --prefix)/opt/llvm@12/bin":$PATH
+export LDFLAGS="-L$(brew --prefix)/opt/llvm@12/lib"
+export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
 ```
 
 ### Compile

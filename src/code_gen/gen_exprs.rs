@@ -9,6 +9,7 @@ use crate::names::*;
 use crate::ty;
 use crate::ty::*;
 use inkwell::values::*;
+use std::convert::TryFrom;
 use std::rc::Rc;
 
 /// Index of @func of FnX
@@ -398,7 +399,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             func_type,
         );
 
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        let result = self.gen_llvm_function_call(
+            CallableValue::try_from(func).unwrap(),
+            receiver_value,
+            arg_values,
+        );
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -487,7 +492,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Generate function call
         let result = self
             .builder
-            .build_call(func, &args, "result")
+            .build_call(CallableValue::try_from(func).unwrap(), &args, "result")
             .try_as_basic_value()
             .left()
             .unwrap();
@@ -518,23 +523,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
         let function = self.get_llvm_func(func_name);
-        self.gen_llvm_function_call(function, receiver_value, arg_values)
+        self.gen_llvm_function_call(function.into(), receiver_value, arg_values)
     }
 
-    pub(super) fn gen_llvm_function_call<F>(
+    pub(super) fn gen_llvm_function_call(
         &self,
-        function: F,
+        function: CallableValue<'run>,
         receiver_value: SkObj<'run>,
         arg_values: Vec<SkObj<'run>>,
-    ) -> SkObj<'run>
-    where
-        F: Into<
-            either::Either<
-                inkwell::values::FunctionValue<'run>,
-                inkwell::values::PointerValue<'run>,
-            >,
-        >,
-    {
+    ) -> SkObj<'run> {
         let mut llvm_args = vec![receiver_value.0];
         llvm_args.append(&mut arg_values.iter().map(|x| x.0).collect());
         match self
