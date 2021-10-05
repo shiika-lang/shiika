@@ -183,14 +183,35 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
-        let then_hirs = self.convert_exprs(then_exprs)?;
-        let else_hirs = match else_exprs {
+        let mut then_hirs = self.convert_exprs(then_exprs)?;
+        let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
             None => HirExpressions::new(vec![]),
         };
 
-        let (if_ty, then_hirs, else_hirs) =
-            type_checking::merge_ifs(then_hirs, else_hirs, &self.class_dict);
+        let if_ty = if then_hirs.ty.is_never_type() {
+            else_hirs.ty.clone()
+        } else if else_hirs.ty.is_never_type() {
+            then_hirs.ty.clone()
+        } else if then_hirs.ty.is_void_type() {
+            else_hirs.voidify();
+            ty::raw("Void")
+        } else if else_hirs.ty.is_void_type() {
+            then_hirs.voidify();
+            ty::raw("Void")
+        } else {
+            let ty = self
+                .class_dict
+                .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
+            if !then_hirs.ty.equals_to(&ty) {
+                then_hirs = then_hirs.bitcast_to(ty.clone());
+            }
+            if !else_hirs.ty.equals_to(&ty) {
+                else_hirs = else_hirs.bitcast_to(ty.clone());
+            }
+            ty
+        };
+
         Ok(Hir::if_expression(if_ty, cond_hir, then_hirs, else_hirs))
     }
 
@@ -199,7 +220,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         cond_expr: &AstExpression,
         clauses: &[AstMatchClause],
     ) -> Result<HirExpression, Error> {
-        pattern_match::convert_match_expr(self, cond_expr, clauses)
+        let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
+        for (name, ty) in lvars {
+            let readonly = true;
+            self.ctx_stack.declare_lvar(&name, ty, readonly);
+        }
+        Ok(match_expr)
     }
 
     fn convert_while_expr(

@@ -60,7 +60,6 @@ impl VTable {
     /// Returns the index of the method
     pub fn get(&self, name: &MethodFirstname) -> Option<&usize> {
         self.index.get(name)
-        //.unwrap_or_else(|| panic!("not in vtable: {}", name))
     }
 
     /// Returns the list of method names, ordered by the index.

@@ -3,6 +3,7 @@ use crate::code_gen::values::*;
 use crate::code_gen::*;
 use crate::error;
 use crate::error::Error;
+use crate::hir::pattern_match;
 use crate::hir::HirExpressionBase::*;
 use crate::hir::*;
 use crate::names::*;
@@ -60,6 +61,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 then_exprs,
                 else_exprs,
             } => self.gen_if_expr(ctx, &expr.ty, cond_expr, then_exprs, else_exprs),
+            HirMatchExpression {
+                cond_assign_expr,
+                clauses,
+            } => self.gen_match_expr(ctx, &expr.ty, cond_assign_expr, clauses),
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
@@ -249,6 +254,95 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 Ok(Some(SkObj(phi_node.as_basic_value())))
             }
         }
+    }
+
+    fn gen_match_expr(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        result_ty: &TermTy,
+        cond_assign_expr: &'hir HirExpression,
+        clauses: &'hir [pattern_match::MatchClause],
+    ) -> Result<Option<SkObj<'run>>, Error> {
+        let n_clauses = clauses.len();
+        let begin_block = self.context.append_basic_block(ctx.function, "MatchBegin");
+        let clause_blocks = (1..=n_clauses)
+            .map(|i| {
+                self.context
+                    .append_basic_block(ctx.function, &format!("MatchClause{}_", i))
+            })
+            .collect::<Vec<_>>();
+        let merge_block = self.context.append_basic_block(ctx.function, "MatchEnd");
+        // MatchBegin:
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
+        self.gen_expr(ctx, cond_assign_expr)?;
+        self.builder.build_unconditional_branch(clause_blocks[0]);
+
+        // MatchClauseX:
+        let mut incoming_values = vec![];
+        let mut incoming_blocks = vec![];
+        for (i, clause) in clauses.iter().enumerate() {
+            let clause_block = clause_blocks[i];
+            let next_block = if (i + 1) < n_clauses {
+                clause_blocks[i + 1]
+            } else {
+                merge_block
+            };
+            self.builder.position_at_end(clause_block);
+            let opt_val = self.gen_match_clause(ctx, clause, next_block, result_ty)?;
+            if let Some(val) = opt_val {
+                let last_block = self.builder.get_insert_block().unwrap();
+                incoming_values.push(val.0);
+                incoming_blocks.push(last_block);
+                self.builder.build_unconditional_branch(merge_block);
+            }
+        }
+
+        if incoming_blocks.is_empty() {
+            // All the clauses ends with a jump; no merge block needed
+            Ok(None)
+        } else {
+            // MatchEnd:
+            self.builder.position_at_end(merge_block);
+            let phi_node = self
+                .builder
+                .build_phi(self.llvm_type(result_ty), "matchResult");
+            phi_node.add_incoming(
+                incoming_values
+                    .iter()
+                    .zip(incoming_blocks.into_iter())
+                    .map(|(v, b)| (v as &dyn BasicValue, b))
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            Ok(Some(SkObj(phi_node.as_basic_value())))
+        }
+    }
+
+    fn gen_match_clause(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        clause: &'hir pattern_match::MatchClause,
+        skip_block: inkwell::basic_block::BasicBlock,
+        result_ty: &TermTy,
+    ) -> Result<Option<SkObj<'run>>, Error> {
+        for component in &clause.components {
+            match component {
+                pattern_match::Component::Test(expr) => {
+                    let v = self.gen_expr(ctx, &expr)?.unwrap();
+                    let cont_block = self.context.append_basic_block(ctx.function, "Matching");
+                    self.gen_conditional_branch(v, cont_block, skip_block);
+                    // Continue processing this clause
+                    self.builder.position_at_end(cont_block);
+                }
+                pattern_match::Component::Bind(name, expr) => {
+                    self.gen_lvar_assign(ctx, &name, &expr)?;
+                }
+            }
+        }
+        Ok(self
+            .gen_exprs(ctx, &clause.body_hir)?
+            .map(|v| self.bitcast(v, result_ty, "as")))
     }
 
     fn gen_while_expr(

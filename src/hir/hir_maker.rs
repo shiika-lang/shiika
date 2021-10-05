@@ -482,7 +482,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn generate_lvar_name(&mut self, prefix: &str) -> String {
         let n = self.gensym_ct;
         self.gensym_ct += 1;
-        format!("{}@{}", prefix, n)
+        // Suffix `_` because llvm may add numbers after this name
+        // eg.
+        //   %"expr@0_3" = load %Maybe*, %Maybe** %"expr@0"
+        format!("{}@{}_", prefix, n)
     }
 }
 

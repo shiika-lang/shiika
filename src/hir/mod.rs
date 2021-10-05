@@ -5,7 +5,7 @@ mod ctx_stack;
 mod hir_maker;
 mod hir_maker_context;
 mod method_dict;
-mod pattern_match;
+pub mod pattern_match;
 pub mod signature;
 pub mod sk_class;
 mod superclass;
@@ -176,6 +176,10 @@ pub enum HirExpressionBase {
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
         else_exprs: Box<HirExpressions>, // may be a dummy expression
+    },
+    HirMatchExpression {
+        cond_assign_expr: Box<HirExpression>,
+        clauses: Vec<pattern_match::MatchClause>,
     },
     HirWhileExpression {
         cond_expr: Box<HirExpression>,
@@ -357,6 +361,20 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
+            },
+        }
+    }
+
+    pub fn match_expression(
+        ty: TermTy,
+        cond_assign_hir: HirExpression,
+        clauses: Vec<pattern_match::MatchClause>,
+    ) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirMatchExpression {
+                cond_assign_expr: Box::new(cond_assign_hir),
+                clauses,
             },
         }
     }

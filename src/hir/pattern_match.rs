@@ -7,19 +7,21 @@ use crate::hir::*;
 use crate::names::*;
 use crate::ty;
 
-enum Component {
+#[derive(Debug, Clone)]
+pub enum Component {
     /// A boolean expression that is a part of match condition
     Test(HirExpression),
     /// A local variable binding introduced by match
     Bind(String, HirExpression),
 }
 
-struct PreprocessedClause {
-    components: Vec<Component>,
-    body_hir: HirExpressions,
+#[derive(Debug, Clone)]
+pub struct MatchClause {
+    pub components: Vec<Component>,
+    pub body_hir: HirExpressions,
 }
 
-impl PreprocessedClause {
+impl MatchClause {
     // Destructively bitcast body_hir
     fn bitcast_body(&mut self, ty: TermTy) {
         let mut tmp = Hir::expressions(Default::default());
@@ -46,43 +48,31 @@ pub fn convert_match_expr(
     mk: &mut HirMaker,
     cond: &AstExpression,
     ast_clauses: &[AstMatchClause],
-) -> Result<HirExpression, Error> {
+) -> Result<(HirExpression, HirLVars), Error> {
     let cond_expr = mk.convert_expr(cond)?;
     let tmp_name = mk.generate_lvar_name("expr");
-    let tmp_ref = Hir::arg_ref(cond_expr.ty.clone(), 0);
+    let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone());
     let mut clauses = ast_clauses
         .iter()
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
-        .collect::<Result<Vec<PreprocessedClause>, Error>>()?;
+        .collect::<Result<Vec<MatchClause>, Error>>()?;
     let result_ty = calc_result_ty(mk, &mut clauses);
-    let lvars = collect_lvars(&clauses);
+    let mut lvars = collect_lvars(&clauses);
+    lvars.push((tmp_name.clone(), cond_expr.ty.clone()));
 
-    let mut ifs = clauses
-        .into_iter()
-        .map(|c| merge_components(result_ty.clone(), c.components, c.body_hir))
-        .collect::<Vec<_>>();
     let panic_msg = Hir::string_literal(mk.register_string_literal("no matching clause found"));
-    ifs.push(Hir::method_call(
-        ty::raw("Never"),
-        Hir::decimal_literal(0), // whatever.
-        method_fullname_raw("Object", "panic"),
-        vec![panic_msg],
-    ));
+    clauses.push(MatchClause {
+        components: vec![],
+        body_hir: Hir::expressions(vec![Hir::method_call(
+            ty::raw("Never"),
+            Hir::decimal_literal(0), // whatever.
+            method_fullname_raw("Object", "panic"),
+            vec![panic_msg],
+        )]),
+    });
 
-    let param = MethodParam {
-        name: tmp_name.clone(),
-        ty: cond_expr.ty.clone(),
-    };
-    let lambda = Hir::lambda_expr(
-        ty::spe("Fn1", vec![cond_expr.ty.clone()]),
-        mk.create_lambda_name(),
-        vec![param],
-        Hir::expressions(ifs),
-        Default::default(), // captures
-        lvars,
-        false, // has_break
-    );
-    Ok(Hir::lambda_invocation(result_ty, lambda, vec![cond_expr]))
+    let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr);
+    Ok((Hir::match_expression(result_ty, tmp_assign, clauses), lvars))
 }
 
 /// Convert a match clause into a big `if` expression
@@ -90,10 +80,10 @@ fn convert_match_clause(
     mk: &mut HirMaker,
     value: &HirExpression,
     (pat, body): &(AstPattern, Vec<AstExpression>),
-) -> Result<PreprocessedClause, Error> {
+) -> Result<MatchClause, Error> {
     let components = convert_match(mk, value, pat)?;
     let body_hir = compile_body(mk, &components, body)?;
-    Ok(PreprocessedClause {
+    Ok(MatchClause {
         components,
         body_hir,
     })
@@ -119,7 +109,7 @@ fn compile_body(
 }
 
 /// Calculate the type of the match expression from clauses
-fn calc_result_ty(mk: &HirMaker, clauses: &mut [PreprocessedClause]) -> TermTy {
+fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> TermTy {
     debug_assert!(clauses.len() > 0);
     let mut clauses = clauses
         .iter_mut()
@@ -146,7 +136,7 @@ fn calc_result_ty(mk: &HirMaker, clauses: &mut [PreprocessedClause]) -> TermTy {
     }
 }
 
-fn collect_lvars(clauses: &[PreprocessedClause]) -> Vec<(String, TermTy)> {
+fn collect_lvars(clauses: &[MatchClause]) -> Vec<(String, TermTy)> {
     let mut lvars = vec![];
     for clause in clauses {
         for component in &clause.components {
@@ -159,39 +149,6 @@ fn collect_lvars(clauses: &[PreprocessedClause]) -> Vec<(String, TermTy)> {
         }
     }
     lvars
-}
-
-/// Transform components into `if` and lvar assignment
-// eg. if ...
-//       if ...
-//         x = ...
-//         return (body...)
-//       end
-//     end
-fn merge_components(
-    result_ty: TermTy,
-    components: Vec<Component>,
-    body_hir: HirExpressions,
-) -> HirExpression {
-    let body = Hir::parenthesized_expression(result_ty, body_hir);
-    let mut exprs = vec![Hir::return_expression(HirReturnFrom::Fn, body)];
-    for comp in components.into_iter().rev() {
-        match comp {
-            Component::Test(test) => {
-                exprs = vec![Hir::if_expression(
-                    ty::raw("Void"),
-                    test,
-                    Hir::expressions(exprs),
-                    Hir::expressions(vec![]),
-                )];
-            }
-            Component::Bind(lvar_name, value) => {
-                exprs.insert(0, Hir::lvar_assign(&lvar_name, value));
-            }
-        }
-    }
-    debug_assert!(exprs.len() == 1);
-    exprs.pop().unwrap()
 }
 
 /// Create components for match against a pattern

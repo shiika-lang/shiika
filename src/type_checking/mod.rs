@@ -47,34 +47,6 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     }
 }
 
-pub fn merge_ifs(
-    mut then_hirs: HirExpressions,
-    mut else_hirs: HirExpressions,
-    class_dict: &ClassDict,
-) -> (TermTy, HirExpressions, HirExpressions) {
-    let ty = if then_hirs.ty.is_never_type() {
-        else_hirs.ty.clone()
-    } else if else_hirs.ty.is_never_type() {
-        then_hirs.ty.clone()
-    } else if then_hirs.ty.is_void_type() {
-        else_hirs.voidify();
-        ty::raw("Void")
-    } else if else_hirs.ty.is_void_type() {
-        then_hirs.voidify();
-        ty::raw("Void")
-    } else {
-        let ty = class_dict.nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
-        if !then_hirs.ty.equals_to(&ty) {
-            then_hirs = then_hirs.bitcast_to(ty.clone());
-        }
-        if !else_hirs.ty.equals_to(&ty) {
-            else_hirs = else_hirs.bitcast_to(ty.clone());
-        }
-        ty
-    };
-    (ty, then_hirs, else_hirs)
-}
-
 /// Check the type of the argument of `return`
 pub fn check_return_arg_type(
     class_dict: &ClassDict,
