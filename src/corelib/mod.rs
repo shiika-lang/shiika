@@ -168,7 +168,7 @@ fn make_classes(
                 fullname: class_fullname(&name),
                 typarams: typarams
                     .iter()
-                    .map(|s| ty::TyParam { name: s.clone() })
+                    .map(|s| ty::TyParam::new(s))
                     .collect(),
                 superclass,
                 instance_ty: ty::raw(&name),
@@ -196,7 +196,7 @@ fn make_classes(
                     fullname: metaclass_fullname(&name),
                     typarams: typarams
                         .into_iter()
-                        .map(|s| ty::TyParam { name: s })
+                        .map(|s| ty::TyParam::new(s))
                         .collect(),
                     superclass: Some(Superclass::simple("Class")),
                     instance_ty: ty::meta(&name),

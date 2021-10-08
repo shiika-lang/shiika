@@ -284,6 +284,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .iter()
             .map(|s| TyParam {
                 name: s.to_string(),
+                variance: Variance::Invariant, // TODO
             })
             .collect::<Vec<_>>();
 
