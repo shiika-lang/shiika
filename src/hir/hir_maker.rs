@@ -28,6 +28,8 @@ pub struct HirMaker<'hir_maker> {
     pub(super) ctx_stack: CtxStack,
     /// Counter to give unique name for lambdas
     pub(super) lambda_ct: usize,
+    /// Counter for unique name
+    pub(super) gensym_ct: usize,
 }
 
 pub fn make_hir(
@@ -67,6 +69,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             str_literals: vec![],
             ctx_stack: CtxStack::new(vec![HirMakerContext::toplevel()]),
             lambda_ct: 0,
+            gensym_ct: 0,
         }
     }
 
@@ -473,6 +476,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             self.create_new(&fullname, const_is_obj)?,
         );
         Ok(())
+    }
+
+    /// Generate special lvar name
+    pub fn generate_lvar_name(&mut self, prefix: &str) -> String {
+        let n = self.gensym_ct;
+        self.gensym_ct += 1;
+        // Suffix `_` because llvm may add numbers after this name
+        // eg.
+        //   %"expr@0_3" = load %Maybe*, %Maybe** %"expr@0"
+        format!("{}@{}_", prefix, n)
     }
 }
 

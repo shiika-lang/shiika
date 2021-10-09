@@ -84,6 +84,10 @@ pub enum AstExpressionBody {
         then_exprs: Vec<AstExpression>,
         else_exprs: Option<Vec<AstExpression>>,
     },
+    Match {
+        cond_expr: Box<AstExpression>,
+        clauses: Vec<AstMatchClause>,
+    },
     While {
         cond_expr: Box<AstExpression>,
         body_exprs: Vec<AstExpression>,
@@ -141,6 +145,21 @@ pub enum AstExpressionBody {
         content: String,
     },
 }
+
+/// Patterns of match expression
+#[derive(Debug, PartialEq, Clone)]
+pub enum AstPattern {
+    ExtractorPattern {
+        names: Vec<String>,
+        params: Vec<AstPattern>,
+    },
+    VariablePattern(String),
+    PseudoVariablePattern(Token),
+    FloatLiteralPattern(f64),
+    IntegerLiteralPattern(i64),
+}
+
+pub type AstMatchClause = (AstPattern, Vec<AstExpression>);
 
 impl Definition {
     pub fn is_initializer(&self) -> bool {
@@ -218,6 +237,13 @@ pub fn if_expr(
         cond_expr: Box::new(cond_expr),
         then_exprs,
         else_exprs,
+    })
+}
+
+pub fn match_expr(cond_expr: AstExpression, clauses: Vec<AstMatchClause>) -> AstExpression {
+    non_primary_expression(AstExpressionBody::Match {
+        cond_expr: Box::new(cond_expr),
+        clauses,
     })
 }
 

@@ -367,6 +367,8 @@ impl<'a> Lexer<'a> {
                     (Token::ModUnless, LexerState::ExprBegin)
                 }
             }
+            "match" => (Token::KwMatch, LexerState::ExprBegin),
+            "when" => (Token::KwWhen, LexerState::ExprBegin),
             "while" => (Token::KwWhile, LexerState::ExprBegin),
             "break" => (Token::KwBreak, LexerState::ExprEnd),
             "return" => (Token::KwReturn, LexerState::ExprBegin),
@@ -562,9 +564,7 @@ impl<'a> Lexer<'a> {
                 }
             }
             '^' => Ok((Token::Xor, Some(LexerState::ExprBegin))),
-            c => {
-                Err(self.lex_error(&format!("unknown symbol: {}", c)))
-            }
+            c => Err(self.lex_error(&format!("unknown symbol: {}", c))),
         }
     }
 

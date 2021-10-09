@@ -123,7 +123,8 @@ impl CtxStack {
         None
     }
 
-    /// Returns a debugging string like "toplevel", "Class1", "Class1#method1", etc.
+    /// Returns a string like "toplevel", "Class1", "Class1#method1", etc.
+    /// For debugging (of Shiika compiler.)
     pub fn describe_current_place(&self) -> String {
         if let Some(method_ctx) = self.method_ctx() {
             method_ctx.signature.fullname.to_string()
@@ -134,6 +135,7 @@ impl CtxStack {
                 HirMakerContext::Method(method_ctx) => method_ctx.signature.fullname.to_string(),
                 HirMakerContext::Lambda(_) => "lambda".to_string(),
                 HirMakerContext::While(_) => "while".to_string(),
+                HirMakerContext::MatchClause(_) => "match".to_string(),
             }
         }
     }
@@ -263,7 +265,8 @@ impl<'hir_maker> LVarIter<'hir_maker> {
                 HirMakerContext::Toplevel(_)
                 | HirMakerContext::Class(_)
                 | HirMakerContext::Method(_)
-                | HirMakerContext::Lambda(_) => break,
+                | HirMakerContext::Lambda(_)
+                | HirMakerContext::MatchClause(_) => break,
                 // Does not make lvar scope
                 HirMakerContext::While(_) => (),
             }
@@ -300,11 +303,15 @@ impl<'a> Iterator for LVarIter<'a> {
                 self.finished = true;
                 Some((&method_ctx.lvars, &method_ctx.signature.params, -1))
             }
-            // Lambdas -> (Method or Class or Toplevel)
             HirMakerContext::Lambda(lambda_ctx) => {
-                let orig_idx = self.cur;
+                let idx = self.cur;
                 self.cur -= 1;
-                Some((&lambda_ctx.lvars, &lambda_ctx.params, orig_idx as isize))
+                Some((&lambda_ctx.lvars, &lambda_ctx.params, idx as isize))
+            }
+            HirMakerContext::MatchClause(match_clause_ctx) => {
+                let idx = self.cur;
+                self.cur -= 1;
+                Some((&match_clause_ctx.lvars, &[], idx as isize))
             }
             // ::new() never sets `While` to .cur
             HirMakerContext::While(_) => panic!("must not happen"),
@@ -334,6 +341,7 @@ impl<'hir_maker> NamespaceIter<'hir_maker> {
                 // Does not make constant scope
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
+                | HirMakerContext::MatchClause(_)
                 | HirMakerContext::While(_) => (),
             }
         }
@@ -363,7 +371,11 @@ impl<'a> Iterator for NamespaceIter<'a> {
                     self.cur -= 1;
                     return Some(class_ctx.namespace.clone());
                 }
-                _ => (), // Skip this ctx
+                // Does not make constant scope
+                HirMakerContext::Method(_)
+                | HirMakerContext::Lambda(_)
+                | HirMakerContext::MatchClause(_)
+                | HirMakerContext::While(_) => (),
             }
         }
         panic!("[BUG] no more namespace");

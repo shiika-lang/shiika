@@ -47,21 +47,6 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<(), Error> {
     }
 }
 
-#[allow(clippy::if_same_then_else)]
-pub fn check_if_clauses_ty(then_ty: &TermTy, else_ty: &TermTy) -> Result<(), Error> {
-    if then_ty.equals_to(else_ty) {
-        Ok(())
-    } else if then_ty.is_never_type() || else_ty.is_never_type() {
-        Ok(())
-    } else {
-        Err(type_error!(
-            "type of `if` clauses does not match (then: {}, else: {})",
-            then_ty,
-            else_ty
-        ))
-    }
-}
-
 /// Check the type of the argument of `return`
 pub fn check_return_arg_type(
     class_dict: &ClassDict,

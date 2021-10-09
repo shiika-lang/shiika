@@ -5,6 +5,7 @@ mod ctx_stack;
 mod hir_maker;
 mod hir_maker_context;
 mod method_dict;
+pub mod pattern_match;
 pub mod signature;
 pub mod sk_class;
 mod superclass;
@@ -115,7 +116,7 @@ pub type ClosureMethodBody = dyn Fn(
     &inkwell::values::FunctionValue,
 ) -> Result<(), crate::error::Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,
@@ -152,13 +153,13 @@ fn void_const_ref() -> HirExpression {
     Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HirExpressionBase {
     HirLogicalNot {
         expr: Box<HirExpression>,
@@ -175,6 +176,10 @@ pub enum HirExpressionBase {
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
         else_exprs: Box<HirExpressions>, // may be a dummy expression
+    },
+    HirMatchExpression {
+        cond_assign_expr: Box<HirExpression>,
+        clauses: Vec<pattern_match::MatchClause>,
     },
     HirWhileExpression {
         cond_expr: Box<HirExpression>,
@@ -278,10 +283,13 @@ pub enum HirExpressionBase {
         fullname: ClassFullname,
         str_literal_idx: usize,
     },
+    HirParenthesizedExpr {
+        exprs: HirExpressions,
+    },
 }
 
 /// Denotes which variable to include in the `captures`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HirLambdaCapture {
     /// Local variable
     CaptureLVar { name: String },
@@ -293,14 +301,14 @@ pub enum HirLambdaCapture {
 }
 
 /// Denotes what a `break` escapes from
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HirBreakFrom {
     While,
     Block,
 }
 
 /// Denotes what a `return` escapes from
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HirReturnFrom {
     Fn,
     Block,
@@ -353,6 +361,20 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
+            },
+        }
+    }
+
+    pub fn match_expression(
+        ty: TermTy,
+        cond_assign_hir: HirExpression,
+        clauses: Vec<pattern_match::MatchClause>,
+    ) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirMatchExpression {
+                cond_assign_expr: Box::new(cond_assign_hir),
+                clauses,
             },
         }
     }
@@ -568,6 +590,13 @@ impl Hir {
                 fullname,
                 str_literal_idx,
             },
+        }
+    }
+
+    pub fn parenthesized_expression(ty: TermTy, exprs: HirExpressions) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirParenthesizedExpr { exprs },
         }
     }
 

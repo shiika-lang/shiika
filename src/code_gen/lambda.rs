@@ -53,6 +53,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
                 self.gen_lambda_funcs_in_exprs(&else_exprs.exprs)?;
             }
+            HirMatchExpression {
+                cond_assign_expr,
+                clauses,
+            } => {
+                self.gen_lambda_funcs_in_expr(cond_assign_expr)?;
+                for clause in clauses {
+                    self.gen_lambda_funcs_in_exprs(&clause.body_hir.exprs)?;
+                }
+            }
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
@@ -110,6 +119,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaCaptureWrite { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
+            HirParenthesizedExpr { exprs } => self.gen_lambda_funcs_in_exprs(&exprs.exprs)?,
         }
         Ok(())
     }
