@@ -1,7 +1,8 @@
-use super::super::ast;
-use super::base::*;
-use super::Parser; // REFACTOR: use crate:: instead of super
+use crate::ast;
 use crate::names::*;
+use crate::parser::base::*;
+use crate::parser::Parser;
+use crate::ty::{TyParam, Variance};
 
 impl<'a> Parser<'a> {
     pub fn parse_definitions(&mut self) -> Result<Vec<ast::Definition>, Error> {
@@ -336,21 +337,33 @@ impl<'a> Parser<'a> {
     // Parse type parameters of a class or a method
     // - `class Foo<A, B, C>`
     // - `def foo<A, B, C>( ... )`
-    fn parse_opt_typarams(&mut self) -> Result<Vec<String>, Error> {
+    fn parse_opt_typarams(&mut self) -> Result<Vec<TyParam>, Error> {
         if !self.current_token_is(Token::LessThan) {
             return Ok(Default::default());
         }
         let mut typarams = vec![];
+        let mut variance = None;
         debug_assert!(self.consume(Token::LessThan)?);
         self.skip_wsn()?;
         loop {
-            match self.current_token() {
+            let token = self.current_token();
+            match token {
                 Token::GreaterThan => {
                     self.consume_token()?;
                     break;
                 }
                 Token::UpperWord(s) => {
-                    typarams.push(s.to_string());
+                    let v = match variance {
+                        None => Variance::Invariant,
+                        Some(Token::KwOut) => Variance::Covariant,
+                        Some(Token::KwIn) => Variance::Contravariant,
+                        _ => panic!("[BUG] unexpected variance token"),
+                    };
+                    typarams.push(TyParam {
+                        name: s.to_string(),
+                        variance: v,
+                    });
+                    variance = None;
                     self.consume_token()?;
                     self.skip_wsn()?;
                 }
@@ -358,7 +371,20 @@ impl<'a> Parser<'a> {
                     self.consume_token()?;
                     self.skip_wsn()?;
                 }
-                token => {
+                Token::KwIn | Token::KwOut => {
+                    if let Some(t) = variance {
+                        return Err(parse_error!(
+                            self,
+                            "unexpected token `{:?}' after `{:?}'",
+                            token,
+                            t
+                        ));
+                    }
+                    variance = Some(token.clone());
+                    self.consume_token()?;
+                    self.expect(Token::Space)?;
+                }
+                _ => {
                     return Err(parse_error!(
                         self,
                         "unexpected token `{:?}' in type parameter definition",
