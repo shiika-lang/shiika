@@ -1,5 +1,6 @@
 use crate::names::*;
 use crate::parser::token::Token;
+use crate::ty::TyParam;
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
@@ -16,13 +17,13 @@ pub enum TopLevelItem {
 pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
-        typarams: Vec<String>,
+        typarams: Vec<TyParam>,
         superclass: Option<ConstName>,
         defs: Vec<Definition>,
     },
     EnumDefinition {
         name: ClassFirstname,
-        typarams: Vec<String>,
+        typarams: Vec<TyParam>,
         cases: Vec<EnumCase>,
     },
     InstanceMethodDefinition {
@@ -48,7 +49,7 @@ pub struct EnumCase {
 #[derive(Debug, PartialEq)]
 pub struct AstMethodSignature {
     pub name: MethodFirstname,
-    pub typarams: Vec<String>,
+    pub typarams: Vec<TyParam>,
     pub params: Vec<Param>,
     pub ret_typ: Option<ConstName>,
 }

@@ -180,7 +180,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: Vec<String>,
+        typarams: Vec<TyParam>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(firstname);
@@ -422,7 +422,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        _typarams: Vec<String>,
+        _typarams: Vec<TyParam>,
         cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
         let inner_namespace = namespace.add(firstname);

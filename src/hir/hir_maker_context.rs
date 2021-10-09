@@ -32,7 +32,7 @@ impl HirMakerContext {
         })
     }
 
-    pub fn class(namespace: Namespace, typarams: Vec<String>) -> HirMakerContext {
+    pub fn class(namespace: Namespace, typarams: Vec<TyParam>) -> HirMakerContext {
         HirMakerContext::Class(ClassCtx {
             namespace,
             typarams,
@@ -82,7 +82,7 @@ pub struct ClassCtx {
     /// Current namespace
     pub namespace: Namespace,
     /// Names of class type parameters
-    pub typarams: Vec<String>,
+    pub typarams: Vec<TyParam>,
     /// Current local variables
     pub lvars: HashMap<String, CtxLVar>,
 }

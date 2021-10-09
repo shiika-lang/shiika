@@ -49,11 +49,11 @@ fn index_class(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
     firstname: &ClassFirstname,
-    typarams: &[String],
+    typarams: &[ty::TyParam],
     defs: &[ast::Definition],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname, ty::typarams(typarams));
+    cindex.insert(fullname, typarams.to_vec());
     let inner_namespace = namespace.add(firstname);
     for def in defs {
         match def {
@@ -81,15 +81,15 @@ fn index_enum(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
     firstname: &ClassFirstname,
-    typarams: &[String],
+    typarams: &[ty::TyParam],
     cases: &[ast::EnumCase],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname, ty::typarams(typarams));
+    cindex.insert(fullname, typarams.to_vec());
 
     let inner_namespace = namespace.add(firstname);
     for case in cases {
         let case_fullname = inner_namespace.class_fullname(&case.name);
-        cindex.insert(case_fullname, ty::typarams(typarams));
+        cindex.insert(case_fullname, typarams.to_vec());
     }
 }

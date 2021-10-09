@@ -54,7 +54,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         ast_superclass: &Option<ConstName>,
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
@@ -124,7 +124,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn _initializer_params(
         &self,
         namespace: &Namespace,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         superclass: &Superclass,
         defs: &[ast::Definition],
     ) -> Result<Vec<MethodParam>, Error> {
@@ -146,7 +146,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         cases: &[ast::EnumCase],
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(firstname);
@@ -171,7 +171,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         enum_fullname: &ClassFullname,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         case: &ast::EnumCase,
     ) -> Result<(), Error> {
         let ivar_list = self._enum_case_ivars(namespace, typarams, case)?;
@@ -206,7 +206,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn _enum_case_ivars(
         &self,
         namespace: &Namespace,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         case: &ast::EnumCase,
     ) -> Result<Vec<SkIVar>, Error> {
         let mut ivars = vec![];
@@ -227,7 +227,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         fullname: &ClassFullname,
-        typarams: &[String],
+        typarams: &[ty::TyParam],
         defs: &[ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures), Error> {
         let mut instance_methods = HashMap::new();
@@ -272,7 +272,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn add_new_class(
         &mut self,
         fullname: &ClassFullname,
-        typaram_names: &[String],
+        typarams: &[ty::TyParam],
         superclass: Superclass,
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
@@ -280,13 +280,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         is_final: Option<bool>,
         const_is_obj: bool,
     ) {
-        let typarams = typaram_names
-            .iter()
-            .map(|s| TyParam {
-                name: s.to_string(),
-            })
-            .collect::<Vec<_>>();
-
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
@@ -294,7 +287,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
         self.add_class(SkClass {
             fullname: fullname.clone(),
-            typarams: typarams.clone(),
+            typarams: typarams.to_vec(),
             superclass: Some(superclass),
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
@@ -309,7 +302,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
             fullname: fullname.meta_name(),
-            typarams,
+            typarams: typarams.to_vec(),
             superclass: Some(Superclass::simple("Class")),
             instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
@@ -325,7 +318,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         class_fullname: &ClassFullname,
         sig: &ast::AstMethodSignature,
-        class_typarams: &[String],
+        class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature, Error> {
         let fullname = method_fullname(class_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
@@ -346,8 +339,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         ast_params: &[ast::Param],
-        class_typarams: &[String],
-        method_typarams: &[String],
+        class_typarams: &[ty::TyParam],
+        method_typarams: &[ty::TyParam],
     ) -> Result<Vec<MethodParam>, Error> {
         let mut hir_params = vec![];
         for param in ast_params {
@@ -368,16 +361,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn _resolve_typename(
         &self,
         namespace: &Namespace,
-        class_typarams: &[String],
-        method_typarams: &[String],
+        class_typarams: &[ty::TyParam],
+        method_typarams: &[ty::TyParam],
         name: &ConstName,
     ) -> Result<TermTy, Error> {
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
-            if let Some(idx) = class_typarams.iter().position(|t| s == t) {
+            if let Some(idx) = class_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram(s, TyParamKind::Class, idx));
-            } else if let Some(idx) = method_typarams.iter().position(|t| s == t) {
+            } else if let Some(idx) = method_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram(s, TyParamKind::Method, idx));
             }
         }
@@ -422,20 +415,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 /// Returns superclass of a enum case
 fn enum_case_superclass(
     enum_fullname: &ClassFullname,
-    typarams: &[String],
+    typarams: &[ty::TyParam],
     case: &ast::EnumCase,
 ) -> Superclass {
     if case.params.is_empty() {
+        // eg. Maybe::None : Maybe<Never>
         let tyargs = typarams
             .iter()
             .map(|_| ty::raw("Never"))
             .collect::<Vec<_>>();
         Superclass::new(enum_fullname, tyargs)
     } else {
+        // eg. Maybe::Some<out V> : Maybe<V>
         let tyargs = typarams
             .iter()
             .enumerate()
-            .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))
+            .map(|(i, t)| ty::typaram(&t.name, TyParamKind::Class, i))
             .collect::<Vec<_>>();
         Superclass::new(enum_fullname, tyargs)
     }
@@ -444,7 +439,7 @@ fn enum_case_superclass(
 /// Returns signature of `.new` and `#initialize` of an enum case
 fn enum_case_new_sig(
     ivar_list: &[SkIVar],
-    typarams: &[String],
+    typarams: &[ty::TyParam],
     fullname: &ClassFullname,
 ) -> (MethodSignature, MethodSignature) {
     let params = ivar_list
@@ -460,7 +455,7 @@ fn enum_case_new_sig(
         let tyargs = typarams
             .iter()
             .enumerate()
-            .map(|(i, s)| ty::typaram(s, TyParamKind::Class, i))
+            .map(|(i, t)| ty::typaram(&t.name, TyParamKind::Class, i))
             .collect::<Vec<_>>();
         ty::spe(&fullname.0, tyargs)
     };

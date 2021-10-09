@@ -420,18 +420,18 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 /// Create the type of return value of `.new` method of the class
-pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> TermTy {
+pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> TermTy {
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {
         let args = typarams
             .iter()
             .enumerate()
-            .map(|(i, s)| TermTy {
-                fullname: class_fullname(s),
+            .map(|(i, t)| TermTy {
+                fullname: class_fullname(&t.name),
                 body: TyParamRef {
                     kind: TyParamKind::Class,
-                    name: s.to_string(),
+                    name: t.name.clone(),
                     idx: i,
                 },
             })
@@ -454,18 +454,25 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
     }
 }
 
-pub fn typarams(names: &[String]) -> Vec<TyParam> {
-    names
-        .iter()
-        .map(|s| TyParam {
-            name: s.to_string(),
-        })
-        .collect()
-}
-
 /// A type parameter
-/// In the future, may have something like +T/-T or in/out
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TyParam {
     pub name: String,
+    pub variance: Variance,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum Variance {
+    Invariant,
+    Covariant,     // eg. `in T`
+    Contravariant, // eg. `out T`
+}
+
+impl TyParam {
+    pub fn new(name: impl Into<String>) -> TyParam {
+        TyParam {
+            name: name.into(),
+            variance: Variance::Invariant,
+        }
+    }
 }

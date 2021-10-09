@@ -118,25 +118,27 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
         let ancestors1 = self.ancestor_types(ty1);
         let ancestors2 = self.ancestor_types(ty2);
-        for t2 in ancestors2 {
-            if let Some(eq) = ancestors1.iter().find(|t1| t1.equals_to(&t2)) {
-                return eq.clone();
+        for t2 in &ancestors2 {
+            let mut t = None;
+            for t1 in &ancestors1 {
+                if t1.equals_to(&t2) {
+                    t = Some(t1);
+                    break;
+                } else if t1.same_base(&t2) {
+                    if self.conforms(&t1, &t2) {
+                        t = Some(t2);
+                        break;
+                    } else if self.conforms(&t2, &t1) {
+                        t = Some(t1);
+                        break;
+                    }
+                }
+            }
+            if let Some(t3) = t {
+                return t3.clone();
             }
         }
-        panic!("[BUG] nearest_common_ancestor_type not found");
-    }
-
-    /// Return true if ty1 is an descendant of ty2
-    /// Return value is unspecified when ty1 == ty2
-    pub fn is_descendant(&self, ty1: &TermTy, ty2: &TermTy) -> bool {
-        let mut t = Some(ty1.clone());
-        while let Some(tt) = t {
-            if tt == *ty2 {
-                return true;
-            }
-            t = self.supertype(&tt);
-        }
-        false
+        panic!("[BUG] nearest common ancestor type not found");
     }
 
     /// Return true if `ty1` conforms to `ty2` i.e.
@@ -248,58 +250,6 @@ mod tests {
     }
 
     #[test]
-    fn test_is_descendant_simple() -> Result<(), Error> {
-        let src = "class A; end";
-        test_class_dict(src, |class_dict| {
-            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::raw("Object")));
-        })
-    }
-
-    #[test]
-    fn test_is_descendant_simple_inheritance() -> Result<(), Error> {
-        let src = "
-          class A; end
-          class B : A; end
-        ";
-        test_class_dict(src, |class_dict| {
-            assert!(class_dict.is_descendant(&ty::raw("B"), &ty::raw("A")));
-            assert!(class_dict.is_descendant(&ty::raw("B"), &ty::raw("Object")));
-        })
-    }
-
-    #[test]
-    fn test_is_descendant_inherit_spe() -> Result<(), Error> {
-        let src = "class A : Array<Int>; end";
-        test_class_dict(src, |class_dict| {
-            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::ary(ty::raw("Int"))));
-            assert!(class_dict.is_descendant(&ty::raw("A"), &ty::raw("Object")));
-        })
-    }
-
-    #[test]
-    fn test_is_descendant_inherit_gen() -> Result<(), Error> {
-        let src = "
-            class MyMaybe<T>; end
-            class MySome<T> : MyMaybe<T>; end
-        ";
-        test_class_dict(src, |class_dict| {
-            let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
-            let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(class_dict.is_descendant(&some_int, &maybe_int));
-        })
-    }
-
-    #[test]
-    fn test_is_descendant_invariant() -> Result<(), Error> {
-        let src = "class A<T>; end";
-        test_class_dict(src, |class_dict| {
-            let a_int = ty::spe("A", vec![ty::raw("Int")]);
-            let a_obj = ty::spe("A", vec![ty::raw("Object")]);
-            assert!(!class_dict.is_descendant(&a_int, &a_obj));
-        })
-    }
-
-    #[test]
     fn test_conforms_some() -> Result<(), Error> {
         let src = "
             class MyMaybe<T>; end
@@ -322,6 +272,16 @@ mod tests {
             let none = ty::raw("MyNone");
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
             assert!(class_dict.conforms(&none, &maybe_int));
+        })
+    }
+
+    #[test]
+    fn test_conforms_covariant() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let m_int = ty::spe("Maybe", vec![ty::raw("Int")]);
+            let m_never = ty::spe("Maybe", vec![ty::raw("Never")]);
+            assert!(class_dict.conforms(&m_never, &m_int));
         })
     }
 
@@ -355,6 +315,19 @@ mod tests {
             let a = ty::spe("Fn0", vec![ty::raw("Int")]);
             let b = ty::spe("Fn0", vec![ty::raw("Void")]);
             assert!(class_dict.conforms(&a, &b));
+        })
+    }
+
+    #[test]
+    fn test_nearest_common_ancestor() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let a = ty::raw("Maybe::None");
+            let b = ty::spe("Maybe::Some", vec![ty::raw("Int")]);
+            let c = class_dict.nearest_common_ancestor(&a, &b);
+            assert_eq!(c, ty::spe("Maybe", vec![ty::raw("Int")]));
+            let d = class_dict.nearest_common_ancestor(&b, &a);
+            assert_eq!(d, ty::spe("Maybe", vec![ty::raw("Int")]));
         })
     }
 }
