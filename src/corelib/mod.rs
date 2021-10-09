@@ -166,10 +166,7 @@ fn make_classes(
             ClassFullname(name.to_string()),
             SkClass {
                 fullname: class_fullname(&name),
-                typarams: typarams
-                    .iter()
-                    .map(|s| ty::TyParam::new(s))
-                    .collect(),
+                typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 superclass,
                 instance_ty: ty::raw(&name),
                 ivars,
@@ -194,10 +191,7 @@ fn make_classes(
                 metaclass_fullname(&name),
                 SkClass {
                     fullname: metaclass_fullname(&name),
-                    typarams: typarams
-                        .into_iter()
-                        .map(|s| ty::TyParam::new(s))
-                        .collect(),
+                    typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     superclass: Some(Superclass::simple("Class")),
                     instance_ty: ty::meta(&name),
                     ivars: meta_ivars,
@@ -259,12 +253,12 @@ fn create_method_generic(
 fn _convert_typ(
     typ: &ConstName,
     class_typarams: &[String],
-    method_typarams: &[String],
+    method_typarams: &[ty::TyParam],
 ) -> ty::TermTy {
     let s = typ.names.join("::");
     if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
         ty::typaram(s, ty::TyParamKind::Class, idx)
-    } else if let Some(idx) = method_typarams.iter().position(|t| s == *t) {
+    } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
         ty::typaram(s, ty::TyParamKind::Method, idx)
     } else {
         let tyargs = typ

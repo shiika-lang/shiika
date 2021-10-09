@@ -420,18 +420,18 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 /// Create the type of return value of `.new` method of the class
-pub fn return_type_of_new(classname: &ClassFullname, typarams: &[String]) -> TermTy {
+pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> TermTy {
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {
         let args = typarams
             .iter()
             .enumerate()
-            .map(|(i, s)| TermTy {
-                fullname: class_fullname(s),
+            .map(|(i, t)| TermTy {
+                fullname: class_fullname(&t.name),
                 body: TyParamRef {
                     kind: TyParamKind::Class,
-                    name: s.to_string(),
+                    name: t.name.clone(),
                     idx: i,
                 },
             })
@@ -452,16 +452,6 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
         fullname: class_fullname(s.clone()),
         body: TyParamRef { kind, name: s, idx },
     }
-}
-
-pub fn typarams(names: &[String]) -> Vec<TyParam> {
-    names
-        .iter()
-        .map(|s| TyParam {
-            name: s.to_string(),
-            variance: Variance::Invariant,
-        })
-        .collect()
 }
 
 /// A type parameter

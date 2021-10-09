@@ -183,7 +183,7 @@ impl CtxStack {
     }
 
     /// Returns type parameter of the current class
-    pub fn current_class_typarams(&self) -> Vec<String> {
+    pub fn current_class_typarams(&self) -> Vec<TyParam> {
         if let Some(class_ctx) = self.class_ctx() {
             if let Some(method_ctx) = self.method_ctx() {
                 if !method_ctx.signature.fullname.is_class_method() {
@@ -195,7 +195,7 @@ impl CtxStack {
     }
 
     /// Returns type parameter of the current method
-    pub fn current_method_typarams(&self) -> Vec<String> {
+    pub fn current_method_typarams(&self) -> Vec<TyParam> {
         if let Some(method_ctx) = self.method_ctx() {
             method_ctx.signature.typarams.clone()
         } else {
@@ -207,7 +207,7 @@ impl CtxStack {
     pub fn lookup_typaram(&self, name: &str) -> Option<TermTy> {
         if let Some(method_ctx) = self.method_ctx() {
             let typarams = &method_ctx.signature.typarams;
-            if let Some(i) = typarams.iter().position(|s| *name == *s) {
+            if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
                 return Some(ty::typaram(name, ty::TyParamKind::Method, i));
             }
             if let Some(class_ctx) = self.class_ctx() {
@@ -215,7 +215,7 @@ impl CtxStack {
                     return None;
                 }
                 let typarams = &class_ctx.typarams;
-                if let Some(i) = typarams.iter().position(|s| *name == *s) {
+                if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
                     return Some(ty::typaram(name, ty::TyParamKind::Class, i));
                 }
             }

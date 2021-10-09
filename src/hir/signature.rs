@@ -8,7 +8,7 @@ pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
     pub params: Vec<MethodParam>,
-    pub typarams: Vec<String>,
+    pub typarams: Vec<TyParam>,
 }
 
 impl MethodSignature {
