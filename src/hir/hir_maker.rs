@@ -425,7 +425,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        _typarams: Vec<TyParam>,
+        typarams: Vec<TyParam>,
         cases: &[ast::EnumCase],
         defs: &[ast::Definition],
     ) -> Result<(), Error> {
@@ -434,6 +434,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
+        self.ctx_stack
+            .push(HirMakerContext::class(namespace.add(firstname), typarams));
         for def in defs {
             match def {
                 ast::Definition::InstanceMethodDefinition {
@@ -450,6 +452,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 _ => panic!("[TODO] in enum {:?}", def)
             }
         }
+        self.ctx_stack.pop();
         Ok(())
     }
 
