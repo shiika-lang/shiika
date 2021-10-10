@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
                 Token::KwEnd => {
                     break;
                 }
-                _ => break
+                _ => break,
             }
         }
         Ok(cases)
