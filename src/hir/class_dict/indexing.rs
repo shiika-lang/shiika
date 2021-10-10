@@ -37,7 +37,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     name,
                     typarams,
                     cases,
-                } => self.index_enum(&namespace, name, typarams, cases)?,
+                    defs,
+                } => self.index_enum(&namespace, name, typarams, cases, defs)?,
                 ast::Definition::ConstDefinition { .. } => (),
                 _ => {
                     return Err(error::syntax_error(&format!(
@@ -148,22 +149,26 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         firstname: &ClassFirstname,
         typarams: &[ty::TyParam],
         cases: &[ast::EnumCase],
+        defs: &[ast::Definition],
     ) -> Result<(), Error> {
         let fullname = namespace.class_fullname(firstname);
-        let instance_methods = Default::default();
+        let inner_namespace = namespace.add(firstname);
+        let (instance_methods, class_methods) =
+            self.index_defs_in_class(&inner_namespace, &fullname, typarams, defs)?;
         self.add_new_class(
             &fullname,
             typarams,
             Superclass::simple("Object"),
             None,
             instance_methods,
-            Default::default(),
+            class_methods,
             Some(true),
             false,
         );
         for case in cases {
             self.index_enum_case(namespace, &fullname, typarams, case)?;
         }
+
         Ok(())
     }
 
@@ -260,8 +265,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     name,
                     typarams,
                     cases,
+                    defs,
                 } => {
-                    self.index_enum(namespace, name, typarams, cases)?;
+                    self.index_enum(namespace, name, typarams, cases, defs)?;
                 }
             }
         }

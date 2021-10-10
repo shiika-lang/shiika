@@ -39,6 +39,7 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&ast::Definitio
                 name,
                 typarams,
                 cases,
+                ..
             } => index_enum(cindex, &namespace, name, typarams, cases),
             _ => (),
         }
@@ -69,6 +70,7 @@ fn index_class(
                 name,
                 typarams,
                 cases,
+                ..
             } => {
                 index_enum(cindex, &inner_namespace, name, typarams, cases);
             }

@@ -25,6 +25,7 @@ pub enum Definition {
         name: ClassFirstname,
         typarams: Vec<TyParam>,
         cases: Vec<EnumCase>,
+        defs: Vec<Definition>,
     },
     InstanceMethodDefinition {
         sig: AstMethodSignature,
