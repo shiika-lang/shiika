@@ -238,7 +238,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         self.ctx_stack.push(HirMakerContext::while_ctx());
         let body_hirs = self.convert_exprs(body_exprs)?;
-        self.ctx_stack.pop();
+        self.ctx_stack.pop_while_ctx();
 
         Ok(Hir::while_expression(cond_hir, body_hirs))
     }
@@ -568,9 +568,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut ret = vec![];
         for cap in lambda_captures {
             let captured_here = if let HirMakerContext::Lambda(_) = self.ctx_stack.top() {
-                cap.ctx_depth == (self.ctx_stack.len() as isize) - 1
+                matches!(cap.ctx_depth, Some(idx) if idx == self.ctx_stack.len() - 1)
             } else {
-                cap.ctx_depth == -1
+                cap.ctx_depth.is_none()
             };
             if captured_here {
                 // The variable is in this scope
@@ -622,16 +622,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Find the variable of the given name.
     /// If it is a free variable, lambda_ctx.captures will be modified
     fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        let cidx = if let HirMakerContext::Lambda(lambda_ctx) = self.ctx_stack.top() {
-            lambda_ctx.captures.len()
+        let (in_lambda, cidx) = if let HirMakerContext::Lambda(lambda_ctx) = self.ctx_stack.top() {
+            (true, lambda_ctx.captures.len())
         } else {
-            0
+            (false, 0)
         };
-        let mut first = true;
-        let mut caps = vec![];
-        let mut ret = None;
-        for (lvars, params, depth) in self.ctx_stack.lvar_scopes() {
-            // Local
+        let (found, opt_cap) = self.__find_var(in_lambda, cidx, name, updating)?;
+        if let Some(cap) = opt_cap {
+            self.ctx_stack.push_lambda_capture(cap);
+        }
+        Ok(found)
+    }
+
+    fn __find_var(
+        &mut self,
+        in_lambda: bool,
+        cidx: usize,
+        name: &str,
+        updating: bool,
+    ) -> Result<(Option<LVarInfo>, Option<LambdaCapture>), Error> {
+        let mut lambda_seen = false;
+        for (lvars, params, opt_depth) in self.ctx_stack.lvar_scopes() {
+            let is_lambda_capture = in_lambda && lambda_seen;
             if let Some(lvar) = lvars.get(name) {
                 if updating && lvar.readonly {
                     return Err(error::program_error(&format!(
@@ -639,30 +651,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         name
                     )));
                 }
-                if first {
-                    ret = Some(LVarInfo::CurrentScope {
-                        ty: lvar.ty.clone(),
-                        name: name.to_string(),
-                    });
-                } else {
-                    // !first == there are more than one scope == we're in a lambda
-                    // and capturing outer lvar
-                    caps.push(LambdaCapture {
-                        ctx_depth: depth,
+                if is_lambda_capture {
+                    let cap = LambdaCapture {
+                        ctx_depth: opt_depth,
                         ty: lvar.ty.clone(),
                         detail: LambdaCaptureDetail::CapLVar {
                             name: name.to_string(),
                         },
-                    });
-                    ret = Some(LVarInfo::OuterScope {
+                    };
+                    let lvar_info = LVarInfo::OuterScope {
                         ty: lvar.ty.clone(),
                         cidx,
                         readonly: false,
-                    });
+                    };
+                    return Ok((Some(lvar_info), Some(cap)));
+                } else {
+                    let lvar_info = LVarInfo::CurrentScope {
+                        ty: lvar.ty.clone(),
+                        name: name.to_string(),
+                    };
+                    return Ok((Some(lvar_info), None));
                 }
-                break;
             }
-            // Arg
             if let Some((idx, param)) = signature::find_param(params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
@@ -670,35 +680,32 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         name
                     )));
                 }
-                if first {
-                    return Ok(Some(LVarInfo::Argument {
-                        ty: param.ty.clone(),
-                        idx,
-                    }));
-                } else {
-                    // !first == there are more than one scope == we're in a lambda
-                    // and capturing the outer arg
-                    caps.push(LambdaCapture {
-                        ctx_depth: depth,
+                if is_lambda_capture {
+                    let cap = LambdaCapture {
+                        ctx_depth: opt_depth,
                         ty: param.ty.clone(),
                         detail: LambdaCaptureDetail::CapFnArg { idx },
-                    });
-                    ret = Some(LVarInfo::OuterScope {
+                    };
+                    let lvar_info = LVarInfo::OuterScope {
                         ty: param.ty.clone(),
                         cidx,
                         readonly: true,
-                    });
-                    break;
+                    };
+                    return Ok((Some(lvar_info), Some(cap)));
+                } else {
+                    let lvar_info = LVarInfo::Argument {
+                        ty: param.ty.clone(),
+                        idx,
+                    };
+                    return Ok((Some(lvar_info), None));
                 }
             }
-            first = false;
+            let is_lambda_scope = opt_depth.is_some();
+            if is_lambda_scope {
+                lambda_seen = true;
+            }
         }
-        if !caps.is_empty() {
-            caps.into_iter().for_each(|cap| {
-                self.ctx_stack.push_lambda_capture(cap);
-            });
-        }
-        Ok(ret)
+        Ok((None, None))
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {

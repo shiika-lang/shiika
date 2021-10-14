@@ -1,6 +1,6 @@
 use crate::hir::hir_maker_context::*;
 use crate::hir::MethodParam;
-use crate::names::Namespace;
+use crate::names::{class_fullname, Namespace};
 use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ impl CtxStack {
     }
 
     /// Pop a ctx
-    pub fn pop(&mut self) -> HirMakerContext {
+    fn pop(&mut self) -> HirMakerContext {
         self.0.pop().expect("[BUG] no ctx to pop")
     }
 
@@ -43,6 +43,15 @@ impl CtxStack {
         }
     }
 
+    /// Pop the ToplevelCtx on the stack top
+    pub fn pop_class_ctx(&mut self) -> ClassCtx {
+        if let HirMakerContext::Class(class_ctx) = self.pop() {
+            class_ctx
+        } else {
+            panic!("[BUG] top is not ClassCtx");
+        }
+    }
+
     /// Pop the MethodCtx on the stack top
     pub fn pop_method_ctx(&mut self) -> MethodCtx {
         if let HirMakerContext::Method(method_ctx) = self.pop() {
@@ -52,10 +61,28 @@ impl CtxStack {
         }
     }
 
-    /// Pop the MethodCtx on the stack top
+    /// Pop the LambdaCtx on the stack top
     pub fn pop_lambda_ctx(&mut self) -> LambdaCtx {
         if let HirMakerContext::Lambda(lambda_ctx) = self.pop() {
             lambda_ctx
+        } else {
+            panic!("[BUG] top is not LambdaCtx");
+        }
+    }
+
+    /// Pop the WhileCtx on the stack top
+    pub fn pop_while_ctx(&mut self) -> WhileCtx {
+        if let HirMakerContext::While(ctx) = self.pop() {
+            ctx
+        } else {
+            panic!("[BUG] top is not WhileCtx");
+        }
+    }
+
+    /// Pop the MatchClauseCtx on the stack top
+    pub fn pop_match_clause_ctx(&mut self) -> MatchClauseCtx {
+        if let HirMakerContext::MatchClause(ctx) = self.pop() {
+            ctx
         } else {
             panic!("[BUG] top is not LambdaCtx");
         }
@@ -144,7 +171,8 @@ impl CtxStack {
     pub fn self_ty(&self) -> TermTy {
         if let Some(class_ctx) = self.class_ctx() {
             if let Some(_) = self.method_ctx() {
-                ty::raw(&class_ctx.namespace.string())
+                let classname = class_fullname(class_ctx.namespace.string());
+                ty::return_type_of_new(&classname, &class_ctx.typarams)
             } else {
                 ty::meta(&class_ctx.namespace.string())
             }
@@ -281,7 +309,11 @@ impl<'hir_maker> LVarIter<'hir_maker> {
 
 impl<'a> Iterator for LVarIter<'a> {
     /// Yields `(lvars, params, depth)`
-    type Item = (&'a HashMap<String, CtxLVar>, &'a [MethodParam], isize);
+    type Item = (
+        &'a HashMap<String, CtxLVar>,
+        &'a [MethodParam],
+        Option<usize>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -291,27 +323,26 @@ impl<'a> Iterator for LVarIter<'a> {
             // Toplevel -> end.
             HirMakerContext::Toplevel(toplevel_ctx) => {
                 self.finished = true;
-                Some((&toplevel_ctx.lvars, &[], -1))
+                Some((&toplevel_ctx.lvars, &[], None))
             }
             // Classes -> end.
             HirMakerContext::Class(class_ctx) => {
                 self.finished = true;
-                Some((&class_ctx.lvars, &[], -1))
+                Some((&class_ctx.lvars, &[], None))
             }
             // Method -> end.
             HirMakerContext::Method(method_ctx) => {
                 self.finished = true;
-                Some((&method_ctx.lvars, &method_ctx.signature.params, -1))
+                Some((&method_ctx.lvars, &method_ctx.signature.params, None))
             }
             HirMakerContext::Lambda(lambda_ctx) => {
                 let idx = self.cur;
                 self.cur -= 1;
-                Some((&lambda_ctx.lvars, &lambda_ctx.params, idx as isize))
+                Some((&lambda_ctx.lvars, &lambda_ctx.params, Some(idx)))
             }
             HirMakerContext::MatchClause(match_clause_ctx) => {
-                let idx = self.cur;
                 self.cur -= 1;
-                Some((&match_clause_ctx.lvars, &[], idx as isize))
+                Some((&match_clause_ctx.lvars, &[], None))
             }
             // ::new() never sets `While` to .cur
             HirMakerContext::While(_) => panic!("must not happen"),

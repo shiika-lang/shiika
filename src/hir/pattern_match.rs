@@ -104,7 +104,7 @@ fn compile_body(
         }
     }
     let hir_exprs = mk.convert_exprs(body)?;
-    mk.ctx_stack.pop();
+    mk.ctx_stack.pop_match_clause_ctx();
     Ok(hir_exprs)
 }
 
