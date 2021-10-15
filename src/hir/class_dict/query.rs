@@ -209,8 +209,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(classname).unwrap_or_else(|| {
             panic!(
-                "[BUG] ClassDict::find_ivar: class `{}' not found",
-                &classname
+                "[BUG] finding ivar `{}' but the class '{}' not found",
+                ivar_name, &classname
             )
         });
         class.ivars.get(ivar_name)

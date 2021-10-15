@@ -266,6 +266,10 @@ impl TermTy {
         // To do this, TySpe.base_name etc. should be a ClassFullname rather than a String.
     }
 
+    pub fn erasure_ty(&self) -> TermTy {
+        ty::raw(self.erasure().0)
+    }
+
     /// Returns type arguments, if any
     pub fn tyargs(&self) -> &[TermTy] {
         match &self.body {

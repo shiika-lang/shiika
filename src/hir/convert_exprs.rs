@@ -342,14 +342,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         is_var: &bool,
     ) -> Result<HirExpression, Error> {
         let expr = self.convert_expr(rhs)?;
-        let self_ty = self.ctx_stack.self_ty();
+        let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
         if self.ctx_stack.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, self_ty));
+            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, base_ty));
         }
 
-        if let Some(ivar) = self.class_dict.find_ivar(&self_ty.fullname, name) {
+        if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -363,7 +363,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, self_ty))
+            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, base_ty))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -709,10 +709,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression, Error> {
-        let self_ty = self.ctx_stack.self_ty();
+        let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
             .class_dict
-            .find_ivar(&self_ty.fullname, name)
+            .find_ivar(&base_ty.fullname, name)
             .or_else(|| {
                 self.ctx_stack
                     .method_ctx()
@@ -726,7 +726,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 ivar.ty.clone(),
                 name.to_string(),
                 ivar.idx,
-                self_ty,
+                base_ty,
             )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
