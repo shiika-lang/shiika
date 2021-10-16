@@ -171,9 +171,8 @@ fn convert_match(
         AstPattern::IntegerLiteralPattern(i) => {
             if value.ty != ty::raw("Int") {
                 return Err(error::type_error(&format!(
-                    "expr of `{}' never matches to `{}'",
+                    "expr of `{}' never matches to `Int'",
                     value.ty,
-                    ty::raw("Int")
                 )));
             }
             let test = Hir::method_call(

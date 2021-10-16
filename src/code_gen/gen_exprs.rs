@@ -660,7 +660,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_lvar_ref(&self, ctx: &mut CodeGenContext<'hir, 'run>, name: &str) -> SkObj<'run> {
-        let ptr = ctx.lvars.get(name).expect("[BUG] lvar not alloca'ed");
+        let ptr = ctx
+            .lvars
+            .get(name)
+            .expect(&format!("[BUG] lvar `{}' not alloca'ed", name));
         SkObj(self.builder.build_load(*ptr, name))
     }
 

@@ -80,9 +80,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             } => self.convert_if_expr(cond_expr, then_exprs, else_exprs),
 
             AstExpressionBody::Match { cond_expr, clauses } => {
-                let x = self.convert_match_expr(cond_expr, clauses);
-                //dbg!(&x);
-                x
+                self.convert_match_expr(cond_expr, clauses)
             }
 
             AstExpressionBody::While {
