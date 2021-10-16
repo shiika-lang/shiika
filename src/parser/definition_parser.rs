@@ -122,6 +122,10 @@ impl<'a> Parser<'a> {
         // Enum cases
         self.skip_wsn()?;
         cases = self.parse_enum_cases()?;
+        self.skip_wsn()?;
+
+        // Internal definitions
+        let defs = self.parse_definitions()?;
 
         // `end'
         match self.current_token() {
@@ -143,6 +147,7 @@ impl<'a> Parser<'a> {
             name,
             typarams,
             cases,
+            defs,
         })
     }
 
@@ -157,7 +162,7 @@ impl<'a> Parser<'a> {
                 Token::KwEnd => {
                     break;
                 }
-                token => return Err(parse_error!(self, "unexpected token in enum: {:?}", token)),
+                _ => break,
             }
         }
         Ok(cases)

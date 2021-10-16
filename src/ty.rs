@@ -57,7 +57,9 @@ impl TermTy {
                 base_name,
                 type_args,
             } => format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args)),
-            TyParamRef { kind, name, idx } => {
+            TyParamRef {
+                kind, name, idx, ..
+            } => {
                 let k = match kind {
                     TyParamKind::Class => "C",
                     TyParamKind::Method => "M",
@@ -142,6 +144,8 @@ pub enum TyBody {
         kind: TyParamKind,
         name: String,
         idx: usize,
+        upper_bound: Box<TermTy>,
+        lower_bound: Box<TermTy>,
     },
 }
 
@@ -256,11 +260,14 @@ impl TermTy {
             TyMetaclass => class_fullname("Metaclass"),
             TySpe { base_name, .. } => class_fullname(base_name),
             TySpeMeta { base_name, .. } => metaclass_fullname(base_name),
-            // TyParamRef => ??
-            _ => panic!("must not happen"),
+            _ => todo!(),
         }
         // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
         // To do this, TySpe.base_name etc. should be a ClassFullname rather than a String.
+    }
+
+    pub fn erasure_ty(&self) -> TermTy {
+        ty::raw(self.erasure().0)
     }
 
     /// Returns type arguments, if any
@@ -320,27 +327,6 @@ impl TermTy {
 
     pub fn is_specialized(&self) -> bool {
         matches!(self.body, TySpe { .. } | TySpeMeta { .. })
-    }
-
-    pub fn upper_bound(&self) -> TermTy {
-        match &self.body {
-            TyParamRef { .. } => ty::raw("Object"),
-            TySpe {
-                base_name,
-                type_args,
-            } => ty::spe(
-                base_name,
-                type_args.iter().map(|t| t.upper_bound()).collect(),
-            ),
-            TySpeMeta {
-                base_name,
-                type_args,
-            } => ty::spe_meta(
-                base_name,
-                type_args.iter().map(|t| t.upper_bound()).collect(),
-            ),
-            _ => self.clone(),
-        }
     }
 
     pub fn contains_typaram_ref(&self) -> bool {
@@ -427,14 +413,7 @@ pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> Te
         let args = typarams
             .iter()
             .enumerate()
-            .map(|(i, t)| TermTy {
-                fullname: class_fullname(&t.name),
-                body: TyParamRef {
-                    kind: TyParamKind::Class,
-                    name: t.name.clone(),
-                    idx: i,
-                },
-            })
+            .map(|(i, t)| typaram(&t.name, TyParamKind::Class, i))
             .collect::<Vec<_>>();
         ty::spe(&classname.0, args)
     }
@@ -450,7 +429,13 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
     TermTy {
         // TODO: s is not a class name. `fullname` should be just a String
         fullname: class_fullname(s.clone()),
-        body: TyParamRef { kind, name: s, idx },
+        body: TyParamRef {
+            kind,
+            name: s,
+            idx,
+            upper_bound: Box::new(ty::raw("Object")),
+            lower_bound: Box::new(ty::raw("Never")),
+        },
     }
 }
 

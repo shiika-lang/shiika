@@ -1,37 +1,63 @@
 use crate::hir::hir_maker_context::*;
 use crate::hir::MethodParam;
-use crate::names::Namespace;
+use crate::names::{class_fullname, Namespace};
 use crate::ty;
 use crate::ty::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct CtxStack(Vec<HirMakerContext>);
+pub struct CtxStack {
+    /// List of ctxs
+    vec: Vec<HirMakerContext>,
+    /// Indices of LambdaCtx
+    lambda_idx: Vec<usize>,
+}
 
 impl CtxStack {
     /// Create a CtxStack
     pub fn new(v: Vec<HirMakerContext>) -> CtxStack {
-        CtxStack(v)
+        CtxStack {
+            vec: v,
+            lambda_idx: Default::default(),
+        }
     }
 
     /// Returns length of stack
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.vec.len()
     }
 
     /// Returns nth item
     pub fn get(&self, idx: usize) -> &HirMakerContext {
-        &self.0[idx]
+        &self.vec[idx]
+    }
+
+    /// Returns the ctx of innermost lambda, if any
+    pub fn innermost_lambda(&self) -> Option<&LambdaCtx> {
+        self.lambda_idx.last().map(|i| {
+            if let HirMakerContext::Lambda(lambda_ctx) = self.vec.get(*i).unwrap() {
+                lambda_ctx
+            } else {
+                panic!("[BUG] not LambdaCtx");
+            }
+        })
     }
 
     /// Push a ctx
     pub fn push(&mut self, c: HirMakerContext) {
-        self.0.push(c);
+        if matches!(c, HirMakerContext::Lambda(_)) {
+            self.lambda_idx.push(self.vec.len());
+        }
+        self.vec.push(c);
     }
 
     /// Pop a ctx
-    pub fn pop(&mut self) -> HirMakerContext {
-        self.0.pop().expect("[BUG] no ctx to pop")
+    fn pop(&mut self) -> HirMakerContext {
+        let c = self.vec.pop().expect("[BUG] no ctx to pop");
+        if matches!(c, HirMakerContext::Lambda(_)) {
+            self.lambda_idx.pop();
+        }
+        c
     }
 
     /// Pop the ToplevelCtx on the stack top
@@ -40,6 +66,15 @@ impl CtxStack {
             toplevel_ctx
         } else {
             panic!("[BUG] top is not ToplevelCtx");
+        }
+    }
+
+    /// Pop the ToplevelCtx on the stack top
+    pub fn pop_class_ctx(&mut self) -> ClassCtx {
+        if let HirMakerContext::Class(class_ctx) = self.pop() {
+            class_ctx
+        } else {
+            panic!("[BUG] top is not ClassCtx");
         }
     }
 
@@ -52,7 +87,7 @@ impl CtxStack {
         }
     }
 
-    /// Pop the MethodCtx on the stack top
+    /// Pop the LambdaCtx on the stack top
     pub fn pop_lambda_ctx(&mut self) -> LambdaCtx {
         if let HirMakerContext::Lambda(lambda_ctx) = self.pop() {
             lambda_ctx
@@ -61,21 +96,39 @@ impl CtxStack {
         }
     }
 
+    /// Pop the WhileCtx on the stack top
+    pub fn pop_while_ctx(&mut self) -> WhileCtx {
+        if let HirMakerContext::While(ctx) = self.pop() {
+            ctx
+        } else {
+            panic!("[BUG] top is not WhileCtx");
+        }
+    }
+
+    /// Pop the MatchClauseCtx on the stack top
+    pub fn pop_match_clause_ctx(&mut self) -> MatchClauseCtx {
+        if let HirMakerContext::MatchClause(ctx) = self.pop() {
+            ctx
+        } else {
+            panic!("[BUG] top is not MatchClauseCtx");
+        }
+    }
+
     /// Returns the ctx on the top of the stack
     pub fn top(&self) -> &HirMakerContext {
         // ctx_stack will not be empty because toplevel ctx is always there
-        self.0.last().expect("[BUG] ctx_stack is empty")
+        self.vec.last().expect("[BUG] ctx_stack is empty")
     }
 
     /// Returns the ctx on the top of the stack
     pub fn top_mut(&mut self) -> &mut HirMakerContext {
         // ctx_stack will not be empty because toplevel ctx is always there
-        self.0.last_mut().expect("[BUG] ctx_stack is empty")
+        self.vec.last_mut().expect("[BUG] ctx_stack is empty")
     }
 
     /// Return nearest enclosing class ctx, if any
     pub fn class_ctx(&self) -> Option<&ClassCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Class(c) = x {
                 return Some(c);
             }
@@ -85,7 +138,7 @@ impl CtxStack {
 
     /// Return enclosing method ctx, if any
     pub fn method_ctx(&self) -> Option<&MethodCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Method(c) = x {
                 return Some(c);
             }
@@ -95,7 +148,7 @@ impl CtxStack {
 
     /// Return enclosing method ctx, if any
     pub fn method_ctx_mut(&mut self) -> Option<&mut MethodCtx> {
-        for x in self.0.iter_mut().rev() {
+        for x in self.vec.iter_mut().rev() {
             if let HirMakerContext::Method(c) = x {
                 return Some(c);
             }
@@ -105,7 +158,7 @@ impl CtxStack {
 
     /// Return ctx of nearest enclosing lambda, if any
     pub fn lambda_ctx(&self) -> Option<&LambdaCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Lambda(c) = x {
                 return Some(c);
             }
@@ -115,7 +168,7 @@ impl CtxStack {
 
     /// Return ctx of nearest enclosing lambda, if any
     pub fn lambda_ctx_mut(&mut self) -> Option<&mut LambdaCtx> {
-        for x in self.0.iter_mut().rev() {
+        for x in self.vec.iter_mut().rev() {
             if let HirMakerContext::Lambda(c) = x {
                 return Some(c);
             }
@@ -144,7 +197,8 @@ impl CtxStack {
     pub fn self_ty(&self) -> TermTy {
         if let Some(class_ctx) = self.class_ctx() {
             if let Some(_) = self.method_ctx() {
-                ty::raw(&class_ctx.namespace.string())
+                let classname = class_fullname(class_ctx.namespace.string());
+                ty::return_type_of_new(&classname, &class_ctx.typarams)
             } else {
                 ty::meta(&class_ctx.namespace.string())
             }
@@ -230,7 +284,7 @@ impl CtxStack {
     }
 
     pub fn current_lvars_mut(&mut self) -> &mut CtxLVars {
-        for ctx in self.0.iter_mut().rev() {
+        for ctx in self.vec.iter_mut().rev() {
             if let Some(lvars) = ctx.opt_lvars() {
                 return lvars;
             }
@@ -281,7 +335,11 @@ impl<'hir_maker> LVarIter<'hir_maker> {
 
 impl<'a> Iterator for LVarIter<'a> {
     /// Yields `(lvars, params, depth)`
-    type Item = (&'a HashMap<String, CtxLVar>, &'a [MethodParam], isize);
+    type Item = (
+        &'a HashMap<String, CtxLVar>,
+        &'a [MethodParam],
+        Option<usize>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -291,27 +349,26 @@ impl<'a> Iterator for LVarIter<'a> {
             // Toplevel -> end.
             HirMakerContext::Toplevel(toplevel_ctx) => {
                 self.finished = true;
-                Some((&toplevel_ctx.lvars, &[], -1))
+                Some((&toplevel_ctx.lvars, &[], None))
             }
             // Classes -> end.
             HirMakerContext::Class(class_ctx) => {
                 self.finished = true;
-                Some((&class_ctx.lvars, &[], -1))
+                Some((&class_ctx.lvars, &[], None))
             }
             // Method -> end.
             HirMakerContext::Method(method_ctx) => {
                 self.finished = true;
-                Some((&method_ctx.lvars, &method_ctx.signature.params, -1))
+                Some((&method_ctx.lvars, &method_ctx.signature.params, None))
             }
             HirMakerContext::Lambda(lambda_ctx) => {
                 let idx = self.cur;
                 self.cur -= 1;
-                Some((&lambda_ctx.lvars, &lambda_ctx.params, idx as isize))
+                Some((&lambda_ctx.lvars, &lambda_ctx.params, Some(idx)))
             }
             HirMakerContext::MatchClause(match_clause_ctx) => {
-                let idx = self.cur;
                 self.cur -= 1;
-                Some((&match_clause_ctx.lvars, &[], idx as isize))
+                Some((&match_clause_ctx.lvars, &[], None))
             }
             // ::new() never sets `While` to .cur
             HirMakerContext::While(_) => panic!("must not happen"),

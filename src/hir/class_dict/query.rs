@@ -97,10 +97,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Returns supertype of `ty` (except it is `Object`)
     pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
-        self.get_class(&ty.erasure())
-            .superclass
-            .as_ref()
-            .map(|scls| scls.ty().substitute(ty.tyargs(), &[]))
+        match &ty.body {
+            TyBody::TyParamRef { upper_bound, .. } => Some(*upper_bound.clone()),
+            _ => self
+                .get_class(&ty.erasure())
+                .superclass
+                .as_ref()
+                .map(|scls| scls.ty().substitute(ty.tyargs(), &[])),
+        }
     }
 
     /// Return ancestor types of `ty`, including itself.
@@ -150,17 +154,37 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             true
         } else if ty1.equals_to(ty2) {
             true
-        } else if let TyBody::TyParamRef { name, .. } = &ty1.body {
-            if let TyBody::TyParamRef { name: name2, .. } = &ty2.body {
-                name == name2
+        } else if let TyBody::TyParamRef {
+            upper_bound: u1,
+            lower_bound: l1,
+            ..
+        } = &ty1.body
+        {
+            if let TyBody::TyParamRef {
+                upper_bound: u2,
+                lower_bound: l2,
+                ..
+            } = &ty2.body
+            {
+                u1 == u2 && l1 == l2
             } else {
-                ty2 == &ty::raw("Object") // The upper bound
+                self.conforms(u1, ty2)
             }
-        } else if let TyBody::TyParamRef { name, .. } = &ty2.body {
-            if let TyBody::TyParamRef { name: name2, .. } = &ty1.body {
-                name == name2
+        } else if let TyBody::TyParamRef {
+            upper_bound: u2,
+            lower_bound: l2,
+            ..
+        } = &ty2.body
+        {
+            if let TyBody::TyParamRef {
+                upper_bound: u1,
+                lower_bound: l1,
+                ..
+            } = &ty1.body
+            {
+                u1 == u2 && l1 == l2
             } else {
-                false
+                self.conforms(ty1, u2)
             }
         } else {
             let is_void_fn = if let Some(ret_ty) = ty2.fn_x_info() {
@@ -185,8 +209,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(classname).unwrap_or_else(|| {
             panic!(
-                "[BUG] ClassDict::find_ivar: class `{}' not found",
-                &classname
+                "[BUG] finding ivar `{}' but the class '{}' not found",
+                ivar_name, &classname
             )
         });
         class.ivars.get(ivar_name)

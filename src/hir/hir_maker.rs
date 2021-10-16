@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::code_gen::CodeGen;
+use crate::error;
 use crate::error::Error;
 use crate::hir::class_dict::ClassDict;
 use crate::hir::hir_maker_context::*;
@@ -166,7 +167,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 name,
                 typarams,
                 cases,
-            } => self.process_enum_def(&namespace, name, typarams.clone(), cases)?,
+                defs,
+            } => self.process_enum_def(&namespace, name, typarams.clone(), cases, defs)?,
             ast::Definition::ConstDefinition { name, expr } => {
                 self.register_toplevel_const(name, expr)?;
             }
@@ -210,9 +212,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Process inner defs
         for def in defs {
             match def {
-                ast::Definition::InstanceMethodDefinition {
-                    sig, body_exprs, ..
-                } => {
+                ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if def.is_initializer() {
                         // Already processed above
                     } else {
@@ -241,10 +241,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     name,
                     typarams,
                     cases,
-                } => self.process_enum_def(&inner_namespace, name, typarams.clone(), cases)?,
+                    defs,
+                } => {
+                    self.process_enum_def(&inner_namespace, name, typarams.clone(), cases, defs)?
+                }
             }
         }
-        self.ctx_stack.pop();
+        self.ctx_stack.pop_class_ctx();
         Ok(())
     }
 
@@ -385,10 +388,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>), Error> {
         // MethodSignature is built beforehand by class_dict::new
-        let err = format!(
-            "[BUG] signature not found ({}/{}/{:?})",
-            class_fullname, name, self.class_dict
-        );
+        let err = format!("[BUG] signature not found ({}/{})", class_fullname, name);
         let signature = self
             .class_dict
             .find_method(class_fullname, name)
@@ -422,13 +422,36 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        _typarams: Vec<TyParam>,
+        typarams: Vec<TyParam>,
         cases: &[ast::EnumCase],
+        defs: &[ast::Definition],
     ) -> Result<(), Error> {
+        let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname);
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
+        self.ctx_stack
+            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+        for def in defs {
+            match def {
+                ast::Definition::InstanceMethodDefinition {
+                    sig, body_exprs, ..
+                } => {
+                    if def.is_initializer() {
+                        return Err(error::program_error(
+                            "you cannot define #initialize of enum",
+                        ));
+                    } else {
+                        log::trace!("method {}#{}", &fullname, &sig.name);
+                        let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
+                        self.method_dict.add_method(&fullname, method);
+                    }
+                }
+                _ => panic!("[TODO] in enum {:?}", def),
+            }
+        }
+        self.ctx_stack.pop_class_ctx();
         Ok(())
     }
 

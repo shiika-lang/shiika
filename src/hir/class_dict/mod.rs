@@ -42,7 +42,8 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Returns information for creating class constants
+    /// Returns information for creating class constants i.e. a list of
+    /// `(name, const_is_obj)`
     pub fn constant_list(&self) -> Vec<(String, bool)> {
         self.sk_classes
             .iter()

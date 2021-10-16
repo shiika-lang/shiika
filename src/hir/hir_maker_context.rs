@@ -138,9 +138,9 @@ pub type CtxLVars = HashMap<String, CtxLVar>;
 
 #[derive(Debug)]
 pub struct LambdaCapture {
-    /// The index of `self.ctx.lambdas` where this lvar is captured.
-    /// -1 if it is captured in `self.ctx.method` or `self.ctx.toplevel`
-    pub ctx_depth: isize,
+    /// The index of ctx stack where this lvar is captured.
+    /// None if the lvar does not belong to a lambda (method argument, etc.)
+    pub ctx_depth: Option<usize>,
     pub ty: TermTy,
     pub detail: LambdaCaptureDetail,
 }

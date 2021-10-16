@@ -1,6 +1,26 @@
 enum Maybe<V>
   case Some(value: V)
   case None
+
+  # Apply `f` to the value, if any. Returns `None` if not.
+  def map<U>(f: Fn1<V, U>) -> Maybe<U>
+    match self
+    when Some(v)
+      Some<U>.new(f(v))
+    else
+      None
+    end
+  end
+
+  # Returns the value. Panic with `msg` if none.
+  def expect(msg: String) -> V
+    match self
+    when Some(v)
+      v
+    else
+      panic msg
+    end
+  end
 end
 Some = Maybe::Some
 None = Maybe::None
