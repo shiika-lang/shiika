@@ -6,32 +6,58 @@ use crate::ty::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct CtxStack(Vec<HirMakerContext>);
+pub struct CtxStack {
+    /// List of ctxs
+    vec: Vec<HirMakerContext>,
+    /// Indices of LambdaCtx
+    lambda_idx: Vec<usize>,
+}
 
 impl CtxStack {
     /// Create a CtxStack
     pub fn new(v: Vec<HirMakerContext>) -> CtxStack {
-        CtxStack(v)
+        CtxStack {
+            vec: v,
+            lambda_idx: Default::default(),
+        }
     }
 
     /// Returns length of stack
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.vec.len()
     }
 
     /// Returns nth item
     pub fn get(&self, idx: usize) -> &HirMakerContext {
-        &self.0[idx]
+        &self.vec[idx]
+    }
+
+    /// Returns the ctx of innermost lambda, if any
+    pub fn innermost_lambda(&self) -> Option<&LambdaCtx> {
+        self.lambda_idx.last().map(|i| {
+            if let HirMakerContext::Lambda(lambda_ctx) = self.vec.get(*i).unwrap() {
+                lambda_ctx
+            } else {
+                panic!("[BUG] not LambdaCtx");
+            }
+        })
     }
 
     /// Push a ctx
     pub fn push(&mut self, c: HirMakerContext) {
-        self.0.push(c);
+        if matches!(c, HirMakerContext::Lambda(_)) {
+            self.lambda_idx.push(self.vec.len());
+        }
+        self.vec.push(c);
     }
 
     /// Pop a ctx
     fn pop(&mut self) -> HirMakerContext {
-        self.0.pop().expect("[BUG] no ctx to pop")
+        let c = self.vec.pop().expect("[BUG] no ctx to pop");
+        if matches!(c, HirMakerContext::Lambda(_)) {
+            self.lambda_idx.pop();
+        }
+        c
     }
 
     /// Pop the ToplevelCtx on the stack top
@@ -84,25 +110,25 @@ impl CtxStack {
         if let HirMakerContext::MatchClause(ctx) = self.pop() {
             ctx
         } else {
-            panic!("[BUG] top is not LambdaCtx");
+            panic!("[BUG] top is not MatchClauseCtx");
         }
     }
 
     /// Returns the ctx on the top of the stack
     pub fn top(&self) -> &HirMakerContext {
         // ctx_stack will not be empty because toplevel ctx is always there
-        self.0.last().expect("[BUG] ctx_stack is empty")
+        self.vec.last().expect("[BUG] ctx_stack is empty")
     }
 
     /// Returns the ctx on the top of the stack
     pub fn top_mut(&mut self) -> &mut HirMakerContext {
         // ctx_stack will not be empty because toplevel ctx is always there
-        self.0.last_mut().expect("[BUG] ctx_stack is empty")
+        self.vec.last_mut().expect("[BUG] ctx_stack is empty")
     }
 
     /// Return nearest enclosing class ctx, if any
     pub fn class_ctx(&self) -> Option<&ClassCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Class(c) = x {
                 return Some(c);
             }
@@ -112,7 +138,7 @@ impl CtxStack {
 
     /// Return enclosing method ctx, if any
     pub fn method_ctx(&self) -> Option<&MethodCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Method(c) = x {
                 return Some(c);
             }
@@ -122,7 +148,7 @@ impl CtxStack {
 
     /// Return enclosing method ctx, if any
     pub fn method_ctx_mut(&mut self) -> Option<&mut MethodCtx> {
-        for x in self.0.iter_mut().rev() {
+        for x in self.vec.iter_mut().rev() {
             if let HirMakerContext::Method(c) = x {
                 return Some(c);
             }
@@ -132,7 +158,7 @@ impl CtxStack {
 
     /// Return ctx of nearest enclosing lambda, if any
     pub fn lambda_ctx(&self) -> Option<&LambdaCtx> {
-        for x in self.0.iter().rev() {
+        for x in self.vec.iter().rev() {
             if let HirMakerContext::Lambda(c) = x {
                 return Some(c);
             }
@@ -142,7 +168,7 @@ impl CtxStack {
 
     /// Return ctx of nearest enclosing lambda, if any
     pub fn lambda_ctx_mut(&mut self) -> Option<&mut LambdaCtx> {
-        for x in self.0.iter_mut().rev() {
+        for x in self.vec.iter_mut().rev() {
             if let HirMakerContext::Lambda(c) = x {
                 return Some(c);
             }
@@ -258,7 +284,7 @@ impl CtxStack {
     }
 
     pub fn current_lvars_mut(&mut self) -> &mut CtxLVars {
-        for ctx in self.0.iter_mut().rev() {
+        for ctx in self.vec.iter_mut().rev() {
             if let Some(lvars) = ctx.opt_lvars() {
                 return lvars;
             }

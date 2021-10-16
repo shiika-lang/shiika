@@ -622,7 +622,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Find the variable of the given name.
     /// If it is a free variable, lambda_ctx.captures will be modified
     fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>, Error> {
-        let (in_lambda, cidx) = if let HirMakerContext::Lambda(lambda_ctx) = self.ctx_stack.top() {
+        let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.innermost_lambda() {
             (true, lambda_ctx.captures.len())
         } else {
             (false, 0)
