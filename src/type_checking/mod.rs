@@ -15,14 +15,29 @@ pub fn check_return_value(
     sig: &MethodSignature,
     ty: &TermTy,
 ) -> Result<(), Error> {
-    if sig.ret_ty.is_void_type() || class_dict.conforms(ty, &sig.ret_ty) {
+    if sig.ret_ty.is_void_type() {
+        return Ok(());
+    }
+    let want = match &sig.ret_ty.body {
+        TyBody::TyParamRef { lower_bound, .. } => {
+            // To avoid errors like this. (I'm not sure this is the right way;
+            // looks ad-hoc)
+            // > TypeError: Maybe#expect should return TermTy(TyParamRef(V 0C)) but returns TermTy(TyParamRef(V 0C))
+            if ty.equals_to(&sig.ret_ty) {
+                return Ok(());
+            }
+            lower_bound
+        }
+        _ => &sig.ret_ty,
+    };
+    if class_dict.conforms(ty, want) {
         Ok(())
     } else {
         Err(type_error!(
             "{} should return {} but returns {}",
             sig.fullname,
-            sig.ret_ty.fullname,
-            ty.fullname
+            sig.ret_ty,
+            ty
         ))
     }
 }
