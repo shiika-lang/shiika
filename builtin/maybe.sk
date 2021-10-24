@@ -21,6 +21,15 @@ enum Maybe<V>
       panic msg
     end
   end
+
+  def inspect -> String
+    match self
+    when Some(v)
+      "#<Some \{v}>"
+    else
+      "#<None>"
+    end
+  end
 end
 Some = Maybe::Some
 None = Maybe::None

@@ -131,9 +131,13 @@ class Array<T>
     end
   end
 
-  # Return the first element
-  def first -> T  # TODO: Return Option
-    self[0]
+  # Returns the first element, unless `self` is empty.
+  def first -> Maybe<T>
+    if self.is_empty
+      None
+    else
+      Some<T>.new(self[0])
+    end
   end
 
   # Like `map` but `f` should return an array and the result is flattened.
@@ -208,12 +212,13 @@ class Array<T>
     ret._unsafe_to_s
   end
 
-  # TODO: return Option
-  def last -> T
+  # Returns the last item, unless `self` is empty.
+  def last -> Maybe<T>
     if @n_items == 0
-      panic "[Array#last: array is empty]"
+      None
+    else
+      Some<T>.new(self[@n_items - 1])
     end
-    self[@n_items - 1]
   end
 
   # Return the number of items
@@ -311,16 +316,16 @@ class Array<T>
 
   # Removes the first element and returns it.
   # Panics if `self` is empty
-  # TODO: Return Option<T>
-  def shift -> T
+  def shift -> Maybe<T>
     if @n_items == 0
-      panic "[Array#shift: array is empty]"
+      None
+    else
+      ret = self[0]
+      @capa -= 1
+      @n_items -= 1
+      @items += BYTES_OF_PTR
+      Some<T>.new(ret)
     end
-    ret = self[0]
-    @capa -= 1
-    @n_items -= 1
-    @items += BYTES_OF_PTR
-    ret
   end
 
   # Create sorted version of `self`
