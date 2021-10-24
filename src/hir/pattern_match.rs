@@ -56,7 +56,7 @@ pub fn convert_match_expr(
         .iter()
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
         .collect::<Result<Vec<MatchClause>, Error>>()?;
-    let result_ty = calc_result_ty(mk, &mut clauses);
+    let result_ty = calc_result_ty(mk, &mut clauses)?;
     let mut lvars = collect_lvars(&clauses);
     lvars.push((tmp_name.clone(), cond_expr.ty.clone()));
 
@@ -109,7 +109,7 @@ fn compile_body(
 }
 
 /// Calculate the type of the match expression from clauses
-fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> TermTy {
+fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy, Error> {
     debug_assert!(clauses.len() > 0);
     let mut clauses = clauses
         .iter_mut()
@@ -121,18 +121,22 @@ fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> TermTy {
                 c.body_hir.voidify();
             }
         }
-        ty::raw("Void")
+        Ok(ty::raw("Void"))
     } else {
         let mut ty = clauses[0].body_hir.ty.clone();
         for c in &clauses {
-            ty = mk.class_dict.nearest_common_ancestor(&ty, &c.body_hir.ty);
+            if let Some(t) = mk.class_dict.nearest_common_ancestor(&ty, &c.body_hir.ty) {
+                ty = t;
+            } else {
+                return Err(error::type_error("match clause type mismatch"));
+            }
         }
         for c in clauses.iter_mut() {
             if !c.body_hir.ty.equals_to(&ty) {
                 c.bitcast_body(ty.clone());
             }
         }
-        ty
+        Ok(ty)
     }
 }
 

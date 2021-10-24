@@ -198,9 +198,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             then_hirs.voidify();
             ty::raw("Void")
         } else {
-            let ty = self
+            let opt_ty = self
                 .class_dict
                 .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
+            let ty = type_checking::check_if_body_ty(opt_ty)?;
             if !then_hirs.ty.equals_to(&ty) {
                 then_hirs = then_hirs.bitcast_to(ty.clone());
             }
@@ -895,7 +896,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         };
 
         for expr in &item_exprs {
-            item_ty = self.class_dict.nearest_common_ancestor(&item_ty, &expr.ty);
+            item_ty = self
+                .class_dict
+                .nearest_common_ancestor(&item_ty, &expr.ty)
+                .expect("array literal elements type mismatch");
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
 
