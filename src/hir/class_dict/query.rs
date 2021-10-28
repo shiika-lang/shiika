@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_common_ancestor_Some() -> Result<(), Error> {
+    fn test_nearest_common_ancestor__some() -> Result<(), Error> {
         let src = "";
         test_class_dict(src, |class_dict| {
             let a = ty::raw("Maybe::None");
@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_common_ancestor_Some_Object() -> Result<(), Error> {
+    fn test_nearest_common_ancestor__some_object() -> Result<(), Error> {
         let src = "";
         test_class_dict(src, |class_dict| {
             let a = ty::raw("Int");
@@ -386,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_common_ancestor_None() -> Result<(), Error> {
+    fn test_nearest_common_ancestor__none() -> Result<(), Error> {
         let src = "";
         test_class_dict(src, |class_dict| {
             let a = ty::raw("Int");
