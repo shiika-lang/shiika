@@ -1,6 +1,6 @@
 class A
   def self.foo(a: Array<Int>) -> Int
-    a.first
+    a[0]
   end
 end
 if A.foo([99]) != 99; puts "ng 1"; end

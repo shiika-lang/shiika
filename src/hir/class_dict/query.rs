@@ -118,8 +118,27 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         v
     }
 
-    /// Return the nearest common ancestor of the classes
-    pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
+    /// Returns the nearest common ancestor of the classes
+    /// Returns `None` if there is no common ancestor except `Object`, the
+    /// top type. However, returns `Some(Object)` when either of the arguments
+    /// is `Object`.
+    pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> Option<TermTy> {
+        let t = self._nearest_common_ancestor(ty1, ty2);
+        let obj = ty::raw("Object");
+        if t == obj {
+            if *ty1 == obj || *ty2 == obj {
+                Some(obj)
+            } else {
+                // No common ancestor found (except `Object`)
+                None
+            }
+        } else {
+            Some(t)
+        }
+    }
+
+    /// Find common ancestor of two types
+    fn _nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
         let ancestors1 = self.ancestor_types(ty1);
         let ancestors2 = self.ancestor_types(ty2);
         for t2 in &ancestors2 {
@@ -142,7 +161,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 return t3.clone();
             }
         }
-        panic!("[BUG] nearest common ancestor type not found");
+        panic!("[BUG] _nearest_common_ancestor not found");
     }
 
     /// Return true if `ty1` conforms to `ty2` i.e.
@@ -343,15 +362,37 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_common_ancestor() -> Result<(), Error> {
+    fn test_nearest_common_ancestor__some() -> Result<(), Error> {
         let src = "";
         test_class_dict(src, |class_dict| {
             let a = ty::raw("Maybe::None");
             let b = ty::spe("Maybe::Some", vec![ty::raw("Int")]);
             let c = class_dict.nearest_common_ancestor(&a, &b);
-            assert_eq!(c, ty::spe("Maybe", vec![ty::raw("Int")]));
+            assert_eq!(c, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
             let d = class_dict.nearest_common_ancestor(&b, &a);
-            assert_eq!(d, ty::spe("Maybe", vec![ty::raw("Int")]));
+            assert_eq!(d, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
+        })
+    }
+
+    #[test]
+    fn test_nearest_common_ancestor__some_object() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let a = ty::raw("Int");
+            let b = ty::raw("Object");
+            let c = class_dict.nearest_common_ancestor(&a, &b);
+            assert_eq!(c, Some(ty::raw("Object")));
+        })
+    }
+
+    #[test]
+    fn test_nearest_common_ancestor__none() -> Result<(), Error> {
+        let src = "";
+        test_class_dict(src, |class_dict| {
+            let a = ty::raw("Int");
+            let b = ty::spe("Array", vec![ty::raw("Int")]);
+            let c = class_dict.nearest_common_ancestor(&a, &b);
+            assert_eq!(c, None);
         })
     }
 }

@@ -10,14 +10,18 @@ use crate::type_checking;
 
 /// Result of looking up a lvar
 #[derive(Debug)]
-enum LVarInfo {
+struct LVarInfo {
+    ty: TermTy,
+    detail: LVarDetail,
+}
+#[derive(Debug)]
+enum LVarDetail {
     /// Found in the current scope
-    CurrentScope { ty: TermTy, name: String },
+    CurrentScope { name: String },
     /// Found in the current method/lambda argument
-    Argument { ty: TermTy, idx: usize },
+    Argument { idx: usize },
     /// Found in outer scope
     OuterScope {
-        ty: TermTy,
         /// Index of the lvar in `captures`
         cidx: usize,
         readonly: bool,
@@ -25,32 +29,23 @@ enum LVarInfo {
 }
 
 impl LVarInfo {
-    /// The type of the lvar
-    fn ty(&self) -> &TermTy {
-        match self {
-            LVarInfo::CurrentScope { ty, .. } => ty,
-            LVarInfo::Argument { ty, .. } => ty,
-            LVarInfo::OuterScope { ty, .. } => ty,
-        }
-    }
-
     /// Returns HirExpression to refer this lvar
     fn ref_expr(&self) -> HirExpression {
-        match self {
-            LVarInfo::CurrentScope { ty, name } => Hir::lvar_ref(ty.clone(), name.clone()),
-            LVarInfo::Argument { ty, idx } => Hir::arg_ref(ty.clone(), *idx),
-            LVarInfo::OuterScope {
-                ty, cidx, readonly, ..
-            } => Hir::lambda_capture_ref(ty.clone(), *cidx, *readonly),
+        match &self.detail {
+            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty.clone(), name.clone()),
+            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty.clone(), *idx),
+            LVarDetail::OuterScope { cidx, readonly } => {
+                Hir::lambda_capture_ref(self.ty.clone(), *cidx, *readonly)
+            }
         }
     }
 
     /// Returns HirExpression to update this lvar
     fn assign_expr(&self, expr: HirExpression) -> HirExpression {
-        match self {
-            LVarInfo::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
-            LVarInfo::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarInfo::OuterScope { cidx, .. } => Hir::lambda_capture_write(*cidx, expr),
+        match &self.detail {
+            LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
+            LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
+            LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(*cidx, expr),
         }
     }
 }
@@ -198,9 +193,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             then_hirs.voidify();
             ty::raw("Void")
         } else {
-            let ty = self
+            let opt_ty = self
                 .class_dict
                 .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
+            let ty = type_checking::check_if_body_ty(opt_ty)?;
             if !then_hirs.ty.equals_to(&ty) {
                 then_hirs = then_hirs.bitcast_to(ty.clone());
             }
@@ -322,9 +318,23 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 name
             )));
         }
-        if let Some(lvar_info) = self._find_var(name, true)? {
+        if let Some(mut lvar_info) = self._find_var(name, true)? {
             // Reassigning
-            type_checking::check_reassign_var(lvar_info.ty(), &expr.ty, name)?;
+            if lvar_info.ty != expr.ty {
+                if let Some(t) = self
+                    .class_dict
+                    .nearest_common_ancestor(&lvar_info.ty, &expr.ty)
+                {
+                    // Upgrade lvar type (eg. from `None` to `Maybe<Int>`)
+                    lvar_info.ty = t;
+                } else {
+                    return Err(type_checking::invalid_reassign_error(
+                        &lvar_info.ty,
+                        &expr.ty,
+                        name,
+                    ));
+                }
+            }
             Ok(lvar_info.assign_expr(expr))
         } else {
             // Create new lvar
@@ -433,7 +443,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
             if let Some(lvar) = self._lookup_var(&method_name.0) {
-                if let Some(ret_ty) = lvar.ty().fn_x_info() {
+                if let Some(ret_ty) = lvar.ty.fn_x_info() {
                     return Ok(Hir::lambda_invocation(ret_ty, lvar.ref_expr(), arg_hirs));
                 }
             }
@@ -657,16 +667,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             name: name.to_string(),
                         },
                     };
-                    let lvar_info = LVarInfo::OuterScope {
+                    let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
-                        cidx,
-                        readonly: false,
+                        detail: LVarDetail::OuterScope {
+                            cidx,
+                            readonly: false,
+                        },
                     };
                     return Ok((Some(lvar_info), Some(cap)));
                 } else {
-                    let lvar_info = LVarInfo::CurrentScope {
+                    let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
-                        name: name.to_string(),
+                        detail: LVarDetail::CurrentScope {
+                            name: name.to_string(),
+                        },
                     };
                     return Ok((Some(lvar_info), None));
                 }
@@ -684,16 +698,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ty: param.ty.clone(),
                         detail: LambdaCaptureDetail::CapFnArg { idx },
                     };
-                    let lvar_info = LVarInfo::OuterScope {
+                    let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
-                        cidx,
-                        readonly: true,
+                        detail: LVarDetail::OuterScope {
+                            cidx,
+                            readonly: true,
+                        },
                     };
                     return Ok((Some(lvar_info), Some(cap)));
                 } else {
-                    let lvar_info = LVarInfo::Argument {
+                    let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
-                        idx,
+                        detail: LVarDetail::Argument { idx },
                     };
                     return Ok((Some(lvar_info), None));
                 }
@@ -895,7 +911,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         };
 
         for expr in &item_exprs {
-            item_ty = self.class_dict.nearest_common_ancestor(&item_ty, &expr.ty);
+            item_ty = self
+                .class_dict
+                .nearest_common_ancestor(&item_ty, &expr.ty)
+                .expect("array literal elements type mismatch");
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
 
