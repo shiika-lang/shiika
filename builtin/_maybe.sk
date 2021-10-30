@@ -1,3 +1,5 @@
+# TODO: Rename to `maybe.sk` after `require` is implemented
+
 enum Maybe<V>
   case Some(value: V)
   case None
