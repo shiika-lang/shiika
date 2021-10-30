@@ -79,7 +79,9 @@ fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
     let mut files = vec![];
     for entry in dir {
         let pathbuf = entry?.path();
-        let path = pathbuf.to_str().ok_or_else(|| plain_runner_error("Filename not utf8"))?;
+        let path = pathbuf
+            .to_str()
+            .ok_or_else(|| plain_runner_error("Filename not utf8"))?;
         files.push(path.to_string());
     }
     files.sort();
@@ -88,7 +90,12 @@ fn load_builtin() -> Result<String, Box<dyn std::error::Error>> {
             //dbg!(&path);
             match fs::read_to_string(&path) {
                 Ok(src) => s += &src,
-                Err(e) => return Err(Box::new(runner_error(format!("failed to load {}", path), Box::new(e)))),
+                Err(e) => {
+                    return Err(Box::new(runner_error(
+                        format!("failed to load {}", path),
+                        Box::new(e),
+                    )))
+                }
             }
         }
     }
