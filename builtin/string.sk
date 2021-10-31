@@ -72,7 +72,7 @@ class String
   end
 
   # Return true if `self` ends with `s`
-  def ends_with(s: String) -> Bool
+  def ends_with?(s: String) -> Bool
     if s.bytesize > @bytesize
       false
     else
@@ -88,7 +88,7 @@ class String
   end
 
   # Return true if `self` contains nothing
-  def is_empty -> Bool
+  def empty? -> Bool
     @bytesize == 0
   end
 
@@ -155,7 +155,7 @@ class String
   end
 
   # Return true if `self` starts with `s`
-  def starts_with(s: String) -> Bool
+  def starts_with?(s: String) -> Bool
     if s.bytesize > @bytesize
       false
     else

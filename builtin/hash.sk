@@ -42,7 +42,7 @@ class Hash<K, V>
     end
 
     # Return true if `self` has `key` (compared with `==`)
-    def has_key(key: KK) -> Bool
+    def has_key?(key: KK) -> Bool
       var ret = false
       @pairs.each do |pair: Pair<KK, VV>|
         if pair.fst == key
@@ -92,8 +92,8 @@ class Hash<K, V>
   end
 
   # Return true if `self` has `key` (compared with `==`)
-  def has_key(key: K) -> Bool
-    _table(key).has_key(key)
+  def has_key?(key: K) -> Bool
+    _table(key).has_key?(key)
   end
 
   # Return list of the keys
