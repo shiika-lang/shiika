@@ -660,7 +660,9 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_method_chain");
         // .
+        self.set_lexer_state(LexerState::MethodName);
         assert!(self.consume(Token::Dot)?);
+        self.set_lexer_state(LexerState::ExprEnd);
         self.skip_wsn()?;
 
         // Method name

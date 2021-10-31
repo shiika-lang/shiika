@@ -75,7 +75,7 @@ class Array<T>
   end
 
   # Return true if `f` returns true for all element of `self`
-  def all(f: Fn1<T, Bool>) -> Bool
+  def all?(f: Fn1<T, Bool>) -> Bool
     var ret = true
     each do |item: T|
       ret = false unless f(item)
@@ -84,7 +84,7 @@ class Array<T>
   end
 
   # Return true if `f` returns true for an element of `self`
-  def any(f: Fn1<T, Bool>) -> Bool
+  def any?(f: Fn1<T, Bool>) -> Bool
     var ret = false
     each do |item: T|
       ret = true if f(item)
@@ -133,7 +133,7 @@ class Array<T>
 
   # Returns the first element, unless `self` is empty.
   def first -> Maybe<T>
-    if self.is_empty
+    if self.empty?
       None
     else
       Some<T>.new(self[0])
@@ -158,7 +158,7 @@ class Array<T>
   end
 
   # Return true if `self` contains `item` (compared by `==`)
-  def includes(item: T) -> Bool
+  def includes?(item: T) -> Bool
     var ret = false
     each do |x: T|
       if x == item; ret = true; end
@@ -184,17 +184,8 @@ class Array<T>
   end
 
   # Return true if `self` has no elements
-  def is_empty -> Bool
+  def empty? -> Bool
     @n_items == 0
-  end
-
-  # Return true if `f` returned true for all items
-  def is_all(f: Fn1<T, Bool>) -> Bool
-    var ret = true
-    each do |x: T|
-      unless f(x); ret = false; end
-    end
-    ret
   end
 
   # Create a string by joining all items with separator.
@@ -236,7 +227,7 @@ class Array<T>
   end
 
   # Return true if `f` returns false for all element of `self`
-  def none(f: Fn1<T, Bool>) -> Bool
+  def none?(f: Fn1<T, Bool>) -> Bool
     var ret = true
     each do |item: T|
       ret = false if f(item)
@@ -339,7 +330,7 @@ class Array<T>
   # Destructively sort elements of `self`.
   # Panics if `T` does not implement `==` and `<`
   def sort_inplace()
-    if self.is_empty
+    if self.empty?
       # do nothing
     else
       _quicksort(0, @n_items - 1)

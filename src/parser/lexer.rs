@@ -330,7 +330,7 @@ impl<'a> Lexer<'a> {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
                     next_cur.proceed(self.src);
                 }
-                CharType::Symbol if (c == Some('=')) => {
+                CharType::Symbol if (c == Some('=') || c == Some('?')) => {
                     if self.state == LexerState::MethodName {
                         next_cur.proceed(self.src);
                     }
