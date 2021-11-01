@@ -4,7 +4,6 @@ use crate::Parser;
 use shiika_ast;
 use shiika_ast::*;
 use shiika_core::names::*;
-use shiika_core::ty::{TyParam, Variance};
 
 impl<'a> Parser<'a> {
     pub fn parse_definitions(&mut self) -> Result<Vec<shiika_ast::Definition>, Error> {
@@ -346,7 +345,7 @@ impl<'a> Parser<'a> {
     // Parse type parameters of a class or a method
     // - `class Foo<A, B, C>`
     // - `def foo<A, B, C>( ... )`
-    fn parse_opt_typarams(&mut self) -> Result<Vec<TyParam>, Error> {
+    fn parse_opt_typarams(&mut self) -> Result<Vec<AstTyParam>, Error> {
         if !self.current_token_is(Token::LessThan) {
             return Ok(Default::default());
         }
@@ -363,12 +362,12 @@ impl<'a> Parser<'a> {
                 }
                 Token::UpperWord(s) => {
                     let v = match variance {
-                        None => Variance::Invariant,
-                        Some(Token::KwOut) => Variance::Covariant,
-                        Some(Token::KwIn) => Variance::Contravariant,
+                        None => AstVariance::Invariant,
+                        Some(Token::KwOut) => AstVariance::Covariant,
+                        Some(Token::KwIn) => AstVariance::Contravariant,
                         _ => panic!("[BUG] unexpected variance token"),
                     };
-                    typarams.push(TyParam {
+                    typarams.push(AstTyParam {
                         name: s.to_string(),
                         variance: v,
                     });
