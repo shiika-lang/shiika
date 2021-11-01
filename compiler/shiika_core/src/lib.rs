@@ -1,2 +1,2 @@
-mod ty;
-mod names;
+pub mod ty;
+pub mod names;
