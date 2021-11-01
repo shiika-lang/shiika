@@ -1,5 +1,5 @@
 [package]
-name = "ast"
+name = "shiika_ast"
 version = "0.1.0"
 edition = "2018"
 
