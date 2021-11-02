@@ -1,6 +1,5 @@
 mod token;
 pub use crate::token::Token;
-use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 
 #[derive(Debug, PartialEq)]
@@ -57,13 +56,13 @@ pub struct AstMethodSignature {
 }
 
 /// A type parameter
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AstTyParam {
     pub name: String,
     pub variance: AstVariance,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AstVariance {
     Invariant,
     Covariant,     // eg. `in T`
