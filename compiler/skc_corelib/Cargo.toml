@@ -1,0 +1,11 @@
+[package]
+name = "skc_corelib"
+version = "0.1.0"
+authors = ["Yutaka HARA <yutaka.hara+github@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+shiika_core = { path = "../shiika_core" }
+shiika_parser = { path = "../shiika_parser" }
+skc_hir2ll = { path = "../skc_hir2ll" }
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
