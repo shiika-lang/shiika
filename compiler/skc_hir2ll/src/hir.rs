@@ -53,14 +53,14 @@ impl SkIVar {
     }
 
     /// Apply type arguments
-    fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
+    pub fn substitute(&self, tyargs: &[TermTy]) -> SkIVar {
         let mut ivar = self.clone();
         ivar.ty = self.ty.substitute(tyargs, &[]);
         ivar
     }
 }
 
-type SkIVars = HashMap<String, SkIVar>;
+pub type SkIVars = HashMap<String, SkIVar>;
 
 pub type HirLVars = Vec<(String, TermTy)>;
 

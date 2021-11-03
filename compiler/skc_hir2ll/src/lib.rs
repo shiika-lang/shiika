@@ -1,4 +1,4 @@
-mod code_gen;
-mod hir;
+pub mod code_gen;
+pub mod hir;
 mod library;
-mod mir;
+pub mod mir;
