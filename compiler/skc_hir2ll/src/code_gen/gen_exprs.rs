@@ -1,10 +1,10 @@
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::values::*;
 use crate::code_gen::*;
-use crate::error::Error;
 use crate::hir::pattern_match;
 use crate::hir::HirExpressionBase::*;
 use crate::hir::*;
+use anyhow::Result;
 use inkwell::values::*;
 use shiika_core::{names::*, ty, ty::*};
 use std::convert::TryFrom;
@@ -29,7 +29,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir HirExpressions,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         debug_assert!(!exprs.exprs.is_empty());
         let mut last_value = None;
         for expr in &exprs.exprs {
@@ -48,7 +48,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         match &expr.node {
             HirLogicalNot { expr } => self.gen_logical_not(ctx, expr),
             HirLogicalAnd { left, right } => self.gen_logical_and(ctx, left, right),
@@ -127,7 +127,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         if let Some(b) = self.gen_expr(ctx, expr)? {
             let i = self.unbox_bool(b);
             let b2 = self.builder.build_not(i, "b2");
@@ -142,7 +142,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "AndBegin");
         let more_block = self.context.append_basic_block(ctx.function, "AndMore");
         let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
@@ -175,7 +175,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "OrBegin");
         let else_block = self.context.append_basic_block(ctx.function, "OrElse");
         let merge_block = self.context.append_basic_block(ctx.function, "OrEnd");
@@ -210,7 +210,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         cond_expr: &'hir HirExpression,
         then_exprs: &'hir HirExpressions,
         else_exprs: &'hir HirExpressions,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
@@ -259,7 +259,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         result_ty: &TermTy,
         cond_assign_expr: &'hir HirExpression,
         clauses: &'hir [pattern_match::MatchClause],
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let n_clauses = clauses.len();
         let begin_block = self.context.append_basic_block(ctx.function, "MatchBegin");
         let clause_blocks = (1..=n_clauses)
@@ -322,7 +322,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         clause: &'hir pattern_match::MatchClause,
         skip_block: inkwell::basic_block::BasicBlock,
         result_ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         for component in &clause.components {
             match component {
                 pattern_match::Component::Test(expr) => {
@@ -347,7 +347,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         cond_expr: &'hir HirExpression,
         body_exprs: &'hir HirExpressions,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
         self.builder.build_unconditional_branch(begin_block);
         // WhileBegin:
@@ -375,7 +375,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         from: &HirBreakFrom,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         match from {
             HirBreakFrom::While => match &ctx.current_loop_end {
                 Some(b) => {
@@ -403,7 +403,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         arg: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let value = self.gen_expr(ctx, arg)?.unwrap();
         // Jump to the end of the llvm func
         self.builder
@@ -418,7 +418,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         rhs: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let value = self.gen_expr(ctx, rhs)?.unwrap();
         let ptr = ctx
             .lvars
@@ -435,7 +435,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: &usize,
         rhs: &'hir HirExpression,
         self_ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let object = self.gen_self_expression(ctx, self_ty);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
         self.build_ivar_store(&object, *idx, value.clone(), name);
@@ -447,7 +447,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         fullname: &ConstFullname,
         rhs: &'hir HirExpression,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let value = self.gen_expr(ctx, rhs)?.unwrap();
         let ptr = self
             .module
@@ -466,7 +466,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
         let mut arg_values = vec![];
@@ -547,7 +547,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         lambda_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let lambda_obj = self.gen_expr(ctx, lambda_expr)?.unwrap();
         let n_args = arg_exprs.len();
 
@@ -765,7 +765,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir [HirExpression],
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let ary = self.call_method_func(
             "Meta:Array#new",
             self.gen_const_ref(&toplevel_const("Array")),
@@ -874,7 +874,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx_in_captures: &usize,
         rhs: &'hir HirExpression,
         ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         let block = self
             .context
             .append_basic_block(ctx.function, &format!("CaptureWrite_{}th", idx_in_captures));
@@ -914,7 +914,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
         ty: &TermTy,
-    ) -> Result<Option<SkObj<'run>>, Error> {
+    ) -> Result<Option<SkObj<'run>>> {
         if let Some(obj) = self.gen_expr(ctx, expr)? {
             if expr.ty.equals_to(ty) {
                 // No bitcast needed

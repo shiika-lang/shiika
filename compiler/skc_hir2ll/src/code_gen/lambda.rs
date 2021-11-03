@@ -1,7 +1,7 @@
 use crate::code_gen::*;
-use crate::error::Error;
 use crate::hir::HirExpressionBase::*;
 use crate::hir::*;
+use anyhow::Result;
 use either::Either::*;
 use shiika_core::ty::*;
 
@@ -9,7 +9,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Find all lambdas in a hir and create the body of the corresponding llvm function
     /// PERF: Ideally they should be created during gen_methods but I couldn't
     /// avoid borrow checker errors.
-    pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<(), Error> {
+    pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<()> {
         for methods in hir.sk_methods.values() {
             for method in methods {
                 if let SkMethodBody::ShiikaMethodBody { exprs } = &method.body {
@@ -26,14 +26,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         Ok(())
     }
 
-    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir [HirExpression]) -> Result<(), Error> {
+    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir [HirExpression]) -> Result<()> {
         for expr in exprs {
             self.gen_lambda_funcs_in_expr(expr)?;
         }
         Ok(())
     }
 
-    fn gen_lambda_funcs_in_expr(&self, expr: &'hir HirExpression) -> Result<(), Error> {
+    fn gen_lambda_funcs_in_expr(&self, expr: &'hir HirExpression) -> Result<()> {
         match &expr.node {
             HirLogicalNot { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirLogicalAnd { left, right } => {
@@ -131,7 +131,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir HirExpressions,
         ret_ty: &TermTy,
         lvars: &[(String, TermTy)],
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.gen_llvm_func_body(func_name, params, Right(exprs), lvars, ret_ty, true)
     }
 }

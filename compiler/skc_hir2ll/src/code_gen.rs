@@ -7,11 +7,11 @@ pub mod values;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_const_name;
 use crate::code_gen::values::*;
-use crate::error::Error;
 use crate::hir::*;
 use crate::library::LibraryExports;
 use crate::mir;
 use crate::mir::*;
+use anyhow::{anyhow, Result};
 use either::*;
 use inkwell::types::*;
 use inkwell::values::*;
@@ -57,7 +57,7 @@ pub fn run(
     opt_ll_path: Option<&str>,
     generate_main: bool,
     opt_target_triple: Option<&inkwell::targets::TargetTriple>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     if let Some(triple) = opt_target_triple {
@@ -70,7 +70,8 @@ pub fn run(
     if let Some(ll_path) = opt_ll_path {
         code_gen
             .module
-            .print_to_file(ll_path)?;
+            .print_to_file(ll_path)
+            .map_err(|llvm_str| anyhow!("{}", llvm_str.to_string()))?;
     }
     Ok(())
 }
@@ -103,7 +104,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<(), Error> {
+    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<()> {
         self.gen_declares();
         self.define_class_class();
         self.gen_imports(imports);
@@ -323,7 +324,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &mut self,
         main_exprs: &'hir HirExpressions,
         main_lvars: &'hir HirLVars,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
@@ -456,7 +457,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Define `void @"init_::XX"`
-    fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<(), Error> {
+    fn gen_const_inits(&self, const_inits: &'hir [HirExpression]) -> Result<()> {
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
@@ -526,10 +527,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(
-        &self,
-        methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>,
-    ) -> Result<(), Error> {
+    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<()> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -537,7 +535,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         })
     }
 
-    fn gen_method(&self, method: &'hir SkMethod) -> Result<(), Error> {
+    fn gen_method(&self, method: &'hir SkMethod) -> Result<()> {
         let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(
             func_name,
@@ -559,7 +557,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvars: &[(String, TermTy)],
         ret_ty: &TermTy,
         is_lambda: bool,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         // LLVM function
         // (Function for lambdas are created in gen_lambda_expr)
         let function = self.get_llvm_func(func_name);
@@ -642,7 +640,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
         let (last_value, last_value_block) = if let Some(v) = self.gen_exprs(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");

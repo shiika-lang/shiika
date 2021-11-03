@@ -4,6 +4,7 @@ mod sk_class;
 mod superclass;
 pub use crate::hir::signature::*;
 pub use crate::hir::sk_class::SkClass;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
@@ -87,12 +88,10 @@ impl std::fmt::Debug for SkMethodBody {
 pub type GenMethodBody = fn(
     code_gen: &crate::code_gen::CodeGen,
     function: &inkwell::values::FunctionValue,
-) -> Result<(), crate::error::Error>;
+) -> Result<()>;
 
-pub type ClosureMethodBody = dyn Fn(
-    &crate::code_gen::CodeGen,
-    &inkwell::values::FunctionValue,
-) -> Result<(), crate::error::Error>;
+pub type ClosureMethodBody =
+    dyn Fn(&crate::code_gen::CodeGen, &inkwell::values::FunctionValue) -> Result<()>;
 
 #[derive(Debug, Clone)]
 pub struct HirExpressions {
