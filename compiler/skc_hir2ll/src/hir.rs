@@ -1,9 +1,10 @@
 pub mod pattern_match;
-mod signature;
+pub mod signature;
 mod sk_class;
 mod superclass;
 pub use crate::hir::signature::*;
 pub use crate::hir::sk_class::SkClass;
+pub use crate::hir::superclass::Superclass;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
@@ -125,6 +126,7 @@ impl HirExpressions {
         self
     }
 }
+
 /// Make a HirExpression to refer `::Void`
 fn void_const_ref() -> HirExpression {
     Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
