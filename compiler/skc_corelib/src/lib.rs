@@ -10,6 +10,7 @@ mod object;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
 mod void;
+use shiika_ast;
 use shiika_core::{names::*, ty};
 use shiika_parser;
 use skc_hir2ll::hir::*;
@@ -243,7 +244,7 @@ fn create_method_generic(
         fullname: method_fullname(&class_fullname(class_name), &ast_sig.name.0),
         ret_ty,
         params,
-        typarams: ast_sig.typarams,
+        typarams: ast_sig.typarams(),
     };
     SkMethod {
         signature: sig,
@@ -255,7 +256,7 @@ fn create_method_generic(
 fn _convert_typ(
     typ: &ConstName,
     class_typarams: &[String],
-    method_typarams: &[ty::TyParam],
+    method_typarams: &[shiika_ast::AstTyParam],
 ) -> ty::TermTy {
     let s = typ.names.join("::");
     if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
