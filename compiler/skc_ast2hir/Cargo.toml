@@ -6,6 +6,7 @@ edition = "2018"
 [dependencies]
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
+skc_corelib = { path = "../skc_corelib" }
 skc_hir2ll = { path = "../skc_hir2ll" }
 anyhow = "1.0"
 thiserror = "1.0"

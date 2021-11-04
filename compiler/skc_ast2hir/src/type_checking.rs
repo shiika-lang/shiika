@@ -1,4 +1,5 @@
-use crate::error;
+use crate::class_dict::ClassDict;
+use crate::error::Error;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
 use skc_hir2ll::{hir, hir::*};

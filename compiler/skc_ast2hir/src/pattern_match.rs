@@ -7,16 +7,6 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir2ll::hir::pattern_match::{Component, MatchClause};
 use skc_hir2ll::hir::*;
 
-impl MatchClause {
-    // Destructively bitcast body_hir
-    fn bitcast_body(&mut self, ty: TermTy) {
-        let mut tmp = Hir::expressions(Default::default());
-        std::mem::swap(&mut tmp, &mut self.body_hir);
-        tmp = tmp.bitcast_to(ty);
-        std::mem::swap(&mut tmp, &mut self.body_hir);
-    }
-}
-
 //match f(g(h))
 //when Some(a)
 //  body
@@ -119,11 +109,19 @@ fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy> 
         }
         for c in clauses.iter_mut() {
             if !c.body_hir.ty.equals_to(&ty) {
-                c.bitcast_body(ty.clone());
+                bitcast_match_clause_body(c, ty.clone());
             }
         }
         Ok(ty)
     }
+}
+
+/// Destructively bitcast body_hir
+fn bitcast_match_clause_body(&mut c: MatchClause, ty: TermTy) {
+    let mut tmp = Hir::expressions(Default::default());
+    std::mem::swap(&mut tmp, &mut c.body_hir);
+    tmp = tmp.bitcast_to(ty);
+    std::mem::swap(&mut tmp, &mut c.body_hir);
 }
 
 fn collect_lvars(clauses: &[MatchClause]) -> Vec<(String, TermTy)> {
