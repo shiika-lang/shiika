@@ -39,6 +39,6 @@ jobs:
       - name: Build and test
         run: |
           set -eux
-          cd src/rustlib; cargo build; cd ../../
+          cd lib/rustlib; cargo build; cd ../../
           env -- LLC=llc-12 CLANG=clang-12 cargo run -- build_corelib
           env -- LLC=llc-12 CLANG=clang-12 cargo test
