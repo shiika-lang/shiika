@@ -2,7 +2,7 @@
 *.out
 /builtin/builtin.bc
 /builtin/exports.json
-/compiler/*/Cargo.lock
+/lib/*/Cargo.lock
 /coverage
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
