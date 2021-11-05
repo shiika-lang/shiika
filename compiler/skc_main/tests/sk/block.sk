@@ -1,0 +1,34 @@
+var result = 0
+class A
+  def self.one(f: Fn1<Int,Int>) -> Int
+    f(1)
+  end
+end
+
+# TODO #172
+#A.one do |i: Int| result = 2 end
+#unless result == 2; puts "do/oneline"; end
+#
+#A.one do |i: Int|
+#  putd i
+#  result = 3
+#end
+#unless result == 3; puts "do/multiline"; end
+
+result = A.one do |i: Int| i + 1 end
+unless result == 2; puts "assignment rhs/do/oneline"; end
+
+result = A.one{|i: Int| i + 1}
+unless result == 2; puts "assignment rhs/brace/oneline"; end
+
+result = A.one do |i: Int|
+  i + 1
+end
+unless result == 2; puts "assignment rhs/do/multiline"; end
+
+result = A.one{|i: Int|
+  i + 1
+}
+unless result == 2; puts "assignment rhs/brace/multiline"; end
+
+puts "ok"

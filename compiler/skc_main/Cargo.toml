@@ -1,0 +1,18 @@
+[package]
+name = "skc_main"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+shiika_parser = { path = "../shiika_parser" }
+skc_ast2hir = { path = "../skc_ast2hir" }
+skc_hir2ll = { path = "../skc_hir2ll" }
+skc_corelib = { path = "../skc_corelib" }
+anyhow = "1.0"
+clap = { version = "3.0.0-beta.2", features = ["yaml"] }
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
+log = "0.4.11"
+env_logger = "0.8.2"
+serde = { version = "1.0.125", features = ["derive"] }
+serde_json = "1.0"
+mac-sys-info = "0.1.13"

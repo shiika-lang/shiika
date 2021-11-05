@@ -1,0 +1,30 @@
+class Helper
+  def self.void; end
+end
+
+# Void + Never
+a = if true
+      Helper.void # Void
+    else
+      panic "" # Never
+    end
+
+# Never + Never
+class A
+  def foo
+    if true
+      panic ""
+    else
+      panic ""
+    end
+  end
+end
+
+# String + Object
+b = if true
+      ""
+    else
+      Object.new
+    end
+
+puts "ok"

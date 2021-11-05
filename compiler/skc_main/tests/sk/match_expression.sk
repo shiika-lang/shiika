@@ -1,0 +1,19 @@
+class A
+  def self.foo -> Maybe<Int>
+    if true
+      Some<Int>.new(99)
+    else
+      None
+    end
+  end
+end
+
+a = match A.foo
+when Some(n)
+  n
+else
+  0
+end
+unless a == 99; puts "failed"; end
+
+puts "ok"
