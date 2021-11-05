@@ -1,4 +1,4 @@
-use crate::class_dict::{self, ClassDict};
+use crate::class_dict::ClassDict;
 use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
@@ -8,10 +8,8 @@ use crate::type_checking;
 use anyhow::Result;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_corelib::Corelib;
 use skc_hir2ll::code_gen::CodeGen;
 use skc_hir2ll::hir::*;
-use skc_hir2ll::library::LibraryExports;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -36,31 +34,8 @@ pub struct HirMaker<'hir_maker> {
     pub(super) gensym_ct: usize,
 }
 
-pub fn make_hir(
-    ast: shiika_ast::Program,
-    corelib: Option<Corelib>,
-    imports: &LibraryExports,
-) -> Result<Hir> {
-    let (core_classes, core_methods) = if let Some(c) = corelib {
-        (c.sk_classes, c.sk_methods)
-    } else {
-        (Default::default(), Default::default())
-    };
-    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
-    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
-    hir_maker.define_class_constants();
-    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
-    let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
-
-    // While corelib classes are included in `class_dict`,
-    // corelib methods are not. Here we need to add them manually
-    hir.add_methods(core_methods);
-
-    Ok(hir)
-}
-
 impl<'hir_maker> HirMaker<'hir_maker> {
-    fn new(
+    pub fn new(
         class_dict: ClassDict<'hir_maker>,
         imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
     ) -> HirMaker<'hir_maker> {
@@ -78,7 +53,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Destructively convert self to Hir
-    fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
+    pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_classes = std::mem::take(&mut self.class_dict.sk_classes);
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
@@ -104,7 +79,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// eg.
     /// - ::Int
     /// - ::Meta:Int
-    fn define_class_constants(&mut self) {
+    pub fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             let resolved = ResolvedConstName::unsafe_create(name);
             if const_is_obj {
@@ -131,7 +106,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_toplevel_items(
+    pub fn convert_toplevel_items(
         &mut self,
         items: &[shiika_ast::TopLevelItem],
     ) -> Result<(HirExpressions, HirLVars)> {
