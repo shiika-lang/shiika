@@ -1,0 +1,11 @@
+[package]
+name = "rustlib"
+version = "0.1.0"
+authors = ["Yutaka HARA <yutaka.hara+github@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+bdwgc-alloc = "0.6.0"
