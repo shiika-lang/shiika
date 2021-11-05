@@ -3,6 +3,7 @@ use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
 use crate::method_dict::MethodDict;
+use crate::parse_typarams;
 use crate::type_checking;
 use anyhow::Result;
 use shiika_ast::*;
@@ -163,14 +164,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 defs,
                 ..
             } => {
-                self.process_class_def(&namespace, name, typarams.clone(), defs)?;
+                self.process_class_def(&namespace, name, parse_typarams(typarams), defs)?;
             }
             shiika_ast::Definition::EnumDefinition {
                 name,
                 typarams,
                 cases,
                 defs,
-            } => self.process_enum_def(&namespace, name, typarams.clone(), cases, defs)?,
+            } => self.process_enum_def(&namespace, name, parse_typarams(typarams), cases, defs)?,
             shiika_ast::Definition::ConstDefinition { name, expr } => {
                 self.register_toplevel_const(name, expr)?;
             }
@@ -238,15 +239,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     defs,
                     typarams,
                     ..
-                } => self.process_class_def(&inner_namespace, name, typarams.clone(), defs)?,
+                } => {
+                    self.process_class_def(&inner_namespace, name, parse_typarams(typarams), defs)?
+                }
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
                     defs,
-                } => {
-                    self.process_enum_def(&inner_namespace, name, typarams.clone(), cases, defs)?
-                }
+                } => self.process_enum_def(
+                    &inner_namespace,
+                    name,
+                    parse_typarams(typarams),
+                    cases,
+                    defs,
+                )?,
             }
         }
         self.ctx_stack.pop_class_ctx();

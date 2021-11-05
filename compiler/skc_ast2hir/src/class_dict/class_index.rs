@@ -1,10 +1,11 @@
+use crate::parse_typarams;
 use shiika_ast;
-use shiika_core::{names::*, ty, ty::*};
+use shiika_core::{names::*, ty};
 use skc_hir2ll::hir::*;
 use std::collections::HashMap;
 
 /// Set of pair of class name and its typaram names
-pub type ClassIndex = HashMap<ClassFullname, Vec<TyParam>>;
+pub type ClassIndex = HashMap<ClassFullname, Vec<ty::TyParam>>;
 
 /// Collect class names in the program
 pub fn create(
@@ -34,13 +35,13 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::De
                 typarams,
                 defs,
                 ..
-            } => index_class(cindex, &namespace, name, typarams, defs),
+            } => index_class(cindex, &namespace, name, parse_typarams(typarams), defs),
             shiika_ast::Definition::EnumDefinition {
                 name,
                 typarams,
                 cases,
                 ..
-            } => index_enum(cindex, &namespace, name, typarams, cases),
+            } => index_enum(cindex, &namespace, name, parse_typarams(typarams), cases),
             _ => (),
         }
     }
@@ -50,11 +51,11 @@ fn index_class(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
     firstname: &ClassFirstname,
-    typarams: &[ty::TyParam],
+    typarams: Vec<ty::TyParam>,
     defs: &[shiika_ast::Definition],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname, typarams.to_vec());
+    cindex.insert(fullname, typarams);
     let inner_namespace = namespace.add(firstname);
     for def in defs {
         match def {
@@ -64,7 +65,13 @@ fn index_class(
                 defs,
                 ..
             } => {
-                index_class(cindex, &inner_namespace, name, typarams, defs);
+                index_class(
+                    cindex,
+                    &inner_namespace,
+                    name,
+                    parse_typarams(typarams),
+                    defs,
+                );
             }
             shiika_ast::Definition::EnumDefinition {
                 name,
@@ -72,7 +79,13 @@ fn index_class(
                 cases,
                 ..
             } => {
-                index_enum(cindex, &inner_namespace, name, typarams, cases);
+                index_enum(
+                    cindex,
+                    &inner_namespace,
+                    name,
+                    parse_typarams(typarams),
+                    cases,
+                );
             }
             _ => (),
         }
@@ -83,7 +96,7 @@ fn index_enum(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
     firstname: &ClassFirstname,
-    typarams: &[ty::TyParam],
+    typarams: Vec<ty::TyParam>,
     cases: &[shiika_ast::EnumCase],
 ) {
     let fullname = namespace.class_fullname(firstname);

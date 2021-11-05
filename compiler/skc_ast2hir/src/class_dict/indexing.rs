@@ -1,5 +1,6 @@
 use crate::class_dict::*;
 use crate::error;
+use crate::parse_typarams;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::{names::*, ty, ty::*};
@@ -33,13 +34,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     typarams,
                     superclass,
                     defs,
-                } => self.index_class(&namespace, name, typarams, superclass, defs)?,
+                } => {
+                    self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
+                }
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
                     cases,
                     defs,
-                } => self.index_enum(&namespace, name, typarams, cases, defs)?,
+                } => self.index_enum(&namespace, name, parse_typarams(typarams), cases, defs)?,
                 shiika_ast::Definition::ConstDefinition { .. } => (),
                 _ => {
                     return Err(error::syntax_error(&format!(
@@ -56,14 +59,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: &[ty::TyParam],
+        typarams: Vec<ty::TyParam>,
         ast_superclass: &Option<ConstName>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
         let superclass = if let Some(name) = ast_superclass {
-            let ty = self._resolve_typename(namespace, typarams, Default::default(), name)?;
+            let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
 
             if self.get_class(&ty.erasure()).is_final.unwrap() {
                 return Err(error::program_error(&format!("cannot inherit from {}", ty)));
@@ -77,14 +80,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             Some(signature::signature_of_new(
                 &metaclass_fullname,
-                self._initializer_params(namespace, typarams, &superclass, defs)?,
-                &ty::return_type_of_new(&fullname, typarams),
+                self._initializer_params(namespace, &typarams, &superclass, defs)?,
+                &ty::return_type_of_new(&fullname, &typarams),
             ))
         };
 
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
-            self.index_defs_in_class(&inner_namespace, &fullname, typarams, defs)?;
+            self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
         match self.sk_classes.get_mut(&fullname) {
             Some(class) => {
@@ -108,7 +111,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             None => self.add_new_class(
                 &fullname,
-                typarams,
+                &typarams,
                 superclass,
                 new_sig,
                 instance_methods,
@@ -148,17 +151,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: &[ty::TyParam],
+        typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
-            self.index_defs_in_class(&inner_namespace, &fullname, typarams, defs)?;
+            self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
         self.add_new_class(
             &fullname,
-            typarams,
+            &typarams,
             Superclass::simple("Object"),
             None,
             instance_methods,
@@ -167,7 +170,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             false,
         );
         for case in cases {
-            self.index_enum_case(namespace, &fullname, typarams, case)?;
+            self.index_enum_case(namespace, &fullname, &typarams, case)?;
         }
 
         Ok(())
@@ -260,7 +263,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    self.index_class(namespace, name, typarams, superclass, defs)?;
+                    self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -268,7 +271,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     cases,
                     defs,
                 } => {
-                    self.index_enum(namespace, name, typarams, cases, defs)?;
+                    self.index_enum(namespace, name, parse_typarams(typarams), cases, defs)?;
                 }
             }
         }
@@ -327,17 +330,23 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
+        let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(class_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
-            self._resolve_typename(namespace, class_typarams, &sig.typarams, typ)?
+            self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
         };
         Ok(MethodSignature {
             fullname,
             ret_ty,
-            params: self.convert_params(namespace, &sig.params, class_typarams, &sig.typarams)?,
-            typarams: sig.typarams.clone(),
+            params: self.convert_params(
+                namespace,
+                &sig.params,
+                class_typarams,
+                &method_typarams,
+            )?,
+            typarams: method_typarams,
         })
     }
 

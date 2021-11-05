@@ -117,7 +117,7 @@ fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy> 
 }
 
 /// Destructively bitcast body_hir
-fn bitcast_match_clause_body(&mut c: MatchClause, ty: TermTy) {
+fn bitcast_match_clause_body(c: &mut MatchClause, ty: TermTy) {
     let mut tmp = Hir::expressions(Default::default());
     std::mem::swap(&mut tmp, &mut c.body_hir);
     tmp = tmp.bitcast_to(ty);

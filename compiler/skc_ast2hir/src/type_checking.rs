@@ -1,5 +1,4 @@
 use crate::class_dict::ClassDict;
-use crate::error::Error;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
 use skc_hir2ll::{hir, hir::*};
@@ -87,13 +86,14 @@ pub fn check_return_arg_type(
     }
 }
 
-pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> Error {
+pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> anyhow::Error {
     type_error!(
         "variable {} is {:?} but tried to assign a {:?}",
         name,
         orig_ty,
         new_ty
     )
+    .into()
 }
 
 /// Check argument types of a method call
