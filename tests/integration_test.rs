@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use skc_main::runner;
+use shiika::runner;
 use std::env;
 use std::fs;
 

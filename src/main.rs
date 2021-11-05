@@ -1,8 +1,6 @@
 use anyhow::Result;
 use clap::load_yaml;
-use skc_main::runner;
-//#[macro_use]
-//extern crate clap;
+use shiika::runner;
 
 fn main() -> Result<()> {
     env_logger::init();

@@ -25,7 +25,7 @@ end
 task :default => :test
 
 task :test do
-  cd "src/rustlib" do
+  cd "lib/rustlib" do
     sh "cargo build"
   end
   sh "cargo run -- build_corelib"
@@ -34,10 +34,10 @@ end
 
 RUST_FILES = Dir["src/**/*.rs"]
 
-RUSTLIB_FILES = Dir["src/rustlib/src/**/*.rs"] + ["src/rustlib/Cargo.toml"]
-RUSTLIB_A = "src/rustlib/target/debug/librustlib.a"
+RUSTLIB_FILES = Dir["lib/rustlib/src/**/*.rs"] + ["lib/rustlib/Cargo.toml"]
+RUSTLIB_A = "lib/rustlib/target/debug/librustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
-  cd "src/rustlib" do
+  cd "lib/rustlib" do
     sh "cargo fmt"
     sh "cargo build"
   end
