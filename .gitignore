@@ -3,10 +3,10 @@
 /builtin/builtin.bc
 /builtin/exports.json
 /lib/*/Cargo.lock
+/lib/*/target
 /coverage
 /lib/shiika/parser.ry
 /lib/shiika/parser.rb
 /rusty-tags.vi
-/src/rustlib/target
 /target
 /tests/tmp.*
