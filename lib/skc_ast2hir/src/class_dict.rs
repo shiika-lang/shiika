@@ -5,7 +5,7 @@ mod query;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::names::*;
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {

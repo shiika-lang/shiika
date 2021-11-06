@@ -582,9 +582,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Method body
         match body {
             Left(method_body) => match method_body {
-                SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
-                SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_function_body(
+                SkMethodBody::Normal { exprs } => self.gen_shiika_function_body(
                     function,
                     None,
                     FunctionOrigin::Method,
@@ -592,6 +590,28 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     exprs,
                     lvar_ptrs,
                 )?,
+                SkMethodBody::New {
+                    classname, initialize_name, init_cls_name, arity, const_is_obj } =>
+            self.gen_body_of_new(
+                function.get_params(),
+                &classname,
+                &initialize_name,
+                &init_cls_name,
+                arity,
+                const_is_obj,
+            ),
+                SkMethodBody::Getter { idx, name } => {
+                    let this = self.get_nth_param(function, 0);
+                    let val = self.build_ivar_load(this, idx, &name);
+                    self.build_return(&val);
+                },
+                SkMethodBody::Setter { idx, name } => {
+                    let this = self.get_nth_param(function, 0);
+                    let val = self.get_nth_param(function, 1);
+                    self.build_ivar_store(&this, idx, val, &name);
+                    let val = self.get_nth_param(function, 1);
+                    self.build_return(&val);
+                },
             },
             Right(exprs) => {
                 self.gen_shiika_function_body(

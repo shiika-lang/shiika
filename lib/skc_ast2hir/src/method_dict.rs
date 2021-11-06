@@ -1,5 +1,5 @@
 use shiika_core::names::*;
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 /// Contains all the methods

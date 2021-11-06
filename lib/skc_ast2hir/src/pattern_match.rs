@@ -4,8 +4,8 @@ use crate::hir_maker_context::HirMakerContext;
 use anyhow::Result;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::pattern_match::{Component, MatchClause};
-use skc_hir2ll::hir::*;
+use skc_hir::pattern_match::{Component, MatchClause};
+use skc_hir::*;
 
 //match f(g(h))
 //when Some(a)

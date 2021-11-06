@@ -1,7 +1,7 @@
 use crate::hir_maker_context::*;
 use shiika_core::names::{class_fullname, Namespace};
 use shiika_core::{ty, ty::*};
-use skc_hir2ll::hir::MethodParam;
+use skc_hir::MethodParam;
 use std::collections::HashMap;
 
 #[derive(Debug)]

@@ -75,8 +75,25 @@ pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
 
 #[derive(Debug)]
 pub enum SkMethodBody {
-    ShiikaMethodBody { exprs: HirExpressions },
-    RustMethodBody,
+    Normal { exprs: HirExpressions },
+    /// The method .new
+    New {
+        classname: ClassFullname,
+        initialize_name: MethodFullname,
+        init_cls_name: ClassFullname,
+        arity: usize,
+        const_is_obj: bool,
+    },
+    /// A method that just return the value of `idx`th ivar
+    Getter {
+        idx: usize,
+        name: String,
+    },
+    /// A method that just update the value of `idx`th ivar
+    Setter {
+        idx: usize,
+        name: String,
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
 use crate::class_dict::ClassDict;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
-use skc_hir2ll::{hir, hir::*};
+use skc_hir::*;
 
 macro_rules! type_error {
     ( $( $arg:expr ),* ) => ({
@@ -101,8 +101,8 @@ pub fn check_method_args(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
-    receiver_hir: &hir::HirExpression,
-    arg_hirs: &[hir::HirExpression],
+    receiver_hir: &HirExpression,
+    arg_hirs: &[HirExpression],
 ) -> Result<()> {
     check_method_arity(sig, arg_tys, receiver_hir, arg_hirs)?;
     check_arg_types(class_dict, sig, arg_tys, receiver_hir, arg_hirs)?;
@@ -113,8 +113,8 @@ pub fn check_method_args(
 fn check_method_arity(
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
-    receiver_hir: &hir::HirExpression,
-    arg_hirs: &[hir::HirExpression],
+    receiver_hir: &HirExpression,
+    arg_hirs: &[HirExpression],
 ) -> Result<()> {
     if sig.params.len() != arg_tys.len() {
         return Err(type_error!(
@@ -134,8 +134,8 @@ fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
-    receiver_hir: &hir::HirExpression,
-    arg_hirs: &[hir::HirExpression],
+    receiver_hir: &HirExpression,
+    arg_hirs: &[HirExpression],
 ) -> Result<()> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
         if !class_dict.conforms(arg_ty, &param.ty) {

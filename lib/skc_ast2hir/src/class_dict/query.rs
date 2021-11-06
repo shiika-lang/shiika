@@ -2,7 +2,7 @@ use crate::class_dict::*;
 use crate::error;
 use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method from class name and first name

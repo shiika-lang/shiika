@@ -4,8 +4,8 @@ use crate::parse_typarams;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::signature::*;
-use skc_hir2ll::hir::*;
+use skc_hir::signature::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;

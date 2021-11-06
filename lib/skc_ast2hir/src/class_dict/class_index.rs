@@ -1,7 +1,7 @@
 use crate::parse_typarams;
 use shiika_ast;
 use shiika_core::{names::*, ty};
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 /// Set of pair of class name and its typaram names

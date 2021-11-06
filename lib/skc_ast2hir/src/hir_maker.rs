@@ -8,8 +8,7 @@ use crate::type_checking;
 use anyhow::Result;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::code_gen::CodeGen;
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -295,23 +294,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let arity = signature.params.len();
         let classname = class_fullname.clone();
 
-        let new_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-            code_gen.gen_body_of_new(
-                function.get_params(),
-                &classname,
-                &initialize_name,
-                &init_cls_name,
-                arity,
-                const_is_obj,
-            );
-            Ok(())
+        let new_body = SkMethodBody::New {
+            classname: class_fullname.clone(),
+            initialize_name,
+            init_cls_name,
+            arity: signature.params.len(),
+            const_is_obj,
         };
-
         Ok(SkMethod {
             signature,
-            body: SkMethodBody::RustClosureMethodBody {
-                boxed_gen: Box::new(new_body),
-            },
+            body: new_body,
             lvars: vec![],
         })
     }
@@ -386,15 +378,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
 
-        let body = SkMethodBody::ShiikaMethodBody { exprs: hir_exprs };
-        Ok((
-            SkMethod {
-                signature,
-                body,
-                lvars,
-            },
-            method_ctx.iivars,
-        ))
+        let method = SkMethod {
+            signature,
+            body: SkMethodBody::Normal { exprs: hir_exprs },
+            lvars,
+        };
+        Ok((method, method_ctx.iivars))
     }
 
     /// Process a enum definition
@@ -454,12 +443,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 Hir::ivar_assign(&param.name, idx, argref, false, self_ty.clone())
             })
             .collect();
-        let body = SkMethodBody::ShiikaMethodBody {
-            exprs: HirExpressions::new(exprs),
-        };
         let initialize = SkMethod {
             signature: signature.clone(),
-            body,
+            body: SkMethodBody::Normal {
+                exprs: HirExpressions::new(exprs),
+            },
             lvars: Default::default(),
         };
         self.method_dict.add_method(&fullname, initialize);

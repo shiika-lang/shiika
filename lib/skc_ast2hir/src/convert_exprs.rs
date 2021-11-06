@@ -8,7 +8,7 @@ use anyhow::Result;
 use shiika_ast::Token;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 /// Result of looking up a lvar
