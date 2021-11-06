@@ -27,6 +27,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -255,7 +261,7 @@ dependencies = [
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+https://github.com/TheDan64/inkwell#27a64448404a50549e2a635b1b918c1a1537312f"
+source = "git+https://github.com/TheDan64/inkwell?rev=27a64448404a50549e2a635b1b918c1a1537312f#27a64448404a50549e2a635b1b918c1a1537312f"
 dependencies = [
  "either",
  "inkwell_internals",
@@ -269,7 +275,7 @@ dependencies = [
 [[package]]
 name = "inkwell_internals"
 version = "0.3.0"
-source = "git+https://github.com/TheDan64/inkwell#27a64448404a50549e2a635b1b918c1a1537312f"
+source = "git+https://github.com/TheDan64/inkwell?rev=27a64448404a50549e2a635b1b918c1a1537312f#27a64448404a50549e2a635b1b918c1a1537312f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -556,7 +562,7 @@ dependencies = [
 name = "shiika"
 version = "0.0.1"
 dependencies = [
- "backtrace",
+ "anyhow",
  "clap",
  "either",
  "env_logger",
@@ -566,6 +572,74 @@ dependencies = [
  "mac-sys-info",
  "serde",
  "serde_json",
+ "shiika_core",
+ "shiika_parser",
+ "skc_ast2hir",
+ "skc_corelib",
+ "skc_hir2ll",
+]
+
+[[package]]
+name = "shiika_ast"
+version = "0.1.0"
+dependencies = [
+ "shiika_core",
+]
+
+[[package]]
+name = "shiika_core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "shiika_parser"
+version = "0.1.0"
+dependencies = [
+ "shiika_ast",
+ "shiika_core",
+ "thiserror",
+]
+
+[[package]]
+name = "skc_ast2hir"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "inkwell",
+ "log",
+ "shiika_ast",
+ "shiika_core",
+ "skc_corelib",
+ "skc_hir2ll",
+ "thiserror",
+]
+
+[[package]]
+name = "skc_corelib"
+version = "0.1.0"
+dependencies = [
+ "inkwell",
+ "shiika_ast",
+ "shiika_core",
+ "shiika_parser",
+ "skc_hir2ll",
+]
+
+[[package]]
+name = "skc_hir2ll"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "either",
+ "inkwell",
+ "log",
+ "serde",
+ "serde_json",
+ "shiika_ast",
+ "shiika_core",
 ]
 
 [[package]]
@@ -619,6 +693,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "203008d98caf094106cfaba70acfed15e18ed3ddb7d94e49baec153a2b462789"
 dependencies = [
  "unicode-width",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "854babe52e4df1653706b98fcfc05843010039b406875930a70e4d9644e5c417"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa32fd3f627f367fe16f893e2597ae3c05020f8bba2666a4e6ea73d377e5714b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

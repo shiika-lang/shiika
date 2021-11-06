@@ -21,7 +21,8 @@ jobs:
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
+          override: true
 
       - name: Install other dependencies
         run: |
@@ -39,6 +40,6 @@ jobs:
       - name: Build and test
         run: |
           set -eux
-          cd src/rustlib; cargo build; cd ../../
+          cd lib/rustlib; cargo build; cd ../../
           env -- LLC=llc-12 CLANG=clang-12 cargo run -- build_corelib
           env -- LLC=llc-12 CLANG=clang-12 cargo test

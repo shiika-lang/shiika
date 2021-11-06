@@ -1,0 +1,9 @@
+[package]
+name = "shiika_parser"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+shiika_core = { path = "../shiika_core" }
+shiika_ast = { path = "../shiika_ast" }
+thiserror = "1.0"
