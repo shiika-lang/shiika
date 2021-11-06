@@ -1,12 +1,12 @@
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::values::*;
 use crate::code_gen::*;
-use crate::hir::pattern_match;
-use crate::hir::HirExpressionBase::*;
-use crate::hir::*;
 use anyhow::Result;
 use inkwell::values::*;
 use shiika_core::{names::*, ty, ty::*};
+use skc_hir::pattern_match;
+use skc_hir::HirExpressionBase::*;
+use skc_hir::*;
 use std::convert::TryFrom;
 use std::rc::Rc;
 

@@ -1,7 +1,7 @@
-use crate::hir::*;
 use crate::mir::*;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
+use skc_hir::*;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Default)]

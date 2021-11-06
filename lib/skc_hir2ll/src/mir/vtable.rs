@@ -1,7 +1,7 @@
-use crate::hir::*;
 use crate::library::LibraryExports;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
+use skc_hir::{SkClass, SkClasses};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 

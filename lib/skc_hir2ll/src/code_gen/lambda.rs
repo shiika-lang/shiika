@@ -1,9 +1,9 @@
 use crate::code_gen::*;
-use crate::hir::HirExpressionBase::*;
-use crate::hir::*;
 use anyhow::Result;
 use either::Either::*;
 use shiika_core::ty::*;
+use skc_hir::HirExpressionBase::*;
+use skc_hir::*;
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Find all lambdas in a hir and create the body of the corresponding llvm function

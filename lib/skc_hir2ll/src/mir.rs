@@ -1,7 +1,7 @@
 pub mod vtable;
-use crate::hir::Hir;
 use crate::library::LibraryExports;
 pub use crate::mir::vtable::VTables;
+use skc_hir::Hir;
 
 #[derive(Debug)]
 pub struct Mir {
