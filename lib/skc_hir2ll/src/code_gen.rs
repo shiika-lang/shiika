@@ -591,27 +591,31 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     lvar_ptrs,
                 )?,
                 SkMethodBody::New {
-                    classname, initialize_name, init_cls_name, arity, const_is_obj } =>
-            self.gen_body_of_new(
-                function.get_params(),
-                &classname,
-                &initialize_name,
-                &init_cls_name,
-                arity,
-                const_is_obj,
-            ),
+                    classname,
+                    initialize_name,
+                    init_cls_name,
+                    arity,
+                    const_is_obj,
+                } => self.gen_body_of_new(
+                    function.get_params(),
+                    &classname,
+                    &initialize_name,
+                    &init_cls_name,
+                    *arity,
+                    *const_is_obj,
+                ),
                 SkMethodBody::Getter { idx, name } => {
-                    let this = self.get_nth_param(function, 0);
-                    let val = self.build_ivar_load(this, idx, &name);
+                    let this = self.get_nth_param(&function, 0);
+                    let val = self.build_ivar_load(this, *idx, name);
                     self.build_return(&val);
-                },
+                }
                 SkMethodBody::Setter { idx, name } => {
-                    let this = self.get_nth_param(function, 0);
-                    let val = self.get_nth_param(function, 1);
-                    self.build_ivar_store(&this, idx, val, &name);
-                    let val = self.get_nth_param(function, 1);
+                    let this = self.get_nth_param(&function, 0);
+                    let val = self.get_nth_param(&function, 1);
+                    self.build_ivar_store(&this, *idx, val, name);
+                    let val = self.get_nth_param(&function, 1);
                     self.build_return(&val);
-                },
+                }
             },
             Right(exprs) => {
                 self.gen_shiika_function_body(
