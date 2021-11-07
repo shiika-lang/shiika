@@ -608,11 +608,11 @@ name = "skc_ast2hir"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "inkwell",
  "log",
  "shiika_ast",
  "shiika_core",
  "skc_corelib",
+ "skc_hir",
  "skc_hir2ll",
  "thiserror",
 ]
@@ -625,7 +625,21 @@ dependencies = [
  "shiika_ast",
  "shiika_core",
  "shiika_parser",
+ "skc_hir",
  "skc_hir2ll",
+]
+
+[[package]]
+name = "skc_hir"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "either",
+ "log",
+ "serde",
+ "serde_json",
+ "shiika_ast",
+ "shiika_core",
 ]
 
 [[package]]
@@ -640,6 +654,7 @@ dependencies = [
  "serde_json",
  "shiika_ast",
  "shiika_core",
+ "skc_hir",
 ]
 
 [[package]]
