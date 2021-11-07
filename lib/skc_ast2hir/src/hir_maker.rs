@@ -291,9 +291,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("new"),
             Default::default(),
         )?;
-        let arity = signature.params.len();
-        let classname = class_fullname.clone();
-
         let new_body = SkMethodBody::New {
             classname: class_fullname.clone(),
             initialize_name,
