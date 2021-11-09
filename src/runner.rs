@@ -150,7 +150,7 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");
-    cmd.arg("lib/rustlib/target/debug/librustlib.a");
+    cmd.arg("lib/skc_rustlib/target/debug/libskc_rustlib.a");
     cmd.arg(bc_path.clone());
     cmd.arg("-ldl");
     cmd.arg("-lpthread");
