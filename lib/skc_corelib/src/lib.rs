@@ -1,5 +1,4 @@
 mod array;
-mod bool;
 mod class;
 mod float;
 mod fn_x;
@@ -9,7 +8,6 @@ mod metaclass;
 mod object;
 mod shiika_internal_memory;
 mod shiika_internal_ptr;
-mod void;
 use shiika_ast;
 use shiika_core::{names::*, ty};
 use shiika_parser;
