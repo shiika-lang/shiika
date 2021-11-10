@@ -244,11 +244,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = self._create_signature(namespace, fullname, sig, typarams)?;
+                    let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = self._create_signature(
+                    let hir_sig = self.create_signature(
                         namespace,
                         &fullname.meta_name(),
                         sig,
@@ -323,7 +323,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
     }
 
-    fn _create_signature(
+    /// Convert AstMethodSignature to MethodSignature
+    pub fn create_signature(
         &self,
         namespace: &Namespace,
         class_fullname: &ClassFullname,

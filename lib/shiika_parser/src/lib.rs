@@ -45,6 +45,8 @@ impl<'a> Parser<'a> {
             lv: 0,
         };
         let (ast_sig, _) = parser.parse_method_signature()?;
+        // Check if entire string is consumed
+        parser.expect_eof()?;
         Ok(ast_sig)
     }
 

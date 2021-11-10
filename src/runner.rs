@@ -1,3 +1,4 @@
+use crate::rustlib_exports;
 use crate::targets;
 use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::Parser;
@@ -21,7 +22,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     let ast = Parser::parse(&str)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, None, &imports)?;
+    let hir = skc_ast2hir::make_hir(ast, None, &imports, &[])?;
     log::debug!("created hir");
     let mir = mir::build(hir, imports);
     log::debug!("created mir");
@@ -33,7 +34,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
+/// Load builtin/exports.json
+fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     let mut f = fs::File::open("builtin/exports.json").context("builtin exports not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
@@ -43,6 +45,7 @@ pub fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     Ok(exports)
 }
 
+/// Create builtin.bc and exports.json from builtin/*.sk and skc_corelib
 pub fn build_corelib() -> Result<(), Error> {
     let builtin = load_builtin()?;
     let ast = Parser::parse(&builtin)?;
@@ -50,7 +53,8 @@ pub fn build_corelib() -> Result<(), Error> {
     let corelib = skc_corelib::create();
     log::debug!("loaded corelib");
     let imports = Default::default();
-    let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports)?;
+    let rustlib = rustlib_exports::parse_rustlib_exports()?;
+    let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports, &rustlib)?;
     log::debug!("created hir");
     let mir = mir::build(hir, imports);
     log::debug!("created mir");
@@ -86,8 +90,10 @@ fn load_builtin() -> Result<String> {
     }
     files.sort();
     for path in files {
-        if path.ends_with(".sk") {
-            //dbg!(&path);
+        if path.ends_with("void.sk")
+            || (path.ends_with("string.sk") && !path.ends_with("mutable_string.sk"))
+        {
+            //        if path.ends_with(".sk") {
             let src = fs::read_to_string(&path).context(format!("failed to load {}", path))?;
             s += &src;
         }

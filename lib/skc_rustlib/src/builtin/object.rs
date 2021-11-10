@@ -16,7 +16,7 @@ pub extern "C" fn object_eq(receiver: *const u8, other: *const u8) -> SkBool {
 }
 
 #[export_name = "Object#puts"]
-pub extern "C" fn object_puts(receiver: *const u8, s: &SkString) {
+pub extern "C" fn object_puts(_receiver: *const u8, s: &SkString) {
     //TODO: Return SkVoid
     let _result = std::io::stdout().write_all(s.byteslice());
     println!("");

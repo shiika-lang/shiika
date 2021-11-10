@@ -572,6 +572,7 @@ dependencies = [
  "mac-sys-info",
  "serde",
  "serde_json",
+ "shiika_ast",
  "shiika_core",
  "shiika_parser",
  "skc_ast2hir",

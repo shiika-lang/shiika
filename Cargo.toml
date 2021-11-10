@@ -6,6 +6,7 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 
 [dependencies]
 shiika_parser = { path = "lib/shiika_parser/" }
+shiika_ast = { path = "lib/shiika_ast/" }
 shiika_core = { path = "lib/shiika_core/" }
 skc_corelib = { path = "lib/skc_corelib/" }
 skc_ast2hir = { path = "lib/skc_ast2hir/" }
