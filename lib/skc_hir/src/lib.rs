@@ -75,7 +75,10 @@ pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
 
 #[derive(Debug)]
 pub enum SkMethodBody {
+    /// A method defined with Shiika expressions
     Normal { exprs: HirExpressions },
+    /// A method defined in skc_rustlib
+    RustLib,
     /// The method .new
     New {
         classname: ClassFullname,
@@ -93,6 +96,13 @@ pub enum SkMethodBody {
     Setter {
         idx: usize,
         name: String,
+    }
+}
+
+impl SkMethod {
+    /// Returns if this method is defined by skc_rustlib
+    pub fn is_rustlib(&self) -> bool {
+        matches!(&self.body, SkMethodBody::RustLib)
     }
 }
 
