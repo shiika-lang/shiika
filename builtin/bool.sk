@@ -1,0 +1,9 @@
+class Bool
+  def inspect -> String
+    if self
+      "true"
+    else
+      "false"
+    end
+  end
+end
