@@ -22,7 +22,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     let ast = Parser::parse(&str)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, None, &imports, &[])?;
+    let hir = skc_ast2hir::make_hir(ast, None, &imports)?;
     log::debug!("created hir");
     let mir = mir::build(hir, imports);
     log::debug!("created mir");
@@ -53,8 +53,7 @@ pub fn build_corelib() -> Result<(), Error> {
     let corelib = skc_corelib::create();
     log::debug!("loaded corelib");
     let imports = Default::default();
-    let rustlib = rustlib_exports::parse_rustlib_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports, &rustlib)?;
+    let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports)?;
     log::debug!("created hir");
     let mir = mir::build(hir, imports);
     log::debug!("created mir");

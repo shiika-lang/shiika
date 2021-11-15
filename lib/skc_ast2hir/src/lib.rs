@@ -10,28 +10,25 @@ mod method_dict;
 mod pattern_match;
 mod type_checking;
 use crate::hir_maker::HirMaker;
-use crate::class_dict::ClassDict;
 use anyhow::Result;
 use shiika_ast;
-use shiika_core::{ty, names::*};
+use shiika_core::ty;
 use skc_corelib::Corelib;
-use skc_hir::{Hir, SkMethod, SkMethods, SkMethodBody};
+use skc_hir::Hir;
 use skc_hir2ll::library::LibraryExports;
-use std::collections::HashMap;
+mod rustlib_methods;
 
 pub fn make_hir(
     ast: shiika_ast::Program,
     corelib: Option<Corelib>,
     imports: &LibraryExports,
-    rustlib: &[(ClassFullname, shiika_ast::AstMethodSignature)],
 ) -> Result<Hir> {
     let (core_classes, core_methods) = if let Some(c) = corelib {
-        (c.sk_classes, c.sk_methods)
+        rustlib_methods::mix_with_corelib(c)
     } else {
         (Default::default(), Default::default())
     };
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
-    let rustlib_methods = parse_rustlib_methods(rustlib, &class_dict)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
     hir_maker.define_class_constants();
@@ -39,37 +36,10 @@ pub fn make_hir(
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
     // While corelib classes are included in `class_dict`,
-    // corelib/rustlib methods are not. Here we need to add them manually
+    // corelib methods are not. Here we need to add them manually
     hir.add_methods(core_methods);
-    hir.add_methods(rustlib_methods);
 
     Ok(hir)
-}
-
-fn parse_rustlib_methods(
-    rustlib: &[(ClassFullname, shiika_ast::AstMethodSignature)],
-    class_dict: &ClassDict,
-) -> Result<SkMethods>  {
-    let mut lib = HashMap::new();
-    for (classname, ast_sig) in rustlib {
-        let class_typarams = &class_dict.get_class(&classname).typarams;
-        let hir_sig = class_dict.create_signature(
-            &Namespace::root(),
-            classname,
-            ast_sig,
-            class_typarams)?;
-        let method = SkMethod {
-            signature: hir_sig,
-            body: SkMethodBody::RustLib,
-            lvars: Default::default(),
-        };
-        if !lib.contains_key(classname) {
-            lib.insert(classname.clone(), vec![]);
-        }
-        let v = lib.get_mut(&classname).unwrap();
-        v.push(method);
-    }
-    Ok(lib)
 }
 
 /// Convert AstTyParam to TyParam

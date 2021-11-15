@@ -622,7 +622,9 @@ dependencies = [
 name = "skc_corelib"
 version = "0.1.0"
 dependencies = [
- "inkwell",
+ "anyhow",
+ "serde",
+ "serde_json",
  "shiika_ast",
  "shiika_core",
  "shiika_parser",
