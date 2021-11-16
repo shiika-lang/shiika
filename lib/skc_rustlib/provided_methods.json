@@ -1,4 +1,5 @@
 [
   ["Object", "==(other: Object) -> Bool"],
+  ["Object", "class() -> Class"],
   ["Object", "puts(str: String)"]
 ]
