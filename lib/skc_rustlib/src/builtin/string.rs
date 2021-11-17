@@ -1,6 +1,6 @@
 /// Instance of `::String`
 use crate::builtin::int::SkInt;
-use crate::builtin::ptr::SkPtr;
+use crate::builtin::shiika_internal_ptr::SkPtr;
 
 #[repr(C)]
 #[derive(Debug)]

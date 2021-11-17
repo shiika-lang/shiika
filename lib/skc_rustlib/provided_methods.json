@@ -1,5 +1,6 @@
 [
   ["Object", "==(other: Object) -> Bool"],
   ["Object", "class() -> Class"],
-  ["Object", "puts(str: String)"]
+  ["Object", "puts(str: String)"],
+  ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"]
 ]

@@ -1,6 +1,6 @@
-use crate::create_method;
+//use crate::create_method;
 use shiika_core::ty;
-use skc_hir2ll::hir::SkMethod;
+use skc_hir::SkMethod;
 
 pub fn create_methods() -> Vec<SkMethod> {
     vec![
