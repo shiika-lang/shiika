@@ -1,6 +1,25 @@
 [
+  ["Array", "[](idx: Int) -> T"],
+  ["Array", "initialize"],
+  ["Array", "push(item: T)"],
+  ["Int", "+(other: Int) -> Int"],
+  ["Int", "-(other: Int) -> Int"],
+  ["Int", "*(other: Int) -> Int"],
+  ["Int", "%(other: Int) -> Int"],
+  ["Int", "<(other: Int) -> Bool"],
+  ["Int", "<=(other: Int) -> Bool"],
+  ["Int", ">(other: Int) -> Bool"],
+  ["Int", ">=(other: Int) -> Bool"],
+  ["Int", "==(other: Int) -> Bool"],
   ["Object", "==(other: Object) -> Bool"],
-  ["Object", "class() -> Class"],
+  ["Object", "class -> Class"],
+  ["Object", "exit(code: Int) -> Never"],
   ["Object", "puts(str: String)"],
-  ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"]
+  ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"],
+  ["Meta:Shiika::Internal::Memory", "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr"],
+  ["Shiika::Internal::Ptr", "+(n_bytes: Int) -> Shiika::Internal::Ptr"],
+  ["Shiika::Internal::Ptr", "load -> Object"],
+  ["Shiika::Internal::Ptr", "read -> Int"],
+  ["Shiika::Internal::Ptr", "store(value: Object)"],
+  ["Shiika::Internal::Ptr", "write(byte: Int)"]
 ]

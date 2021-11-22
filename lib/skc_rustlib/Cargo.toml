@@ -9,3 +9,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 bdwgc-alloc = "0.6.0"
+plain = "0.2.3"
