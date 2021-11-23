@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use json5;
 use std::fs;
 use std::io::Read;
 use shiika_parser::Parser;
@@ -12,12 +13,12 @@ pub fn provided_methods() -> Vec<(ClassFullname, AstMethodSignature)> {
 
 // Read provided_methods.json
 fn load_methods_json() -> Result<Vec<(String, String)>> {
-    let mut f = fs::File::open("lib/skc_rustlib/provided_methods.json")
-        .context("./lib/skc_rustlib/provided_methods.json not found")?;
+    let mut f = fs::File::open("lib/skc_rustlib/provided_methods.json5")
+        .context("./lib/skc_rustlib/provided_methods.json5 not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
-        .context("failed to read provided_methods.json")?;
-    serde_json::from_str(&contents).context("provided_methods.json is broken")
+        .context("failed to read provided_methods.json5")?;
+    json5::from_str(&contents).context("provided_methods.json5 is broken")
 }
 
 // Parse signature into AstMethodSignature
