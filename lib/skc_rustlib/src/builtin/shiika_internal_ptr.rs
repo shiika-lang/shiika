@@ -1,3 +1,6 @@
+//! Provides (unsafe) utilities for pointers.
+//!
+//! Should be removed once `Array`, etc. is re-implemented in skc_rustlib.
 use crate::builtin::object::ShiikaObject;
 use crate::builtin::{SkInt, SkObj};
 use std::convert::TryInto;

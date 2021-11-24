@@ -1,3 +1,6 @@
+//! Provides (unsafe) utilities for memories.
+//!
+//! Should be removed once `String` is re-implemented in skc_rustlib.
 use crate::allocator;
 use crate::builtin::int::SkInt;
 use crate::builtin::object::SkObj;
