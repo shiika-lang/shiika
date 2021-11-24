@@ -34,6 +34,11 @@ impl SkPtr {
     pub fn val(&self) -> *const u8 {
         unsafe { (*self.0).value }
     }
+
+    /// Convert to Rust value
+    pub fn val_mut(&self) -> *mut u8 {
+        unsafe { (*self.0).value }
+    }
 }
 
 #[export_name = "Shiika::Internal::Ptr#+"]

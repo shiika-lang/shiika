@@ -2,7 +2,17 @@ use crate::allocator;
 use crate::builtin::int::SkInt;
 use crate::builtin::object::SkObj;
 use crate::builtin::shiika_internal_ptr::SkPtr;
+use std::convert::TryInto;
 use std::os::raw::c_void;
+use std::ptr;
+
+#[export_name = "Meta:Shiika::Internal::Memory#memcpy"]
+pub extern "C" fn memory_memcpy(_receiver: SkObj, dst: SkPtr, src: SkPtr, n_bytes: SkInt) {
+    let n: usize = n_bytes.val().try_into().unwrap();
+    unsafe {
+        ptr::copy(src.val(), dst.val_mut(), n);
+    }
+}
 
 #[export_name = "Meta:Shiika::Internal::Memory#gc_malloc"]
 pub extern "C" fn memory_gc_malloc(_receiver: SkObj, n_bytes: SkInt) -> SkPtr {
