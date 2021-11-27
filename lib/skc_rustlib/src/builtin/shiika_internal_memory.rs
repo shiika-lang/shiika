@@ -13,7 +13,7 @@ use std::ptr;
 pub extern "C" fn memory_memcpy(_receiver: SkObj, dst: SkPtr, src: SkPtr, n_bytes: SkInt) {
     let n: usize = n_bytes.val().try_into().unwrap();
     unsafe {
-        ptr::copy(src.val(), dst.val_mut(), n);
+        ptr::copy(src.unbox(), dst.unbox_mut(), n);
     }
 }
 
@@ -25,7 +25,7 @@ pub extern "C" fn memory_gc_malloc(_receiver: SkObj, n_bytes: SkInt) -> SkPtr {
 
 #[export_name = "Meta:Shiika::Internal::Memory#gc_realloc"]
 pub extern "C" fn memory_gc_realloc(_receiver: SkObj, ptr: SkPtr, n_bytes: SkInt) -> SkPtr {
-    let p = ptr.val() as *mut c_void;
+    let p = ptr.unbox_mut() as *mut c_void;
     let size = n_bytes.val() as usize;
     allocator::shiika_realloc(p, size).into()
 }

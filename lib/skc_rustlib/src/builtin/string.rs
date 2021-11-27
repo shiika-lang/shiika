@@ -1,6 +1,5 @@
 /// Instance of `::String`
-use crate::builtin::int::SkInt;
-use crate::builtin::shiika_internal_ptr::SkPtr;
+use crate::builtin::{SkInt, SkPtr};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -26,7 +25,7 @@ impl SkStr {
     }
 
     fn u8ptr(&self) -> *const u8 {
-        unsafe { (*self.0).ptr.val() }
+        unsafe { (*self.0).ptr.unbox() }
     }
 
     fn bytesize(&self) -> i64 {
