@@ -1,12 +1,14 @@
 pub mod array;
 pub mod bool;
 pub mod class;
+pub mod float;
 pub mod int;
 pub mod object;
 pub mod shiika_internal_memory;
 pub mod shiika_internal_ptr;
 pub mod string;
 pub use self::bool::SkBool;
+pub use self::float::SkFloat;
 pub use self::int::SkInt;
 pub use self::object::SkObj;
 pub use self::shiika_internal_ptr::SkPtr;

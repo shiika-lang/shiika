@@ -1,5 +1,5 @@
-/// Instance of `::Int`
-/// May represent big number in the future
+//! Instance of `::Int`
+//! May represent big number in the future
 use crate::builtin::SkBool;
 
 extern "C" {
@@ -37,6 +37,11 @@ impl SkInt {
     }
 }
 
+#[export_name = "Int#-@"]
+pub extern "C" fn int_inv(receiver: SkInt) -> SkInt {
+    (-receiver.val()).into()
+}
+
 #[export_name = "Int#+"]
 pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() + other.val()).into()
@@ -52,14 +57,20 @@ pub extern "C" fn int_mul(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() * other.val()).into()
 }
 
-//#[export_name = "Int#/"]
-//pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkFloat {
-//    (receiver.val() + other.val()).into()
-//}
+// TODO: Return Float?
+#[export_name = "Int#/"]
+pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() / other.val()).into()
+}
 
 #[export_name = "Int#%"]
 pub extern "C" fn int_mod(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() % other.val()).into()
+}
+
+#[export_name = "Int#^"]
+pub extern "C" fn int_xor(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() ^ other.val()).into()
 }
 
 #[export_name = "Int#<"]
