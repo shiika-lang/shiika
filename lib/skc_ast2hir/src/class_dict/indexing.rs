@@ -284,6 +284,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Register a class and its metaclass to self
+    #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
         fullname: &ClassFullname,

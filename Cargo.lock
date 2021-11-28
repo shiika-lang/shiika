@@ -50,6 +50,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 
 [[package]]
+name = "autotools"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b875eaceeddbbfb52c4d102af0e28872be06ba363b9b28c7551304beb3eac42"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -61,6 +70,16 @@ dependencies = [
  "miniz_oxide",
  "object",
  "rustc-demangle",
+]
+
+[[package]]
+name = "bdwgc-alloc"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ceed387bb03bf60e7368a07b7f943d3612a04ff7cf11e73801ffa3677370aa24"
+dependencies = [
+ "autotools",
+ "libc",
 ]
 
 [[package]]
@@ -540,6 +559,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "plain"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -785,6 +810,14 @@ dependencies = [
  "shiika_ast",
  "shiika_core",
  "skc_hir",
+]
+
+[[package]]
+name = "skc_rustlib"
+version = "0.1.0"
+dependencies = [
+ "bdwgc-alloc",
+ "plain",
 ]
 
 [[package]]

@@ -600,9 +600,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     const_is_obj,
                 } => self.gen_body_of_new(
                     function.get_params(),
-                    &classname,
-                    &initialize_name,
-                    &init_cls_name,
+                    classname,
+                    initialize_name,
+                    init_cls_name,
                     *arity,
                     *const_is_obj,
                 ),

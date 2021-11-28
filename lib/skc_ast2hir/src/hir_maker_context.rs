@@ -3,6 +3,7 @@ use skc_hir::{MethodParam, MethodSignature, SkIVars};
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum HirMakerContext {
     Toplevel(ToplevelCtx),
     Class(ClassCtx),

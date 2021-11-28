@@ -1,6 +1,5 @@
 use crate::lexer::Cursor;
 use std::backtrace::Backtrace;
-use thiserror;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

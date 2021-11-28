@@ -143,14 +143,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for t2 in &ancestors2 {
             let mut t = None;
             for t1 in &ancestors1 {
-                if t1.equals_to(&t2) {
+                if t1.equals_to(t2) {
                     t = Some(t1);
                     break;
-                } else if t1.same_base(&t2) {
-                    if self.conforms(&t1, &t2) {
+                } else if t1.same_base(t2) {
+                    if self.conforms(t1, t2) {
                         t = Some(t2);
                         break;
-                    } else if self.conforms(&t2, &t1) {
+                    } else if self.conforms(t2, t1) {
                         t = Some(t1);
                         break;
                     }

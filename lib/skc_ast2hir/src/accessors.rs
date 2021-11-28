@@ -1,5 +1,4 @@
 use crate::hir_maker::HirMaker;
-use shiika_ast;
 use shiika_core::names::*;
 use skc_hir::*;
 

@@ -4,6 +4,11 @@ name = "shiika"
 version = "0.0.1"
 authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 
+[workspace]
+members = [
+  "lib/*",
+]
+
 [dependencies]
 shiika_parser = { path = "lib/shiika_parser/" }
 shiika_ast = { path = "lib/shiika_ast/" }

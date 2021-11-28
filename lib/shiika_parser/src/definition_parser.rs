@@ -1,7 +1,6 @@
 use crate::base::*;
 use crate::error::Error;
 use crate::Parser;
-use shiika_ast;
 use shiika_ast::*;
 use shiika_core::names::*;
 

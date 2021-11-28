@@ -93,7 +93,6 @@ pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> 
         orig_ty,
         new_ty
     )
-    .into()
 }
 
 /// Check argument types of a method call

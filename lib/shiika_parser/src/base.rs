@@ -2,7 +2,6 @@ use crate::error::Error;
 pub use crate::lexer;
 pub use crate::lexer::*;
 pub use crate::Parser;
-use shiika_ast;
 use shiika_ast::*;
 
 impl<'a> Parser<'a> {

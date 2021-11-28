@@ -2,7 +2,6 @@ mod class;
 mod fn_x;
 mod metaclass;
 pub mod rustlib_methods;
-use shiika_ast;
 use shiika_core::{names::*, ty};
 use skc_hir::*;
 use std::collections::HashMap;
@@ -139,6 +138,7 @@ fn rust_body_items() -> Vec<ClassItem> {
     ret
 }
 
+#[allow(clippy::if_same_then_else)]
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (

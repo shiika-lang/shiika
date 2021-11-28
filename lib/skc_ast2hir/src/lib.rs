@@ -11,7 +11,6 @@ mod pattern_match;
 mod type_checking;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
-use shiika_ast;
 use shiika_core::ty;
 use skc_corelib::Corelib;
 use skc_hir::Hir;
