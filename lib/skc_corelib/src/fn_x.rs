@@ -1,6 +1,6 @@
 use crate::ClassItem;
 use shiika_core::ty;
-use skc_hir2ll::hir::{SkIVar, Superclass};
+use skc_hir::{SkIVar, Superclass};
 use std::collections::HashMap;
 
 macro_rules! fn_item {

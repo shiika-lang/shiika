@@ -1,11 +1,14 @@
-# see also: src/corelib/
 class Class
   def name -> String
-    # Accessors does not defined automatically for classes defined src/corelib
+    # Accessors does not defined automatically for classes defined skc_corelib
     @name
   end
 
   def inspect -> String
-    "#<class " + @name + ">"
+    "#<class #{@name}>"
+  end
+
+  def to_s -> String
+    name
   end
 end

@@ -1,4 +1,3 @@
-use crate::rustlib_exports;
 use crate::targets;
 use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::Parser;
@@ -89,10 +88,7 @@ fn load_builtin() -> Result<String> {
     }
     files.sort();
     for path in files {
-        if path.ends_with("void.sk")
-            || (path.ends_with("string.sk") && !path.ends_with("mutable_string.sk"))
-        {
-            //        if path.ends_with(".sk") {
+        if path.ends_with(".sk") {
             let src = fs::read_to_string(&path).context(format!("failed to load {}", path))?;
             s += &src;
         }

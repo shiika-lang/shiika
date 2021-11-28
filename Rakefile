@@ -25,31 +25,36 @@ end
 task :default => :test
 
 task :test do
-  cd "lib/rustlib" do
+  cd "lib/skc_rustlib" do
     sh "cargo build"
   end
   sh "cargo run -- build_corelib"
-  sh "cargo test"
+  sh "cargo test -- --nocapture"
 end
 
-RUST_FILES = Dir["src/**/*.rs"]
+RUST_FILES = Dir["lib/**/*.rs"] + Dir["src/*.rs"]
+RUSTLIB_SIG = "lib/skc_rustlib/provided_methods.json5"
 
-RUSTLIB_FILES = Dir["lib/rustlib/src/**/*.rs"] + ["lib/rustlib/Cargo.toml"]
-RUSTLIB_A = "lib/rustlib/target/debug/librustlib.a"
+RUSTLIB_FILES = [
+  *Dir["lib/skc_rustlib/src/**/*.rs"],
+  RUSTLIB_SIG,
+  "lib/skc_rustlib/Cargo.toml",
+]
+RUSTLIB_A = "lib/skc_rustlib/target/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
-  cd "lib/rustlib" do
+  cd "lib/skc_rustlib" do
     sh "cargo fmt"
     sh "cargo build"
   end
 end
 
 BUILTIN_BC = "builtin/builtin.bc"
-file BUILTIN_BC => RUST_FILES + Dir["builtin/*.sk"] do
+file BUILTIN_BC => [*RUST_FILES, RUSTLIB_SIG, *Dir["builtin/*.sk"]] do
   sh "cargo run -- build_corelib"
 end
 
 A_OUT = "examples/a.sk.out"
-file A_OUT => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "examples/a.sk"] do
+file A_OUT => [*RUST_FILES, RUSTLIB_A, BUILTIN_BC, "examples/a.sk"] do
   sh "cargo fmt"
   sh "cargo run -- run examples/a.sk"
 end
