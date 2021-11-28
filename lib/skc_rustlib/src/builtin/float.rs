@@ -49,7 +49,7 @@ pub extern "C" fn float_add(receiver: SkFloat, other: SkFloat) -> SkFloat {
 
 #[export_name = "Float#-"]
 pub extern "C" fn float_sub(receiver: SkFloat, other: SkFloat) -> SkFloat {
-    (receiver.val() + other.val()).into()
+    (receiver.val() - other.val()).into()
 }
 
 #[export_name = "Float#*"]

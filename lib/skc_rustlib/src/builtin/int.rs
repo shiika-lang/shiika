@@ -49,7 +49,7 @@ pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkInt {
 
 #[export_name = "Int#-"]
 pub extern "C" fn int_sub(receiver: SkInt, other: SkInt) -> SkInt {
-    (receiver.val() + other.val()).into()
+    (receiver.val() - other.val()).into()
 }
 
 #[export_name = "Int#*"]
