@@ -38,11 +38,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn new_with_state(src: &str, state: LexerState) -> Parser {
-        Parser {
-            lexer: Lexer::new_with_state(src, state),
+    /// Parse a method signature
+    pub fn parse_signature(sig_str: &str) -> Result<ast::AstMethodSignature, Error> {
+        let mut parser = Parser {
+            lexer: Lexer::new_with_state(sig_str, LexerState::MethodName),
             lv: 0,
-        }
+        };
+        let (ast_sig, _) = parser.parse_method_signature()?;
+        // Check if entire string is consumed
+        parser.expect_eof()?;
+        Ok(ast_sig)
     }
 
     pub fn parse(src: &str) -> Result<ast::Program, Error> {

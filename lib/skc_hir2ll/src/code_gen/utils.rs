@@ -230,7 +230,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         args: &[inkwell::values::BasicValueEnum<'run>],
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let f = self.module.get_function(func_name).unwrap();
+        let f = self.module.get_function(func_name).unwrap_or_else(|| panic!("[BUG] llvm function `{}' not found", func_name));
         self.builder
             .build_call(f, args, reg_name)
             .try_as_basic_value()

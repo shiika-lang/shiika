@@ -1,19 +1,9 @@
-mod array;
-mod bool;
 mod class;
-mod float;
 mod fn_x;
-mod int;
-mod math;
 mod metaclass;
-mod object;
-mod shiika_internal_memory;
-mod shiika_internal_ptr;
-mod void;
-use shiika_ast;
+pub mod rustlib_methods;
 use shiika_core::{names::*, ty};
-use shiika_parser;
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
@@ -21,8 +11,10 @@ pub struct Corelib {
     pub sk_methods: SkMethods,
 }
 
+/// Create a `Corelib`
 pub fn create() -> Corelib {
     let (sk_classes, sk_methods) = make_classes(rust_body_items());
+
     Corelib {
         sk_classes,
         sk_methods,
@@ -59,10 +51,19 @@ fn rust_body_items() -> Vec<ClassItem> {
             metaclass::ivars(),
             vec![],
         ),
+
+        (
+            "String".to_string(),
+            Some(Superclass::simple("Object")),
+            Default::default(),
+            vec![],
+            Default::default(),
+            vec![],
+        ),
         (
             "Array".to_string(),
             Some(Superclass::simple("Object")),
-            array::create_methods(),
+            vec![],
             vec![],
             HashMap::new(),
             vec!["T".to_string()],
@@ -70,7 +71,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Bool".to_string(),
             Some(Superclass::simple("Object")),
-            bool::create_methods(),
+            vec![],
             vec![],
             HashMap::new(),
             vec![],
@@ -78,7 +79,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Float".to_string(),
             Some(Superclass::simple("Object")),
-            float::create_methods(),
+            vec![], //float::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
@@ -86,7 +87,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Int".to_string(),
             Some(Superclass::simple("Object")),
-            int::create_methods(),
+            vec![], //int::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
@@ -94,7 +95,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Object".to_string(),
             None,
-            object::create_methods(),
+            vec![object_initialize()], // object::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
@@ -102,7 +103,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Void".to_string(),
             Some(Superclass::simple("Object")),
-            void::create_methods(),
+            vec![],
             vec![],
             HashMap::new(),
             vec![],
@@ -110,41 +111,25 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Shiika::Internal::Ptr".to_string(),
             Some(Superclass::simple("Object")),
-            shiika_internal_ptr::create_methods(),
+            vec![], //shiika_internal_ptr::create_methods(),
             vec![],
             HashMap::new(),
             vec![],
         ),
-        // Modules
-        (
-            "Math".to_string(),
-            Some(Superclass::simple("Object")),
-            vec![],
-            math::create_class_methods(),
-            HashMap::new(),
-            vec![],
-        ),
-        (
-            "Shiika".to_string(),
-            Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
-            HashMap::new(),
-            vec![],
-        ),
-        (
-            "Shiika::Internal".to_string(),
-            Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
-            HashMap::new(),
-            vec![],
-        ),
+//        // Modules
+//        (
+//            "Math".to_string(),
+//            Some(Superclass::simple("Object")),
+//            vec![],
+//            math::create_class_methods(),
+//            HashMap::new(),
+//            vec![],
+//        ),
         (
             "Shiika::Internal::Memory".to_string(),
             Some(Superclass::simple("Object")),
             vec![],
-            shiika_internal_memory::create_class_methods(),
+            vec![], //shiika_internal_memory::create_class_methods(),
             HashMap::new(),
             vec![],
         ),
@@ -153,6 +138,7 @@ fn rust_body_items() -> Vec<ClassItem> {
     ret
 }
 
+#[allow(clippy::if_same_then_else)]
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (
@@ -210,49 +196,6 @@ fn make_classes(
     (sk_classes, sk_methods)
 }
 
-fn create_method(class_name: &str, sig_str: &str, gen: GenMethodBody) -> SkMethod {
-    create_method_generic(class_name, sig_str, gen, &[])
-}
-
-fn create_method_generic(
-    class_name: &str,
-    sig_str: &str,
-    gen: GenMethodBody,
-    typaram_names: &[String],
-) -> SkMethod {
-    let mut parser = shiika_parser::Parser::new_with_state(
-        sig_str,
-        shiika_parser::lexer::LexerState::MethodName,
-    );
-    let (ast_sig, _) = parser.parse_method_signature().unwrap();
-    parser.expect_eof().unwrap();
-
-    let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
-        _convert_typ(typ, typaram_names, &ast_sig.typarams)
-    } else {
-        ty::raw("Void")
-    };
-    let params = ast_sig
-        .params
-        .iter()
-        .map(|param| MethodParam {
-            name: param.name.to_string(),
-            ty: _convert_typ(&param.typ, typaram_names, &ast_sig.typarams),
-        })
-        .collect();
-    let sig = MethodSignature {
-        fullname: method_fullname(&class_fullname(class_name), &ast_sig.name.0),
-        ret_ty,
-        params,
-        typarams: ast_sig.typarams(),
-    };
-    SkMethod {
-        signature: sig,
-        body: SkMethodBody::RustMethodBody { gen },
-        lvars: vec![],
-    }
-}
-
 fn _convert_typ(
     typ: &ConstName,
     class_typarams: &[String],
@@ -270,5 +213,24 @@ fn _convert_typ(
             .map(|arg| _convert_typ(arg, class_typarams, method_typarams))
             .collect::<Vec<_>>();
         ty::nonmeta(&typ.names, tyargs)
+    }
+}
+
+
+fn object_initialize() -> SkMethod {
+    let sig = MethodSignature {
+        fullname: method_fullname_raw("Object", "initialize"),
+        ret_ty: ty::raw("Void"),
+        params: vec![],
+        typarams: vec![],
+    };
+    SkMethod {
+        signature: sig,
+        body: SkMethodBody::Normal { 
+            exprs: Hir::expressions(vec![
+                             Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
+            ])
+        },
+        lvars: vec![],
     }
 }

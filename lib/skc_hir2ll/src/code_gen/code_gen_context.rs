@@ -1,5 +1,5 @@
 use crate::code_gen::values::SkObj;
-use crate::hir::*;
+use skc_hir::*;
 use std::collections::HashMap;
 use std::rc::Rc;
 

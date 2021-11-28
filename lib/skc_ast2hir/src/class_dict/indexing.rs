@@ -4,8 +4,8 @@ use crate::parse_typarams;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::signature::*;
-use skc_hir2ll::hir::*;
+use skc_hir::signature::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
@@ -98,7 +98,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 let metaclass = self
                     .sk_classes
                     .get_mut(&metaclass_fullname)
-                    .expect("[BUG] Only class is indexed");
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "[BUG] metaclass not found: {} <- {}",
+                            fullname, &metaclass_fullname
+                        )
+                    });
                 metaclass.method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
                 if let Some(sig) = new_sig {
@@ -244,11 +249,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = self._create_signature(namespace, fullname, sig, typarams)?;
+                    let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(sig.name.clone(), hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
-                    let hir_sig = self._create_signature(
+                    let hir_sig = self.create_signature(
                         namespace,
                         &fullname.meta_name(),
                         sig,
@@ -279,6 +284,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Register a class and its metaclass to self
+    #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
         fullname: &ClassFullname,
@@ -323,7 +329,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
     }
 
-    fn _create_signature(
+    /// Convert AstMethodSignature to MethodSignature
+    pub fn create_signature(
         &self,
         namespace: &Namespace,
         class_fullname: &ClassFullname,

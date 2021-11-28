@@ -1,17 +1,15 @@
 class Object
+  # TODO: These will be removed when `Comparable` is implemented
   def <(other: Object) -> Bool
     panic "[`< is not implemented for this class]"
     false
   end
-
   def >(other: Object) -> Bool
     other < self
   end
-
   def <=(other: Object) -> Bool
     self < other or self == other
   end
-
   def >=(other: Object) -> Bool
     self > other or self == other
   end
@@ -34,6 +32,6 @@ class Object
   end
 
   def to_s -> String
-    "#<?>"  # TODO:  "#<" + self.class.name + ">"
+    "#<#{self.class.name}:#{self.object_id}>"
   end
 end

@@ -33,7 +33,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
+/// Load builtin/exports.json
+fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     let mut f = fs::File::open("builtin/exports.json").context("builtin exports not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
@@ -43,6 +44,7 @@ pub fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
     Ok(exports)
 }
 
+/// Create builtin.bc and exports.json from builtin/*.sk and skc_corelib
 pub fn build_corelib() -> Result<(), Error> {
     let builtin = load_builtin()?;
     let ast = Parser::parse(&builtin)?;
@@ -87,7 +89,6 @@ fn load_builtin() -> Result<String> {
     files.sort();
     for path in files {
         if path.ends_with(".sk") {
-            //dbg!(&path);
             let src = fs::read_to_string(&path).context(format!("failed to load {}", path))?;
             s += &src;
         }
@@ -150,7 +151,7 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");
-    cmd.arg("lib/rustlib/target/debug/librustlib.a");
+    cmd.arg("target/debug/libskc_rustlib.a");
     cmd.arg(bc_path.clone());
     cmd.arg("-ldl");
     cmd.arg("-lpthread");

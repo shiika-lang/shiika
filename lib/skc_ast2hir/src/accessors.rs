@@ -1,8 +1,6 @@
 use crate::hir_maker::HirMaker;
-use shiika_ast;
 use shiika_core::names::*;
-use skc_hir2ll::code_gen::CodeGen;
-use skc_hir2ll::hir::*;
+use skc_hir::*;
 
 impl<'hir_maker> HirMaker<'hir_maker> {
     /// Define getters and setters (unless there is a method of the same name)
@@ -49,19 +47,11 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         params: vec![],
         typarams: vec![],
     };
-    let name = ivar.name.clone(); // Clone to embed into the closure
-    let idx = ivar.idx;
-    let getter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-        let this = code_gen.get_nth_param(function, 0);
-        let val = code_gen.build_ivar_load(this, idx, &name);
-        code_gen.build_return(&val);
-        Ok(())
-    };
-
     SkMethod {
         signature: sig,
-        body: SkMethodBody::RustClosureMethodBody {
-            boxed_gen: Box::new(getter_body),
+        body: SkMethodBody::Getter {
+            idx: ivar.idx,
+            name: ivar.name.clone(),
         },
         lvars: vec![],
     }
@@ -79,21 +69,11 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         }],
         typarams: vec![],
     };
-    let ivar_name = ivar.name.clone(); // Clone to embed into the closure
-    let idx = ivar.idx;
-    let setter_body = move |code_gen: &CodeGen, function: &inkwell::values::FunctionValue| {
-        let this = code_gen.get_nth_param(function, 0);
-        let val = code_gen.get_nth_param(function, 1);
-        code_gen.build_ivar_store(&this, idx, val, &ivar_name);
-        let val = code_gen.get_nth_param(function, 1);
-        code_gen.build_return(&val);
-        Ok(())
-    };
-
     SkMethod {
         signature: sig,
-        body: SkMethodBody::RustClosureMethodBody {
-            boxed_gen: Box::new(setter_body),
+        body: SkMethodBody::Setter {
+            idx: ivar.idx,
+            name: ivar.name.clone(),
         },
         lvars: vec![],
     }

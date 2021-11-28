@@ -7,7 +7,6 @@ pub mod values;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_const_name;
 use crate::code_gen::values::*;
-use crate::hir::*;
 use crate::library::LibraryExports;
 use crate::mir;
 use crate::mir::*;
@@ -17,6 +16,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
+use skc_hir::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -132,8 +132,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_declares(&self) {
         let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], true);
         self.module.add_function("printf", fn_type, None);
-        let fn_type = self.void_type.fn_type(&[self.i8ptr_type.into()], false);
-        self.module.add_function("shiika_puts", fn_type, None);
         let fn_type = self.void_type.fn_type(&[self.i32_type.into()], false);
         self.module.add_function("exit", fn_type, None);
 
@@ -536,6 +534,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_method(&self, method: &'hir SkMethod) -> Result<()> {
+        if method.is_rustlib() {
+            return Ok(())
+        }
         let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(
             func_name,
@@ -582,9 +583,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Method body
         match body {
             Left(method_body) => match method_body {
-                SkMethodBody::RustMethodBody { gen } => gen(self, &function)?,
-                SkMethodBody::RustClosureMethodBody { boxed_gen } => boxed_gen(self, &function)?,
-                SkMethodBody::ShiikaMethodBody { exprs } => self.gen_shiika_function_body(
+                SkMethodBody::Normal { exprs } => self.gen_shiika_function_body(
                     function,
                     None,
                     FunctionOrigin::Method,
@@ -592,6 +591,33 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     exprs,
                     lvar_ptrs,
                 )?,
+                SkMethodBody::RustLib => (),
+                SkMethodBody::New {
+                    classname,
+                    initialize_name,
+                    init_cls_name,
+                    arity,
+                    const_is_obj,
+                } => self.gen_body_of_new(
+                    function.get_params(),
+                    classname,
+                    initialize_name,
+                    init_cls_name,
+                    *arity,
+                    *const_is_obj,
+                ),
+                SkMethodBody::Getter { idx, name } => {
+                    let this = self.get_nth_param(&function, 0);
+                    let val = self.build_ivar_load(this, *idx, name);
+                    self.build_return(&val);
+                }
+                SkMethodBody::Setter { idx, name } => {
+                    let this = self.get_nth_param(&function, 0);
+                    let val = self.get_nth_param(&function, 1);
+                    self.build_ivar_store(&this, *idx, val, name);
+                    let val = self.get_nth_param(&function, 1);
+                    self.build_return(&val);
+                }
             },
             Right(exprs) => {
                 self.gen_shiika_function_body(

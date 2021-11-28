@@ -1,5 +1,5 @@
 use crate::create_method;
-use skc_hir2ll::hir::SkMethod;
+use skc_hir::SkMethod;
 
 pub fn create_class_methods() -> Vec<SkMethod> {
     vec![

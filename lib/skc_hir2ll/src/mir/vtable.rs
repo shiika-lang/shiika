@@ -1,7 +1,7 @@
-use crate::hir::*;
 use crate::library::LibraryExports;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
+use skc_hir::{SkClass, SkClasses};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
@@ -86,7 +86,7 @@ impl VTables {
                 continue;
             }
 
-            let class = sk_classes.get(&name).unwrap();
+            let class = sk_classes.get(&name).unwrap_or_else(|| panic!("class not found: {}", name));
             let super_vtable;
             if let Some(superclass) = &class.superclass {
                 let super_name = superclass.ty().erasure();

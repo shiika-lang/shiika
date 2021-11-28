@@ -11,11 +11,11 @@ mod pattern_match;
 mod type_checking;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
-use shiika_ast;
 use shiika_core::ty;
 use skc_corelib::Corelib;
-use skc_hir2ll::hir::Hir;
+use skc_hir::Hir;
 use skc_hir2ll::library::LibraryExports;
+mod rustlib_methods;
 
 pub fn make_hir(
     ast: shiika_ast::Program,
@@ -23,11 +23,12 @@ pub fn make_hir(
     imports: &LibraryExports,
 ) -> Result<Hir> {
     let (core_classes, core_methods) = if let Some(c) = corelib {
-        (c.sk_classes, c.sk_methods)
+        rustlib_methods::mix_with_corelib(c)
     } else {
         (Default::default(), Default::default())
     };
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
+
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
     hir_maker.define_class_constants();
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;

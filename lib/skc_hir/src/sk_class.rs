@@ -1,5 +1,5 @@
-use crate::hir::signature::MethodSignature;
-use crate::hir::superclass::Superclass;
+use crate::signature::MethodSignature;
+use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::{self, *};

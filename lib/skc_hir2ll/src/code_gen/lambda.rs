@@ -1,9 +1,9 @@
 use crate::code_gen::*;
-use crate::hir::HirExpressionBase::*;
-use crate::hir::*;
 use anyhow::Result;
 use either::Either::*;
 use shiika_core::ty::*;
+use skc_hir::HirExpressionBase::*;
+use skc_hir::*;
 
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Find all lambdas in a hir and create the body of the corresponding llvm function
@@ -12,7 +12,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<()> {
         for methods in hir.sk_methods.values() {
             for method in methods {
-                if let SkMethodBody::ShiikaMethodBody { exprs } = &method.body {
+                if let SkMethodBody::Normal { exprs } = &method.body {
                     self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
                 }
             }

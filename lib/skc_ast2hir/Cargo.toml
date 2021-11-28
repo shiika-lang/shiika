@@ -7,10 +7,10 @@ edition = "2018"
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
 skc_corelib = { path = "../skc_corelib" }
-skc_hir2ll = { path = "../skc_hir2ll" }
+skc_hir = { path = "../skc_hir" }
 anyhow = "1.0"
 thiserror = "1.0"
 log = "0.4.11"
 
-# FIXME: Used in accessor.rs.
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
+# TODO: used for libraryExports
+skc_hir2ll = { path = "../skc_hir2ll" }

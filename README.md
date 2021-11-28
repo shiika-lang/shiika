@@ -108,7 +108,7 @@ See [Issues](https://github.com/shiika-lang/shiika/issues)
 
 ### Prerequisites
 
-- Rust
+- Rust nightly (for std::backtrace)
 - LLVM (eg. `brew install llvm@12`)
 
 ```sh
@@ -120,12 +120,18 @@ export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
 ### Compile
 
 ```
-$ cd src/rustlib; cargo build; cd ../../
 $ cargo build
+$ cd lib/skc_rustlib; cargo build; cd ../../
 $ cargo run -- build_corelib
 ```
 
 The `build_corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
+
+### Run a program
+
+```
+$ cargo run -- run examples/hello.sk
+```
 
 ### Run tests
 
@@ -149,12 +155,6 @@ With logging enabled
 
 ```
 $ RUST_LOG='trace' cargo test
-```
-
-### How to run a Shiika program
-
-```
-$ cargo run -- run examples/hello.sk
 ```
 
 ## License

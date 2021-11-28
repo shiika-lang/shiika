@@ -1,4 +1,4 @@
-use crate::hir::{HirExpression, HirExpressions};
+use crate::{HirExpression, HirExpressions};
 
 #[derive(Debug, Clone)]
 pub enum Component {

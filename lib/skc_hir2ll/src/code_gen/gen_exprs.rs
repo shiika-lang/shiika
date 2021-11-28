@@ -1,12 +1,12 @@
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::values::*;
 use crate::code_gen::*;
-use crate::hir::pattern_match;
-use crate::hir::HirExpressionBase::*;
-use crate::hir::*;
 use anyhow::Result;
 use inkwell::values::*;
 use shiika_core::{names::*, ty, ty::*};
+use skc_hir::pattern_match;
+use skc_hir::HirExpressionBase::*;
+use skc_hir::*;
 use std::convert::TryFrom;
 use std::rc::Rc;
 
@@ -326,14 +326,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for component in &clause.components {
             match component {
                 pattern_match::Component::Test(expr) => {
-                    let v = self.gen_expr(ctx, &expr)?.unwrap();
+                    let v = self.gen_expr(ctx, expr)?.unwrap();
                     let cont_block = self.context.append_basic_block(ctx.function, "Matching");
                     self.gen_conditional_branch(v, cont_block, skip_block);
                     // Continue processing this clause
                     self.builder.position_at_end(cont_block);
                 }
                 pattern_match::Component::Bind(name, expr) => {
-                    self.gen_lvar_assign(ctx, &name, &expr)?;
+                    self.gen_lvar_assign(ctx, name, expr)?;
                 }
             }
         }
@@ -522,7 +522,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::PointerValue<'run> {
         //let class = self.get_class_of_obj(receiver_value);
         let vtable = self.get_vtable_of_obj(receiver_value);
-        let (idx, size) = self.__lookup_vtable(&receiver_ty, &method_name);
+        let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
         let func_raw = self.build_vtable_ref(vtable, *idx, size);
         self.builder
             .build_bitcast(func_raw, func_type.ptr_type(AddressSpace::Generic), "func")
@@ -552,7 +552,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj.0.clone()];
+        let mut args = vec![lambda_obj.0];
         for e in arg_exprs {
             args.push(self.gen_expr(ctx, e)?.unwrap().0);
         }
@@ -660,7 +660,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = ctx
             .lvars
             .get(name)
-            .expect(&format!("[BUG] lvar `{}' not alloca'ed", name));
+            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
         SkObj(self.builder.build_load(*ptr, name))
     }
 

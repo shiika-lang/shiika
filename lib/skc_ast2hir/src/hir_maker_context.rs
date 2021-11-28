@@ -1,8 +1,9 @@
 use shiika_core::{names::*, ty::*};
-use skc_hir2ll::hir::{MethodParam, MethodSignature, SkIVars};
+use skc_hir::{MethodParam, MethodSignature, SkIVars};
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum HirMakerContext {
     Toplevel(ToplevelCtx),
     Class(ClassCtx),

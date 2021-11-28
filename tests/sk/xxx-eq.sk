@@ -10,14 +10,14 @@ a /= 5
 if a != 12 then puts "ng /=" end
 a %= 5
 if a != 2 then puts "ng !=" end
-a <<= 4
-if a != 32 then puts "ng <<=" end
-a >>= 1
-if a != 16 then puts "ng >>=" end
-a -= 1
-a &= 9
-if a != 9 then puts "ng &=" end
-a |= 15
-if a != 15 then puts "ng |=" end
+#a <<= 4
+#if a != 32 then puts "ng <<=" end
+#a >>= 1
+#if a != 16 then puts "ng >>=" end
+#a -= 1
+#a &= 9
+#if a != 9 then puts "ng &=" end
+#a |= 15
+#if a != 15 then puts "ng |=" end
 
 puts "ok"

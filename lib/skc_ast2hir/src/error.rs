@@ -1,8 +1,7 @@
-use anyhow;
 use std::backtrace::Backtrace;
-use thiserror;
 
 #[derive(thiserror::Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("{msg})")]
     SyntaxError { msg: String, backtrace: Backtrace },

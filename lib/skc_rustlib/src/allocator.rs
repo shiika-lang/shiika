@@ -1,3 +1,4 @@
+/// Allocate memory with bdwgc
 use bdwgc_alloc::Allocator;
 use std::alloc::Layout;
 use std::os::raw::c_void;

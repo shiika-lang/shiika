@@ -1,5 +1,5 @@
 use shiika_core::ty;
-use skc_hir2ll::hir::SkIVar;
+use skc_hir::SkIVar;
 use std::collections::HashMap;
 
 pub fn ivars() -> HashMap<String, SkIVar> {

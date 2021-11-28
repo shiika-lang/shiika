@@ -246,21 +246,6 @@ impl ConstName {
         }
     }
 
-    // TODO: resolve class name instead of this
-    pub fn to_ty(&self, class_typarams: &[String]) -> TermTy {
-        if self.args.is_empty() {
-            let s = self.names.join("::");
-            if let Some(i) = class_typarams.iter().position(|name| *name == s) {
-                ty::typaram(s, ty::TyParamKind::Class, i)
-            } else {
-                ty::raw(&self.names.join("::"))
-            }
-        } else {
-            let type_args = self.args.iter().map(|n| n.to_ty(class_typarams)).collect();
-            ty::spe(&self.names.join("::"), type_args)
-        }
-    }
-
     /// Returns if generic
     pub fn has_type_args(&self) -> bool {
         !self.args.is_empty()

@@ -4,8 +4,8 @@ use crate::hir_maker_context::HirMakerContext;
 use anyhow::Result;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir2ll::hir::pattern_match::{Component, MatchClause};
-use skc_hir2ll::hir::*;
+use skc_hir::pattern_match::{Component, MatchClause};
+use skc_hir::*;
 
 //match f(g(h))
 //when Some(a)
@@ -86,7 +86,7 @@ fn compile_body(
 
 /// Calculate the type of the match expression from clauses
 fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy> {
-    debug_assert!(clauses.len() > 0);
+    debug_assert!(!clauses.is_empty());
     let mut clauses = clauses
         .iter_mut()
         .filter(|c| !c.body_hir.ty.is_never_type())
@@ -128,11 +128,8 @@ fn collect_lvars(clauses: &[MatchClause]) -> Vec<(String, TermTy)> {
     let mut lvars = vec![];
     for clause in clauses {
         for component in &clause.components {
-            match component {
-                Component::Bind(name, expr) => {
-                    lvars.push((name.to_string(), expr.ty.clone()));
-                }
-                _ => (),
+            if let Component::Bind(name, expr) = component {
+                lvars.push((name.to_string(), expr.ty.clone()));
             }
         }
     }
@@ -202,7 +199,7 @@ fn convert_extractor(
     Ok(components)
 }
 
-fn class_props<'hir_maker>(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
+fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
     let (sig, _) =
         mk.class_dict
             .lookup_method(cls, &method_firstname("initialize"), Default::default())?;
@@ -220,7 +217,7 @@ fn extract_props(
     pat_ty: &TermTy,
     patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
-    let ivars = class_props(mk, &pat_ty)?; // eg. ("value", ty::spe("Maybe", "Int"))
+    let ivars = class_props(mk, pat_ty)?; // eg. ("value", ty::spe("Maybe", "Int"))
     if ivars.len() != patterns.len() {
         return Err(error::program_error(&format!(
             "this match needs {} patterns but {} there",
