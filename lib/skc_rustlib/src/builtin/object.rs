@@ -18,13 +18,9 @@ pub struct ShiikaObject {
 }
 
 impl SkObj {
-    pub fn new(p: *const ShiikaObject) -> SkObj {
-        SkObj(p)
-    }
-
-    pub fn dup_ptr(&self) -> SkObj {
-        SkObj(self.0)
-    }
+    //pub fn new(p: *const ShiikaObject) -> SkObj {
+    //    SkObj(p)
+    //}
 
     pub fn class(&self) -> SkClass {
         unsafe { SkClass::new((*self.0).class_obj) }

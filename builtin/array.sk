@@ -46,20 +46,6 @@ class Array<T>
     end
   end
 
-  # Return the `i`th item
-  # Count from the last if `i` is less than zero
-  # Panics if the index is out of range
-  def [](i: Int) -> T
-    idx = i < 0 ? @n_items + i : i
-    if idx < 0
-      panic "[Array#[]: index too small]"
-    end
-    if idx >= @n_items
-      panic "[Array#[]: index too large]"
-    end
-    _corelib_array_get(@items + idx * BYTES_OF_PTR)
-  end
-
   # Replace the `i`th item with `obj`
   # Count from the last if `i` is less than zero
   # Panics if the index is out of range
@@ -320,7 +306,7 @@ class Array<T>
   end
 
   # Create sorted version of `self`
-  # Panics if `T` does not implement `==` and `<`
+  # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
   def sort -> Array<T>
     ret = self.clone
     ret.sort_inplace
@@ -328,7 +314,7 @@ class Array<T>
   end
 
   # Destructively sort elements of `self`.
-  # Panics if `T` does not implement `==` and `<`
+  # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
   def sort_inplace()
     if self.empty?
       # do nothing
