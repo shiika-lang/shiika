@@ -98,7 +98,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 let metaclass = self
                     .sk_classes
                     .get_mut(&metaclass_fullname)
-                    .unwrap_or_else(|| panic!("[BUG] metaclass not found: {} <- {}", fullname, &metaclass_fullname));
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "[BUG] metaclass not found: {} <- {}",
+                            fullname, &metaclass_fullname
+                        )
+                    });
                 metaclass.method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
                 if let Some(sig) = new_sig {
