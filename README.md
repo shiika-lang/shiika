@@ -120,7 +120,6 @@ export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
 ### Compile
 
 ```
-$ cd lib/rustlib; cargo build; cd ../../
 $ cargo build
 $ cargo run -- build_corelib
 ```
