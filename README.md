@@ -121,6 +121,7 @@ export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
 
 ```
 $ cargo build
+$ cd lib/skc_rustlib; cargo build; cd ../../
 $ cargo run -- build_corelib
 ```
 
