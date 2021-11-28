@@ -1,7 +1,8 @@
 use crate::builtin::class::{ShiikaClass, SkClass};
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
-use std::io::Write;
+use std::io::{self, Write};
+use std::mem;
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkObj(*const ShiikaObject);
@@ -20,10 +21,6 @@ impl SkObj {
     pub fn new(p: *const ShiikaObject) -> SkObj {
         SkObj(p)
     }
-
-    //    pub fn raw(&self) -> *const ShiikaObject {
-    //        self.0
-    //    }
 
     pub fn dup_ptr(&self) -> SkObj {
         SkObj(self.0)
@@ -50,9 +47,17 @@ pub extern "C" fn object_exit(_receiver: SkObj, code: SkInt) {
     std::process::exit(code.val() as i32);
 }
 
+#[export_name = "Object#object_id"]
+pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
+    unsafe {
+        let i = mem::transmute::<*const ShiikaObject, i64>(receiver.0);
+        i.into()
+    }
+}
+
 #[export_name = "Object#puts"]
 pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
-    let _result = std::io::stdout().write_all(s.byteslice());
+    let _result = io::stdout().write_all(s.byteslice());
     println!("");
 }

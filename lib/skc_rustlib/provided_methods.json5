@@ -25,6 +25,7 @@
   ["Object", "==(other: Object) -> Bool"],
   ["Object", "class -> Class"],
   ["Object", "exit(code: Int) -> Never"],
+  ["Object", "object_id -> Int"],
   ["Object", "puts(str: String)"],
   ["Meta:Shiika::Internal::Memory", "memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void"],
   ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"],
