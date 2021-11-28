@@ -1,6 +1,5 @@
-//! Instance of `::Int`
-//! May represent big number in the future
-use crate::builtin::SkBool;
+//! Instance of `::Float`
+use crate::builtin::{SkBool, SkInt};
 
 extern "C" {
     fn box_float(f: f64) -> SkFloat;
@@ -62,11 +61,6 @@ pub extern "C" fn float_div(receiver: SkFloat, other: SkFloat) -> SkFloat {
     (receiver.val() / other.val()).into()
 }
 
-#[export_name = "Float#%"]
-pub extern "C" fn float_mod(receiver: SkFloat, other: SkFloat) -> SkFloat {
-    (receiver.val() % other.val()).into()
-}
-
 #[export_name = "Float#<"]
 pub extern "C" fn float_lt(receiver: SkFloat, other: SkFloat) -> SkBool {
     (receiver.val() < other.val()).into()
@@ -90,4 +84,19 @@ pub extern "C" fn float_ge(receiver: SkFloat, other: SkFloat) -> SkBool {
 #[export_name = "Float#=="]
 pub extern "C" fn float_eq(receiver: SkFloat, other: SkFloat) -> SkBool {
     (receiver.val() == other.val()).into()
+}
+
+#[export_name = "Float#abs"]
+pub extern "C" fn float_abs(receiver: SkFloat) -> SkFloat {
+    receiver.val().abs().into()
+}
+
+#[export_name = "Float#floor"]
+pub extern "C" fn float_floor(receiver: SkFloat) -> SkFloat {
+    receiver.val().floor().into()
+}
+
+#[export_name = "Float#to_i"]
+pub extern "C" fn float_to_i(receiver: SkFloat) -> SkInt {
+    (receiver.val().trunc() as i64).into()
 }

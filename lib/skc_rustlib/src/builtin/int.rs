@@ -1,6 +1,6 @@
 //! Instance of `::Int`
 //! May represent big number in the future
-use crate::builtin::SkBool;
+use crate::builtin::{SkBool, SkFloat};
 
 extern "C" {
     fn box_int(i: i64) -> SkInt;
@@ -68,9 +68,14 @@ pub extern "C" fn int_mod(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() % other.val()).into()
 }
 
-#[export_name = "Int#^"]
-pub extern "C" fn int_xor(receiver: SkInt, other: SkInt) -> SkInt {
-    (receiver.val() ^ other.val()).into()
+#[export_name = "Int#<<"]
+pub extern "C" fn int_lshift(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() << other.val()).into()
+}
+
+#[export_name = "Int#>>"]
+pub extern "C" fn int_rshift(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() >> other.val()).into()
 }
 
 #[export_name = "Int#<"]
@@ -96,4 +101,9 @@ pub extern "C" fn int_ge(receiver: SkInt, other: SkInt) -> SkBool {
 #[export_name = "Int#=="]
 pub extern "C" fn int_eq(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() == other.val()).into()
+}
+
+#[export_name = "Int#to_f"]
+pub extern "C" fn int_to_f(receiver: SkInt) -> SkFloat {
+    (receiver.val() as f64).into()
 }

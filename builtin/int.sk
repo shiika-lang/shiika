@@ -1,13 +1,4 @@
 class Int
-  def %(other: Int) -> Int
-    if (self ^ other) >= 0
-      self.reminder(other)
-    else
-      me = self.reminder(other)
-      me == 0 ? me : me + other
-    end
-  end
-
   # Returns the absolute value of `self`.
   def abs -> Int
     if self >= 0
@@ -25,16 +16,15 @@ class Int
     end
   end
 
-# TODO: Allow `?` in the end of method name
-#  # Returns true if `self` is even.
-#  def even? -> Bool
-#    self / 2 == 0.0
-#  end
-#
-#  # Returns true if `self` is odd.
-#  def odd? -> Bool
-#    self / 2 != 0.0
-#  end
+  # Returns true if `self` is even.
+  def even? -> Bool
+    self % 2 == 0
+  end
+
+  # Returns true if `self` is odd.
+  def odd? -> Bool
+    self % 2 != 0
+  end
 
   # Return the hash value of `self`.
   def hash -> Int
