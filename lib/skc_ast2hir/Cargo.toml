@@ -13,4 +13,4 @@ thiserror = "1.0"
 log = "0.4.11"
 
 # TODO: used for libraryExports
-skc_hir2ll = { path = "../skc_hir2ll" }
+skc_mir = { path = "../skc_mir" }

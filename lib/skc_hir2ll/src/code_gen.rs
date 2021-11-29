@@ -7,9 +7,6 @@ pub mod values;
 use crate::code_gen::code_gen_context::*;
 use crate::code_gen::utils::llvm_vtable_const_name;
 use crate::code_gen::values::*;
-use crate::library::LibraryExports;
-use crate::mir;
-use crate::mir::*;
 use anyhow::{anyhow, Result};
 use either::*;
 use inkwell::types::*;
@@ -17,6 +14,7 @@ use inkwell::values::*;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
+use skc_mir::{LibraryExports, Mir, VTables};
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -44,8 +42,8 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub void_type: inkwell::types::VoidType<'ictx>,
     pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
-    vtables: &'hir mir::VTables,
-    imported_vtables: &'hir mir::VTables,
+    vtables: &'hir VTables,
+    imported_vtables: &'hir VTables,
     /// Toplevel `self`
     the_main: Option<SkObj<'run>>,
 }
@@ -535,7 +533,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_method(&self, method: &'hir SkMethod) -> Result<()> {
         if method.is_rustlib() {
-            return Ok(())
+            return Ok(());
         }
         let func_name = &method.signature.fullname.full_name;
         self.gen_llvm_func_body(

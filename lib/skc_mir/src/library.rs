@@ -1,7 +1,7 @@
-use crate::mir::*;
+use crate::{Mir, VTables};
 use serde::{Deserialize, Serialize};
-use shiika_core::{names::*, ty::*};
-use skc_hir::*;
+use shiika_core::{names::ConstFullname, ty::TermTy};
+use skc_hir::SkClasses;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Default)]

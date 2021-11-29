@@ -14,7 +14,7 @@ use anyhow::Result;
 use shiika_core::ty;
 use skc_corelib::Corelib;
 use skc_hir::Hir;
-use skc_hir2ll::library::LibraryExports;
+use skc_mir::LibraryExports;
 mod rustlib_methods;
 
 pub fn make_hir(

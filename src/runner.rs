@@ -3,7 +3,8 @@ use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::Parser;
 use skc_ast2hir;
 use skc_corelib;
-use skc_hir2ll::{code_gen, library, mir};
+use skc_hir2ll::code_gen;
+use skc_mir::LibraryExports;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -23,7 +24,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     let imports = load_builtin_exports()?;
     let hir = skc_ast2hir::make_hir(ast, None, &imports)?;
     log::debug!("created hir");
-    let mir = mir::build(hir, imports);
+    let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
     let bc_path = path.clone() + ".bc";
     let ll_path = path + ".ll";
@@ -34,12 +35,12 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
 }
 
 /// Load builtin/exports.json
-fn load_builtin_exports() -> Result<library::LibraryExports, Error> {
+fn load_builtin_exports() -> Result<LibraryExports, Error> {
     let mut f = fs::File::open("builtin/exports.json").context("builtin exports not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .context("failed to read builtin exports")?;
-    let exports: library::LibraryExports =
+    let exports: LibraryExports =
         serde_json::from_str(&contents).context("builtin exports is broken")?;
     Ok(exports)
 }
@@ -54,9 +55,9 @@ pub fn build_corelib() -> Result<(), Error> {
     let imports = Default::default();
     let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports)?;
     log::debug!("created hir");
-    let mir = mir::build(hir, imports);
+    let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
-    let exports = library::LibraryExports::new(&mir);
+    let exports = LibraryExports::new(&mir);
     let triple = targets::default_triple();
     code_gen::run(
         &mir,
