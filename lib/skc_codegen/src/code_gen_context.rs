@@ -1,4 +1,4 @@
-use crate::code_gen::values::SkObj;
+use crate::values::SkObj;
 use skc_hir::*;
 use std::collections::HashMap;
 use std::rc::Rc;

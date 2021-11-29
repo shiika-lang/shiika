@@ -100,7 +100,11 @@ fn convert_typ(typ: &ConstName, class_typarams: &[&String]) -> TermTy {
             ty::raw(&typ.names.join("::"))
         }
     } else {
-        let type_args = typ.args.iter().map(|n| convert_typ(n, class_typarams)).collect();
+        let type_args = typ
+            .args
+            .iter()
+            .map(|n| convert_typ(n, class_typarams))
+            .collect();
         ty::spe(&typ.names.join("::"), type_args)
     }
 }

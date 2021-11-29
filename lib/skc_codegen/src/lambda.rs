@@ -1,4 +1,4 @@
-use crate::code_gen::*;
+use crate::CodeGen;
 use anyhow::Result;
 use either::Either::*;
 use shiika_core::ty::*;

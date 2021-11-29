@@ -1,8 +1,10 @@
-use crate::code_gen::code_gen_context::*;
-use crate::code_gen::values::*;
-use crate::code_gen::*;
+use crate::code_gen_context::*;
+use crate::values::*;
+use crate::CodeGen;
 use anyhow::Result;
+use inkwell::types::*;
 use inkwell::values::*;
+use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match;
 use skc_hir::HirExpressionBase::*;

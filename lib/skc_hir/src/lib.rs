@@ -88,15 +88,9 @@ pub enum SkMethodBody {
         const_is_obj: bool,
     },
     /// A method that just return the value of `idx`th ivar
-    Getter {
-        idx: usize,
-        name: String,
-    },
+    Getter { idx: usize, name: String },
     /// A method that just update the value of `idx`th ivar
-    Setter {
-        idx: usize,
-        name: String,
-    }
+    Setter { idx: usize, name: String },
 }
 
 impl SkMethod {

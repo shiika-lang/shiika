@@ -672,9 +672,7 @@ impl<'a> Lexer<'a> {
     /// Return special char written with '\'
     fn _read_escape_sequence(&self, c: Option<char>) -> Result<char, Error> {
         match c {
-            None => {
-                Err(self.lex_error("found unterminated string"))
-            }
+            None => Err(self.lex_error("found unterminated string")),
             Some('\\') => Ok('\\'),
             Some('"') => Ok('"'),
             Some('n') => Ok('\n'),
