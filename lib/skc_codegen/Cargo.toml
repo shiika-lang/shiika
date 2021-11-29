@@ -1,5 +1,5 @@
 [package]
-name = "skc_hir2ll"
+name = "skc_codegen"
 version = "0.1.0"
 edition = "2018"
 

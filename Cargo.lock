@@ -727,8 +727,8 @@ dependencies = [
  "shiika_core",
  "shiika_parser",
  "skc_ast2hir",
+ "skc_codegen",
  "skc_corelib",
- "skc_hir2ll",
  "skc_mir",
 ]
 
@@ -771,18 +771,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "skc_codegen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "either",
+ "inkwell",
+ "log",
+ "serde",
+ "serde_json",
+ "shiika_ast",
+ "shiika_core",
+ "skc_hir",
+ "skc_mir",
+]
+
+[[package]]
 name = "skc_corelib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "json5",
  "serde",
- "serde_json",
  "shiika_ast",
  "shiika_core",
  "shiika_parser",
  "skc_hir",
- "skc_hir2ll",
 ]
 
 [[package]]
@@ -796,22 +810,6 @@ dependencies = [
  "serde_json",
  "shiika_ast",
  "shiika_core",
-]
-
-[[package]]
-name = "skc_hir2ll"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "either",
- "inkwell",
- "log",
- "serde",
- "serde_json",
- "shiika_ast",
- "shiika_core",
- "skc_hir",
- "skc_mir",
 ]
 
 [[package]]

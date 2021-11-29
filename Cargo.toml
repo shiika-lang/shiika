@@ -16,7 +16,7 @@ shiika_core = { path = "lib/shiika_core/" }
 skc_corelib = { path = "lib/skc_corelib/" }
 skc_ast2hir = { path = "lib/skc_ast2hir/" }
 skc_mir = { path = "lib/skc_mir/" }
-skc_hir2ll = { path = "lib/skc_hir2ll/" }
+skc_codegen = { path = "lib/skc_codegen/" }
 
 anyhow = "1.0"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }

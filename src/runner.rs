@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::Parser;
 use skc_ast2hir;
 use skc_corelib;
-use skc_hir2ll;
+use skc_codegen;
 use skc_mir::LibraryExports;
 use std::env;
 use std::fs;
@@ -29,7 +29,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
     let bc_path = path.clone() + ".bc";
     let ll_path = path + ".ll";
     let triple = targets::default_triple();
-    skc_hir2ll::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
+    skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
     log::debug!("created .bc");
     Ok(())
 }
@@ -59,7 +59,7 @@ pub fn build_corelib() -> Result<(), Error> {
     log::debug!("created mir");
     let exports = LibraryExports::new(&mir);
     let triple = targets::default_triple();
-    skc_hir2ll::run(
+    skc_codegen::run(
         &mir,
         "builtin/builtin.bc",
         Some("builtin/builtin.ll"),
