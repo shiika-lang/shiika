@@ -1,4 +1,7 @@
-use crate::code_gen::*;
+use crate::values::*;
+use crate::CodeGen;
+use inkwell::types::*;
+use inkwell::values::*;
 use shiika_core::{names::*, ty};
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {

@@ -1,14 +1,18 @@
 use anyhow::{Context, Result};
 use json5;
-use std::fs;
-use std::io::Read;
-use shiika_parser::Parser;
 use shiika_ast::AstMethodSignature;
 use shiika_core::names::{class_fullname, ClassFullname};
+use shiika_parser::Parser;
+use std::fs;
+use std::io::Read;
 
 /// Returns signatures of corelib methods implemented in Rust
 pub fn provided_methods() -> Vec<(ClassFullname, AstMethodSignature)> {
-    load_methods_json().unwrap().iter().map(parse_signature).collect()
+    load_methods_json()
+        .unwrap()
+        .iter()
+        .map(parse_signature)
+        .collect()
 }
 
 // Read provided_methods.json
@@ -27,4 +31,3 @@ fn parse_signature(item: &(String, String)) -> (ClassFullname, AstMethodSignatur
     let ast_sig = Parser::parse_signature(sig_str).unwrap();
     (class_fullname(classname), ast_sig)
 }
-

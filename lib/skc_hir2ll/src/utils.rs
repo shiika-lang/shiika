@@ -1,9 +1,9 @@
-use crate::code_gen::values::*;
-use crate::code_gen::*;
-/// Provides utility functions used by code_gen/*.rs
-/// (some are also used by corelib/*.rs)
+use crate::values::*;
+use crate::CodeGen;
 use inkwell::types::*;
+use inkwell::values::*;
 use inkwell::AddressSpace;
+use shiika_core::{names::*, ty, ty::*};
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
@@ -230,7 +230,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         args: &[inkwell::values::BasicValueEnum<'run>],
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let f = self.module.get_function(func_name).unwrap_or_else(|| panic!("[BUG] llvm function `{}' not found", func_name));
+        let f = self
+            .module
+            .get_function(func_name)
+            .unwrap_or_else(|| panic!("[BUG] llvm function `{}' not found", func_name));
         self.builder
             .build_call(f, args, reg_name)
             .try_as_basic_value()
