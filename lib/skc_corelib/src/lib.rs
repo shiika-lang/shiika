@@ -115,15 +115,15 @@ fn rust_body_items() -> Vec<ClassItem> {
             HashMap::new(),
             vec![],
         ),
-        //        // Modules
-        //        (
-        //            "Math".to_string(),
-        //            Some(Superclass::simple("Object")),
-        //            vec![],
-        //            math::create_class_methods(),
-        //            HashMap::new(),
-        //            vec![],
-        //        ),
+        // Modules
+        (
+            "Math".to_string(),
+            Some(Superclass::simple("Object")),
+            vec![],
+            vec![],
+            HashMap::new(),
+            vec![],
+        ),
         (
             "Shiika::Internal::Memory".to_string(),
             Some(Superclass::simple("Object")),

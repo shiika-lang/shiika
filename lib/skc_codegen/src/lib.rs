@@ -128,11 +128,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_declares(&self) {
-        let fn_type = self.i32_type.fn_type(&[self.i8ptr_type.into()], true);
-        self.module.add_function("printf", fn_type, None);
-        let fn_type = self.void_type.fn_type(&[self.i32_type.into()], false);
-        self.module.add_function("exit", fn_type, None);
-
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
         let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
@@ -151,19 +146,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             ],
             false,
         );
-        self.module
-            .add_function("llvm.memcpy.p0i8.p0i8.i64", fn_type, None);
-
-        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
-        self.module.add_function("sin", fn_type, None);
-        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
-        self.module.add_function("cos", fn_type, None);
-        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
-        self.module.add_function("sqrt", fn_type, None);
-        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
-        self.module.add_function("fabs", fn_type, None);
-        let fn_type = self.f64_type.fn_type(&[self.f64_type.into()], false);
-        self.module.add_function("floor", fn_type, None);
 
         let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
