@@ -8,7 +8,7 @@ class Triple<A, B, C>
 end
 
 # TODO: Make this behave as ordered hash (like Ruby's)
-class Hash<K, V>
+class Dict<K, V>
   N_TABLES = 1000
 
   class Table<KK, VV>
@@ -72,12 +72,12 @@ class Hash<K, V>
   end
 
   def initialize
-    @tables = Array<Hash::Table<K, V>>.new
-    N_TABLES.times{|_: Int| @tables.push(Hash::Table<K, V>.new) }
+    @tables = Array<Dict::Table<K, V>>.new
+    N_TABLES.times{|_: Int| @tables.push(Dict::Table<K, V>.new) }
   end
 
-  # Return the `Hash::Table` which contains the `key`
-  def _table(key: K) -> Hash::Table<K, V>
+  # Return the `Dict::Table` which contains the `key`
+  def _table(key: K) -> Dict::Table<K, V>
     @tables[key.hash % @tables.length]
   end
 
@@ -99,7 +99,7 @@ class Hash<K, V>
   # Return list of the keys
   def keys -> Array<K>
     ret = Array<K>.new
-    @tables.each do |table: Hash::Table<K, V>|
+    @tables.each do |table: Dict::Table<K, V>|
       ret.append(table.keys)
     end
     ret
@@ -108,7 +108,7 @@ class Hash<K, V>
   # Return list of the values
   def values -> Array<V>
     ret = Array<V>.new
-    @tables.each do |table: Hash::Table<K, V>|
+    @tables.each do |table: Dict::Table<K, V>|
       ret.append(table.values)
     end
     ret
