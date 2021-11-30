@@ -1,4 +1,6 @@
 class String
+  # Note: String.new is not considered as a public API.
+  # Will be removed when `String` is ported to skc_rustlib.
   def initialize(ptr: Shiika::Internal::Ptr, bytesize: Int)
     @ptr = ptr
     # Number of bytes of the content (does not include the last null)
