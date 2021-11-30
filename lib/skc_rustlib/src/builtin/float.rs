@@ -1,5 +1,5 @@
 //! Instance of `::Float`
-use crate::builtin::{SkBool, SkInt};
+use crate::builtin::{SkBool, SkInt, SkStr};
 
 extern "C" {
     fn box_float(f: f64) -> SkFloat;
@@ -99,4 +99,9 @@ pub extern "C" fn float_floor(receiver: SkFloat) -> SkFloat {
 #[export_name = "Float#to_i"]
 pub extern "C" fn float_to_i(receiver: SkFloat) -> SkInt {
     (receiver.val().trunc() as i64).into()
+}
+
+#[export_name = "Float#to_s"]
+pub extern "C" fn float_to_s(receiver: SkFloat) -> SkStr {
+    format!("{}", receiver.val()).into()
 }

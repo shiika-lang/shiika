@@ -28,6 +28,7 @@
   ["Float", "abs -> Float"],
   ["Float", "floor -> Float"],
   ["Float", "to_i -> Int"],
+  ["Float", "to_s -> String"],
   ["Object", "==(other: Object) -> Bool"],
   ["Object", "class -> Class"],
   ["Object", "exit(code: Int) -> Never"],
