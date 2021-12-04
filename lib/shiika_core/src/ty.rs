@@ -1,20 +1,4 @@
 use serde::{Deserialize, Serialize};
-
-/// Shiika types
-///
-/// ```text
-///   ^ : superclass-subclass relationship
-///   ~ : class-instance relationship
-///
-///                        Object
-///                           ^
-///                        Class ~ Class
-///                           ^
-///               Object ~ Meta:Object
-///                 ^         ^
-///     [1,2,3] ~ Array  ~ Meta:Array ~ Class
-/// ```
-///
 use crate::names::*;
 use crate::ty;
 
