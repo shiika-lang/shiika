@@ -21,12 +21,6 @@ pub enum TyBody {
     },
     // This object belongs to the class `Metaclass` (i.e. this is a class object)
     TyMetaclass,
-    // Types for generic metaclass eg. `Meta:Pair<S, T>`
-    // REFACTOR: remove this?
-    TyGenMeta {
-        base_name: String,          // eg. "Pair"
-        typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
-    },
     // Types for specialized class eg. `Pair<Int, Bool>`
     TySpe {
         base_name: String, // eg. "Pair"
@@ -95,10 +89,6 @@ impl TermTy {
     /// Return string to inspect `self`
     fn dbg_str(&self) -> String {
         match &self.body {
-            TyGenMeta {
-                base_name,
-                typaram_names,
-            } => format!("Meta:{}<{}>", base_name, typaram_names.join(", ")),
             TySpe {
                 base_name,
                 type_args,
@@ -128,7 +118,7 @@ impl TermTy {
     pub fn is_metaclass(&self) -> bool {
         matches!(
             &self.body,
-            TyMeta { .. } | TyGenMeta { .. } | TySpeMeta { .. } | TyMetaclass
+            TyMeta { .. } | TySpeMeta { .. } | TyMetaclass
         )
     }
 
@@ -195,7 +185,6 @@ impl TermTy {
             TyRaw => ty::meta(&self.fullname.0),
             TyMeta { .. } => ty::metaclass(),
             TyMetaclass => ty::metaclass(),
-            TyGenMeta { .. } => ty::metaclass(),
             TySpe {
                 base_name,
                 type_args,
