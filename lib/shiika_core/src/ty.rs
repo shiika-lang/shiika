@@ -9,6 +9,76 @@ pub struct TermTy {
     pub body: TyBody,
 }
 
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum TyBody {
+    // Types corresponds to non-generic class
+    // eg. "Int", "String", "Object"
+    TyRaw,
+    // Types corresponds to (non-generic) metaclass
+    // eg. "Meta:Int", "Meta:String", "Meta:Object"
+    TyMeta {
+        base_fullname: String,
+    },
+    // This object belongs to the class `Metaclass` (i.e. this is a class object)
+    TyMetaclass,
+    // Types for generic metaclass eg. `Meta:Pair<S, T>`
+    // REFACTOR: remove this?
+    TyGenMeta {
+        base_name: String,          // eg. "Pair"
+        typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
+    },
+    // Types for specialized class eg. `Pair<Int, Bool>`
+    TySpe {
+        base_name: String, // eg. "Pair"
+        type_args: Vec<TermTy>,
+    },
+    // Types for specialized metaclass eg. `Meta:Pair<Int, Bool>`
+    TySpeMeta {
+        base_name: String, // eg. "Pair"
+        type_args: Vec<TermTy>,
+    },
+    // Type parameter reference eg. `T`
+    TyParamRef {
+        kind: TyParamKind,
+        name: String,
+        idx: usize,
+        upper_bound: Box<TermTy>,
+        lower_bound: Box<TermTy>,
+    },
+}
+use TyBody::*;
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum TyParamKind {
+    /// eg. `class A<B>`
+    Class,
+    /// eg. `def foo<X>(...)`
+    Method,
+}
+
+/// A type parameter
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct TyParam {
+    pub name: String,
+    pub variance: Variance,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum Variance {
+    Invariant,
+    Covariant,     // eg. `in T`
+    Contravariant, // eg. `out T`
+}
+
+impl TyParam {
+    pub fn new(name: impl Into<String>) -> TyParam {
+        TyParam {
+            name: name.into(),
+            variance: Variance::Invariant,
+        }
+    }
+}
+
 impl std::fmt::Display for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.fullname)
@@ -84,66 +154,7 @@ impl TermTy {
             _ => panic!("[BUG] to_const_fullname called on {:?}", &self),
         }
     }
-}
 
-/// Format `type_args` with .dbg_str
-fn _dbg_type_args(type_args: &[TermTy]) -> String {
-    type_args
-        .iter()
-        .map(|x| x.dbg_str())
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum TyBody {
-    // Types corresponds to non-generic class
-    // eg. "Int", "String", "Object"
-    TyRaw,
-    // Types corresponds to (non-generic) metaclass
-    // eg. "Meta:Int", "Meta:String", "Meta:Object"
-    TyMeta {
-        base_fullname: String,
-    },
-    // This object belongs to the class `Metaclass` (i.e. this is a class object)
-    TyMetaclass,
-    // Types for generic metaclass eg. `Meta:Pair<S, T>`
-    // REFACTOR: remove this?
-    TyGenMeta {
-        base_name: String,          // eg. "Pair"
-        typaram_names: Vec<String>, // eg. ["S", "T"] (For debug print)
-    },
-    // Types for specialized class eg. `Pair<Int, Bool>`
-    TySpe {
-        base_name: String, // eg. "Pair"
-        type_args: Vec<TermTy>,
-    },
-    // Types for specialized metaclass eg. `Meta:Pair<Int, Bool>`
-    TySpeMeta {
-        base_name: String, // eg. "Pair"
-        type_args: Vec<TermTy>,
-    },
-    // Type parameter reference eg. `T`
-    TyParamRef {
-        kind: TyParamKind,
-        name: String,
-        idx: usize,
-        upper_bound: Box<TermTy>,
-        lower_bound: Box<TermTy>,
-    },
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum TyParamKind {
-    /// eg. `class A<B>`
-    Class,
-    /// eg. `def foo<X>(...)`
-    Method,
-}
-
-use TyBody::*;
-
-impl TermTy {
     // Returns true when this is the Void type
     pub fn is_void_type(&self) -> bool {
         match self.body {
@@ -323,6 +334,15 @@ impl TermTy {
     }
 }
 
+/// Format `type_args` with .dbg_str
+fn _dbg_type_args(type_args: &[TermTy]) -> String {
+    type_args
+        .iter()
+        .map(|x| x.dbg_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
     if args.is_empty() {
         ty::raw(&names.join("::"))
@@ -420,28 +440,5 @@ pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy
             upper_bound: Box::new(ty::raw("Object")),
             lower_bound: Box::new(ty::raw("Never")),
         },
-    }
-}
-
-/// A type parameter
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct TyParam {
-    pub name: String,
-    pub variance: Variance,
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum Variance {
-    Invariant,
-    Covariant,     // eg. `in T`
-    Contravariant, // eg. `out T`
-}
-
-impl TyParam {
-    pub fn new(name: impl Into<String>) -> TyParam {
-        TyParam {
-            name: name.into(),
-            variance: Variance::Invariant,
-        }
     }
 }
