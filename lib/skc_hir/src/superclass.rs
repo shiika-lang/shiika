@@ -9,7 +9,7 @@ pub struct Superclass(TermTy);
 impl Superclass {
     /// Create a `Superclass`
     pub fn from_ty(t: TermTy) -> Superclass {
-        debug_assert!(matches!(t.body, TyBody::TyRaw | TyBody::TySpe { .. }));
+        debug_assert!(matches!(t.body, TyBody::TyRaw { .. }));
         Superclass(t)
     }
 

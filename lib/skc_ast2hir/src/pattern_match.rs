@@ -182,7 +182,7 @@ fn convert_extractor(
     // eg. `ty::raw("Maybe::Some")`
     let (base_ty, _) = mk.resolve_class_const(&UnresolvedConstName(names.to_vec()))?;
     let pat_ty = match &value.ty.body {
-        TyBody::TySpe { type_args, .. } => ty::spe(&base_ty.fullname.0, type_args.clone()),
+        TyBody::TyRaw { type_args, .. } => ty::spe(&base_ty.fullname.0, type_args.clone()),
         _ => base_ty.clone(),
     };
     if !mk.class_dict.conforms(&pat_ty, &value.ty) {

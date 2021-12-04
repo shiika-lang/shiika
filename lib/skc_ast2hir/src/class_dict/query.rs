@@ -35,15 +35,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<(MethodSignature, ClassFullname)> {
         let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
-            TyBody::TyRaw | TyBody::TyMeta { .. } | TyBody::TyMetaclass => {
+            TyBody::TyMeta { .. } | TyBody::TyMetaclass => {
                 (class, Default::default())
             }
-            TyBody::TySpe { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
+            TyBody::TyRaw { type_args, .. } | TyBody::TySpeMeta { type_args, .. } => {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
                 (base_cls, type_args.as_slice())
             }
             TyBody::TyParamRef { .. } => (&ty_obj, Default::default()),
-            _ => todo!("{}", class),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
             Ok((
