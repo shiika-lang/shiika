@@ -139,16 +139,7 @@ impl TermTy {
                 base_name,
                 type_args,
             } => {
-                if type_args.is_empty() {
-                    toplevel_const(&base_name)
-                } else {
-                    let args = type_args
-                        .iter()
-                        .map(|t| t.fullname.0.clone())
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    toplevel_const(&format!("{}<{}>", base_name, args))
-                }
+                toplevel_const(&format!("{}{}", base_name, &tyargs_str(type_args)))
             }
             _ => panic!("[BUG] to_const_fullname called on {:?}", &self),
         }
@@ -235,7 +226,7 @@ impl TermTy {
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {
             TyRaw { base_name, .. } => class_fullname(base_name),
-            TyMeta { base_name, .. } => class_fullname("Meta:".to_string() + base_name),
+            TyMeta { base_name, .. } => metaclass_fullname(base_name),
             _ => panic!("unexpected"),
         }
     }
@@ -352,6 +343,21 @@ impl TermTy {
     }
 }
 
+/// Returns "" if the argument is empty.
+/// Returns a string like "<A,B,C>" otherwise.
+fn tyargs_str(type_args: &[TermTy]) -> String {
+    if type_args.is_empty() {
+        "".to_string()
+    } else {
+        let s = type_args
+            .iter()
+            .map(|x| x.fullname.0.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("<{}>", &s)
+    }
+}
+
 /// Format `type_args` with .dbg_str
 fn _dbg_type_args(type_args: &[TermTy]) -> String {
     type_args
@@ -404,13 +410,8 @@ pub fn metaclass() -> TermTy {
 pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     let base_name = base_name_.into();
     debug_assert!(!base_name.starts_with("Meta:"));
-    debug_assert!(!type_args.is_empty());
-    let tyarg_names = type_args
-        .iter()
-        .map(|x| x.fullname.0.to_string())
-        .collect::<Vec<_>>();
     TermTy {
-        fullname: class_fullname(&format!("{}<{}>", &base_name, &tyarg_names.join(","))),
+        fullname: class_fullname(&format!("{}{}", &base_name, &tyargs_str(&type_args))),
         body: TyRaw {
             base_name,
             type_args,
@@ -420,12 +421,8 @@ pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
 
 pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     let base_name = base_name_.into();
-    let tyarg_names = type_args
-        .iter()
-        .map(|x| x.fullname.0.to_string())
-        .collect::<Vec<_>>();
     TermTy {
-        fullname: class_fullname(&format!("Meta:{}<{}>", &base_name, &tyarg_names.join(","))),
+        fullname: metaclass_fullname(&format!("{}{}", &base_name, &tyargs_str(&type_args))),
         body: TyMeta {
             base_name,
             type_args,
