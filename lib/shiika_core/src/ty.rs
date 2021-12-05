@@ -23,8 +23,6 @@ pub enum TyBody {
         base_name: String, // eg. "Pair"
         type_args: Vec<TermTy>,
     },
-    // This object belongs to the class `Metaclass` (i.e. this is a class object)
-    TyMetaclass,
     // Type parameter reference eg. `T`
     TyParamRef {
         kind: TyParamKind,
@@ -116,16 +114,16 @@ impl TermTy {
                 };
                 format!("TyParamRef({} {}{})", name, idx, k)
             }
-            _ => self.fullname.0.clone(),
         }
     }
 
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
-        matches!(
-            &self.body,
-            TyMeta { .. } | TyMetaclass
-        )
+        match &self.body {
+            TyRaw { base_name, .. } => base_name == "Metaclass",
+            TyMeta { .. } => true,
+            _ => false,
+        }
     }
 
     /// Returns if this is TyParamRef
@@ -192,8 +190,7 @@ impl TermTy {
                     ty::spe_meta(base_name, type_args.clone())
                 }
             },
-            TyMeta { .. } => ty::metaclass(),
-            TyMetaclass => ty::metaclass(),
+            TyMeta { .. } => ty::raw("Metaclass"),
             _ => panic!("TODO"),
         }
     }
@@ -250,7 +247,6 @@ impl TermTy {
         match &self.body {
             TyRaw { base_name, .. } => class_fullname(base_name),
             TyMeta { base_name, .. } => metaclass_fullname(base_name),
-            TyMetaclass => class_fullname("Metaclass"),
             _ => todo!(),
         }
         // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
@@ -312,7 +308,6 @@ impl TermTy {
                     .collect();
                 ty::spe_meta(base_name, args)
             },
-            _ => self.clone(),
         }
     }
 
@@ -338,7 +333,6 @@ impl TermTy {
             TyParamRef { .. } => true,
             TyRaw { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
             TyMeta { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
-            _ => false,
         }
     }
 }
@@ -397,13 +391,6 @@ pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
             base_name: base_fullname,
             type_args: Default::default(),
         },
-    }
-}
-
-pub fn metaclass() -> TermTy {
-    TermTy {
-        fullname: class_fullname("Metaclass"),
-        body: TyMetaclass,
     }
 }
 

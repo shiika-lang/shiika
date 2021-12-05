@@ -35,9 +35,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<(MethodSignature, ClassFullname)> {
         let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
-            TyBody::TyMetaclass => {
-                (class, Default::default())
-            }
             TyBody::TyRaw { type_args, .. } | TyBody::TyMeta { type_args, .. } => {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
                 (base_cls, type_args.as_slice())
