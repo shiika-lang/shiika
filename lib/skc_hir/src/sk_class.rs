@@ -45,10 +45,11 @@ impl SkClass {
     /// eg. create `Meta:Array<Int>` from `Meta:Array`
     pub fn specialized_meta(&self, tyargs: &[TermTy]) -> SkClass {
         debug_assert!(self.typarams.len() == tyargs.len());
-        let base_name = if let TyBody::TyMeta { base_name, .. } = &self.instance_ty.body {
+        let base_name = if let TyBody::TyRaw { base_name, is_meta, .. } = &self.instance_ty.body {
+            debug_assert!(is_meta);
             base_name
         } else {
-            panic!("SkClass::specialize: not TyMeta: {:?}", &self.fullname)
+            panic!("SkClass::specialize: not meta ty: {:?}", &self.fullname)
         };
         let instance_ty = ty::spe_meta(base_name, tyargs.to_vec());
         let method_sigs = self

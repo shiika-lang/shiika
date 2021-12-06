@@ -500,13 +500,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             check_break_in_block(&sig, last_arg)?;
         }
 
-        let receiver = if found_class_name != receiver_hir.ty.fullname {
-            // Upcast needed
-            Hir::bit_cast(found_class_name.instance_ty(), receiver_hir)
-        } else {
-            receiver_hir
-        };
-
+        let receiver = Hir::bit_cast(found_class_name.instance_ty(), receiver_hir);
         let args = if specialized {
             arg_hirs
                 .into_iter()

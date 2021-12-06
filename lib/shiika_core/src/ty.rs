@@ -11,19 +11,14 @@ pub struct TermTy {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TyBody {
-    /// Types of non-meta classes
-    /// eg. "Int", "String", "Array<Int>", "Pair<Bool, Object>", etc.
+    /// Types of classes
+    /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
     TyRaw {
         base_name: String,
         type_args: Vec<TermTy>,
+        is_meta: bool,
     },
-    /// Types corresponds to metaclass
-    /// eg. "Meta:Int", "Meta:String", "Meta:Array<Int>"
-    TyMeta {
-        base_name: String, // eg. "Pair"
-        type_args: Vec<TermTy>,
-    },
-    // Type parameter reference eg. `T`
+    /// Type parameter reference eg. `T`
     TyParamRef {
         kind: TyParamKind,
         name: String,
@@ -84,26 +79,12 @@ impl TermTy {
             TyRaw {
                 base_name,
                 type_args,
+                is_meta,
             } => {
-                if type_args.is_empty() {
-                    self.fullname.0.clone()
-                } else {
-                    format!(
-                    "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m",
-                    base_name,
-                    _dbg_type_args(type_args)
-                    )
-                }
-            },
-            TyMeta {
-                base_name,
-                type_args,
-            } => {
-                if type_args.is_empty() {
-                    self.fullname.0.clone()
-                } else {
-                    format!("Meta:{}<{}>", base_name, _dbg_type_args(type_args))
-                }
+                let meta = if *is_meta { "Meta:" } else { "" };
+                format!("{}{}{}", meta, base_name, _dbg_type_args(type_args))
+                // TODO: Use colors?
+                // "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m"
             },
             TyParamRef {
                 kind, name, idx, ..
@@ -120,8 +101,7 @@ impl TermTy {
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
         match &self.body {
-            TyRaw { base_name, .. } => base_name == "Metaclass",
-            TyMeta { .. } => true,
+            TyRaw { base_name, is_meta, .. } => *is_meta || base_name == "Metaclass",
             _ => false,
         }
     }
@@ -133,10 +113,12 @@ impl TermTy {
 
     pub fn to_const_fullname(&self) -> ConstFullname {
         match &self.body {
-            TyMeta {
+            TyRaw {
                 base_name,
                 type_args,
+                is_meta,
             } => {
+                debug_assert!(is_meta);
                 toplevel_const(&format!("{}{}", base_name, &tyargs_str(type_args)))
             }
             _ => panic!("[BUG] to_const_fullname called on {:?}", &self),
@@ -165,7 +147,11 @@ impl TermTy {
             TyRaw {
                 base_name,
                 type_args,
+                is_meta,
             } => {
+                if *is_meta {
+                    return None;
+                }
                 for i in 0..=9 {
                     if *base_name == format!("Fn{}", i) {
                         let ret_ty = type_args.last().unwrap().clone();
@@ -183,38 +169,38 @@ impl TermTy {
             TyRaw {
                 base_name,
                 type_args,
+                ..
             } => {
-                if type_args.is_empty() {
-                    ty::meta(&self.fullname.0)
+                if self.is_metaclass() {
+                    ty::raw("Metaclass")
                 } else {
                     ty::spe_meta(base_name, type_args.clone())
                 }
             },
-            TyMeta { .. } => ty::raw("Metaclass"),
-            _ => panic!("TODO"),
+            _ => panic!("unexpected"),
         }
     }
 
     pub fn instance_ty(&self) -> TermTy {
         match &self.body {
-            TyMeta {
+            TyRaw {
                 base_name,
                 type_args,
-            } => ty::spe(base_name, type_args.to_vec()),
+                is_meta,
+            } => {
+                debug_assert!(is_meta);
+                ty::spe(base_name, type_args.to_vec())
+            }
             _ => panic!("instance_ty is undefined for {:?}", self),
         }
     }
 
     pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
         match &self.body {
-            TyRaw { base_name, type_args } => {
+            TyRaw { base_name, type_args, is_meta } => {
                 debug_assert!(type_args.len() == tyargs.len());
-                ty::spe(base_name, tyargs)
+                ty::new(base_name, tyargs, *is_meta)
             },
-            TyMeta { base_name, type_args } => {
-                debug_assert!(type_args.len() == tyargs.len());
-                ty::spe_meta(base_name, tyargs)
-            }
             _ => panic!("unexpected"),
         }
     }
@@ -222,8 +208,9 @@ impl TermTy {
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, .. } => class_fullname(base_name),
-            TyMeta { base_name, .. } => metaclass_fullname(base_name),
+            TyRaw { base_name, is_meta, .. } => {
+                ClassFullname::new(base_name, *is_meta)
+            }
             _ => panic!("unexpected"),
         }
     }
@@ -245,8 +232,9 @@ impl TermTy {
     ///   Pair<Int,Bool>  =>  Pair
     pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, .. } => class_fullname(base_name),
-            TyMeta { base_name, .. } => metaclass_fullname(base_name),
+            TyRaw { base_name, is_meta, .. } => {
+                ClassFullname::new(base_name, *is_meta)
+            }
             _ => todo!(),
         }
         // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
@@ -260,7 +248,7 @@ impl TermTy {
     /// Returns type arguments, if any
     pub fn tyargs(&self) -> &[TermTy] {
         match &self.body {
-            TyRaw { type_args, .. } | TyMeta { type_args, .. } => type_args,
+            TyRaw { type_args, .. } => type_args,
             _ => &[],
         }
     }
@@ -291,22 +279,13 @@ impl TermTy {
             TyRaw {
                 base_name,
                 type_args,
+                is_meta,
             } => {
                 let args = type_args
                     .iter()
                     .map(|t| t.substitute(class_tyargs, method_tyargs))
                     .collect();
-                ty::spe(base_name, args)
-            },
-            TyMeta {
-                base_name,
-                type_args,
-            } => {
-                let args = type_args
-                    .iter()
-                    .map(|t| t.substitute(class_tyargs, method_tyargs))
-                    .collect();
-                ty::spe_meta(base_name, args)
+                ty::new(base_name, args, *is_meta)
             },
         }
     }
@@ -314,8 +293,7 @@ impl TermTy {
     /// Name for vtable when invoking a method on an object of this type
     pub fn vtable_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, .. } => class_fullname(base_name),
-            TyMeta { base_name, .. } => metaclass_fullname(base_name),
+            TyRaw { base_name, is_meta, .. } => ClassFullname::new(base_name, *is_meta),
             _ => self.fullname.clone(),
         }
     }
@@ -323,7 +301,6 @@ impl TermTy {
     pub fn is_specialized(&self) -> bool {
         match &self.body {
             TyRaw { type_args, .. } => !type_args.is_empty(),
-            TyMeta { type_args, .. } => !type_args.is_empty(),
             _ => false,
         }
     }
@@ -332,7 +309,6 @@ impl TermTy {
         match &self.body {
             TyParamRef { .. } => true,
             TyRaw { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
-            TyMeta { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
         }
     }
 }
@@ -354,67 +330,59 @@ fn tyargs_str(type_args: &[TermTy]) -> String {
 
 /// Format `type_args` with .dbg_str
 fn _dbg_type_args(type_args: &[TermTy]) -> String {
-    type_args
-        .iter()
-        .map(|x| x.dbg_str())
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
-    if args.is_empty() {
-        ty::raw(&names.join("::"))
+    if type_args.is_empty() {
+        "".to_string()
     } else {
-        ty::spe(&names.join("::"), args)
+        let s = type_args
+            .iter()
+            .map(|x| x.dbg_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("<{}>", &s)
     }
 }
 
-pub fn raw(fullname_: impl Into<String>) -> TermTy {
-    let fullname = fullname_.into();
-    debug_assert!(!fullname.contains('<'));
+pub fn new(
+    base_name_: impl Into<String>,
+    type_args: Vec<TermTy>,
+    is_meta: bool
+) -> TermTy {
+    let base_name = base_name_.into();
+    debug_assert!(!base_name.is_empty());
+    debug_assert!(!base_name.starts_with("Meta:"));
+    debug_assert!(!base_name.contains('<'));
+    let fullname = ClassFullname::new(
+        format!("{}{}", &base_name, &tyargs_str(&type_args)),
+        is_meta
+    );
     TermTy {
-        fullname: class_fullname(&fullname),
+        fullname,
         body: TyRaw {
-            base_name: fullname,
-            type_args: Default::default(),
+            base_name: base_name,
+            type_args,
+            is_meta
         }
     }
 }
 
+pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
+    ty::new(&names.join("::"), args, false)
+}
+
+pub fn raw(fullname_: impl Into<String>) -> TermTy {
+    new(fullname_, Default::default(), false)
+}
+
 pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
-    let base_fullname = base_fullname_.into();
-    debug_assert!(!base_fullname.is_empty());
-    debug_assert!(!base_fullname.contains('<'));
-    TermTy {
-        fullname: metaclass_fullname(&base_fullname),
-        body: TyMeta {
-            base_name: base_fullname,
-            type_args: Default::default(),
-        },
-    }
+    new(base_fullname_, Default::default(), true)
 }
 
 pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
-    let base_name = base_name_.into();
-    debug_assert!(!base_name.starts_with("Meta:"));
-    TermTy {
-        fullname: class_fullname(&format!("{}{}", &base_name, &tyargs_str(&type_args))),
-        body: TyRaw {
-            base_name,
-            type_args,
-        },
-    }
+    new(base_name_, type_args, false)
 }
 
 pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
-    let base_name = base_name_.into();
-    TermTy {
-        fullname: metaclass_fullname(&format!("{}{}", &base_name, &tyargs_str(&type_args))),
-        body: TyMeta {
-            base_name,
-            type_args,
-        },
-    }
+    new(base_name_, type_args, true)
 }
 
 /// Create the type of return value of `.new` method of the class
