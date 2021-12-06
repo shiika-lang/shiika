@@ -181,9 +181,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Register .new
-        if fullname.0 != "Class" {
+        if fullname.0 != "Class" { // TODO: "Metaclass" also should not have .new
+            let class_name = ty::raw(&fullname.0);
             self.method_dict
-                .add_method(&meta_name, self.create_new(&fullname, false)?);
+                .add_method(&meta_name, self.create_new(&class_name, false)?);
         }
 
         // Process inner defs
@@ -283,16 +284,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Create .new
-    fn create_new(&self, class_fullname: &ClassFullname, const_is_obj: bool) -> Result<SkMethod> {
+    fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
         let (initialize_name, init_cls_name) =
-            self._find_initialize(&class_fullname.instance_ty())?;
+            self._find_initialize(&class_name)?;
         let (signature, _) = self.class_dict.lookup_method(
-            &class_fullname.class_ty(),
+            &class_name.meta_ty(),
             &method_firstname("new"),
             Default::default(),
         )?;
         let new_body = SkMethodBody::New {
-            classname: class_fullname.clone(),
+            classname: class_name.fullname.clone(),
             initialize_name,
             init_cls_name,
             arity: signature.params.len(),
@@ -455,9 +456,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register .new
         let const_is_obj = case.params.is_empty();
+        let class = ty::raw(&fullname.0);
         self.method_dict.add_method(
             &fullname.meta_name(),
-            self.create_new(&fullname, const_is_obj)?,
+            self.create_new(&class, const_is_obj)?,
         );
         Ok(())
     }
