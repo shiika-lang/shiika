@@ -16,13 +16,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Similar to find_method, but lookup into superclass if not in the class.
+    /// Returns the class where the method is found as a `TermTy`.
     /// Returns Err if not found.
     pub fn lookup_method(
         &self,
         receiver_class: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, ClassFullname)> {
+    ) -> Result<(MethodSignature, TermTy)> {
         self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
     }
 
@@ -32,7 +33,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, ClassFullname)> {
+    ) -> Result<(MethodSignature, TermTy)> {
         let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
             TyBody::TyRaw { type_args, .. } => {
@@ -44,7 +45,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
             Ok((
                 sig.specialize(class_tyargs, method_tyargs),
-                class.fullname.clone(),
+                class.clone(),
             ))
         } else {
             // Look up in superclass

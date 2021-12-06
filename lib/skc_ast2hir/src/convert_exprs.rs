@@ -485,7 +485,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         receiver_hir: HirExpression,
         mut arg_hirs: Vec<HirExpression>,
         sig: MethodSignature,
-        found_class_name: ClassFullname,
+        found_class: TermTy,
     ) -> Result<HirExpression> {
         let specialized = receiver_hir.ty.is_specialized();
         let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
@@ -500,7 +500,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             check_break_in_block(&sig, last_arg)?;
         }
 
-        let receiver = Hir::bit_cast(found_class_name.instance_ty(), receiver_hir);
+        let receiver = Hir::bit_cast(found_class, receiver_hir);
         let args = if specialized {
             arg_hirs
                 .into_iter()

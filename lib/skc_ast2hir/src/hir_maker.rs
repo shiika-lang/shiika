@@ -312,7 +312,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        Ok((method_fullname(&found_cls, "initialize"), found_cls))
+        Ok((method_fullname(&found_cls.fullname, "initialize"), found_cls.fullname))
     }
 
     /// Register a constant defined in the toplevel
