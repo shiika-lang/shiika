@@ -31,7 +31,15 @@ pub struct RawTy {
     // REFACTOR: ideally these should be private
     pub base_name: String,
     pub type_args: Vec<TermTy>,
+    /// `true` if values of this type are classes 
     pub is_meta: bool,
+}
+
+impl RawTy {
+    fn new(base_name: String, type_args: Vec<TermTy>, is_meta: bool) -> RawTy {
+        if base_name == "Metaclass" { debug_assert!(is_meta); }
+        RawTy { base_name, type_args, is_meta }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -360,11 +368,7 @@ pub fn new(
     );
     TermTy {
         fullname,
-        body: TyRaw(RawTy {
-            base_name: base_name,
-            type_args,
-            is_meta
-        })
+        body: TyRaw(RawTy::new(base_name, type_args, is_meta))
     }
 }
 
@@ -372,10 +376,15 @@ pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
     ty::new(&names.join("::"), args, false)
 }
 
+/// Returns the type of instances of the class
 pub fn raw(fullname_: impl Into<String>) -> TermTy {
-    new(fullname_, Default::default(), false)
+    let fullname = fullname_.into();
+    // Usually this is `false`; the only exception is the class `Metaclass`
+    let meta = fullname == "Metaclass";
+    new(fullname, Default::default(), meta)
 }
 
+/// Returns the type of the class object
 pub fn meta(base_fullname_: impl Into<String>) -> TermTy {
     new(base_fullname_, Default::default(), true)
 }
