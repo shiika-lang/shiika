@@ -13,7 +13,7 @@ pub struct TermTy {
 pub enum TyBody {
     /// Types of classes
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
-    TyRaw(RawTy),
+    TyRaw(LitTy),
     /// Type parameter reference eg. `T`
     TyParamRef {
         kind: TyParamKind,
@@ -27,7 +27,7 @@ use TyBody::*;
 
 // REFACTOR: better name?
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct RawTy {
+pub struct LitTy {
     // REFACTOR: ideally these should be private
     pub base_name: String,
     pub type_args: Vec<TermTy>,
@@ -35,10 +35,10 @@ pub struct RawTy {
     pub is_meta: bool,
 }
 
-impl RawTy {
-    fn new(base_name: String, type_args: Vec<TermTy>, is_meta: bool) -> RawTy {
+impl LitTy {
+    fn new(base_name: String, type_args: Vec<TermTy>, is_meta: bool) -> LitTy {
         if base_name == "Metaclass" { debug_assert!(is_meta); }
-        RawTy { base_name, type_args, is_meta }
+        LitTy { base_name, type_args, is_meta }
     }
 }
 
@@ -89,7 +89,7 @@ impl TermTy {
     /// Return string to inspect `self`
     fn dbg_str(&self) -> String {
         match &self.body {
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
@@ -114,7 +114,7 @@ impl TermTy {
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
         match &self.body {
-            TyRaw(RawTy { base_name, is_meta, .. }) => *is_meta || base_name == "Metaclass",
+            TyRaw(LitTy { base_name, is_meta, .. }) => *is_meta || base_name == "Metaclass",
             _ => false,
         }
     }
@@ -126,7 +126,7 @@ impl TermTy {
 
     pub fn to_const_fullname(&self) -> ConstFullname {
         match &self.body {
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
@@ -157,7 +157,7 @@ impl TermTy {
     // Returns ret_ty if this is any of Fn0, .., Fn9
     pub fn fn_x_info(&self) -> Option<TermTy> {
         match &self.body {
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
@@ -179,7 +179,7 @@ impl TermTy {
 
     pub fn meta_ty(&self) -> TermTy {
         match &self.body {
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 ..
@@ -196,7 +196,7 @@ impl TermTy {
 
     pub fn instance_ty(&self) -> TermTy {
         match &self.body {
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
@@ -210,7 +210,7 @@ impl TermTy {
 
     pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
         match &self.body {
-            TyRaw(RawTy{ base_name, type_args, is_meta }) => {
+            TyRaw(LitTy{ base_name, type_args, is_meta }) => {
                 debug_assert!(type_args.len() == tyargs.len());
                 ty::new(base_name, tyargs, *is_meta)
             },
@@ -221,7 +221,7 @@ impl TermTy {
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(RawTy { base_name, is_meta, .. } )=> {
+            TyRaw(LitTy { base_name, is_meta, .. } )=> {
                 ClassFullname::new(base_name, *is_meta)
             }
             _ => panic!("unexpected"),
@@ -245,7 +245,7 @@ impl TermTy {
     ///   Pair<Int,Bool>  =>  Pair
     pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(RawTy { base_name, is_meta, .. }) => {
+            TyRaw(LitTy { base_name, is_meta, .. }) => {
                 ClassFullname::new(base_name, *is_meta)
             }
             _ => todo!(),
@@ -259,7 +259,7 @@ impl TermTy {
     /// Returns type arguments, if any
     pub fn tyargs(&self) -> &[TermTy] {
         match &self.body {
-            TyRaw(RawTy { type_args, .. }) => type_args,
+            TyRaw(LitTy { type_args, .. }) => type_args,
             _ => &[],
         }
     }
@@ -287,7 +287,7 @@ impl TermTy {
                     }
                 }
             },
-            TyRaw(RawTy {
+            TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
@@ -304,14 +304,14 @@ impl TermTy {
     /// Name for vtable when invoking a method on an object of this type
     pub fn vtable_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(RawTy { base_name, is_meta, .. }) => ClassFullname::new(base_name, *is_meta),
+            TyRaw(LitTy { base_name, is_meta, .. }) => ClassFullname::new(base_name, *is_meta),
             _ => self.fullname.clone(),
         }
     }
 
     pub fn is_specialized(&self) -> bool {
         match &self.body {
-            TyRaw(RawTy { type_args, .. }) => !type_args.is_empty(),
+            TyRaw(LitTy { type_args, .. }) => !type_args.is_empty(),
             _ => false,
         }
     }
@@ -319,7 +319,7 @@ impl TermTy {
     pub fn contains_typaram_ref(&self) -> bool {
         match &self.body {
             TyParamRef { .. } => true,
-            TyRaw(RawTy { type_args, .. }) => type_args.iter().any(|t| t.contains_typaram_ref()),
+            TyRaw(LitTy { type_args, .. }) => type_args.iter().any(|t| t.contains_typaram_ref()),
         }
     }
 }
@@ -368,7 +368,7 @@ pub fn new(
     );
     TermTy {
         fullname,
-        body: TyRaw(RawTy::new(base_name, type_args, is_meta))
+        body: TyRaw(LitTy::new(base_name, type_args, is_meta))
     }
 }
 
