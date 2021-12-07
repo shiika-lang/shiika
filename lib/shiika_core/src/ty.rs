@@ -13,11 +13,7 @@ pub struct TermTy {
 pub enum TyBody {
     /// Types of classes
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
-    TyRaw {
-        base_name: String,
-        type_args: Vec<TermTy>,
-        is_meta: bool,
-    },
+    TyRaw(RawTy),
     /// Type parameter reference eg. `T`
     TyParamRef {
         kind: TyParamKind,
@@ -28,6 +24,15 @@ pub enum TyBody {
     },
 }
 use TyBody::*;
+
+// REFACTOR: better name?
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct RawTy {
+    // REFACTOR: ideally these should be private
+    pub base_name: String,
+    pub type_args: Vec<TermTy>,
+    pub is_meta: bool,
+}
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TyParamKind {
@@ -76,11 +81,11 @@ impl TermTy {
     /// Return string to inspect `self`
     fn dbg_str(&self) -> String {
         match &self.body {
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 is_meta,
-            } => {
+            }) => {
                 let meta = if *is_meta { "Meta:" } else { "" };
                 format!("{}{}{}", meta, base_name, _dbg_type_args(type_args))
                 // TODO: Use colors?
@@ -101,7 +106,7 @@ impl TermTy {
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
         match &self.body {
-            TyRaw { base_name, is_meta, .. } => *is_meta || base_name == "Metaclass",
+            TyRaw(RawTy { base_name, is_meta, .. }) => *is_meta || base_name == "Metaclass",
             _ => false,
         }
     }
@@ -113,11 +118,11 @@ impl TermTy {
 
     pub fn to_const_fullname(&self) -> ConstFullname {
         match &self.body {
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 is_meta,
-            } => {
+            }) => {
                 debug_assert!(is_meta);
                 toplevel_const(&format!("{}{}", base_name, &tyargs_str(type_args)))
             }
@@ -128,7 +133,7 @@ impl TermTy {
     // Returns true when this is the Void type
     pub fn is_void_type(&self) -> bool {
         match self.body {
-            TyRaw { .. } => (self.fullname.0 == "Void"),
+            TyRaw(_) => (self.fullname.0 == "Void"),
             _ => false,
         }
     }
@@ -136,7 +141,7 @@ impl TermTy {
     // Returns true when this is the Never type
     pub fn is_never_type(&self) -> bool {
         match self.body {
-            TyRaw { .. } => (self.fullname.0 == "Never"),
+            TyRaw(_) => (self.fullname.0 == "Never"),
             _ => false,
         }
     }
@@ -144,11 +149,11 @@ impl TermTy {
     // Returns ret_ty if this is any of Fn0, .., Fn9
     pub fn fn_x_info(&self) -> Option<TermTy> {
         match &self.body {
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 is_meta,
-            } => {
+            }) => {
                 if *is_meta {
                     return None;
                 }
@@ -166,11 +171,11 @@ impl TermTy {
 
     pub fn meta_ty(&self) -> TermTy {
         match &self.body {
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 ..
-            } => {
+            }) => {
                 if self.is_metaclass() {
                     ty::raw("Metaclass")
                 } else {
@@ -183,11 +188,11 @@ impl TermTy {
 
     pub fn instance_ty(&self) -> TermTy {
         match &self.body {
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 is_meta,
-            } => {
+            }) => {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
@@ -197,7 +202,7 @@ impl TermTy {
 
     pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
         match &self.body {
-            TyRaw { base_name, type_args, is_meta } => {
+            TyRaw(RawTy{ base_name, type_args, is_meta }) => {
                 debug_assert!(type_args.len() == tyargs.len());
                 ty::new(base_name, tyargs, *is_meta)
             },
@@ -208,7 +213,7 @@ impl TermTy {
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, is_meta, .. } => {
+            TyRaw(RawTy { base_name, is_meta, .. } )=> {
                 ClassFullname::new(base_name, *is_meta)
             }
             _ => panic!("unexpected"),
@@ -232,13 +237,11 @@ impl TermTy {
     ///   Pair<Int,Bool>  =>  Pair
     pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, is_meta, .. } => {
+            TyRaw(RawTy { base_name, is_meta, .. }) => {
                 ClassFullname::new(base_name, *is_meta)
             }
             _ => todo!(),
         }
-        // REFACTOR: technically, this can return &ClassFullname instead of ClassFullname.
-        // To do this, TyRaw.base_name etc. should be a ClassFullname rather than a String.
     }
 
     pub fn erasure_ty(&self) -> TermTy {
@@ -248,7 +251,7 @@ impl TermTy {
     /// Returns type arguments, if any
     pub fn tyargs(&self) -> &[TermTy] {
         match &self.body {
-            TyRaw { type_args, .. } => type_args,
+            TyRaw(RawTy { type_args, .. }) => type_args,
             _ => &[],
         }
     }
@@ -276,11 +279,11 @@ impl TermTy {
                     }
                 }
             },
-            TyRaw {
+            TyRaw(RawTy {
                 base_name,
                 type_args,
                 is_meta,
-            } => {
+            }) => {
                 let args = type_args
                     .iter()
                     .map(|t| t.substitute(class_tyargs, method_tyargs))
@@ -293,14 +296,14 @@ impl TermTy {
     /// Name for vtable when invoking a method on an object of this type
     pub fn vtable_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw { base_name, is_meta, .. } => ClassFullname::new(base_name, *is_meta),
+            TyRaw(RawTy { base_name, is_meta, .. }) => ClassFullname::new(base_name, *is_meta),
             _ => self.fullname.clone(),
         }
     }
 
     pub fn is_specialized(&self) -> bool {
         match &self.body {
-            TyRaw { type_args, .. } => !type_args.is_empty(),
+            TyRaw(RawTy { type_args, .. }) => !type_args.is_empty(),
             _ => false,
         }
     }
@@ -308,7 +311,7 @@ impl TermTy {
     pub fn contains_typaram_ref(&self) -> bool {
         match &self.body {
             TyParamRef { .. } => true,
-            TyRaw { type_args, .. } => type_args.iter().any(|t| t.contains_typaram_ref()),
+            TyRaw(RawTy { type_args, .. }) => type_args.iter().any(|t| t.contains_typaram_ref()),
         }
     }
 }
@@ -357,11 +360,11 @@ pub fn new(
     );
     TermTy {
         fullname,
-        body: TyRaw {
+        body: TyRaw(RawTy {
             base_name: base_name,
             type_args,
             is_meta
-        }
+        })
     }
 }
 

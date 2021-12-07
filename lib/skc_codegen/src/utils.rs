@@ -272,7 +272,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         let s = match &ty.body {
             TyBody::TyParamRef { upper_bound, .. } => return self.llvm_type(upper_bound),
-            TyBody::TyRaw { base_name, is_meta, .. } => {
+            TyBody::TyRaw(RawTy { base_name, is_meta, .. }) => {
                 if *is_meta {
                     &ty.fullname.0
                 } else {
