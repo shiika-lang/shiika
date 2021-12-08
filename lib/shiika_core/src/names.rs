@@ -42,18 +42,33 @@ pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
     ClassFullname(name)
 }
 
-pub fn metaclass_fullname(base: &str) -> ClassFullname {
+pub fn metaclass_fullname(base_: impl Into<String>) -> ClassFullname {
+    let base = base_.into();
     debug_assert!(!base.is_empty());
     if base == "Class" || base == "Metaclass" || base.starts_with("Meta:") {
         class_fullname("Metaclass")
     } else {
-        class_fullname(&("Meta:".to_string() + base))
+        class_fullname(&("Meta:".to_string() + &base))
     }
 }
 
 impl ClassFullname {
+    pub fn new(s: impl Into<String>, is_meta: bool) -> ClassFullname {
+        if is_meta {
+            metaclass_fullname(s)
+        } else {
+            class_fullname(s)
+        }
+    }
+
     pub fn instance_ty(&self) -> TermTy {
-        ty::raw(&self.0)
+        if self.0 == "Metaclass" {
+            ty::new("Metaclass", Default::default(), true)
+        } else if self.0.starts_with("Meta:") {
+            ty::meta(&self.0.clone().split_off(5))
+        } else {
+            ty::raw(&self.0)
+        }
     }
 
     pub fn class_ty(&self) -> TermTy {

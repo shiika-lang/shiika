@@ -1,9 +1,11 @@
 pub mod pattern_match;
 pub mod signature;
 mod sk_class;
+mod sk_method;
 mod superclass;
 pub use crate::signature::*;
 pub use crate::sk_class::SkClass;
+pub use crate::sk_method::{SkMethod, SkMethods, SkMethodBody};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
@@ -63,42 +65,6 @@ impl SkIVar {
 pub type SkIVars = HashMap<String, SkIVar>;
 
 pub type HirLVars = Vec<(String, TermTy)>;
-
-#[derive(Debug)]
-pub struct SkMethod {
-    pub signature: MethodSignature,
-    pub body: SkMethodBody,
-    pub lvars: HirLVars,
-}
-
-pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
-
-#[derive(Debug)]
-pub enum SkMethodBody {
-    /// A method defined with Shiika expressions
-    Normal { exprs: HirExpressions },
-    /// A method defined in skc_rustlib
-    RustLib,
-    /// The method .new
-    New {
-        classname: ClassFullname,
-        initialize_name: MethodFullname,
-        init_cls_name: ClassFullname,
-        arity: usize,
-        const_is_obj: bool,
-    },
-    /// A method that just return the value of `idx`th ivar
-    Getter { idx: usize, name: String },
-    /// A method that just update the value of `idx`th ivar
-    Setter { idx: usize, name: String },
-}
-
-impl SkMethod {
-    /// Returns if this method is defined by skc_rustlib
-    pub fn is_rustlib(&self) -> bool {
-        matches!(&self.body, SkMethodBody::RustLib)
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct HirExpressions {
