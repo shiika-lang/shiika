@@ -1,29 +1,25 @@
-mod term_ty;
 mod lit_ty;
+mod term_ty;
 mod typaram;
-pub use crate::ty::term_ty::{TermTy, TyParamKind};
-pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private
-pub use crate::ty::lit_ty::LitTy;
-pub use crate::ty::typaram::{TyParam, Variance};
 use crate::names::*;
 use crate::ty;
+pub use crate::ty::lit_ty::LitTy;
+pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private
+pub use crate::ty::term_ty::{TermTy, TyParamKind};
+pub use crate::ty::typaram::{TyParam, Variance};
 
-pub fn new(
-    base_name_: impl Into<String>,
-    type_args: Vec<TermTy>,
-    is_meta: bool
-) -> TermTy {
+pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool) -> TermTy {
     let base_name = base_name_.into();
     debug_assert!(!base_name.is_empty());
     debug_assert!(!base_name.starts_with("Meta:"));
     debug_assert!(!base_name.contains('<'));
     let fullname = ClassFullname::new(
         format!("{}{}", &base_name, &tyargs_str(&type_args)),
-        is_meta
+        is_meta,
     );
     TermTy {
         fullname,
-        body: term_ty::TyBody::TyRaw(LitTy::new(base_name, type_args, is_meta))
+        body: term_ty::TyBody::TyRaw(LitTy::new(base_name, type_args, is_meta)),
     }
 }
 
@@ -100,4 +96,3 @@ fn tyargs_str(type_args: &[TermTy]) -> String {
         format!("<{}>", &s)
     }
 }
-

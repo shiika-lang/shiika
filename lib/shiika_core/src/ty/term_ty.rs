@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use crate::names::*;
 use crate::ty::lit_ty::LitTy;
 use crate::{ty, ty::tyargs_str};
+use serde::{Deserialize, Serialize};
 
 /// Types for a term (types of Shiika values)
 #[derive(PartialEq, Clone, Serialize, Deserialize)]
@@ -73,7 +73,7 @@ impl TermTy {
                 format!("{}{}{}", meta, base_name, _dbg_type_args(type_args))
                 // TODO: Use colors?
                 // "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m"
-            },
+            }
             TyParamRef {
                 kind, name, idx, ..
             } => {
@@ -89,7 +89,9 @@ impl TermTy {
     /// Returns if value of this type is class
     pub fn is_metaclass(&self) -> bool {
         match &self.body {
-            TyRaw(LitTy { base_name, is_meta, .. }) => *is_meta || base_name == "Metaclass",
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => *is_meta || base_name == "Metaclass",
             _ => false,
         }
     }
@@ -164,7 +166,7 @@ impl TermTy {
                 } else {
                     ty::spe_meta(base_name, type_args.clone())
                 }
-            },
+            }
             _ => panic!("unexpected"),
         }
     }
@@ -185,10 +187,14 @@ impl TermTy {
 
     pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
         match &self.body {
-            TyRaw(LitTy{ base_name, type_args, is_meta }) => {
+            TyRaw(LitTy {
+                base_name,
+                type_args,
+                is_meta,
+            }) => {
                 debug_assert!(type_args.len() == tyargs.len());
                 ty::new(base_name, tyargs, *is_meta)
-            },
+            }
             _ => panic!("unexpected"),
         }
     }
@@ -196,9 +202,9 @@ impl TermTy {
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
     pub fn base_class_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(LitTy { base_name, is_meta, .. } )=> {
-                ClassFullname::new(base_name, *is_meta)
-            }
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => ClassFullname::new(base_name, *is_meta),
             _ => panic!("unexpected"),
         }
     }
@@ -220,9 +226,9 @@ impl TermTy {
     ///   Pair<Int,Bool>  =>  Pair
     pub fn erasure(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(LitTy { base_name, is_meta, .. }) => {
-                ClassFullname::new(base_name, *is_meta)
-            }
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => ClassFullname::new(base_name, *is_meta),
             _ => todo!(),
         }
     }
@@ -272,14 +278,16 @@ impl TermTy {
                     .map(|t| t.substitute(class_tyargs, method_tyargs))
                     .collect();
                 ty::new(base_name, args, *is_meta)
-            },
+            }
         }
     }
 
     /// Name for vtable when invoking a method on an object of this type
     pub fn vtable_name(&self) -> ClassFullname {
         match &self.body {
-            TyRaw(LitTy { base_name, is_meta, .. }) => ClassFullname::new(base_name, *is_meta),
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => ClassFullname::new(base_name, *is_meta),
             _ => self.fullname.clone(),
         }
     }

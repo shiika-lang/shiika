@@ -5,7 +5,7 @@ mod sk_method;
 mod superclass;
 pub use crate::signature::*;
 pub use crate::sk_class::SkClass;
-pub use crate::sk_method::{SkMethod, SkMethods, SkMethodBody};
+pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};

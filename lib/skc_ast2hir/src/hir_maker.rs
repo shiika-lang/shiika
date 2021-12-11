@@ -181,7 +181,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Register .new
-        if fullname.0 != "Class" { // TODO: "Metaclass" also should not have .new
+        if fullname.0 != "Class" {
+            // TODO: "Metaclass" also should not have .new
             let class_name = ty::raw(&fullname.0);
             self.method_dict
                 .add_method(&meta_name, self.create_new(&class_name, false)?);
@@ -285,8 +286,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
-        let (initialize_name, init_cls_name) =
-            self._find_initialize(&class_name)?;
+        let (initialize_name, init_cls_name) = self._find_initialize(&class_name)?;
         let (signature, _) = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
@@ -313,7 +313,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        Ok((method_fullname(&found_cls.fullname, "initialize"), found_cls.fullname))
+        Ok((
+            method_fullname(&found_cls.fullname, "initialize"),
+            found_cls.fullname,
+        ))
     }
 
     /// Register a constant defined in the toplevel

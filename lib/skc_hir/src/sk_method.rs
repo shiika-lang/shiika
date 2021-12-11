@@ -1,6 +1,6 @@
 use crate::signature::MethodSignature;
-use crate::{HirLVars, HirExpressions};
-use shiika_core::{names::*};
+use crate::{HirExpressions, HirLVars};
+use shiika_core::names::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]

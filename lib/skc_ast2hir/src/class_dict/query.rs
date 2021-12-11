@@ -43,10 +43,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             TyBody::TyParamRef { .. } => (&ty_obj, Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((
-                sig.specialize(class_tyargs, method_tyargs),
-                class.clone(),
-            ))
+            Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
         } else {
             // Look up in superclass
             let sk_class = self.get_class(&class.erasure());
