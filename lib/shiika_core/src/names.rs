@@ -45,7 +45,7 @@ pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
 pub fn metaclass_fullname(base_: impl Into<String>) -> ClassFullname {
     let base = base_.into();
     debug_assert!(!base.is_empty());
-    if base == "Class" || base == "Metaclass" || base.starts_with("Meta:") {
+    if base == "Metaclass" || base.starts_with("Meta:") {
         class_fullname("Metaclass")
     } else {
         class_fullname(&("Meta:".to_string() + &base))
