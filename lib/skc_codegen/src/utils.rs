@@ -4,6 +4,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
+use shiika_ffi::mangle_method;
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
@@ -198,7 +199,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .expect("[BUG] object_type has no size");
 
         // %mem = call i8* @shiika_malloc(i64 %size)",
-        let func = self.get_llvm_func("shiika_malloc");
+        let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
         let raw_addr = self
             .builder
             .build_call(func, &[size.as_basic_value_enum()], "mem")
@@ -220,27 +221,27 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Call llvm function which corresponds to a Shiika method
     pub fn call_method_func(
         &self,
-        func_name: &str,
+        method_name: &MethodFullname,
         receiver: SkObj<'run>,
         args: &[SkObj<'run>],
         reg_name: &str,
     ) -> SkObj<'run> {
         let mut llvm_args = vec![receiver.0];
         llvm_args.append(&mut args.iter().map(|x| x.0).collect());
-        SkObj(self.call_llvm_func(func_name, &llvm_args, reg_name))
+        SkObj(self.call_llvm_func(&method_func_name(method_name), &llvm_args, reg_name))
     }
 
     /// Call llvm function (whose return type is not `void`)
     pub fn call_llvm_func(
         &self,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         args: &[inkwell::values::BasicValueEnum<'run>],
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self
             .module
-            .get_function(func_name)
-            .unwrap_or_else(|| panic!("[BUG] llvm function `{}' not found", func_name));
+            .get_function(&func_name.0)
+            .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
         self.builder
             .build_call(f, args, reg_name)
             .try_as_basic_value()
@@ -303,9 +304,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Return the llvm func
     /// Panic if not found
-    pub(super) fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'run> {
+    pub(super) fn get_llvm_func(
+        &self,
+        name: &LlvmFuncName,
+    ) -> inkwell::values::FunctionValue<'run> {
         self.module
-            .get_function(name)
+            .get_function(&name.0)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))
     }
 }

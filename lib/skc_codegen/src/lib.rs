@@ -5,7 +5,7 @@ mod lambda;
 mod utils;
 pub mod values;
 use crate::code_gen_context::*;
-use crate::utils::llvm_vtable_const_name;
+use crate::utils::*;
 use crate::values::*;
 use anyhow::{anyhow, Result};
 use either::*;
@@ -188,7 +188,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let func_type = self.method_llvm_func_type(&class.instance_ty, sig);
                 let func_name = classname.method_fullname(firstname);
                 self.module
-                    .add_function(&func_name.full_name, func_type, None);
+                    .add_function(&method_func_name(&func_name).0, func_type, None);
             }
         }
     }
@@ -215,7 +215,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    // Generate vtable constants
+    /// Generate vtable constants
     fn gen_vtables(&self) {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
@@ -227,7 +227,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .iter()
                 .map(|name| {
                     let func = self
-                        .get_llvm_func(&name.full_name)
+                        .get_llvm_func(&method_func_name(&name))
                         .as_any_value_enum()
                         .into_pointer_value();
                     self.builder
@@ -258,7 +258,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let fn_type = self.void_type.fn_type(&[], false);
                 self.module
                     .add_function(&format!("{}_init_constants", s), fn_type, None);
-                let func = self.get_llvm_func(&format!("{}_init_constants", s));
+                let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
                 self.builder.build_call(func, &[], "");
             }
         }
@@ -268,7 +268,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if !is_main {
             // These builtin classes must be created first
             for name in &basic_classes {
-                let func = self.get_llvm_func(&format!("init_{}", name));
+                let func = self.get_llvm_func(&llvm_func_name(format!("init_{}", name)));
                 self.builder.build_call(func, &[], "");
             }
         }
@@ -276,7 +276,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
                     if !basic_classes.iter().any(|s| *s == fullname.0) {
-                        let func = self.get_llvm_func(&format!("init_{}", fullname.0));
+                        let func =
+                            self.get_llvm_func(&llvm_func_name(format!("init_{}", fullname.0)));
                         self.builder.build_call(func, &[], "");
                     }
                 }
@@ -327,13 +328,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Call GC_init
-        let func = self.get_llvm_func("GC_init");
+        let func = self.get_llvm_func(&llvm_func_name("GC_init"));
         self.builder.build_call(func, &[], "");
 
         // Call init_constants, user_main
-        let func = self.get_llvm_func("main_init_constants");
+        let func = self.get_llvm_func(&llvm_func_name("main_init_constants"));
         self.builder.build_call(func, &[], "");
-        let func = self.get_llvm_func("user_main");
+        let func = self.get_llvm_func(&llvm_func_name("user_main"));
         self.builder.build_call(func, &[], "");
 
         // ret i32 0
@@ -455,8 +456,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
                 let func_type = self.method_llvm_func_type(&self_ty, &method.signature);
-                self.module
-                    .add_function(&method.signature.fullname.full_name, func_type, None);
+                let func_name = method_func_name(&method.signature.fullname);
+                self.module.add_function(&func_name.0, func_type, None);
             })
         })
     }
@@ -507,9 +508,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         if method.is_rustlib() {
             return Ok(());
         }
-        let func_name = &method.signature.fullname.full_name;
+        let func_name = method_func_name(&method.signature.fullname);
         self.gen_llvm_func_body(
-            func_name,
+            &func_name,
             &method.signature.params,
             Left(&method.body),
             &method.lvars,
@@ -522,7 +523,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Used for methods and lambdas
     fn gen_llvm_func_body(
         &self,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
@@ -714,10 +715,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         };
 
         // Call initialize
-        let initialize = self
-            .module
-            .get_function(&initialize_name.full_name)
-            .unwrap_or_else(|| panic!("[BUG] function `{}' not found", &initialize_name));
+        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
         let mut addr = obj.clone();
         if need_bitcast {
             let ances_type = self
