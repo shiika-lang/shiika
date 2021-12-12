@@ -12,6 +12,13 @@ const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
 const OBJ_CLASS_IDX: usize = 1;
 
+#[derive(Debug)]
+pub struct LlvmFuncName(pub String);
+
+pub fn llvm_func_name(name: impl Into<String>) -> LlvmFuncName {
+    LlvmFuncName(name.into())
+}
+
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return Shiika object
     pub fn build_return(&self, obj: &SkObj<'run>) {
@@ -306,4 +313,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 /// Name of llvm constant of a vtable
 pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
     format!("shiika_vtable_{}", classname.0)
+}
+
+/// Returns llvm function name of the given method
+pub fn method_func_name(method_name: &MethodFullname) -> LlvmFuncName {
+    LlvmFuncName(mangle_method(&method_name.full_name))
 }
