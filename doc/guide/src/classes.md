@@ -124,13 +124,30 @@ Last but not least, don't confuse this class-instance relationship with class in
 ~ ... class-instance relationship
 ^ ... superclass-subclass relationship
 
-                Object       Object       Object
-                  ^            ^            ^
-                Class     ~ MetaClass  ~ MetaClass
-                  ^
-     Object ~ Meta:Object ~ MetaClass
-        ^         ^ 
-        |         |       
-        |         |        
-123 ~  Int ~   Meta:Int   ~ MetaClass
+                    Object            Class        Class
+                      ^                 ^            ^
+                    Class          ~ Meta:Class  ~ Metaclass
+                      ^
+     Object     ~ Meta:Object      ~ Metaclass
+        ^             ^ 
+        |             |             
+123 ~  Int      ~   Meta:Int        ~ Metaclass
+```
+
+For each class, there is a class object
+
+```
+                      Object               Class                      Class
+                        ^                    ^                          ^
+                      Class             ~ Meta:Class              ~ Metaclass
+                   #<class Class>      #<metaclass Meta:Class>
+                        ^
+                        |
+     Object     ~   Meta:Object          ~ Metaclass
+  #<class Object> #<metaclass Meta:Object>
+        ^               ^ 
+        |               |             
+       Int      ~     Meta:Int           ~  Metaclass
+    #<class Int>  #<metaclass Meta:Int>    #<metaclass Metaclass>
+
 ```
