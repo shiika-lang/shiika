@@ -10,6 +10,6 @@ class Metaclass
   end
 
   def inspect -> String
-    "#<class " + self.name + ">"
+    "#<metaclass " + self.name + ">"
   end
 end
