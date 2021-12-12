@@ -1,3 +1,4 @@
+use crate::utils::{llvm_func_name, LlvmFuncName};
 use crate::CodeGen;
 use anyhow::Result;
 use either::Either::*;
@@ -105,7 +106,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 lvars,
                 ..
             } => {
-                self.gen_lambda_func(name, params, exprs, ret_ty, lvars)?;
+                self.gen_lambda_func(&llvm_func_name(name), params, exprs, ret_ty, lvars)?;
                 self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
             }
             HirSelfExpression => (),
@@ -126,7 +127,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn gen_lambda_func(
         &self,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
         exprs: &'hir HirExpressions,
         ret_ty: &TermTy,

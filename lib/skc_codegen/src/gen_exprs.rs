@@ -1,4 +1,5 @@
 use crate::code_gen_context::*;
+use crate::utils::*;
 use crate::values::*;
 use crate::CodeGen;
 use anyhow::Result;
@@ -100,9 +101,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 captures,
                 ret_ty,
                 ..
-            } => Ok(Some(
-                self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
-            )),
+            } => Ok(Some(self.gen_lambda_expr(
+                ctx,
+                &llvm_func_name(name),
+                params,
+                captures,
+                ret_ty,
+            ))),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
             HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
@@ -598,8 +603,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         if ret_ty.is_void_type() {
             let exit_status =
                 self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
-            let eq = self.gen_llvm_func_call(
-                "Int#==",
+            let eq = self.gen_method_func_call(
+                &method_fullname(&class_fullname("Int"), "=="),
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
             );
@@ -612,10 +617,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate llvm function call
+    fn gen_method_func_call(
+        &self,
+        method_fullname: &MethodFullname,
+        receiver_value: SkObj<'run>,
+        arg_values: Vec<SkObj<'run>>,
+    ) -> SkObj<'run> {
+        self.gen_llvm_func_call(
+            &method_func_name(method_fullname),
+            receiver_value,
+            arg_values,
+        )
+    }
+
+    /// Generate llvm function call
     // REFACTOR: make this public and make `receiver_value` optional
     fn gen_llvm_func_call(
         &self,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         receiver_value: SkObj<'run>,
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
@@ -688,7 +707,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_lambda_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         params: &[MethodParam],
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
@@ -698,7 +717,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
         arg_types.insert(0, fn_x_type);
         let func_type = self.llvm_func_type(None, &arg_types, ret_ty);
-        self.module.add_function(func_name, func_type, None);
+        self.module.add_function(&func_name.0, func_type, None);
 
         // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
@@ -711,7 +730,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)];
-        self.gen_llvm_func_call(&format!("Meta:{}#new", cls_name), meta, arg_values)
+        self.gen_method_func_call(
+            &method_fullname(&metaclass_fullname(cls_name), "new"),
+            meta,
+            arg_values,
+        )
     }
 
     fn _gen_lambda_captures(
@@ -719,8 +742,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         captures: &'hir [HirLambdaCapture],
     ) -> SkObj<'run> {
-        let ary = self.gen_llvm_func_call(
-            "Meta:Array#new",
+        let ary = self.gen_method_func_call(
+            &method_fullname(&metaclass_fullname("Array"), "new"),
             self.gen_const_ref(&toplevel_const("Array")),
             vec![],
         );
@@ -740,7 +763,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             };
             let obj = self.bitcast(item, &ty::raw("Object"), "capture_item");
-            self.call_method_func("Array#push", ary.clone(), &[obj], "_");
+            self.call_method_func(
+                &method_fullname(&class_fullname("Array"), "push"),
+                ary.clone(),
+                &[obj],
+                "_",
+            );
         }
         ary
     }
@@ -769,7 +797,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         exprs: &'hir [HirExpression],
     ) -> Result<Option<SkObj<'run>>> {
         let ary = self.call_method_func(
-            "Meta:Array#new",
+            &method_fullname(&metaclass_fullname("Array"), "new"),
             self.gen_const_ref(&toplevel_const("Array")),
             Default::default(),
             "ary",
@@ -777,7 +805,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for expr in exprs {
             let item = self.gen_expr(ctx, expr)?.unwrap();
             let obj = self.bitcast(item, &ty::raw("Object"), "obj");
-            self.call_method_func("Array#push", ary.clone(), &[obj], "_");
+            self.call_method_func(
+                &method_fullname(&class_fullname("Array"), "push"),
+                ary.clone(),
+                &[obj],
+                "_",
+            );
         }
         Ok(Some(ary))
     }
@@ -803,7 +836,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
-        SkObj(self.call_llvm_func("gen_literal_string", &[i8ptr, bytesize.into()], "sk_str"))
+        SkObj(self.call_llvm_func(
+            &llvm_func_name("gen_literal_string"),
+            &[i8ptr, bytesize.into()],
+            "sk_str",
+        ))
     }
 
     fn gen_boolean_literal(&self, value: bool) -> SkObj<'run> {
@@ -843,8 +880,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let item = self.gen_llvm_func_call(
-            "Array#[]",
+        let item = self.gen_method_func_call(
+            &method_fullname(&class_fullname("Array"), "[]"),
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         );
@@ -884,8 +921,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let ptr_ = self.gen_llvm_func_call(
-            "Array#[]",
+        let ptr_ = self.gen_method_func_call(
+            &method_fullname(&class_fullname("Array"), "[]"),
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         );

@@ -590,9 +590,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.26"
+version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a152013215dca273577e18d2bf00fa862b89b24169fb78c4c95aeb07992c9cec"
+checksum = "fb37d2df5df740e582f28f8560cf425f52bb267d872fe58358eadb554909f07a"
 dependencies = [
  "unicode-xid",
 ]
@@ -748,6 +748,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "shiika_ffi"
+version = "0.1.0"
+
+[[package]]
+name = "shiika_ffi_macro"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "shiika_ffi",
+ "syn",
+]
+
+[[package]]
 name = "shiika_parser"
 version = "0.1.0"
 dependencies = [
@@ -782,6 +795,7 @@ dependencies = [
  "serde_json",
  "shiika_ast",
  "shiika_core",
+ "shiika_ffi",
  "skc_hir",
  "skc_mir",
 ]
@@ -827,6 +841,7 @@ version = "0.1.0"
 dependencies = [
  "bdwgc-alloc",
  "plain",
+ "shiika_ffi_macro",
 ]
 
 [[package]]
@@ -843,9 +858,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
-version = "1.0.69"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48fe99c6bd8b1cc636890bcc071842de909d902c81ac7dab53ba33c421ab8ffb"
+checksum = "8daf5dd0bb60cbd4137b1b587d2fc0ae729bc07cf01cd70b36a1ed5ade3b9d59"
 dependencies = [
  "proc-macro2",
  "quote",
