@@ -74,10 +74,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    /// Register constants which hold class object
+    /// Register constants which has the same as the class
     /// eg.
-    /// - ::Int
-    /// - ::Meta:Int
+    /// - ::Int (#<class Int>)
+    /// - ::Array (#<class Array>)
+    /// - ::Void (the only instance of the class Void)
+    /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
             let resolved = ResolvedConstName::unsafe_create(name);

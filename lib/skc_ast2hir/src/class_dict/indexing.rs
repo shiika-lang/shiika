@@ -284,6 +284,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Register a class and its metaclass to self
+    // REFACTOR: fix too_many_arguments
     #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
@@ -313,7 +314,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             foreign: false,
         });
 
-        // Crete metaclass (which is a subclass of `Class`)
+        // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {

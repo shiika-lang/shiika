@@ -159,7 +159,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
-    /// Define llvm struct type for `Class`
+    /// Define llvm struct type for `Class` in advance
     fn define_class_class(&mut self) {
         self.llvm_struct_types.insert(
             class_fullname("Class"),
