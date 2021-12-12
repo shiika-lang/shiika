@@ -1,6 +1,7 @@
 //! Instance of `::Int`
 //! May represent big number in the future
 use crate::builtin::{SkBool, SkFloat};
+use shiika_ffi_macro::shiika_method;
 
 extern "C" {
     fn box_int(i: i64) -> SkInt;
@@ -37,73 +38,73 @@ impl SkInt {
     }
 }
 
-#[export_name = "Int#-@"]
+#[shiika_method("Int#-@")]
 pub extern "C" fn int_inv(receiver: SkInt) -> SkInt {
     (-receiver.val()).into()
 }
 
-#[export_name = "Int#+"]
+#[shiika_method("Int#+")]
 pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() + other.val()).into()
 }
 
-#[export_name = "Int#-"]
+#[shiika_method("Int#-")]
 pub extern "C" fn int_sub(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() - other.val()).into()
 }
 
-#[export_name = "Int#*"]
+#[shiika_method("Int#*")]
 pub extern "C" fn int_mul(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() * other.val()).into()
 }
 
 // TODO: Return Float?
-#[export_name = "Int#/"]
+#[shiika_method("Int#/")]
 pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() / other.val()).into()
 }
 
-#[export_name = "Int#%"]
+#[shiika_method("Int#%")]
 pub extern "C" fn int_mod(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() % other.val()).into()
 }
 
-#[export_name = "Int#<<"]
+#[shiika_method("Int#<<")]
 pub extern "C" fn int_lshift(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() << other.val()).into()
 }
 
-#[export_name = "Int#>>"]
+#[shiika_method("Int#>>")]
 pub extern "C" fn int_rshift(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() >> other.val()).into()
 }
 
-#[export_name = "Int#<"]
+#[shiika_method("Int#<")]
 pub extern "C" fn int_lt(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() < other.val()).into()
 }
 
-#[export_name = "Int#<="]
+#[shiika_method("Int#<=")]
 pub extern "C" fn int_le(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() <= other.val()).into()
 }
 
-#[export_name = "Int#>"]
+#[shiika_method("Int#>")]
 pub extern "C" fn int_gt(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() > other.val()).into()
 }
 
-#[export_name = "Int#>="]
+#[shiika_method("Int#>=")]
 pub extern "C" fn int_ge(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() >= other.val()).into()
 }
 
-#[export_name = "Int#=="]
+#[shiika_method("Int#==")]
 pub extern "C" fn int_eq(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() == other.val()).into()
 }
 
-#[export_name = "Int#to_f"]
+#[shiika_method("Int#to_f")]
 pub extern "C" fn int_to_f(receiver: SkInt) -> SkFloat {
     (receiver.val() as f64).into()
 }

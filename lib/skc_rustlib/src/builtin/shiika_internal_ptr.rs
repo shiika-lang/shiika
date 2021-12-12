@@ -3,6 +3,7 @@
 //! Should be removed once `Array`, etc. is re-implemented in skc_rustlib.
 use crate::builtin::object::ShiikaObject;
 use crate::builtin::SkInt;
+use shiika_ffi_macro::shiika_method;
 use std::convert::TryInto;
 use std::os::raw::c_void;
 extern "C" {
@@ -45,14 +46,14 @@ impl SkPtr {
     }
 }
 
-#[export_name = "Shiika::Internal::Ptr#+"]
+#[shiika_method("Shiika::Internal::Ptr#+")]
 pub extern "C" fn shiika_internal_ptr_add(receiver: SkPtr, n_bytes: SkInt) -> SkPtr {
     let p = receiver.unbox() as *const u8;
     let n = n_bytes.val().try_into().unwrap();
     unsafe { SkPtr::new(p.offset(n)) }
 }
 
-#[export_name = "Shiika::Internal::Ptr#load"]
+#[shiika_method("Shiika::Internal::Ptr#load")]
 pub extern "C" fn shiika_internal_ptr_load(receiver: SkPtr) -> *const ShiikaObject {
     unsafe {
         let p = receiver.unbox() as *const *const ShiikaObject;
@@ -60,7 +61,7 @@ pub extern "C" fn shiika_internal_ptr_load(receiver: SkPtr) -> *const ShiikaObje
     }
 }
 
-#[export_name = "Shiika::Internal::Ptr#store"]
+#[shiika_method("Shiika::Internal::Ptr#store")]
 pub extern "C" fn shiika_internal_ptr_store(receiver: SkPtr, object: *const ShiikaObject) {
     unsafe {
         let p = receiver.unbox_mut() as *mut *const ShiikaObject;
@@ -68,7 +69,7 @@ pub extern "C" fn shiika_internal_ptr_store(receiver: SkPtr, object: *const Shii
     }
 }
 
-#[export_name = "Shiika::Internal::Ptr#read"]
+#[shiika_method("Shiika::Internal::Ptr#read")]
 pub extern "C" fn shiika_internal_ptr_read(receiver: SkPtr) -> SkInt {
     unsafe {
         let b = std::ptr::read(receiver.unbox());
@@ -76,7 +77,7 @@ pub extern "C" fn shiika_internal_ptr_read(receiver: SkPtr) -> SkInt {
     }
 }
 
-#[export_name = "Shiika::Internal::Ptr#write"]
+#[shiika_method("Shiika::Internal::Ptr#write")]
 pub extern "C" fn shiika_internal_ptr_write(receiver: SkPtr, byte: SkInt) {
     unsafe {
         let p = receiver.unbox_mut();

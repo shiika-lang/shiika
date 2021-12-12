@@ -1,6 +1,7 @@
 use crate::builtin::class::{ShiikaClass, SkClass};
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
+use shiika_ffi_macro::shiika_method;
 use std::io::{self, Write};
 use std::mem;
 #[repr(C)]
@@ -27,23 +28,23 @@ impl SkObj {
     }
 }
 
-#[export_name = "Object#=="]
+#[shiika_method("Object#==")]
 pub extern "C" fn object_eq(receiver: *const u8, other: *const u8) -> SkBool {
     (receiver == other).into()
 }
 
-#[export_name = "Object#class"]
+#[shiika_method("Object#class")]
 pub extern "C" fn object_class(receiver: SkObj) -> SkClass {
     receiver.class()
 }
 
 // TODO: Move to `Process.exit` or something
-#[export_name = "Object#exit"]
+#[shiika_method("Object#exit")]
 pub extern "C" fn object_exit(_receiver: SkObj, code: SkInt) {
     std::process::exit(code.val() as i32);
 }
 
-#[export_name = "Object#object_id"]
+#[shiika_method("Object#object_id")]
 pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
     unsafe {
         let i = mem::transmute::<*const ShiikaObject, i64>(receiver.0);
@@ -51,7 +52,7 @@ pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
     }
 }
 
-#[export_name = "Object#puts"]
+#[shiika_method("Object#puts")]
 pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
     let _result = io::stdout().write_all(s.byteslice());

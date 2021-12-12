@@ -8,5 +8,6 @@ edition = "2018"
 crate-type = ["staticlib"]
 
 [dependencies]
+shiika_ffi_macro = { path = "../shiika_ffi_macro" }
 bdwgc-alloc = "0.6.0"
 plain = "0.2.3"

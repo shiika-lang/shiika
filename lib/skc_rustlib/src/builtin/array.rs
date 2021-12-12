@@ -1,5 +1,6 @@
 use crate::builtin::object::ShiikaObject;
 use crate::builtin::{SkInt, SkPtr};
+use shiika_ffi_macro::shiika_method;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -15,7 +16,7 @@ struct ShiikaArray {
     items: SkPtr,
 }
 
-#[export_name = "Array#[]"]
+#[shiika_method("Array#[]")]
 pub extern "C" fn array_get(receiver: SkAry, idx: SkInt) -> *const ShiikaObject {
     unsafe {
         let items_ptr = (*receiver.0).items.unbox() as *const *const ShiikaObject;
