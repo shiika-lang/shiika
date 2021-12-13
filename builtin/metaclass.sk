@@ -1,6 +1,6 @@
 # Class of metaclasses
 # see also: src/corelib/
-class Metaclass
+class Metaclass : Class
   def name -> String
     if @base_name == "Metaclass"
       "Metaclass"
