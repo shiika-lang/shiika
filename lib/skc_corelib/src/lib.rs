@@ -1,6 +1,6 @@
-mod class;
+pub mod class;
 mod fn_x;
-mod metaclass;
+pub mod metaclass;
 pub mod rustlib_methods;
 use shiika_core::{names::*, ty};
 use skc_hir::*;

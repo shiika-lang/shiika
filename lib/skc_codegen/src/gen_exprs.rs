@@ -980,7 +980,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let metacls_obj = self.allocate_sk_obj(&class_fullname("Metaclass"), "metaclass_obj");
             self.build_ivar_store(
                 &metacls_obj,
-                0,
+                skc_corelib::metaclass::IVAR_BASE_NAME_IDX,
                 self.gen_string_literal(str_literal_idx),
                 "@base_name",
             );
@@ -988,7 +988,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let cls_obj = self._allocate_sk_obj(&meta_name, "cls_obj", metacls_obj.as_class_obj());
             self.build_ivar_store(
                 &cls_obj,
-                0,
+                skc_corelib::class::IVAR_NAME_IDX,
                 self.gen_string_literal(str_literal_idx),
                 "@name",
             );
@@ -1008,7 +1008,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.build_ivar_store(
             &cls_obj,
-            0,
+            skc_corelib::metaclass::IVAR_BASE_NAME_IDX,
             self.gen_string_literal(str_literal_idx),
             "@base_name",
         );
