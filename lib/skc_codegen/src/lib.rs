@@ -159,7 +159,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         global.set_constant(true);
     }
 
-    /// Define llvm struct type for `Class`
+    /// Define llvm struct type for `Class` in advance
     fn define_class_class(&mut self) {
         self.llvm_struct_types.insert(
             class_fullname("Class"),
@@ -264,7 +264,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // Initialize own constants
-        let basic_classes = vec!["::Class", "::Shiika::Internal::Ptr"];
+        let basic_classes = vec!["::Metaclass", "::Class", "::Shiika::Internal::Ptr"];
         if !is_main {
             // These builtin classes must be created first
             for name in &basic_classes {

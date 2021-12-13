@@ -45,7 +45,7 @@ fn rust_body_items() -> Vec<ClassItem> {
         ),
         (
             "Metaclass".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Superclass::simple("Class")),
             Default::default(),
             vec![],
             metaclass::ivars(),
@@ -168,10 +168,8 @@ fn make_classes(
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
-        } else if name == "Class" {
-            // The class of `Class` is `Metaclass`. So we don't need to create again
         } else {
-            let meta_ivars = class::ivars(); // `Meta::XX` inherits `Class`
+            let meta_ivars = class::ivars();
             sk_classes.insert(
                 metaclass_fullname(&name),
                 SkClass {
