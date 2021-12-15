@@ -18,6 +18,6 @@ pub fn mangle_method(method_name: &str) -> String {
         .replace(">", "gt_")
         .replace("<=", "le_")
         .replace(">=", "ge_")
-        .replace("[]", "aref_")
         .replace("[]=", "aset_")
+        .replace("[]", "aref_")
 }
