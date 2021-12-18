@@ -211,7 +211,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
             self.module
-                .add_function(&format!("init_{}", fullname.0), fn_type, None);
+                .add_function(&const_initialize_func_name(fullname), fn_type, None);
         }
     }
 
@@ -264,20 +264,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // Initialize own constants
-        let basic_classes = vec!["::Metaclass", "::Class", "::Shiika::Internal::Ptr"];
+        let basic_classes = vec!["Metaclass", "Class", "Shiika::Internal::Ptr"]
+            .into_iter()
+            .map(const_fullname)
+            .collect::<Vec<_>>();
         if !is_main {
             // These builtin classes must be created first
             for name in &basic_classes {
-                let func = self.get_llvm_func(&llvm_func_name(format!("init_{}", name)));
+                let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));
                 self.builder.build_call(func, &[], "");
             }
         }
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
-                    if !basic_classes.iter().any(|s| *s == fullname.0) {
-                        let func =
-                            self.get_llvm_func(&llvm_func_name(format!("init_{}", fullname.0)));
+                    if !basic_classes.iter().any(|s| s.0 == fullname.0) {
+                        let func = self
+                            .get_llvm_func(&llvm_func_name(const_initialize_func_name(fullname)));
                         self.builder.build_call(func, &[], "");
                     }
                 }
@@ -431,9 +434,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
                     let fn_type = self.void_type.fn_type(&[], false);
-                    let function =
-                        self.module
-                            .add_function(&format!("init_{}", fullname.0), fn_type, None);
+                    let function = self.module.add_function(
+                        &const_initialize_func_name(fullname),
+                        fn_type,
+                        None,
+                    );
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     let (end_block, mut ctx) =
@@ -765,4 +770,8 @@ fn inkwell_set_name(val: BasicValueEnum, name: &str) {
         BasicValueEnum::StructValue(v) => v.set_name(name),
         BasicValueEnum::VectorValue(v) => v.set_name(name),
     }
+}
+
+fn const_initialize_func_name(name: &ConstFullname) -> String {
+    format!("init_{}", &name.0[2..])
 }
