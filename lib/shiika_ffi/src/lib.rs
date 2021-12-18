@@ -14,10 +14,10 @@ pub fn mangle_method(method_name: &str) -> String {
         .replace("/", "div_")
         .replace("%", "mod_")
         .replace("==", "eq_")
-        .replace("<", "lt_")
-        .replace(">", "gt_")
         .replace("<=", "le_")
         .replace(">=", "ge_")
+        .replace("<", "lt_")
+        .replace(">", "gt_")
         .replace("[]=", "aset_")
         .replace("[]", "aref_")
 }
