@@ -75,7 +75,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             Superclass::default()
         };
-        let new_sig = if fullname.0 == "Class" {
+        let new_sig = if fullname.0 == "Never" {
             None
         } else {
             Some(signature::signature_of_new(

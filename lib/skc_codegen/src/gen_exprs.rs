@@ -125,7 +125,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
-            } => Ok(Some(self.gen_class_literal(fullname, str_literal_idx))),
+            } => Ok(Some(self.gen_class_literal(
+                fullname,
+                &expr.ty,
+                str_literal_idx,
+            ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
     }
@@ -969,14 +973,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create a class object
     /// ("class literal" is a special Hir that does not appear directly
     /// on a source text.)
-    fn gen_class_literal(&self, fullname: &ClassFullname, str_literal_idx: &usize) -> SkObj<'run> {
+    fn gen_class_literal(
+        &self,
+        fullname: &ClassFullname,
+        clsobj_ty: &TermTy,
+        str_literal_idx: &usize,
+    ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
             self.gen_the_metaclass(str_literal_idx)
         } else {
-            let meta_name = fullname.meta_name(); // eg. "Meta:Int"
-
-            // Create metaclass object
+            // Create metaclass object (eg. `#<metaclass Meta:Int>`, which is
+            // the return value of `Int.class`)
             let metacls_obj = self.allocate_sk_obj(&class_fullname("Metaclass"), "metaclass_obj");
             self.build_ivar_store(
                 &metacls_obj,
@@ -985,19 +993,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 "@base_name",
             );
 
-            let cls_obj = self._allocate_sk_obj(&meta_name, "cls_obj", metacls_obj.as_class_obj());
-            self.build_ivar_store(
-                &cls_obj,
-                skc_corelib::class::IVAR_NAME_IDX,
-                self.gen_string_literal(str_literal_idx),
-                "@name",
+            // Create class object (eg. `#<class Int>`, which is the value of `::Int`)
+            // TODO: This should be `::Class`
+            let receiver = self
+                .llvm_type(&ty::meta("Class"))
+                .into_pointer_type()
+                .const_null();
+            // Call `Class.new`
+            let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
+            let cls = self.gen_method_func_call(
+                &method_fullname(&metaclass_fullname("Class"), "new"),
+                SkObj(receiver.into()),
+                vec![
+                    self.gen_string_literal(str_literal_idx),
+                    self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(metacls_obj, &ty::raw("Object"), "as"),
+                ],
             );
-
-            // We assume class objects never have custom `initialize` method
-            cls_obj
+            self.bitcast(cls, clsobj_ty, "as")
         }
     }
 
+    /// Create the metaclass object `Metaclass`
     fn gen_the_metaclass(&self, str_literal_idx: &usize) -> SkObj<'run> {
         // We need a trick here to achieve `Metaclass.class == Metaclass`.
         let null = self.i8ptr_type.const_null().as_basic_value_enum();

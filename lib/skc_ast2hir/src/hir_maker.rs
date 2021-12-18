@@ -183,8 +183,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Register .new
-        if fullname.0 != "Class" {
-            // TODO: "Metaclass" also should not have .new
+        if fullname.0 != "Never" {
             let class_name = ty::raw(&fullname.0);
             self.method_dict
                 .add_method(&meta_name, self.create_new(&class_name, false)?);

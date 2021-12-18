@@ -29,6 +29,8 @@
   ["Float", "floor -> Float"],
   ["Float", "to_i -> Int"],
   ["Float", "to_s -> String"],
+  ["Class", "_initialize_rustlib(vtable: Object, metacls_obj: Object) -> Object"],
+  //  ["Metaclass", "_specialize(tyargs: Array<Class>) -> SkClass"],
   ["Object", "==(other: Object) -> Bool"],
   ["Object", "class -> Class"],
   ["Object", "exit(code: Int) -> Never"],

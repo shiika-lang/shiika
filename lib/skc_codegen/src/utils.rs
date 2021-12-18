@@ -81,7 +81,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get vtable of the class of the given name
-    fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
+    pub fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
         let vtable_const_name = llvm_vtable_const_name(classname);
         let llvm_ary_ptr = self
             .module

@@ -24,6 +24,13 @@ impl<'run> SkClassObj<'run> {
 #[derive(Debug)]
 pub struct VTableRef<'run>(pub inkwell::values::BasicValueEnum<'run>);
 
+impl<'run> VTableRef<'run> {
+    /// Normally vtables are not Shiika object. This is used internally
+    pub fn as_sk_obj(self) -> SkObj<'run> {
+        SkObj(self.0)
+    }
+}
+
 /// i8*
 #[derive(Debug)]
 pub struct I8Ptr<'run>(pub inkwell::values::PointerValue<'run>);
