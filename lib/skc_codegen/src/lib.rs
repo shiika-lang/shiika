@@ -703,12 +703,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
         initialize_name: &MethodFullname,
+        // The class whose `#initialize` should be called from this `.new`
+        // (If the class have its own `#initialize`, this is equal to `class_fullname`)
         init_cls_name: &ClassFullname,
         arity: usize,
         const_is_obj: bool,
     ) {
-        let need_bitcast = init_cls_name != class_fullname;
-
         // Allocate memory
         let obj = if const_is_obj {
             // Normally class object can be retrieved via constants,
@@ -720,22 +720,25 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         };
 
         // Call initialize
-        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
-        let mut addr = obj.clone();
-        if need_bitcast {
+        let addr = if init_cls_name == class_fullname {
+            obj.clone()
+        } else {
+            // `initialize` is defined in an ancestor class. Bitcast is needed
+            // to pass the obj to the `initialize` func
             let ances_type = self
                 .llvm_struct_types
                 .get(init_cls_name)
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
-            addr = SkObj(
+            SkObj(
                 self.builder
-                    .build_bitcast(addr.0, ances_type, "obj_as_super"),
-            );
-        }
+                    .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
+            )
+        };
         let args = (0..=arity)
             .map(|i| if i == 0 { addr.0 } else { llvm_func_args[i] })
             .collect::<Vec<_>>();
+        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
         self.builder.build_call(initialize, &args, "");
 
         self.build_return(&obj);
