@@ -707,17 +707,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // (If the class have its own `#initialize`, this is equal to `class_fullname`)
         init_cls_name: &ClassFullname,
         arity: usize,
-        const_is_obj: bool,
+        _const_is_obj: bool,
     ) {
         // Allocate memory
-        let obj = if const_is_obj {
-            // Normally class object can be retrieved via constants,
-            // but there is no such constant if `const_is_obj` is true.
-            let class_obj = SkClassObj(llvm_func_args[0]);
-            self._allocate_sk_obj(class_fullname, "addr", class_obj)
-        } else {
-            self.allocate_sk_obj(class_fullname, "addr")
-        };
+        let class_obj = SkClassObj(llvm_func_args[0]);
+        let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
 
         // Call initialize
         let addr = if init_cls_name == class_fullname {
