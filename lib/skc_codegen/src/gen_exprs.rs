@@ -109,7 +109,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ret_ty,
             ))),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
-            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
+            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, &expr.ty, exprs),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
             HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
@@ -798,11 +798,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_array_literal(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        ary_ty: &TermTy,
         exprs: &'hir [HirExpression],
     ) -> Result<Option<SkObj<'run>>> {
+        let ary_cls_ty = ary_ty.meta_ty();
+        let ary_cls_obj = self.gen_const_ref(&ary_cls_ty.to_const_fullname());
         let ary = self.call_method_func(
             &method_fullname(&metaclass_fullname("Array"), "new"),
-            self.gen_const_ref(&toplevel_const("Array")),
+            self.bitcast(ary_cls_obj, &ty::meta("Array"), "as"),
             Default::default(),
             "ary",
         );

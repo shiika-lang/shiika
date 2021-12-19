@@ -12,4 +12,6 @@ unless metaclass.name == "Metaclass"; puts "ng Metaclass"; end
 unless metaclass.class == Metaclass; puts "ng metaclass.class"; end
 
 unless Array<Int>.new.class == Array<Int>; puts "ng Array<Int>"; end
+unless [1].class == Array<Int>; puts "ng [1].class"; end
+
 puts "ok"
