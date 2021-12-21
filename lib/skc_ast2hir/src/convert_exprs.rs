@@ -849,10 +849,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let ty = ty::spe(base_ty.fullname.0, type_args);
         let full = const_fullname(&ty.fullname.0);
         let meta_ty = ty.meta_ty();
+        self.register_specialized_const(&meta_ty);
+        Ok(Hir::const_ref(meta_ty, full))
+    }
+
+    /// Register specialized class constant (eg. `::Maybe<Int>`) if not found.
+    pub fn register_specialized_const(&mut self, meta_ty: &TermTy) {
+        let full = meta_ty.to_const_fullname();
         if self._lookup_const(&full).is_none() {
             self._register_specialized_const(&meta_ty, &full);
         }
-        Ok(Hir::const_ref(meta_ty, full))
     }
 
     /// Register specialized class constant and its type.
@@ -862,7 +868,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // For `A<B>`, create its type `Meta:A<B>`
         self.create_specialized_meta_class(meta_ty);
         // Register const `A<B>`
-        let str_idx = self.register_string_literal(&full.0);
+        let str_idx = self.register_string_literal(&meta_ty.instance_ty().fullname.0);
         let expr = Hir::class_literal(meta_ty.clone(), meta_ty.instance_ty().fullname, str_idx);
         self.register_const_full(full.clone(), expr);
     }
@@ -877,7 +883,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Generate HIR for an array literal
-    /// `[x,y]` is expanded into `tmp = Array<Object>.new; tmp.push(x); tmp.push(y)`
     fn convert_array_literal(&mut self, item_exprs: &[AstExpression]) -> Result<HirExpression> {
         let item_exprs = item_exprs
             .iter()
@@ -901,6 +906,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 .expect("array literal elements type mismatch");
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
+
+        self.register_specialized_const(&ary_ty.meta_ty());
 
         Hir::array_literal(item_exprs, ary_ty)
     }
