@@ -117,7 +117,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::ConstRef(names) => self.convert_const_ref(names),
+            AstExpressionBody::CapitalizedName(names) => self.convert_capitalized_name(names),
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
                 self.convert_specialize_expr(base_name, args)
@@ -470,7 +470,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy> {
         match &arg.body {
-            AstExpressionBody::ConstRef(name) => Ok(self.resolve_class_const(name)?),
+            AstExpressionBody::CapitalizedName(name) => Ok(self.resolve_class_const(name)?),
             AstExpressionBody::SpecializeExpression { base_name, args } => Ok(self
                 .convert_specialize_expr(base_name, args)?
                 .ty
@@ -743,7 +743,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Resolve constant name
     /// Also, register specialized class constant and its type eg. for
     /// `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
-    fn convert_const_ref(&mut self, name: &UnresolvedConstName) -> Result<HirExpression> {
+    fn convert_capitalized_name(&mut self, name: &UnresolvedConstName) -> Result<HirExpression> {
         let (ty, resolved) = self._resolve_simple_const(name)?;
         Ok(Hir::const_ref(ty, resolved.to_const_fullname()))
     }
@@ -837,7 +837,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut type_args = vec![];
         for arg in args {
             let ty = match &arg.body {
-                AstExpressionBody::ConstRef(n) => self.resolve_class_const(n)?,
+                AstExpressionBody::CapitalizedName(n) => self.resolve_class_const(n)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,

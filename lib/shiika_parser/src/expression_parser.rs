@@ -886,7 +886,7 @@ impl<'a> Parser<'a> {
     /// Main routine of parse_specialize_expression
     fn _parse_specialize_expr(&mut self, s: String) -> Result<AstExpression, Error> {
         self.lv += 1;
-        self.debug_log("_parse_const_ref");
+        self.debug_log("_parse_specialize_expr");
         let mut names = vec![s];
         let mut lessthan_seen = false;
         let mut args = vec![];
@@ -944,7 +944,7 @@ impl<'a> Parser<'a> {
         }
         self.lv -= 1;
         if args.is_empty() {
-            Ok(shiika_ast::const_ref(names))
+            Ok(shiika_ast::capitalized_name(names))
         } else {
             Ok(shiika_ast::specialize_expr(names, args))
         }
