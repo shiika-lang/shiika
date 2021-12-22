@@ -470,7 +470,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy> {
         match &arg.body {
-            AstExpressionBody::ConstRef(name) => Ok(self.resolve_class_const(name)?.0),
+            AstExpressionBody::ConstRef(name) => Ok(self.resolve_class_const(name)?),
             AstExpressionBody::SpecializeExpression { base_name, args } => Ok(self
                 .convert_specialize_expr(base_name, args)?
                 .ty
@@ -777,7 +777,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn resolve_class_const(
         &self,
         name: &UnresolvedConstName,
-    ) -> Result<(TermTy, ResolvedConstName)> {
+    ) -> Result<TermTy> {
         let (resolved_ty, resolved_name) = self._resolve_simple_const(name)?;
 
         // `ty` is `Meta:XX` here but we want to remove `Meta:`
@@ -792,7 +792,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 resolved_name, resolved_ty
             )));
         };
-        Ok((ty, resolved_name))
+        Ok(ty)
     }
 
     /// Check if a constant is registered
@@ -833,11 +833,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         args: &[AstExpression],
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let (base_ty, _) = self.resolve_class_const(base_name)?;
+        let base_ty = self.resolve_class_const(base_name)?;
         let mut type_args = vec![];
         for arg in args {
             let ty = match &arg.body {
-                AstExpressionBody::ConstRef(n) => self.resolve_class_const(n)?.0,
+                AstExpressionBody::ConstRef(n) => self.resolve_class_const(n)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
