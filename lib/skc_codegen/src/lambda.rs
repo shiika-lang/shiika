@@ -97,6 +97,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirArgRef { .. } => (),
             HirLVarRef { .. } => (),
             HirIVarRef { .. } => (),
+            HirTVarRef { .. } => (),
             HirConstRef { .. } => (),
             HirLambdaExpr {
                 name,

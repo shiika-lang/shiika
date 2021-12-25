@@ -178,6 +178,11 @@ pub enum HirExpressionBase {
         idx: usize,
         self_ty: TermTy,
     },
+    /// Type variable reference. eg. in an instance method definition of the class `Array<T>`,
+    /// `T` is a HirTVarRef whose type is `Meta:Object`.
+    HirTVarRef {
+        name: String,
+    },
     HirConstRef {
         fullname: ConstFullname,
     },
@@ -444,6 +449,13 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirIVarRef { name, idx, self_ty },
+        }
+    }
+
+    pub fn tvar_ref(ty: TermTy, name: String) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirTVarRef { name },
         }
     }
 

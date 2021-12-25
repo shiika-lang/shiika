@@ -94,6 +94,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirIVarRef { name, idx, self_ty } => {
                 Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
             }
+            HirTVarRef { .. } => todo!(),
             HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
