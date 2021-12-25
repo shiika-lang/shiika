@@ -138,14 +138,17 @@ fn check_arg_types(
 ) -> Result<()> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
         if !class_dict.conforms(arg_ty, &param.ty) {
+            // Remove this when shiika can show the location in the .sk
+            dbg!(&receiver_hir);
+            dbg!(&sig.fullname);
+            dbg!(&arg_hirs);
+
             return Err(type_error!(
-                "the argument `{}' of `{}' should be {} but got {} (receiver: {:?}, args: {:?})",
+                "the argument `{}' of `{}' should be {} but got {}",
                 param.name,
                 sig.fullname,
                 param.ty.fullname,
-                arg_ty.fullname,
-                receiver_hir,
-                arg_hirs
+                arg_ty.fullname
             ));
         }
     }
