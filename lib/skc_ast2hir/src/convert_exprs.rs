@@ -469,14 +469,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy> {
-        match &arg.body {
-            AstExpressionBody::CapitalizedName(name) => Ok(self.resolve_class_const(name)?),
-            AstExpressionBody::SpecializeExpression { base_name, args } => Ok(self
-                .convert_specialize_expr(base_name, args)?
-                .ty
-                .instance_ty()),
-            _ => panic!("[BUG] unexpected arg in method tyargs"),
-        }
+        let e = self.convert_expr(arg)?;
+        self.assert_class_expr(&e)?;
+        Ok(e.ty.instance_ty())
     }
 
     /// Check the arguments and create HirMethodCall
@@ -740,59 +735,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    /// Resolve constant name
-    /// Also, register specialized class constant and its type eg. for
-    /// `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
-    fn convert_capitalized_name(&mut self, name: &UnresolvedConstName) -> Result<HirExpression> {
-        let (ty, resolved) = self._resolve_simple_const(name)?;
-        Ok(Hir::const_ref(ty, resolved.to_const_fullname()))
-    }
-
-    /// Resolve a constant name without tyargs
-    fn _resolve_simple_const(
-        &self,
-        name: &UnresolvedConstName,
-    ) -> Result<(TermTy, ResolvedConstName)> {
+    /// Resolve a capitalized identifier, which is either a constant name or
+    /// a type parameter reference
+    fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+        // Check if it is a typaram ref
         if name.0.len() == 1 {
-            // Check if it is a typaram ref
             let s = name.0.first().unwrap();
             if let Some(ty) = self.ctx_stack.lookup_typaram(s) {
-                return Ok((ty, typaram_as_resolved_const_name(s)));
+                return Ok(Hir::tvar_ref(ty, s.to_string()));
             }
         }
+
         for namespace in self.ctx_stack.const_scopes() {
             let resolved = resolved_const_name(namespace, name.0.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
-                return Ok((ty, resolved));
+                return Ok(Hir::const_ref(ty, full));
             }
         }
         Err(error::program_error(&format!(
             "constant `{:?}' was not found",
             name.0.join("::")
         )))
-    }
-
-    /// Resolve const name which *must be* a class
-    pub(super) fn resolve_class_const(
-        &self,
-        name: &UnresolvedConstName,
-    ) -> Result<TermTy> {
-        let (resolved_ty, resolved_name) = self._resolve_simple_const(name)?;
-
-        // `ty` is `Meta:XX` here but we want to remove `Meta:`
-        // unless `ty` is typaram ref
-        let ty = if resolved_ty.is_typaram_ref() {
-            resolved_ty
-        } else if resolved_ty.is_metaclass() {
-            resolved_ty.instance_ty()
-        } else {
-            return Err(error::type_error(&format!(
-                "{} is not a class but {}",
-                resolved_name, resolved_ty
-            )));
-        };
-        Ok(ty)
     }
 
     /// Check if a constant is registered
@@ -827,30 +791,51 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.class_dict.add_class(metacls);
     }
 
+    /// Expr of the form `A<B>`. `A` is limited to a capitalized identifier
+    /// or a sequence of them (eg. `X::Y::Z`.)
     fn convert_specialize_expr(
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let base_ty = self.resolve_class_const(base_name)?;
+        let base_expr = self.resolve_class_expr(base_name)?;
+        let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
-            let ty = match &arg.body {
-                AstExpressionBody::CapitalizedName(n) => self.resolve_class_const(n)?,
+            let cls_expr = match &arg.body {
+                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?.ty.instance_ty(),
+                } => self.convert_specialize_expr(n, a)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
-            type_args.push(ty);
+            type_args.push(cls_expr.ty.as_type_argument());
+            arg_exprs.push(cls_expr);
         }
-        let ty = ty::spe(base_ty.fullname.0, type_args);
-        let full = const_fullname(&ty.fullname.0);
-        let meta_ty = ty.meta_ty();
-        self.register_specialized_const(&meta_ty);
-        Ok(Hir::const_ref(meta_ty, full))
+        let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
+        Ok(Hir::method_call(meta_spe_ty, base_expr,
+                            method_fullname(&class_fullname("Class"), "<>"),
+                            arg_exprs))
+    }
+
+    pub fn resolve_class_expr(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+        let e = self.convert_capitalized_name(name)?;
+        self.assert_class_expr(&e)?;
+        Ok(e)
+    }
+
+    /// Check if `e` evaluates to a class object.
+    fn assert_class_expr(&self, e: &HirExpression) -> Result<()> {
+        if e.ty.is_metaclass() || e.ty.is_typaram_ref() {
+            Ok(())
+        } else {
+            Err(error::type_error(&format!(
+                "a class expected but got {:?}",
+                &e.ty
+            )))
+        }
     }
 
     /// Register specialized class constant (eg. `::Maybe<Int>`) if not found.

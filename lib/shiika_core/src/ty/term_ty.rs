@@ -185,14 +185,28 @@ impl TermTy {
         }
     }
 
-    pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
+    pub fn as_type_argument(&self) -> TermTy {
         match &self.body {
             TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
             }) => {
-                debug_assert!(type_args.len() == tyargs.len());
+                debug_assert!(is_meta);
+                ty::spe(base_name, type_args.to_vec())
+            }
+            TyParamRef { .. } => self.clone()
+        }
+    }
+
+    pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
+        match &self.body {
+            TyRaw(LitTy {
+                base_name,
+                type_args: _,
+                is_meta,
+            }) => {
+                //debug_assert!(type_args.len() == tyargs.len());
                 ty::new(base_name, tyargs, *is_meta)
             }
             _ => panic!("unexpected"),

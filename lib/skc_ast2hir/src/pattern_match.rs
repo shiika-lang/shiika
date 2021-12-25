@@ -180,7 +180,7 @@ fn convert_extractor(
     param_patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
     // eg. `ty::raw("Maybe::Some")`
-    let base_ty = mk.resolve_class_const(&UnresolvedConstName(names.to_vec()))?;
+    let base_ty = mk.resolve_class_expr(&UnresolvedConstName(names.to_vec()))?.ty.instance_ty();
     let pat_ty = match &value.ty.body {
         TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
         _ => base_ty.clone(),
