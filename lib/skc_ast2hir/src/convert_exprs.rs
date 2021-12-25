@@ -9,7 +9,6 @@ use shiika_ast::Token;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
-use std::collections::HashMap;
 
 /// Result of looking up a lvar
 #[derive(Debug)]
@@ -767,30 +766,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .cloned()
     }
 
-    /// Create `Meta:A<B>` for type `A<B>` (unless already exists)
-    pub fn create_specialized_meta_class(&mut self, meta_ty: &TermTy) {
-        debug_assert!(meta_ty.is_metaclass());
-        if self.class_dict.lookup_class(&meta_ty.fullname).is_some() {
-            return;
-        }
-        let meta_base = meta_ty.erasure(); // `Meta:A`
-        let mut ivars = HashMap::new();
-        ivars.insert(
-            "name".to_string(),
-            SkIVar {
-                idx: 0,
-                name: "name".to_string(),
-                ty: ty::raw("String"),
-                readonly: true,
-            },
-        );
-        let metacls = self
-            .class_dict
-            .get_class(&meta_base)
-            .specialized_meta(meta_ty.tyargs());
-        self.class_dict.add_class(metacls);
-    }
-
     /// Expr of the form `A<B>`. `A` is limited to a capitalized identifier
     /// or a sequence of them (eg. `X::Y::Z`.)
     fn convert_specialize_expr(
@@ -838,26 +813,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    /// Register specialized class constant (eg. `::Maybe<Int>`) if not found.
-    pub fn register_specialized_const(&mut self, meta_ty: &TermTy) {
-        let full = meta_ty.to_const_fullname();
-        if self._lookup_const(&full).is_none() {
-            self._register_specialized_const(&meta_ty, &full);
-        }
-    }
-
-    /// Register specialized class constant and its type.
-    /// eg. for `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
-    fn _register_specialized_const(&mut self, meta_ty: &TermTy, full: &ConstFullname) {
-        debug_assert!(meta_ty.is_metaclass());
-        // For `A<B>`, create its type `Meta:A<B>`
-        self.create_specialized_meta_class(meta_ty);
-        // Register const `A<B>`
-        let str_idx = self.register_string_literal(&meta_ty.instance_ty().fullname.0);
-        let expr = Hir::class_literal(meta_ty.clone(), meta_ty.instance_ty().fullname, str_idx);
-        self.register_const_full(full.clone(), expr);
-    }
-
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression> {
         match token {
             Token::KwSelf => Ok(self.convert_self_expr()),
@@ -891,8 +846,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 .expect("array literal elements type mismatch");
         }
         let ary_ty = ty::spe("Array", vec![item_ty]);
-
-        self.register_specialized_const(&ary_ty.meta_ty());
 
         Hir::array_literal(item_exprs, ary_ty)
     }

@@ -194,9 +194,6 @@ fn convert_extractor(
     let cast_value = Hir::bit_cast(pat_ty.clone(), value.clone());
     let mut components = extract_props(mk, &cast_value, &pat_ty, param_patterns)?;
 
-    // eg. In case of `Maybe::Some<Int>` first appears in the program
-    mk.register_specialized_const(&pat_ty.meta_ty());
-
     let test = Component::Test(test_class(value, &pat_ty));
     components.insert(0, test);
     Ok(components)
