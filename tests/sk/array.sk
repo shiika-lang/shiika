@@ -2,7 +2,7 @@ a = [123]
 fst = a.first
 match a.first
 when Some(v)
-  puts "ng #first" unless v == 123
+  puts "ng #first (#{v})" unless v == 123
 else
   puts "ng #first"
 end
