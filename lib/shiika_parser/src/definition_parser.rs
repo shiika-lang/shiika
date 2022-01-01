@@ -320,6 +320,7 @@ impl<'a> Parser<'a> {
             Token::UMinusMethod => "-@",
             Token::GetMethod => "[]",
             Token::SetMethod => "[]=",
+            Token::Specialize => "<>",
             Token::BinaryPlus => "+",
             Token::BinaryMinus => "-",
             Token::Mul => "*",

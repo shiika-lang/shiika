@@ -5,6 +5,13 @@ class Class
     @specialized_classes = _initialize_rustlib(vtable, metacls_obj)
   end
 
+  def <>(tyargs: Array<Class>) -> SpecializedClass
+    panic "Class#_specialize: no tyargs given" if tyargs.empty?
+    spe_meta = self._metacls_obj.<>(tyargs)
+    name = @name + "<" + tyargs.map<String>{|c: Class| c.name}.join(", ") + ">"
+    SpecializedClass.new(name, self._vtable, spe_meta, tyargs)
+  end
+
   def name -> String
     # Accessors does not defined automatically for classes defined skc_corelib
     @name
@@ -16,5 +23,15 @@ class Class
 
   def to_s -> String
     name
+  end
+end
+
+class SpecializedClass : Class
+  def initialize(@name: String, vtable: Object, metacls_obj: Object, @type_args: Array<Class>)
+    _initialize_rustlib(vtable, metacls_obj)
+  end
+
+  def type_arg(nth: Int) -> Class
+    @type_args[nth]
   end
 end
