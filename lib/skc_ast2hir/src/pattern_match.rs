@@ -194,7 +194,7 @@ fn convert_extractor(
     let cast_value = Hir::bit_cast(pat_ty.clone(), value.clone());
     let mut components = extract_props(mk, &cast_value, &pat_ty, param_patterns)?;
 
-    let test = Component::Test(test_class(value, &pat_ty));
+    let test = Component::Test(test_class(mk, value, &pat_ty));
     components.insert(0, test);
     Ok(components)
 }
@@ -241,8 +241,10 @@ fn extract_props(
 }
 
 /// Create `expr.class == cls`
-fn test_class(value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
-    let cls_ref = Hir::const_ref(pat_ty.meta_ty(), pat_ty.fullname.to_const_fullname());
+fn test_class(
+    mk: &mut HirMaker,
+    value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
+    let cls_ref = class_expr(mk, pat_ty);
     Hir::method_call(
         ty::raw("Bool"),
         Hir::method_call(
@@ -254,4 +256,29 @@ fn test_class(value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
         method_fullname_raw("Class", "=="),
         vec![cls_ref],
     )
+}
+
+/// Build a HirExpression which evaluates to `ty`
+/// eg. `Array.<>(Int)` if `ty` is `TermTy(Array<Int>)`
+fn class_expr(
+    mk: &mut HirMaker,
+    ty: &TermTy) -> HirExpression {
+    match &ty.body {
+        TyBody::TyRaw(_) => {
+            let base = Hir::const_ref(ty.meta_ty(), ty.erasure().to_const_fullname());
+            let tyargs = ty.tyargs();
+            if tyargs.is_empty() {
+                base
+            } else {
+                Hir::method_call(
+                    ty.meta_ty(),
+                    base,
+                    method_fullname_raw("Class", "<>"),
+                    tyargs.iter().map(|t| class_expr(mk, t)).collect())
+            }
+        },
+        TyBody::TyParamRef { .. } => {
+            Hir::tvar_ref(ty.clone(), ty.clone(), mk.ctx_stack.self_ty())
+        }
+    }
 }

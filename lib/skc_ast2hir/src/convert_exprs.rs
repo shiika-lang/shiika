@@ -741,7 +741,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(ty) = self.ctx_stack.lookup_typaram(s) {
-                return Ok(Hir::tvar_ref(ty, s.to_string()));
+                let base_ty = self.ctx_stack.self_ty().erasure_ty();
+                return Ok(Hir::tvar_ref(ty.clone(), ty, base_ty));
             }
         }
 

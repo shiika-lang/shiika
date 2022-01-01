@@ -11,10 +11,13 @@ pub struct LitTy {
 }
 
 impl LitTy {
-    pub fn new(base_name: String, type_args: Vec<TermTy>, is_meta: bool) -> LitTy {
-        if base_name == "Metaclass" {
-            debug_assert!(is_meta);
-        }
+    pub fn new(base_name: String, type_args: Vec<TermTy>, is_meta_: bool) -> LitTy {
+        let is_meta = if base_name == "Metaclass" {
+            // There is no `Meta:Metaclass` 
+            true
+        } else {
+            is_meta_
+        };
         LitTy {
             base_name,
             type_args,
