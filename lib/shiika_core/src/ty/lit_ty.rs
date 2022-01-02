@@ -1,4 +1,5 @@
 use crate::ty::term_ty::TermTy;
+use crate::ty;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -23,5 +24,15 @@ impl LitTy {
             type_args,
             is_meta,
         }
+    }
+
+    pub fn raw(base_name: &str) -> LitTy { LitTy::new(base_name.to_string(), vec![], false) }
+
+    pub fn to_term_ty(&self) -> TermTy {
+        ty::new(self.base_name.clone(), self.type_args.clone(), self.is_meta)
+    }
+
+    pub fn into_term_ty(self) -> TermTy {
+        ty::new(self.base_name, self.type_args, self.is_meta)
     }
 }

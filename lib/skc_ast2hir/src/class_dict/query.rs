@@ -91,7 +91,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns supertype of `ty` (except it is `Object`)
     pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
         match &ty.body {
-            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(*upper_bound.clone()),
+            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.to_term_ty()),
             _ => self
                 .get_class(&ty.erasure())
                 .superclass
@@ -166,37 +166,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             true
         } else if ty1.equals_to(ty2) {
             true
-        } else if let TyBody::TyPara(TyParamRef {
-            upper_bound: u1,
-            lower_bound: l1,
-            ..
-        }) = &ty1.body
-        {
-            if let TyBody::TyPara(TyParamRef {
-                upper_bound: u2,
-                lower_bound: l2,
-                ..
-            }) = &ty2.body
-            {
-                u1 == u2 && l1 == l2
+        } else if let TyBody::TyPara(ref1) = &ty1.body {
+            if let TyBody::TyPara(ref2) = &ty2.body {
+                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
             } else {
-                self.conforms(u1, ty2)
+                let u1 = ref1.upper_bound.to_term_ty();
+                self.conforms(&u1, ty2)
             }
-        } else if let TyBody::TyPara(TyParamRef {
-            upper_bound: u2,
-            lower_bound: l2,
-            ..
-        }) = &ty2.body
-        {
-            if let TyBody::TyPara(TyParamRef {
-                upper_bound: u1,
-                lower_bound: l1,
-                ..
-            }) = &ty1.body
-            {
-                u1 == u2 && l1 == l2
+        } else if let TyBody::TyPara(ref2) = &ty2.body {
+            if let TyBody::TyPara(ref1) = &ty1.body {
+                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
             } else {
-                self.conforms(ty1, u2)
+                let u2 = ref2.upper_bound.to_term_ty();
+                self.conforms(ty1, &u2)
             }
         } else {
             let is_void_fn = if let Some(ret_ty) = ty2.fn_x_info() {

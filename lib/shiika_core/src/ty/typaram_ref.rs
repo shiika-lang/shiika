@@ -1,4 +1,5 @@
 use crate::ty::term_ty::{TermTy, TyBody};
+use crate::ty::lit_ty::LitTy;
 use crate::names::class_fullname;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +8,8 @@ pub struct TyParamRef {
     pub kind: TyParamKind,
     pub name: String,
     pub idx: usize,
-    pub upper_bound: Box<TermTy>,
-    pub lower_bound: Box<TermTy>,
+    pub upper_bound: LitTy,
+    pub lower_bound: LitTy,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

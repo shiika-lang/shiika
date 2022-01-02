@@ -25,11 +25,11 @@ pub fn check_return_value(
             if ty.equals_to(&sig.ret_ty) {
                 return Ok(());
             }
-            lower_bound
+            lower_bound.to_term_ty()
         }
-        _ => &sig.ret_ty,
+        _ => sig.ret_ty.clone(),
     };
-    if class_dict.conforms(ty, want) {
+    if class_dict.conforms(ty, &want) {
         Ok(())
     } else {
         Err(type_error!(
