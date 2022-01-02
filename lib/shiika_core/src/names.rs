@@ -376,9 +376,9 @@ impl ResolvedConstName {
         if self.args.is_empty() {
             let s = self.names.join("::");
             if let Some(i) = class_typarams.iter().position(|name| *name == s) {
-                ty::typaram(s, ty::TyParamKind::Class, i)
+                ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
             } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
-                ty::typaram(s, ty::TyParamKind::Method, i)
+                ty::typaram_ref(s, ty::TyParamKind::Method, i).into_term_ty()
             } else {
                 ty::raw(&self.names.join("::"))
             }

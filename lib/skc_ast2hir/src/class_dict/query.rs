@@ -40,7 +40,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
                 (base_cls, type_args.as_slice())
             }
-            TyBody::TyParamRef { .. } => (&ty_obj, Default::default()),
+            TyBody::TyPara(_) => (&ty_obj, Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
             Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
@@ -91,7 +91,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns supertype of `ty` (except it is `Object`)
     pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
         match &ty.body {
-            TyBody::TyParamRef { upper_bound, .. } => Some(*upper_bound.clone()),
+            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(*upper_bound.clone()),
             _ => self
                 .get_class(&ty.erasure())
                 .superclass
@@ -166,33 +166,33 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             true
         } else if ty1.equals_to(ty2) {
             true
-        } else if let TyBody::TyParamRef {
+        } else if let TyBody::TyPara(TyParamRef {
             upper_bound: u1,
             lower_bound: l1,
             ..
-        } = &ty1.body
+        }) = &ty1.body
         {
-            if let TyBody::TyParamRef {
+            if let TyBody::TyPara(TyParamRef {
                 upper_bound: u2,
                 lower_bound: l2,
                 ..
-            } = &ty2.body
+            }) = &ty2.body
             {
                 u1 == u2 && l1 == l2
             } else {
                 self.conforms(u1, ty2)
             }
-        } else if let TyBody::TyParamRef {
+        } else if let TyBody::TyPara(TyParamRef {
             upper_bound: u2,
             lower_bound: l2,
             ..
-        } = &ty2.body
+        }) = &ty2.body
         {
-            if let TyBody::TyParamRef {
+            if let TyBody::TyPara(TyParamRef {
                 upper_bound: u1,
                 lower_bound: l1,
                 ..
-            } = &ty1.body
+            }) = &ty1.body
             {
                 u1 == u2 && l1 == l2
             } else {

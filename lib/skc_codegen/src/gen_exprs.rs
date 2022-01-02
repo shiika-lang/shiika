@@ -94,8 +94,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirIVarRef { name, idx, self_ty } => {
                 Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
             }
-            HirTVarRef { typaram, self_ty } => 
-                Ok(Some(self.gen_tvar_ref(ctx, typaram, self_ty))),
+            HirTVarRef { typaram_ref, self_ty } => 
+                Ok(Some(self.gen_tvar_ref(ctx, typaram_ref, self_ty))),
             HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
@@ -705,18 +705,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_tvar_ref(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        typaram: &TermTy,
+        typaram_ref: &TyParamRef,
         self_ty: &TermTy,
     ) -> SkObj<'run> {
-        let (kind, idx) = match &typaram.body {
-            // REFACTOR: Make TyParamRef a struct
-            TyBody::TyParamRef { kind, idx, .. } => (kind, idx),
-            _ => panic!("unexpected"),
-        };
-        match kind {
+        match &typaram_ref.kind {
             TyParamKind::Class => {
                 let self_obj = self.gen_self_expression(ctx, self_ty);
-                self.get_nth_tyarg_of_self(self_obj, *idx)
+                self.get_nth_tyarg_of_self(self_obj, typaram_ref.idx)
             }
             TyParamKind::Method => {
                 // TODO: How to pass method typaram?

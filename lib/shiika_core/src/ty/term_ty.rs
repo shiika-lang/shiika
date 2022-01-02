@@ -1,5 +1,6 @@
 use crate::names::*;
 use crate::ty::lit_ty::LitTy;
+use crate::ty::typaram_ref::{TyParamRef, TyParamKind};
 use crate::{ty, ty::tyargs_str};
 use serde::{Deserialize, Serialize};
 
@@ -16,23 +17,9 @@ pub enum TyBody {
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
     TyRaw(LitTy),
     /// Type parameter reference eg. `T`
-    TyParamRef {
-        kind: TyParamKind,
-        name: String,
-        idx: usize,
-        upper_bound: Box<TermTy>,
-        lower_bound: Box<TermTy>,
-    },
+    TyPara(TyParamRef)
 }
 use TyBody::*;
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum TyParamKind {
-    /// eg. `class A<B>`
-    Class,
-    /// eg. `def foo<X>(...)`
-    Method,
-}
 
 impl std::fmt::Display for TermTy {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -74,9 +61,9 @@ impl TermTy {
                 // TODO: Use colors?
                 // "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m"
             }
-            TyParamRef {
+            TyPara(TyParamRef {
                 kind, name, idx, ..
-            } => {
+            }) => {
                 let k = match kind {
                     TyParamKind::Class => "C",
                     TyParamKind::Method => "M",
@@ -98,7 +85,7 @@ impl TermTy {
 
     /// Returns if this is TyParamRef
     pub fn is_typaram_ref(&self) -> bool {
-        matches!(&self.body, TyParamRef { .. })
+        matches!(&self.body, TyPara(_))
     }
 
     pub fn to_const_fullname(&self) -> ConstFullname {
@@ -195,7 +182,7 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
-            TyParamRef { .. } => self.clone()
+            TyPara(_) => self.clone()
         }
     }
 
@@ -266,7 +253,7 @@ impl TermTy {
     ///   `Array<Int>` from `Array<T>`)
     pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyParamRef { kind, idx, .. } => match kind {
+            TyPara(TyParamRef { kind, idx, .. }) => match kind {
                 TyParamKind::Class => {
                     if class_tyargs.is_empty() {
                         self.clone()
@@ -315,7 +302,7 @@ impl TermTy {
 
     pub fn contains_typaram_ref(&self) -> bool {
         match &self.body {
-            TyParamRef { .. } => true,
+            TyPara(_) => true,
             TyRaw(LitTy { type_args, .. }) => type_args.iter().any(|t| t.contains_typaram_ref()),
         }
     }

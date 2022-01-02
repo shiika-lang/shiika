@@ -18,7 +18,7 @@ pub fn check_return_value(
         return Ok(());
     }
     let want = match &sig.ret_ty.body {
-        TyBody::TyParamRef { lower_bound, .. } => {
+        TyBody::TyPara(TyParamRef { lower_bound, .. }) => {
             // To avoid errors like this. (I'm not sure this is the right way;
             // looks ad-hoc)
             // > TypeError: Maybe#expect should return TermTy(TyParamRef(V 0C)) but returns TermTy(TyParamRef(V 0C))

@@ -200,9 +200,9 @@ fn _convert_typ(
 ) -> ty::TermTy {
     let s = typ.names.join("::");
     if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
-        ty::typaram(s, ty::TyParamKind::Class, idx)
+        ty::typaram_ref(s, ty::TyParamKind::Class, idx).into_term_ty()
     } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
-        ty::typaram(s, ty::TyParamKind::Method, idx)
+        ty::typaram_ref(s, ty::TyParamKind::Method, idx).into_term_ty()
     } else {
         let tyargs = typ
             .args

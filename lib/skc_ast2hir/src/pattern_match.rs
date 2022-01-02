@@ -277,8 +277,8 @@ fn class_expr(
                     tyargs.iter().map(|t| class_expr(mk, t)).collect())
             }
         },
-        TyBody::TyParamRef { .. } => {
-            Hir::tvar_ref(ty.clone(), ty.clone(), mk.ctx_stack.self_ty())
+        TyBody::TyPara(typaram_ref) => {
+            Hir::tvar_ref(ty.clone(), typaram_ref.clone(), mk.ctx_stack.self_ty())
         }
     }
 }

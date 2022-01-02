@@ -393,9 +393,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
             if let Some(idx) = class_typarams.iter().position(|t| *s == t.name) {
-                return Ok(ty::typaram(s, TyParamKind::Class, idx));
+                return Ok(ty::typaram_ref(s, TyParamKind::Class, idx).into_term_ty());
             } else if let Some(idx) = method_typarams.iter().position(|t| *s == t.name) {
-                return Ok(ty::typaram(s, TyParamKind::Method, idx));
+                return Ok(ty::typaram_ref(s, TyParamKind::Method, idx).into_term_ty());
             }
         }
         // Otherwise:
@@ -454,7 +454,7 @@ fn enum_case_superclass(
         let tyargs = typarams
             .iter()
             .enumerate()
-            .map(|(i, t)| ty::typaram(&t.name, TyParamKind::Class, i))
+            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
             .collect::<Vec<_>>();
         Superclass::new(enum_fullname, tyargs)
     }
@@ -479,7 +479,7 @@ fn enum_case_new_sig(
         let tyargs = typarams
             .iter()
             .enumerate()
-            .map(|(i, t)| ty::typaram(&t.name, TyParamKind::Class, i))
+            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
             .collect::<Vec<_>>();
         ty::spe(&fullname.0, tyargs)
     };

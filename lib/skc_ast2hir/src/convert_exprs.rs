@@ -740,9 +740,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Check if it is a typaram ref
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
-            if let Some(ty) = self.ctx_stack.lookup_typaram(s) {
+            if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
                 let base_ty = self.ctx_stack.self_ty().erasure_ty();
-                return Ok(Hir::tvar_ref(ty.clone(), ty, base_ty));
+                let cls_ty = typaram_ref.clone().into_term_ty();
+                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty));
             }
         }
 

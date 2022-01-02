@@ -95,7 +95,7 @@ fn convert_typ(typ: &ConstName, class_typarams: &[&String]) -> TermTy {
     if typ.args.is_empty() {
         let s = typ.names.join("::");
         if let Some(i) = class_typarams.iter().position(|name| **name == s) {
-            ty::typaram(s, ty::TyParamKind::Class, i)
+            ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
         } else {
             ty::raw(&typ.names.join("::"))
         }

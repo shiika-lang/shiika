@@ -257,11 +257,11 @@ impl CtxStack {
     }
 
     /// If there is a method or class typaram named `name`, returns its type
-    pub fn lookup_typaram(&self, name: &str) -> Option<TermTy> {
+    pub fn lookup_typaram(&self, name: &str) -> Option<TyParamRef> {
         if let Some(method_ctx) = self.method_ctx() {
             let typarams = &method_ctx.signature.typarams;
             if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
-                return Some(ty::typaram(name, ty::TyParamKind::Method, i));
+                return Some(ty::typaram_ref(name, ty::TyParamKind::Method, i));
             }
             if let Some(class_ctx) = self.class_ctx() {
                 if method_ctx.signature.fullname.is_class_method() {
@@ -269,7 +269,7 @@ impl CtxStack {
                 }
                 let typarams = &class_ctx.typarams;
                 if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
-                    return Some(ty::typaram(name, ty::TyParamKind::Class, i));
+                    return Some(ty::typaram_ref(name, ty::TyParamKind::Class, i));
                 }
             }
         }
