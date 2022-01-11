@@ -5,10 +5,10 @@ mod typaram_ref;
 use crate::names::*;
 use crate::ty;
 pub use crate::ty::lit_ty::LitTy;
-pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private
 pub use crate::ty::term_ty::TermTy;
+pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private
 pub use crate::ty::typaram::{TyParam, Variance};
-pub use crate::ty::typaram_ref::{TyParamRef, TyParamKind};
+pub use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 
 pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool) -> TermTy {
     let base_name = base_name_.into();

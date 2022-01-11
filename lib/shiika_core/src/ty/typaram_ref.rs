@@ -1,6 +1,6 @@
-use crate::ty::term_ty::{TermTy, TyBody};
-use crate::ty::lit_ty::LitTy;
 use crate::names::class_fullname;
+use crate::ty::lit_ty::LitTy;
+use crate::ty::term_ty::{TermTy, TyBody};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

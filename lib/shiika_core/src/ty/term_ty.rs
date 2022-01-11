@@ -1,6 +1,6 @@
 use crate::names::*;
 use crate::ty::lit_ty::LitTy;
-use crate::ty::typaram_ref::{TyParamRef, TyParamKind};
+use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 use crate::{ty, ty::tyargs_str};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ pub enum TyBody {
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
     TyRaw(LitTy),
     /// Type parameter reference eg. `T`
-    TyPara(TyParamRef)
+    TyPara(TyParamRef),
 }
 use TyBody::*;
 

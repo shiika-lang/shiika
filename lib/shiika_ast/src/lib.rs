@@ -390,7 +390,9 @@ pub fn ivar_ref(name: String) -> AstExpression {
 }
 
 pub fn capitalized_name(name: Vec<String>) -> AstExpression {
-    primary_expression(AstExpressionBody::CapitalizedName(UnresolvedConstName(name)))
+    primary_expression(AstExpressionBody::CapitalizedName(UnresolvedConstName(
+        name,
+    )))
 }
 
 pub fn specialize_expr(base_name: Vec<String>, args: Vec<AstExpression>) -> AstExpression {

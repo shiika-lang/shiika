@@ -456,7 +456,10 @@ impl Hir {
     pub fn tvar_ref(ty: TermTy, typaram_ref: TyParamRef, self_ty: TermTy) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirTVarRef { typaram_ref, self_ty },
+            node: HirExpressionBase::HirTVarRef {
+                typaram_ref,
+                self_ty,
+            },
         }
     }
 
