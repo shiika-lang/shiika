@@ -1,3 +1,4 @@
+use crate::class_expr;
 use crate::error;
 use crate::hir_maker::HirMaker;
 use crate::hir_maker_context::HirMakerContext;
@@ -180,7 +181,10 @@ fn convert_extractor(
     param_patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
     // eg. `ty::raw("Maybe::Some")`
-    let base_ty = mk.resolve_class_expr(&UnresolvedConstName(names.to_vec()))?.ty.instance_ty();
+    let base_ty = mk
+        .resolve_class_expr(&UnresolvedConstName(names.to_vec()))?
+        .ty
+        .instance_ty();
     let pat_ty = match &value.ty.body {
         TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
         _ => base_ty.clone(),
@@ -241,9 +245,7 @@ fn extract_props(
 }
 
 /// Create `expr.class == cls`
-fn test_class(
-    mk: &mut HirMaker,
-    value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
+fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
     let cls_ref = class_expr(mk, pat_ty);
     Hir::method_call(
         ty::raw("Bool"),
@@ -256,29 +258,4 @@ fn test_class(
         method_fullname_raw("Class", "=="),
         vec![cls_ref],
     )
-}
-
-/// Build a HirExpression which evaluates to `ty`
-/// eg. `Array.<>(Int)` if `ty` is `TermTy(Array<Int>)`
-fn class_expr(
-    mk: &mut HirMaker,
-    ty: &TermTy) -> HirExpression {
-    match &ty.body {
-        TyBody::TyRaw(_) => {
-            let base = Hir::const_ref(ty.meta_ty(), ty.erasure().to_const_fullname());
-            let tyargs = ty.tyargs();
-            if tyargs.is_empty() {
-                base
-            } else {
-                Hir::method_call(
-                    ty.meta_ty(),
-                    base,
-                    method_fullname_raw("Class", "<>"),
-                    tyargs.iter().map(|t| class_expr(mk, t)).collect())
-            }
-        },
-        TyBody::TyPara(typaram_ref) => {
-            Hir::tvar_ref(ty.clone(), typaram_ref.clone(), mk.ctx_stack.self_ty())
-        }
-    }
 }
