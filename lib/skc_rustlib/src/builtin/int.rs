@@ -32,6 +32,10 @@ impl From<i64> for SkInt {
 }
 
 impl SkInt {
+    pub fn new(i: i64) -> SkInt {
+        i.into()
+    }
+
     /// Convert to Rust value
     pub fn val(&self) -> i64 {
         unsafe { (*self.0).value }

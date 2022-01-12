@@ -1,15 +1,12 @@
 class Class
   # (Class.new is not considered a public API)
   # Called when a class object is created
-  def initialize(@name: String, vtable: Object, metacls_obj: Object)
+  def initialize(@name: String, vtable: Object, metacls_obj: Metaclass)
     @specialized_classes = _initialize_rustlib(vtable, metacls_obj)
   end
 
   def <>(tyargs: Array<Class>) -> SpecializedClass
-    panic "Class#_specialize: no tyargs given" if tyargs.empty?
-    spe_meta = self._metacls_obj.<>(tyargs)
-    name = @name + "<" + tyargs.map<String>{|c: Class| c.name}.join(", ") + ">"
-    SpecializedClass.new(name, self._vtable, spe_meta, tyargs)
+    self._specialize(tyargs)
   end
 
   def name -> String
@@ -28,7 +25,8 @@ end
 
 class SpecializedClass : Class
   def initialize(@name: String, vtable: Object, metacls_obj: Object, @type_args: Array<Class>)
-    _initialize_rustlib(vtable, metacls_obj)
+    # TODO: impl. `super`
+    @specialized_classes = _initialize_rustlib(vtable, metacls_obj)
   end
 
   def type_arg(nth: Int) -> Class
