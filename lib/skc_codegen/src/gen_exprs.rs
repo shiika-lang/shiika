@@ -1061,9 +1061,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.build_ivar_store(
             &cls_obj,
-            skc_corelib::metaclass::IVAR_BASE_NAME_IDX,
+            skc_corelib::class::IVAR_NAME_IDX,
             self.gen_string_literal(str_literal_idx),
-            "@base_name",
+            "@name",
         );
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj

@@ -1,6 +1,5 @@
 pub mod class;
 mod fn_x;
-pub mod metaclass;
 pub mod rustlib_methods;
 use shiika_core::{names::*, ty};
 use skc_hir::*;
@@ -48,7 +47,7 @@ fn rust_body_items() -> Vec<ClassItem> {
             Some(Superclass::simple("Class")),
             Default::default(),
             vec![],
-            metaclass::ivars(),
+            class::ivars(),
             vec![],
         ),
         (
