@@ -113,7 +113,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ret_ty,
             ))),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
-            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, &expr.ty, exprs),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
             HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),

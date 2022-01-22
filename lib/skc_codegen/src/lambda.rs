@@ -111,7 +111,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
             }
             HirSelfExpression => (),
-            HirArrayLiteral { exprs } => self.gen_lambda_funcs_in_exprs(exprs)?,
             HirFloatLiteral { .. } => (),
             HirDecimalLiteral { .. } => (),
             HirStringLiteral { .. } => (),
