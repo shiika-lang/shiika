@@ -237,6 +237,7 @@ pub enum HirExpressionBase {
         fullname: ClassFullname,
         str_literal_idx: usize,
     },
+    /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
         exprs: HirExpressions,
     },
@@ -550,9 +551,9 @@ impl Hir {
         }
     }
 
-    pub fn parenthesized_expression(ty: TermTy, exprs: HirExpressions) -> HirExpression {
+    pub fn parenthesized_expression(exprs: HirExpressions) -> HirExpression {
         HirExpression {
-            ty,
+            ty: exprs.ty.clone(),
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
         }
     }
