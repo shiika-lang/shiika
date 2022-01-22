@@ -1,3 +1,4 @@
+use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -792,9 +793,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             arg_exprs.push(cls_expr);
         }
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
-        Ok(Hir::method_call(meta_spe_ty, base_expr,
-                            method_fullname(&class_fullname("Class"), "<>"),
-                            arg_exprs))
+        Ok(Hir::method_call(
+            meta_spe_ty,
+            base_expr,
+            method_fullname(&class_fullname("Class"), "<>"),
+            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"))],
+        ))
     }
 
     pub fn resolve_class_expr(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
@@ -830,26 +834,62 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(self.convert_array_literal_(item_exprs))
+        Ok(self.create_array_instance(item_exprs))
     }
 
-    fn convert_array_literal_(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
-        // TODO #102: Support empty array literal
-        let mut item_ty = if item_exprs.is_empty() {
-            ty::raw("Object")
-        } else {
-            item_exprs[0].ty.clone()
-        };
+    pub fn create_array_instance(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
+        let item_ty = self.array_item_ty(&item_exprs);
+        self.create_array_instance_(item_exprs, item_ty)
+    }
 
-        for expr in &item_exprs {
+    fn array_item_ty(&self, item_exprs: &[HirExpression]) -> TermTy {
+        if item_exprs.is_empty() {
+            return ty::raw("Object");
+        }
+        let mut item_ty = item_exprs[0].ty.clone();
+        if item_exprs.len() == 1 {
+            return item_ty;
+        }
+        for expr in item_exprs {
             item_ty = self
                 .class_dict
                 .nearest_common_ancestor(&item_ty, &expr.ty)
                 .expect("array literal elements type mismatch");
         }
-        let ary_ty = ty::spe("Array", vec![item_ty]);
+        item_ty
+    }
 
-        Hir::array_literal(item_exprs, ary_ty)
+    /// Expand `[123]` into `tmp=Array<X>.new; tmp.push(123)`
+    fn create_array_instance_(
+        &mut self,
+        item_exprs: Vec<HirExpression>,
+        item_ty: TermTy,
+    ) -> HirExpression {
+        let ary_ty = ty::spe("Array", vec![item_ty.clone()]);
+        let mut exprs = vec![];
+
+        let tmp_name = self.generate_lvar_name("ary");
+        let readonly = true;
+        self.ctx_stack
+            .declare_lvar(&tmp_name, ary_ty.clone(), readonly);
+
+        let call_new = Hir::method_call(
+            ary_ty.clone(),
+            class_expr(self, &ary_ty),
+            method_fullname_raw("Array", "new"),
+            vec![],
+        );
+        exprs.push(Hir::lvar_assign(&tmp_name, call_new));
+        for item_expr in item_exprs {
+            exprs.push(Hir::method_call(
+                ty::raw("Void"),
+                Hir::lvar_ref(ary_ty.clone(), tmp_name.clone()),
+                method_fullname_raw("Array", "push"),
+                vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
+            ));
+        }
+        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp_name));
+        Hir::parenthesized_expression(Hir::expressions(exprs))
     }
 
     fn convert_self_expr(&self) -> HirExpression {
