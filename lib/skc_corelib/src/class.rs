@@ -30,3 +30,17 @@ pub fn ivars() -> HashMap<String, SkIVar> {
     );
     ivars
 }
+
+pub fn specialized_class_ivars() -> HashMap<String, SkIVar> {
+    let mut h = ivars();
+    h.insert(
+        "@type_args".to_string(),
+        SkIVar {
+            name: "@type_args".to_string(),
+            idx: 2,
+            ty: ty::raw("Object"),
+            readonly: true,
+        },
+    );
+    h
+}

@@ -10,13 +10,14 @@ extern "C" {
     // SkClass contains *mut of `HashMap`, which is not `repr(C)`.
     // I think it's ok because the hashmap is not accessible in Shiika.
     // TODO: is there a better way?
+    // TODO: macro to convert "Meta:Class::SpecializedClass#new" into this name
     #[allow(improper_ctypes)]
-    fn Meta_SpecializedClass_new(
+    fn Meta_Class_SpecializedClass_new(
         receiver: *const u8,
         name: SkStr,
         vtable: *const u8,
         metacls_obj: SkClass,
-        type_args: SkAry<ShiikaClass>,
+        type_args: Vec<SkClass>,
     ) -> SkClass;
 }
 
@@ -75,11 +76,24 @@ pub extern "C" fn class__initialize_rustlib(
     leaked
 }
 
+#[allow(non_snake_case)]
+#[shiika_method("Class#<>")]
+pub extern "C" fn class__specialize(receiver: SkClass, tyargs_: SkAry<ShiikaClass>) -> SkClass {
+    let tyargs = tyargs_.iter().map(|ptr| SkClass::new(ptr)).collect();
+    class_specialize(receiver, tyargs)
+}
+
+/// Same as `Class#<>` but does not need `Array` to call.
+/// Used for solving bootstrap problem
+#[allow(non_snake_case)]
+#[shiika_method("Class#_specialize1")]
+pub extern "C" fn class__specialize1(receiver: SkClass, tyarg: SkClass) -> SkClass {
+    class_specialize(receiver, vec![tyarg])
+}
+
 /// Create a specialized class from a generic class
 /// eg. make `Array<Int>` from `Array` and `Int`
-#[allow(non_snake_case)]
-#[shiika_method("Class#_specialize")]
-pub extern "C" fn class__specialize(mut receiver: SkClass, tyargs: SkAry<ShiikaClass>) -> SkClass {
+fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
     let name = specialized_name(&receiver, &tyargs);
     if let Some(c) = receiver.specialized_classes().get(&name) {
         SkClass::new(*c)
@@ -87,10 +101,11 @@ pub extern "C" fn class__specialize(mut receiver: SkClass, tyargs: SkAry<ShiikaC
         let spe_meta = if receiver.metacls_obj().name().as_str() == "Metaclass" {
             receiver.metacls_obj()
         } else {
-            class__specialize(receiver.metacls_obj(), tyargs.dup())
+            let cloned = tyargs.iter().map(SkClass::dup).collect();
+            class_specialize(receiver.metacls_obj(), cloned)
         };
         let c = unsafe {
-            Meta_SpecializedClass_new(
+            Meta_Class_SpecializedClass_new(
                 std::ptr::null(),
                 name.clone().into(),
                 receiver.vtable(),
@@ -104,10 +119,10 @@ pub extern "C" fn class__specialize(mut receiver: SkClass, tyargs: SkAry<ShiikaC
 }
 
 /// Returns a string like `"Array<Int>"`
-fn specialized_name(class: &SkClass, tyargs: &SkAry<ShiikaClass>) -> String {
+fn specialized_name(class: &SkClass, tyargs: &[SkClass]) -> String {
     let args = tyargs
         .iter()
-        .map(|obj| SkClass::new(obj).name().as_str().to_string())
+        .map(|cls| cls.name().as_str().to_string())
         .collect::<Vec<_>>();
     format!("{}<{}>", class.name().as_str(), args.join(", "))
 }

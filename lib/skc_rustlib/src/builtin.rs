@@ -7,6 +7,7 @@ mod math;
 pub mod object;
 mod shiika_internal_memory;
 pub mod shiika_internal_ptr;
+mod specialized_class;
 pub mod string;
 pub use self::array::SkAry;
 pub use self::bool::SkBool;

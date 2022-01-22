@@ -17,10 +17,10 @@ struct ShiikaArray {
 }
 
 impl<T> SkAry<T> {
-    /// Shallow clone
-    pub fn dup(&self) -> SkAry<T> {
-        SkAry::<T>(self.0, [])
-    }
+    //    /// Shallow clone
+    //    pub fn dup(&self) -> SkAry<T> {
+    //        SkAry::<T>(self.0, [])
+    //    }
 
     /// Returns iterator
     pub fn iter(&self) -> SkAryIter<T> {
@@ -29,6 +29,11 @@ impl<T> SkAry<T> {
             idx: 0,
         }
     }
+
+    //    /// Create a `Vec` that has the same elements
+    //    pub fn to_vec(&self) -> Vec<*mut T> {
+    //        self.iter().collect()
+    //    }
 
     /// Returns the number of elements
     pub fn len(&self) -> usize {
