@@ -8,19 +8,7 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match::{Component, MatchClause};
 use skc_hir::*;
 
-//match f(g(h))
-//when Some(a)
-//  body
-//  ↓
-//fn(expr: SomeType){
-//  if expr.class == Some<Int>
-//    return fn(a: Int){
-//      return body
-//    }(expr.value)
-//  end
-//  panic "no match"
-//}(f(g(h)))
-
+/// Convert a match expression into Hir::match_expression
 pub fn convert_match_expr(
     mk: &mut HirMaker,
     cond: &AstExpression,
