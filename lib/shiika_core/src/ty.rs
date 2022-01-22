@@ -76,6 +76,7 @@ pub fn typaram_ref(name: impl Into<String>, kind: TyParamKind, idx: usize) -> Ty
         idx,
         upper_bound: LitTy::raw("Object"),
         lower_bound: LitTy::raw("Never"),
+        as_class: false,
     }
 }
 

@@ -116,6 +116,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// top type. However, returns `Some(Object)` when either of the arguments
     /// is `Object`.
     pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> Option<TermTy> {
+        if ty1 == ty2 {
+            return Some(ty1.clone());
+        }
         let t = self._nearest_common_ancestor(ty1, ty2);
         let obj = ty::raw("Object");
         if t == obj {
@@ -131,9 +134,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Find common ancestor of two types
-    fn _nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
-        let ancestors1 = self.ancestor_types(ty1);
-        let ancestors2 = self.ancestor_types(ty2);
+    fn _nearest_common_ancestor(&self, ty1_: &TermTy, ty2_: &TermTy) -> TermTy {
+        let ty1 = ty1_.upper_bound().into_term_ty();
+        let ty2 = ty2_.upper_bound().into_term_ty();
+        let ancestors1 = self.ancestor_types(&ty1);
+        let ancestors2 = self.ancestor_types(&ty2);
         for t2 in &ancestors2 {
             let mut t = None;
             for t1 in &ancestors1 {

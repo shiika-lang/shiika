@@ -279,13 +279,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         match &ty.body {
-            TyBody::TyPara(TyParamRef { upper_bound, .. }) => self.llvm_type(&upper_bound.to_term_ty()),
-            TyBody::TyRaw(..) => {
-                self.llvm_struct_type(&ty.erasure())
-                    .ptr_type(AddressSpace::Generic)
-                    .as_basic_type_enum()
+            TyBody::TyRaw(t) => self.llvm_type_of_lit_ty(t),
+            TyBody::TyPara(TyParamRef {
+                upper_bound,
+                as_class,
+                ..
+            }) => {
+                if *as_class {
+                    self.llvm_type_of_lit_ty(&upper_bound.meta_ty())
+                } else {
+                    self.llvm_type_of_lit_ty(upper_bound)
+                }
             }
         }
+    }
+
+    fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+        self.llvm_struct_type(&lit_ty.erasure())
+            .ptr_type(AddressSpace::Generic)
+            .as_basic_type_enum()
     }
 
     /// Get the llvm struct type for a class

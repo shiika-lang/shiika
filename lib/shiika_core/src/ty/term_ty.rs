@@ -48,6 +48,23 @@ fn _dbg_type_args(type_args: &[TermTy]) -> String {
 }
 
 impl TermTy {
+    pub fn upper_bound(&self) -> LitTy {
+        match &self.body {
+            TyRaw(t) => t.clone(),
+            TyPara(TyParamRef {
+                upper_bound,
+                as_class,
+                ..
+            }) => {
+                if *as_class {
+                    upper_bound.meta_ty()
+                } else {
+                    upper_bound.clone()
+                }
+            }
+        }
+    }
+
     /// Return string to inspect `self`
     fn dbg_str(&self) -> String {
         match &self.body {
@@ -56,20 +73,16 @@ impl TermTy {
                 type_args,
                 is_meta,
             }) => {
-                let meta = if *is_meta { "Meta:" } else { "" };
+                let meta = if *is_meta && base_name != "Metaclass" {
+                    "Meta:"
+                } else {
+                    ""
+                };
                 format!("{}{}{}", meta, base_name, _dbg_type_args(type_args))
                 // TODO: Use colors?
                 // "\x1b[32m{}<\x1b[0m{}\x1b[32m>\x1b[0m"
             }
-            TyPara(TyParamRef {
-                kind, name, idx, ..
-            }) => {
-                let k = match kind {
-                    TyParamKind::Class => "C",
-                    TyParamKind::Method => "M",
-                };
-                format!("TyParamRef({} {}{})", name, idx, k)
-            }
+            TyPara(typaram_ref) => typaram_ref.dbg_str(),
         }
     }
 
@@ -182,20 +195,16 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
-            TyPara(_) => self.clone()
+            TyPara(_) => self.clone(),
+            //TyPara(typaram_ref) => typaram_ref.as_class().into_term_ty(),
         }
     }
 
     pub fn specialized_ty(&self, tyargs: Vec<TermTy>) -> TermTy {
         match &self.body {
             TyRaw(LitTy {
-                base_name,
-                type_args: _,
-                is_meta,
-            }) => {
-                //debug_assert!(type_args.len() == tyargs.len());
-                ty::new(base_name, tyargs, *is_meta)
-            }
+                base_name, is_meta, ..
+            }) => ty::new(base_name, tyargs, *is_meta),
             _ => panic!("unexpected"),
         }
     }

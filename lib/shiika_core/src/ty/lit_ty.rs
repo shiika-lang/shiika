@@ -1,5 +1,6 @@
-use crate::ty::term_ty::TermTy;
+use crate::names::{class_fullname, ClassFullname};
 use crate::ty;
+use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -36,5 +37,14 @@ impl LitTy {
 
     pub fn into_term_ty(self) -> TermTy {
         ty::new(self.base_name, self.type_args, self.is_meta)
+    }
+
+    pub fn meta_ty(&self) -> LitTy {
+        debug_assert!(!self.is_meta);
+        LitTy::new(self.base_name.clone(), self.type_args.clone(), true)
+    }
+
+    pub fn erasure(&self) -> ClassFullname {
+        class_fullname(&self.base_name)
     }
 }
