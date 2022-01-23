@@ -2,7 +2,7 @@ use crate::signature::MethodSignature;
 use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
-use shiika_core::ty::{self, *};
+use shiika_core::ty::*;
 use std::collections::HashMap;
 
 /// A Shiika class, possibly generic
@@ -39,37 +39,5 @@ impl SkClass {
         // Sort by first name
         v.sort_unstable_by(|a, b| a.first_name.0.cmp(&b.first_name.0));
         v
-    }
-
-    /// Create a specialized metaclass of a generic metaclass
-    /// eg. create `Meta:Array<Int>` from `Meta:Array`
-    pub fn specialized_meta(&self, tyargs: &[TermTy]) -> SkClass {
-        debug_assert!(self.typarams.len() == tyargs.len());
-        let base_name = if let TyBody::TyRaw(LitTy {
-            base_name, is_meta, ..
-        }) = &self.instance_ty.body
-        {
-            debug_assert!(is_meta);
-            base_name
-        } else {
-            panic!("SkClass::specialize: not meta ty: {:?}", &self.fullname)
-        };
-        let instance_ty = ty::spe_meta(base_name, tyargs.to_vec());
-        let method_sigs = self
-            .method_sigs
-            .iter()
-            .map(|(name, sig)| (name.clone(), sig.specialize(tyargs, Default::default())))
-            .collect();
-        SkClass {
-            fullname: instance_ty.fullname.clone(),
-            typarams: vec![],
-            superclass: self.superclass.as_ref().map(|sc| sc.substitute(tyargs)),
-            instance_ty,
-            ivars: self.ivars.clone(),
-            method_sigs,
-            is_final: None,
-            const_is_obj: self.const_is_obj,
-            foreign: false,
-        }
     }
 }
