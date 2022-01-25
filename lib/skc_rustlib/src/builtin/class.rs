@@ -63,17 +63,12 @@ pub extern "C" fn class__initialize_rustlib(
     receiver: *mut ShiikaClass,
     vtable: *const u8,
     metacls_obj: SkClass,
-) -> &'static mut HashMap<String, SkClass> {
-    let leaked = Box::leak(Box::new(HashMap::new()));
+) {
     unsafe {
         (*receiver).vtable = vtable;
         (*receiver).metacls_obj = metacls_obj;
-        //(*receiver).specialized_classes = leaked;
+        (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
     }
-    // REFACTOR: Returning the hashmap because there is no other way to
-    // tell Shiika that `Class` has ivar `@specialized_classes` with type
-    // `Object` (see also builtin/class.sk)
-    leaked
 }
 
 // Returns the n-th type argument. Panics if the index is out of bound
