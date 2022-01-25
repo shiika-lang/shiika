@@ -873,6 +873,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.ctx_stack
             .declare_lvar(&tmp_name, ary_ty.clone(), readonly);
 
+        // `Array<X>.new`
         let call_new = Hir::method_call(
             ary_ty.clone(),
             class_expr(self, &ary_ty),
@@ -880,6 +881,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             vec![],
         );
         exprs.push(Hir::lvar_assign(&tmp_name, call_new));
+
+        // `tmp.push(item)`
         for item_expr in item_exprs {
             exprs.push(Hir::method_call(
                 ty::raw("Void"),
@@ -888,6 +891,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
             ));
         }
+
         exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp_name));
         Hir::parenthesized_expression(Hir::expressions(exprs))
     }

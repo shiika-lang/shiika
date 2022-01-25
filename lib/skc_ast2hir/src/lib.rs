@@ -60,7 +60,7 @@ fn parse_typarams(typarams: &[shiika_ast::AstTyParam]) -> Vec<ty::TyParam> {
 }
 
 /// Build a HirExpression which evaluates to `ty`
-/// eg. `Array.<>(Int)` if `ty` is `TermTy(Array<Int>)`
+/// eg. `Foo.<>([Bool, Int])` if `ty` is `TermTy(Foo<Bool, Int>)`
 pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
     match &ty.body {
         TyBody::TyRaw(LitTy {

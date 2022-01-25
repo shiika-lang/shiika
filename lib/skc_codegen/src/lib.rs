@@ -709,7 +709,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         arity: usize,
         _const_is_obj: bool,
     ) {
-        // Allocate memory
+        // Allocate memory and set .class (which is the receiver of .new)
         let class_obj = SkClassObj(llvm_func_args[0]);
         let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
 
