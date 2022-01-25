@@ -65,12 +65,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .unwrap_or_else(Default::default);
         let class = self.get_class_mut(classname);
         if !class.ivars.is_empty() {
-            let mut n = 0;
+            // The ivars are defined in skc_corelib. Just check that
+            // all the ivars are included
             for (k, v) in ivars.iter().chain(own_ivars.iter()) {
                 debug_assert!(class.ivars.get(k).unwrap() == v);
-                n += 1;
             }
-            debug_assert!(n == class.ivars.len());
+            return;
         }
         class.ivars = ivars;
         own_ivars.into_iter().for_each(|(k, v)| {

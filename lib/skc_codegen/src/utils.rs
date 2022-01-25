@@ -276,6 +276,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         )
     }
 
+    /// Create `%Foo* null`
+    pub fn null_ptr(&self, ty: &TermTy) -> SkObj<'run> {
+        let ptr = self.llvm_type(ty).into_pointer_type().const_null();
+        SkObj(ptr.into())
+    }
+
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         match &ty.body {

@@ -724,12 +724,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
         let cls_obj = self.get_class_of_obj(self_obj);
         self.gen_method_func_call(
-            &method_fullname(&class_fullname("Class::SpecializedClass"), "_type_argument"),
-            self.bitcast(
-                cls_obj.as_sk_obj(),
-                &ty::raw("Class::SpecializedClass"),
-                "as",
-            ),
+            &method_fullname(&class_fullname("Class"), "_type_argument"),
+            self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
             vec![self.gen_decimal_literal(idx as i64)],
         )
     }
@@ -996,36 +992,32 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             // Create metaclass object (eg. `#<metaclass Int>`) with `Metaclass.new`
             let the_metaclass = self.gen_const_ref(&toplevel_const("Metaclass"));
-            let receiver = self
-                .llvm_type(&ty::meta("Metaclass"))
-                .into_pointer_type()
-                .const_null();
+            let receiver = self.null_ptr(&ty::meta("Metaclass"));
             let vtable = self
                 .get_vtable_of_class(&class_fullname("Metaclass"))
                 .as_sk_obj();
             let metacls_obj = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Metaclass"), "new"),
-                SkObj(receiver.into()),
+                receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
+                    self.null_ptr(&ty::raw("Object")),
                 ],
             );
 
             // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
-            let receiver = self
-                .llvm_type(&ty::meta("Class"))
-                .into_pointer_type()
-                .const_null();
+            let receiver = self.null_ptr(&ty::meta("Class"));
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
             let cls = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Class"), "new"),
-                SkObj(receiver.into()),
+                receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
+                    self.null_ptr(&ty::raw("Object")),
                 ],
             );
             self.bitcast(cls, clsobj_ty, "as")

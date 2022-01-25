@@ -1,5 +1,5 @@
 /// An instance of `::Class`
-use crate::builtin::{SkAry, SkStr};
+use crate::builtin::{SkAry, SkInt, SkStr};
 use shiika_ffi_macro::shiika_method;
 use std::collections::HashMap;
 #[repr(C)]
@@ -10,14 +10,13 @@ extern "C" {
     // SkClass contains *mut of `HashMap`, which is not `repr(C)`.
     // I think it's ok because the hashmap is not accessible in Shiika.
     // TODO: is there a better way?
-    // TODO: macro to convert "Meta:Class::SpecializedClass#new" into this name
+    // TODO: macro to convert "Meta:Class#new" into this name
     #[allow(improper_ctypes)]
-    fn Meta_Class_SpecializedClass_new(
+    fn Meta_Class_new(
         receiver: *const u8,
         name: SkStr,
         vtable: *const u8,
         metacls_obj: SkClass,
-        type_args: Vec<SkClass>,
     ) -> SkClass;
 }
 
@@ -55,6 +54,7 @@ pub struct ShiikaClass {
     metacls_obj: SkClass,
     name: SkStr,
     specialized_classes: *mut HashMap<String, *mut ShiikaClass>,
+    type_args: *mut Vec<SkClass>,
 }
 
 #[shiika_method("Class#_initialize_rustlib")]
@@ -74,6 +74,13 @@ pub extern "C" fn class__initialize_rustlib(
     // tell Shiika that `Class` has ivar `@specialized_classes` with type
     // `Object` (see also builtin/class.sk)
     leaked
+}
+
+// Returns the n-th type argument. Panics if the index is out of bound
+#[shiika_method("Class#_type_argument")]
+pub extern "C" fn class_type_argument(receiver: SkClass, nth: SkInt) -> SkClass {
+    let v = unsafe { (*receiver.0).type_args.as_ref().unwrap() };
+    v[nth.val() as usize].dup()
 }
 
 #[allow(non_snake_case)]
@@ -105,14 +112,18 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
             class_specialize(receiver.metacls_obj(), cloned)
         };
         let c = unsafe {
-            Meta_Class_SpecializedClass_new(
+            Meta_Class_new(
                 std::ptr::null(),
                 name.clone().into(),
                 receiver.vtable(),
                 spe_meta,
-                tyargs,
             )
         };
+        unsafe {
+            // Q. Why not just `(*c.0).type_args = tyargs` ?
+            // A. To avoid `improper_ctypes` warning of some extern funcs.
+            (*c.0).type_args = Box::into_raw(Box::new(tyargs));
+        }
         receiver.specialized_classes().insert(name, c.0);
         c
     }
