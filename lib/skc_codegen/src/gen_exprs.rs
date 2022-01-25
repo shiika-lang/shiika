@@ -1003,7 +1003,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
-                    self.null_ptr(&ty::raw("Object")),
                 ],
             );
 
@@ -1017,7 +1016,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
-                    self.null_ptr(&ty::raw("Object")),
                 ],
             );
             self.bitcast(cls, clsobj_ty, "as")
