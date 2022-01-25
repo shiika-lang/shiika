@@ -43,14 +43,6 @@ fn rust_body_items() -> Vec<ClassItem> {
             vec![],
         ),
         (
-            "Class::SpecializedClass".to_string(),
-            Some(Superclass::simple("Class")),
-            Default::default(),
-            vec![],
-            class::specialized_class_ivars(),
-            vec![],
-        ),
-        (
             "Metaclass".to_string(),
             Some(Superclass::simple("Class")),
             Default::default(),

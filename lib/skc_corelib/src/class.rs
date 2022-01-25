@@ -18,7 +18,6 @@ pub fn ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
-    // Used by skc_rustlib
     ivars.insert(
         "@specialized_classes".to_string(),
         SkIVar {
@@ -28,12 +27,7 @@ pub fn ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
-    ivars
-}
-
-pub fn specialized_class_ivars() -> HashMap<String, SkIVar> {
-    let mut h = ivars();
-    h.insert(
+    ivars.insert(
         "@type_args".to_string(),
         SkIVar {
             name: "@type_args".to_string(),
@@ -42,5 +36,5 @@ pub fn specialized_class_ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
-    h
+    ivars
 }
