@@ -8,6 +8,7 @@ pub mod object;
 mod shiika_internal_memory;
 pub mod shiika_internal_ptr;
 pub mod string;
+pub use self::array::SkAry;
 pub use self::bool::SkBool;
 pub use self::float::SkFloat;
 pub use self::int::SkInt;

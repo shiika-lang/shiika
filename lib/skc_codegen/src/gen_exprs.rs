@@ -94,6 +94,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirIVarRef { name, idx, self_ty } => {
                 Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
             }
+            HirTVarRef {
+                typaram_ref,
+                self_ty,
+            } => Ok(Some(self.gen_tvar_ref(ctx, typaram_ref, self_ty))),
             HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
@@ -109,7 +113,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ret_ty,
             ))),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
-            HirArrayLiteral { exprs } => self.gen_array_literal(ctx, exprs),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
             HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
@@ -125,7 +128,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
-            } => Ok(Some(self.gen_class_literal(fullname, str_literal_idx))),
+            } => Ok(Some(self.gen_class_literal(
+                fullname,
+                &expr.ty,
+                str_literal_idx,
+            ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
     }
@@ -696,6 +703,33 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_ivar_load(object, *idx, name)
     }
 
+    fn gen_tvar_ref(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        typaram_ref: &TyParamRef,
+        self_ty: &TermTy,
+    ) -> SkObj<'run> {
+        match &typaram_ref.kind {
+            TyParamKind::Class => {
+                let self_obj = self.gen_self_expression(ctx, self_ty);
+                self.get_nth_tyarg_of_self(self_obj, typaram_ref.idx)
+            }
+            TyParamKind::Method => {
+                // TODO: How to pass method typaram?
+                self.gen_const_ref(&const_fullname("Object"))
+            }
+        }
+    }
+
+    fn get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
+        let cls_obj = self.get_class_of_obj(self_obj);
+        self.gen_method_func_call(
+            &method_fullname(&class_fullname("Class"), "_type_argument"),
+            self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
+            vec![self.gen_decimal_literal(idx as i64)],
+        )
+    }
+
     pub fn gen_const_ref(&self, fullname: &ConstFullname) -> SkObj<'run> {
         let ptr = self
             .module
@@ -774,6 +808,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get the object referred by `self`
+    /// `ty` is needed for bitcast (because the type information is lost
+    /// in a lambda)
     fn gen_self_expression(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
@@ -788,31 +824,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.get_nth_param(&ctx.function, 0)
         };
         self.bitcast(the_main, ty, "the_main")
-    }
-
-    /// Generate code for creating an array
-    fn gen_array_literal(
-        &self,
-        ctx: &mut CodeGenContext<'hir, 'run>,
-        exprs: &'hir [HirExpression],
-    ) -> Result<Option<SkObj<'run>>> {
-        let ary = self.call_method_func(
-            &method_fullname(&metaclass_fullname("Array"), "new"),
-            self.gen_const_ref(&toplevel_const("Array")),
-            Default::default(),
-            "ary",
-        );
-        for expr in exprs {
-            let item = self.gen_expr(ctx, expr)?.unwrap();
-            let obj = self.bitcast(item, &ty::raw("Object"), "obj");
-            self.call_method_func(
-                &method_fullname(&class_fullname("Array"), "push"),
-                ary.clone(),
-                &[obj],
-                "_",
-            );
-        }
-        Ok(Some(ary))
     }
 
     fn gen_float_literal(&self, value: f64) -> SkObj<'run> {
@@ -969,35 +980,49 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create a class object
     /// ("class literal" is a special Hir that does not appear directly
     /// on a source text.)
-    fn gen_class_literal(&self, fullname: &ClassFullname, str_literal_idx: &usize) -> SkObj<'run> {
+    fn gen_class_literal(
+        &self,
+        fullname: &ClassFullname,
+        clsobj_ty: &TermTy,
+        str_literal_idx: &usize,
+    ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
             self.gen_the_metaclass(str_literal_idx)
         } else {
-            let meta_name = fullname.meta_name(); // eg. "Meta:Int"
-
-            // Create metaclass object
-            let metacls_obj = self.allocate_sk_obj(&class_fullname("Metaclass"), "metaclass_obj");
-            self.build_ivar_store(
-                &metacls_obj,
-                0,
-                self.gen_string_literal(str_literal_idx),
-                "@base_name",
+            // Create metaclass object (eg. `#<metaclass Int>`) with `Metaclass.new`
+            let the_metaclass = self.gen_const_ref(&toplevel_const("Metaclass"));
+            let receiver = self.null_ptr(&ty::meta("Metaclass"));
+            let vtable = self
+                .get_vtable_of_class(&class_fullname("Metaclass"))
+                .as_sk_obj();
+            let metacls_obj = self.gen_method_func_call(
+                &method_fullname(&metaclass_fullname("Metaclass"), "new"),
+                receiver,
+                vec![
+                    self.gen_string_literal(str_literal_idx),
+                    self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
+                ],
             );
 
-            let cls_obj = self._allocate_sk_obj(&meta_name, "cls_obj", metacls_obj.as_class_obj());
-            self.build_ivar_store(
-                &cls_obj,
-                0,
-                self.gen_string_literal(str_literal_idx),
-                "@name",
+            // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
+            let receiver = self.null_ptr(&ty::meta("Class"));
+            let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
+            let cls = self.gen_method_func_call(
+                &method_fullname(&metaclass_fullname("Class"), "new"),
+                receiver,
+                vec![
+                    self.gen_string_literal(str_literal_idx),
+                    self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
+                ],
             );
-
-            // We assume class objects never have custom `initialize` method
-            cls_obj
+            self.bitcast(cls, clsobj_ty, "as")
         }
     }
 
+    /// Create the metaclass object `Metaclass`
     fn gen_the_metaclass(&self, str_literal_idx: &usize) -> SkObj<'run> {
         // We need a trick here to achieve `Metaclass.class == Metaclass`.
         let null = self.i8ptr_type.const_null().as_basic_value_enum();
@@ -1008,9 +1033,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.build_ivar_store(
             &cls_obj,
-            0,
+            skc_corelib::class::IVAR_NAME_IDX,
             self.gen_string_literal(str_literal_idx),
-            "@base_name",
+            "@name",
         );
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj

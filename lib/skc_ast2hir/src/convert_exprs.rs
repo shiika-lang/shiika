@@ -1,3 +1,4 @@
+use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -9,7 +10,6 @@ use shiika_ast::Token;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
-use std::collections::HashMap;
 
 /// Result of looking up a lvar
 #[derive(Debug)]
@@ -117,7 +117,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::ConstRef(names) => self.convert_const_ref(names),
+            AstExpressionBody::CapitalizedName(names) => self.convert_capitalized_name(names),
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
                 self.convert_specialize_expr(base_name, args)
@@ -469,14 +469,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ///             ~~~~~~~~
     ///             => TermTy(Array<TyParamRef(T)>)
     fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy> {
-        match &arg.body {
-            AstExpressionBody::ConstRef(name) => Ok(self.resolve_class_const(name)?.0),
-            AstExpressionBody::SpecializeExpression { base_name, args } => Ok(self
-                .convert_specialize_expr(base_name, args)?
-                .ty
-                .instance_ty()),
-            _ => panic!("[BUG] unexpected arg in method tyargs"),
-        }
+        let e = self.convert_expr(arg)?;
+        self.assert_class_expr(&e)?;
+        Ok(e.ty.instance_ty())
     }
 
     /// Check the arguments and create HirMethodCall
@@ -740,59 +735,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    /// Resolve constant name
-    /// Also, register specialized class constant and its type eg. for
-    /// `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
-    fn convert_const_ref(&mut self, name: &UnresolvedConstName) -> Result<HirExpression> {
-        let (ty, resolved) = self._resolve_simple_const(name)?;
-        Ok(Hir::const_ref(ty, resolved.to_const_fullname()))
-    }
-
-    /// Resolve a constant name without tyargs
-    fn _resolve_simple_const(
-        &self,
-        name: &UnresolvedConstName,
-    ) -> Result<(TermTy, ResolvedConstName)> {
+    /// Resolve a capitalized identifier, which is either a constant name or
+    /// a type parameter reference
+    fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+        // Check if it is a typaram ref
         if name.0.len() == 1 {
-            // Check if it is a typaram ref
             let s = name.0.first().unwrap();
-            if let Some(ty) = self.ctx_stack.lookup_typaram(s) {
-                return Ok((ty, typaram_as_resolved_const_name(s)));
+            if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
+                let base_ty = self.ctx_stack.self_ty().erasure_ty();
+                let cls_ty = typaram_ref.clone().into_term_ty();
+                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty));
             }
         }
+
         for namespace in self.ctx_stack.const_scopes() {
             let resolved = resolved_const_name(namespace, name.0.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
-                return Ok((ty, resolved));
+                return Ok(Hir::const_ref(ty, full));
             }
         }
         Err(error::program_error(&format!(
             "constant `{:?}' was not found",
             name.0.join("::")
         )))
-    }
-
-    /// Resolve const name which *must be* a class
-    pub(super) fn resolve_class_const(
-        &self,
-        name: &UnresolvedConstName,
-    ) -> Result<(TermTy, ResolvedConstName)> {
-        let (resolved_ty, resolved_name) = self._resolve_simple_const(name)?;
-
-        // `ty` is `Meta:XX` here but we want to remove `Meta:`
-        // unless `ty` is typaram ref
-        let ty = if resolved_ty.is_typaram_ref() {
-            resolved_ty
-        } else if resolved_ty.is_metaclass() {
-            resolved_ty.instance_ty()
-        } else {
-            return Err(error::type_error(&format!(
-                "{} is not a class but {}",
-                resolved_name, resolved_ty
-            )));
-        };
-        Ok((ty, resolved_name))
     }
 
     /// Check if a constant is registered
@@ -803,68 +769,54 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .cloned()
     }
 
-    /// Create `Meta:A<B>` for type `A<B>` (unless already exists)
-    pub fn create_specialized_meta_class(&mut self, meta_ty: &TermTy) {
-        debug_assert!(meta_ty.is_metaclass());
-        if self.class_dict.lookup_class(&meta_ty.fullname).is_some() {
-            return;
-        }
-        let meta_base = meta_ty.erasure(); // `Meta:A`
-        let mut ivars = HashMap::new();
-        ivars.insert(
-            "name".to_string(),
-            SkIVar {
-                idx: 0,
-                name: "name".to_string(),
-                ty: ty::raw("String"),
-                readonly: true,
-            },
-        );
-        let metacls = self
-            .class_dict
-            .get_class(&meta_base)
-            .specialized_meta(meta_ty.tyargs());
-        self.class_dict.add_class(metacls);
-    }
-
+    /// Expr of the form `A<B>`. `A` is limited to a capitalized identifier
+    /// or a sequence of them (eg. `X::Y::Z`.)
     fn convert_specialize_expr(
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let (base_ty, _) = self.resolve_class_const(base_name)?;
+        let base_expr = self.resolve_class_expr(base_name)?;
+        let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
-            let ty = match &arg.body {
-                AstExpressionBody::ConstRef(n) => self.resolve_class_const(n)?.0,
+            let cls_expr = match &arg.body {
+                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?.ty.instance_ty(),
+                } => self.convert_specialize_expr(n, a)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
-            type_args.push(ty);
+            type_args.push(cls_expr.ty.as_type_argument());
+            arg_exprs.push(cls_expr);
         }
-        let ty = ty::spe(base_ty.fullname.0, type_args);
-        let full = const_fullname(&ty.fullname.0);
-        let meta_ty = ty.meta_ty();
-        if self._lookup_const(&full).is_none() {
-            self._register_specialized_const(&meta_ty, &full);
-        }
-        Ok(Hir::const_ref(meta_ty, full))
+        let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
+        Ok(Hir::method_call(
+            meta_spe_ty,
+            base_expr,
+            method_fullname(&class_fullname("Class"), "<>"),
+            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"))],
+        ))
     }
 
-    /// Register specialized class constant and its type.
-    /// eg. for `Maybe<Int>`, constant `Maybe<Int>` and type `Meta:Maybe<Int>`
-    fn _register_specialized_const(&mut self, meta_ty: &TermTy, full: &ConstFullname) {
-        debug_assert!(meta_ty.is_metaclass());
-        // For `A<B>`, create its type `Meta:A<B>`
-        self.create_specialized_meta_class(meta_ty);
-        // Register const `A<B>`
-        let str_idx = self.register_string_literal(&full.0);
-        let expr = Hir::class_literal(meta_ty.clone(), meta_ty.instance_ty().fullname, str_idx);
-        self.register_const_full(full.clone(), expr);
+    pub fn resolve_class_expr(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+        let e = self.convert_capitalized_name(name)?;
+        self.assert_class_expr(&e)?;
+        Ok(e)
+    }
+
+    /// Check if `e` evaluates to a class object.
+    fn assert_class_expr(&self, e: &HirExpression) -> Result<()> {
+        if e.ty.is_metaclass() || e.ty.is_typaram_ref() {
+            Ok(())
+        } else {
+            Err(error::type_error(&format!(
+                "a class expected but got {:?}",
+                &e.ty
+            )))
+        }
     }
 
     fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression> {
@@ -877,32 +829,71 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Generate HIR for an array literal
-    /// `[x,y]` is expanded into `tmp = Array<Object>.new; tmp.push(x); tmp.push(y)`
     fn convert_array_literal(&mut self, item_exprs: &[AstExpression]) -> Result<HirExpression> {
         let item_exprs = item_exprs
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(self.convert_array_literal_(item_exprs))
+        Ok(self.create_array_instance(item_exprs))
     }
 
-    fn convert_array_literal_(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
-        // TODO #102: Support empty array literal
-        let mut item_ty = if item_exprs.is_empty() {
-            ty::raw("Object")
-        } else {
-            item_exprs[0].ty.clone()
-        };
+    pub fn create_array_instance(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
+        let item_ty = self.array_item_ty(&item_exprs);
+        self.create_array_instance_(item_exprs, item_ty)
+    }
 
-        for expr in &item_exprs {
+    fn array_item_ty(&self, item_exprs: &[HirExpression]) -> TermTy {
+        if item_exprs.is_empty() {
+            return ty::raw("Object");
+        }
+        let mut item_ty = item_exprs[0].ty.clone();
+        if item_exprs.len() == 1 {
+            return item_ty;
+        }
+        for expr in item_exprs {
             item_ty = self
                 .class_dict
                 .nearest_common_ancestor(&item_ty, &expr.ty)
                 .expect("array literal elements type mismatch");
         }
-        let ary_ty = ty::spe("Array", vec![item_ty]);
+        item_ty
+    }
 
-        Hir::array_literal(item_exprs, ary_ty)
+    /// Expand `[123]` into `tmp=Array<X>.new; tmp.push(123)`
+    fn create_array_instance_(
+        &mut self,
+        item_exprs: Vec<HirExpression>,
+        item_ty: TermTy,
+    ) -> HirExpression {
+        let ary_ty = ty::spe("Array", vec![item_ty.clone()]);
+        let mut exprs = vec![];
+
+        let tmp_name = self.generate_lvar_name("ary");
+        let readonly = true;
+        self.ctx_stack
+            .declare_lvar(&tmp_name, ary_ty.clone(), readonly);
+
+        // `Array<X>.new`
+        let call_new = Hir::method_call(
+            ary_ty.clone(),
+            class_expr(self, &ary_ty),
+            method_fullname_raw("Array", "new"),
+            vec![],
+        );
+        exprs.push(Hir::lvar_assign(&tmp_name, call_new));
+
+        // `tmp.push(item)`
+        for item_expr in item_exprs {
+            exprs.push(Hir::method_call(
+                ty::raw("Void"),
+                Hir::lvar_ref(ary_ty.clone(), tmp_name.clone()),
+                method_fullname_raw("Array", "push"),
+                vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
+            ));
+        }
+
+        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp_name));
+        Hir::parenthesized_expression(Hir::expressions(exprs))
     }
 
     fn convert_self_expr(&self) -> HirExpression {

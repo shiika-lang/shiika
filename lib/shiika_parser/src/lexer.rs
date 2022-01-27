@@ -510,6 +510,9 @@ impl<'a> Lexer<'a> {
                     } else {
                         Ok((Token::LShift, Some(LexerState::ExprBegin)))
                     }
+                } else if c2 == Some('>') {
+                    next_cur.proceed(self.src);
+                    Ok((Token::Specialize, Some(LexerState::ExprBegin)))
                 } else {
                     Ok((Token::LessThan, Some(LexerState::ExprBegin)))
                 }

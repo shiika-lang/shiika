@@ -40,7 +40,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
                 (base_cls, type_args.as_slice())
             }
-            TyBody::TyParamRef { .. } => (&ty_obj, Default::default()),
+            TyBody::TyPara(_) => (&ty_obj, Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
             Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
@@ -91,7 +91,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns supertype of `ty` (except it is `Object`)
     pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
         match &ty.body {
-            TyBody::TyParamRef { upper_bound, .. } => Some(*upper_bound.clone()),
+            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.to_term_ty()),
             _ => self
                 .get_class(&ty.erasure())
                 .superclass
@@ -116,6 +116,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// top type. However, returns `Some(Object)` when either of the arguments
     /// is `Object`.
     pub fn nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> Option<TermTy> {
+        if ty1 == ty2 {
+            return Some(ty1.clone());
+        }
         let t = self._nearest_common_ancestor(ty1, ty2);
         let obj = ty::raw("Object");
         if t == obj {
@@ -131,9 +134,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Find common ancestor of two types
-    fn _nearest_common_ancestor(&self, ty1: &TermTy, ty2: &TermTy) -> TermTy {
-        let ancestors1 = self.ancestor_types(ty1);
-        let ancestors2 = self.ancestor_types(ty2);
+    fn _nearest_common_ancestor(&self, ty1_: &TermTy, ty2_: &TermTy) -> TermTy {
+        let ty1 = ty1_.upper_bound().into_term_ty();
+        let ty2 = ty2_.upper_bound().into_term_ty();
+        let ancestors1 = self.ancestor_types(&ty1);
+        let ancestors2 = self.ancestor_types(&ty2);
         for t2 in &ancestors2 {
             let mut t = None;
             for t1 in &ancestors1 {
@@ -166,37 +171,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             true
         } else if ty1.equals_to(ty2) {
             true
-        } else if let TyBody::TyParamRef {
-            upper_bound: u1,
-            lower_bound: l1,
-            ..
-        } = &ty1.body
-        {
-            if let TyBody::TyParamRef {
-                upper_bound: u2,
-                lower_bound: l2,
-                ..
-            } = &ty2.body
-            {
-                u1 == u2 && l1 == l2
+        } else if let TyBody::TyPara(ref1) = &ty1.body {
+            if let TyBody::TyPara(ref2) = &ty2.body {
+                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
             } else {
-                self.conforms(u1, ty2)
+                let u1 = ref1.upper_bound.to_term_ty();
+                self.conforms(&u1, ty2)
             }
-        } else if let TyBody::TyParamRef {
-            upper_bound: u2,
-            lower_bound: l2,
-            ..
-        } = &ty2.body
-        {
-            if let TyBody::TyParamRef {
-                upper_bound: u1,
-                lower_bound: l1,
-                ..
-            } = &ty1.body
-            {
-                u1 == u2 && l1 == l2
+        } else if let TyBody::TyPara(ref2) = &ty2.body {
+            if let TyBody::TyPara(ref1) = &ty1.body {
+                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
             } else {
-                self.conforms(ty1, u2)
+                let u2 = ref2.upper_bound.to_term_ty();
+                self.conforms(ty1, &u2)
             }
         } else {
             let is_void_fn = if let Some(ret_ty) = ty2.fn_x_info() {

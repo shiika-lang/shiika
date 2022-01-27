@@ -164,7 +164,7 @@ pub enum AstExpressionBody {
     // Local variable reference or method call with implicit receiver(self)
     BareName(String),
     IVarRef(String),
-    ConstRef(UnresolvedConstName),
+    CapitalizedName(UnresolvedConstName),
     SpecializeExpression {
         base_name: UnresolvedConstName,
         args: Vec<AstExpression>,
@@ -225,7 +225,7 @@ impl AstExpression {
         }
         match &self.body {
             AstExpressionBody::IVarRef(_) => true,
-            AstExpressionBody::ConstRef(_) => true,
+            AstExpressionBody::CapitalizedName(_) => true,
             AstExpressionBody::MethodCall { method_name, .. } => method_name.0 == "[]",
             _ => false,
         }
@@ -313,7 +313,7 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
             rhs: Box::new(rhs),
             is_var: false,
         },
-        AstExpressionBody::ConstRef(names) => AstExpressionBody::ConstAssign {
+        AstExpressionBody::CapitalizedName(names) => AstExpressionBody::ConstAssign {
             names: names.0,
             rhs: Box::new(rhs),
         },
@@ -389,8 +389,10 @@ pub fn ivar_ref(name: String) -> AstExpression {
     primary_expression(AstExpressionBody::IVarRef(name))
 }
 
-pub fn const_ref(name: Vec<String>) -> AstExpression {
-    primary_expression(AstExpressionBody::ConstRef(UnresolvedConstName(name)))
+pub fn capitalized_name(name: Vec<String>) -> AstExpression {
+    primary_expression(AstExpressionBody::CapitalizedName(UnresolvedConstName(
+        name,
+    )))
 }
 
 pub fn specialize_expr(base_name: Vec<String>, args: Vec<AstExpression>) -> AstExpression {

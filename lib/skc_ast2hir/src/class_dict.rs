@@ -64,7 +64,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .superclass_ivars(classname)
             .unwrap_or_else(Default::default);
         let class = self.get_class_mut(classname);
-        debug_assert!(class.ivars.is_empty());
+        if !class.ivars.is_empty() {
+            // The ivars are defined in skc_corelib. Just check that
+            // all the ivars are included
+            for (k, v) in ivars.iter().chain(own_ivars.iter()) {
+                debug_assert!(class.ivars.get(k).unwrap() == v);
+            }
+            return;
+        }
         class.ivars = ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
             class.ivars.insert(k, v);

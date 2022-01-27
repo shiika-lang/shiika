@@ -7,6 +7,7 @@ edition = "2018"
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
 shiika_ffi = { path = "../shiika_ffi" }
+skc_corelib = { path = "../skc_corelib" }
 skc_hir = { path = "../skc_hir" }
 skc_mir = { path = "../skc_mir" }
 anyhow = "1.0"

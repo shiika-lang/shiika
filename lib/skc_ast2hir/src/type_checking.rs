@@ -18,22 +18,22 @@ pub fn check_return_value(
         return Ok(());
     }
     let want = match &sig.ret_ty.body {
-        TyBody::TyParamRef { lower_bound, .. } => {
+        TyBody::TyPara(TyParamRef { lower_bound, .. }) => {
             // To avoid errors like this. (I'm not sure this is the right way;
             // looks ad-hoc)
             // > TypeError: Maybe#expect should return TermTy(TyParamRef(V 0C)) but returns TermTy(TyParamRef(V 0C))
             if ty.equals_to(&sig.ret_ty) {
                 return Ok(());
             }
-            lower_bound
+            lower_bound.to_term_ty()
         }
-        _ => &sig.ret_ty,
+        _ => sig.ret_ty.clone(),
     };
-    if class_dict.conforms(ty, want) {
+    if class_dict.conforms(ty, &want) {
         Ok(())
     } else {
         Err(type_error!(
-            "{} should return {} but returns {}",
+            "{} should return {:?} but returns {:?}",
             sig.fullname,
             sig.ret_ty,
             ty
@@ -138,14 +138,17 @@ fn check_arg_types(
 ) -> Result<()> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
         if !class_dict.conforms(arg_ty, &param.ty) {
+            // Remove this when shiika can show the location in the .sk
+            dbg!(&receiver_hir);
+            dbg!(&sig.fullname);
+            dbg!(&arg_hirs);
+
             return Err(type_error!(
-                "the argument `{}' of `{}' should be {} but got {} (receiver: {:?}, args: {:?})",
+                "the argument `{}' of `{}' should be {} but got {}",
                 param.name,
                 sig.fullname,
                 param.ty.fullname,
-                arg_ty.fullname,
-                receiver_hir,
-                arg_hirs
+                arg_ty.fullname
             ));
         }
     }

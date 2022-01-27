@@ -211,7 +211,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
             self.module
-                .add_function(&format!("init_{}", fullname.0), fn_type, None);
+                .add_function(&const_initialize_func_name(fullname), fn_type, None);
         }
     }
 
@@ -264,20 +264,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
 
         // Initialize own constants
-        let basic_classes = vec!["::Metaclass", "::Class", "::Shiika::Internal::Ptr"];
+        let basic_classes = vec!["Metaclass", "Class", "Shiika::Internal::Ptr"]
+            .into_iter()
+            .map(const_fullname)
+            .collect::<Vec<_>>();
         if !is_main {
             // These builtin classes must be created first
             for name in &basic_classes {
-                let func = self.get_llvm_func(&llvm_func_name(format!("init_{}", name)));
+                let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));
                 self.builder.build_call(func, &[], "");
             }
         }
         for expr in const_inits {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
-                    if !basic_classes.iter().any(|s| *s == fullname.0) {
-                        let func =
-                            self.get_llvm_func(&llvm_func_name(format!("init_{}", fullname.0)));
+                    if !basic_classes.iter().any(|s| s.0 == fullname.0) {
+                        let func = self
+                            .get_llvm_func(&llvm_func_name(const_initialize_func_name(fullname)));
                         self.builder.build_call(func, &[], "");
                     }
                 }
@@ -431,9 +434,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             match &expr.node {
                 HirExpressionBase::HirConstAssign { fullname, .. } => {
                     let fn_type = self.void_type.fn_type(&[], false);
-                    let function =
-                        self.module
-                            .add_function(&format!("init_{}", fullname.0), fn_type, None);
+                    let function = self.module.add_function(
+                        &const_initialize_func_name(fullname),
+                        fn_type,
+                        None,
+                    );
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     let (end_block, mut ctx) =
@@ -698,39 +703,36 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
         initialize_name: &MethodFullname,
+        // The class whose `#initialize` should be called from this `.new`
+        // (If the class have its own `#initialize`, this is equal to `class_fullname`)
         init_cls_name: &ClassFullname,
         arity: usize,
-        const_is_obj: bool,
+        _const_is_obj: bool,
     ) {
-        let need_bitcast = init_cls_name != class_fullname;
-
-        // Allocate memory
-        let obj = if const_is_obj {
-            // Normally class object can be retrieved via constants,
-            // but there is no such constant if `const_is_obj` is true.
-            let class_obj = SkClassObj(llvm_func_args[0]);
-            self._allocate_sk_obj(class_fullname, "addr", class_obj)
-        } else {
-            self.allocate_sk_obj(class_fullname, "addr")
-        };
+        // Allocate memory and set .class (which is the receiver of .new)
+        let class_obj = SkClassObj(llvm_func_args[0]);
+        let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
 
         // Call initialize
-        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
-        let mut addr = obj.clone();
-        if need_bitcast {
+        let addr = if init_cls_name == class_fullname {
+            obj.clone()
+        } else {
+            // `initialize` is defined in an ancestor class. Bitcast is needed
+            // to pass the obj to the `initialize` func
             let ances_type = self
                 .llvm_struct_types
                 .get(init_cls_name)
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
-            addr = SkObj(
+            SkObj(
                 self.builder
-                    .build_bitcast(addr.0, ances_type, "obj_as_super"),
-            );
-        }
+                    .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
+            )
+        };
         let args = (0..=arity)
             .map(|i| if i == 0 { addr.0 } else { llvm_func_args[i] })
             .collect::<Vec<_>>();
+        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
         self.builder.build_call(initialize, &args, "");
 
         self.build_return(&obj);
@@ -765,4 +767,8 @@ fn inkwell_set_name(val: BasicValueEnum, name: &str) {
         BasicValueEnum::StructValue(v) => v.set_name(name),
         BasicValueEnum::VectorValue(v) => v.set_name(name),
     }
+}
+
+fn const_initialize_func_name(name: &ConstFullname) -> String {
+    format!("init_{}", &name.0[2..])
 }

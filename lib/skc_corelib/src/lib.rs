@@ -1,6 +1,5 @@
-mod class;
+pub mod class;
 mod fn_x;
-mod metaclass;
 pub mod rustlib_methods;
 use shiika_core::{names::*, ty};
 use skc_hir::*;
@@ -48,7 +47,7 @@ fn rust_body_items() -> Vec<ClassItem> {
             Some(Superclass::simple("Class")),
             Default::default(),
             vec![],
-            metaclass::ivars(),
+            class::ivars(),
             vec![],
         ),
         (
@@ -200,9 +199,9 @@ fn _convert_typ(
 ) -> ty::TermTy {
     let s = typ.names.join("::");
     if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
-        ty::typaram(s, ty::TyParamKind::Class, idx)
+        ty::typaram_ref(s, ty::TyParamKind::Class, idx).into_term_ty()
     } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
-        ty::typaram(s, ty::TyParamKind::Method, idx)
+        ty::typaram_ref(s, ty::TyParamKind::Method, idx).into_term_ty()
     } else {
         let tyargs = typ
             .args

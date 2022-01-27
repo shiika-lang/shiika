@@ -1,4 +1,4 @@
-use crate::builtin::class::{ShiikaClass, SkClass};
+use crate::builtin::class::SkClass;
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
@@ -15,16 +15,16 @@ unsafe impl Plain for SkObj {}
 #[derive(Debug)]
 pub struct ShiikaObject {
     vtable: *const u8,
-    class_obj: *const ShiikaClass,
+    class_obj: SkClass,
 }
 
 impl SkObj {
-    //pub fn new(p: *const ShiikaObject) -> SkObj {
-    //    SkObj(p)
-    //}
+    //    pub fn new(p: *const ShiikaObject) -> SkObj {
+    //        SkObj(p)
+    //    }
 
     pub fn class(&self) -> SkClass {
-        unsafe { SkClass::new((*self.0).class_obj) }
+        unsafe { (*self.0).class_obj.dup() }
     }
 }
 
@@ -55,6 +55,6 @@ pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
 #[shiika_method("Object#puts")]
 pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
-    let _result = io::stdout().write_all(s.byteslice());
+    let _result = io::stdout().write_all(s.as_byteslice());
     println!("");
 }

@@ -1,12 +1,14 @@
 mod lit_ty;
 mod term_ty;
 mod typaram;
+mod typaram_ref;
 use crate::names::*;
 use crate::ty;
 pub use crate::ty::lit_ty::LitTy;
+pub use crate::ty::term_ty::TermTy;
 pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private
-pub use crate::ty::term_ty::{TermTy, TyParamKind};
 pub use crate::ty::typaram::{TyParam, Variance};
+pub use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 
 pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool) -> TermTy {
     let base_name = base_name_.into();
@@ -56,7 +58,7 @@ pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> Te
         let args = typarams
             .iter()
             .enumerate()
-            .map(|(i, t)| typaram(&t.name, TyParamKind::Class, i))
+            .map(|(i, t)| typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
             .collect::<Vec<_>>();
         ty::spe(&classname.0, args)
     }
@@ -67,18 +69,14 @@ pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
 }
 
-pub fn typaram(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TermTy {
-    let s = name.into();
-    TermTy {
-        // TODO: s is not a class name. `fullname` should be just a String
-        fullname: class_fullname(s.clone()),
-        body: term_ty::TyBody::TyParamRef {
-            kind,
-            name: s,
-            idx,
-            upper_bound: Box::new(ty::raw("Object")),
-            lower_bound: Box::new(ty::raw("Never")),
-        },
+pub fn typaram_ref(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TyParamRef {
+    TyParamRef {
+        kind,
+        name: name.into(),
+        idx,
+        upper_bound: LitTy::raw("Object"),
+        lower_bound: LitTy::raw("Never"),
+        as_class: false,
     }
 }
 

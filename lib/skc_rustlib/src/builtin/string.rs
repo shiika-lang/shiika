@@ -13,7 +13,7 @@ pub struct SkStr(*const ShiikaString);
 
 #[repr(C)]
 #[derive(Debug)]
-struct ShiikaString {
+pub struct ShiikaString {
     vtable: *const u8,
     class_obj: *const u8,
     ptr: SkPtr,
@@ -31,14 +31,14 @@ impl From<String> for SkStr {
 }
 
 impl SkStr {
-    /// Returns byte slice
-    // TODO: more Rust-y name?
-    pub fn byteslice(&self) -> &[u8] {
-        unsafe {
-            let size = self.bytesize() as usize;
-            std::slice::from_raw_parts(self.u8ptr(), size)
-        }
-    }
+    //    /// Shallow clone
+    //    pub fn dup(&self) -> SkStr {
+    //        SkStr(self.0)
+    //    }
+
+    //    pub fn new(p: *const ShiikaString) -> SkStr {
+    //        SkStr(p)
+    //    }
 
     fn u8ptr(&self) -> *const u8 {
         unsafe { (*self.0).ptr.unbox() }
@@ -46,5 +46,19 @@ impl SkStr {
 
     fn bytesize(&self) -> i64 {
         unsafe { (*self.0).bytesize.val() }
+    }
+
+    /// Returns byte slice
+    pub fn as_byteslice(&self) -> &[u8] {
+        unsafe {
+            let size = self.bytesize() as usize;
+            std::slice::from_raw_parts(self.u8ptr(), size)
+        }
+    }
+
+    /// Returns &str
+    /// Panics if the content is invalid as utf-8
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(self.as_byteslice()).unwrap()
     }
 }

@@ -1,3 +1,4 @@
+use crate::class_expr;
 use crate::error;
 use crate::hir_maker::HirMaker;
 use crate::hir_maker_context::HirMakerContext;
@@ -7,19 +8,7 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match::{Component, MatchClause};
 use skc_hir::*;
 
-//match f(g(h))
-//when Some(a)
-//  body
-//  ↓
-//fn(expr: SomeType){
-//  if expr.class == Some<Int>
-//    return fn(a: Int){
-//      return body
-//    }(expr.value)
-//  end
-//  panic "no match"
-//}(f(g(h)))
-
+/// Convert a match expression into Hir::match_expression
 pub fn convert_match_expr(
     mk: &mut HirMaker,
     cond: &AstExpression,
@@ -180,7 +169,10 @@ fn convert_extractor(
     param_patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
     // eg. `ty::raw("Maybe::Some")`
-    let (base_ty, _) = mk.resolve_class_const(&UnresolvedConstName(names.to_vec()))?;
+    let base_ty = mk
+        .resolve_class_expr(&UnresolvedConstName(names.to_vec()))?
+        .ty
+        .instance_ty();
     let pat_ty = match &value.ty.body {
         TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
         _ => base_ty.clone(),
@@ -193,8 +185,8 @@ fn convert_extractor(
     }
     let cast_value = Hir::bit_cast(pat_ty.clone(), value.clone());
     let mut components = extract_props(mk, &cast_value, &pat_ty, param_patterns)?;
-    mk.create_specialized_meta_class(&pat_ty.meta_ty());
-    let test = Component::Test(test_class(value, &base_ty));
+
+    let test = Component::Test(test_class(mk, value, &pat_ty));
     components.insert(0, test);
     Ok(components)
 }
@@ -241,8 +233,8 @@ fn extract_props(
 }
 
 /// Create `expr.class == cls`
-fn test_class(value: &HirExpression, base_ty: &TermTy) -> HirExpression {
-    let cls_ref = Hir::const_ref(base_ty.meta_ty(), base_ty.fullname.to_const_fullname());
+fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
+    let cls_ref = class_expr(mk, pat_ty);
     Hir::method_call(
         ty::raw("Bool"),
         Hir::method_call(

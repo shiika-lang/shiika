@@ -81,7 +81,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get vtable of the class of the given name
-    fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
+    pub fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
         let vtable_const_name = llvm_vtable_const_name(classname);
         let llvm_ary_ptr = self
             .module
@@ -162,7 +162,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             )
             .unwrap_or_else(|_| {
                 panic!(
-                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, object: {:?})",
+                    "build_llvm_struct_ref: elem not found (idx in struct: {}, register name: {}, object: {:?})",
                     &idx, &name, &object
                 )
             });
@@ -276,21 +276,32 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         )
     }
 
+    /// Create `%Foo* null`
+    pub fn null_ptr(&self, ty: &TermTy) -> SkObj<'run> {
+        let ptr = self.llvm_type(ty).into_pointer_type().const_null();
+        SkObj(ptr.into())
+    }
+
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        let s = match &ty.body {
-            TyBody::TyParamRef { upper_bound, .. } => return self.llvm_type(upper_bound),
-            TyBody::TyRaw(LitTy {
-                base_name, is_meta, ..
+        match &ty.body {
+            TyBody::TyRaw(t) => self.llvm_type_of_lit_ty(t),
+            TyBody::TyPara(TyParamRef {
+                upper_bound,
+                as_class,
+                ..
             }) => {
-                if *is_meta {
-                    &ty.fullname.0
+                if *as_class {
+                    self.llvm_type_of_lit_ty(&upper_bound.meta_ty())
                 } else {
-                    base_name
+                    self.llvm_type_of_lit_ty(upper_bound)
                 }
             }
-        };
-        self.llvm_struct_type(&class_fullname(s))
+        }
+    }
+
+    fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+        self.llvm_struct_type(&lit_ty.erasure())
             .ptr_type(AddressSpace::Generic)
             .as_basic_type_enum()
     }

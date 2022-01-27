@@ -67,6 +67,7 @@ pub enum Token {
     UMinusMethod, //  -@
     GetMethod,    //  []
     SetMethod,    //  []=
+    Specialize,   //  <> (used internally)
     // Keywords
     KwClass,
     KwEnum,
@@ -197,6 +198,7 @@ impl Token {
             Token::UMinusMethod => false, //  -@
             Token::GetMethod => false,    //  []
             Token::SetMethod => false,    //  []=
+            Token::Specialize => false,   //  <>
             // Keywords
             Token::KwClass => false,
             Token::KwEnum => false,

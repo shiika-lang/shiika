@@ -796,6 +796,7 @@ dependencies = [
  "shiika_ast",
  "shiika_core",
  "shiika_ffi",
+ "skc_corelib",
  "skc_hir",
  "skc_mir",
 ]

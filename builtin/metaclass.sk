@@ -2,10 +2,10 @@
 # see also: src/corelib/
 class Metaclass : Class
   def name -> String
-    if @base_name == "Metaclass"
+    if @name == "Metaclass"
       "Metaclass"
     else
-      "Meta:" + @base_name
+      "Meta:" + @name
     end
   end
 

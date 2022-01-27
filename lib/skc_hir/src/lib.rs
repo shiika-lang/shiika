@@ -178,6 +178,12 @@ pub enum HirExpressionBase {
         idx: usize,
         self_ty: TermTy,
     },
+    /// Type variable reference. eg. in an instance method definition of the class `Array<T>`,
+    /// `T` is a HirTVarRef whose type is `Meta:Object`.
+    HirTVarRef {
+        typaram_ref: TyParamRef,
+        self_ty: TermTy,
+    },
     HirConstRef {
         fullname: ConstFullname,
     },
@@ -192,9 +198,6 @@ pub enum HirExpressionBase {
         has_break: bool,
     },
     HirSelfExpression,
-    HirArrayLiteral {
-        exprs: Vec<HirExpression>,
-    },
     HirFloatLiteral {
         value: f64,
     },
@@ -234,6 +237,7 @@ pub enum HirExpressionBase {
         fullname: ClassFullname,
         str_literal_idx: usize,
     },
+    /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
         exprs: HirExpressions,
     },
@@ -447,6 +451,16 @@ impl Hir {
         }
     }
 
+    pub fn tvar_ref(ty: TermTy, typaram_ref: TyParamRef, self_ty: TermTy) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirTVarRef {
+                typaram_ref,
+                self_ty,
+            },
+        }
+    }
+
     pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
         HirExpression {
             ty,
@@ -482,13 +496,6 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirSelfExpression,
-        }
-    }
-
-    pub fn array_literal(exprs: Vec<HirExpression>, ty: TermTy) -> HirExpression {
-        HirExpression {
-            ty,
-            node: HirExpressionBase::HirArrayLiteral { exprs },
         }
     }
 
@@ -544,9 +551,9 @@ impl Hir {
         }
     }
 
-    pub fn parenthesized_expression(ty: TermTy, exprs: HirExpressions) -> HirExpression {
+    pub fn parenthesized_expression(exprs: HirExpressions) -> HirExpression {
         HirExpression {
-            ty,
+            ty: exprs.ty.clone(),
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
         }
     }

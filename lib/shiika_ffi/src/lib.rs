@@ -1,5 +1,5 @@
 pub fn mangle_method(method_name: &str) -> String {
-    method_name
+    let s = method_name
         // Replace '_' to use '_' as delimiter
         .replace("_", "__")
         // Replace symbols to make the function callable from Rust(skc_rustlib)
@@ -14,10 +14,15 @@ pub fn mangle_method(method_name: &str) -> String {
         .replace("/", "div_")
         .replace("%", "mod_")
         .replace("==", "eq_")
-        .replace("<", "lt_")
-        .replace(">", "gt_")
         .replace("<=", "le_")
         .replace(">=", "ge_")
-        .replace("[]", "aref_")
+        .replace("<", "lt_")
+        .replace(">", "gt_")
         .replace("[]=", "aset_")
+        .replace("[]", "aref_");
+    if s.ends_with("=") {
+        format!("{}{}", "_set_", &s.replace("=", ""))
+    } else {
+        s
+    }
 }
