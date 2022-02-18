@@ -52,6 +52,12 @@ pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
     }
 }
 
+#[shiika_method("Object#print")]
+pub extern "C" fn object_print(_receiver: *const u8, s: SkStr) {
+    //TODO: Return SkVoid
+    let _result = io::stdout().write_all(s.as_byteslice());
+}
+
 #[shiika_method("Object#puts")]
 pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
