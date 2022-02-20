@@ -1,4 +1,4 @@
-# Basic types
+# Basic classes
 
 ## Bool
 
@@ -32,4 +32,18 @@ a = [1, 2, 3]
 
 b = Array<Int>.new
 b.push(0)
+```
+
+## Maybe
+
+```
+a = Some.new(1)
+b = None
+
+match a
+when Some(n)
+  p n
+when None
+  p "none."
+end
 ```

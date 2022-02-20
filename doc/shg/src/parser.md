@@ -1,6 +1,6 @@
 # Parser
 
-Directory: `src/parser/`
+Directory: `lib/shiika_parser/`
 
 ## Overview
 
@@ -9,7 +9,7 @@ Directory: `src/parser/`
 
 ## Lexer
 
-File: `src/parser/lexer.rs`
+File: `lexer.rs`
 
 Lexer has a state (`LexerState`). Main purpose of this is to decide operators like `-` or `+` is whether unary or binary.
 

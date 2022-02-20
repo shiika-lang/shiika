@@ -65,7 +65,7 @@ See `examples/*.sk` for more.
 
 - [Language Guide](./doc/guide/src/SUMMARY.md)
 - [Language Specification](./doc/spec/src/SUMMARY.md)
-- [Hacking Guide](./doc/shg/src/SUMMARY.md)
+- [Development Guide](./doc/shg/src/SUMMARY.md)
 
 ## Status
 
@@ -88,7 +88,7 @@ See [Issues](https://github.com/shiika-lang/shiika/issues)
 - [x] v0.4.0 - Anonymous function (lambda)
 - [x] v0.5.0 - Virtual methods
 - [x] - Generic methods
-- [ ] - Enums
+- [x] - Enums
 - [ ] - Modules (like Ruby's `module`)
 - [ ] - Something like Ruby's `require`
 - After v1.0.0
