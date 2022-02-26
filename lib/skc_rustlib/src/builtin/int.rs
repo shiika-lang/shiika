@@ -73,12 +73,27 @@ pub extern "C" fn int_mod(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() % other.val()).into()
 }
 
-#[shiika_method("Int#<<")]
+#[shiika_method("Int#and")]
+pub extern "C" fn int_and(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() & other.val()).into()
+}
+
+#[shiika_method("Int#or")]
+pub extern "C" fn int_or(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() | other.val()).into()
+}
+
+#[shiika_method("Int#xor")]
+pub extern "C" fn int_xor(receiver: SkInt, other: SkInt) -> SkInt {
+    (receiver.val() ^ other.val()).into()
+}
+
+#[shiika_method("Int#lshift")]
 pub extern "C" fn int_lshift(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() << other.val()).into()
 }
 
-#[shiika_method("Int#>>")]
+#[shiika_method("Int#rshift")]
 pub extern "C" fn int_rshift(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() >> other.val()).into()
 }
