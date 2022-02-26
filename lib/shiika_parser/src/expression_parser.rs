@@ -704,12 +704,7 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
 
         // Method name
-        let method_name = match self.current_token() {
-            Token::LowerWord(s) => s.clone(),
-            Token::KwClass => "class".to_string(),
-            Token::Specialize => "<>".to_string(), // Used internally
-            token => return Err(parse_error!(self, "invalid method name: {:?}", token)),
-        };
+        let method_name = self.get_method_name()?.to_string();
         self.consume_token()?;
 
         // Type args (Optional)

@@ -312,7 +312,7 @@ impl<'a> Parser<'a> {
         Ok((sig, is_class_method))
     }
 
-    fn get_method_name(&mut self) -> Result<&str, Error> {
+    pub(super) fn get_method_name(&mut self) -> Result<&str, Error> {
         let name = match self.current_token() {
             Token::LowerWord(s) => s,
             // Keywords
