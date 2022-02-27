@@ -2,19 +2,26 @@
 # How to run
 #   $ cargo run -- run examples/mandel.sk > a.pbm
 #   $ open a.pbm   # With Preview.app or something
+#
+# This is not much a good example because Shiika is not designed for such
+# CPU-intensive tasks. However this was good when I just started Shiika 
+# because this program requires little language constructs and yet produces
+# a fun result.
 size = 600
-
 puts "P4"
-puts "600 600"
+puts "#{size} #{size}"
 
-ITER = 49                           # Iterations - 1 for easy for..in looping
-LIMIT_SQUARED = 4.0                 # Presquared limit
+ITER = 49
+LIMIT_SQUARED = 4.0
 
 var byte_acc = 0
 var bit_num = 0
+out = MutableString.new
 
-count_size = size - 1               # Precomputed size for easy for..in looping
+count_size = size - 1
 
+var a = 0;
+var b = 0;
 var y=0; while y <= count_size
   var x=0; while x <= count_size
     var zr = 0.0
@@ -23,8 +30,6 @@ var y=0; while y <= count_size
     ci = (2.0*y.to_f/size.to_f)-1.0
     var escape = false
 
-    # To make use of the for..in code, we use a dummy variable,
-    # like one would in C
     var dummy = 0; while dummy <= ITER
       tr = zr*zr - zi*zi + cr
       ti = 2.0*zr*zi + ci
@@ -38,27 +43,24 @@ var y=0; while y <= count_size
       dummy = dummy + 1
     end
 
-    byte_acc = (byte_acc << 1) | (escape ? 0 : 1)
+    byte_acc = byte_acc.lshift(1).or(escape ? 0 : 1)
     bit_num = bit_num + 1
 
-    # Code is very similar for these cases, but using separate blocks
-    # ensures we skip the shifting when it's unnecessary, which is most cases.
     if bit_num == 8
-      putchar byte_acc
+      out.append_byte(byte_acc)
       byte_acc = 0
       bit_num = 0
-    else 
-      if x == count_size
-        byte_acc <<= (8 - bit_num)
-        putchar byte_acc
-        byte_acc = 0
-        bit_num = 0
-      else
-        0
-      end
+      a += 1
+    elsif x == count_size
+      byte_acc = byte_acc.lshift(8 - bit_num)
+      out.append_byte(byte_acc)
+      byte_acc = 0
+      bit_num = 0
+      b += 1
     end
 
     x += 1
   end
   y += 1
 end
+print out.to_s

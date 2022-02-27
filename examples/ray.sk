@@ -1,4 +1,7 @@
 # orig: http://qiita.com/doxas/items/477fda867da467116f8d
+# How to run
+#   $ cargo run -- run examples/ray.sk > a.ppm
+#   $ open a.ppm   # With Preview.app or something
 
 IMAGE_WIDTH = 512
 IMAGE_HEIGHT = 512
@@ -162,9 +165,7 @@ class Util
   end
 
   def self.print_col(c: Vec) -> Void
-    putd(Util.color(c.x)); putchar(32)
-    putd(Util.color(c.y)); putchar(32)
-    putd(Util.color(c.z)); putchar(10)
+    puts "#{Util.color(c.x)} #{Util.color(c.y)} #{Util.color(c.z)}"
   end
 
   def self.intersect(ray: Ray, i: Isect) -> Void
@@ -178,7 +179,7 @@ end
 # P3\n
 puts "P3"
 # W H\n
-putd(IMAGE_WIDTH); puts " "; putd(IMAGE_HEIGHT); puts ""
+puts "#{IMAGE_WIDTH} #{IMAGE_HEIGHT}"
 # D
 puts "255"
 

@@ -2,8 +2,9 @@ use crate::builtin::class::SkClass;
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
-use std::io::{self, Write};
+use std::io::{stdout, Write};
 use std::mem;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkObj(*const ShiikaObject);
@@ -55,12 +56,13 @@ pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
 #[shiika_method("Object#print")]
 pub extern "C" fn object_print(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
-    let _result = io::stdout().write_all(s.as_byteslice());
+    let _ = stdout().write_all(s.as_byteslice());
+    let _ = stdout().flush();
 }
 
 #[shiika_method("Object#puts")]
 pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
-    let _result = io::stdout().write_all(s.as_byteslice());
+    let _ = stdout().write_all(s.as_byteslice());
     println!("");
 }
