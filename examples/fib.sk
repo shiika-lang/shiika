@@ -8,4 +8,5 @@ class A
   end
 end
 a = A.new
-putd a.fib(30)
+n = 30
+puts "fib(#{n}) = #{a.fib(n)}"
