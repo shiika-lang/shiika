@@ -312,10 +312,36 @@ impl<'a> Parser<'a> {
         Ok((sig, is_class_method))
     }
 
-    fn get_method_name(&mut self) -> Result<&str, Error> {
+    pub(super) fn get_method_name(&mut self) -> Result<&str, Error> {
         let name = match self.current_token() {
             Token::LowerWord(s) => s,
+            // Keywords
             Token::KwClass => "class",
+            Token::KwEnum => "enum",
+            Token::KwCase => "case",
+            Token::KwIn => "in",
+            Token::KwOut => "out",
+            Token::KwEnd => "end",
+            Token::KwDef => "def",
+            Token::KwVar => "var",
+            Token::KwAnd => "and",
+            Token::KwOr => "or",
+            Token::KwIf => "if",
+            Token::KwUnless => "unless",
+            Token::KwMatch => "match",
+            Token::KwWhen => "when",
+            Token::KwWhile => "while",
+            Token::KwBreak => "break",
+            Token::KwReturn => "return",
+            Token::KwThen => "then",
+            Token::KwElse => "else",
+            Token::KwElsif => "elsif",
+            Token::KwFn => "fn",
+            Token::KwDo => "do",
+            Token::KwSelf => "self",
+            Token::KwTrue => "true",
+            Token::KwFalse => "false",
+            // Symbols
             Token::UPlusMethod => "+@",
             Token::UMinusMethod => "-@",
             Token::GetMethod => "[]",
