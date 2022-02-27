@@ -1,7 +1,13 @@
-## HEAD
+## v0.6.0 (2022-02-27)
 
+- feat: Basic pattern matching (#306)
 - feat: Class alias (#296)
 - misc: Added class Metaclass (#301)
+- internal: Split the compiler into several crates under lib/* (#316)
+- feat: `Object#class` (#299), `Float#to_s` (#320), etc.
+- Breaking change: Renamed `is_empty` to `empty?`, etc. (#315)
+- Breaking change: Renamed `Hash` to `Dict` (#321)
+- Breaking change: Renamed `Int#&` to `Int#and`, etc. (#329)
 
 ## v0.5.5 (2021-07-12)
 
