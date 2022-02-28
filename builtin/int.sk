@@ -56,7 +56,7 @@ class Int
     a = Array<Int>.new
     while true
       a.push((n % 10) + 48)  # 48 = "0"
-      n /= 10
+      n = (n / 10).to_i
       if n == 0
         break
       end

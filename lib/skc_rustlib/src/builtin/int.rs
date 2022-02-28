@@ -62,10 +62,11 @@ pub extern "C" fn int_mul(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() * other.val()).into()
 }
 
-// TODO: Return Float?
 #[shiika_method("Int#/")]
-pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkInt {
-    (receiver.val() / other.val()).into()
+pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkFloat {
+    let a = receiver.val() as f64;
+    let b = other.val() as f64;
+    (a / b).into()
 }
 
 #[shiika_method("Int#%")]

@@ -5,7 +5,7 @@
   ["Int", "+(other: Int) -> Int"],
   ["Int", "-(other: Int) -> Int"],
   ["Int", "*(other: Int) -> Int"],
-  ["Int", "/(other: Int) -> Int"],
+  ["Int", "/(other: Int) -> Float"],
   ["Int", "%(other: Int) -> Int"],
   ["Int", "and(other: Int) -> Int"],
   ["Int", "or(other: Int) -> Int"],
