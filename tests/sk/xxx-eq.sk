@@ -1,4 +1,5 @@
 var a = 1
+var b = 1.0
 
 a += 2
 if a != 3 then puts "ng +=" end
@@ -6,18 +7,10 @@ a -= 2
 if a != 1 then puts "ng -=" end
 a *= 60
 if a != 60 then puts "ng *=" end
-a /= 5
-if a != 12 then puts "ng /=" end
+b /= 2.0
+if b != 0.5 then puts "ng /=" end
+a = 7
 a %= 5
-if a != 2 then puts "ng !=" end
-#a <<= 4
-#if a != 32 then puts "ng <<=" end
-#a >>= 1
-#if a != 16 then puts "ng >>=" end
-#a -= 1
-#a &= 9
-#if a != 9 then puts "ng &=" end
-#a |= 15
-#if a != 15 then puts "ng |=" end
+if a != 2 then puts "ng %=" end
 
 puts "ok"
