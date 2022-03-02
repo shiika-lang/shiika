@@ -1,3 +1,7 @@
+## v0.6.1 (2022-03-02)
+
+- Breaking change: `Int#/` now returns Float (#331)
+
 ## v0.6.0 (2022-02-27)
 
 - feat: Basic pattern matching (#306)
