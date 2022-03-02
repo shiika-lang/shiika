@@ -1,0 +1,7 @@
+unless 2.and(3) == 2; puts "ng and"; end
+unless 2.or(3) == 3; puts "ng or"; end
+unless 2.xor(3) == 1; puts "ng xor"; end
+unless 1.lshift(3) == 8; puts "ng lshift"; end
+unless 8.rshift(1) == 4; puts "ng rshift"; end
+
+puts "ok"
