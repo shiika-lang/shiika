@@ -1,5 +1,5 @@
 use shiika_ast::AstMethodSignature;
-use shiika_core::names::{ClassFullname, ConstName};
+use shiika_core::names::{ConstName, ModuleFullname};
 use shiika_core::{names::method_fullname, ty, ty::TermTy};
 use skc_corelib::{self, Corelib};
 use skc_hir::*;
@@ -29,7 +29,7 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkClasses, SkMethods) {
 }
 
 // Make SkMethod of corelib methods implemented in Rust
-fn make_rustlib_methods(corelib: &Corelib) -> Vec<(ClassFullname, SkMethod)> {
+fn make_rustlib_methods(corelib: &Corelib) -> Vec<(ModuleFullname, SkMethod)> {
     let sigs = skc_corelib::rustlib_methods::provided_methods();
     sigs.iter()
         .map(|(classname, ast_sig)| make_rustlib_method(classname, ast_sig, corelib))
@@ -38,10 +38,10 @@ fn make_rustlib_methods(corelib: &Corelib) -> Vec<(ClassFullname, SkMethod)> {
 
 // Create a SkMethod by converting ast_sig to hir_sig
 fn make_rustlib_method(
-    classname: &ClassFullname,
+    classname: &ModuleFullname,
     ast_sig: &AstMethodSignature,
     corelib: &Corelib,
-) -> (ClassFullname, SkMethod) {
+) -> (ModuleFullname, SkMethod) {
     let class = corelib
         .sk_classes
         .get(classname)

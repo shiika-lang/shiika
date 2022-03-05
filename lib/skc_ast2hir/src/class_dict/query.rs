@@ -8,7 +8,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method from class name and first name
     pub fn find_method(
         &self,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
         self.lookup_class(class_fullname)
@@ -59,7 +59,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, class_fullname: &ModuleFullname) -> Option<&SkClass> {
         self.sk_classes
             .get(class_fullname)
             .or_else(|| self.imported_classes.get(class_fullname))
@@ -67,13 +67,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
-    pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
+    pub fn get_class(&self, class_fullname: &ModuleFullname) -> &SkClass {
         self.lookup_class(class_fullname)
             .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
     }
 
     /// Find a class. Panic if not found
-    pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
+    pub fn get_class_mut(&mut self, class_fullname: &ModuleFullname) -> &mut SkClass {
         if let Some(c) = self.sk_classes.get_mut(class_fullname) {
             c
         } else if self.imported_classes.contains_key(class_fullname) {
@@ -205,7 +205,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
     }
 
-    pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
+    pub fn find_ivar(&self, classname: &ModuleFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] finding ivar `{}' but the class '{}' not found",
@@ -216,7 +216,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Returns instance variables of the superclass of `classname`
-    pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
+    pub fn superclass_ivars(&self, classname: &ModuleFullname) -> Option<SkIVars> {
         self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
             let ivars = &self.get_class(&ty.erasure()).ivars;

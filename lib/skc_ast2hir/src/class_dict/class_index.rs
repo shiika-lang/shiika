@@ -5,7 +5,7 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 /// Set of pair of class name and its typaram names
-pub type ClassIndex = HashMap<ClassFullname, Vec<ty::TyParam>>;
+pub type ClassIndex = HashMap<ModuleFullname, Vec<ty::TyParam>>;
 
 /// Collect class names in the program
 pub fn create(

@@ -12,7 +12,7 @@ impl std::fmt::Display for ClassFirstname {
 }
 
 impl ClassFirstname {
-    pub fn add_namespace(&self, namespace: &str) -> ClassFullname {
+    pub fn add_namespace(&self, namespace: &str) -> ModuleFullname {
         if namespace.is_empty() {
             class_fullname(self.0.clone())
         } else {
@@ -26,23 +26,23 @@ pub fn class_firstname(s: impl Into<String>) -> ClassFirstname {
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
-pub struct ClassFullname(pub String);
+pub struct ModuleFullname(pub String);
 
-impl std::fmt::Display for ClassFullname {
+impl std::fmt::Display for ModuleFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-pub fn class_fullname(s: impl Into<String>) -> ClassFullname {
+pub fn class_fullname(s: impl Into<String>) -> ModuleFullname {
     let name = s.into();
     debug_assert!(name != "Meta:");
     debug_assert!(!name.starts_with("::"));
     debug_assert!(!name.starts_with("Meta:Meta:"));
-    ClassFullname(name)
+    ModuleFullname(name)
 }
 
-pub fn metaclass_fullname(base_: impl Into<String>) -> ClassFullname {
+pub fn metaclass_fullname(base_: impl Into<String>) -> ModuleFullname {
     let base = base_.into();
     debug_assert!(!base.is_empty());
     if base == "Metaclass" || base.starts_with("Meta:") {
@@ -52,8 +52,8 @@ pub fn metaclass_fullname(base_: impl Into<String>) -> ClassFullname {
     }
 }
 
-impl ClassFullname {
-    pub fn new(s: impl Into<String>, is_meta: bool) -> ClassFullname {
+impl ModuleFullname {
+    pub fn new(s: impl Into<String>, is_meta: bool) -> ModuleFullname {
         if is_meta {
             metaclass_fullname(s)
         } else {
@@ -94,7 +94,7 @@ impl ClassFullname {
         }
     }
 
-    pub fn meta_name(&self) -> ClassFullname {
+    pub fn meta_name(&self) -> ModuleFullname {
         metaclass_fullname(&self.0)
     }
 
@@ -133,7 +133,7 @@ pub struct MethodFullname {
 }
 
 pub fn method_fullname(
-    class_name: &ClassFullname,
+    class_name: &ModuleFullname,
     first_name_: impl Into<String>,
 ) -> MethodFullname {
     let first_name = first_name_.into();
@@ -210,7 +210,7 @@ impl Namespace {
     }
 
     /// Join Namespace and ClassFirstname
-    pub fn class_fullname(&self, name: &ClassFirstname) -> ClassFullname {
+    pub fn class_fullname(&self, name: &ClassFirstname) -> ModuleFullname {
         let n = self.string();
         if n.is_empty() {
             class_fullname(&name.0)
@@ -266,8 +266,8 @@ impl ConstName {
         !self.args.is_empty()
     }
 
-    /// Make ClassFullname from self
-    pub fn to_class_fullname(&self) -> ClassFullname {
+    /// Make ModuleFullname from self
+    pub fn to_class_fullname(&self) -> ModuleFullname {
         class_fullname(&self.string())
     }
 
@@ -343,8 +343,8 @@ impl ResolvedConstName {
         toplevel_const(&self.string())
     }
 
-    /// Convert to ClassFullname
-    pub fn to_class_fullname(&self) -> ClassFullname {
+    /// Convert to ModuleFullname
+    pub fn to_class_fullname(&self) -> ModuleFullname {
         class_fullname(self.string())
     }
 

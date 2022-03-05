@@ -240,7 +240,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Add `#initialize` and return defined ivars
     fn _process_initialize(
         &mut self,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         initialize: Option<&shiika_ast::Definition>,
     ) -> Result<SkIVars> {
         let mut own_ivars = HashMap::default();
@@ -277,7 +277,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Also, define ivars
     fn create_initialize(
         &mut self,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
@@ -308,7 +308,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Find actual `initialize` func to call from `.new`
-    fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
+    fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ModuleFullname)> {
         let (_, found_cls) = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
@@ -344,7 +344,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_method_def(
         &mut self,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod> {
@@ -356,7 +356,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Create a SkMethod and return it with ctx.iivars
     fn convert_method_def_(
         &mut self,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,

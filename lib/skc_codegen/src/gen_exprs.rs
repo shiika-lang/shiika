@@ -982,7 +982,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// on a source text.)
     fn gen_class_literal(
         &self,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
     ) -> SkObj<'run> {

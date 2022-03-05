@@ -1,4 +1,4 @@
-use crate::names::{class_fullname, ClassFullname};
+use crate::names::{class_fullname, ModuleFullname};
 use crate::ty;
 use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
@@ -44,7 +44,7 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), self.type_args.clone(), true)
     }
 
-    pub fn erasure(&self) -> ClassFullname {
+    pub fn erasure(&self) -> ModuleFullname {
         class_fullname(&self.base_name)
     }
 }

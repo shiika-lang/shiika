@@ -11,12 +11,12 @@ use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
-pub type SkClasses = HashMap<ClassFullname, SkClass>;
+pub type SkClasses = HashMap<ModuleFullname, SkClass>;
 
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: HashMap<ClassFullname, SkClass>,
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub sk_classes: HashMap<ModuleFullname, SkClass>,
+    pub sk_methods: HashMap<ModuleFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
@@ -26,7 +26,7 @@ pub struct Hir {
 }
 
 impl Hir {
-    pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
+    pub fn add_methods(&mut self, sk_methods: HashMap<ModuleFullname, Vec<SkMethod>>) {
         for (classname, mut new_methods) in sk_methods {
             match self.sk_methods.get_mut(&classname) {
                 Some(methods) => {
@@ -234,7 +234,7 @@ pub enum HirExpressionBase {
     /// (eg. `class A; end; A = 1` shadows A, but this special expr
     /// is never be shadowed)
     HirClassLiteral {
-        fullname: ClassFullname,
+        fullname: ModuleFullname,
         str_literal_idx: usize,
     },
     /// Wrap several expressions in to an expression
@@ -538,7 +538,7 @@ impl Hir {
 
     pub fn class_literal(
         ty: TermTy,
-        fullname: ClassFullname,
+        fullname: ModuleFullname,
         str_literal_idx: usize,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());

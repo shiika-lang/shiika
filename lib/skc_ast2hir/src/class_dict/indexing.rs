@@ -18,7 +18,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Add a method
     /// Used to add auto-defined accessors
-    pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
+    pub fn add_method(&mut self, clsname: &ModuleFullname, sig: MethodSignature) {
         let sk_class = self.sk_classes.get_mut(clsname).unwrap();
         sk_class
             .method_sigs
@@ -184,7 +184,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_enum_case(
         &mut self,
         namespace: &Namespace,
-        enum_fullname: &ClassFullname,
+        enum_fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         case: &shiika_ast::EnumCase,
     ) -> Result<()> {
@@ -240,7 +240,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_defs_in_class(
         &mut self,
         namespace: &Namespace,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
@@ -288,7 +288,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         superclass: Superclass,
         new_sig: Option<MethodSignature>,
@@ -334,7 +334,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn create_signature(
         &self,
         namespace: &Namespace,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
@@ -438,7 +438,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
 /// Returns superclass of a enum case
 fn enum_case_superclass(
-    enum_fullname: &ClassFullname,
+    enum_fullname: &ModuleFullname,
     typarams: &[ty::TyParam],
     case: &shiika_ast::EnumCase,
 ) -> Superclass {
@@ -464,7 +464,7 @@ fn enum_case_superclass(
 fn enum_case_new_sig(
     ivar_list: &[SkIVar],
     typarams: &[ty::TyParam],
-    fullname: &ClassFullname,
+    fullname: &ModuleFullname,
 ) -> (MethodSignature, MethodSignature) {
     let params = ivar_list
         .iter()
@@ -490,7 +490,7 @@ fn enum_case_new_sig(
 }
 
 /// Create signatures of getters of an enum case
-fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
+fn enum_case_getters(case_fullname: &ModuleFullname, ivars: &[SkIVar]) -> MethodSignatures {
     ivars
         .iter()
         .map(|ivar| {

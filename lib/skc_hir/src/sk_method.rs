@@ -10,7 +10,7 @@ pub struct SkMethod {
     pub lvars: HirLVars,
 }
 
-pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
+pub type SkMethods = HashMap<ModuleFullname, Vec<SkMethod>>;
 
 #[derive(Debug)]
 pub enum SkMethodBody {
@@ -20,9 +20,9 @@ pub enum SkMethodBody {
     RustLib,
     /// The method .new
     New {
-        classname: ClassFullname,
+        classname: ModuleFullname,
         initialize_name: MethodFullname,
-        init_cls_name: ClassFullname,
+        init_cls_name: ModuleFullname,
         arity: usize,
         const_is_obj: bool,
     },

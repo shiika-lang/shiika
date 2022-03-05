@@ -140,14 +140,14 @@ fn rust_body_items() -> Vec<ClassItem> {
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (
-    HashMap<ClassFullname, SkClass>,
-    HashMap<ClassFullname, Vec<SkMethod>>,
+    HashMap<ModuleFullname, SkClass>,
+    HashMap<ModuleFullname, Vec<SkMethod>>,
 ) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
         sk_classes.insert(
-            ClassFullname(name.to_string()),
+            ModuleFullname(name.to_string()),
             SkClass {
                 fullname: class_fullname(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),

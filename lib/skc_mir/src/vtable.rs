@@ -70,7 +70,7 @@ impl VTable {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VTables {
     // REFACTOR: how about just use `type`
-    vtables: HashMap<ClassFullname, VTable>,
+    vtables: HashMap<ModuleFullname, VTable>,
 }
 
 impl VTables {
@@ -126,7 +126,7 @@ impl VTables {
     }
 
     /// Returns iterator over each vtable
-    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
+    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ModuleFullname, VTable> {
         self.vtables.iter()
     }
 }

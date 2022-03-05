@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// Contains all the methods
 #[derive(Debug)]
 pub struct MethodDict {
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub sk_methods: HashMap<ModuleFullname, Vec<SkMethod>>,
 }
 
 impl MethodDict {
@@ -16,14 +16,14 @@ impl MethodDict {
     }
 
     /// Return the vec for the method for mutation
-    pub fn add_method(&mut self, classname: &ClassFullname, method: SkMethod) {
+    pub fn add_method(&mut self, classname: &ModuleFullname, method: SkMethod) {
         self.register_class(classname);
         let vec = self.sk_methods.get_mut(classname).unwrap();
         vec.push(method);
     }
 
     /// Add entry for the class if not exist.
-    fn register_class(&mut self, fullname: &ClassFullname) {
+    fn register_class(&mut self, fullname: &ModuleFullname) {
         if !self.sk_methods.contains_key(fullname) {
             self.sk_methods.insert(fullname.clone(), vec![]);
         }

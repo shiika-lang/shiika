@@ -54,7 +54,7 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
 
 /// Create a signature of a `new` method
 pub fn signature_of_new(
-    metaclass_fullname: &ClassFullname,
+    metaclass_fullname: &ModuleFullname,
     initialize_params: Vec<MethodParam>,
     instance_ty: &TermTy,
 ) -> MethodSignature {
@@ -68,7 +68,7 @@ pub fn signature_of_new(
 
 /// Create a signature of a `initialize` method
 pub fn signature_of_initialize(
-    class_fullname: &ClassFullname,
+    class_fullname: &ModuleFullname,
     params: Vec<MethodParam>,
 ) -> MethodSignature {
     MethodSignature {

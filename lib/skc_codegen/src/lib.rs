@@ -40,7 +40,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub i64_type: inkwell::types::IntType<'ictx>,
     pub f64_type: inkwell::types::FloatType<'ictx>,
     pub void_type: inkwell::types::VoidType<'ictx>,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
+    pub llvm_struct_types: HashMap<ModuleFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     vtables: &'hir VTables,
     imported_vtables: &'hir VTables,
@@ -346,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn gen_class_structs(&mut self, classes: &HashMap<ModuleFullname, SkClass>) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
         for name in classes.keys() {
             self.llvm_struct_types
@@ -357,7 +357,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Set fields for ivars
-    fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn define_class_struct_fields(&self, classes: &HashMap<ModuleFullname, SkClass>) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
         for (name, class) in classes {
@@ -456,7 +456,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create inkwell functions
-    fn gen_method_funcs(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
+    fn gen_method_funcs(&self, methods: &HashMap<ModuleFullname, Vec<SkMethod>>) {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
@@ -501,7 +501,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<()> {
+    fn gen_methods(&self, methods: &'hir HashMap<ModuleFullname, Vec<SkMethod>>) -> Result<()> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -701,11 +701,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_body_of_new(
         &self,
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
-        class_fullname: &ClassFullname,
+        class_fullname: &ModuleFullname,
         initialize_name: &MethodFullname,
         // The class whose `#initialize` should be called from this `.new`
         // (If the class have its own `#initialize`, this is equal to `class_fullname`)
-        init_cls_name: &ClassFullname,
+        init_cls_name: &ModuleFullname,
         arity: usize,
         _const_is_obj: bool,
     ) {

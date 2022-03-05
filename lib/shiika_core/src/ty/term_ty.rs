@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Types for a term (types of Shiika values)
 #[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub struct TermTy {
-    pub fullname: ClassFullname,
+    pub fullname: ModuleFullname,
     pub body: TyBody,
 }
 
@@ -210,11 +210,11 @@ impl TermTy {
     }
 
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
-    pub fn base_class_name(&self) -> ClassFullname {
+    pub fn base_class_name(&self) -> ModuleFullname {
         match &self.body {
             TyRaw(LitTy {
                 base_name, is_meta, ..
-            }) => ClassFullname::new(base_name, *is_meta),
+            }) => ModuleFullname::new(base_name, *is_meta),
             _ => panic!("unexpected"),
         }
     }
@@ -234,11 +234,11 @@ impl TermTy {
     /// eg.
     ///   Array<Int>      =>  Array
     ///   Pair<Int,Bool>  =>  Pair
-    pub fn erasure(&self) -> ClassFullname {
+    pub fn erasure(&self) -> ModuleFullname {
         match &self.body {
             TyRaw(LitTy {
                 base_name, is_meta, ..
-            }) => ClassFullname::new(base_name, *is_meta),
+            }) => ModuleFullname::new(base_name, *is_meta),
             _ => todo!(),
         }
     }
@@ -293,11 +293,11 @@ impl TermTy {
     }
 
     /// Name for vtable when invoking a method on an object of this type
-    pub fn vtable_name(&self) -> ClassFullname {
+    pub fn vtable_name(&self) -> ModuleFullname {
         match &self.body {
             TyRaw(LitTy {
                 base_name, is_meta, ..
-            }) => ClassFullname::new(base_name, *is_meta),
+            }) => ModuleFullname::new(base_name, *is_meta),
             _ => self.fullname.clone(),
         }
     }
