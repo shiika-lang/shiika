@@ -69,11 +69,11 @@ impl CtxStack {
     }
 
     /// Pop the ToplevelCtx on the stack top
-    pub fn pop_class_ctx(&mut self) -> ClassCtx {
-        if let HirMakerContext::Class(class_ctx) = self.pop() {
-            class_ctx
+    pub fn pop_module_ctx(&mut self) -> ModuleCtx {
+        if let HirMakerContext::Module(module_ctx) = self.pop() {
+            module_ctx
         } else {
-            panic!("[BUG] top is not ClassCtx");
+            panic!("[BUG] top is not ModuleCtx");
         }
     }
 
@@ -126,9 +126,9 @@ impl CtxStack {
     }
 
     /// Return nearest enclosing class ctx, if any
-    pub fn class_ctx(&self) -> Option<&ClassCtx> {
+    pub fn module_ctx(&self) -> Option<&ModuleCtx> {
         for x in self.vec.iter().rev() {
-            if let HirMakerContext::Class(c) = x {
+            if let HirMakerContext::Module(c) = x {
                 return Some(c);
             }
         }
@@ -183,7 +183,7 @@ impl CtxStack {
         } else {
             match self.top() {
                 HirMakerContext::Toplevel(_) => "toplevel".to_string(),
-                HirMakerContext::Class(class_ctx) => class_ctx.namespace.string(),
+                HirMakerContext::Module(module_ctx) => module_ctx.namespace.string(),
                 HirMakerContext::Method(method_ctx) => method_ctx.signature.fullname.to_string(),
                 HirMakerContext::Lambda(_) => "lambda".to_string(),
                 HirMakerContext::While(_) => "while".to_string(),
@@ -194,12 +194,12 @@ impl CtxStack {
 
     /// The type of `self` in the current scope
     pub fn self_ty(&self) -> TermTy {
-        if let Some(class_ctx) = self.class_ctx() {
+        if let Some(module_ctx) = self.module_ctx() {
             if self.method_ctx().is_some() {
-                let classname = module_fullname(class_ctx.namespace.string());
-                ty::return_type_of_new(&classname, &class_ctx.typarams)
+                let classname = module_fullname(module_ctx.namespace.string());
+                ty::return_type_of_new(&classname, &module_ctx.typarams)
             } else {
-                ty::meta(&class_ctx.namespace.string())
+                ty::meta(&module_ctx.namespace.string())
             }
         } else {
             // This lambda is on the toplevel
@@ -237,10 +237,10 @@ impl CtxStack {
 
     /// Returns type parameter of the current class
     pub fn current_module_typarams(&self) -> Vec<TyParam> {
-        if let Some(class_ctx) = self.class_ctx() {
+        if let Some(module_ctx) = self.module_ctx() {
             if let Some(method_ctx) = self.method_ctx() {
                 if !method_ctx.signature.fullname.is_class_method() {
-                    return class_ctx.typarams.clone();
+                    return module_ctx.typarams.clone();
                 }
             }
         }
@@ -263,11 +263,11 @@ impl CtxStack {
             if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
                 return Some(ty::typaram_ref(name, ty::TyParamKind::Method, i));
             }
-            if let Some(class_ctx) = self.class_ctx() {
+            if let Some(module_ctx) = self.module_ctx() {
                 if method_ctx.signature.fullname.is_class_method() {
                     return None;
                 }
-                let typarams = &class_ctx.typarams;
+                let typarams = &module_ctx.typarams;
                 if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
                     return Some(ty::typaram_ref(name, ty::TyParamKind::Class, i));
                 }
@@ -316,7 +316,7 @@ impl<'hir_maker> LVarIter<'hir_maker> {
             cur -= 1;
             match ctx_stack.get(cur) {
                 HirMakerContext::Toplevel(_)
-                | HirMakerContext::Class(_)
+                | HirMakerContext::Module(_)
                 | HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
                 | HirMakerContext::MatchClause(_) => break,
@@ -351,9 +351,9 @@ impl<'a> Iterator for LVarIter<'a> {
                 Some((&toplevel_ctx.lvars, &[], None))
             }
             // Classes -> end.
-            HirMakerContext::Class(class_ctx) => {
+            HirMakerContext::Module(module_ctx) => {
                 self.finished = true;
-                Some((&class_ctx.lvars, &[], None))
+                Some((&module_ctx.lvars, &[], None))
             }
             // Method -> end.
             HirMakerContext::Method(method_ctx) => {
@@ -393,7 +393,7 @@ impl<'hir_maker> NamespaceIter<'hir_maker> {
             }
             cur -= 1;
             match ctx_stack.get(cur) {
-                HirMakerContext::Toplevel(_) | HirMakerContext::Class(_) => break,
+                HirMakerContext::Toplevel(_) | HirMakerContext::Module(_) => break,
                 // Does not make constant scope
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
@@ -423,9 +423,9 @@ impl<'a> Iterator for NamespaceIter<'a> {
                     self.finished = true;
                     return Some(Namespace::root());
                 }
-                HirMakerContext::Class(class_ctx) => {
+                HirMakerContext::Module(module_ctx) => {
                     self.cur -= 1;
-                    return Some(class_ctx.namespace.clone());
+                    return Some(module_ctx.namespace.clone());
                 }
                 // Does not make constant scope
                 HirMakerContext::Method(_)

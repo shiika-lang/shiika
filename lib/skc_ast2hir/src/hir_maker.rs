@@ -233,7 +233,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 )?,
             }
         }
-        self.ctx_stack.pop_class_ctx();
+        self.ctx_stack.pop_module_ctx();
         Ok(())
     }
 
@@ -422,7 +422,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 _ => panic!("[TODO] in enum {:?}", def),
             }
         }
-        self.ctx_stack.pop_class_ctx();
+        self.ctx_stack.pop_module_ctx();
         Ok(())
     }
 
