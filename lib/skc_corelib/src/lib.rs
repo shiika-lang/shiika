@@ -194,11 +194,11 @@ fn make_classes(
 
 fn _convert_typ(
     typ: &ConstName,
-    class_typarams: &[String],
+    module_typarams: &[String],
     method_typarams: &[shiika_ast::AstTyParam],
 ) -> ty::TermTy {
     let s = typ.names.join("::");
-    if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
+    if let Some(idx) = module_typarams.iter().position(|t| s == *t) {
         ty::typaram_ref(s, ty::TyParamKind::Class, idx).into_term_ty()
     } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
         ty::typaram_ref(s, ty::TyParamKind::Method, idx).into_term_ty()
@@ -206,7 +206,7 @@ fn _convert_typ(
         let tyargs = typ
             .args
             .iter()
-            .map(|arg| _convert_typ(arg, class_typarams, method_typarams))
+            .map(|arg| _convert_typ(arg, module_typarams, method_typarams))
             .collect::<Vec<_>>();
         ty::nonmeta(&typ.names, tyargs)
     }

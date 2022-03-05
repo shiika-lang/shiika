@@ -522,7 +522,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let hir_params = self.class_dict.convert_params(
             &namespace,
             params,
-            &self.ctx_stack.current_class_typarams(),
+            &self.ctx_stack.current_module_typarams(),
             &self.ctx_stack.current_method_typarams(),
         )?;
 

@@ -336,12 +336,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         module_fullname: &ModuleFullname,
         sig: &shiika_ast::AstMethodSignature,
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(module_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
-            self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
+            self._resolve_typename(namespace, module_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
         };
@@ -351,7 +351,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             params: self.convert_params(
                 namespace,
                 &sig.params,
-                class_typarams,
+                module_typarams,
                 &method_typarams,
             )?,
             typarams: method_typarams,
@@ -363,7 +363,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         ast_params: &[shiika_ast::Param],
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
     ) -> Result<Vec<MethodParam>> {
         let mut hir_params = vec![];
@@ -372,7 +372,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 name: param.name.to_string(),
                 ty: self._resolve_typename(
                     namespace,
-                    class_typarams,
+                    module_typarams,
                     method_typarams,
                     &param.typ,
                 )?,
@@ -385,14 +385,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn _resolve_typename(
         &self,
         namespace: &Namespace,
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
         name: &ConstName,
     ) -> Result<TermTy> {
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
-            if let Some(idx) = class_typarams.iter().position(|t| *s == t.name) {
+            if let Some(idx) = module_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram_ref(s, TyParamKind::Class, idx).into_term_ty());
             } else if let Some(idx) = method_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram_ref(s, TyParamKind::Method, idx).into_term_ty());
@@ -401,7 +401,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // Otherwise:
         let mut tyargs = vec![];
         for arg in &name.args {
-            tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
+            tyargs.push(self._resolve_typename(namespace, module_typarams, method_typarams, arg)?);
         }
         let (resolved_base, base_typarams) =
             self._resolve_simple_typename(namespace, &name.names)?;

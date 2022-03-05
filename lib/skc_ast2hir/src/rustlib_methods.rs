@@ -57,14 +57,14 @@ fn make_rustlib_method(
 
 // Convert ast_sig into hir_sig
 fn make_hir_sig(class: &SkClass, ast_sig: &AstMethodSignature) -> MethodSignature {
-    let class_typarams = class.typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
+    let module_typarams = class.typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
     let fullname = method_fullname(&class.fullname, &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
-        convert_typ(typ, &class_typarams)
+        convert_typ(typ, &module_typarams)
     } else {
         ty::raw("Void")
     };
-    let params = convert_params(&ast_sig.params, &class_typarams);
+    let params = convert_params(&ast_sig.params, &module_typarams);
     MethodSignature {
         fullname,
         ret_ty,
@@ -75,26 +75,26 @@ fn make_hir_sig(class: &SkClass, ast_sig: &AstMethodSignature) -> MethodSignatur
 }
 
 // Make hir params from ast params
-fn convert_params(params: &[shiika_ast::Param], class_typarams: &[&String]) -> Vec<MethodParam> {
+fn convert_params(params: &[shiika_ast::Param], module_typarams: &[&String]) -> Vec<MethodParam> {
     params
         .iter()
-        .map(|x| convert_param(x, class_typarams))
+        .map(|x| convert_param(x, module_typarams))
         .collect()
 }
 
 // Make hir param from ast param
-fn convert_param(param: &shiika_ast::Param, class_typarams: &[&String]) -> MethodParam {
+fn convert_param(param: &shiika_ast::Param, module_typarams: &[&String]) -> MethodParam {
     MethodParam {
         name: param.name.to_string(),
-        ty: convert_typ(&param.typ, class_typarams),
+        ty: convert_typ(&param.typ, module_typarams),
     }
 }
 
 // Make TermTy from ConstName
-fn convert_typ(typ: &ConstName, class_typarams: &[&String]) -> TermTy {
+fn convert_typ(typ: &ConstName, module_typarams: &[&String]) -> TermTy {
     if typ.args.is_empty() {
         let s = typ.names.join("::");
-        if let Some(i) = class_typarams.iter().position(|name| **name == s) {
+        if let Some(i) = module_typarams.iter().position(|name| **name == s) {
             ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
         } else {
             ty::raw(&typ.names.join("::"))
@@ -103,7 +103,7 @@ fn convert_typ(typ: &ConstName, class_typarams: &[&String]) -> TermTy {
         let type_args = typ
             .args
             .iter()
-            .map(|n| convert_typ(n, class_typarams))
+            .map(|n| convert_typ(n, module_typarams))
             .collect();
         ty::spe(&typ.names.join("::"), type_args)
     }

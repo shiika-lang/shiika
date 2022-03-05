@@ -236,7 +236,7 @@ impl CtxStack {
     }
 
     /// Returns type parameter of the current class
-    pub fn current_class_typarams(&self) -> Vec<TyParam> {
+    pub fn current_module_typarams(&self) -> Vec<TyParam> {
         if let Some(class_ctx) = self.class_ctx() {
             if let Some(method_ctx) = self.method_ctx() {
                 if !method_ctx.signature.fullname.is_class_method() {

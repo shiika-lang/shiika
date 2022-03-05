@@ -372,10 +372,10 @@ impl ResolvedConstName {
 
     /// Returns the instance type when this const refers to a class
     /// eg. "Object" -> `TermTy(Object)`
-    pub fn to_ty(&self, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
+    pub fn to_ty(&self, module_typarams: &[String], method_typarams: &[String]) -> TermTy {
         if self.args.is_empty() {
             let s = self.names.join("::");
-            if let Some(i) = class_typarams.iter().position(|name| *name == s) {
+            if let Some(i) = module_typarams.iter().position(|name| *name == s) {
                 ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
             } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
                 ty::typaram_ref(s, ty::TyParamKind::Method, i).into_term_ty()
@@ -386,7 +386,7 @@ impl ResolvedConstName {
             let type_args = self
                 .args
                 .iter()
-                .map(|n| n.to_ty(class_typarams, method_typarams))
+                .map(|n| n.to_ty(module_typarams, method_typarams))
                 .collect();
             ty::spe(&self.names.join("::"), type_args)
         }
