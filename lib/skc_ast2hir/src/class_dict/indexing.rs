@@ -58,7 +58,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_class(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<ty::TyParam>,
         ast_superclass: &Option<ConstName>,
         defs: &[shiika_ast::Definition],
@@ -155,7 +155,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_enum(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],

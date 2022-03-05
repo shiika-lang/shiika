@@ -160,7 +160,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn process_class_def(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
@@ -392,7 +392,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn process_enum_def(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],

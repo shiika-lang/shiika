@@ -16,13 +16,13 @@ pub enum TopLevelItem {
 #[derive(Debug, PartialEq)]
 pub enum Definition {
     ClassDefinition {
-        name: ClassFirstname,
+        name: ModuleFirstname,
         typarams: Vec<AstTyParam>,
         superclass: Option<ConstName>,
         defs: Vec<Definition>,
     },
     EnumDefinition {
-        name: ClassFirstname,
+        name: ModuleFirstname,
         typarams: Vec<AstTyParam>,
         cases: Vec<EnumCase>,
         defs: Vec<Definition>,
@@ -43,7 +43,7 @@ pub enum Definition {
 
 #[derive(Debug, PartialEq)]
 pub struct EnumCase {
-    pub name: ClassFirstname,
+    pub name: ModuleFirstname,
     pub params: Vec<Param>,
 }
 

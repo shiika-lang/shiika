@@ -3,15 +3,15 @@ use crate::ty::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
-pub struct ClassFirstname(pub String);
+pub struct ModuleFirstname(pub String);
 
-impl std::fmt::Display for ClassFirstname {
+impl std::fmt::Display for ModuleFirstname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl ClassFirstname {
+impl ModuleFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ModuleFullname {
         if namespace.is_empty() {
             class_fullname(self.0.clone())
@@ -21,8 +21,8 @@ impl ClassFirstname {
     }
 }
 
-pub fn class_firstname(s: impl Into<String>) -> ClassFirstname {
-    ClassFirstname(s.into())
+pub fn class_firstname(s: impl Into<String>) -> ModuleFirstname {
+    ModuleFirstname(s.into())
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -203,14 +203,14 @@ impl Namespace {
     }
 
     /// Add `name` to the end of `self`
-    pub fn add(&self, name: &ClassFirstname) -> Namespace {
+    pub fn add(&self, name: &ModuleFirstname) -> Namespace {
         let mut v = self.0.clone();
         v.push(name.0.clone());
         Namespace::new(v)
     }
 
-    /// Join Namespace and ClassFirstname
-    pub fn class_fullname(&self, name: &ClassFirstname) -> ModuleFullname {
+    /// Join Namespace and ModuleFirstname
+    pub fn class_fullname(&self, name: &ModuleFirstname) -> ModuleFullname {
         let n = self.string();
         if n.is_empty() {
             class_fullname(&name.0)

@@ -50,7 +50,7 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::De
 fn index_class(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
-    firstname: &ClassFirstname,
+    firstname: &ModuleFirstname,
     typarams: Vec<ty::TyParam>,
     defs: &[shiika_ast::Definition],
 ) {
@@ -95,7 +95,7 @@ fn index_class(
 fn index_enum(
     cindex: &mut ClassIndex,
     namespace: &Namespace,
-    firstname: &ClassFirstname,
+    firstname: &ModuleFirstname,
     typarams: Vec<ty::TyParam>,
     cases: &[shiika_ast::EnumCase],
 ) {
