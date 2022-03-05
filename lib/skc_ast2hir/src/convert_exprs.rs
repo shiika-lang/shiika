@@ -194,7 +194,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ty::raw("Void")
         } else {
             let opt_ty = self
-                .class_dict
+                .module_dict
                 .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
             let ty = type_checking::check_if_body_ty(opt_ty)?;
             if !then_hirs.ty.equals_to(&ty) {
@@ -296,7 +296,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if self.ctx_stack.lambda_ctx().is_some() {
             // TODO: check arg_ty matches to fn's return type
         } else if let Some(method_ctx) = &self.ctx_stack.method_ctx() {
-            type_checking::check_return_arg_type(&self.class_dict, arg_ty, &method_ctx.signature)?;
+            type_checking::check_return_arg_type(&self.module_dict, arg_ty, &method_ctx.signature)?;
         }
         Ok(())
     }
@@ -319,7 +319,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             // Reassigning
             if lvar_info.ty != expr.ty {
                 if let Some(t) = self
-                    .class_dict
+                    .module_dict
                     .nearest_common_ancestor(&lvar_info.ty, &expr.ty)
                 {
                     // Upgrade lvar type (eg. from `None` to `Maybe<Int>`)
@@ -354,7 +354,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             return Ok(Hir::ivar_assign(name, idx, expr, *is_var, base_ty));
         }
 
-        if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
+        if let Some(ivar) = self.module_dict.find_ivar(&base_ty.fullname, name) {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -455,7 +455,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for arg in type_args {
             method_tyargs.push(self._resolve_method_tyarg(arg)?);
         }
-        let (sig, found_class_name) = self.class_dict.lookup_method(
+        let (sig, found_class_name) = self.module_dict.lookup_method(
             &receiver_hir.ty,
             method_name,
             method_tyargs.as_slice(),
@@ -485,7 +485,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let specialized = receiver_hir.ty.is_specialized();
         let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
         type_checking::check_method_args(
-            &self.class_dict,
+            &self.module_dict,
             &sig,
             &arg_tys,
             &receiver_hir,
@@ -519,10 +519,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         is_fn: &bool,
     ) -> Result<HirExpression> {
         let namespace = self.ctx_stack.const_scopes().next().unwrap();
-        let hir_params = self.class_dict.convert_params(
+        let hir_params = self.module_dict.convert_params(
             &namespace,
             params,
-            &self.ctx_stack.current_class_typarams(),
+            &self.ctx_stack.current_module_typarams(),
             &self.ctx_stack.current_method_typarams(),
         )?;
 
@@ -596,7 +596,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Search method
         let self_expr = self.convert_self_expr();
         let found = self
-            .class_dict
+            .module_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
         if let Ok((sig, found_class_name)) = found {
             self._make_method_call(self_expr, vec![], sig, found_class_name)
@@ -711,7 +711,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression> {
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
-            .class_dict
+            .module_dict
             .find_ivar(&base_ty.fullname, name)
             .or_else(|| {
                 self.ctx_stack
@@ -796,7 +796,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(Hir::method_call(
             meta_spe_ty,
             base_expr,
-            method_fullname(&class_fullname("Class"), "<>"),
+            method_fullname(&module_fullname("Class"), "<>"),
             vec![self.create_array_instance_(arg_exprs, ty::raw("Class"))],
         ))
     }
@@ -852,7 +852,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         for expr in item_exprs {
             item_ty = self
-                .class_dict
+                .module_dict
                 .nearest_common_ancestor(&item_ty, &expr.ty)
                 .expect("array literal elements type mismatch");
         }

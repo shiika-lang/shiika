@@ -40,7 +40,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub i64_type: inkwell::types::IntType<'ictx>,
     pub f64_type: inkwell::types::FloatType<'ictx>,
     pub void_type: inkwell::types::VoidType<'ictx>,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
+    pub llvm_struct_types: HashMap<ModuleFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     vtables: &'hir VTables,
     imported_vtables: &'hir VTables,
@@ -162,7 +162,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Define llvm struct type for `Class` in advance
     fn define_class_class(&mut self) {
         self.llvm_struct_types.insert(
-            class_fullname("Class"),
+            module_fullname("Class"),
             self.context.opaque_struct_type("Class"),
         );
     }
@@ -217,10 +217,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate vtable constants
     fn gen_vtables(&self) {
-        for (class_fullname, vtable) in self.vtables.iter() {
+        for (module_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
             let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-            let tmp = llvm_vtable_const_name(class_fullname);
+            let tmp = llvm_vtable_const_name(module_fullname);
             let global = self.module.add_global(ary_type, None, &tmp);
             global.set_constant(true);
             let func_ptrs = method_names
@@ -307,7 +307,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
         self.builder.build_unconditional_branch(create_main_block);
         self.builder.position_at_end(create_main_block);
-        self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
+        self.the_main = Some(self.allocate_sk_obj(&module_fullname("Object"), "main"));
 
         // UserMain:
         let user_main_block = self.context.append_basic_block(function, "UserMain");
@@ -346,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn gen_class_structs(&mut self, classes: &HashMap<ModuleFullname, SkClass>) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
         for name in classes.keys() {
             self.llvm_struct_types
@@ -357,7 +357,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Set fields for ivars
-    fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn define_class_struct_fields(&self, classes: &HashMap<ModuleFullname, SkClass>) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
         for (name, class) in classes {
@@ -456,7 +456,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create inkwell functions
-    fn gen_method_funcs(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
+    fn gen_method_funcs(&self, methods: &HashMap<ModuleFullname, Vec<SkMethod>>) {
         methods.iter().for_each(|(cname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = cname.to_ty();
@@ -501,7 +501,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<()> {
+    fn gen_methods(&self, methods: &'hir HashMap<ModuleFullname, Vec<SkMethod>>) -> Result<()> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
@@ -701,20 +701,20 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_body_of_new(
         &self,
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
-        class_fullname: &ClassFullname,
+        module_fullname: &ModuleFullname,
         initialize_name: &MethodFullname,
         // The class whose `#initialize` should be called from this `.new`
-        // (If the class have its own `#initialize`, this is equal to `class_fullname`)
-        init_cls_name: &ClassFullname,
+        // (If the class have its own `#initialize`, this is equal to `module_fullname`)
+        init_cls_name: &ModuleFullname,
         arity: usize,
         _const_is_obj: bool,
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
         let class_obj = SkClassObj(llvm_func_args[0]);
-        let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
+        let obj = self._allocate_sk_obj(module_fullname, "addr", class_obj);
 
         // Call initialize
-        let addr = if init_cls_name == class_fullname {
+        let addr = if init_cls_name == module_fullname {
             obj.clone()
         } else {
             // `initialize` is defined in an ancestor class. Bitcast is needed

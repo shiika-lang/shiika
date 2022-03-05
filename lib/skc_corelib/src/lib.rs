@@ -140,16 +140,16 @@ fn rust_body_items() -> Vec<ClassItem> {
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (
-    HashMap<ClassFullname, SkClass>,
-    HashMap<ClassFullname, Vec<SkMethod>>,
+    HashMap<ModuleFullname, SkClass>,
+    HashMap<ModuleFullname, Vec<SkMethod>>,
 ) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
         sk_classes.insert(
-            ClassFullname(name.to_string()),
+            ModuleFullname(name.to_string()),
             SkClass {
-                fullname: class_fullname(&name),
+                fullname: module_fullname(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 superclass,
                 instance_ty: ty::raw(&name),
@@ -163,16 +163,16 @@ fn make_classes(
                 foreign: false,
             },
         );
-        sk_methods.insert(class_fullname(&name), imethods);
+        sk_methods.insert(module_fullname(&name), imethods);
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
             let meta_ivars = class::ivars();
             sk_classes.insert(
-                metaclass_fullname(&name),
+                metamodule_fullname(&name),
                 SkClass {
-                    fullname: metaclass_fullname(&name),
+                    fullname: metamodule_fullname(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     superclass: Some(Superclass::simple("Class")),
                     instance_ty: ty::meta(&name),
@@ -186,7 +186,7 @@ fn make_classes(
                     foreign: false,
                 },
             );
-            sk_methods.insert(metaclass_fullname(&name), cmethods);
+            sk_methods.insert(metamodule_fullname(&name), cmethods);
         }
     }
     (sk_classes, sk_methods)
@@ -194,11 +194,11 @@ fn make_classes(
 
 fn _convert_typ(
     typ: &ConstName,
-    class_typarams: &[String],
+    module_typarams: &[String],
     method_typarams: &[shiika_ast::AstTyParam],
 ) -> ty::TermTy {
     let s = typ.names.join("::");
-    if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
+    if let Some(idx) = module_typarams.iter().position(|t| s == *t) {
         ty::typaram_ref(s, ty::TyParamKind::Class, idx).into_term_ty()
     } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
         ty::typaram_ref(s, ty::TyParamKind::Method, idx).into_term_ty()
@@ -206,7 +206,7 @@ fn _convert_typ(
         let tyargs = typ
             .args
             .iter()
-            .map(|arg| _convert_typ(arg, class_typarams, method_typarams))
+            .map(|arg| _convert_typ(arg, module_typarams, method_typarams))
             .collect::<Vec<_>>();
         ty::nonmeta(&typ.names, tyargs)
     }

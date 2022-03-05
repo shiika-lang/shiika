@@ -1,4 +1,4 @@
-use crate::class_dict::ClassDict;
+use crate::module_dict::ModuleDict;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
 use skc_hir::*;
@@ -10,7 +10,7 @@ macro_rules! type_error {
 }
 
 pub fn check_return_value(
-    class_dict: &ClassDict,
+    module_dict: &ModuleDict,
     sig: &MethodSignature,
     ty: &TermTy,
 ) -> Result<()> {
@@ -29,7 +29,7 @@ pub fn check_return_value(
         }
         _ => sig.ret_ty.clone(),
     };
-    if class_dict.conforms(ty, &want) {
+    if module_dict.conforms(ty, &want) {
         Ok(())
     } else {
         Err(type_error!(
@@ -70,11 +70,11 @@ pub fn check_if_body_ty(opt_ty: Option<TermTy>) -> Result<TermTy> {
 
 /// Check the type of the argument of `return`
 pub fn check_return_arg_type(
-    class_dict: &ClassDict,
+    module_dict: &ModuleDict,
     return_arg_ty: &TermTy,
     method_sig: &MethodSignature,
 ) -> Result<()> {
-    if class_dict.conforms(return_arg_ty, &method_sig.ret_ty) {
+    if module_dict.conforms(return_arg_ty, &method_sig.ret_ty) {
         Ok(())
     } else {
         Err(type_error!(
@@ -97,14 +97,14 @@ pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> 
 
 /// Check argument types of a method call
 pub fn check_method_args(
-    class_dict: &ClassDict,
+    module_dict: &ModuleDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
     receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
 ) -> Result<()> {
     check_method_arity(sig, arg_tys, receiver_hir, arg_hirs)?;
-    check_arg_types(class_dict, sig, arg_tys, receiver_hir, arg_hirs)?;
+    check_arg_types(module_dict, sig, arg_tys, receiver_hir, arg_hirs)?;
     Ok(())
 }
 
@@ -130,14 +130,14 @@ fn check_method_arity(
 
 /// Check types of method call args
 fn check_arg_types(
-    class_dict: &ClassDict,
+    module_dict: &ModuleDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
     receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
 ) -> Result<()> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
-        if !class_dict.conforms(arg_ty, &param.ty) {
+        if !module_dict.conforms(arg_ty, &param.ty) {
             // Remove this when shiika can show the location in the .sk
             dbg!(&receiver_hir);
             dbg!(&sig.fullname);

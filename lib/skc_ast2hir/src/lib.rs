@@ -1,6 +1,6 @@
 #![feature(backtrace)]
 mod accessors;
-pub mod class_dict;
+pub mod module_dict;
 mod convert_exprs;
 mod ctx_stack;
 mod error;
@@ -27,14 +27,14 @@ pub fn make_hir(
     } else {
         (Default::default(), Default::default())
     };
-    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
+    let module_dict = module_dict::create(&ast, core_classes, &imports.sk_classes)?;
 
-    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
+    let mut hir_maker = HirMaker::new(module_dict, &imports.constants);
     hir_maker.define_class_constants();
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
-    // While corelib classes are included in `class_dict`,
+    // While corelib classes are included in `module_dict`,
     // corelib methods are not. Here we need to add them manually
     hir.add_methods(core_methods);
 

@@ -1,4 +1,4 @@
-use crate::names::class_fullname;
+use crate::names::module_fullname;
 use crate::ty::lit_ty::LitTy;
 use crate::ty::term_ty::{TermTy, TyBody};
 use serde::{Deserialize, Serialize};
@@ -39,7 +39,7 @@ impl TyParamRef {
     pub fn into_term_ty(self) -> TermTy {
         TermTy {
             // TODO: self.name (eg. "T") is not a class name. Should remove fullname from TermTy?
-            fullname: class_fullname(&self.name),
+            fullname: module_fullname(&self.name),
             body: TyBody::TyPara(self),
         }
     }

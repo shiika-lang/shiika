@@ -14,7 +14,7 @@ impl Superclass {
     }
 
     /// Create a (possiblly generic) `Superclass`
-    pub fn new(base_name: &ClassFullname, tyargs: Vec<TermTy>) -> Superclass {
+    pub fn new(base_name: &ModuleFullname, tyargs: Vec<TermTy>) -> Superclass {
         let t = if tyargs.is_empty() {
             ty::raw(&base_name.0)
         } else {

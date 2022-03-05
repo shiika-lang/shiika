@@ -15,7 +15,7 @@ pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool)
     debug_assert!(!base_name.is_empty());
     debug_assert!(!base_name.starts_with("Meta:"));
     debug_assert!(!base_name.contains('<'));
-    let fullname = ClassFullname::new(
+    let fullname = ModuleFullname::new(
         format!("{}{}", &base_name, &tyargs_str(&type_args)),
         is_meta,
     );
@@ -51,7 +51,7 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 /// Create the type of return value of `.new` method of the class
-pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> TermTy {
+pub fn return_type_of_new(classname: &ModuleFullname, typarams: &[TyParam]) -> TermTy {
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {

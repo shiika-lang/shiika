@@ -6,7 +6,7 @@ use std::collections::HashMap;
 #[allow(clippy::large_enum_variant)]
 pub enum HirMakerContext {
     Toplevel(ToplevelCtx),
-    Class(ClassCtx),
+    Module(ModuleCtx),
     Method(MethodCtx),
     Lambda(LambdaCtx),
     While(WhileCtx),
@@ -18,7 +18,7 @@ impl HirMakerContext {
     pub fn opt_lvars(&mut self) -> Option<&mut CtxLVars> {
         match self {
             HirMakerContext::Toplevel(c) => Some(&mut c.lvars),
-            HirMakerContext::Class(c) => Some(&mut c.lvars),
+            HirMakerContext::Module(c) => Some(&mut c.lvars),
             HirMakerContext::Method(c) => Some(&mut c.lvars),
             HirMakerContext::Lambda(c) => Some(&mut c.lvars),
             HirMakerContext::MatchClause(_) => None,
@@ -33,7 +33,7 @@ impl HirMakerContext {
     }
 
     pub fn class(namespace: Namespace, typarams: Vec<TyParam>) -> HirMakerContext {
-        HirMakerContext::Class(ClassCtx {
+        HirMakerContext::Module(ModuleCtx {
             namespace,
             typarams,
             lvars: Default::default(),
@@ -78,7 +78,7 @@ pub struct ToplevelCtx {
 }
 
 #[derive(Debug)]
-pub struct ClassCtx {
+pub struct ModuleCtx {
     /// Current namespace
     pub namespace: Namespace,
     /// Names of class type parameters

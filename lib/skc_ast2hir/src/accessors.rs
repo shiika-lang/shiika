@@ -6,7 +6,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Define getters and setters (unless there is a method of the same name)
     pub(super) fn define_accessors(
         &mut self,
-        clsname: &ClassFullname,
+        clsname: &ModuleFullname,
         ivars: SkIVars,
         defs: &[shiika_ast::Definition],
     ) {
@@ -26,7 +26,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let getter = create_getter(clsname, ivar);
                 let sig = getter.signature.clone();
                 self.method_dict.add_method(clsname, getter);
-                self.class_dict.add_method(clsname, sig);
+                self.module_dict.add_method(clsname, sig);
             }
 
             let setter_name = format!("{}=", accessor_name);
@@ -34,13 +34,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let setter = create_setter(clsname, ivar);
                 let sig = setter.signature.clone();
                 self.method_dict.add_method(clsname, setter);
-                self.class_dict.add_method(clsname, sig);
+                self.module_dict.add_method(clsname, sig);
             }
         }
     }
 }
 
-fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
+fn create_getter(clsname: &ModuleFullname, ivar: &SkIVar) -> SkMethod {
     let sig = MethodSignature {
         fullname: method_fullname(clsname, &ivar.accessor_name()),
         ret_ty: ivar.ty.clone(),
@@ -57,7 +57,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     }
 }
 
-fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
+fn create_setter(clsname: &ModuleFullname, ivar: &SkIVar) -> SkMethod {
     let accessor_name = ivar.accessor_name();
     let setter_name = format!("{}=", accessor_name);
     let sig = MethodSignature {

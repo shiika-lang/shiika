@@ -1,4 +1,4 @@
-use crate::class_dict::*;
+use crate::module_dict::*;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
-impl<'hir_maker> ClassDict<'hir_maker> {
+impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Register a class
     pub fn add_class(&mut self, class: SkClass) {
         self.sk_classes.insert(class.fullname.clone(), class);
@@ -18,7 +18,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Add a method
     /// Used to add auto-defined accessors
-    pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
+    pub fn add_method(&mut self, clsname: &ModuleFullname, sig: MethodSignature) {
         let sk_class = self.sk_classes.get_mut(clsname).unwrap();
         sk_class
             .method_sigs
@@ -58,13 +58,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_class(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<ty::TyParam>,
         ast_superclass: &Option<ConstName>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
-        let metaclass_fullname = fullname.meta_name();
+        let fullname = namespace.module_fullname(firstname);
+        let metamodule_fullname = fullname.meta_name();
         let superclass = if let Some(name) = ast_superclass {
             let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
 
@@ -79,7 +79,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None
         } else {
             Some(signature::signature_of_new(
-                &metaclass_fullname,
+                &metamodule_fullname,
                 self._initializer_params(namespace, &typarams, &superclass, defs)?,
                 &ty::return_type_of_new(&fullname, &typarams),
             ))
@@ -97,11 +97,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 class.method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_classes
-                    .get_mut(&metaclass_fullname)
+                    .get_mut(&metamodule_fullname)
                     .unwrap_or_else(|| {
                         panic!(
                             "[BUG] metaclass not found: {} <- {}",
-                            fullname, &metaclass_fullname
+                            fullname, &metamodule_fullname
                         )
                     });
                 metaclass.method_sigs.extend(class_methods);
@@ -155,12 +155,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_enum(
         &mut self,
         namespace: &Namespace,
-        firstname: &ClassFirstname,
+        firstname: &ModuleFirstname,
         typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
+        let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
@@ -184,7 +184,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_enum_case(
         &mut self,
         namespace: &Namespace,
-        enum_fullname: &ClassFullname,
+        enum_fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         case: &shiika_ast::EnumCase,
     ) -> Result<()> {
@@ -240,7 +240,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn index_defs_in_class(
         &mut self,
         namespace: &Namespace,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
@@ -288,7 +288,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         superclass: Superclass,
         new_sig: Option<MethodSignature>,
@@ -315,7 +315,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
 
         // Create metaclass (which is a subclass of `Class`)
-        let the_class = self.get_class(&class_fullname("Class"));
+        let the_class = self.get_class(&module_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
             fullname: fullname.meta_name(),
@@ -334,14 +334,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn create_signature(
         &self,
         namespace: &Namespace,
-        class_fullname: &ClassFullname,
+        module_fullname: &ModuleFullname,
         sig: &shiika_ast::AstMethodSignature,
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
-        let fullname = method_fullname(class_fullname, &sig.name.0);
+        let fullname = method_fullname(module_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
-            self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
+            self._resolve_typename(namespace, module_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
         };
@@ -351,7 +351,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             params: self.convert_params(
                 namespace,
                 &sig.params,
-                class_typarams,
+                module_typarams,
                 &method_typarams,
             )?,
             typarams: method_typarams,
@@ -363,7 +363,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         ast_params: &[shiika_ast::Param],
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
     ) -> Result<Vec<MethodParam>> {
         let mut hir_params = vec![];
@@ -372,7 +372,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 name: param.name.to_string(),
                 ty: self._resolve_typename(
                     namespace,
-                    class_typarams,
+                    module_typarams,
                     method_typarams,
                     &param.typ,
                 )?,
@@ -385,14 +385,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn _resolve_typename(
         &self,
         namespace: &Namespace,
-        class_typarams: &[ty::TyParam],
+        module_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
         name: &ConstName,
     ) -> Result<TermTy> {
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
-            if let Some(idx) = class_typarams.iter().position(|t| *s == t.name) {
+            if let Some(idx) = module_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram_ref(s, TyParamKind::Class, idx).into_term_ty());
             } else if let Some(idx) = method_typarams.iter().position(|t| *s == t.name) {
                 return Ok(ty::typaram_ref(s, TyParamKind::Method, idx).into_term_ty());
@@ -401,7 +401,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // Otherwise:
         let mut tyargs = vec![];
         for arg in &name.args {
-            tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
+            tyargs.push(self._resolve_typename(namespace, module_typarams, method_typarams, arg)?);
         }
         let (resolved_base, base_typarams) =
             self._resolve_simple_typename(namespace, &name.names)?;
@@ -425,7 +425,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if let Some(typarams) = self.class_index.get(&class_fullname(resolved.join("::"))) {
+            if let Some(typarams) = self.module_index.get(&module_fullname(resolved.join("::"))) {
                 return Ok((resolved, typarams));
             }
         }
@@ -438,7 +438,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
 /// Returns superclass of a enum case
 fn enum_case_superclass(
-    enum_fullname: &ClassFullname,
+    enum_fullname: &ModuleFullname,
     typarams: &[ty::TyParam],
     case: &shiika_ast::EnumCase,
 ) -> Superclass {
@@ -464,7 +464,7 @@ fn enum_case_superclass(
 fn enum_case_new_sig(
     ivar_list: &[SkIVar],
     typarams: &[ty::TyParam],
-    fullname: &ClassFullname,
+    fullname: &ModuleFullname,
 ) -> (MethodSignature, MethodSignature) {
     let params = ivar_list
         .iter()
@@ -490,7 +490,7 @@ fn enum_case_new_sig(
 }
 
 /// Create signatures of getters of an enum case
-fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
+fn enum_case_getters(case_fullname: &ModuleFullname, ivars: &[SkIVar]) -> MethodSignatures {
     ivars
         .iter()
         .map(|ivar| {

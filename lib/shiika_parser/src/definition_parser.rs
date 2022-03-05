@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
         // Class name
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = class_firstname(s);
+                name = module_firstname(s);
                 self.consume_token()?;
             }
             token => {
@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
         // Enum class name
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = class_firstname(s);
+                name = module_firstname(s);
                 self.consume_token()?;
             }
             token => {
@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
         let name;
         match self.current_token() {
             Token::UpperWord(s) => {
-                name = class_firstname(s);
+                name = module_firstname(s);
                 self.consume_token()?;
             }
             token => {

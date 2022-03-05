@@ -81,7 +81,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get vtable of the class of the given name
-    pub fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
+    pub fn get_vtable_of_class(&self, classname: &ModuleFullname) -> VTableRef<'run> {
         let vtable_const_name = llvm_vtable_const_name(classname);
         let llvm_ary_ptr = self
             .module
@@ -170,14 +170,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate call of malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> SkObj<'run> {
-        let class_obj = self.load_class_object(class_fullname);
-        self._allocate_sk_obj(class_fullname, reg_name, class_obj)
+    pub fn allocate_sk_obj(&self, module_fullname: &ModuleFullname, reg_name: &str) -> SkObj<'run> {
+        let class_obj = self.load_class_object(module_fullname);
+        self._allocate_sk_obj(module_fullname, reg_name, class_obj)
     }
 
     /// Load a class object
-    pub fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
-        let class_const_name = format!("::{}", class_fullname.0);
+    pub fn load_class_object(&self, module_fullname: &ModuleFullname) -> SkClassObj<'run> {
+        let class_const_name = format!("::{}", module_fullname.0);
         let class_obj_addr = self
             .module
             .get_global(&class_const_name)
@@ -188,11 +188,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn _allocate_sk_obj(
         &self,
-        class_fullname: &ClassFullname,
+        module_fullname: &ModuleFullname,
         reg_name: &str,
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
-        let object_type = self.llvm_struct_type(class_fullname);
+        let object_type = self.llvm_struct_type(module_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
             .size_of()
@@ -211,7 +211,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let obj = SkObj(self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name));
 
         // Store reference to vtable
-        self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
+        self.set_vtable_of_obj(&obj, self.get_vtable_of_class(module_fullname));
         // Store reference to class obj
         self.set_class_of_obj(&obj, class_obj);
 
@@ -307,7 +307,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get the llvm struct type for a class
-    fn llvm_struct_type(&self, name: &ClassFullname) -> &inkwell::types::StructType<'ictx> {
+    fn llvm_struct_type(&self, name: &ModuleFullname) -> &inkwell::types::StructType<'ictx> {
         self.llvm_struct_types
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", name))
@@ -326,7 +326,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 }
 
 /// Name of llvm constant of a vtable
-pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
+pub(super) fn llvm_vtable_const_name(classname: &ModuleFullname) -> String {
     format!("shiika_vtable_{}", classname.0)
 }
 

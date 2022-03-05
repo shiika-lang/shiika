@@ -1,17 +1,17 @@
-use crate::class_dict::*;
+use crate::module_dict::*;
 use crate::error;
 use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
-impl<'hir_maker> ClassDict<'hir_maker> {
+impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Find a method from class name and first name
     pub fn find_method(
         &self,
-        class_fullname: &ClassFullname,
+        module_fullname: &ModuleFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
-        self.lookup_class(class_fullname)
+        self.lookup_class(module_fullname)
             .and_then(|class| class.method_sigs.get(method_name))
     }
 
@@ -35,7 +35,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
         let ty_obj = ty::raw("Object");
-        let (class, class_tyargs) = match &class.body {
+        let (class, module_tyargs) = match &class.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
                 let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
                 (base_cls, type_args.as_slice())
@@ -43,7 +43,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             TyBody::TyPara(_) => (&ty_obj, Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
+            Ok((sig.specialize(module_tyargs, method_tyargs), class.clone()))
         } else {
             // Look up in superclass
             let sk_class = self.get_class(&class.erasure());
@@ -59,33 +59,33 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, module_fullname: &ModuleFullname) -> Option<&SkClass> {
         self.sk_classes
-            .get(class_fullname)
-            .or_else(|| self.imported_classes.get(class_fullname))
+            .get(module_fullname)
+            .or_else(|| self.imported_classes.get(module_fullname))
     }
 
     /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
-    pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
-        self.lookup_class(class_fullname)
-            .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
+    pub fn get_class(&self, module_fullname: &ModuleFullname) -> &SkClass {
+        self.lookup_class(module_fullname)
+            .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &module_fullname.0))
     }
 
     /// Find a class. Panic if not found
-    pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
-        if let Some(c) = self.sk_classes.get_mut(class_fullname) {
+    pub fn get_class_mut(&mut self, module_fullname: &ModuleFullname) -> &mut SkClass {
+        if let Some(c) = self.sk_classes.get_mut(module_fullname) {
             c
-        } else if self.imported_classes.contains_key(class_fullname) {
-            panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
+        } else if self.imported_classes.contains_key(module_fullname) {
+            panic!("[BUG] cannot get_mut imported class `{}'", module_fullname)
         } else {
-            panic!("[BUG] class `{}' not found", class_fullname)
+            panic!("[BUG] class `{}' not found", module_fullname)
         }
     }
 
     /// Return true if there is a class of the name
     pub fn class_exists(&self, fullname: &str) -> bool {
-        self.lookup_class(&class_fullname(fullname)).is_some()
+        self.lookup_class(&module_fullname(fullname)).is_some()
     }
 
     /// Returns supertype of `ty` (except it is `Object`)
@@ -205,7 +205,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
     }
 
-    pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
+    pub fn find_ivar(&self, classname: &ModuleFullname, ivar_name: &str) -> Option<&SkIVar> {
         let class = self.sk_classes.get(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] finding ivar `{}' but the class '{}' not found",
@@ -216,7 +216,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Returns instance variables of the superclass of `classname`
-    pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
+    pub fn superclass_ivars(&self, classname: &ModuleFullname) -> Option<SkIVars> {
         self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
             let ivars = &self.get_class(&ty.erasure()).ivars;
@@ -232,27 +232,27 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 #[cfg(test)]
 mod tests {
     use crate::error::Error;
-    use crate::hir::class_dict::ClassDict;
+    use crate::hir::module_dict::ModuleDict;
     use crate::ty;
 
-    fn test_class_dict<F>(s: &str, f: F) -> Result<()>
+    fn test_module_dict<F>(s: &str, f: F) -> Result<()>
     where
-        F: FnOnce(ClassDict),
+        F: FnOnce(ModuleDict),
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
-        let class_dict =
-            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_classes)?;
-        f(class_dict);
+        let module_dict =
+            crate::hir::module_dict::create(&ast, Default::default(), &core.sk_classes)?;
+        f(module_dict);
         Ok(())
     }
 
     #[test]
     fn test_supertype_default() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::ary(ty::raw("Int"))),
+                module_dict.supertype(&ty::ary(ty::raw("Int"))),
                 Some(ty::raw("Object"))
             )
         })
@@ -264,9 +264,9 @@ mod tests {
           class A<S, T> : Array<T>
           end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
+                module_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
                 Some(ty::ary(ty::raw("Bool")))
             )
         })
@@ -278,10 +278,10 @@ mod tests {
             class MyMaybe<T>; end
             class MySome<T> : MyMaybe<T>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(class_dict.conforms(&some_int, &maybe_int));
+            assert!(module_dict.conforms(&some_int, &maybe_int));
         })
     }
 
@@ -291,30 +291,30 @@ mod tests {
             class MyMaybe<T>; end
             class MyNone : MyMaybe<Never>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let none = ty::raw("MyNone");
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(class_dict.conforms(&none, &maybe_int));
+            assert!(module_dict.conforms(&none, &maybe_int));
         })
     }
 
     #[test]
     fn test_conforms_covariant() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let m_int = ty::spe("Maybe", vec![ty::raw("Int")]);
             let m_never = ty::spe("Maybe", vec![ty::raw("Never")]);
-            assert!(class_dict.conforms(&m_never, &m_int));
+            assert!(module_dict.conforms(&m_never, &m_int));
         })
     }
 
     #[test]
     fn test_conforms_invalid() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::raw("Bool");
-            assert!(!class_dict.conforms(&a, &b));
+            assert!(!module_dict.conforms(&a, &b));
         })
     }
 
@@ -324,32 +324,32 @@ mod tests {
             class A : Array<Int>; end
             class B : Array<Bool>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("A");
             let b = ty::raw("B");
-            assert!(!class_dict.conforms(&a, &b));
+            assert!(!module_dict.conforms(&a, &b));
         })
     }
 
     #[test]
     fn test_conforms_void_func() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::spe("Fn0", vec![ty::raw("Int")]);
             let b = ty::spe("Fn0", vec![ty::raw("Void")]);
-            assert!(class_dict.conforms(&a, &b));
+            assert!(module_dict.conforms(&a, &b));
         })
     }
 
     #[test]
     fn test_nearest_common_ancestor__some() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Maybe::None");
             let b = ty::spe("Maybe::Some", vec![ty::raw("Int")]);
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
-            let d = class_dict.nearest_common_ancestor(&b, &a);
+            let d = module_dict.nearest_common_ancestor(&b, &a);
             assert_eq!(d, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
         })
     }
@@ -357,10 +357,10 @@ mod tests {
     #[test]
     fn test_nearest_common_ancestor__some_object() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::raw("Object");
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, Some(ty::raw("Object")));
         })
     }
@@ -368,10 +368,10 @@ mod tests {
     #[test]
     fn test_nearest_common_ancestor__none() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::spe("Array", vec![ty::raw("Int")]);
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, None);
         })
     }
