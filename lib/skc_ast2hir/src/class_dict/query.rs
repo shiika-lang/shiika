@@ -1,4 +1,4 @@
-use crate::class_dict::*;
+use crate::module_dict::*;
 use crate::error;
 use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};
@@ -232,27 +232,27 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
 #[cfg(test)]
 mod tests {
     use crate::error::Error;
-    use crate::hir::class_dict::ModuleDict;
+    use crate::hir::module_dict::ModuleDict;
     use crate::ty;
 
-    fn test_class_dict<F>(s: &str, f: F) -> Result<()>
+    fn test_module_dict<F>(s: &str, f: F) -> Result<()>
     where
         F: FnOnce(ModuleDict),
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
-        let class_dict =
-            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_classes)?;
-        f(class_dict);
+        let module_dict =
+            crate::hir::module_dict::create(&ast, Default::default(), &core.sk_classes)?;
+        f(module_dict);
         Ok(())
     }
 
     #[test]
     fn test_supertype_default() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::ary(ty::raw("Int"))),
+                module_dict.supertype(&ty::ary(ty::raw("Int"))),
                 Some(ty::raw("Object"))
             )
         })
@@ -264,9 +264,9 @@ mod tests {
           class A<S, T> : Array<T>
           end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
+                module_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
                 Some(ty::ary(ty::raw("Bool")))
             )
         })
@@ -278,10 +278,10 @@ mod tests {
             class MyMaybe<T>; end
             class MySome<T> : MyMaybe<T>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let some_int = ty::spe("MySome", vec![ty::raw("Int")]);
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(class_dict.conforms(&some_int, &maybe_int));
+            assert!(module_dict.conforms(&some_int, &maybe_int));
         })
     }
 
@@ -291,30 +291,30 @@ mod tests {
             class MyMaybe<T>; end
             class MyNone : MyMaybe<Never>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let none = ty::raw("MyNone");
             let maybe_int = ty::spe("MyMaybe", vec![ty::raw("Int")]);
-            assert!(class_dict.conforms(&none, &maybe_int));
+            assert!(module_dict.conforms(&none, &maybe_int));
         })
     }
 
     #[test]
     fn test_conforms_covariant() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let m_int = ty::spe("Maybe", vec![ty::raw("Int")]);
             let m_never = ty::spe("Maybe", vec![ty::raw("Never")]);
-            assert!(class_dict.conforms(&m_never, &m_int));
+            assert!(module_dict.conforms(&m_never, &m_int));
         })
     }
 
     #[test]
     fn test_conforms_invalid() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::raw("Bool");
-            assert!(!class_dict.conforms(&a, &b));
+            assert!(!module_dict.conforms(&a, &b));
         })
     }
 
@@ -324,32 +324,32 @@ mod tests {
             class A : Array<Int>; end
             class B : Array<Bool>; end
         ";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("A");
             let b = ty::raw("B");
-            assert!(!class_dict.conforms(&a, &b));
+            assert!(!module_dict.conforms(&a, &b));
         })
     }
 
     #[test]
     fn test_conforms_void_func() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::spe("Fn0", vec![ty::raw("Int")]);
             let b = ty::spe("Fn0", vec![ty::raw("Void")]);
-            assert!(class_dict.conforms(&a, &b));
+            assert!(module_dict.conforms(&a, &b));
         })
     }
 
     #[test]
     fn test_nearest_common_ancestor__some() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Maybe::None");
             let b = ty::spe("Maybe::Some", vec![ty::raw("Int")]);
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
-            let d = class_dict.nearest_common_ancestor(&b, &a);
+            let d = module_dict.nearest_common_ancestor(&b, &a);
             assert_eq!(d, Some(ty::spe("Maybe", vec![ty::raw("Int")])));
         })
     }
@@ -357,10 +357,10 @@ mod tests {
     #[test]
     fn test_nearest_common_ancestor__some_object() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::raw("Object");
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, Some(ty::raw("Object")));
         })
     }
@@ -368,10 +368,10 @@ mod tests {
     #[test]
     fn test_nearest_common_ancestor__none() -> Result<()> {
         let src = "";
-        test_class_dict(src, |class_dict| {
+        test_module_dict(src, |module_dict| {
             let a = ty::raw("Int");
             let b = ty::spe("Array", vec![ty::raw("Int")]);
-            let c = class_dict.nearest_common_ancestor(&a, &b);
+            let c = module_dict.nearest_common_ancestor(&a, &b);
             assert_eq!(c, None);
         })
     }

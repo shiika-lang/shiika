@@ -1,4 +1,4 @@
-use crate::class_dict::ModuleDict;
+use crate::module_dict::ModuleDict;
 use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct HirMaker<'hir_maker> {
     /// List of classes found so far
-    pub(super) class_dict: ModuleDict<'hir_maker>,
+    pub(super) module_dict: ModuleDict<'hir_maker>,
     /// List of methods found so far
     pub(super) method_dict: MethodDict,
     /// List of constants found so far
@@ -35,11 +35,11 @@ pub struct HirMaker<'hir_maker> {
 
 impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn new(
-        class_dict: ModuleDict<'hir_maker>,
+        module_dict: ModuleDict<'hir_maker>,
         imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
     ) -> HirMaker<'hir_maker> {
         HirMaker {
-            class_dict,
+            module_dict,
             method_dict: MethodDict::new(),
             constants: HashMap::new(),
             imported_constants,
@@ -54,7 +54,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Destructively convert self to Hir
     pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
-        let sk_classes = std::mem::take(&mut self.class_dict.sk_classes);
+        let sk_classes = std::mem::take(&mut self.module_dict.sk_classes);
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
@@ -81,7 +81,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
-        for (name, const_is_obj) in self.class_dict.constant_list() {
+        for (name, const_is_obj) in self.module_dict.constant_list() {
             let resolved = ResolvedConstName::unsafe_create(name);
             if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
@@ -151,7 +151,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             shiika_ast::Definition::ConstDefinition { name, expr } => {
                 self.register_toplevel_const(name, expr)?;
             }
-            _ => panic!("should be checked in hir::class_dict"),
+            _ => panic!("should be checked in hir::module_dict"),
         }
         Ok(())
     }
@@ -178,7 +178,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
-            self.class_dict.define_ivars(&fullname, own_ivars.clone());
+            self.module_dict.define_ivars(&fullname, own_ivars.clone());
             self.define_accessors(&fullname, own_ivars, defs);
         }
 
@@ -281,14 +281,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
-        let super_ivars = self.class_dict.superclass_ivars(module_fullname);
+        let super_ivars = self.module_dict.superclass_ivars(module_fullname);
         self.convert_method_def_(module_fullname, name, body_exprs, super_ivars)
     }
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
         let (initialize_name, init_cls_name) = self._find_initialize(&class_name)?;
-        let (signature, _) = self.class_dict.lookup_method(
+        let (signature, _) = self.module_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
             Default::default(),
@@ -309,7 +309,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ModuleFullname)> {
-        let (_, found_cls) = self.class_dict.lookup_method(
+        let (_, found_cls) = self.module_dict.lookup_method(
             class,
             &method_firstname("initialize"),
             Default::default(),
@@ -361,10 +361,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>)> {
-        // MethodSignature is built beforehand by class_dict::new
+        // MethodSignature is built beforehand by module_dict::new
         let err = format!("[BUG] signature not found ({}/{})", module_fullname, name);
         let signature = self
-            .class_dict
+            .module_dict
             .find_method(module_fullname, name)
             .expect(&err)
             .clone();
@@ -378,7 +378,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
-        type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
+        type_checking::check_return_value(&self.module_dict, &signature, &hir_exprs.ty)?;
 
         let method = SkMethod {
             signature,
@@ -432,7 +432,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register #initialize
         let signature = self
-            .class_dict
+            .module_dict
             .find_method(&fullname, &method_firstname("initialize"))
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
@@ -455,7 +455,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.method_dict.add_method(&fullname, initialize);
 
         // Register accessors
-        let ivars = self.class_dict.get_class(&fullname).ivars.clone();
+        let ivars = self.module_dict.get_class(&fullname).ivars.clone();
         self.define_accessors(&fullname, ivars, Default::default());
 
         // Register .new

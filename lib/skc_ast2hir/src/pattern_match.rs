@@ -90,7 +90,7 @@ fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy> 
     } else {
         let mut ty = clauses[0].body_hir.ty.clone();
         for c in &clauses {
-            if let Some(t) = mk.class_dict.nearest_common_ancestor(&ty, &c.body_hir.ty) {
+            if let Some(t) = mk.module_dict.nearest_common_ancestor(&ty, &c.body_hir.ty) {
                 ty = t;
             } else {
                 return Err(error::type_error("match clause type mismatch"));
@@ -177,7 +177,7 @@ fn convert_extractor(
         TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
         _ => base_ty.clone(),
     };
-    if !mk.class_dict.conforms(&pat_ty, &value.ty) {
+    if !mk.module_dict.conforms(&pat_ty, &value.ty) {
         return Err(error::type_error(&format!(
             "expr of `{}' never matches to `{}'",
             &value.ty, pat_ty
@@ -193,7 +193,7 @@ fn convert_extractor(
 
 fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
     let (sig, _) =
-        mk.class_dict
+        mk.module_dict
             .lookup_method(cls, &method_firstname("initialize"), Default::default())?;
     Ok(sig
         .params

@@ -1,4 +1,4 @@
-use crate::class_dict::*;
+use crate::module_dict::*;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
