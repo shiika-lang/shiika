@@ -125,10 +125,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
             }
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
-            HirClassLiteral {
+            HirModuleLiteral {
                 fullname,
                 str_literal_idx,
-            } => Ok(Some(self.gen_class_literal(
+            } => Ok(Some(self.gen_module_literal(
                 fullname,
                 &expr.ty,
                 str_literal_idx,
@@ -980,7 +980,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create a class object
     /// ("class literal" is a special Hir that does not appear directly
     /// on a source text.)
-    fn gen_class_literal(
+    fn gen_module_literal(
         &self,
         fullname: &ModuleFullname,
         clsobj_ty: &TermTy,

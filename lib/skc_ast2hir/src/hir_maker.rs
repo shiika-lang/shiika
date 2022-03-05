@@ -89,7 +89,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let ty = ty::raw(&resolved.string());
                 // The class
                 let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), resolved.to_module_fullname(), str_idx);
+                    Hir::module_literal(ty.meta_ty(), resolved.to_module_fullname(), str_idx);
                 // The instance
                 let expr = Hir::method_call(
                     ty,
@@ -101,7 +101,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             } else {
                 let ty = ty::meta(&resolved.string());
                 let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(ty, resolved.to_module_fullname(), str_idx);
+                let expr = Hir::module_literal(ty, resolved.to_module_fullname(), str_idx);
                 self.register_const_full(resolved.to_const_fullname(), expr);
             }
         }

@@ -233,7 +233,7 @@ pub enum HirExpressionBase {
     /// A special expression that evaluates to a class
     /// (eg. `class A; end; A = 1` shadows A, but this special expr
     /// is never be shadowed)
-    HirClassLiteral {
+    HirModuleLiteral {
         fullname: ModuleFullname,
         str_literal_idx: usize,
     },
@@ -536,7 +536,7 @@ impl Hir {
         }
     }
 
-    pub fn class_literal(
+    pub fn module_literal(
         ty: TermTy,
         fullname: ModuleFullname,
         str_literal_idx: usize,
@@ -544,7 +544,7 @@ impl Hir {
         debug_assert!(ty.is_metaclass());
         HirExpression {
             ty,
-            node: HirExpressionBase::HirClassLiteral {
+            node: HirExpressionBase::HirModuleLiteral {
                 fullname,
                 str_literal_idx,
             },
