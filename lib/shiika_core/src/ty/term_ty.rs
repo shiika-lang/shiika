@@ -256,18 +256,18 @@ impl TermTy {
     }
 
     /// Apply type argments into type parameters
-    /// - class_tyargs: None if the class is not generic (non-generic class
+    /// - module_tyargs: None if the class is not generic (non-generic class
     ///   can have a generic method)
     /// - method_tyargs: None if not in a method context (eg. when creating
     ///   `Array<Int>` from `Array<T>`)
-    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
+    pub fn substitute(&self, module_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
             TyPara(TyParamRef { kind, idx, .. }) => match kind {
                 TyParamKind::Class => {
-                    if class_tyargs.is_empty() {
+                    if module_tyargs.is_empty() {
                         self.clone()
                     } else {
-                        class_tyargs[*idx].clone()
+                        module_tyargs[*idx].clone()
                     }
                 }
                 TyParamKind::Method => {
@@ -285,7 +285,7 @@ impl TermTy {
             }) => {
                 let args = type_args
                     .iter()
-                    .map(|t| t.substitute(class_tyargs, method_tyargs))
+                    .map(|t| t.substitute(module_tyargs, method_tyargs))
                     .collect();
                 ty::new(base_name, args, *is_meta)
             }
