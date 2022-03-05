@@ -21,7 +21,7 @@ impl ModuleFirstname {
     }
 }
 
-pub fn class_firstname(s: impl Into<String>) -> ModuleFirstname {
+pub fn module_firstname(s: impl Into<String>) -> ModuleFirstname {
     ModuleFirstname(s.into())
 }
 
