@@ -149,7 +149,7 @@ fn make_classes(
         sk_classes.insert(
             ModuleFullname(name.to_string()),
             SkClass {
-                fullname: class_fullname(&name),
+                fullname: module_fullname(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 superclass,
                 instance_ty: ty::raw(&name),
@@ -163,16 +163,16 @@ fn make_classes(
                 foreign: false,
             },
         );
-        sk_methods.insert(class_fullname(&name), imethods);
+        sk_methods.insert(module_fullname(&name), imethods);
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
             let meta_ivars = class::ivars();
             sk_classes.insert(
-                metaclass_fullname(&name),
+                metamodule_fullname(&name),
                 SkClass {
-                    fullname: metaclass_fullname(&name),
+                    fullname: metamodule_fullname(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     superclass: Some(Superclass::simple("Class")),
                     instance_ty: ty::meta(&name),
@@ -186,7 +186,7 @@ fn make_classes(
                     foreign: false,
                 },
             );
-            sk_methods.insert(metaclass_fullname(&name), cmethods);
+            sk_methods.insert(metamodule_fullname(&name), cmethods);
         }
     }
     (sk_classes, sk_methods)

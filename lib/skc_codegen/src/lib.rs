@@ -162,7 +162,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Define llvm struct type for `Class` in advance
     fn define_class_class(&mut self) {
         self.llvm_struct_types.insert(
-            class_fullname("Class"),
+            module_fullname("Class"),
             self.context.opaque_struct_type("Class"),
         );
     }
@@ -217,10 +217,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate vtable constants
     fn gen_vtables(&self) {
-        for (class_fullname, vtable) in self.vtables.iter() {
+        for (module_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
             let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-            let tmp = llvm_vtable_const_name(class_fullname);
+            let tmp = llvm_vtable_const_name(module_fullname);
             let global = self.module.add_global(ary_type, None, &tmp);
             global.set_constant(true);
             let func_ptrs = method_names
@@ -307,7 +307,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
         self.builder.build_unconditional_branch(create_main_block);
         self.builder.position_at_end(create_main_block);
-        self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
+        self.the_main = Some(self.allocate_sk_obj(&module_fullname("Object"), "main"));
 
         // UserMain:
         let user_main_block = self.context.append_basic_block(function, "UserMain");
@@ -701,20 +701,20 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     pub fn gen_body_of_new(
         &self,
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         initialize_name: &MethodFullname,
         // The class whose `#initialize` should be called from this `.new`
-        // (If the class have its own `#initialize`, this is equal to `class_fullname`)
+        // (If the class have its own `#initialize`, this is equal to `module_fullname`)
         init_cls_name: &ModuleFullname,
         arity: usize,
         _const_is_obj: bool,
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
         let class_obj = SkClassObj(llvm_func_args[0]);
-        let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
+        let obj = self._allocate_sk_obj(module_fullname, "addr", class_obj);
 
         // Call initialize
-        let addr = if init_cls_name == class_fullname {
+        let addr = if init_cls_name == module_fullname {
             obj.clone()
         } else {
             // `initialize` is defined in an ancestor class. Bitcast is needed

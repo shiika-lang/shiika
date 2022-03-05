@@ -54,7 +54,7 @@ fn index_class(
     typarams: Vec<ty::TyParam>,
     defs: &[shiika_ast::Definition],
 ) {
-    let fullname = namespace.class_fullname(firstname);
+    let fullname = namespace.module_fullname(firstname);
     cindex.insert(fullname, typarams);
     let inner_namespace = namespace.add(firstname);
     for def in defs {
@@ -99,12 +99,12 @@ fn index_enum(
     typarams: Vec<ty::TyParam>,
     cases: &[shiika_ast::EnumCase],
 ) {
-    let fullname = namespace.class_fullname(firstname);
+    let fullname = namespace.module_fullname(firstname);
     cindex.insert(fullname, typarams.to_vec());
 
     let inner_namespace = namespace.add(firstname);
     for case in cases {
-        let case_fullname = inner_namespace.class_fullname(&case.name);
+        let case_fullname = inner_namespace.module_fullname(&case.name);
         cindex.insert(case_fullname, typarams.to_vec());
     }
 }

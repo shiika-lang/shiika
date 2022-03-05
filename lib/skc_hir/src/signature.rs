@@ -54,12 +54,12 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
 
 /// Create a signature of a `new` method
 pub fn signature_of_new(
-    metaclass_fullname: &ModuleFullname,
+    metamodule_fullname: &ModuleFullname,
     initialize_params: Vec<MethodParam>,
     instance_ty: &TermTy,
 ) -> MethodSignature {
     MethodSignature {
-        fullname: method_fullname(metaclass_fullname, "new"),
+        fullname: method_fullname(metamodule_fullname, "new"),
         ret_ty: instance_ty.clone(),
         params: initialize_params,
         typarams: vec![],
@@ -68,11 +68,11 @@ pub fn signature_of_new(
 
 /// Create a signature of a `initialize` method
 pub fn signature_of_initialize(
-    class_fullname: &ModuleFullname,
+    module_fullname: &ModuleFullname,
     params: Vec<MethodParam>,
 ) -> MethodSignature {
     MethodSignature {
-        fullname: method_fullname(class_fullname, "initialize"),
+        fullname: method_fullname(module_fullname, "initialize"),
         ret_ty: ty::raw("Void"),
         params,
         typarams: vec![],

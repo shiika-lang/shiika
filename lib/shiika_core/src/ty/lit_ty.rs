@@ -1,4 +1,4 @@
-use crate::names::{class_fullname, ModuleFullname};
+use crate::names::{module_fullname, ModuleFullname};
 use crate::ty;
 use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,6 @@ impl LitTy {
     }
 
     pub fn erasure(&self) -> ModuleFullname {
-        class_fullname(&self.base_name)
+        module_fullname(&self.base_name)
     }
 }

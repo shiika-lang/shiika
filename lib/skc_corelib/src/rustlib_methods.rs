@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use json5;
 use shiika_ast::AstMethodSignature;
-use shiika_core::names::{class_fullname, ModuleFullname};
+use shiika_core::names::{module_fullname, ModuleFullname};
 use shiika_parser::Parser;
 use std::fs;
 use std::io::Read;
@@ -29,5 +29,5 @@ fn load_methods_json() -> Result<Vec<(String, String)>> {
 fn parse_signature(item: &(String, String)) -> (ModuleFullname, AstMethodSignature) {
     let (classname, sig_str) = item;
     let ast_sig = Parser::parse_signature(sig_str).unwrap();
-    (class_fullname(classname), ast_sig)
+    (module_fullname(classname), ast_sig)
 }

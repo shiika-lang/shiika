@@ -89,19 +89,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let ty = ty::raw(&resolved.string());
                 // The class
                 let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), resolved.to_class_fullname(), str_idx);
+                    Hir::class_literal(ty.meta_ty(), resolved.to_module_fullname(), str_idx);
                 // The instance
                 let expr = Hir::method_call(
                     ty,
                     cls_obj,
-                    method_fullname(&metaclass_fullname(&resolved.string()), "new"),
+                    method_fullname(&metamodule_fullname(&resolved.string()), "new"),
                     vec![],
                 );
                 self.register_const_full(resolved.to_const_fullname(), expr);
             } else {
                 let ty = ty::meta(&resolved.string());
                 let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(ty, resolved.to_class_fullname(), str_idx);
+                let expr = Hir::class_literal(ty, resolved.to_module_fullname(), str_idx);
                 self.register_const_full(resolved.to_const_fullname(), expr);
             }
         }
@@ -164,7 +164,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         typarams: Vec<TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
+        let fullname = namespace.module_fullname(firstname);
         let meta_name = fullname.meta_name();
         self.ctx_stack
             .push(HirMakerContext::class(namespace.add(firstname), typarams));
@@ -277,12 +277,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Also, define ivars
     fn create_initialize(
         &mut self,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
-        let super_ivars = self.class_dict.superclass_ivars(class_fullname);
-        self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
+        let super_ivars = self.class_dict.superclass_ivars(module_fullname);
+        self.convert_method_def_(module_fullname, name, body_exprs, super_ivars)
     }
 
     /// Create .new
@@ -344,28 +344,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_method_def(
         &mut self,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(class_fullname, name, body_exprs, None)?;
+            self.convert_method_def_(module_fullname, name, body_exprs, None)?;
         Ok(sk_method)
     }
 
     /// Create a SkMethod and return it with ctx.iivars
     fn convert_method_def_(
         &mut self,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>)> {
         // MethodSignature is built beforehand by class_dict::new
-        let err = format!("[BUG] signature not found ({}/{})", class_fullname, name);
+        let err = format!("[BUG] signature not found ({}/{})", module_fullname, name);
         let signature = self
             .class_dict
-            .find_method(class_fullname, name)
+            .find_method(module_fullname, name)
             .expect(&err)
             .clone();
 
@@ -397,7 +397,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
+        let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname);
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
@@ -428,7 +428,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Create a enum case class
     fn _register_enum_case_class(&mut self, namespace: &Namespace, case: &EnumCase) -> Result<()> {
-        let fullname = namespace.class_fullname(&case.name);
+        let fullname = namespace.module_fullname(&case.name);
 
         // Register #initialize
         let signature = self

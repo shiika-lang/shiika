@@ -63,8 +63,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         ast_superclass: &Option<ConstName>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
-        let metaclass_fullname = fullname.meta_name();
+        let fullname = namespace.module_fullname(firstname);
+        let metamodule_fullname = fullname.meta_name();
         let superclass = if let Some(name) = ast_superclass {
             let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
 
@@ -79,7 +79,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None
         } else {
             Some(signature::signature_of_new(
-                &metaclass_fullname,
+                &metamodule_fullname,
                 self._initializer_params(namespace, &typarams, &superclass, defs)?,
                 &ty::return_type_of_new(&fullname, &typarams),
             ))
@@ -97,11 +97,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 class.method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_classes
-                    .get_mut(&metaclass_fullname)
+                    .get_mut(&metamodule_fullname)
                     .unwrap_or_else(|| {
                         panic!(
                             "[BUG] metaclass not found: {} <- {}",
-                            fullname, &metaclass_fullname
+                            fullname, &metamodule_fullname
                         )
                     });
                 metaclass.method_sigs.extend(class_methods);
@@ -160,7 +160,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(firstname);
+        let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
@@ -315,7 +315,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
 
         // Create metaclass (which is a subclass of `Class`)
-        let the_class = self.get_class(&class_fullname("Class"));
+        let the_class = self.get_class(&module_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
             fullname: fullname.meta_name(),
@@ -334,12 +334,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn create_signature(
         &self,
         namespace: &Namespace,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
-        let fullname = method_fullname(class_fullname, &sig.name.0);
+        let fullname = method_fullname(module_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
             self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
@@ -425,7 +425,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if let Some(typarams) = self.class_index.get(&class_fullname(resolved.join("::"))) {
+            if let Some(typarams) = self.class_index.get(&module_fullname(resolved.join("::"))) {
                 return Ok((resolved, typarams));
             }
         }

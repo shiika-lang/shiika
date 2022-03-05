@@ -8,10 +8,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method from class name and first name
     pub fn find_method(
         &self,
-        class_fullname: &ModuleFullname,
+        module_fullname: &ModuleFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
-        self.lookup_class(class_fullname)
+        self.lookup_class(module_fullname)
             .and_then(|class| class.method_sigs.get(method_name))
     }
 
@@ -59,33 +59,33 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    pub fn lookup_class(&self, class_fullname: &ModuleFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, module_fullname: &ModuleFullname) -> Option<&SkClass> {
         self.sk_classes
-            .get(class_fullname)
-            .or_else(|| self.imported_classes.get(class_fullname))
+            .get(module_fullname)
+            .or_else(|| self.imported_classes.get(module_fullname))
     }
 
     /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
-    pub fn get_class(&self, class_fullname: &ModuleFullname) -> &SkClass {
-        self.lookup_class(class_fullname)
-            .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
+    pub fn get_class(&self, module_fullname: &ModuleFullname) -> &SkClass {
+        self.lookup_class(module_fullname)
+            .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &module_fullname.0))
     }
 
     /// Find a class. Panic if not found
-    pub fn get_class_mut(&mut self, class_fullname: &ModuleFullname) -> &mut SkClass {
-        if let Some(c) = self.sk_classes.get_mut(class_fullname) {
+    pub fn get_class_mut(&mut self, module_fullname: &ModuleFullname) -> &mut SkClass {
+        if let Some(c) = self.sk_classes.get_mut(module_fullname) {
             c
-        } else if self.imported_classes.contains_key(class_fullname) {
-            panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
+        } else if self.imported_classes.contains_key(module_fullname) {
+            panic!("[BUG] cannot get_mut imported class `{}'", module_fullname)
         } else {
-            panic!("[BUG] class `{}' not found", class_fullname)
+            panic!("[BUG] class `{}' not found", module_fullname)
         }
     }
 
     /// Return true if there is a class of the name
     pub fn class_exists(&self, fullname: &str) -> bool {
-        self.lookup_class(&class_fullname(fullname)).is_some()
+        self.lookup_class(&module_fullname(fullname)).is_some()
     }
 
     /// Returns supertype of `ty` (except it is `Object`)

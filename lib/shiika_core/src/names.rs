@@ -14,9 +14,9 @@ impl std::fmt::Display for ModuleFirstname {
 impl ModuleFirstname {
     pub fn add_namespace(&self, namespace: &str) -> ModuleFullname {
         if namespace.is_empty() {
-            class_fullname(self.0.clone())
+            module_fullname(self.0.clone())
         } else {
-            class_fullname(namespace.to_string() + "::" + &self.0)
+            module_fullname(namespace.to_string() + "::" + &self.0)
         }
     }
 }
@@ -34,7 +34,7 @@ impl std::fmt::Display for ModuleFullname {
     }
 }
 
-pub fn class_fullname(s: impl Into<String>) -> ModuleFullname {
+pub fn module_fullname(s: impl Into<String>) -> ModuleFullname {
     let name = s.into();
     debug_assert!(name != "Meta:");
     debug_assert!(!name.starts_with("::"));
@@ -42,22 +42,22 @@ pub fn class_fullname(s: impl Into<String>) -> ModuleFullname {
     ModuleFullname(name)
 }
 
-pub fn metaclass_fullname(base_: impl Into<String>) -> ModuleFullname {
+pub fn metamodule_fullname(base_: impl Into<String>) -> ModuleFullname {
     let base = base_.into();
     debug_assert!(!base.is_empty());
     if base == "Metaclass" || base.starts_with("Meta:") {
-        class_fullname("Metaclass")
+        module_fullname("Metaclass")
     } else {
-        class_fullname(&("Meta:".to_string() + &base))
+        module_fullname(&("Meta:".to_string() + &base))
     }
 }
 
 impl ModuleFullname {
     pub fn new(s: impl Into<String>, is_meta: bool) -> ModuleFullname {
         if is_meta {
-            metaclass_fullname(s)
+            metamodule_fullname(s)
         } else {
-            class_fullname(s)
+            module_fullname(s)
         }
     }
 
@@ -95,7 +95,7 @@ impl ModuleFullname {
     }
 
     pub fn meta_name(&self) -> ModuleFullname {
-        metaclass_fullname(&self.0)
+        metamodule_fullname(&self.0)
     }
 
     pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
@@ -145,7 +145,7 @@ pub fn method_fullname(
 }
 
 pub fn method_fullname_raw(cls: impl Into<String>, method: impl Into<String>) -> MethodFullname {
-    method_fullname(&class_fullname(cls), method)
+    method_fullname(&module_fullname(cls), method)
 }
 
 impl std::fmt::Display for MethodFullname {
@@ -210,12 +210,12 @@ impl Namespace {
     }
 
     /// Join Namespace and ModuleFirstname
-    pub fn class_fullname(&self, name: &ModuleFirstname) -> ModuleFullname {
+    pub fn module_fullname(&self, name: &ModuleFirstname) -> ModuleFullname {
         let n = self.string();
         if n.is_empty() {
-            class_fullname(&name.0)
+            module_fullname(&name.0)
         } else {
-            class_fullname(format!("{}::{}", n, &name.0))
+            module_fullname(format!("{}::{}", n, &name.0))
         }
     }
 
@@ -267,8 +267,8 @@ impl ConstName {
     }
 
     /// Make ModuleFullname from self
-    pub fn to_class_fullname(&self) -> ModuleFullname {
-        class_fullname(&self.string())
+    pub fn to_module_fullname(&self) -> ModuleFullname {
+        module_fullname(&self.string())
     }
 
     /// Return const name as String
@@ -344,8 +344,8 @@ impl ResolvedConstName {
     }
 
     /// Convert to ModuleFullname
-    pub fn to_class_fullname(&self) -> ModuleFullname {
-        class_fullname(self.string())
+    pub fn to_module_fullname(&self) -> ModuleFullname {
+        module_fullname(self.string())
     }
 
     /// Returns string representation

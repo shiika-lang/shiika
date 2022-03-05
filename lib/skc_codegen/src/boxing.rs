@@ -55,7 +55,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let i1_val = SkObj(function.get_params()[0]);
-        let sk_bool = self.allocate_sk_obj(&class_fullname("Bool"), "sk_bool");
+        let sk_bool = self.allocate_sk_obj(&module_fullname("Bool"), "sk_bool");
         self.build_ivar_store(&sk_bool, 0, i1_val, "@llvm_bool");
         self.build_return(&sk_bool);
 
@@ -74,7 +74,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let i64_val = SkObj(function.get_params()[0]);
-        let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "sk_int");
+        let sk_int = self.allocate_sk_obj(&module_fullname("Int"), "sk_int");
         self.build_ivar_store(&sk_int, 0, i64_val, "@llvm_int");
         self.build_return(&sk_int);
 
@@ -93,7 +93,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let f64_val = SkObj(function.get_params()[0]);
-        let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "sk_float");
+        let sk_float = self.allocate_sk_obj(&module_fullname("Float"), "sk_float");
         self.build_ivar_store(&sk_float, 0, f64_val, "@llvm_float");
         self.build_return(&sk_float);
 
@@ -112,7 +112,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let i8ptr = function.get_params()[0];
-        let sk_ptr = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "sk_ptr");
+        let sk_ptr = self.allocate_sk_obj(&module_fullname("Shiika::Internal::Ptr"), "sk_ptr");
         self.build_ivar_store_raw(&sk_ptr, 0, i8ptr, "@llvm_i8ptr");
         self.build_return(&sk_ptr);
 
@@ -139,7 +139,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let bytesize = function.get_nth_param(1).unwrap().into_int_value();
         let args = vec![self.box_i8ptr(str_i8ptr), self.box_int(&bytesize)];
         let sk_str = self.call_method_func(
-            &method_fullname(&metaclass_fullname("String"), "new"),
+            &method_fullname(&metamodule_fullname("String"), "new"),
             receiver,
             &args,
             "sk_str",
