@@ -425,7 +425,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if let Some(typarams) = self.class_index.get(&module_fullname(resolved.join("::"))) {
+            if let Some(typarams) = self.module_index.get(&module_fullname(resolved.join("::"))) {
                 return Ok((resolved, typarams));
             }
         }

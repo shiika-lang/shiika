@@ -5,14 +5,14 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 /// Set of pair of class name and its typaram names
-pub type ClassIndex = HashMap<ModuleFullname, Vec<ty::TyParam>>;
+pub type ModuleIndex = HashMap<ModuleFullname, Vec<ty::TyParam>>;
 
 /// Collect class names in the program
 pub fn create(
     toplevel_defs: &[&shiika_ast::Definition],
     initial_sk_classes: &SkClasses,
     imported_classes: &SkClasses,
-) -> ClassIndex {
+) -> ModuleIndex {
     let mut cindex = HashMap::new();
     index_sk_classes(&mut cindex, initial_sk_classes);
     index_sk_classes(&mut cindex, imported_classes);
@@ -20,13 +20,13 @@ pub fn create(
     cindex
 }
 
-fn index_sk_classes(cindex: &mut ClassIndex, sk_classes: &SkClasses) {
+fn index_sk_classes(cindex: &mut ModuleIndex, sk_classes: &SkClasses) {
     for (name, class) in sk_classes {
         cindex.insert(name.clone(), class.typarams.clone());
     }
 }
 
-fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::Definition]) {
+fn index_toplevel_defs(cindex: &mut ModuleIndex, toplevel_defs: &[&shiika_ast::Definition]) {
     let namespace = Namespace::root();
     for def in toplevel_defs {
         match def {
@@ -48,7 +48,7 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::De
 }
 
 fn index_class(
-    cindex: &mut ClassIndex,
+    cindex: &mut ModuleIndex,
     namespace: &Namespace,
     firstname: &ModuleFirstname,
     typarams: Vec<ty::TyParam>,
@@ -93,7 +93,7 @@ fn index_class(
 }
 
 fn index_enum(
-    cindex: &mut ClassIndex,
+    cindex: &mut ModuleIndex,
     namespace: &Namespace,
     firstname: &ModuleFirstname,
     typarams: Vec<ty::TyParam>,

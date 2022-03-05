@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-mod class_index;
+mod module_index;
 mod indexing;
 mod query;
 use anyhow::Result;
@@ -10,7 +10,7 @@ use skc_hir::*;
 #[derive(Debug, PartialEq)]
 pub struct ModuleDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_classes
-    class_index: class_index::ClassIndex,
+    module_index: module_index::ModuleIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
@@ -34,7 +34,7 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ModuleDict {
-        class_index: class_index::create(&defs, &initial_sk_classes, imported_classes),
+        module_index: module_index::create(&defs, &initial_sk_classes, imported_classes),
         sk_classes: initial_sk_classes,
         imported_classes,
     };
