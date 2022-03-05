@@ -1,4 +1,4 @@
-use crate::class_dict::ClassDict;
+use crate::class_dict::ModuleDict;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
 use skc_hir::*;
@@ -10,7 +10,7 @@ macro_rules! type_error {
 }
 
 pub fn check_return_value(
-    class_dict: &ClassDict,
+    class_dict: &ModuleDict,
     sig: &MethodSignature,
     ty: &TermTy,
 ) -> Result<()> {
@@ -70,7 +70,7 @@ pub fn check_if_body_ty(opt_ty: Option<TermTy>) -> Result<TermTy> {
 
 /// Check the type of the argument of `return`
 pub fn check_return_arg_type(
-    class_dict: &ClassDict,
+    class_dict: &ModuleDict,
     return_arg_ty: &TermTy,
     method_sig: &MethodSignature,
 ) -> Result<()> {
@@ -97,7 +97,7 @@ pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> 
 
 /// Check argument types of a method call
 pub fn check_method_args(
-    class_dict: &ClassDict,
+    class_dict: &ModuleDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
     receiver_hir: &HirExpression,
@@ -130,7 +130,7 @@ fn check_method_arity(
 
 /// Check types of method call args
 fn check_arg_types(
-    class_dict: &ClassDict,
+    class_dict: &ModuleDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
     receiver_hir: &HirExpression,

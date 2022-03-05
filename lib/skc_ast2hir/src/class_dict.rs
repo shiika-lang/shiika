@@ -8,7 +8,7 @@ use shiika_core::names::*;
 use skc_hir::*;
 
 #[derive(Debug, PartialEq)]
-pub struct ClassDict<'hir_maker> {
+pub struct ModuleDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_classes
     class_index: class_index::ClassIndex,
     /// Indexed classes.
@@ -24,7 +24,7 @@ pub fn create<'hir_maker>(
     // Corelib classes (REFACTOR: corelib should provide methods only)
     initial_sk_classes: SkClasses,
     imported_classes: &'hir_maker SkClasses,
-) -> Result<ClassDict<'hir_maker>> {
+) -> Result<ModuleDict<'hir_maker>> {
     let defs = ast
         .toplevel_items
         .iter()
@@ -33,7 +33,7 @@ pub fn create<'hir_maker>(
             shiika_ast::TopLevelItem::Expr(_) => None,
         })
         .collect::<Vec<_>>();
-    let mut dict = ClassDict {
+    let mut dict = ModuleDict {
         class_index: class_index::create(&defs, &initial_sk_classes, imported_classes),
         sk_classes: initial_sk_classes,
         imported_classes,
@@ -42,7 +42,7 @@ pub fn create<'hir_maker>(
     Ok(dict)
 }
 
-impl<'hir_maker> ClassDict<'hir_maker> {
+impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Returns information for creating class constants i.e. a list of
     /// `(name, const_is_obj)`
     pub fn constant_list(&self) -> Vec<(String, bool)> {

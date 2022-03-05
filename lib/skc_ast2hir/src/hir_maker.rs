@@ -1,4 +1,4 @@
-use crate::class_dict::ClassDict;
+use crate::class_dict::ModuleDict;
 use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct HirMaker<'hir_maker> {
     /// List of classes found so far
-    pub(super) class_dict: ClassDict<'hir_maker>,
+    pub(super) class_dict: ModuleDict<'hir_maker>,
     /// List of methods found so far
     pub(super) method_dict: MethodDict,
     /// List of constants found so far
@@ -35,7 +35,7 @@ pub struct HirMaker<'hir_maker> {
 
 impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn new(
-        class_dict: ClassDict<'hir_maker>,
+        class_dict: ModuleDict<'hir_maker>,
         imported_constants: &'hir_maker HashMap<ConstFullname, TermTy>,
     ) -> HirMaker<'hir_maker> {
         HirMaker {

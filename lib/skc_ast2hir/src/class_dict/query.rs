@@ -4,7 +4,7 @@ use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
-impl<'hir_maker> ClassDict<'hir_maker> {
+impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Find a method from class name and first name
     pub fn find_method(
         &self,
@@ -232,12 +232,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 #[cfg(test)]
 mod tests {
     use crate::error::Error;
-    use crate::hir::class_dict::ClassDict;
+    use crate::hir::class_dict::ModuleDict;
     use crate::ty;
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<()>
     where
-        F: FnOnce(ClassDict),
+        F: FnOnce(ModuleDict),
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
-impl<'hir_maker> ClassDict<'hir_maker> {
+impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Register a class
     pub fn add_class(&mut self, class: SkClass) {
         self.sk_classes.insert(class.fullname.clone(), class);
