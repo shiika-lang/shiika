@@ -14,16 +14,16 @@ pub struct ModuleDict<'hir_maker> {
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub sk_classes: SkModulees,
+    pub sk_classes: SkModules,
     /// Imported classes
-    imported_classes: &'hir_maker SkModulees,
+    imported_classes: &'hir_maker SkModules,
 }
 
 pub fn create<'hir_maker>(
     ast: &shiika_ast::Program,
     // Corelib classes (REFACTOR: corelib should provide methods only)
-    initial_sk_classes: SkModulees,
-    imported_classes: &'hir_maker SkModulees,
+    initial_sk_classes: SkModules,
+    imported_classes: &'hir_maker SkModules,
 ) -> Result<ModuleDict<'hir_maker>> {
     let defs = ast
         .toplevel_items

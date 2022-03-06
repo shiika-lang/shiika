@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
-pub type SkModulees = HashMap<ModuleFullname, SkModule>;
+pub type SkModules = HashMap<ModuleFullname, SkModule>;
 
 #[derive(Debug)]
 pub struct Hir {

@@ -174,7 +174,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_import_constants(&imports.constants);
     }
 
-    fn gen_import_classes(&mut self, imported_classes: &SkModulees) {
+    fn gen_import_classes(&mut self, imported_classes: &SkModules) {
         // LLVM type
         for name in imported_classes.keys() {
             self.llvm_struct_types

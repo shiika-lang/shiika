@@ -6,7 +6,7 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkModulees,
+    pub sk_classes: SkModules,
     pub sk_methods: SkMethods,
 }
 

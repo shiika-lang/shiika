@@ -6,7 +6,7 @@ use skc_hir::*;
 
 /// Returns complete list of corelib classes/methods i.e. both those
 /// implemented in Shiika and in Rust.
-pub fn mix_with_corelib(corelib: Corelib) -> (SkModulees, SkMethods) {
+pub fn mix_with_corelib(corelib: Corelib) -> (SkModules, SkMethods) {
     let rustlib_methods = make_rustlib_methods(&corelib);
     let mut sk_classes = corelib.sk_classes;
     let mut sk_methods = corelib.sk_methods;
