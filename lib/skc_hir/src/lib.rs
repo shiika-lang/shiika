@@ -1,10 +1,10 @@
 pub mod pattern_match;
 pub mod signature;
-mod sk_class;
+mod sk_module;
 mod sk_method;
 mod superclass;
 pub use crate::signature::*;
-pub use crate::sk_class::SkModule;
+pub use crate::sk_module::SkModule;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
