@@ -1,8 +1,10 @@
 pub mod pattern_match;
+mod class_info;
 pub mod signature;
 mod sk_module;
 mod sk_method;
 mod superclass;
+pub use crate::class_info::ClassInfo;
 pub use crate::signature::*;
 pub use crate::sk_module::SkModule;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
