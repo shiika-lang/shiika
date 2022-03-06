@@ -174,7 +174,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_import_constants(&imports.constants);
     }
 
-    fn gen_import_classes(&mut self, imported_classes: &SkClasses) {
+    fn gen_import_classes(&mut self, imported_classes: &SkModulees) {
         // LLVM type
         for name in imported_classes.keys() {
             self.llvm_struct_types
@@ -346,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_structs(&mut self, classes: &HashMap<ModuleFullname, SkClass>) {
+    fn gen_class_structs(&mut self, classes: &HashMap<ModuleFullname, SkModule>) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
         for name in classes.keys() {
             self.llvm_struct_types
@@ -357,7 +357,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Set fields for ivars
-    fn define_class_struct_fields(&self, classes: &HashMap<ModuleFullname, SkClass>) {
+    fn define_class_struct_fields(&self, classes: &HashMap<ModuleFullname, SkModule>) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
         for (name, class) in classes {
@@ -710,7 +710,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         _const_is_obj: bool,
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
-        let class_obj = SkClassObj(llvm_func_args[0]);
+        let class_obj = SkModuleObj(llvm_func_args[0]);
         let obj = self._allocate_sk_obj(module_fullname, "addr", class_obj);
 
         // Call initialize

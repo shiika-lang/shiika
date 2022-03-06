@@ -6,7 +6,7 @@ use skc_hir::*;
 
 /// Returns complete list of corelib classes/methods i.e. both those
 /// implemented in Shiika and in Rust.
-pub fn mix_with_corelib(corelib: Corelib) -> (SkClasses, SkMethods) {
+pub fn mix_with_corelib(corelib: Corelib) -> (SkModulees, SkMethods) {
     let rustlib_methods = make_rustlib_methods(&corelib);
     let mut sk_classes = corelib.sk_classes;
     let mut sk_methods = corelib.sk_methods;
@@ -56,7 +56,7 @@ fn make_rustlib_method(
 }
 
 // Convert ast_sig into hir_sig
-fn make_hir_sig(class: &SkClass, ast_sig: &AstMethodSignature) -> MethodSignature {
+fn make_hir_sig(class: &SkModule, ast_sig: &AstMethodSignature) -> MethodSignature {
     let module_typarams = class.typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
     let fullname = method_fullname(&class.fullname, &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {

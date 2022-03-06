@@ -1,7 +1,7 @@
 use crate::library::LibraryExports;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
-use skc_hir::{SkClass, SkClasses};
+use skc_hir::{SkModule, SkModulees};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
@@ -23,7 +23,7 @@ impl VTable {
     }
 
     /// Build a VTable of a class
-    pub fn build(super_vtable: &VTable, class: &SkClass) -> VTable {
+    pub fn build(super_vtable: &VTable, class: &SkModule) -> VTable {
         let mut vtable = super_vtable.clone();
         for name in class.method_names() {
             if vtable.contains(&name.first_name) {
@@ -75,7 +75,7 @@ pub struct VTables {
 
 impl VTables {
     /// Build vtables of the classes
-    pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
+    pub fn build(sk_classes: &SkModulees, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
         let mut queue = sk_classes.keys().cloned().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();

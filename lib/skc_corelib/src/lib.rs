@@ -6,7 +6,7 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkClasses,
+    pub sk_classes: SkModulees,
     pub sk_methods: SkMethods,
 }
 
@@ -140,7 +140,7 @@ fn rust_body_items() -> Vec<ClassItem> {
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (
-    HashMap<ModuleFullname, SkClass>,
+    HashMap<ModuleFullname, SkModule>,
     HashMap<ModuleFullname, Vec<SkMethod>>,
 ) {
     let mut sk_classes = HashMap::new();
@@ -148,7 +148,7 @@ fn make_classes(
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
         sk_classes.insert(
             ModuleFullname(name.to_string()),
-            SkClass {
+            SkModule {
                 fullname: module_fullname(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 superclass,
@@ -171,7 +171,7 @@ fn make_classes(
             let meta_ivars = class::ivars();
             sk_classes.insert(
                 metamodule_fullname(&name),
-                SkClass {
+                SkModule {
                     fullname: metamodule_fullname(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     superclass: Some(Superclass::simple("Class")),

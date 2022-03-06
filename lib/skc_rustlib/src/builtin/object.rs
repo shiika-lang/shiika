@@ -1,4 +1,4 @@
-use crate::builtin::class::SkClass;
+use crate::builtin::class::SkModule;
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
@@ -16,7 +16,7 @@ unsafe impl Plain for SkObj {}
 #[derive(Debug)]
 pub struct ShiikaObject {
     vtable: *const u8,
-    class_obj: SkClass,
+    class_obj: SkModule,
 }
 
 impl SkObj {
@@ -24,7 +24,7 @@ impl SkObj {
     //        SkObj(p)
     //    }
 
-    pub fn class(&self) -> SkClass {
+    pub fn class(&self) -> SkModule {
         unsafe { (*self.0).class_obj.dup() }
     }
 }
@@ -35,7 +35,7 @@ pub extern "C" fn object_eq(receiver: *const u8, other: *const u8) -> SkBool {
 }
 
 #[shiika_method("Object#class")]
-pub extern "C" fn object_class(receiver: SkObj) -> SkClass {
+pub extern "C" fn object_class(receiver: SkObj) -> SkModule {
     receiver.class()
 }
 

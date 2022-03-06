@@ -59,7 +59,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
     }
 
     /// Return the class of the specified name, if any
-    pub fn lookup_class(&self, module_fullname: &ModuleFullname) -> Option<&SkClass> {
+    pub fn lookup_class(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
         self.sk_classes
             .get(module_fullname)
             .or_else(|| self.imported_classes.get(module_fullname))
@@ -67,13 +67,13 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
 
     /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
-    pub fn get_class(&self, module_fullname: &ModuleFullname) -> &SkClass {
+    pub fn get_class(&self, module_fullname: &ModuleFullname) -> &SkModule {
         self.lookup_class(module_fullname)
             .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &module_fullname.0))
     }
 
     /// Find a class. Panic if not found
-    pub fn get_class_mut(&mut self, module_fullname: &ModuleFullname) -> &mut SkClass {
+    pub fn get_class_mut(&mut self, module_fullname: &ModuleFullname) -> &mut SkModule {
         if let Some(c) = self.sk_classes.get_mut(module_fullname) {
             c
         } else if self.imported_classes.contains_key(module_fullname) {

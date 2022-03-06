@@ -65,12 +65,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get the class object of an object as `*Class`
-    pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
-        SkClassObj(self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class"))
+    pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkModuleObj<'run> {
+        SkModuleObj(self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class"))
     }
 
     /// Set `class_obj` to the class object field of `object`
-    pub fn set_class_of_obj(&self, object: &SkObj<'run>, class_obj: SkClassObj<'run>) {
+    pub fn set_class_of_obj(&self, object: &SkObj<'run>, class_obj: SkModuleObj<'run>) {
         let cast = self.bitcast(SkObj(class_obj.0), &ty::raw("Class"), "class");
         self.build_llvm_struct_set(object, OBJ_CLASS_IDX, cast.0, "my_class");
     }
@@ -176,21 +176,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load a class object
-    pub fn load_class_object(&self, module_fullname: &ModuleFullname) -> SkClassObj<'run> {
+    pub fn load_class_object(&self, module_fullname: &ModuleFullname) -> SkModuleObj<'run> {
         let class_const_name = format!("::{}", module_fullname.0);
         let class_obj_addr = self
             .module
             .get_global(&class_const_name)
             .unwrap_or_else(|| panic!("global `{}' not found", class_const_name))
             .as_pointer_value();
-        SkClassObj(self.builder.build_load(class_obj_addr, "class_obj"))
+        SkModuleObj(self.builder.build_load(class_obj_addr, "class_obj"))
     }
 
     pub fn _allocate_sk_obj(
         &self,
         module_fullname: &ModuleFullname,
         reg_name: &str,
-        class_obj: SkClassObj,
+        class_obj: SkModuleObj,
     ) -> SkObj<'run> {
         let object_type = self.llvm_struct_type(module_fullname);
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);

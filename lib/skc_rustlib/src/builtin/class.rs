@@ -4,10 +4,10 @@ use shiika_ffi_macro::shiika_method;
 use std::collections::HashMap;
 #[repr(C)]
 #[derive(Debug)]
-pub struct SkClass(*mut ShiikaClass);
+pub struct SkModule(*mut ShiikaClass);
 
 extern "C" {
-    // SkClass contains *mut of `HashMap`, which is not `repr(C)`.
+    // SkModule contains *mut of `HashMap`, which is not `repr(C)`.
     // I think it's ok because the hashmap is not accessible in Shiika.
     // TODO: is there a better way?
     // TODO: macro to convert "Meta:Class#new" into this name
@@ -16,26 +16,26 @@ extern "C" {
         receiver: *const u8,
         name: SkStr,
         vtable: *const u8,
-        metacls_obj: SkClass,
-    ) -> SkClass;
+        metacls_obj: SkModule,
+    ) -> SkModule;
 }
 
-impl SkClass {
-    pub fn new(ptr: *mut ShiikaClass) -> SkClass {
-        SkClass(ptr)
+impl SkModule {
+    pub fn new(ptr: *mut ShiikaClass) -> SkModule {
+        SkModule(ptr)
     }
 
-    pub fn dup(&self) -> SkClass {
-        SkClass(self.0)
+    pub fn dup(&self) -> SkModule {
+        SkModule(self.0)
     }
 
     fn vtable(&self) -> *const u8 {
         unsafe { (*self.0).vtable }
     }
 
-    fn metacls_obj(&self) -> SkClass {
+    fn metacls_obj(&self) -> SkModule {
         let metacls_obj = unsafe { &(*self.0).metacls_obj };
-        SkClass::new(metacls_obj.0)
+        SkModule::new(metacls_obj.0)
     }
 
     fn name(&self) -> &SkStr {
@@ -51,10 +51,10 @@ impl SkClass {
 #[derive(Debug)]
 pub struct ShiikaClass {
     vtable: *const u8,
-    metacls_obj: SkClass,
+    metacls_obj: SkModule,
     name: SkStr,
     specialized_classes: *mut HashMap<String, *mut ShiikaClass>,
-    type_args: *mut Vec<SkClass>,
+    type_args: *mut Vec<SkModule>,
 }
 
 #[shiika_method("Class#_initialize_rustlib")]
@@ -62,7 +62,7 @@ pub struct ShiikaClass {
 pub extern "C" fn class__initialize_rustlib(
     receiver: *mut ShiikaClass,
     vtable: *const u8,
-    metacls_obj: SkClass,
+    metacls_obj: SkModule,
 ) {
     unsafe {
         (*receiver).vtable = vtable;
@@ -73,15 +73,15 @@ pub extern "C" fn class__initialize_rustlib(
 
 // Returns the n-th type argument. Panics if the index is out of bound
 #[shiika_method("Class#_type_argument")]
-pub extern "C" fn class_type_argument(receiver: SkClass, nth: SkInt) -> SkClass {
+pub extern "C" fn class_type_argument(receiver: SkModule, nth: SkInt) -> SkModule {
     let v = unsafe { (*receiver.0).type_args.as_ref().unwrap() };
     v[nth.val() as usize].dup()
 }
 
 #[allow(non_snake_case)]
 #[shiika_method("Class#<>")]
-pub extern "C" fn class__specialize(receiver: SkClass, tyargs_: SkAry<ShiikaClass>) -> SkClass {
-    let tyargs = tyargs_.iter().map(|ptr| SkClass::new(ptr)).collect();
+pub extern "C" fn class__specialize(receiver: SkModule, tyargs_: SkAry<ShiikaClass>) -> SkModule {
+    let tyargs = tyargs_.iter().map(|ptr| SkModule::new(ptr)).collect();
     class_specialize(receiver, tyargs)
 }
 
@@ -89,21 +89,21 @@ pub extern "C" fn class__specialize(receiver: SkClass, tyargs_: SkAry<ShiikaClas
 /// Used for solving bootstrap problem
 #[allow(non_snake_case)]
 #[shiika_method("Class#_specialize1")]
-pub extern "C" fn class__specialize1(receiver: SkClass, tyarg: SkClass) -> SkClass {
+pub extern "C" fn class__specialize1(receiver: SkModule, tyarg: SkModule) -> SkModule {
     class_specialize(receiver, vec![tyarg])
 }
 
 /// Create a specialized class from a generic class
 /// eg. make `Array<Int>` from `Array` and `Int`
-fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
+fn class_specialize(mut receiver: SkModule, tyargs: Vec<SkModule>) -> SkModule {
     let name = specialized_name(&receiver, &tyargs);
     if let Some(c) = receiver.specialized_classes().get(&name) {
-        SkClass::new(*c)
+        SkModule::new(*c)
     } else {
         let spe_meta = if receiver.metacls_obj().name().as_str() == "Metaclass" {
             receiver.metacls_obj()
         } else {
-            let cloned = tyargs.iter().map(SkClass::dup).collect();
+            let cloned = tyargs.iter().map(SkModule::dup).collect();
             class_specialize(receiver.metacls_obj(), cloned)
         };
         let c = unsafe {
@@ -125,7 +125,7 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
 }
 
 /// Returns a string like `"Array<Int>"`
-fn specialized_name(class: &SkClass, tyargs: &[SkClass]) -> String {
+fn specialized_name(class: &SkModule, tyargs: &[SkModule]) -> String {
     let args = tyargs
         .iter()
         .map(|cls| cls.name().as_str().to_string())

@@ -4,18 +4,18 @@ mod sk_class;
 mod sk_method;
 mod superclass;
 pub use crate::signature::*;
-pub use crate::sk_class::SkClass;
+pub use crate::sk_class::SkModule;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
-pub type SkClasses = HashMap<ModuleFullname, SkClass>;
+pub type SkModulees = HashMap<ModuleFullname, SkModule>;
 
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: HashMap<ModuleFullname, SkClass>,
+    pub sk_classes: HashMap<ModuleFullname, SkModule>,
     pub sk_methods: HashMap<ModuleFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,

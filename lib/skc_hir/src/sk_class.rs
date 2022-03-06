@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 /// A Shiika class, possibly generic
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct SkClass {
+pub struct SkModule {
     pub fullname: ModuleFullname,
     pub typarams: Vec<TyParam>,
     pub superclass: Option<Superclass>,
@@ -24,7 +24,7 @@ pub struct SkClass {
     pub foreign: bool,
 }
 
-impl SkClass {
+impl SkModule {
     pub fn class_ty(&self) -> TermTy {
         self.instance_ty.meta_ty()
     }

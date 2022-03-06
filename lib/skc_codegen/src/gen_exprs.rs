@@ -1029,7 +1029,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let cls_obj = self._allocate_sk_obj(
             &module_fullname("Metaclass"),
             "the_metaclass",
-            SkClassObj(null),
+            SkModuleObj(null),
         );
         self.build_ivar_store(
             &cls_obj,
@@ -1037,7 +1037,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.gen_string_literal(str_literal_idx),
             "@name",
         );
-        self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
+        self.set_class_of_obj(&cls_obj, SkModuleObj(cls_obj.0));
         cls_obj
     }
 }

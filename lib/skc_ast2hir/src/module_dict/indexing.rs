@@ -12,7 +12,7 @@ type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Register a class
-    pub fn add_class(&mut self, class: SkClass) {
+    pub fn add_class(&mut self, class: SkModule) {
         self.sk_classes.insert(class.fullname.clone(), class);
     }
 
@@ -302,7 +302,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        self.add_class(SkClass {
+        self.add_class(SkModule {
             fullname: fullname.clone(),
             typarams: typarams.to_vec(),
             superclass: Some(superclass),
@@ -317,7 +317,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&module_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        self.add_class(SkClass {
+        self.add_class(SkModule {
             fullname: fullname.meta_name(),
             typarams: typarams.to_vec(),
             superclass: Some(Superclass::simple("Class")),
