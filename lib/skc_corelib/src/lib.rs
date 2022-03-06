@@ -146,21 +146,24 @@ fn make_classes(
     let mut sk_modules = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
+        let class_info = ClassInfo {
+            superclass,
+            instance_ty: ty::raw(&name),
+            ivars,
+            is_final: Some(false),
+            const_is_obj: (name == "Void"),
+        };
         sk_modules.insert(
             ModuleFullname(name.to_string()),
             SkModule {
                 fullname: module_fullname(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
-                superclass,
-                instance_ty: ty::raw(&name),
-                ivars,
                 method_sigs: imethods
                     .iter()
                     .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                     .collect(),
-                is_final: Some(false),
-                const_is_obj: (name == "Void"),
                 foreign: false,
+                class_info: Some(class_info),
             },
         );
         sk_methods.insert(module_fullname(&name), imethods);
@@ -169,21 +172,24 @@ fn make_classes(
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
             let meta_ivars = class::ivars();
+            let class_info = ClassInfo {
+                superclass: Some(Superclass::simple("Class")),
+                instance_ty: ty::meta(&name),
+                ivars: meta_ivars,
+                is_final: None,
+                const_is_obj: false,
+            };
             sk_modules.insert(
                 metamodule_fullname(&name),
                 SkModule {
                     fullname: metamodule_fullname(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
-                    superclass: Some(Superclass::simple("Class")),
-                    instance_ty: ty::meta(&name),
-                    ivars: meta_ivars,
                     method_sigs: cmethods
                         .iter()
                         .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
                         .collect(),
-                    is_final: None,
-                    const_is_obj: false,
                     foreign: false,
+                    class_info: Some(class_info),
                 },
             );
             sk_methods.insert(metamodule_fullname(&name), cmethods);

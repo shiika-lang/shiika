@@ -302,31 +302,37 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        self.add_class(SkModule {
-            fullname: fullname.clone(),
-            typarams: typarams.to_vec(),
+        let class_info = ClassInfo {
             superclass: Some(superclass),
             instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
-            method_sigs: instance_methods,
             is_final,
             const_is_obj,
+        };
+        self.add_class(SkModule {
+            fullname: fullname.clone(),
+            typarams: typarams.to_vec(),
+            method_sigs: instance_methods,
             foreign: false,
+            class_info: Some(class_info),
         });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&module_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        self.add_class(SkModule {
-            fullname: fullname.meta_name(),
-            typarams: typarams.to_vec(),
+        let class_info = ClassInfo {
             superclass: Some(Superclass::simple("Class")),
             instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
-            method_sigs: class_methods,
             is_final: None,
             const_is_obj: false,
+        };
+        self.add_class(SkModule {
+            fullname: fullname.meta_name(),
+            typarams: typarams.to_vec(),
+            method_sigs: class_methods,
             foreign: false,
+            class_info: Some(class_info),
         });
     }
 
