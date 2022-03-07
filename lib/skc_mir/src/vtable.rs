@@ -75,18 +75,18 @@ pub struct VTables {
 
 impl VTables {
     /// Build vtables of the classes
-    pub fn build(sk_classes: &SkModules, imports: &LibraryExports) -> VTables {
+    pub fn build(sk_modules: &SkModules, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
-        let mut queue = sk_classes.keys().cloned().collect::<VecDeque<_>>();
+        let mut queue = sk_modules.keys().cloned().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if vtables.contains_key(&name) || imports.sk_classes.contains_key(&name) {
+            if vtables.contains_key(&name) || imports.sk_modules.contains_key(&name) {
                 continue;
             }
 
-            let class = sk_classes
+            let class = sk_modules
                 .get(&name)
                 .unwrap_or_else(|| panic!("class not found: {}", name));
             let super_vtable;

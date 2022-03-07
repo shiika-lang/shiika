@@ -13,13 +13,13 @@ type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Register a class
     pub fn add_class(&mut self, class: SkModule) {
-        self.sk_classes.insert(class.fullname.clone(), class);
+        self.sk_modules.insert(class.fullname.clone(), class);
     }
 
     /// Add a method
     /// Used to add auto-defined accessors
     pub fn add_method(&mut self, clsname: &ModuleFullname, sig: MethodSignature) {
-        let sk_class = self.sk_classes.get_mut(clsname).unwrap();
+        let sk_class = self.sk_modules.get_mut(clsname).unwrap();
         sk_class
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
@@ -89,14 +89,14 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
-        match self.sk_classes.get_mut(&fullname) {
+        match self.sk_modules.get_mut(&fullname) {
             Some(class) => {
                 // Merge methods to existing class
                 // Shiika will not support reopening a class but this is needed
                 // for classes defined both in src corelib/ and in builtin/.
                 class.method_sigs.extend(instance_methods);
                 let metaclass = self
-                    .sk_classes
+                    .sk_modules
                     .get_mut(&metamodule_fullname)
                     .unwrap_or_else(|| {
                         panic!(

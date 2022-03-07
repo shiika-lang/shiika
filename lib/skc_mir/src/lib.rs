@@ -12,7 +12,7 @@ pub struct Mir {
 }
 
 pub fn build(hir: Hir, imports: LibraryExports) -> Mir {
-    let vtables = VTables::build(&hir.sk_classes, &imports);
+    let vtables = VTables::build(&hir.sk_modules, &imports);
     Mir {
         hir,
         vtables,

@@ -6,16 +6,16 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkModules,
+    pub sk_modules: SkModules,
     pub sk_methods: SkMethods,
 }
 
 /// Create a `Corelib`
 pub fn create() -> Corelib {
-    let (sk_classes, sk_methods) = make_classes(rust_body_items());
+    let (sk_modules, sk_methods) = make_classes(rust_body_items());
 
     Corelib {
-        sk_classes,
+        sk_modules,
         sk_methods,
     }
 }
@@ -143,10 +143,10 @@ fn make_classes(
     HashMap<ModuleFullname, SkModule>,
     HashMap<ModuleFullname, Vec<SkMethod>>,
 ) {
-    let mut sk_classes = HashMap::new();
+    let mut sk_modules = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
-        sk_classes.insert(
+        sk_modules.insert(
             ModuleFullname(name.to_string()),
             SkModule {
                 fullname: module_fullname(&name),
@@ -169,7 +169,7 @@ fn make_classes(
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
             let meta_ivars = class::ivars();
-            sk_classes.insert(
+            sk_modules.insert(
                 metamodule_fullname(&name),
                 SkModule {
                     fullname: metamodule_fullname(&name),
@@ -189,7 +189,7 @@ fn make_classes(
             sk_methods.insert(metamodule_fullname(&name), cmethods);
         }
     }
-    (sk_classes, sk_methods)
+    (sk_modules, sk_methods)
 }
 
 fn _convert_typ(

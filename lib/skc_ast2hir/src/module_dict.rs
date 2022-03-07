@@ -9,12 +9,12 @@ use skc_hir::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ModuleDict<'hir_maker> {
-    /// List of classes (without method) collected prior to sk_classes
+    /// List of classes (without method) collected prior to sk_modules
     module_index: module_index::ModuleIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub sk_classes: SkModules,
+    pub sk_modules: SkModules,
     /// Imported classes
     imported_classes: &'hir_maker SkModules,
 }
@@ -22,7 +22,7 @@ pub struct ModuleDict<'hir_maker> {
 pub fn create<'hir_maker>(
     ast: &shiika_ast::Program,
     // Corelib classes (REFACTOR: corelib should provide methods only)
-    initial_sk_classes: SkModules,
+    initial_sk_modules: SkModules,
     imported_classes: &'hir_maker SkModules,
 ) -> Result<ModuleDict<'hir_maker>> {
     let defs = ast
@@ -34,8 +34,8 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ModuleDict {
-        module_index: module_index::create(&defs, &initial_sk_classes, imported_classes),
-        sk_classes: initial_sk_classes,
+        module_index: module_index::create(&defs, &initial_sk_modules, imported_classes),
+        sk_modules: initial_sk_modules,
         imported_classes,
     };
     dict.index_program(&defs)?;
@@ -46,7 +46,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
     /// Returns information for creating class constants i.e. a list of
     /// `(name, const_is_obj)`
     pub fn constant_list(&self) -> Vec<(String, bool)> {
-        self.sk_classes
+        self.sk_modules
             .iter()
             .filter_map(|(name, class)| {
                 if name.is_meta() {

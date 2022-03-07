@@ -27,7 +27,7 @@ pub fn make_hir(
     } else {
         (Default::default(), Default::default())
     };
-    let module_dict = module_dict::create(&ast, core_classes, &imports.sk_classes)?;
+    let module_dict = module_dict::create(&ast, core_classes, &imports.sk_modules)?;
 
     let mut hir_maker = HirMaker::new(module_dict, &imports.constants);
     hir_maker.define_class_constants();

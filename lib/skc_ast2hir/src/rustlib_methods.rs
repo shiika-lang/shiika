@@ -8,13 +8,13 @@ use skc_hir::*;
 /// implemented in Shiika and in Rust.
 pub fn mix_with_corelib(corelib: Corelib) -> (SkModules, SkMethods) {
     let rustlib_methods = make_rustlib_methods(&corelib);
-    let mut sk_classes = corelib.sk_classes;
+    let mut sk_modules = corelib.sk_modules;
     let mut sk_methods = corelib.sk_methods;
     for (classname, m) in rustlib_methods.into_iter() {
-        // Add to sk_classes
-        let c = sk_classes
+        // Add to sk_modules
+        let c = sk_modules
             .get_mut(&classname)
-            .unwrap_or_else(|| panic!("not in sk_classes: {}", &classname));
+            .unwrap_or_else(|| panic!("not in sk_modules: {}", &classname));
         let first_name = &m.signature.fullname.first_name;
         debug_assert!(!c.method_sigs.contains_key(first_name));
         c.method_sigs
@@ -25,7 +25,7 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkModules, SkMethods) {
             .unwrap_or_else(|| panic!("not in sk_methods: {}", &classname));
         v.push(m);
     }
-    (sk_classes, sk_methods)
+    (sk_modules, sk_methods)
 }
 
 // Make SkMethod of corelib methods implemented in Rust
@@ -43,7 +43,7 @@ fn make_rustlib_method(
     corelib: &Corelib,
 ) -> (ModuleFullname, SkMethod) {
     let class = corelib
-        .sk_classes
+        .sk_modules
         .get(classname)
         .unwrap_or_else(|| panic!("no such class in Corelib: {}", classname));
     let signature = make_hir_sig(class, ast_sig);

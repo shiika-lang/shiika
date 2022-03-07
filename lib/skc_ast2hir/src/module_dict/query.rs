@@ -60,7 +60,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
 
     /// Return the class of the specified name, if any
     pub fn lookup_class(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
-        self.sk_classes
+        self.sk_modules
             .get(module_fullname)
             .or_else(|| self.imported_classes.get(module_fullname))
     }
@@ -74,7 +74,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
 
     /// Find a class. Panic if not found
     pub fn get_class_mut(&mut self, module_fullname: &ModuleFullname) -> &mut SkModule {
-        if let Some(c) = self.sk_classes.get_mut(module_fullname) {
+        if let Some(c) = self.sk_modules.get_mut(module_fullname) {
             c
         } else if self.imported_classes.contains_key(module_fullname) {
             panic!("[BUG] cannot get_mut imported class `{}'", module_fullname)
@@ -206,7 +206,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
     }
 
     pub fn find_ivar(&self, classname: &ModuleFullname, ivar_name: &str) -> Option<&SkIVar> {
-        let class = self.sk_classes.get(classname).unwrap_or_else(|| {
+        let class = self.sk_modules.get(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] finding ivar `{}' but the class '{}' not found",
                 ivar_name, &classname
@@ -242,7 +242,7 @@ mod tests {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
         let module_dict =
-            crate::hir::module_dict::create(&ast, Default::default(), &core.sk_classes)?;
+            crate::hir::module_dict::create(&ast, Default::default(), &core.sk_modules)?;
         f(module_dict);
         Ok(())
     }

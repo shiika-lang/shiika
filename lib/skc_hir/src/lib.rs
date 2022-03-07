@@ -15,7 +15,7 @@ pub type SkModules = HashMap<ModuleFullname, SkModule>;
 
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: HashMap<ModuleFullname, SkModule>,
+    pub sk_modules: HashMap<ModuleFullname, SkModule>,
     pub sk_methods: HashMap<ModuleFullname, Vec<SkMethod>>,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,

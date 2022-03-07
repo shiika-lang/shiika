@@ -54,7 +54,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Destructively convert self to Hir
     pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
-        let sk_classes = std::mem::take(&mut self.module_dict.sk_classes);
+        let sk_modules = std::mem::take(&mut self.module_dict.sk_modules);
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
@@ -64,7 +64,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
         Hir {
-            sk_classes,
+            sk_modules,
             sk_methods,
             constants,
             str_literals,
