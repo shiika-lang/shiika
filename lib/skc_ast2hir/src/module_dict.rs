@@ -52,7 +52,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                 if name.is_meta() {
                     None
                 } else {
-                    Some((name.0.clone(), class.const_is_obj))
+                    Some((name.0.clone(), class.const_is_obj()))
                 }
             })
             .collect()

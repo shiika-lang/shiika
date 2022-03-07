@@ -29,4 +29,12 @@ impl SkModule {
         v.sort_unstable_by(|a, b| a.first_name.0.cmp(&b.first_name.0));
         v
     }
+
+    pub fn const_is_obj(&self) -> bool {
+        if let Some(class_info) = &self.class_info {
+            class_info.const_is_obj
+        } else {
+            false
+        }
+    }
 }
