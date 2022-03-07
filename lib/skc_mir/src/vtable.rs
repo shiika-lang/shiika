@@ -90,7 +90,7 @@ impl VTables {
                 .get(&name)
                 .unwrap_or_else(|| panic!("class not found: {}", name));
             let super_vtable;
-            if let Some(superclass) = &class.superclass {
+            if let Some(superclass) = &class.class_info.as_ref().unwrap().superclass {
                 let super_name = superclass.ty().erasure();
                 if let Some(x) = vtables.get(&super_name) {
                     super_vtable = x;
