@@ -217,13 +217,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
     }
 
     pub fn find_ivar(&self, classname: &ModuleFullname, ivar_name: &str) -> Option<&SkIVar> {
-        let class = self.sk_modules.get(classname).unwrap_or_else(|| {
-            panic!(
-                "[BUG] finding ivar `{}' but the class '{}' not found",
-                ivar_name, &classname
-            )
-        });
-        class.ivars.get(ivar_name)
+        self.get_class(classname).ivars.get(ivar_name)
     }
 
     /// Returns instance variables of the superclass of `classname`
