@@ -1,6 +1,6 @@
 use crate::class_info::ClassInfo;
 use shiika_core::names::*;
-use shiika_core::ty::*;
+use shiika_core::ty::{self, *};
 use std::collections::HashMap;
 use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
@@ -36,5 +36,9 @@ impl SkModule {
         } else {
             false
         }
+    }
+
+    pub fn erasure_ty(&self) -> TermTy {
+        ty::raw("TODO")
     }
 }

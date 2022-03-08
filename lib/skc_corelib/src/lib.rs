@@ -148,7 +148,6 @@ fn make_classes(
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
         let class_info = ClassInfo {
             superclass,
-            instance_ty: ty::raw(&name),
             ivars,
             is_final: Some(false),
             const_is_obj: (name == "Void"),
@@ -174,7 +173,6 @@ fn make_classes(
             let meta_ivars = class::ivars();
             let class_info = ClassInfo {
                 superclass: Some(Superclass::simple("Class")),
-                instance_ty: ty::meta(&name),
                 ivars: meta_ivars,
                 is_final: None,
                 const_is_obj: false,

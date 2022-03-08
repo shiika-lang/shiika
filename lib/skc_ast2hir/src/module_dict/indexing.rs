@@ -304,7 +304,6 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
 
         let class_info = ClassInfo {
             superclass: Some(superclass),
-            instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
@@ -322,7 +321,6 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         let meta_ivars = the_class.ivars.clone();
         let class_info = ClassInfo {
             superclass: Some(Superclass::simple("Class")),
-            instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
