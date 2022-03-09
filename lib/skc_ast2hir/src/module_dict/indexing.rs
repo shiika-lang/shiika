@@ -309,7 +309,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
             const_is_obj,
         };
         self.add_class(SkModule {
-            fullname: fullname.clone(),
+            erasure_ty: LitTy::raw(&fullname.0),
             typarams: typarams.to_vec(),
             method_sigs: instance_methods,
             foreign: false,
@@ -326,7 +326,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
             const_is_obj: false,
         };
         self.add_class(SkModule {
-            fullname: fullname.meta_name(),
+            erasure_ty: LitTy::meta(&fullname.0),
             typarams: typarams.to_vec(),
             method_sigs: class_methods,
             foreign: false,

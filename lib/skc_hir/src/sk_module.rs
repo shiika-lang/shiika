@@ -1,6 +1,6 @@
 use crate::class_info::ClassInfo;
 use shiika_core::names::*;
-use shiika_core::ty::{self, *};
+use shiika_core::ty::*;
 use std::collections::HashMap;
 use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Note that a class is a module in Shiika (as in Ruby)
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkModule {
-    pub fullname: ModuleFullname,
+    pub erasure_ty: LitTy,
     pub typarams: Vec<TyParam>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
     /// true if this module is an imported one
@@ -18,6 +18,10 @@ pub struct SkModule {
 }
 
 impl SkModule {
+    pub fn fullname(&self) -> ModuleFullname {
+        self.erasure_ty.erasure()
+    }
+
     /// List of method names, alphabetic order
     pub fn method_names(&self) -> Vec<MethodFullname> {
         let mut v = self
@@ -36,9 +40,5 @@ impl SkModule {
         } else {
             false
         }
-    }
-
-    pub fn erasure_ty(&self) -> TermTy {
-        ty::raw("TODO")
     }
 }

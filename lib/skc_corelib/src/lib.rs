@@ -1,7 +1,8 @@
 pub mod class;
 mod fn_x;
 pub mod rustlib_methods;
-use shiika_core::{names::*, ty};
+use shiika_core::names::*;
+use shiika_core::ty::{self, LitTy};
 use skc_hir::*;
 use std::collections::HashMap;
 
@@ -155,7 +156,7 @@ fn make_classes(
         sk_modules.insert(
             ModuleFullname(name.to_string()),
             SkModule {
-                fullname: module_fullname(&name),
+                erasure_ty: LitTy::raw(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 method_sigs: imethods
                     .iter()
@@ -180,7 +181,7 @@ fn make_classes(
             sk_modules.insert(
                 metamodule_fullname(&name),
                 SkModule {
-                    fullname: metamodule_fullname(&name),
+                    erasure_ty: LitTy::meta(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     method_sigs: cmethods
                         .iter()
