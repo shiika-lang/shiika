@@ -58,7 +58,7 @@ fn make_rustlib_method(
 // Convert ast_sig into hir_sig
 fn make_hir_sig(class: &SkModule, ast_sig: &AstMethodSignature) -> MethodSignature {
     let module_typarams = class.typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
-    let fullname = method_fullname(&class.fullname, &ast_sig.name.0);
+    let fullname = method_fullname(&class.fullname(), &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
         convert_typ(typ, &module_typarams)
     } else {

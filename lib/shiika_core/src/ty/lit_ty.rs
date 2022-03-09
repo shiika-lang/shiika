@@ -1,4 +1,4 @@
-use crate::names::{module_fullname, ModuleFullname};
+use crate::names::{ModuleFullname};
 use crate::ty;
 use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,12 @@ pub struct LitTy {
     pub type_args: Vec<TermTy>,
     /// `true` if values of this type are classes
     pub is_meta: bool,
+}
+
+impl From<LitTy> for TermTy {
+    fn from(t: LitTy) -> Self {
+        t.into_term_ty()
+    }
 }
 
 impl LitTy {
@@ -31,6 +37,10 @@ impl LitTy {
         LitTy::new(base_name.to_string(), vec![], false)
     }
 
+    pub fn meta(base_name: &str) -> LitTy {
+        LitTy::new(base_name.to_string(), vec![], true)
+    }
+
     pub fn to_term_ty(&self) -> TermTy {
         ty::new(self.base_name.clone(), self.type_args.clone(), self.is_meta)
     }
@@ -45,6 +55,6 @@ impl LitTy {
     }
 
     pub fn erasure(&self) -> ModuleFullname {
-        module_fullname(&self.base_name)
+        ModuleFullname::new(&self.base_name, self.is_meta)
     }
 }
