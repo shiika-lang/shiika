@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Note that a class is a module in Shiika (as in Ruby)
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkModule {
-    pub erasure_ty: LitTy,
+    pub erasure: Erasure,
     pub typarams: Vec<TyParam>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
     /// true if this module is an imported one
@@ -19,7 +19,7 @@ pub struct SkModule {
 
 impl SkModule {
     pub fn fullname(&self) -> ModuleFullname {
-        self.erasure_ty.erasure()
+        self.erasure.to_module_fullname()
     }
 
     /// List of method names, alphabetic order
