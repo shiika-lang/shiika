@@ -301,7 +301,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        self.llvm_struct_type(&lit_ty.erasure())
+        self.llvm_struct_type(&lit_ty.erasure().to_module_fullname())
             .ptr_type(AddressSpace::Generic)
             .as_basic_type_enum()
     }

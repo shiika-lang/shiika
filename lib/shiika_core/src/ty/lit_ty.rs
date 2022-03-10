@@ -1,5 +1,5 @@
-use crate::names::{ModuleFullname};
 use crate::ty;
+use crate::ty::erasure::Erasure;
 use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +54,7 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), self.type_args.clone(), true)
     }
 
-    pub fn erasure(&self) -> ModuleFullname {
-        ModuleFullname::new(&self.base_name, self.is_meta)
+    pub fn erasure(&self) -> Erasure {
+        Erasure::new(self.base_name.clone(), self.is_meta)
     }
 }
