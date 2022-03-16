@@ -70,6 +70,7 @@ pub enum Token {
     Specialize,   //  <> (used internally)
     // Keywords
     KwClass,
+    KwModule,
     KwEnum,
     KwCase,
     KwIn,
@@ -201,6 +202,7 @@ impl Token {
             Token::Specialize => false,   //  <>
             // Keywords
             Token::KwClass => false,
+            Token::KwModule => false,
             Token::KwEnum => false,
             Token::KwCase => false,
             Token::KwIn => false,

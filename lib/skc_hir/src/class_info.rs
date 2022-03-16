@@ -5,6 +5,7 @@ use std::collections::HashMap;
 /// Information of a class
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ClassInfo {
+    /// The class `Object` does not have superclass
     pub superclass: Option<Superclass>,
     pub ivars: HashMap<String, super::SkIVar>,
     /// true if this class cannot be a explicit superclass.

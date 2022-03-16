@@ -14,9 +14,74 @@ impl<'a> Parser<'a> {
         Ok(defs)
     }
 
+    pub fn parse_module_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_module_definition");
+        self.lv += 1;
+        let name;
+        let defs;
+
+        // `module'
+        assert!(self.consume(Token::KwModule)?);
+        self.skip_ws()?;
+
+        // Module name
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                name = module_firstname(s);
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "module name must start with A-Z but got {:?}",
+                    token
+                ))
+            }
+        }
+
+        // Type parameters (optional)
+        let typarams = self.parse_opt_typarams()?;
+
+        // Module does not have a superclass
+        self.skip_ws()?;
+        if self.current_token_is(Token::Colon) {
+            return Err(parse_error!(
+                self,
+                "modules does not have superclass"
+            ))
+        }
+        self.expect_sep()?;
+
+        // Internal definitions
+        defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for module {:?}; got {:?}",
+                    name,
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::ModuleDefinition {
+            name,
+            typarams,
+            defs,
+        })
+    }
+
     fn parse_definition(&mut self) -> Result<Option<shiika_ast::Definition>, Error> {
         match self.current_token() {
             Token::KwClass => Ok(Some(self.parse_class_definition()?)),
+            Token::KwModule => Ok(Some(self.parse_module_definition()?)),
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
             Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
