@@ -133,14 +133,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn process_toplevel_def(&mut self, def: &shiika_ast::Definition) -> Result<()> {
         let namespace = Namespace::root();
         match def {
-            // Extract instance/class methods
             shiika_ast::Definition::ClassDefinition {
                 name,
                 typarams,
                 defs,
                 ..
             } => {
-                self.process_class_def(&namespace, name, parse_typarams(typarams), defs)?;
+                self.process_module_def(&namespace, name, parse_typarams(typarams), defs)?;
+            }
+            shiika_ast::Definition::ModuleDefinition {
+                name,
+                typarams,
+                defs,
+                ..
+            } => {
+                self.process_module_def(&namespace, name, parse_typarams(typarams), defs)?;
             }
             shiika_ast::Definition::EnumDefinition {
                 name,
@@ -156,8 +163,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(())
     }
 
-    /// Process a class definition and its inner defs
-    fn process_class_def(
+    /// Process a class/module definition and its inner defs
+    fn process_module_def(
         &mut self,
         namespace: &Namespace,
         firstname: &ModuleFirstname,
@@ -217,7 +224,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     typarams,
                     ..
                 } => {
-                    self.process_class_def(&inner_namespace, name, parse_typarams(typarams), defs)?
+                    self.process_module_def(&inner_namespace, name, parse_typarams(typarams), defs)?
+                }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    defs,
+                    typarams,
+                    ..
+                } => {
+                    self.process_module_def(&inner_namespace, name, parse_typarams(typarams), defs)?
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
