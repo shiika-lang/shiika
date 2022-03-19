@@ -1,9 +1,9 @@
 use crate::class_info::ClassInfo;
+use crate::signature::MethodSignature;
+use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::*;
 use std::collections::HashMap;
-use crate::signature::MethodSignature;
-use serde::{Deserialize, Serialize};
 
 /// A Shiika module, possibly generic
 /// Note that a class is a module in Shiika (as in Ruby)

@@ -45,10 +45,7 @@ impl<'a> Parser<'a> {
         // Module does not have a superclass
         self.skip_ws()?;
         if self.current_token_is(Token::Colon) {
-            return Err(parse_error!(
-                self,
-                "modules does not have superclass"
-            ))
+            return Err(parse_error!(self, "modules does not have superclass"));
         }
         self.expect_sep()?;
 

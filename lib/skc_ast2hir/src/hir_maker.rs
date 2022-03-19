@@ -1,8 +1,8 @@
-use crate::module_dict::ModuleDict;
 use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
 use crate::method_dict::MethodDict;
+use crate::module_dict::ModuleDict;
 use crate::parse_typarams;
 use crate::type_checking;
 use anyhow::Result;

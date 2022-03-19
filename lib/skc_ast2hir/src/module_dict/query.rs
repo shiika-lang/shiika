@@ -1,5 +1,5 @@
-use crate::module_dict::*;
 use crate::error;
+use crate::module_dict::*;
 use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
@@ -35,9 +35,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
         let (class, module_tyargs) = match &class.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => {
-                (class.erasure_ty(), type_args.as_slice())
-            }
+            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure_ty(), type_args.as_slice()),
             TyBody::TyPara(_) => (ty::raw("Object"), Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {

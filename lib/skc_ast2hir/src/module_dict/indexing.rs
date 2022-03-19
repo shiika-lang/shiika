@@ -1,5 +1,5 @@
-use crate::module_dict::*;
 use crate::error;
+use crate::module_dict::*;
 use crate::parse_typarams;
 use anyhow::Result;
 use shiika_ast;
@@ -34,16 +34,18 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                     typarams,
                     superclass,
                     defs,
-                } => {
-                    self.index_module(&namespace, name, parse_typarams(typarams), Some(superclass), defs)?
-                }
+                } => self.index_module(
+                    &namespace,
+                    name,
+                    parse_typarams(typarams),
+                    Some(superclass),
+                    defs,
+                )?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
                     defs,
-                } => {
-                    self.index_module(&namespace, name, parse_typarams(typarams), None, defs)?
-                }
+                } => self.index_module(&namespace, name, parse_typarams(typarams), None, defs)?,
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -294,7 +296,13 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    self.index_module(namespace, name, parse_typarams(typarams), Some(superclass), defs)?;
+                    self.index_module(
+                        namespace,
+                        name,
+                        parse_typarams(typarams),
+                        Some(superclass),
+                        defs,
+                    )?;
                 }
                 shiika_ast::Definition::ModuleDefinition {
                     name,
@@ -428,7 +436,12 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         // Otherwise:
         let mut tyargs = vec![];
         for arg in &name.args {
-            tyargs.push(self._resolve_typename(namespace, module_typarams, method_typarams, arg)?);
+            tyargs.push(self._resolve_typename(
+                namespace,
+                module_typarams,
+                method_typarams,
+                arg,
+            )?);
         }
         let (resolved_base, base_typarams) =
             self._resolve_simple_typename(namespace, &name.names)?;

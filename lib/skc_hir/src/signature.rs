@@ -15,7 +15,11 @@ impl MethodSignature {
     }
 
     /// Substitute type parameters with type arguments
-    pub fn specialize(&self, module_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodSignature {
+    pub fn specialize(
+        &self,
+        module_tyargs: &[TermTy],
+        method_tyargs: &[TermTy],
+    ) -> MethodSignature {
         MethodSignature {
             fullname: self.fullname.clone(),
             ret_ty: self.ret_ty.substitute(module_tyargs, method_tyargs),

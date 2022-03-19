@@ -376,7 +376,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
                 }
                 _ => {
-                    struct_type.set_body(&self.llvm_field_types(&class.class_info.as_ref().unwrap().ivars), false);
+                    struct_type.set_body(
+                        &self.llvm_field_types(&class.class_info.as_ref().unwrap().ivars),
+                        false,
+                    );
                 }
             }
         }

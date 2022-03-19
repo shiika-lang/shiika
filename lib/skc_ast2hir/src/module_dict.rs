@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-mod module_index;
 mod indexing;
+mod module_index;
 mod query;
 use anyhow::Result;
 use shiika_ast;

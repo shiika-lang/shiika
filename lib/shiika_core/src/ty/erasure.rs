@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::names::ModuleFullname;
 use crate::ty::{self, TermTy};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Erasure {
