@@ -35,7 +35,14 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
+                    self.index_module(&namespace, name, parse_typarams(typarams), Some(superclass), defs)?
+                }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => {
+                    self.index_module(&namespace, name, parse_typarams(typarams), None, defs)?
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -55,34 +62,47 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         Ok(())
     }
 
-    fn index_class(
+    // Index a module or a class
+    fn index_module(
         &mut self,
         namespace: &Namespace,
         firstname: &ModuleFirstname,
         typarams: Vec<ty::TyParam>,
-        ast_superclass: &Option<ConstName>,
+        ast_superclass: Option<&Option<ConstName>>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
+        let is_class = ast_superclass.is_some();
         let fullname = namespace.module_fullname(firstname);
-        let metamodule_fullname = fullname.meta_name();
-        let superclass = if let Some(name) = ast_superclass {
-            let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
+        let metaclass_fullname = fullname.meta_name();
+        let (new_sig, class_info) = if is_class {
+            let superclass = if let Some(name) = ast_superclass.unwrap() {
+                let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
 
-            if self.get_class(&ty.erasure()).is_final.unwrap() {
-                return Err(error::program_error(&format!("cannot inherit from {}", ty)));
-            }
-            Superclass::from_ty(ty)
+                if self.get_class(&ty.erasure()).is_final.unwrap() {
+                    return Err(error::program_error(&format!("cannot inherit from {}", ty)));
+                }
+                Superclass::from_ty(ty)
+            } else {
+                Superclass::default()
+            };
+            let new_sig = if fullname.0 == "Never" {
+                None
+            } else {
+                Some(signature::signature_of_new(
+                    &metaclass_fullname,
+                    self._initializer_params(namespace, &typarams, &superclass, defs)?,
+                    &ty::return_type_of_new(&fullname, &typarams),
+                ))
+            };
+            let class_info = ClassInfo {
+                superclass: Some(superclass),
+                ivars: Default::default(),
+                is_final: Some(false),
+                const_is_obj: false,
+            };
+            (new_sig, Some(class_info))
         } else {
-            Superclass::default()
-        };
-        let new_sig = if fullname.0 == "Never" {
-            None
-        } else {
-            Some(signature::signature_of_new(
-                &metamodule_fullname,
-                self._initializer_params(namespace, &typarams, &superclass, defs)?,
-                &ty::return_type_of_new(&fullname, &typarams),
-            ))
+            Default::default()
         };
 
         let inner_namespace = namespace.add(firstname);
@@ -97,11 +117,11 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                 class.method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_modules
-                    .get_mut(&metamodule_fullname)
+                    .get_mut(&metaclass_fullname)
                     .unwrap_or_else(|| {
                         panic!(
                             "[BUG] metaclass not found: {} <- {}",
-                            fullname, &metamodule_fullname
+                            fullname, &metaclass_fullname
                         )
                     });
                 metaclass.method_sigs.extend(class_methods);
@@ -114,15 +134,13 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                     }
                 }
             }
-            None => self.add_new_class(
+            None => self.add_new_module(
                 &fullname,
                 &typarams,
-                superclass,
+                class_info,
                 new_sig,
                 instance_methods,
                 class_methods,
-                Some(false),
-                false,
             ),
         }
         Ok(())
@@ -164,15 +182,19 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         let inner_namespace = namespace.add(firstname);
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
-        self.add_new_class(
+        let class_info = ClassInfo {
+            superclass: Some(Superclass::simple("Object")),
+            ivars: Default::default(),
+            is_final: Some(true),
+            const_is_obj: false,
+        };
+        self.add_new_module(
             &fullname,
             &typarams,
-            Superclass::simple("Object"),
+            Some(class_info),
             None,
             instance_methods,
             class_methods,
-            Some(true),
-            false,
         );
         for case in cases {
             self.index_enum_case(namespace, &fullname, &typarams, case)?;
@@ -201,15 +223,19 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         } else {
             typarams
         };
-        self.add_new_class(
+        let class_info = ClassInfo {
+            superclass: Some(superclass),
+            ivars: Default::default(),
+            is_final: Some(true),
+            const_is_obj: case.params.is_empty(),
+        };
+        self.add_new_module(
             &fullname,
             case_typarams,
-            superclass,
+            Some(class_info),
             Some(new_sig),
             instance_methods,
             Default::default(),
-            Some(true),
-            case.params.is_empty(),
         );
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
@@ -268,7 +294,14 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
                     superclass,
                     defs,
                 } => {
-                    self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
+                    self.index_module(namespace, name, parse_typarams(typarams), Some(superclass), defs)?;
+                }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => {
+                    self.index_module(namespace, name, parse_typarams(typarams), None, defs)?;
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -283,43 +316,33 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
         Ok((instance_methods, class_methods))
     }
 
-    /// Register a class and its metaclass to self
-    // REFACTOR: fix too_many_arguments
-    #[allow(clippy::too_many_arguments)]
-    fn add_new_class(
+    /// Register a class/module and its metaclass to self
+    fn add_new_module(
         &mut self,
         fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
-        superclass: Superclass,
+        class_info: Option<ClassInfo>,
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
-        is_final: Option<bool>,
-        const_is_obj: bool,
     ) {
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        let class_info = ClassInfo {
-            superclass: Some(superclass),
-            ivars: HashMap::new(), // will be set when processing `#initialize`
-            is_final,
-            const_is_obj,
-        };
         self.add_class(SkModule {
             erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
             method_sigs: instance_methods,
             foreign: false,
-            class_info: Some(class_info),
+            class_info,
         });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&module_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        let class_info = ClassInfo {
+        let metaclass_info = ClassInfo {
             superclass: Some(Superclass::simple("Class")),
             ivars: meta_ivars,
             is_final: None,
@@ -330,7 +353,7 @@ impl<'hir_maker> ModuleDict<'hir_maker> {
             typarams: typarams.to_vec(),
             method_sigs: class_methods,
             foreign: false,
-            class_info: Some(class_info),
+            class_info: Some(metaclass_info),
         });
     }
 
