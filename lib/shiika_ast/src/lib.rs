@@ -21,6 +21,11 @@ pub enum Definition {
         superclass: Option<ConstName>,
         defs: Vec<Definition>,
     },
+    ModuleDefinition {
+        name: ModuleFirstname,
+        typarams: Vec<AstTyParam>,
+        defs: Vec<Definition>,
+    },
     EnumDefinition {
         name: ClassFirstname,
         typarams: Vec<AstTyParam>,
@@ -31,9 +36,13 @@ pub enum Definition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
     },
+    // TODO: Rename to `SingletonMethodDefinition`?
     ClassMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
+    },
+    MethodRequirementDefinition {
+        sig: AstMethodSignature,
     },
     ConstDefinition {
         name: String,

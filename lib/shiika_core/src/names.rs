@@ -1,3 +1,5 @@
+mod module_name;
+pub use module_name::{ModuleFirstname, module_firstname, ModuleFullname, module_fullname};
 use crate::ty;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
