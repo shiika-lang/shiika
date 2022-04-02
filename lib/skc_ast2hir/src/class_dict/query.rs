@@ -34,13 +34,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
-        let ty_obj = ty::raw("Object");
         let (class, class_tyargs) = match &class.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
-                let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
-                (base_cls, type_args.as_slice())
+                (class.erasure_ty(), type_args.as_slice())
             }
-            TyBody::TyPara(_) => (&ty_obj, Default::default()),
+            TyBody::TyPara(_) => (ty::raw("Object"), Default::default()),
         };
         if let Some(sig) = self.find_method(&class.fullname, method_name) {
             Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))

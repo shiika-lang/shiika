@@ -98,7 +98,7 @@ impl VTables {
                     super_vtable = x;
                 } else {
                     queue.push_front(super_name);
-                    queue.push_back(class.fullname.clone());
+                    queue.push_back(class.fullname());
                     continue;
                 }
             } else {
@@ -106,7 +106,7 @@ impl VTables {
                 super_vtable = &null_vtable;
             }
             let vtable = VTable::build(super_vtable, class);
-            vtables.insert(class.fullname.clone(), vtable);
+            vtables.insert(class.fullname(), vtable);
         }
         VTables { vtables }
     }

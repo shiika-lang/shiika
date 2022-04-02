@@ -8,10 +8,9 @@ use std::collections::HashMap;
 /// A Shiika class, possibly generic
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkClass {
-    pub fullname: ClassFullname,
+    pub erasure: Erasure,
     pub typarams: Vec<TyParam>,
     pub superclass: Option<Superclass>,
-    pub instance_ty: TermTy,
     pub ivars: HashMap<String, super::SkIVar>,
     pub method_sigs: HashMap<MethodFirstname, MethodSignature>,
     /// true if this class cannot be a explicit superclass.
@@ -25,8 +24,8 @@ pub struct SkClass {
 }
 
 impl SkClass {
-    pub fn class_ty(&self) -> TermTy {
-        self.instance_ty.meta_ty()
+    pub fn fullname(&self) -> ClassFullname {
+        self.erasure.to_class_fullname()
     }
 
     /// List of method names, alphabetic order

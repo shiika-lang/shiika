@@ -13,7 +13,7 @@ type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class
     pub fn add_class(&mut self, class: SkClass) {
-        self.sk_classes.insert(class.fullname.clone(), class);
+        self.sk_classes.insert(class.fullname(), class);
     }
 
     /// Add a method
@@ -303,10 +303,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
 
         self.add_class(SkClass {
-            fullname: fullname.clone(),
+            erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
             superclass: Some(superclass),
-            instance_ty: ty::raw(&fullname.0),
             ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
             is_final,
@@ -318,10 +317,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         self.add_class(SkClass {
-            fullname: fullname.meta_name(),
+            erasure: Erasure::meta(&fullname.0),
             typarams: typarams.to_vec(),
             superclass: Some(Superclass::simple("Class")),
-            instance_ty: ty::meta(&fullname.0),
             ivars: meta_ivars,
             method_sigs: class_methods,
             is_final: None,

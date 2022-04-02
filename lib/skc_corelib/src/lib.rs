@@ -1,7 +1,8 @@
 pub mod class;
 mod fn_x;
 pub mod rustlib_methods;
-use shiika_core::{names::*, ty};
+use shiika_core::names::*;
+use shiika_core::ty::{self, Erasure};
 use skc_hir::*;
 use std::collections::HashMap;
 
@@ -149,10 +150,9 @@ fn make_classes(
         sk_classes.insert(
             ClassFullname(name.to_string()),
             SkClass {
-                fullname: class_fullname(&name),
+                erasure: Erasure::nonmeta(&name),
                 typarams: typarams.iter().map(ty::TyParam::new).collect(),
                 superclass,
-                instance_ty: ty::raw(&name),
                 ivars,
                 method_sigs: imethods
                     .iter()
@@ -172,10 +172,9 @@ fn make_classes(
             sk_classes.insert(
                 metaclass_fullname(&name),
                 SkClass {
-                    fullname: metaclass_fullname(&name),
+                    erasure: Erasure::meta(&name),
                     typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
                     superclass: Some(Superclass::simple("Class")),
-                    instance_ty: ty::meta(&name),
                     ivars: meta_ivars,
                     method_sigs: cmethods
                         .iter()

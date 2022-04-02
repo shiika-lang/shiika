@@ -185,7 +185,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Methods
         for (classname, class) in imported_classes {
             for (firstname, sig) in &class.method_sigs {
-                let func_type = self.method_llvm_func_type(&class.instance_ty, sig);
+                let func_type = self.method_llvm_func_type(&class.erasure.to_term_ty(), sig);
                 let func_name = classname.method_fullname(firstname);
                 self.module
                     .add_function(&method_func_name(&func_name).0, func_type, None);

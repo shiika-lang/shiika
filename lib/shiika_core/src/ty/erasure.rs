@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::names::ModuleFullname;
+use crate::names::ClassFullname;
 use crate::ty::{self, TermTy};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -28,8 +28,8 @@ impl Erasure {
         Erasure { base_name, is_meta }
     }
 
-    pub fn to_module_fullname(&self) -> ModuleFullname {
-        ModuleFullname::new(&self.base_name, self.is_meta)
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        ClassFullname::new(&self.base_name, self.is_meta)
     }
 
     pub fn to_term_ty(&self) -> TermTy {
