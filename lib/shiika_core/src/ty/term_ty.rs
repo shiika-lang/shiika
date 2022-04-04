@@ -244,7 +244,12 @@ impl TermTy {
     }
 
     pub fn erasure_ty(&self) -> TermTy {
-        ty::raw(self.erasure().0)
+        match &self.body {
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => ty::new(base_name, Default::default(), *is_meta),
+            _ => todo!(),
+        }
     }
 
     /// Returns type arguments, if any

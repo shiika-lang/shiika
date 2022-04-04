@@ -7,7 +7,7 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkClasses,
+    pub sk_classes: SkTypes,
     pub sk_methods: SkMethods,
 }
 
@@ -140,50 +140,45 @@ fn rust_body_items() -> Vec<ClassItem> {
 #[allow(clippy::if_same_then_else)]
 fn make_classes(
     items: Vec<ClassItem>,
-) -> (
-    HashMap<ClassFullname, SkClass>,
-    HashMap<ClassFullname, Vec<SkMethod>>,
-) {
+) -> (SkTypes, SkMethods) {
     let mut sk_classes = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&name),
+            typarams: typarams.iter().map(ty::TyParam::new).collect(),
+            method_sigs: imethods
+                .iter()
+                .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
+                .collect(),
+            foreign: false,
+        };
+        let sk_class = SkClass::nonmeta(base, superclass)
+            .ivars(ivars)
+            .const_is_obj(name == "Void");
         sk_classes.insert(
             ClassFullname(name.to_string()),
-            SkClass {
-                erasure: Erasure::nonmeta(&name),
-                typarams: typarams.iter().map(ty::TyParam::new).collect(),
-                superclass,
-                ivars,
-                method_sigs: imethods
-                    .iter()
-                    .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
-                    .collect(),
-                is_final: Some(false),
-                const_is_obj: (name == "Void"),
-                foreign: false,
-            },
+            sk_class.into()
         );
         sk_methods.insert(class_fullname(&name), imethods);
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
-            let meta_ivars = class::ivars();
+            let base = SkTypeBase {
+                erasure: Erasure::meta(&name),
+                typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
+                method_sigs: cmethods
+                    .iter()
+                    .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
+                    .collect(),
+                foreign: false,
+            };
+            let sk_class = SkClass::meta(base)
+                .ivars(class::ivars());
             sk_classes.insert(
                 metaclass_fullname(&name),
-                SkClass {
-                    erasure: Erasure::meta(&name),
-                    typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
-                    superclass: Some(Superclass::simple("Class")),
-                    ivars: meta_ivars,
-                    method_sigs: cmethods
-                        .iter()
-                        .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
-                        .collect(),
-                    is_final: None,
-                    const_is_obj: false,
-                    foreign: false,
-                },
+                sk_class.into()
             );
             sk_methods.insert(metaclass_fullname(&name), cmethods);
         }

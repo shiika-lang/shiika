@@ -1,12 +1,12 @@
 use crate::{Mir, VTables};
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::ConstFullname, ty::TermTy};
-use skc_hir::SkClasses;
+use skc_hir::SkTypes;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LibraryExports {
-    pub sk_classes: SkClasses,
+    pub sk_classes: SkTypes,
     pub vtables: VTables,
     pub constants: HashMap<ConstFullname, TermTy>,
 }

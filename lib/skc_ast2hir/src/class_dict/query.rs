@@ -12,7 +12,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
         self.lookup_class(class_fullname)
-            .and_then(|class| class.method_sigs.get(method_name))
+            .and_then(|class| class.base.method_sigs.get(method_name))
     }
 
     /// Similar to find_method, but lookup into superclass if not in the class.
@@ -61,9 +61,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.sk_classes
             .get(class_fullname)
             .or_else(|| self.imported_classes.get(class_fullname))
+            .map(|sk_type| {
+                if let SkType::Class(c) = sk_type {
+                    Some(c)
+                } else {
+                    None
+                }
+            }).flatten()
     }
 
-    /// Returns if there is a class of the given name
     /// Find a class. Panic if not found
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)
@@ -72,8 +78,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Find a class. Panic if not found
     pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
-        if let Some(c) = self.sk_classes.get_mut(class_fullname) {
-            c
+        if let Some(sk_type) = self.sk_classes.get_mut(class_fullname) {
+            if let SkType::Class(c) = sk_type {
+                c
+            } else {
+                panic!("[BUG] `{}' is not a class", class_fullname)
+            }
         } else if self.imported_classes.contains_key(class_fullname) {
             panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
         } else {
@@ -204,7 +214,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
-        let class = self.sk_classes.get(classname).unwrap_or_else(|| {
+        let class = self.lookup_class(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] finding ivar `{}' but the class '{}' not found",
                 ivar_name, &classname
@@ -229,8 +239,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
-    use crate::hir::class_dict::ClassDict;
+    use crate::error;
+    use anyhow::Result;
+    use crate::class_dict::*;
     use crate::ty;
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<()>

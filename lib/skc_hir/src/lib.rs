@@ -1,22 +1,23 @@
 pub mod pattern_match;
 pub mod signature;
-mod sk_class;
 mod sk_method;
+mod sk_type;
 mod superclass;
 pub use crate::signature::*;
-pub use crate::sk_class::SkClass;
+pub use crate::sk_type::{SkType, SkTypeBase, SkClass};
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
+pub type SkTypes = HashMap<ClassFullname, SkType>;
 pub type SkClasses = HashMap<ClassFullname, SkClass>;
 
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: HashMap<ClassFullname, SkClass>,
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub sk_classes: SkTypes,
+    pub sk_methods: SkMethods,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,

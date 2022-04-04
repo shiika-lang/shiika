@@ -231,6 +231,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     cases,
                     defs,
                 )?,
+                _ => todo!(),
             }
         }
         self.ctx_stack.pop_class_ctx();

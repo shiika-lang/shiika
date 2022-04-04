@@ -1,7 +1,7 @@
 use crate::library::LibraryExports;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
-use skc_hir::{SkClass, SkClasses};
+use skc_hir::{SkClass, SkType, SkTypes};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
@@ -25,7 +25,7 @@ impl VTable {
     /// Build a VTable of a class
     pub fn build(super_vtable: &VTable, class: &SkClass) -> VTable {
         let mut vtable = super_vtable.clone();
-        for name in class.method_names() {
+        for name in class.base.method_names() {
             if vtable.contains(&name.first_name) {
                 vtable.update(name);
             } else {
@@ -75,9 +75,9 @@ pub struct VTables {
 
 impl VTables {
     /// Build vtables of the classes
-    pub fn build(sk_classes: &SkClasses, imports: &LibraryExports) -> VTables {
+    pub fn build(sk_types: &SkTypes, imports: &LibraryExports) -> VTables {
         let mut vtables = HashMap::new();
-        let mut queue = sk_classes.keys().cloned().collect::<VecDeque<_>>();
+        let mut queue = sk_types.keys().cloned().collect::<VecDeque<_>>();
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
@@ -86,27 +86,29 @@ impl VTables {
                 continue;
             }
 
-            let class = sk_classes
+            let sk_type = sk_types
                 .get(&name)
                 .unwrap_or_else(|| panic!("class not found: {}", name));
-            let super_vtable;
-            if let Some(superclass) = &class.superclass {
-                let super_name = superclass.ty().erasure();
-                if let Some(x) = vtables.get(&super_name) {
-                    super_vtable = x;
-                } else if let Some(x) = imports.vtables.vtables.get(&super_name) {
-                    super_vtable = x;
+            if let SkType::Class(class) = sk_type {
+                let super_vtable;
+                if let Some(superclass) = &class.superclass {
+                    let super_name = superclass.ty().erasure();
+                    if let Some(x) = vtables.get(&super_name) {
+                        super_vtable = x;
+                    } else if let Some(x) = imports.vtables.vtables.get(&super_name) {
+                        super_vtable = x;
+                    } else {
+                        queue.push_front(super_name);
+                        queue.push_back(class.base.fullname());
+                        continue;
+                    }
                 } else {
-                    queue.push_front(super_name);
-                    queue.push_back(class.fullname());
-                    continue;
+                    // The class Object does not have a superclass.
+                    super_vtable = &null_vtable;
                 }
-            } else {
-                // The class Object does not have a superclass.
-                super_vtable = &null_vtable;
+                let vtable = VTable::build(super_vtable, class);
+                vtables.insert(class.base.fullname(), vtable);
             }
-            let vtable = VTable::build(super_vtable, class);
-            vtables.insert(class.fullname(), vtable);
         }
         VTables { vtables }
     }

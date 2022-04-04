@@ -14,16 +14,16 @@ pub struct ClassDict<'hir_maker> {
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub sk_classes: SkClasses,
+    pub sk_classes: SkTypes,
     /// Imported classes
-    imported_classes: &'hir_maker SkClasses,
+    imported_classes: &'hir_maker SkTypes,
 }
 
 pub fn create<'hir_maker>(
     ast: &shiika_ast::Program,
     // Corelib classes (REFACTOR: corelib should provide methods only)
-    initial_sk_classes: SkClasses,
-    imported_classes: &'hir_maker SkClasses,
+    initial_sk_classes: SkTypes,
+    imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {
     let defs = ast
         .toplevel_items
@@ -48,11 +48,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn constant_list(&self) -> Vec<(String, bool)> {
         self.sk_classes
             .iter()
-            .filter_map(|(name, class)| {
+            .filter_map(|(name, sk_type)| {
                 if name.is_meta() {
                     None
                 } else {
-                    Some((name.0.clone(), class.const_is_obj))
+                    match sk_type {
+                        SkType::Class(class) => Some((name.0.clone(), class.const_is_obj)),
+                        SkType::Module(_) => Some((name.0.clone(), false))
+                    }
                 }
             })
             .collect()

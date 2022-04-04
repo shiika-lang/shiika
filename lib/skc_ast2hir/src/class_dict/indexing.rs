@@ -13,7 +13,7 @@ type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class
     pub fn add_class(&mut self, class: SkClass) {
-        self.sk_classes.insert(class.fullname(), class);
+        self.sk_classes.insert(class.base.fullname(), class.into());
     }
 
     /// Add a method
@@ -21,6 +21,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
         let sk_class = self.sk_classes.get_mut(clsname).unwrap();
         sk_class
+            .base_mut()
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
     }
@@ -94,7 +95,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 // Merge methods to existing class
                 // Shiika will not support reopening a class but this is needed
                 // for classes defined both in src corelib/ and in builtin/.
-                class.method_sigs.extend(instance_methods);
+                class.base_mut().method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_classes
                     .get_mut(&metaclass_fullname)
@@ -104,11 +105,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             fullname, &metaclass_fullname
                         )
                     });
-                metaclass.method_sigs.extend(class_methods);
+                metaclass.base_mut().method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
                 if let Some(sig) = new_sig {
-                    if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
+                    if !metaclass.base().method_sigs.contains_key(&method_firstname("new")) {
                         metaclass
+                            .base_mut()
                             .method_sigs
                             .insert(sig.fullname.first_name.clone(), sig);
                     }
@@ -277,7 +279,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     defs,
                 } => {
                     self.index_enum(namespace, name, parse_typarams(typarams), cases, defs)?;
-                }
+                },
+                _ => todo!(),
             }
         }
         Ok((instance_methods, class_methods))
@@ -302,29 +305,35 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        self.add_class(SkClass {
+        let base = SkTypeBase {
             erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
+            method_sigs: instance_methods,
+            foreign: false,
+        };
+        self.add_class(SkClass {
+            base,
             superclass: Some(superclass),
             ivars: HashMap::new(), // will be set when processing `#initialize`
-            method_sigs: instance_methods,
             is_final,
             const_is_obj,
-            foreign: false,
         });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        self.add_class(SkClass {
+        let base = SkTypeBase {
             erasure: Erasure::meta(&fullname.0),
             typarams: typarams.to_vec(),
+            method_sigs: class_methods,
+            foreign: false,
+        };
+        self.add_class(SkClass {
+            base,
             superclass: Some(Superclass::simple("Class")),
             ivars: meta_ivars,
-            method_sigs: class_methods,
             is_final: None,
             const_is_obj: false,
-            foreign: false,
         });
     }
 
