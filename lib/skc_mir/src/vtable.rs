@@ -82,7 +82,7 @@ impl VTables {
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
             // Check if already processed
-            if vtables.contains_key(&name) || imports.sk_classes.contains_key(&name) {
+            if vtables.contains_key(&name) || imports.sk_types.contains_key(&name) {
                 continue;
             }
 

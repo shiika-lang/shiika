@@ -12,11 +12,10 @@ use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
 pub type SkTypes = HashMap<ClassFullname, SkType>;
-pub type SkClasses = HashMap<ClassFullname, SkClass>;
 
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: SkTypes,
+    pub sk_types: SkTypes,
     pub sk_methods: SkMethods,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,

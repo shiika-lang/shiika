@@ -58,7 +58,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Return the class of the specified name, if any
     pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.sk_classes
+        self.sk_types
             .get(class_fullname)
             .or_else(|| self.imported_classes.get(class_fullname))
             .map(|sk_type| {
@@ -78,7 +78,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Find a class. Panic if not found
     pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
-        if let Some(sk_type) = self.sk_classes.get_mut(class_fullname) {
+        if let Some(sk_type) = self.sk_types.get_mut(class_fullname) {
             if let SkType::Class(c) = sk_type {
                 c
             } else {
@@ -251,7 +251,7 @@ mod tests {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
         let class_dict =
-            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_classes)?;
+            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_types)?;
         f(class_dict);
         Ok(())
     }

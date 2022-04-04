@@ -106,7 +106,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_declares();
         self.define_class_class();
         self.gen_imports(imports);
-        self.gen_class_structs(&hir.sk_classes);
+        self.gen_class_structs(&hir.sk_types);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
@@ -169,7 +169,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate information to use imported items
     fn gen_imports(&mut self, imports: &LibraryExports) {
-        self.gen_import_classes(&imports.sk_classes);
+        self.gen_import_classes(&imports.sk_types);
         self.gen_import_vtables(&imports.vtables);
         self.gen_import_constants(&imports.constants);
     }

@@ -7,16 +7,16 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkTypes,
+    pub sk_types: SkTypes,
     pub sk_methods: SkMethods,
 }
 
 /// Create a `Corelib`
 pub fn create() -> Corelib {
-    let (sk_classes, sk_methods) = make_classes(rust_body_items());
+    let (sk_types, sk_methods) = make_classes(rust_body_items());
 
     Corelib {
-        sk_classes,
+        sk_types,
         sk_methods,
     }
 }
@@ -141,7 +141,7 @@ fn rust_body_items() -> Vec<ClassItem> {
 fn make_classes(
     items: Vec<ClassItem>,
 ) -> (SkTypes, SkMethods) {
-    let mut sk_classes = HashMap::new();
+    let mut sk_types = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
         let base = SkTypeBase {
@@ -156,7 +156,7 @@ fn make_classes(
         let sk_class = SkClass::nonmeta(base, superclass)
             .ivars(ivars)
             .const_is_obj(name == "Void");
-        sk_classes.insert(
+        sk_types.insert(
             ClassFullname(name.to_string()),
             sk_class.into()
         );
@@ -176,14 +176,14 @@ fn make_classes(
             };
             let sk_class = SkClass::meta(base)
                 .ivars(class::ivars());
-            sk_classes.insert(
+            sk_types.insert(
                 metaclass_fullname(&name),
                 sk_class.into()
             );
             sk_methods.insert(metaclass_fullname(&name), cmethods);
         }
     }
-    (sk_classes, sk_methods)
+    (sk_types, sk_methods)
 }
 
 fn _convert_typ(
