@@ -4,7 +4,7 @@ mod sk_method;
 mod sk_type;
 mod superclass;
 pub use crate::signature::*;
-pub use crate::sk_type::{SkType, SkTypeBase, SkClass};
+pub use crate::sk_type::{SkType, SkTypeBase, SkClass, SkModule};
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};

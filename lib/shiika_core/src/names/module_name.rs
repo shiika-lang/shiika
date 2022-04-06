@@ -1,3 +1,4 @@
+use crate::names::{ClassFirstname, class_firstname};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -16,6 +17,11 @@ impl ModuleFirstname {
         } else {
             module_fullname(namespace.to_string() + "::" + &self.0)
         }
+    }
+
+    // TODO: Remove this
+    pub fn to_class_first_name(&self) -> ClassFirstname {
+        class_firstname(self.0.clone())
     }
 }
 

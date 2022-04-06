@@ -12,6 +12,18 @@ pub enum SkType {
     Module(SkModule),
 }
 
+impl From<SkClass> for SkType {
+    fn from(x: SkClass) -> Self {
+        SkType::Class(x)
+    }
+}
+
+impl From<SkModule> for SkType {
+    fn from(x: SkModule) -> Self {
+        SkType::Module(x)
+    }
+}
+
 impl SkType {
     pub fn base(&self) -> &SkTypeBase {
         match self {
@@ -29,12 +41,6 @@ impl SkType {
 
     pub fn is_class(&self) -> bool {
         matches!(&self, SkType::Class(_))
-    }
-}
-
-impl From<SkClass> for SkType {
-    fn from(x: SkClass) -> Self {
-        SkType::Class(x)
     }
 }
 
@@ -63,7 +69,7 @@ pub struct SkClass {
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkModule {
     pub base: SkTypeBase,
-    //pub requirements: 
+    pub requirements: Vec<MethodSignature>,
 }
 
 impl SkClass {
