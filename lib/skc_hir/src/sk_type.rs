@@ -42,6 +42,18 @@ impl SkType {
     pub fn is_class(&self) -> bool {
         matches!(&self, SkType::Class(_))
     }
+
+    pub fn find_method_sig(&self, name: &MethodFirstname) -> Option<&MethodSignature> {
+        match self {
+            SkType::Class(sk_class) => {
+                sk_class.base.method_sigs.get(name)
+            }
+            SkType::Module(sk_module) => {
+                sk_module.requirements.iter().find(|sig| &sig.fullname.first_name == name)
+                    .or_else(|| sk_module.base.method_sigs.get(name))
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -91,6 +103,10 @@ impl SkClass {
             is_final: Some(false),
             const_is_obj: false,
         }
+    }
+
+    pub fn fullname(&self) -> ClassFullname {
+        self.base.erasure.to_class_fullname()
     }
 
     pub fn ivars(mut self, x: SkIVars) -> Self {

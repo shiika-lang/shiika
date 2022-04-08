@@ -146,7 +146,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             // Already processed above
                         } else {
                             log::trace!("method {}#{}", &fullname, &sig.name);
-                            let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
+                            let method = self.convert_method_def(&fullname.to_type_fullname(), &sig.name, body_exprs)?;
                             self.method_dict.add_method(&fullname, method);
                         }
                     } else {
@@ -161,7 +161,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     if let Some(fullname) = opt_fullname {
                         let meta_name = fullname.meta_name();
                         log::trace!("method {}.{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&meta_name, &sig.name, body_exprs)?;
+                        let method = self.convert_method_def(&meta_name.to_type_fullname(), &sig.name, body_exprs)?;
                         self.method_dict.add_method(&meta_name, method);
                     } else {
                         return Err(error::program_error(
@@ -260,29 +260,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(&firstname.to_class_first_name());
-        let meta_name = fullname.meta_name();
         self.ctx_stack
             .push(HirMakerContext::class(namespace.add(&firstname.to_class_first_name()), typarams));
 
-        // Register constants before processing #initialize
+        // Register constants before processing the methods
         let inner_namespace = namespace.add(&firstname.to_class_first_name());
         self._process_const_defs_in_class(&inner_namespace, defs)?;
-
-        // Register #initialize and ivars
-        let own_ivars =
-            self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
-        if !own_ivars.is_empty() {
-            // Be careful not to reset ivars of corelib/* by builtin/*
-            self.class_dict.define_ivars(&fullname, own_ivars.clone());
-            self.define_accessors(&fullname, own_ivars, defs);
-        }
-
-        // Register .new
-        if fullname.0 != "Never" {
-            let class_name = ty::raw(&fullname.0);
-            self.method_dict
-                .add_method(&meta_name, self.create_new(&class_name, false)?);
-        }
 
         // Process inner defs
         self.process_defs(&inner_namespace, Some(&fullname), defs)?;
@@ -335,7 +318,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
         let super_ivars = self.class_dict.superclass_ivars(class_fullname);
-        self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
+        self.convert_method_def_(&class_fullname.to_type_fullname(), name, body_exprs, super_ivars)
     }
 
     /// Create .new
@@ -397,29 +380,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_method_def(
         &mut self,
-        class_fullname: &ClassFullname,
+        type_fullname: &TypeFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(class_fullname, name, body_exprs, None)?;
+            self.convert_method_def_(type_fullname, name, body_exprs, None)?;
         Ok(sk_method)
     }
 
     /// Create a SkMethod and return it with ctx.iivars
     fn convert_method_def_(
         &mut self,
-        class_fullname: &ClassFullname,
+        type_fullname: &TypeFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>)> {
         // MethodSignature is built beforehand by class_dict::new
-        let err = format!("[BUG] signature not found ({}/{})", class_fullname, name);
         let signature = self
             .class_dict
-            .find_method(class_fullname, name)
-            .expect(&err)
+            .find_method_of_type(type_fullname, name)
+            .unwrap_or_else(|| panic!("[BUG] signature not found ({}/{})", type_fullname, name))
             .clone();
 
         self.ctx_stack
@@ -468,7 +450,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ));
                     } else {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
+                        let method = self.convert_method_def(&fullname.to_type_fullname(), &sig.name, body_exprs)?;
                         self.method_dict.add_method(&fullname, method);
                     }
                 }
@@ -486,7 +468,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize
         let signature = self
             .class_dict
-            .find_method(&fullname, &method_firstname("initialize"))
+            .find_method_of_class(&fullname, &method_firstname("initialize"))
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
         let exprs = signature

@@ -5,8 +5,17 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
+    pub fn find_method_of_type(
+        &self,
+        fullname: &TypeFullname,
+        method_name: &MethodFirstname,
+    ) -> Option<&MethodSignature> {
+        self.lookup_type(fullname)
+            .and_then(|sk_type| sk_type.find_method_sig(method_name))
+    }
+
     /// Find a method from class name and first name
-    pub fn find_method(
+    pub fn find_method_of_class(
         &self,
         class_fullname: &ClassFullname,
         method_name: &MethodFirstname,
@@ -27,6 +36,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
     }
 
+    // `receiver_class` is for error message.
     fn lookup_method_(
         &self,
         receiver_class: &TermTy,
@@ -34,26 +44,37 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
-        let (class, class_tyargs) = match &class.body {
+        let (typename, class_tyargs) = match &class.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
                 (class.erasure_ty(), type_args.as_slice())
             }
             TyBody::TyPara(_) => (ty::raw("Object"), Default::default()),
         };
-        if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
-        } else {
-            // Look up in superclass
-            let sk_class = self.get_class(&class.erasure());
-            if let Some(superclass) = &sk_class.superclass {
-                self.lookup_method_(receiver_class, superclass.ty(), method_name, method_tyargs)
-            } else {
-                Err(error::program_error(&format!(
-                    "method {:?} not found on {:?}",
-                    method_name, receiver_class.fullname
-                )))
+        if let Some(sig) = self.find_method_of_type(&typename.fullname.to_type_fullname(), method_name) {
+            return Ok((sig.specialize(class_tyargs, method_tyargs), typename.clone()))
+        }
+        match self.get_type(&typename.fullname.into()) {
+            SkType::Class(sk_class) => {
+                // Look up in superclass
+                if let Some(superclass) = &sk_class.superclass {
+                    return self.lookup_method_(receiver_class, superclass.ty(), method_name, method_tyargs);
+                } 
+            }
+            SkType::Module(_) => {
+                // TODO: Look up in supermodule, once it's implemented
             }
         }
+        Err(error::program_error(&format!(
+                    "method {:?} not found on {:?}",
+                    method_name, receiver_class.fullname
+        )))
+    }
+
+    /// Return the cmlass/module of the specified name, if any
+    pub fn lookup_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
+        self.sk_types
+            .get(&fullname._to_class_fullname())
+            .or_else(|| self.imported_classes.get(&fullname._to_class_fullname()))
     }
 
     /// Return the class of the specified name, if any
@@ -68,6 +89,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     None
                 }
             }).flatten()
+    }
+
+    /// Find a type. Panic if not found
+    pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
+        self.lookup_type(fullname)
+            .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
     }
 
     /// Find a class. Panic if not found

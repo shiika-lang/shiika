@@ -1,5 +1,8 @@
 mod module_name;
+mod type_name;
 pub use module_name::{ModuleFirstname, module_firstname, ModuleFullname, module_fullname};
+pub use type_name::TypeFullname;
+use type_name::type_fullname;
 use crate::ty;
 use crate::ty::*;
 use serde::{Deserialize, Serialize};
@@ -33,6 +36,12 @@ pub struct ClassFullname(pub String);
 impl std::fmt::Display for ClassFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl From<ClassFullname> for TypeFullname {
+    fn from(x: ClassFullname) -> Self {
+        type_fullname(x.0)
     }
 }
 
@@ -94,6 +103,10 @@ impl ClassFullname {
         } else {
             self.instance_ty()
         }
+    }
+
+    pub fn to_type_fullname(&self) -> TypeFullname {
+        type_fullname(&self.0)
     }
 
     pub fn meta_name(&self) -> ClassFullname {
