@@ -45,28 +45,36 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
         let (typename, class_tyargs) = match &class.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => {
-                (class.erasure_ty(), type_args.as_slice())
-            }
+            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure_ty(), type_args.as_slice()),
             TyBody::TyPara(_) => (ty::raw("Object"), Default::default()),
         };
-        if let Some(sig) = self.find_method_of_type(&typename.fullname.to_type_fullname(), method_name) {
-            return Ok((sig.specialize(class_tyargs, method_tyargs), typename.clone()))
+        if let Some(sig) =
+            self.find_method_of_type(&typename.fullname.to_type_fullname(), method_name)
+        {
+            return Ok((
+                sig.specialize(class_tyargs, method_tyargs),
+                typename.clone(),
+            ));
         }
         match self.get_type(&typename.fullname.into()) {
             SkType::Class(sk_class) => {
                 // Look up in superclass
                 if let Some(superclass) = &sk_class.superclass {
-                    return self.lookup_method_(receiver_class, superclass.ty(), method_name, method_tyargs);
-                } 
+                    return self.lookup_method_(
+                        receiver_class,
+                        superclass.ty(),
+                        method_name,
+                        method_tyargs,
+                    );
+                }
             }
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
             }
         }
         Err(error::program_error(&format!(
-                    "method {:?} not found on {:?}",
-                    method_name, receiver_class.fullname
+            "method {:?} not found on {:?}",
+            method_name, receiver_class.fullname
         )))
     }
 
@@ -88,7 +96,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } else {
                     None
                 }
-            }).flatten()
+            })
+            .flatten()
     }
 
     /// Find a type. Panic if not found
@@ -266,10 +275,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error;
-    use anyhow::Result;
     use crate::class_dict::*;
+    use crate::error;
     use crate::ty;
+    use anyhow::Result;
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<()>
     where
@@ -277,8 +286,7 @@ mod tests {
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
-        let class_dict =
-            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_types)?;
+        let class_dict = crate::hir::class_dict::create(&ast, Default::default(), &core.sk_types)?;
         f(class_dict);
         Ok(())
     }

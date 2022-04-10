@@ -138,9 +138,7 @@ fn rust_body_items() -> Vec<ClassItem> {
 }
 
 #[allow(clippy::if_same_then_else)]
-fn make_classes(
-    items: Vec<ClassItem>,
-) -> (SkTypes, SkMethods) {
+fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
     let mut sk_types = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
@@ -156,10 +154,7 @@ fn make_classes(
         let sk_class = SkClass::nonmeta(base, superclass)
             .ivars(ivars)
             .const_is_obj(name == "Void");
-        sk_types.insert(
-            ClassFullname(name.to_string()),
-            sk_class.into()
-        );
+        sk_types.insert(ClassFullname(name.to_string()), sk_class.into());
         sk_methods.insert(class_fullname(&name), imethods);
 
         if name == "Metaclass" {
@@ -174,12 +169,8 @@ fn make_classes(
                     .collect(),
                 foreign: false,
             };
-            let sk_class = SkClass::meta(base)
-                .ivars(class::ivars());
-            sk_types.insert(
-                metaclass_fullname(&name),
-                sk_class.into()
-            );
+            let sk_class = SkClass::meta(base).ivars(class::ivars());
+            sk_types.insert(metaclass_fullname(&name), sk_class.into());
             sk_methods.insert(metaclass_fullname(&name), cmethods);
         }
     }

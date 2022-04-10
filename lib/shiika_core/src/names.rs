@@ -1,11 +1,11 @@
 mod module_name;
 mod type_name;
-pub use module_name::{ModuleFirstname, module_firstname, ModuleFullname, module_fullname};
-pub use type_name::TypeFullname;
-use type_name::type_fullname;
 use crate::ty;
 use crate::ty::*;
+pub use module_name::{module_firstname, module_fullname, ModuleFirstname, ModuleFullname};
 use serde::{Deserialize, Serialize};
+use type_name::type_fullname;
+pub use type_name::TypeFullname;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassFirstname(pub String);

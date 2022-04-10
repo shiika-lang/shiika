@@ -45,13 +45,12 @@ impl SkType {
 
     pub fn find_method_sig(&self, name: &MethodFirstname) -> Option<&MethodSignature> {
         match self {
-            SkType::Class(sk_class) => {
-                sk_class.base.method_sigs.get(name)
-            }
-            SkType::Module(sk_module) => {
-                sk_module.requirements.iter().find(|sig| &sig.fullname.first_name == name)
-                    .or_else(|| sk_module.base.method_sigs.get(name))
-            }
+            SkType::Class(sk_class) => sk_class.base.method_sigs.get(name),
+            SkType::Module(sk_module) => sk_module
+                .requirements
+                .iter()
+                .find(|sig| &sig.fullname.first_name == name)
+                .or_else(|| sk_module.base.method_sigs.get(name)),
         }
     }
 }

@@ -54,7 +54,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } else {
                     match sk_type {
                         SkType::Class(class) => Some((name.0.clone(), class.const_is_obj)),
-                        SkType::Module(_) => Some((name.0.clone(), false))
+                        SkType::Module(_) => Some((name.0.clone(), false)),
                     }
                 }
             })

@@ -17,7 +17,9 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
             .unwrap_or_else(|| panic!("not in sk_types: {}", &classname));
         let first_name = &m.signature.fullname.first_name;
         debug_assert!(!c.base().method_sigs.contains_key(first_name));
-        c.base_mut().method_sigs.insert(first_name.clone(), m.signature.clone());
+        c.base_mut()
+            .method_sigs
+            .insert(first_name.clone(), m.signature.clone());
         // Add to sk_methods
         let v = sk_methods
             .get_mut(&classname)
@@ -56,7 +58,12 @@ fn make_rustlib_method(
 
 // Convert ast_sig into hir_sig
 fn make_hir_sig(sk_type: &SkType, ast_sig: &AstMethodSignature) -> MethodSignature {
-    let class_typarams = sk_type.base().typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
+    let class_typarams = sk_type
+        .base()
+        .typarams
+        .iter()
+        .map(|x| &x.name)
+        .collect::<Vec<_>>();
     let fullname = method_fullname(&sk_type.base().fullname(), &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
         convert_typ(typ, &class_typarams)

@@ -153,7 +153,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-
     pub fn parse_enum_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
         self.debug_log("parse_enum_definition");
         self.lv += 1;
@@ -281,10 +280,7 @@ impl<'a> Parser<'a> {
         self.skip_ws()?;
         self.expect_sep()?;
         if with_self {
-            return Err(parse_error!(
-                self,
-                "method requirement must not have .self"
-            ))
+            return Err(parse_error!(self, "method requirement must not have .self"));
         }
 
         self.lv -= 1;

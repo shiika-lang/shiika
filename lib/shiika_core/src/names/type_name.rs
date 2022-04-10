@@ -1,4 +1,4 @@
-use crate::names::{ClassFullname, class_fullname};
+use crate::names::{class_fullname, ClassFullname};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]

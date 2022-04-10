@@ -1,8 +1,8 @@
+mod erasure;
 mod lit_ty;
 mod term_ty;
 mod typaram;
 mod typaram_ref;
-mod erasure;
 use crate::names::*;
 use crate::ty;
 pub use crate::ty::erasure::Erasure;

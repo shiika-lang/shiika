@@ -146,7 +146,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             // Already processed above
                         } else {
                             log::trace!("method {}#{}", &fullname, &sig.name);
-                            let method = self.convert_method_def(&fullname.to_type_fullname(), &sig.name, body_exprs)?;
+                            let method = self.convert_method_def(
+                                &fullname.to_type_fullname(),
+                                &sig.name,
+                                body_exprs,
+                            )?;
                             self.method_dict.add_method(&fullname, method);
                         }
                     } else {
@@ -161,7 +165,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     if let Some(fullname) = opt_fullname {
                         let meta_name = fullname.meta_name();
                         log::trace!("method {}.{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&meta_name.to_type_fullname(), &sig.name, body_exprs)?;
+                        let method = self.convert_method_def(
+                            &meta_name.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
                         self.method_dict.add_method(&meta_name, method);
                     } else {
                         return Err(error::program_error(
@@ -181,9 +189,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     defs,
                     typarams,
                     ..
-                } => {
-                    self.process_class_def(namespace, name, parse_typarams(typarams), defs)?
-                }
+                } => self.process_class_def(namespace, name, parse_typarams(typarams), defs)?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
@@ -197,13 +203,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     typarams,
                     cases,
                     defs,
-                } => self.process_enum_def(
-                    namespace,
-                    name,
-                    parse_typarams(typarams),
-                    cases,
-                    defs,
-                )?,
+                } => {
+                    self.process_enum_def(namespace, name, parse_typarams(typarams), cases, defs)?
+                }
                 shiika_ast::Definition::MethodRequirementDefinition { .. } => {
                     // Already processed in class_dict/indexing.rs
                 }
@@ -260,8 +262,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(&firstname.to_class_first_name());
-        self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(&firstname.to_class_first_name()), typarams));
+        self.ctx_stack.push(HirMakerContext::class(
+            namespace.add(&firstname.to_class_first_name()),
+            typarams,
+        ));
 
         // Register constants before processing the methods
         let inner_namespace = namespace.add(&firstname.to_class_first_name());
@@ -318,7 +322,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
         let super_ivars = self.class_dict.superclass_ivars(class_fullname);
-        self.convert_method_def_(&class_fullname.to_type_fullname(), name, body_exprs, super_ivars)
+        self.convert_method_def_(
+            &class_fullname.to_type_fullname(),
+            name,
+            body_exprs,
+            super_ivars,
+        )
     }
 
     /// Create .new
@@ -450,7 +459,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ));
                     } else {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&fullname.to_type_fullname(), &sig.name, body_exprs)?;
+                        let method = self.convert_method_def(
+                            &fullname.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
                         self.method_dict.add_method(&fullname, method);
                     }
                 }

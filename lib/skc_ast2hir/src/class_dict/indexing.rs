@@ -43,9 +43,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     name,
                     typarams,
                     defs,
-                } => {
-                    self.index_module(&namespace, name, parse_typarams(typarams), defs)?
-                }
+                } => self.index_module(&namespace, name, parse_typarams(typarams), defs)?,
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -116,7 +114,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 metaclass.base_mut().method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
                 if let Some(sig) = new_sig {
-                    if !metaclass.base().method_sigs.contains_key(&method_firstname("new")) {
+                    if !metaclass
+                        .base()
+                        .method_sigs
+                        .contains_key(&method_firstname("new"))
+                    {
                         metaclass
                             .base_mut()
                             .method_sigs
@@ -279,7 +281,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
-        let (instance_methods, class_methods, _) = self._index_inner_defs(namespace, fullname, typarams, defs, false)?;
+        let (instance_methods, class_methods, _) =
+            self._index_inner_defs(namespace, fullname, typarams, defs, false)?;
         Ok((instance_methods, class_methods))
     }
 
@@ -335,16 +338,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } => {
                     self.index_module(namespace, name, parse_typarams(typarams), defs)?;
                 }
-                shiika_ast::Definition::MethodRequirementDefinition {
-                    sig
-                } => {
+                shiika_ast::Definition::MethodRequirementDefinition { sig } => {
                     if is_module {
                         let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                         requirements.push(hir_sig);
                     } else {
                         return Err(error::syntax_error(&format!(
-                                    "only modules have method requirement: {:?} {:?} {:?}",
-                                    namespace, fullname, sig
+                            "only modules have method requirement: {:?} {:?} {:?}",
+                            namespace, fullname, sig
                         )));
                     }
                 }
@@ -355,7 +356,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     defs,
                 } => {
                     self.index_enum(namespace, name, parse_typarams(typarams), cases, defs)?;
-                },
+                }
             }
         }
         Ok((instance_methods, class_methods, requirements))
@@ -427,10 +428,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             method_sigs: instance_methods,
             foreign: false,
         };
-        self.add_type(SkModule {
-            base,
-            requirements,
-        });
+        self.add_type(SkModule { base, requirements });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
