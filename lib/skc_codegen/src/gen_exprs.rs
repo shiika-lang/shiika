@@ -534,7 +534,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_value: SkObj<'run>,
         func_type: inkwell::types::FunctionType<'ictx>,
     ) -> inkwell::values::PointerValue<'run> {
-        //let class = self.get_class_of_obj(receiver_value);
         let vtable = self.get_vtable_of_obj(receiver_value);
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
         let func_raw = self.build_vtable_ref(vtable, *idx, size);

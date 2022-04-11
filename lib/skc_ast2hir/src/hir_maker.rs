@@ -149,7 +149,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
                         if def.is_initializer() {
-                            // Already processed above
+                            // Already processed in process_class_def
                         } else {
                             log::trace!("method {}#{}", &fullname, &sig.name);
                             let method = self.convert_method_def(
