@@ -34,6 +34,14 @@ impl std::fmt::Display for TypeFullname {
 }
 
 impl TypeFullname {
+    pub fn new(s: impl Into<String>, is_meta: bool) -> TypeFullname {
+        if is_meta {
+            metatype_fullname(s)
+        } else {
+            type_fullname(s)
+        }
+    }
+
     pub fn is_meta(&self) -> bool {
         self.0.starts_with("Meta:")
     }
@@ -50,4 +58,14 @@ pub fn type_fullname(s: impl Into<String>) -> TypeFullname {
     debug_assert!(!name.starts_with("::"));
     debug_assert!(!name.starts_with("Meta:Meta:"));
     TypeFullname(name)
+}
+
+pub fn metatype_fullname(base_: impl Into<String>) -> TypeFullname {
+    let base = base_.into();
+    debug_assert!(!base.is_empty());
+    if base == "Metaclass" || base.starts_with("Meta:") {
+        type_fullname("Metaclass")
+    } else {
+        type_fullname(&("Meta:".to_string() + &base))
+    }
 }

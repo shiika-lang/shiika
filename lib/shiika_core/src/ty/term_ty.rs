@@ -1,4 +1,5 @@
 use crate::names::*;
+use crate::ty::erasure::Erasure;
 use crate::ty::lit_ty::LitTy;
 use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 use crate::{ty, ty::tyargs_str};
@@ -226,8 +227,7 @@ impl TermTy {
 
     /// Return true when two types are the same if type args are removed
     pub fn same_base(&self, other: &TermTy) -> bool {
-        // PERF: building strings is not necesarry
-        self.erasure() == other.erasure()
+        self.erasure_() == other.erasure_()
     }
 
     /// Return class name without type arguments
@@ -239,6 +239,16 @@ impl TermTy {
             TyRaw(LitTy {
                 base_name, is_meta, ..
             }) => ClassFullname::new(base_name, *is_meta),
+            _ => todo!(),
+        }
+    }
+
+    // TODO: Rename to erasure()
+    pub fn erasure_(&self) -> Erasure {
+        match &self.body {
+            TyRaw(LitTy {
+                base_name, is_meta, ..
+            }) => Erasure::new(base_name.clone(), *is_meta),
             _ => todo!(),
         }
     }

@@ -92,7 +92,7 @@ impl VTables {
             if let SkType::Class(class) = sk_type {
                 let super_vtable;
                 if let Some(superclass) = &class.superclass {
-                    let super_name = superclass.ty().erasure();
+                    let super_name = superclass.base_fullname();
                     if let Some(x) = vtables.get(&super_name) {
                         super_vtable = x;
                     } else if let Some(x) = imports.vtables.vtables.get(&super_name) {

@@ -1,4 +1,4 @@
-use crate::names::ClassFullname;
+use crate::names::{ClassFullname, TypeFullname};
 use crate::ty::{self, TermTy};
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,10 @@ impl Erasure {
 
     pub fn to_class_fullname(&self) -> ClassFullname {
         ClassFullname::new(&self.base_name, self.is_meta)
+    }
+
+    pub fn to_type_fullname(&self) -> TypeFullname {
+        TypeFullname::new(&self.base_name, self.is_meta)
     }
 
     pub fn to_term_ty(&self) -> TermTy {

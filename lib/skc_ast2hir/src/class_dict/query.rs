@@ -44,19 +44,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
-        let (typename, class_tyargs) = match &class.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure_ty(), type_args.as_slice()),
-            TyBody::TyPara(_) => (ty::raw("Object"), Default::default()),
+        let (erasure, class_tyargs) = match &class.body {
+            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure_(), type_args.as_slice()),
+            TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
-        if let Some(sig) =
-            self.find_method_of_type(&typename.fullname.to_type_fullname(), method_name)
-        {
+        if let Some(sig) = self.find_method_of_type(&erasure.to_type_fullname(), method_name) {
             return Ok((
                 sig.specialize(class_tyargs, method_tyargs),
-                typename.clone(),
+                erasure.to_term_ty(),
             ));
         }
-        match self.get_type(&typename.fullname.into()) {
+        match self.get_type(&erasure.to_type_fullname()) {
             SkType::Class(sk_class) => {
                 // Look up in superclass
                 if let Some(superclass) = &sk_class.superclass {
