@@ -9,21 +9,21 @@ use skc_hir::*;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
-    /// List of classes (without method) collected prior to sk_classes
+    /// List of classes (without method) collected prior to sk_types
     class_index: class_index::ClassIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
-    pub sk_classes: SkClasses,
+    pub sk_types: SkTypes,
     /// Imported classes
-    imported_classes: &'hir_maker SkClasses,
+    imported_classes: &'hir_maker SkTypes,
 }
 
 pub fn create<'hir_maker>(
     ast: &shiika_ast::Program,
     // Corelib classes (REFACTOR: corelib should provide methods only)
-    initial_sk_classes: SkClasses,
-    imported_classes: &'hir_maker SkClasses,
+    initial_sk_types: SkTypes,
+    imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {
     let defs = ast
         .toplevel_items
@@ -34,8 +34,8 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ClassDict {
-        class_index: class_index::create(&defs, &initial_sk_classes, imported_classes),
-        sk_classes: initial_sk_classes,
+        class_index: class_index::create(&defs, &initial_sk_types, imported_classes),
+        sk_types: initial_sk_types,
         imported_classes,
     };
     dict.index_program(&defs)?;
@@ -46,13 +46,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns information for creating class constants i.e. a list of
     /// `(name, const_is_obj)`
     pub fn constant_list(&self) -> Vec<(String, bool)> {
-        self.sk_classes
+        self.sk_types
             .iter()
-            .filter_map(|(name, class)| {
+            .filter_map(|(name, sk_type)| {
                 if name.is_meta() {
                     None
                 } else {
-                    Some((name.0.clone(), class.const_is_obj))
+                    match sk_type {
+                        SkType::Class(class) => Some((name.0.clone(), class.const_is_obj)),
+                        SkType::Module(_) => Some((name.0.clone(), false)),
+                    }
                 }
             })
             .collect()

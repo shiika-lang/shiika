@@ -1,9 +1,11 @@
+mod erasure;
 mod lit_ty;
 mod term_ty;
 mod typaram;
 mod typaram_ref;
 use crate::names::*;
 use crate::ty;
+pub use crate::ty::erasure::Erasure;
 pub use crate::ty::lit_ty::LitTy;
 pub use crate::ty::term_ty::TermTy;
 pub use crate::ty::term_ty::TyBody; // REFACTOR: should be private

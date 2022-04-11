@@ -1,21 +1,22 @@
 pub mod class;
 mod fn_x;
 pub mod rustlib_methods;
-use shiika_core::{names::*, ty};
+use shiika_core::names::*;
+use shiika_core::ty::{self, Erasure};
 use skc_hir::*;
 use std::collections::HashMap;
 
 pub struct Corelib {
-    pub sk_classes: SkClasses,
+    pub sk_types: SkTypes,
     pub sk_methods: SkMethods,
 }
 
 /// Create a `Corelib`
 pub fn create() -> Corelib {
-    let (sk_classes, sk_methods) = make_classes(rust_body_items());
+    let (sk_types, sk_methods) = make_classes(rust_body_items());
 
     Corelib {
-        sk_classes,
+        sk_types,
         sk_methods,
     }
 }
@@ -137,59 +138,43 @@ fn rust_body_items() -> Vec<ClassItem> {
 }
 
 #[allow(clippy::if_same_then_else)]
-fn make_classes(
-    items: Vec<ClassItem>,
-) -> (
-    HashMap<ClassFullname, SkClass>,
-    HashMap<ClassFullname, Vec<SkMethod>>,
-) {
-    let mut sk_classes = HashMap::new();
+fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
+    let mut sk_types = HashMap::new();
     let mut sk_methods = HashMap::new();
     for (name, superclass, imethods, cmethods, ivars, typarams) in items {
-        sk_classes.insert(
-            ClassFullname(name.to_string()),
-            SkClass {
-                fullname: class_fullname(&name),
-                typarams: typarams.iter().map(ty::TyParam::new).collect(),
-                superclass,
-                instance_ty: ty::raw(&name),
-                ivars,
-                method_sigs: imethods
-                    .iter()
-                    .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
-                    .collect(),
-                is_final: Some(false),
-                const_is_obj: (name == "Void"),
-                foreign: false,
-            },
-        );
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&name),
+            typarams: typarams.iter().map(ty::TyParam::new).collect(),
+            method_sigs: imethods
+                .iter()
+                .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
+                .collect(),
+            foreign: false,
+        };
+        let sk_class = SkClass::nonmeta(base, superclass)
+            .ivars(ivars)
+            .const_is_obj(name == "Void");
+        sk_types.insert(ClassFullname(name.to_string()), sk_class.into());
         sk_methods.insert(class_fullname(&name), imethods);
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
         } else {
-            let meta_ivars = class::ivars();
-            sk_classes.insert(
-                metaclass_fullname(&name),
-                SkClass {
-                    fullname: metaclass_fullname(&name),
-                    typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
-                    superclass: Some(Superclass::simple("Class")),
-                    instance_ty: ty::meta(&name),
-                    ivars: meta_ivars,
-                    method_sigs: cmethods
-                        .iter()
-                        .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
-                        .collect(),
-                    is_final: None,
-                    const_is_obj: false,
-                    foreign: false,
-                },
-            );
+            let base = SkTypeBase {
+                erasure: Erasure::meta(&name),
+                typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
+                method_sigs: cmethods
+                    .iter()
+                    .map(|x| (x.signature.first_name().clone(), x.signature.clone()))
+                    .collect(),
+                foreign: false,
+            };
+            let sk_class = SkClass::meta(base).ivars(class::ivars());
+            sk_types.insert(metaclass_fullname(&name), sk_class.into());
             sk_methods.insert(metaclass_fullname(&name), cmethods);
         }
     }
-    (sk_classes, sk_methods)
+    (sk_types, sk_methods)
 }
 
 fn _convert_typ(

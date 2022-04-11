@@ -106,7 +106,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_declares();
         self.define_class_class();
         self.gen_imports(imports);
-        self.gen_class_structs(&hir.sk_classes);
+        self.gen_class_structs(&hir.sk_types);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
@@ -169,26 +169,32 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate information to use imported items
     fn gen_imports(&mut self, imports: &LibraryExports) {
-        self.gen_import_classes(&imports.sk_classes);
+        self.gen_import_classes(&imports.sk_types);
         self.gen_import_vtables(&imports.vtables);
         self.gen_import_constants(&imports.constants);
     }
 
-    fn gen_import_classes(&mut self, imported_classes: &SkClasses) {
+    fn gen_import_classes(&mut self, imported_types: &SkTypes) {
         // LLVM type
-        for name in imported_classes.keys() {
+        for name in imported_types.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
-        self.define_class_struct_fields(imported_classes);
+        self.define_class_struct_fields(imported_types);
 
         // Methods
-        for (classname, class) in imported_classes {
-            for (firstname, sig) in &class.method_sigs {
-                let func_type = self.method_llvm_func_type(&class.instance_ty, sig);
-                let func_name = classname.method_fullname(firstname);
-                self.module
-                    .add_function(&method_func_name(&func_name).0, func_type, None);
+        for (classname, sk_type) in imported_types {
+            match sk_type {
+                SkType::Class(class) => {
+                    for (firstname, sig) in &class.base.method_sigs {
+                        let func_type =
+                            self.method_llvm_func_type(&class.base.erasure.to_term_ty(), sig);
+                        let func_name = classname.method_fullname(firstname);
+                        self.module
+                            .add_function(&method_func_name(&func_name).0, func_type, None);
+                    }
+                }
+                _ => todo!(),
             }
         }
     }
@@ -346,38 +352,48 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_structs(&mut self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn gen_class_structs(&mut self, sk_types: &SkTypes) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
-        for name in classes.keys() {
-            self.llvm_struct_types
-                .insert(name.clone(), self.context.opaque_struct_type(&name.0));
+        for (name, sk_type) in sk_types {
+            if sk_type.is_class() {
+                self.llvm_struct_types
+                    .insert(name.clone(), self.context.opaque_struct_type(&name.0));
+            } else {
+                //todo!();
+                self.llvm_struct_types
+                    .insert(name.clone(), self.context.opaque_struct_type(&name.0));
+            }
         }
 
-        self.define_class_struct_fields(classes);
+        self.define_class_struct_fields(sk_types);
     }
 
     /// Set fields for ivars
-    fn define_class_struct_fields(&self, classes: &HashMap<ClassFullname, SkClass>) {
+    fn define_class_struct_fields(&self, sk_types: &SkTypes) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
-        for (name, class) in classes {
-            let struct_type = self.llvm_struct_types.get(name).unwrap();
-            match name.0.as_str() {
-                "Int" => {
-                    struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
+        for (name, sk_type) in sk_types {
+            if let SkType::Class(class) = sk_type {
+                let struct_type = self.llvm_struct_types.get(name).unwrap();
+                match name.0.as_str() {
+                    "Int" => {
+                        struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
+                    }
+                    "Float" => {
+                        struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
+                    }
+                    "Bool" => {
+                        struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
+                    }
+                    "Shiika::Internal::Ptr" => {
+                        struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
+                    }
+                    _ => {
+                        struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
+                    }
                 }
-                "Float" => {
-                    struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
-                }
-                "Bool" => {
-                    struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
-                }
-                "Shiika::Internal::Ptr" => {
-                    struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
-                }
-                _ => {
-                    struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
-                }
+            } else {
+                //todo!();
             }
         }
     }

@@ -10,19 +10,19 @@ pub type ClassIndex = HashMap<ClassFullname, Vec<ty::TyParam>>;
 /// Collect class names in the program
 pub fn create(
     toplevel_defs: &[&shiika_ast::Definition],
-    initial_sk_classes: &SkClasses,
-    imported_classes: &SkClasses,
+    initial_sk_types: &SkTypes,
+    imported_classes: &SkTypes,
 ) -> ClassIndex {
     let mut cindex = HashMap::new();
-    index_sk_classes(&mut cindex, initial_sk_classes);
-    index_sk_classes(&mut cindex, imported_classes);
+    index_sk_types(&mut cindex, initial_sk_types);
+    index_sk_types(&mut cindex, imported_classes);
     index_toplevel_defs(&mut cindex, toplevel_defs);
     cindex
 }
 
-fn index_sk_classes(cindex: &mut ClassIndex, sk_classes: &SkClasses) {
-    for (name, class) in sk_classes {
-        cindex.insert(name.clone(), class.typarams.clone());
+fn index_sk_types(cindex: &mut ClassIndex, sk_types: &SkTypes) {
+    for (name, class) in sk_types {
+        cindex.insert(name.clone(), class.base().typarams.clone());
     }
 }
 

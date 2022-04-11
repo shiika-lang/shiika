@@ -37,6 +37,10 @@ impl Superclass {
         &self.0
     }
 
+    pub fn base_fullname(&self) -> ClassFullname {
+        self.0.erasure_().to_class_fullname()
+    }
+
     /// Create concrete superclass of a generic class
     pub fn substitute(&self, tyargs: &[TermTy]) -> Superclass {
         let t = self.0.substitute(tyargs, Default::default());

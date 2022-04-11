@@ -11,16 +11,18 @@ use std::collections::HashMap;
 type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Register a class
-    pub fn add_class(&mut self, class: SkClass) {
-        self.sk_classes.insert(class.fullname.clone(), class);
+    /// Register a class or module
+    pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
+        let sk_type = sk_type_.into();
+        self.sk_types.insert(sk_type.base().fullname(), sk_type);
     }
 
     /// Add a method
     /// Used to add auto-defined accessors
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
-        let sk_class = self.sk_classes.get_mut(clsname).unwrap();
+        let sk_class = self.sk_types.get_mut(clsname).unwrap();
         sk_class
+            .base_mut()
             .method_sigs
             .insert(sig.fullname.first_name.clone(), sig);
     }
@@ -37,6 +39,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } => {
                     self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
                 }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => self.index_module(&namespace, name, parse_typarams(typarams), defs)?,
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -89,14 +96,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
-        match self.sk_classes.get_mut(&fullname) {
+        match self.sk_types.get_mut(&fullname) {
             Some(class) => {
                 // Merge methods to existing class
                 // Shiika will not support reopening a class but this is needed
                 // for classes defined both in src corelib/ and in builtin/.
-                class.method_sigs.extend(instance_methods);
+                class.base_mut().method_sigs.extend(instance_methods);
                 let metaclass = self
-                    .sk_classes
+                    .sk_types
                     .get_mut(&metaclass_fullname)
                     .unwrap_or_else(|| {
                         panic!(
@@ -104,11 +111,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             fullname, &metaclass_fullname
                         )
                     });
-                metaclass.method_sigs.extend(class_methods);
+                metaclass.base_mut().method_sigs.extend(class_methods);
                 // Add `.new` to the metaclass
                 if let Some(sig) = new_sig {
-                    if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
+                    if !metaclass
+                        .base()
+                        .method_sigs
+                        .contains_key(&method_firstname("new"))
+                    {
                         metaclass
+                            .base_mut()
                             .method_sigs
                             .insert(sig.fullname.first_name.clone(), sig);
                     }
@@ -123,6 +135,31 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 class_methods,
                 Some(false),
                 false,
+            ),
+        }
+        Ok(())
+    }
+
+    fn index_module(
+        &mut self,
+        namespace: &Namespace,
+        firstname: &ModuleFirstname,
+        typarams: Vec<ty::TyParam>,
+        defs: &[shiika_ast::Definition],
+    ) -> Result<()> {
+        let fullname = namespace.class_fullname(&firstname.to_class_first_name());
+        let inner_namespace = namespace.add(&firstname.to_class_first_name());
+        let (instance_methods, class_methods, requirements) =
+            self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
+
+        match self.sk_types.get_mut(&fullname) {
+            Some(_) => todo!(),
+            None => self.add_new_module(
+                &fullname,
+                &typarams,
+                instance_methods,
+                class_methods,
+                requirements,
             ),
         }
         Ok(())
@@ -244,8 +281,32 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
+        let (instance_methods, class_methods, _) =
+            self._index_inner_defs(namespace, fullname, typarams, defs, false)?;
+        Ok((instance_methods, class_methods))
+    }
+
+    fn index_defs_in_module(
+        &mut self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        defs: &[shiika_ast::Definition],
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
+        self._index_inner_defs(namespace, fullname, typarams, defs, true)
+    }
+
+    fn _index_inner_defs(
+        &mut self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        defs: &[shiika_ast::Definition],
+        is_module: bool,
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
         let mut instance_methods = HashMap::new();
         let mut class_methods = HashMap::new();
+        let mut requirements = vec![];
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
@@ -270,6 +331,24 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } => {
                     self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
                 }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => {
+                    self.index_module(namespace, name, parse_typarams(typarams), defs)?;
+                }
+                shiika_ast::Definition::MethodRequirementDefinition { sig } => {
+                    if is_module {
+                        let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                        requirements.push(hir_sig);
+                    } else {
+                        return Err(error::syntax_error(&format!(
+                            "only modules have method requirement: {:?} {:?} {:?}",
+                            namespace, fullname, sig
+                        )));
+                    }
+                }
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -280,7 +359,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((instance_methods, class_methods))
+        Ok((instance_methods, class_methods, requirements))
     }
 
     /// Register a class and its metaclass to self
@@ -302,31 +381,70 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
-        self.add_class(SkClass {
-            fullname: fullname.clone(),
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
-            superclass: Some(superclass),
-            instance_ty: ty::raw(&fullname.0),
-            ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(superclass),
+            ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
-            foreign: false,
         });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        self.add_class(SkClass {
-            fullname: fullname.meta_name(),
+        let base = SkTypeBase {
+            erasure: Erasure::meta(&fullname.0),
             typarams: typarams.to_vec(),
-            superclass: Some(Superclass::simple("Class")),
-            instance_ty: ty::meta(&fullname.0),
-            ivars: meta_ivars,
             method_sigs: class_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(Superclass::simple("Class")),
+            ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+        });
+    }
+
+    /// Register a class and its metaclass to self
+    fn add_new_module(
+        &mut self,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        instance_methods: HashMap<MethodFirstname, MethodSignature>,
+        class_methods: HashMap<MethodFirstname, MethodSignature>,
+        requirements: Vec<MethodSignature>,
+    ) {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&fullname.0),
+            typarams: typarams.to_vec(),
+            method_sigs: instance_methods,
             foreign: false,
+        };
+        self.add_type(SkModule { base, requirements });
+
+        // Create metaclass (which is a subclass of `Class`)
+        let the_class = self.get_class(&class_fullname("Class"));
+        let meta_ivars = the_class.ivars.clone();
+        let base = SkTypeBase {
+            erasure: Erasure::meta(&fullname.0),
+            typarams: typarams.to_vec(),
+            method_sigs: class_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(Superclass::simple("Class")),
+            ivars: meta_ivars,
+            is_final: None,
+            const_is_obj: false,
         });
     }
 
