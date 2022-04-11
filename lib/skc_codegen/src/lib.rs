@@ -359,7 +359,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.llvm_struct_types
                     .insert(name.clone(), self.context.opaque_struct_type(&name.0));
             } else {
-                todo!();
+                //todo!();
+                self.llvm_struct_types
+                    .insert(name.clone(), self.context.opaque_struct_type(&name.0));
             }
         }
 
@@ -391,7 +393,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     }
                 }
             } else {
-                todo!();
+                //todo!();
             }
         }
     }
