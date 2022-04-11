@@ -112,18 +112,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         items: Vec<shiika_ast::TopLevelItem>,
     ) -> Result<(HirExpressions, HirLVars)> {
         let mut defs = vec![];
-        let mut main_exprs = vec![];
+        let mut top_exprs = vec![];
         for item in items {
             match item {
                 shiika_ast::TopLevelItem::Def(def) => {
                     defs.push(def);
                 }
                 shiika_ast::TopLevelItem::Expr(expr) => {
-                    main_exprs.push(self.convert_expr(&expr)?);
+                    top_exprs.push(expr);
                 }
             }
         }
         self.process_defs(&Namespace::root(), None, &defs)?;
+
+        let mut main_exprs = vec![];
+        for expr in top_exprs {
+            main_exprs.push(self.convert_expr(&expr)?);
+        }
+
         debug_assert!(self.ctx_stack.len() == 1);
         let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
         Ok((
