@@ -36,7 +36,6 @@ impl ConstName {
         debug_assert!(self.args.is_empty());
         ResolvedConstName {
             names: self.names.clone(),
-            args: vec![],
         }
     }
 
@@ -83,7 +82,6 @@ pub struct UnresolvedConstName(pub Vec<String>);
 #[derive(Debug, PartialEq)]
 pub struct ResolvedConstName {
     pub names: Vec<String>,
-    pub args: Vec<ResolvedConstName>,
 }
 
 impl std::fmt::Display for ResolvedConstName {
@@ -93,27 +91,18 @@ impl std::fmt::Display for ResolvedConstName {
 }
 
 impl ResolvedConstName {
-    pub fn new(names: Vec<String>, args: Vec<ResolvedConstName>) -> ResolvedConstName {
-        ResolvedConstName { names, args }
+    pub fn new(names: Vec<String>) -> ResolvedConstName {
+        ResolvedConstName { names }
     }
 
     pub fn unsafe_create(s: String) -> ResolvedConstName {
-        ResolvedConstName {
-            names: vec![s],
-            args: vec![],
-        }
-    }
-
-    /// Returns if generic
-    pub fn has_type_args(&self) -> bool {
-        !self.args.is_empty()
+        ResolvedConstName { names: vec![s] }
     }
 
     /// Returns `self` without type arguments
     pub fn base(&self) -> ResolvedConstName {
         ResolvedConstName {
             names: self.names.clone(),
-            args: Default::default(),
         }
     }
 
@@ -129,45 +118,19 @@ impl ResolvedConstName {
 
     /// Returns string representation
     pub fn string(&self) -> String {
-        let mut s = self.names.join("::");
-        // Type args (optional)
-        if !self.args.is_empty() {
-            s += "<";
-            let v = self.args.iter().map(|arg| arg.string()).collect::<Vec<_>>();
-            s += &v.join(",");
-            s += ">";
-        }
-        s
-    }
-
-    /// Apply type args to `self`. `self.args` must be empty.
-    pub fn with_type_args(&self, args: Vec<ResolvedConstName>) -> ResolvedConstName {
-        debug_assert!(self.args.is_empty());
-        ResolvedConstName {
-            names: self.names.clone(),
-            args,
-        }
+        self.names.join("::")
     }
 
     /// Returns the instance type when this const refers to a class
     /// eg. "Object" -> `TermTy(Object)`
     pub fn to_ty(&self, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
-        if self.args.is_empty() {
-            let s = self.names.join("::");
-            if let Some(i) = class_typarams.iter().position(|name| *name == s) {
-                ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
-            } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
-                ty::typaram_ref(s, ty::TyParamKind::Method, i).into_term_ty()
-            } else {
-                ty::raw(&self.names.join("::"))
-            }
+        let s = self.names.join("::");
+        if let Some(i) = class_typarams.iter().position(|name| *name == s) {
+            ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
+        } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
+            ty::typaram_ref(s, ty::TyParamKind::Method, i).into_term_ty()
         } else {
-            let type_args = self
-                .args
-                .iter()
-                .map(|n| n.to_ty(class_typarams, method_typarams))
-                .collect();
-            ty::spe(&self.names.join("::"), type_args)
+            ty::raw(&self.names.join("::"))
         }
     }
 }
@@ -179,8 +142,5 @@ pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> Resolved
         .into_iter()
         .chain(names.into_iter())
         .collect::<Vec<String>>();
-    ResolvedConstName {
-        names: new_names,
-        args: vec![],
-    }
+    ResolvedConstName { names: new_names }
 }
