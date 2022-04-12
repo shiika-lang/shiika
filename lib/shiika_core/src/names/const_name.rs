@@ -184,8 +184,3 @@ pub fn resolved_const_name(namespace: Namespace, names: Vec<String>) -> Resolved
         args: vec![],
     }
 }
-
-// ad hoc. Not sure I'm doing right
-pub fn typaram_as_resolved_const_name(name: impl Into<String>) -> ResolvedConstName {
-    resolved_const_name(Namespace::root(), vec![name.into()])
-}
