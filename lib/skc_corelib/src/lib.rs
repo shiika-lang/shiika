@@ -178,7 +178,7 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
 }
 
 fn _convert_typ(
-    typ: &ConstName,
+    typ: &UnresolvedTypeName,
     class_typarams: &[String],
     method_typarams: &[shiika_ast::AstTyParam],
 ) -> ty::TermTy {

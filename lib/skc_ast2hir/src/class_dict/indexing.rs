@@ -67,7 +67,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         firstname: &ClassFirstname,
         typarams: Vec<ty::TyParam>,
-        ast_superclass: &Option<ConstName>,
+        ast_superclass: &Option<UnresolvedTypeName>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
@@ -505,7 +505,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
-        name: &ConstName,
+        name: &UnresolvedTypeName,
     ) -> Result<TermTy> {
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {

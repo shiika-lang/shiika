@@ -1,4 +1,5 @@
-use crate::names::{class_fullname, ClassFullname};
+use super::class_name::{class_fullname, ClassFullname};
+use super::const_name::ResolvedConstName;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -67,5 +68,55 @@ pub fn metatype_fullname(base_: impl Into<String>) -> TypeFullname {
         type_fullname("Metaclass")
     } else {
         type_fullname(&("Meta:".to_string() + &base))
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnresolvedTypeName {
+    pub names: Vec<String>,
+    pub args: Vec<UnresolvedTypeName>,
+}
+
+impl UnresolvedTypeName {
+    /// Convert self to ResolvedConstName. `args` must be empty
+    pub fn resolved(&self) -> ResolvedConstName {
+        debug_assert!(self.args.is_empty());
+        ResolvedConstName {
+            names: self.names.clone(),
+        }
+    }
+
+    /// Returns if generic
+    pub fn has_type_args(&self) -> bool {
+        !self.args.is_empty()
+    }
+
+    /// Make ClassFullname from self
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        class_fullname(&self.string())
+    }
+
+    /// Return const name as String
+    pub fn fullname(&self) -> String {
+        "::".to_string() + &self.string()
+    }
+
+    /// Return class name as String
+    fn string(&self) -> String {
+        let mut s = self.names.join("::");
+        if !self.args.is_empty() {
+            s += "<";
+            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
+            s += &v.join(",");
+            s += ">";
+        }
+        s
+    }
+}
+
+pub fn unresolved_type_name(names: Vec<String>) -> UnresolvedTypeName {
+    UnresolvedTypeName {
+        names,
+        args: vec![],
     }
 }

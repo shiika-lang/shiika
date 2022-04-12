@@ -1,5 +1,5 @@
 use shiika_ast::AstMethodSignature;
-use shiika_core::names::{ClassFullname, ConstName};
+use shiika_core::names::{ClassFullname, UnresolvedTypeName};
 use shiika_core::{names::method_fullname, ty, ty::TermTy};
 use skc_corelib::{self, Corelib};
 use skc_hir::*;
@@ -96,8 +96,8 @@ fn convert_param(param: &shiika_ast::Param, class_typarams: &[&String]) -> Metho
     }
 }
 
-// Make TermTy from ConstName
-fn convert_typ(typ: &ConstName, class_typarams: &[&String]) -> TermTy {
+// Make TermTy from UnresolvedTypeName
+fn convert_typ(typ: &UnresolvedTypeName, class_typarams: &[&String]) -> TermTy {
     if typ.args.is_empty() {
         let s = typ.names.join("::");
         if let Some(i) = class_typarams.iter().position(|name| **name == s) {

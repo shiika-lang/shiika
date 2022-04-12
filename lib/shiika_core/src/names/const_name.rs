@@ -23,57 +23,6 @@ pub fn toplevel_const(first_name: &str) -> ConstFullname {
     ConstFullname(format!("::{}", first_name))
 }
 
-// REFACTOR: Rename to `UnresolvedTypeName` or something.
-#[derive(Debug, PartialEq, Clone)]
-pub struct ConstName {
-    pub names: Vec<String>,
-    pub args: Vec<ConstName>,
-}
-
-impl ConstName {
-    /// Convert self to ResolvedConstName. `args` must be empty
-    pub fn resolved(&self) -> ResolvedConstName {
-        debug_assert!(self.args.is_empty());
-        ResolvedConstName {
-            names: self.names.clone(),
-        }
-    }
-
-    /// Returns if generic
-    pub fn has_type_args(&self) -> bool {
-        !self.args.is_empty()
-    }
-
-    /// Make ClassFullname from self
-    pub fn to_class_fullname(&self) -> ClassFullname {
-        class_fullname(&self.string())
-    }
-
-    /// Return const name as String
-    pub fn fullname(&self) -> String {
-        "::".to_string() + &self.string()
-    }
-
-    /// Return class name as String
-    fn string(&self) -> String {
-        let mut s = self.names.join("::");
-        if !self.args.is_empty() {
-            s += "<";
-            let v = self.args.iter().map(|x| x.string()).collect::<Vec<_>>();
-            s += &v.join(",");
-            s += ">";
-        }
-        s
-    }
-}
-
-pub fn const_name(names: Vec<String>) -> ConstName {
-    ConstName {
-        names,
-        args: vec![],
-    }
-}
-
 /// A const name not resolved yet
 #[derive(Debug, PartialEq, Clone)]
 pub struct UnresolvedConstName(pub Vec<String>);

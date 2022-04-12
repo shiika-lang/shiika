@@ -18,7 +18,7 @@ pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
         typarams: Vec<AstTyParam>,
-        superclass: Option<ConstName>,
+        superclass: Option<UnresolvedTypeName>,
         defs: Vec<Definition>,
     },
     ModuleDefinition {
@@ -61,7 +61,7 @@ pub struct AstMethodSignature {
     pub name: MethodFirstname,
     pub typarams: Vec<AstTyParam>,
     pub params: Vec<Param>,
-    pub ret_typ: Option<ConstName>,
+    pub ret_typ: Option<UnresolvedTypeName>,
 }
 
 impl AstMethodSignature {
@@ -101,7 +101,7 @@ pub enum AstVariance {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Param {
     pub name: String,
-    pub typ: ConstName,
+    pub typ: UnresolvedTypeName,
     pub is_iparam: bool, // eg. `def initialize(@a: Int)`
 }
 
