@@ -607,7 +607,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_typ(&mut self) -> Result<ConstName, Error> {
+    fn parse_typ(&mut self) -> Result<UnresolvedTypeName, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
                 let head = s.to_string();
@@ -623,7 +623,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a constant name. `s` must be consumed beforehand
-    fn _parse_typ(&mut self, s: String) -> Result<ConstName, Error> {
+    fn _parse_typ(&mut self, s: String) -> Result<UnresolvedTypeName, Error> {
         self.lv += 1;
         self.debug_log("_parse_typ");
         let mut names = vec![s];
@@ -682,7 +682,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(ConstName { names, args })
+        Ok(UnresolvedTypeName { names, args })
     }
 
     pub fn parse_const_definition(&mut self) -> Result<shiika_ast::Definition, Error> {

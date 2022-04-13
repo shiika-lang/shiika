@@ -249,16 +249,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap()
     }
 
-    /// Call llvm function whose return type is `void`
-    pub fn call_llvm_void_func(
-        &self,
-        func_name: &str,
-        args: &[inkwell::values::BasicValueEnum<'run>],
-    ) {
-        let f = self.module.get_function(func_name).unwrap();
-        self.builder.build_call(f, args, "");
-    }
-
     /// Get nth parameter of llvm func as SkObj
     pub fn get_nth_param(
         &self,

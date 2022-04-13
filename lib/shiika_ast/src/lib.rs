@@ -1,6 +1,6 @@
 mod token;
 pub use crate::token::Token;
-use shiika_core::{names::*, ty};
+use shiika_core::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
@@ -18,7 +18,7 @@ pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
         typarams: Vec<AstTyParam>,
-        superclass: Option<ConstName>,
+        superclass: Option<UnresolvedTypeName>,
         defs: Vec<Definition>,
     },
     ModuleDefinition {
@@ -61,27 +61,7 @@ pub struct AstMethodSignature {
     pub name: MethodFirstname,
     pub typarams: Vec<AstTyParam>,
     pub params: Vec<Param>,
-    pub ret_typ: Option<ConstName>,
-}
-
-impl AstMethodSignature {
-    // FIXME: this should be in skc_ast2hir but used by skc_corelib
-    pub fn typarams(&self) -> Vec<ty::TyParam> {
-        self.typarams
-            .iter()
-            .map(|param| {
-                let v = match &param.variance {
-                    AstVariance::Invariant => ty::Variance::Invariant,
-                    AstVariance::Covariant => ty::Variance::Covariant,
-                    AstVariance::Contravariant => ty::Variance::Contravariant,
-                };
-                ty::TyParam {
-                    name: param.name.clone(),
-                    variance: v,
-                }
-            })
-            .collect::<Vec<_>>()
-    }
+    pub ret_typ: Option<UnresolvedTypeName>,
 }
 
 /// A type parameter
@@ -101,7 +81,7 @@ pub enum AstVariance {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Param {
     pub name: String,
-    pub typ: ConstName,
+    pub typ: UnresolvedTypeName,
     pub is_iparam: bool, // eg. `def initialize(@a: Int)`
 }
 

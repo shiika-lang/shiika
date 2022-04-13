@@ -1,8 +1,8 @@
 use crate::names::*;
+use crate::ty;
 use crate::ty::erasure::Erasure;
 use crate::ty::lit_ty::LitTy;
 use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
-use crate::{ty, ty::tyargs_str};
 use serde::{Deserialize, Serialize};
 
 /// Types for a term (types of Shiika values)
@@ -100,20 +100,6 @@ impl TermTy {
     /// Returns if this is TyParamRef
     pub fn is_typaram_ref(&self) -> bool {
         matches!(&self.body, TyPara(_))
-    }
-
-    pub fn to_const_fullname(&self) -> ConstFullname {
-        match &self.body {
-            TyRaw(LitTy {
-                base_name,
-                type_args,
-                is_meta,
-            }) => {
-                debug_assert!(is_meta);
-                toplevel_const(&format!("{}{}", base_name, &tyargs_str(type_args)))
-            }
-            _ => panic!("[BUG] to_const_fullname called on {:?}", &self),
-        }
     }
 
     // Returns true when this is the Void type

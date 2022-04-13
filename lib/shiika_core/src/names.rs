@@ -8,12 +8,12 @@ pub use class_name::{
     class_firstname, class_fullname, metaclass_fullname, ClassFirstname, ClassFullname,
 };
 pub use const_name::{
-    const_fullname, const_name, resolved_const_name, toplevel_const, ConstFullname, ConstName,
-    ResolvedConstName, UnresolvedConstName,
+    const_fullname, resolved_const_name, toplevel_const, ConstFullname, ResolvedConstName,
+    UnresolvedConstName,
 };
 pub use method_name::{
     method_firstname, method_fullname, method_fullname_raw, MethodFirstname, MethodFullname,
 };
 pub use module_name::{module_firstname, module_fullname, ModuleFirstname, ModuleFullname};
 pub use namespace::Namespace;
-pub use type_name::TypeFullname;
+pub use type_name::{unresolved_type_name, TypeFullname, UnresolvedTypeName};

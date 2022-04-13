@@ -1,4 +1,3 @@
-use super::const_name::*;
 use super::method_name::*;
 use super::type_name::*;
 use crate::{ty, ty::TermTy};
@@ -79,17 +78,8 @@ impl ClassFullname {
         }
     }
 
-    pub fn class_ty(&self) -> TermTy {
-        ty::meta(&self.0)
-    }
-
     pub fn is_meta(&self) -> bool {
         self.0.starts_with("Meta:")
-    }
-
-    /// Whether this is the class `Class`
-    pub fn is_the_class(&self) -> bool {
-        self.0 == "Class"
     }
 
     pub fn to_ty(&self) -> TermTy {
@@ -112,9 +102,5 @@ impl ClassFullname {
 
     pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
         method_fullname(self, &method_firstname.0)
-    }
-
-    pub fn to_const_fullname(&self) -> ConstFullname {
-        toplevel_const(&self.0)
     }
 }

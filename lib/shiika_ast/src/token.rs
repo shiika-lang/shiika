@@ -102,16 +102,6 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn upper_word(s: &str) -> Token {
-        Token::UpperWord(s.to_string())
-    }
-    pub fn lower_word(s: &str) -> Token {
-        Token::LowerWord(s.to_string())
-    }
-    pub fn number(s: &str) -> Token {
-        Token::Number(s.to_string())
-    }
-
     pub fn is_assignment_token(&self) -> bool {
         matches!(
             self,
