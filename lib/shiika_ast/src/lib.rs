@@ -1,6 +1,6 @@
 mod token;
 pub use crate::token::Token;
-use shiika_core::{names::*, ty};
+use shiika_core::names::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
@@ -62,26 +62,6 @@ pub struct AstMethodSignature {
     pub typarams: Vec<AstTyParam>,
     pub params: Vec<Param>,
     pub ret_typ: Option<UnresolvedTypeName>,
-}
-
-impl AstMethodSignature {
-    // FIXME: this should be in skc_ast2hir but used by skc_corelib
-    pub fn typarams(&self) -> Vec<ty::TyParam> {
-        self.typarams
-            .iter()
-            .map(|param| {
-                let v = match &param.variance {
-                    AstVariance::Invariant => ty::Variance::Invariant,
-                    AstVariance::Covariant => ty::Variance::Covariant,
-                    AstVariance::Contravariant => ty::Variance::Contravariant,
-                };
-                ty::TyParam {
-                    name: param.name.clone(),
-                    variance: v,
-                }
-            })
-            .collect::<Vec<_>>()
-    }
 }
 
 /// A type parameter

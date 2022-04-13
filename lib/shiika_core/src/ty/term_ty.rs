@@ -1,8 +1,8 @@
 use crate::names::*;
+use crate::ty;
 use crate::ty::erasure::Erasure;
 use crate::ty::lit_ty::LitTy;
 use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
-use crate::ty;
 use serde::{Deserialize, Serialize};
 
 /// Types for a term (types of Shiika values)

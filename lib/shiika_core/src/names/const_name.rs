@@ -1,6 +1,5 @@
 use super::class_name::*;
 use super::namespace::*;
-use crate::{ty, ty::TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -48,13 +47,6 @@ impl ResolvedConstName {
         ResolvedConstName { names: vec![s] }
     }
 
-    /// Returns `self` without type arguments
-    pub fn base(&self) -> ResolvedConstName {
-        ResolvedConstName {
-            names: self.names.clone(),
-        }
-    }
-
     /// Convert to ConstFullname
     pub fn to_const_fullname(&self) -> ConstFullname {
         toplevel_const(&self.string())
@@ -68,19 +60,6 @@ impl ResolvedConstName {
     /// Returns string representation
     pub fn string(&self) -> String {
         self.names.join("::")
-    }
-
-    /// Returns the instance type when this const refers to a class
-    /// eg. "Object" -> `TermTy(Object)`
-    pub fn to_ty(&self, class_typarams: &[String], method_typarams: &[String]) -> TermTy {
-        let s = self.names.join("::");
-        if let Some(i) = class_typarams.iter().position(|name| *name == s) {
-            ty::typaram_ref(s, ty::TyParamKind::Class, i).into_term_ty()
-        } else if let Some(i) = method_typarams.iter().position(|name| *name == s) {
-            ty::typaram_ref(s, ty::TyParamKind::Method, i).into_term_ty()
-        } else {
-            ty::raw(&self.names.join("::"))
-        }
     }
 }
 

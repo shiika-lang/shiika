@@ -125,11 +125,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
     }
 
-    /// Return true if there is a class of the name
-    pub fn class_exists(&self, fullname: &str) -> bool {
-        self.lookup_class(&class_fullname(fullname)).is_some()
-    }
-
     /// Returns supertype of `ty` (except it is `Object`)
     pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
         match &ty.body {

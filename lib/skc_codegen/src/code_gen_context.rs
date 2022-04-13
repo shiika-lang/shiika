@@ -29,13 +29,6 @@ pub enum FunctionOrigin {
     Other,
 }
 
-#[derive(Debug)]
-pub struct CodeGenLambda<'hir> {
-    pub func_name: String,
-    pub params: &'hir [MethodParam],
-    pub exprs: &'hir HirExpressions,
-}
-
 impl<'hir, 'run> CodeGenContext<'hir, 'run> {
     pub fn new(
         function: inkwell::values::FunctionValue<'run>,

@@ -2,7 +2,6 @@ use super::SkTypeBase;
 use crate::superclass::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
-use shiika_core::names::*;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -37,10 +36,6 @@ impl SkClass {
             is_final: Some(false),
             const_is_obj: false,
         }
-    }
-
-    pub fn fullname(&self) -> ClassFullname {
-        self.base.erasure.to_class_fullname()
     }
 
     pub fn ivars(mut self, x: SkIVars) -> Self {
