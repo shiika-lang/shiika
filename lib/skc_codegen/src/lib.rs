@@ -354,15 +354,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Create llvm struct types for Shiika objects
     fn gen_class_structs(&mut self, sk_types: &SkTypes) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
-        for (name, sk_type) in sk_types {
-            if sk_type.is_class() {
-                self.llvm_struct_types
-                    .insert(name.clone(), self.context.opaque_struct_type(&name.0));
-            } else {
-                //todo!();
-                self.llvm_struct_types
-                    .insert(name.clone(), self.context.opaque_struct_type(&name.0));
-            }
+        for name in sk_types.keys() {
+            self.llvm_struct_types
+                .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
 
         self.define_class_struct_fields(sk_types);
@@ -373,27 +367,31 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
         for (name, sk_type) in sk_types {
-            if let SkType::Class(class) = sk_type {
-                let struct_type = self.llvm_struct_types.get(name).unwrap();
-                match name.0.as_str() {
-                    "Int" => {
-                        struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
-                    }
-                    "Float" => {
-                        struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
-                    }
-                    "Bool" => {
-                        struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
-                    }
-                    "Shiika::Internal::Ptr" => {
-                        struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
-                    }
-                    _ => {
-                        struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
+            let struct_type = self.llvm_struct_types.get(name).unwrap();
+            match sk_type {
+                SkType::Class(class) => {
+                    match name.0.as_str() {
+                        "Int" => {
+                            struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
+                        }
+                        "Float" => {
+                            struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
+                        }
+                        "Bool" => {
+                            struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
+                        }
+                        "Shiika::Internal::Ptr" => {
+                            struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
+                        }
+                        _ => {
+                            struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
+                        }
                     }
                 }
-            } else {
-                //todo!();
+                SkType::Module(_) => {
+                    // For modules, insert only basic fields
+                    struct_type.set_body(&self.llvm_field_types(&Default::default()), false);
+                }
             }
         }
     }
