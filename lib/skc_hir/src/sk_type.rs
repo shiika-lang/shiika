@@ -69,7 +69,12 @@ pub struct SkTypeBase {
 }
 
 impl SkTypeBase {
-    pub fn fullname(&self) -> ClassFullname {
+    pub fn fullname(&self) -> TypeFullname {
+        self.erasure.to_type_fullname()
+    }
+
+    // TODO: remove this
+    pub fn fullname_(&self) -> ClassFullname {
         self.erasure.to_class_fullname()
     }
 

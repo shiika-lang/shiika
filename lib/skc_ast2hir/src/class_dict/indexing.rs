@@ -14,7 +14,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
     pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
         let sk_type = sk_type_.into();
-        self.sk_types.insert(sk_type.base().fullname(), sk_type);
+        self.sk_types.insert(sk_type.base().fullname_(), sk_type);
     }
 
     /// Add a method
