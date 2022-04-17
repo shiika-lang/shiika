@@ -8,6 +8,8 @@ pub use sk_class::SkClass;
 pub use sk_module::SkModule;
 use std::collections::HashMap;
 
+pub type SkTypes = HashMap<ClassFullname, SkType>;
+
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SkType {
     Class(SkClass),
