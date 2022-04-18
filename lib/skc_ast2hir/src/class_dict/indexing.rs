@@ -142,7 +142,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut superclass = None;
         for name in supers {
             let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
-            match self.find_type(&ty.erasure_().to_type_fullname()) {
+            match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
                         return Err(error::program_error(&format!("superclass must be the first")));

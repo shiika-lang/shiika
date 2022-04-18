@@ -213,24 +213,10 @@ impl TermTy {
 
     /// Return true when two types are the same if type args are removed
     pub fn same_base(&self, other: &TermTy) -> bool {
-        self.erasure_() == other.erasure_()
+        self.erasure() == other.erasure()
     }
 
-    /// Return class name without type arguments
-    /// eg.
-    ///   Array<Int>      =>  Array
-    ///   Pair<Int,Bool>  =>  Pair
-    pub fn erasure(&self) -> ClassFullname {
-        match &self.body {
-            TyRaw(LitTy {
-                base_name, is_meta, ..
-            }) => ClassFullname::new(base_name, *is_meta),
-            _ => todo!(),
-        }
-    }
-
-    // TODO: Rename to erasure()
-    pub fn erasure_(&self) -> Erasure {
+    pub fn erasure(&self) -> Erasure {
         match &self.body {
             TyRaw(LitTy {
                 base_name, is_meta, ..

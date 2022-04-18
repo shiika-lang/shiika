@@ -38,7 +38,7 @@ impl Superclass {
     }
 
     pub fn base_fullname(&self) -> ClassFullname {
-        self.0.erasure_().to_class_fullname()
+        self.0.erasure().to_class_fullname()
     }
 
     /// Create concrete superclass of a generic class
