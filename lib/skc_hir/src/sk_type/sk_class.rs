@@ -8,6 +8,8 @@ use std::collections::HashMap;
 pub struct SkClass {
     pub base: SkTypeBase,
     pub superclass: Option<Superclass>,
+    /// Included modules (TODO: Rename `Superclass` to something better)
+    pub includes: Vec<Superclass>,
     pub ivars: HashMap<String, SkIVar>,
     /// true if this class cannot be a explicit superclass.
     /// None if not applicable (eg. metaclasses cannot be a explicit superclass because there is no
@@ -22,6 +24,7 @@ impl SkClass {
         SkClass {
             base,
             superclass,
+            includes: Default::default(),
             ivars: Default::default(),
             is_final: Some(false),
             const_is_obj: false,
@@ -32,6 +35,7 @@ impl SkClass {
         SkClass {
             base,
             superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
             ivars: Default::default(),
             is_final: Some(false),
             const_is_obj: false,

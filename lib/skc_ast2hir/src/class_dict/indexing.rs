@@ -121,6 +121,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &fullname,
                 &typarams,
                 superclass,
+                includes,
                 new_sig,
                 instance_methods,
                 class_methods,
@@ -232,6 +233,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname,
             &typarams,
             Superclass::simple("Object"),
+            Default::default(),
             None,
             instance_methods,
             class_methods,
@@ -269,6 +271,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname,
             case_typarams,
             superclass,
+            Default::default(),
             Some(new_sig),
             instance_methods,
             Default::default(),
@@ -397,6 +400,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: Superclass,
+        includes: Vec<Superclass>,
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
@@ -417,6 +421,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(superclass),
+            includes,
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
@@ -434,6 +439,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
@@ -469,6 +475,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
