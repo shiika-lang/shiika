@@ -10,7 +10,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
-        self.lookup_type(fullname)
+        self.find_type(fullname)
             .and_then(|sk_type| sk_type.find_method_sig(method_name))
     }
 
@@ -76,8 +76,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         )))
     }
 
-    /// Return the cmlass/module of the specified name, if any
-    pub fn lookup_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
+    /// Return the class/module of the specified name, if any
+    pub fn find_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
         self.sk_types
             .get(&fullname._to_class_fullname())
             .or_else(|| self.imported_classes.get(&fullname._to_class_fullname()))
@@ -100,7 +100,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Find a type. Panic if not found
     pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
-        self.lookup_type(fullname)
+        self.find_type(fullname)
             .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
     }
 

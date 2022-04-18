@@ -34,10 +34,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
                 } => {
-                    self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
+                    self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?
                 }
                 shiika_ast::Definition::ModuleDefinition {
                     name,
@@ -67,21 +67,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         firstname: &ClassFirstname,
         typarams: Vec<ty::TyParam>,
-        ast_superclass: &Option<UnresolvedTypeName>,
+        supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
-        let superclass = if let Some(name) = ast_superclass {
-            let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
-
-            if self.get_class(&ty.erasure()).is_final.unwrap() {
-                return Err(error::program_error(&format!("cannot inherit from {}", ty)));
-            }
-            Superclass::from_ty(ty)
-        } else {
-            Superclass::default()
-        };
+        let (superclass, includes) = self._resolve_supers(namespace, &typarams, supers)?;
         let new_sig = if fullname.0 == "Never" {
             None
         } else {
@@ -138,6 +129,42 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ),
         }
         Ok(())
+    }
+
+    /// Resolve superclass and included module names of a class definition 
+    fn _resolve_supers(
+        &self,
+        namespace: &Namespace,
+        class_typarams: &[ty::TyParam],
+        supers: &[UnresolvedTypeName],
+    ) -> Result<(Superclass, Vec<Superclass>)> {
+        let mut modules = vec![];
+        let mut superclass = None;
+        for name in supers {
+            let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            match self.find_type(&ty.erasure_().to_type_fullname()) {
+                Some(SkType::Class(c)) => {
+                    if !modules.is_empty() {
+                        return Err(error::program_error(&format!("superclass must be the first")));
+                    }
+                    if superclass.is_some() {
+                        return Err(error::program_error(&format!("only one superclass is allowed")));
+                    }
+                    if c.is_final.unwrap() {
+                        return Err(error::program_error(&format!("inheriting {} is not allowed", ty)));
+                    }
+                    superclass = Some(Superclass::from_ty(ty))
+                }
+                Some(SkType::Module(_)) => {
+                    modules.push(Superclass::from_ty(ty));
+                }
+                None => {
+                    return Err(error::program_error(&format!("unknown class or module {}", ty)));
+                }
+            }
+        }
+        Ok((superclass.unwrap_or(Superclass::default()),
+            modules))
     }
 
     fn index_module(
@@ -326,10 +353,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
                 } => {
-                    self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
+                    self.index_class(namespace, name, parse_typarams(typarams), supers, defs)?;
                 }
                 shiika_ast::Definition::ModuleDefinition {
                     name,
