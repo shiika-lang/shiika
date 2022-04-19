@@ -425,7 +425,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
-            wtable: Default::default(),
+            wtable: WitnessTable::build(self, includes),
         });
 
         // Create metaclass (which is a subclass of `Class`)
