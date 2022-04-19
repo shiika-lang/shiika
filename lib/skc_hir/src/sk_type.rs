@@ -1,11 +1,13 @@
 mod sk_class;
 mod sk_module;
+mod witness_table;
 use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::*;
 pub use sk_class::SkClass;
 pub use sk_module::SkModule;
+pub use witness_table::WitnessTable;
 use std::collections::HashMap;
 
 pub type SkTypes = HashMap<ClassFullname, SkType>;

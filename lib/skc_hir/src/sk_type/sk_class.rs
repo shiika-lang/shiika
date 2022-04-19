@@ -1,5 +1,6 @@
 use super::SkTypeBase;
 use crate::superclass::Superclass;
+use crate::sk_type::witness_table::WitnessTable;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ pub struct SkClass {
     pub is_final: Option<bool>,
     /// eg. `Void` is an instance, not the class
     pub const_is_obj: bool,
+    pub wtable: WitnessTable,
 }
 
 impl SkClass {
@@ -28,6 +30,7 @@ impl SkClass {
             ivars: Default::default(),
             is_final: Some(false),
             const_is_obj: false,
+            wtable: Default::default(),
         }
     }
 
@@ -39,6 +42,7 @@ impl SkClass {
             ivars: Default::default(),
             is_final: Some(false),
             const_is_obj: false,
+            wtable: Default::default(),
         }
     }
 

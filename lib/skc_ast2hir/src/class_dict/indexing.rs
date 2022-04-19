@@ -425,6 +425,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
+            wtable: Default::default(),
         });
 
         // Create metaclass (which is a subclass of `Class`)
@@ -443,6 +444,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+            wtable: Default::default(),
         });
     }
 
@@ -479,6 +481,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+            wtable: Default::default(),
         });
     }
 
