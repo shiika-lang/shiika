@@ -7,8 +7,8 @@ use shiika_core::names::*;
 use shiika_core::ty::*;
 pub use sk_class::SkClass;
 pub use sk_module::SkModule;
-pub use wtable::WTable;
 use std::collections::HashMap;
+pub use wtable::WTable;
 
 pub type SkTypes = HashMap<ClassFullname, SkType>;
 

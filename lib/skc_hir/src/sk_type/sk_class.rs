@@ -1,6 +1,6 @@
 use super::SkTypeBase;
-use crate::superclass::Superclass;
 use crate::sk_type::wtable::WTable;
+use crate::superclass::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

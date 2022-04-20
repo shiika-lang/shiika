@@ -1,5 +1,5 @@
-use crate::vtable::VTable;
 use crate::library::LibraryExports;
+use crate::vtable::VTable;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
 use skc_hir::{SkType, SkTypes};

@@ -369,25 +369,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for (name, sk_type) in sk_types {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match sk_type {
-                SkType::Class(class) => {
-                    match name.0.as_str() {
-                        "Int" => {
-                            struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
-                        }
-                        "Float" => {
-                            struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
-                        }
-                        "Bool" => {
-                            struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
-                        }
-                        "Shiika::Internal::Ptr" => {
-                            struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
-                        }
-                        _ => {
-                            struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
-                        }
+                SkType::Class(class) => match name.0.as_str() {
+                    "Int" => {
+                        struct_type.set_body(&[vt, ct, self.i64_type.into()], false);
                     }
-                }
+                    "Float" => {
+                        struct_type.set_body(&[vt, ct, self.f64_type.into()], false);
+                    }
+                    "Bool" => {
+                        struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
+                    }
+                    "Shiika::Internal::Ptr" => {
+                        struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
+                    }
+                    _ => {
+                        struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
+                    }
+                },
                 SkType::Module(_) => {
                     // For modules, insert only basic fields
                     struct_type.set_body(&self.llvm_field_types(&Default::default()), false);
