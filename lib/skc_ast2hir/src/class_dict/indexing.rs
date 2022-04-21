@@ -1,3 +1,4 @@
+use crate::class_dict::build_wtable::build_wtable;
 use crate::class_dict::*;
 use crate::error;
 use crate::parse_typarams;
@@ -7,8 +8,6 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
-
-type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
@@ -36,9 +35,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     typarams,
                     supers,
                     defs,
-                } => {
-                    self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?
-                }
+                } => self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
@@ -127,12 +124,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 class_methods,
                 Some(false),
                 false,
-            ),
+            )?,
         }
         Ok(())
     }
 
-    /// Resolve superclass and included module names of a class definition 
+    /// Resolve superclass and included module names of a class definition
     fn _resolve_supers(
         &self,
         namespace: &Namespace,
@@ -146,13 +143,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
-                        return Err(error::program_error(&format!("superclass must be the first")));
+                        return Err(error::program_error(&format!(
+                            "superclass must be the first"
+                        )));
                     }
                     if superclass.is_some() {
-                        return Err(error::program_error(&format!("only one superclass is allowed")));
+                        return Err(error::program_error(&format!(
+                            "only one superclass is allowed"
+                        )));
                     }
                     if c.is_final.unwrap() {
-                        return Err(error::program_error(&format!("inheriting {} is not allowed", ty)));
+                        return Err(error::program_error(&format!(
+                            "inheriting {} is not allowed",
+                            ty
+                        )));
                     }
                     superclass = Some(Superclass::from_ty(ty))
                 }
@@ -160,12 +164,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     modules.push(Superclass::from_ty(ty));
                 }
                 None => {
-                    return Err(error::program_error(&format!("unknown class or module {}", ty)));
+                    return Err(error::program_error(&format!(
+                        "unknown class or module {}",
+                        ty
+                    )));
                 }
             }
         }
-        Ok((superclass.unwrap_or(Superclass::default()),
-            modules))
+        Ok((superclass.unwrap_or(Superclass::default()), modules))
     }
 
     fn index_module(
@@ -239,7 +245,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods,
             Some(true),
             false,
-        );
+        )?;
         for case in cases {
             self.index_enum_case(namespace, &fullname, &typarams, case)?;
         }
@@ -277,7 +283,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Default::default(),
             Some(true),
             case.params.is_empty(),
-        );
+        )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
         Ok(())
@@ -406,12 +412,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
         is_final: Option<bool>,
         const_is_obj: bool,
-    ) {
+    ) -> Result<()> {
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
@@ -425,7 +432,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
-            wtable: WitnessTable::build(self, includes),
+            wtable,
         });
 
         // Create metaclass (which is a subclass of `Class`)
@@ -446,6 +453,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             const_is_obj: false,
             wtable: Default::default(),
         });
+        Ok(())
     }
 
     /// Register a class and its metaclass to self

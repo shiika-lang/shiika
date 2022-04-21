@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
+use std::collections::HashMap;
+
+pub type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {
@@ -26,6 +29,29 @@ impl MethodSignature {
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
         }
+    }
+
+    /// Returns true if `self` is the same as `other` except the
+    /// parameter names.
+    pub fn equivalent_to(&self, other: &MethodSignature) -> bool {
+        if self.fullname.first_name != other.fullname.first_name {
+            return false;
+        }
+        if !self.ret_ty.equals_to(&other.ret_ty) {
+            return false;
+        }
+        if self.params.len() != other.params.len() {
+            return false;
+        }
+        for i in 0..self.params.len() {
+            if self.params[i].ty != other.params[i].ty {
+                return false;
+            }
+        }
+        if self.typarams != other.typarams {
+            return false;
+        }
+        return true;
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::names::{class_firstname, ClassFirstname};
+use crate::names::{class_firstname, ClassFirstname, class_fullname, ClassFullname};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -35,6 +35,13 @@ pub struct ModuleFullname(pub String);
 impl std::fmt::Display for ModuleFullname {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl ModuleFullname {
+    // TODO: Remove this
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        class_fullname(self.0.clone())
     }
 }
 

@@ -98,6 +98,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .flatten()
     }
 
+    /// Return the module of the specified name, if any
+    pub fn lookup_module(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
+        let tmp = module_fullname.to_class_fullname();
+        self.sk_types
+            .get(&tmp)
+            .or_else(|| self.imported_classes.get(&tmp))
+            .map(|sk_type| {
+                if let SkType::Module(m) = sk_type {
+                    Some(m)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+    }
+
     /// Find a type. Panic if not found
     pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
         self.find_type(fullname)
@@ -108,6 +124,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)
             .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
+    }
+
+    /// Find a module. Panic if not found
+    pub fn get_module(&self, module_fullname: &ModuleFullname) -> &SkModule {
+        self.lookup_module(module_fullname)
+            .unwrap_or_else(|| panic!("[BUG] module `{}' not found", &module_fullname.0))
     }
 
     /// Find a class. Panic if not found

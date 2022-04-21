@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+mod build_wtable;
 mod class_index;
 mod indexing;
 mod query;

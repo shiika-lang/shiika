@@ -1,43 +1,60 @@
 use crate::class_dict::ClassDict;
+use crate::error;
+use skc_hir::*;
 use anyhow::Result;
 use shiika_core::names::*;
 use std::collections::HashMap;
 
-fn build_wtable(
+/// Build a witness table for a Shiika class
+pub fn build_wtable(
     class_dict: &ClassDict,
-    class: &ClassFullname,
+    instance_methods: &MethodSignatures,
     includes: &[Superclass],
 ) -> Result<WTable> {
-    let wtable = HashMap::new();
-    for module in includes {
-        let sk_module = class_dict.get_module(module);
-        let methods = resolve_module_methods(class_dict, class, sk_module)?;
+    let mut wtable = HashMap::new();
+    for sup in includes {
+        let sk_module = class_dict.get_module(&sup.erasure().to_module_fullname());
+        let methods = resolve_module_methods(instance_methods, sk_module)?;
         wtable.insert(sk_module.fullname(), methods);
     }
-    Ok(WTable(wtable))
+    Ok(WTable::new(wtable))
 }
 
 fn resolve_module_methods(
-    class_dict: &ClassDict,
-    class: &ClassFullname,
+    instance_methods: &MethodSignatures,
     sk_module: &SkModule,
 ) -> Result<Vec<MethodFullname>> {
-    let resolved = vec![];
-    for name in sk_module.base.method_names() {
-        resolved.push(resolve_module_method(class_dict, class, name)?);
+    let mut resolved = vec![];
+    for mod_sig in sk_module.base.method_sigs.values() {
+        resolved.push(resolve_module_method(instance_methods, mod_sig)?);
     }
     Ok(resolved)
 }
 
 fn resolve_module_method(
-    class_dict: &ClassDict,
-    class: &ClassFullname,
-    name: &MethodFullname,
+    instance_methods: &MethodSignatures,
+    mod_sig: &MethodSignature,
 ) -> Result<MethodFullname> {
-    if let Some(sig) = sk_class.base.method_sigs.get(name.first_name) {
-        チェック
+    if let Some(sig) = instance_methods.get(&mod_sig.fullname.first_name) {
+        check_signature_matches(sig, mod_sig)?;
+        return Ok(sig.fullname.clone());
     }
-    // TODO: should look into its superclass?
+
+    // TODO: should look into the superclass?
+
     // If not found, use the default implementation
-    Ok(name.clone())
+    Ok(mod_sig.fullname.clone())
+}
+
+fn check_signature_matches(
+    sig: &MethodSignature,
+    mod_sig: &MethodSignature,
+) -> Result<()> {
+    if !sig.equivalent_to(&mod_sig) {
+        return Err(error::program_error(&format!(
+                    "signature does not match (class': {:?}, module's: {:?})",
+                    sig, mod_sig,
+        )));
+    }
+    Ok(())
 }

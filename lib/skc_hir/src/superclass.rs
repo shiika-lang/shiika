@@ -37,6 +37,10 @@ impl Superclass {
         &self.0
     }
 
+    pub fn erasure(&self) -> Erasure {
+        self.0.erasure()
+    }
+
     pub fn base_fullname(&self) -> ClassFullname {
         self.0.erasure().to_class_fullname()
     }
