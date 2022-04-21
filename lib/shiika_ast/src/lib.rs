@@ -18,7 +18,7 @@ pub enum Definition {
     ClassDefinition {
         name: ClassFirstname,
         typarams: Vec<AstTyParam>,
-        superclass: Option<UnresolvedTypeName>,
+        supers: Vec<UnresolvedTypeName>,
         defs: Vec<Definition>,
     },
     ModuleDefinition {

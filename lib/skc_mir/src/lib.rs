@@ -1,7 +1,9 @@
 mod library;
 mod vtable;
+mod vtables;
 pub use crate::library::LibraryExports;
-pub use crate::vtable::{VTable, VTables};
+pub use crate::vtable::VTable;
+pub use crate::vtables::VTables;
 use skc_hir::Hir;
 
 #[derive(Debug)]

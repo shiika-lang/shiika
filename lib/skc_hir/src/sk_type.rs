@@ -1,5 +1,6 @@
 mod sk_class;
 mod sk_module;
+mod wtable;
 use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
@@ -7,6 +8,9 @@ use shiika_core::ty::*;
 pub use sk_class::SkClass;
 pub use sk_module::SkModule;
 use std::collections::HashMap;
+pub use wtable::WTable;
+
+pub type SkTypes = HashMap<ClassFullname, SkType>;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SkType {
@@ -67,7 +71,12 @@ pub struct SkTypeBase {
 }
 
 impl SkTypeBase {
-    pub fn fullname(&self) -> ClassFullname {
+    pub fn fullname(&self) -> TypeFullname {
+        self.erasure.to_type_fullname()
+    }
+
+    // TODO: remove this
+    pub fn fullname_(&self) -> ClassFullname {
         self.erasure.to_class_fullname()
     }
 

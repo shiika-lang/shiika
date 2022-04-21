@@ -1,3 +1,4 @@
+use crate::class_dict::build_wtable::build_wtable;
 use crate::class_dict::*;
 use crate::error;
 use crate::parse_typarams;
@@ -8,13 +9,11 @@ use skc_hir::signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
 
-type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
-
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
     pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
         let sk_type = sk_type_.into();
-        self.sk_types.insert(sk_type.base().fullname(), sk_type);
+        self.sk_types.insert(sk_type.base().fullname_(), sk_type);
     }
 
     /// Add a method
@@ -34,11 +33,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
-                } => {
-                    self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
-                }
+                } => self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
@@ -67,21 +64,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         firstname: &ClassFirstname,
         typarams: Vec<ty::TyParam>,
-        ast_superclass: &Option<UnresolvedTypeName>,
+        supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
-        let superclass = if let Some(name) = ast_superclass {
-            let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
-
-            if self.get_class(&ty.erasure()).is_final.unwrap() {
-                return Err(error::program_error(&format!("cannot inherit from {}", ty)));
-            }
-            Superclass::from_ty(ty)
-        } else {
-            Superclass::default()
-        };
+        let (superclass, includes) = self._resolve_supers(namespace, &typarams, supers)?;
         let new_sig = if fullname.0 == "Never" {
             None
         } else {
@@ -130,14 +118,60 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &fullname,
                 &typarams,
                 superclass,
+                includes,
                 new_sig,
                 instance_methods,
                 class_methods,
                 Some(false),
                 false,
-            ),
+            )?,
         }
         Ok(())
+    }
+
+    /// Resolve superclass and included module names of a class definition
+    fn _resolve_supers(
+        &self,
+        namespace: &Namespace,
+        class_typarams: &[ty::TyParam],
+        supers: &[UnresolvedTypeName],
+    ) -> Result<(Superclass, Vec<Superclass>)> {
+        let mut modules = vec![];
+        let mut superclass = None;
+        for name in supers {
+            let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            match self.find_type(&ty.erasure().to_type_fullname()) {
+                Some(SkType::Class(c)) => {
+                    if !modules.is_empty() {
+                        return Err(error::program_error(&format!(
+                            "superclass must be the first"
+                        )));
+                    }
+                    if superclass.is_some() {
+                        return Err(error::program_error(&format!(
+                            "only one superclass is allowed"
+                        )));
+                    }
+                    if c.is_final.unwrap() {
+                        return Err(error::program_error(&format!(
+                            "inheriting {} is not allowed",
+                            ty
+                        )));
+                    }
+                    superclass = Some(Superclass::from_ty(ty))
+                }
+                Some(SkType::Module(_)) => {
+                    modules.push(Superclass::from_ty(ty));
+                }
+                None => {
+                    return Err(error::program_error(&format!(
+                        "unknown class or module {}",
+                        ty
+                    )));
+                }
+            }
+        }
+        Ok((superclass.unwrap_or(Superclass::default()), modules))
     }
 
     fn index_module(
@@ -205,12 +239,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname,
             &typarams,
             Superclass::simple("Object"),
+            Default::default(),
             None,
             instance_methods,
             class_methods,
             Some(true),
             false,
-        );
+        )?;
         for case in cases {
             self.index_enum_case(namespace, &fullname, &typarams, case)?;
         }
@@ -242,12 +277,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname,
             case_typarams,
             superclass,
+            Default::default(),
             Some(new_sig),
             instance_methods,
             Default::default(),
             Some(true),
             case.params.is_empty(),
-        );
+        )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
         Ok(())
@@ -326,10 +362,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
                 } => {
-                    self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
+                    self.index_class(namespace, name, parse_typarams(typarams), supers, defs)?;
                 }
                 shiika_ast::Definition::ModuleDefinition {
                     name,
@@ -370,17 +406,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: Superclass,
+        includes: Vec<Superclass>,
         new_sig: Option<MethodSignature>,
         instance_methods: HashMap<MethodFirstname, MethodSignature>,
         mut class_methods: HashMap<MethodFirstname, MethodSignature>,
         is_final: Option<bool>,
         const_is_obj: bool,
-    ) {
+    ) -> Result<()> {
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             class_methods.insert(sig.fullname.first_name.clone(), sig);
         }
 
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
@@ -390,9 +428,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(superclass),
+            includes,
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
+            wtable,
         });
 
         // Create metaclass (which is a subclass of `Class`)
@@ -407,10 +447,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+            wtable: Default::default(),
         });
+        Ok(())
     }
 
     /// Register a class and its metaclass to self
@@ -442,9 +485,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkClass {
             base,
             superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+            wtable: Default::default(),
         });
     }
 

@@ -64,7 +64,7 @@ fn make_hir_sig(sk_type: &SkType, ast_sig: &AstMethodSignature) -> MethodSignatu
         .iter()
         .map(|x| &x.name)
         .collect::<Vec<_>>();
-    let fullname = method_fullname(&sk_type.base().fullname(), &ast_sig.name.0);
+    let fullname = method_fullname(&sk_type.base().fullname_(), &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
         convert_typ(typ, &class_typarams)
     } else {

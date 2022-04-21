@@ -1,4 +1,6 @@
 /// An instance of `::Class`
+mod witness_table;
+use crate::builtin::class::witness_table::WitnessTable;
 use crate::builtin::{SkAry, SkInt, SkStr};
 use shiika_ffi_macro::shiika_method;
 use std::collections::HashMap;
@@ -55,8 +57,10 @@ pub struct ShiikaClass {
     name: SkStr,
     specialized_classes: *mut HashMap<String, *mut ShiikaClass>,
     type_args: *mut Vec<SkClass>,
+    witness_table: *mut WitnessTable,
 }
 
+/// Called from `Class.new` and initializes internal fields.
 #[shiika_method("Class#_initialize_rustlib")]
 #[allow(non_snake_case)]
 pub extern "C" fn class__initialize_rustlib(
@@ -68,6 +72,7 @@ pub extern "C" fn class__initialize_rustlib(
         (*receiver).vtable = vtable;
         (*receiver).metacls_obj = metacls_obj;
         (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
+        (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
     }
 }
 

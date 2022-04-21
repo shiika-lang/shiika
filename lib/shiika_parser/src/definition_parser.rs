@@ -54,13 +54,15 @@ impl<'a> Parser<'a> {
         // Type parameters (optional)
         let typarams = self.parse_opt_typarams()?;
 
-        // Superclass name (optional)
-        let mut superclass = None;
+        // Superclass and included modules (optional)
+        let supers;
         self.skip_ws()?;
         if self.current_token_is(Token::Colon) {
             self.consume_token()?;
-            self.skip_wsn()?;
-            superclass = Some(self.parse_typ()?);
+            self.skip_ws()?;
+            supers = self.parse_superclass_and_modules()?;
+        } else {
+            supers = vec![];
         }
 
         self.expect_sep()?;
@@ -87,7 +89,7 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::Definition::ClassDefinition {
             name,
             typarams,
-            superclass,
+            supers,
             defs,
         })
     }
@@ -264,6 +266,22 @@ impl<'a> Parser<'a> {
             }
         };
         Ok(shiika_ast::EnumCase { name, params })
+    }
+
+    /// Parse superclass and included modules of a class.
+    fn parse_superclass_and_modules(&mut self) -> Result<Vec<UnresolvedTypeName>, Error> {
+        let mut typs = vec![];
+        loop {
+            typs.push(self.parse_typ()?);
+            self.skip_ws()?;
+            if self.current_token_is(Token::Comma) {
+                self.consume_token()?;
+                self.skip_wsn()?;
+            } else {
+                break;
+            }
+        }
+        Ok(typs)
     }
 
     /// Parse a method requirement. (must appear only in module definitions)

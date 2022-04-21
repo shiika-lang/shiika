@@ -10,7 +10,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
     ) -> Option<&MethodSignature> {
-        self.lookup_type(fullname)
+        self.find_type(fullname)
             .and_then(|sk_type| sk_type.find_method_sig(method_name))
     }
 
@@ -45,7 +45,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, TermTy)> {
         let (erasure, class_tyargs) = match &class.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure_(), type_args.as_slice()),
+            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure(), type_args.as_slice()),
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
         if let Some(sig) = self.find_method_of_type(&erasure.to_type_fullname(), method_name) {
@@ -76,8 +76,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         )))
     }
 
-    /// Return the cmlass/module of the specified name, if any
-    pub fn lookup_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
+    /// Return the class/module of the specified name, if any
+    pub fn find_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
         self.sk_types
             .get(&fullname._to_class_fullname())
             .or_else(|| self.imported_classes.get(&fullname._to_class_fullname()))
@@ -98,9 +98,25 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .flatten()
     }
 
+    /// Return the module of the specified name, if any
+    pub fn lookup_module(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
+        let tmp = module_fullname.to_class_fullname();
+        self.sk_types
+            .get(&tmp)
+            .or_else(|| self.imported_classes.get(&tmp))
+            .map(|sk_type| {
+                if let SkType::Module(m) = sk_type {
+                    Some(m)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+    }
+
     /// Find a type. Panic if not found
     pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
-        self.lookup_type(fullname)
+        self.find_type(fullname)
             .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
     }
 
@@ -108,6 +124,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)
             .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
+    }
+
+    /// Find a module. Panic if not found
+    pub fn get_module(&self, module_fullname: &ModuleFullname) -> &SkModule {
+        self.lookup_module(module_fullname)
+            .unwrap_or_else(|| panic!("[BUG] module `{}' not found", &module_fullname.0))
     }
 
     /// Find a class. Panic if not found
@@ -130,7 +152,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         match &ty.body {
             TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.to_term_ty()),
             _ => self
-                .get_class(&ty.erasure())
+                .get_class(&ty.erasure().to_class_fullname())
                 .superclass
                 .as_ref()
                 .map(|scls| scls.ty().substitute(ty.tyargs(), &[])),
@@ -256,7 +278,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
         self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
-            let ivars = &self.get_class(&ty.erasure()).ivars;
+            let ivars = &self.get_class(&ty.erasure().to_class_fullname()).ivars;
             let tyargs = ty.tyargs();
             ivars
                 .iter()
