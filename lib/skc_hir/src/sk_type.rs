@@ -59,6 +59,14 @@ impl SkType {
                 .or_else(|| sk_module.base.method_sigs.get(name)),
         }
     }
+
+    pub fn erasure(&self) -> &Erasure {
+        &self.base().erasure
+    }
+
+    pub fn fullname(&self) -> TypeFullname {
+        self.base().fullname()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

@@ -455,12 +455,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for arg in type_args {
             method_tyargs.push(self._resolve_method_tyarg(arg)?);
         }
-        let (sig, found_class_name) = self.class_dict.lookup_method(
+        let (sig, found_type) = self.class_dict.lookup_method(
             &receiver_hir.ty,
             method_name,
             method_tyargs.as_slice(),
         )?;
-        self._make_method_call(receiver_hir, arg_hirs, sig, found_class_name)
+        match found_type {
+            SkType::Class(_) => {
+                // TODO: just pass Erasure
+                let tmp = found_type.base().erasure.to_term_ty();
+                self._make_method_call(receiver_hir, arg_hirs, sig,
+                                       tmp)
+            }
+            SkType::Module(sk_module) => {
+                Ok(Hir::module_method_call(
+                        sig.ret_ty.clone(),
+                        receiver_hir,
+                        sk_module.fullname(),
+                        method_name.clone(),
+                        arg_hirs
+                ))
+            }
+        }
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
@@ -598,8 +614,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let found = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
-        if let Ok((sig, found_class_name)) = found {
-            self._make_method_call(self_expr, vec![], sig, found_class_name)
+        if let Ok((sig, found_type)) = found {
+            let tmp = found_type.base().erasure.to_term_ty();
+            self._make_method_call(self_expr, vec![], sig, tmp)
         } else {
             Err(error::program_error(&format!(
                 "variable or method `{}' was not found",

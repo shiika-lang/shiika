@@ -365,9 +365,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("initialize"),
             Default::default(),
         )?;
+        let fullname = found_cls.base().fullname_();
         Ok((
-            method_fullname(&found_cls.fullname, "initialize"),
-            found_cls.fullname,
+            method_fullname(&fullname, "initialize"),
+            fullname
         ))
     }
 
