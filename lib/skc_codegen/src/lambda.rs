@@ -85,6 +85,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_lambda_funcs_in_expr(expr)?;
                 }
             }
+            HirModuleMethodCall { 
+                receiver_expr,
+                arg_exprs,
+                ..
+            } => {
+                self.gen_lambda_funcs_in_expr(receiver_expr)?;
+                for expr in arg_exprs {
+                    self.gen_lambda_funcs_in_expr(expr)?;
+                }
+            }
             HirLambdaInvocation {
                 lambda_expr,
                 arg_exprs,
