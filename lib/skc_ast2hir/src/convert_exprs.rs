@@ -462,10 +462,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         )?;
         match found_type {
             SkType::Class(_) => {
-                // TODO: just pass Erasure
-                let tmp = found_type.base().erasure.to_term_ty();
-                self._make_method_call(receiver_hir, arg_hirs, sig,
-                                       tmp)
+                self._make_method_call(receiver_hir, arg_hirs, sig, found_type)
             }
             SkType::Module(sk_module) => {
                 Ok(Hir::module_method_call(
@@ -496,7 +493,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         receiver_hir: HirExpression,
         mut arg_hirs: Vec<HirExpression>,
         sig: MethodSignature,
-        found_class: TermTy,
+        found_type: &SkType,
     ) -> Result<HirExpression> {
         let specialized = receiver_hir.ty.is_specialized();
         let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
@@ -511,7 +508,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             check_break_in_block(&sig, last_arg)?;
         }
 
-        let receiver = Hir::bit_cast(found_class, receiver_hir);
+        let receiver = Hir::bit_cast(found_type.erasure().to_term_ty(), receiver_hir);
         let args = if specialized {
             arg_hirs
                 .into_iter()
@@ -615,8 +612,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
         if let Ok((sig, found_type)) = found {
-            let tmp = found_type.base().erasure.to_term_ty();
-            self._make_method_call(self_expr, vec![], sig, tmp)
+            self._make_method_call(self_expr, vec![], sig, found_type)
         } else {
             Err(error::program_error(&format!(
                 "variable or method `{}' was not found",
