@@ -45,15 +45,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_tyargs: &[TermTy],
     ) -> Result<(MethodSignature, &SkType)> {
         let (erasure, class_tyargs) = match &current_type.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => (current_type.erasure(), type_args.as_slice()),
+            TyBody::TyRaw(LitTy { type_args, .. }) => {
+                (current_type.erasure(), type_args.as_slice())
+            }
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(sig) = self.find_method_of_type(&sk_type.base().fullname(), method_name) {
-            return Ok((
-                sig.specialize(class_tyargs, method_tyargs),
-                sk_type,
-            ));
+            return Ok((sig.specialize(class_tyargs, method_tyargs), sk_type));
         }
         match sk_type {
             SkType::Class(sk_class) => {

@@ -461,18 +461,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_tyargs.as_slice(),
         )?;
         match found_type {
-            SkType::Class(_) => {
-                self._make_method_call(receiver_hir, arg_hirs, sig, found_type)
-            }
-            SkType::Module(sk_module) => {
-                Ok(Hir::module_method_call(
-                        sig.ret_ty.clone(),
-                        receiver_hir,
-                        sk_module.fullname(),
-                        method_name.clone(),
-                        arg_hirs
-                ))
-            }
+            SkType::Class(_) => self._make_method_call(receiver_hir, arg_hirs, sig, found_type),
+            SkType::Module(sk_module) => Ok(Hir::module_method_call(
+                sig.ret_ty.clone(),
+                receiver_hir,
+                sk_module.fullname(),
+                method_name.clone(),
+                arg_hirs,
+            )),
         }
     }
 

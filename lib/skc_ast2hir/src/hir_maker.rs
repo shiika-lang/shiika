@@ -366,10 +366,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Default::default(),
         )?;
         let fullname = found_cls.base().fullname_();
-        Ok((
-            method_fullname(&fullname, "initialize"),
-            fullname
-        ))
+        Ok((method_fullname(&fullname, "initialize"), fullname))
     }
 
     /// Register a constant defined in the toplevel
