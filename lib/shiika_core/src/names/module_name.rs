@@ -1,4 +1,6 @@
-use crate::names::{class_firstname, ClassFirstname, class_fullname, ClassFullname};
+use crate::names::{
+    class_firstname, class_fullname, const_fullname, ClassFirstname, ClassFullname, ConstFullname,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -42,6 +44,10 @@ impl ModuleFullname {
     // TODO: Remove this
     pub fn to_class_fullname(&self) -> ClassFullname {
         class_fullname(self.0.clone())
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        const_fullname(&self.0)
     }
 }
 

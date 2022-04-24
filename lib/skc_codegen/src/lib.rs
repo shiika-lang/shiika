@@ -137,6 +137,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("shiika_realloc", fn_type, None);
 
+        let fn_type = self.i8ptr_type.fn_type(
+            &[
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+                self.i64_type.into(),
+            ],
+            false,
+        );
+        self.module
+            .add_function("shiika_lookup_wtable", fn_type, None);
+
         let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
         global.set_linkage(inkwell::module::Linkage::Internal);

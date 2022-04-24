@@ -15,3 +15,8 @@ pub use self::int::SkInt;
 pub use self::object::SkObj;
 pub use self::shiika_internal_ptr::SkPtr;
 pub use self::string::SkStr;
+
+#[no_mangle]
+pub extern "C" fn shiika_lookup_wtable(receiver: SkObj, key: u64, idx: usize) -> *const u8 {
+    receiver.class().witness_table().get(key, idx)
+}

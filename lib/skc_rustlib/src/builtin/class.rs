@@ -47,6 +47,10 @@ impl SkClass {
     fn specialized_classes(&mut self) -> &mut HashMap<String, *mut ShiikaClass> {
         unsafe { (*self.0).specialized_classes.as_mut().unwrap() }
     }
+
+    pub fn witness_table(&self) -> &WitnessTable {
+        unsafe { (*self.0).witness_table.as_mut().unwrap() }
+    }
 }
 
 #[repr(C)]

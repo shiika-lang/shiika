@@ -85,7 +85,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_fullname,
                 arg_exprs,
             } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
-            HirModuleMethodCall { .. } => todo!(),
+            HirModuleMethodCall {
+                receiver_expr,
+                module_fullname,
+                method_name,
+                arg_exprs,
+            } => self.gen_module_method_call(
+                ctx,
+                module_fullname,
+                method_name,
+                receiver_expr,
+                arg_exprs,
+                &expr.ty,
+            ),
             HirLambdaInvocation {
                 lambda_expr,
                 arg_exprs,
@@ -552,6 +564,81 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             panic!("[BUG] method_idx: vtable of {} not found", &ty.fullname);
         }
+    }
+
+    /// Generate method call via wtable
+    fn gen_module_method_call(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        module_fullname: &ModuleFullname,
+        method_name: &MethodFirstname,
+        receiver_expr: &'hir HirExpression,
+        arg_exprs: &'hir [HirExpression],
+        ret_ty: &TermTy,
+    ) -> Result<Option<SkObj<'run>>> {
+        // Prepare arguments
+        let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_values = vec![];
+        for arg_expr in arg_exprs {
+            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        }
+
+        // Create basic block
+        let start_block = self
+            .context
+            .append_basic_block(ctx.function, &format!("Invoke_{}", method_name));
+        self.builder.build_unconditional_branch(start_block);
+        self.builder.position_at_end(start_block);
+
+        // Get the llvm function via wtable
+        let key = self.get_const_addr_int(&module_fullname.to_const_fullname());
+        let idx = self.i64_type.const_int(0 as u64, false); //TODO
+        let args = &[
+            receiver_value.0,
+            key.as_basic_value_enum(),
+            idx.as_basic_value_enum(),
+        ];
+        let func_ptr = self
+            .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
+            .into_pointer_value();
+        let func_type = self
+            .llvm_func_type(
+                Some(&receiver_expr.ty),
+                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
+                ret_ty,
+            )
+            .ptr_type(AddressSpace::Generic);
+        let func = self
+            .builder
+            .build_bitcast(func_ptr, func_type, "as")
+            .into_pointer_value();
+
+        let result = self.gen_llvm_function_call(
+            CallableValue::try_from(func).unwrap(),
+            receiver_value,
+            arg_values,
+        );
+        if ret_ty.is_never_type() {
+            self.builder.build_unreachable();
+            Ok(None)
+        } else {
+            let end_block = self
+                .context
+                .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_name));
+            self.builder.build_unconditional_branch(end_block);
+            self.builder.position_at_end(end_block);
+            Ok(Some(result))
+        }
+    }
+
+    /// Get the address of a Shiika constant and returns it as an integer
+    pub fn get_const_addr_int(&self, fullname: &ConstFullname) -> inkwell::values::IntValue<'run> {
+        let ptr = self
+            .module
+            .get_global(&fullname.0)
+            .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname))
+            .as_pointer_value();
+        ptr.const_to_int(self.i64_type.clone())
     }
 
     /// Generate invocation of a lambda
