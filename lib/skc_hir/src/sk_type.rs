@@ -31,6 +31,13 @@ impl From<SkModule> for SkType {
 }
 
 impl SkType {
+    pub fn sk_classes(sk_types: &SkTypes) -> impl Iterator<Item = &SkClass> + '_ {
+        sk_types.values().filter_map(|sk_type| match sk_type {
+            SkType::Class(x) => Some(x),
+            SkType::Module(_) => None,
+        })
+    }
+
     pub fn base(&self) -> &SkTypeBase {
         match self {
             SkType::Class(x) => &x.base,

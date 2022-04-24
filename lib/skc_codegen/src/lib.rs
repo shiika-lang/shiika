@@ -112,6 +112,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_boxing_funcs();
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_vtables();
+        self.gen_wtables(&hir.sk_types);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
@@ -253,6 +254,31 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 })
                 .collect::<Vec<_>>();
             global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+        }
+    }
+
+    /// Generate wtable constants
+    fn gen_wtables(&self, sk_types: &SkTypes) {
+        for sk_class in SkType::sk_classes(sk_types) {
+            for (mod_name, method_names) in &sk_class.wtable.0 {
+                let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
+                let cname = llvm_wtable_const_name(&sk_class.fullname(), &mod_name);
+                let global = self.module.add_global(ary_type, None, &cname);
+                global.set_constant(true);
+                let func_ptrs = method_names
+                    .iter()
+                    .map(|name| {
+                        let func = self
+                            .get_llvm_func(&method_func_name(name))
+                            .as_any_value_enum()
+                            .into_pointer_value();
+                        self.builder
+                            .build_bitcast(func, self.i8ptr_type, "")
+                            .into_pointer_value()
+                    })
+                    .collect::<Vec<_>>();
+                global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+            }
         }
     }
 

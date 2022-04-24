@@ -10,7 +10,7 @@ use std::collections::HashMap;
 /// look like this.
 ///   {"Enumerable" => ["Enumerable#all?", "Array#each", ...]}
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
-pub struct WTable(HashMap<ModuleFullname, Vec<MethodFullname>>);
+pub struct WTable(pub HashMap<ModuleFullname, Vec<MethodFullname>>);
 
 impl WTable {
     pub fn new(h: HashMap<ModuleFullname, Vec<MethodFullname>>) -> WTable {

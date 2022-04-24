@@ -320,6 +320,14 @@ pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
     format!("shiika_vtable_{}", classname.0)
 }
 
+/// Name of llvm constant of a wtable
+pub(super) fn llvm_wtable_const_name(
+    classname: &ClassFullname,
+    modulename: &ModuleFullname,
+) -> String {
+    format!("shiika_wtable_{}_{}", classname.0, modulename.0)
+}
+
 /// Returns llvm function name of the given method
 pub fn method_func_name(method_name: &MethodFullname) -> LlvmFuncName {
     LlvmFuncName(mangle_method(&method_name.full_name))
