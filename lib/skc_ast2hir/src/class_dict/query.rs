@@ -56,6 +56,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
         match sk_type {
             SkType::Class(sk_class) => {
+                // Look up in included modules
+                for modinfo in &sk_class.includes {
+                    if let Some(sig) =
+                        self.find_method_of_type(&modinfo.erasure().to_type_fullname(), method_name)
+                    {
+                        return Ok((
+                            sig.specialize(&modinfo.ty().tyargs(), method_tyargs),
+                            sk_type,
+                        ));
+                    }
+                }
                 // Look up in superclass
                 if let Some(superclass) = &sk_class.superclass {
                     return self.lookup_method_(
