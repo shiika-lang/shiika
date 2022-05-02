@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 mod build_wtable;
-mod class_index;
 mod indexing;
 mod query;
+mod type_index;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::names::*;
@@ -11,7 +11,7 @@ use skc_hir::*;
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
-    class_index: class_index::ClassIndex,
+    class_index: type_index::ClassIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
@@ -35,7 +35,7 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ClassDict {
-        class_index: class_index::create(&defs, &initial_sk_types, imported_classes),
+        class_index: type_index::create(&defs, &initial_sk_types, imported_classes),
         sk_types: initial_sk_types,
         imported_classes,
     };
