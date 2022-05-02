@@ -29,37 +29,48 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns Err if not found.
     pub fn lookup_method(
         &self,
-        receiver_class: &TermTy,
+        receiver_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, TermTy)> {
-        self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
+    ) -> Result<(MethodSignature, &SkType)> {
+        self.lookup_method_(receiver_type, receiver_type, method_name, method_tyargs)
     }
 
-    // `receiver_class` is for error message.
+    // `receiver_type` is for error message.
     fn lookup_method_(
         &self,
-        receiver_class: &TermTy,
-        class: &TermTy,
+        receiver_type: &TermTy,
+        current_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, TermTy)> {
-        let (erasure, class_tyargs) = match &class.body {
-            TyBody::TyRaw(LitTy { type_args, .. }) => (class.erasure(), type_args.as_slice()),
+    ) -> Result<(MethodSignature, &SkType)> {
+        let (erasure, class_tyargs) = match &current_type.body {
+            TyBody::TyRaw(LitTy { type_args, .. }) => {
+                (current_type.erasure(), type_args.as_slice())
+            }
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
-        if let Some(sig) = self.find_method_of_type(&erasure.to_type_fullname(), method_name) {
-            return Ok((
-                sig.specialize(class_tyargs, method_tyargs),
-                erasure.to_term_ty(),
-            ));
+        let sk_type = self.get_type(&erasure.to_type_fullname());
+        if let Some(sig) = self.find_method_of_type(&sk_type.base().fullname(), method_name) {
+            return Ok((sig.specialize(class_tyargs, method_tyargs), sk_type));
         }
-        match self.get_type(&erasure.to_type_fullname()) {
+        match sk_type {
             SkType::Class(sk_class) => {
+                // Look up in included modules
+                for modinfo in &sk_class.includes {
+                    if let Some(sig) =
+                        self.find_method_of_type(&modinfo.erasure().to_type_fullname(), method_name)
+                    {
+                        return Ok((
+                            sig.specialize(&modinfo.ty().tyargs(), method_tyargs),
+                            sk_type,
+                        ));
+                    }
+                }
                 // Look up in superclass
                 if let Some(superclass) = &sk_class.superclass {
                     return self.lookup_method_(
-                        receiver_class,
+                        receiver_type,
                         superclass.ty(),
                         method_name,
                         method_tyargs,
@@ -72,7 +83,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         }
         Err(error::program_error(&format!(
             "method {:?} not found on {:?}",
-            method_name, receiver_class.fullname
+            method_name, receiver_type.fullname
         )))
     }
 

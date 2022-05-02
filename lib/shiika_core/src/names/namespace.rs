@@ -1,5 +1,6 @@
 use super::class_name::*;
 use super::const_name::*;
+use super::module_name::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
@@ -23,9 +24,9 @@ impl Namespace {
     }
 
     /// Add `name` to the end of `self`
-    pub fn add(&self, name: &ClassFirstname) -> Namespace {
+    pub fn add(&self, name: String) -> Namespace {
         let mut v = self.0.clone();
-        v.push(name.0.clone());
+        v.push(name);
         Namespace::new(v)
     }
 
@@ -36,6 +37,16 @@ impl Namespace {
             class_fullname(&name.0)
         } else {
             class_fullname(format!("{}::{}", n, &name.0))
+        }
+    }
+
+    /// Join Namespace and ModuleFirstname
+    pub fn module_fullname(&self, name: &ModuleFirstname) -> ModuleFullname {
+        let n = self.string();
+        if n.is_empty() {
+            module_fullname(&name.0)
+        } else {
+            module_fullname(format!("{}::{}", n, &name.0))
         }
     }
 

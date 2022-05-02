@@ -3,6 +3,7 @@ use crate::sk_type::wtable::WTable;
 use crate::superclass::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
+use shiika_core::names::ClassFullname;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -55,5 +56,9 @@ impl SkClass {
     pub fn const_is_obj(mut self, x: bool) -> Self {
         self.const_is_obj = x;
         self
+    }
+
+    pub fn fullname(&self) -> ClassFullname {
+        self.base.erasure.to_class_fullname()
     }
 }

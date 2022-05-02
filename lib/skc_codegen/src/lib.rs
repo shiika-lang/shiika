@@ -4,6 +4,7 @@ mod gen_exprs;
 mod lambda;
 mod utils;
 pub mod values;
+mod wtable;
 use crate::code_gen_context::*;
 use crate::utils::*;
 use crate::values::*;
@@ -112,6 +113,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_boxing_funcs();
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_vtables();
+        self.gen_wtables(&hir.sk_types);
+        self.gen_insert_wtables(&hir.sk_types);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
@@ -136,6 +139,29 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .i8ptr_type
             .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("shiika_realloc", fn_type, None);
+
+        let fn_type = self.i8ptr_type.fn_type(
+            &[
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+                self.i64_type.into(),
+            ],
+            false,
+        );
+        self.module
+            .add_function("shiika_lookup_wtable", fn_type, None);
+
+        let fn_type = self.i8ptr_type.fn_type(
+            &[
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+            ],
+            false,
+        );
+        self.module
+            .add_function("shiika_insert_wtable", fn_type, None);
 
         let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
@@ -194,7 +220,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                             .add_function(&method_func_name(&func_name).0, func_type, None);
                     }
                 }
-                _ => todo!(),
+                _ => (),
             }
         }
     }
@@ -242,6 +268,22 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 })
                 .collect::<Vec<_>>();
             global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+        }
+    }
+
+    /// Generate wtable constants
+    fn gen_wtables(&self, sk_types: &SkTypes) {
+        for sk_class in SkType::sk_classes(sk_types) {
+            wtable::gen_wtable_constants(&self, sk_class);
+        }
+    }
+
+    /// Generate functions to insert wtables
+    fn gen_insert_wtables(&self, sk_types: &SkTypes) {
+        for sk_class in SkType::sk_classes(sk_types) {
+            if !sk_class.wtable.is_empty() {
+                wtable::gen_insert_wtable(&self, sk_class);
+            }
         }
     }
 

@@ -1,3 +1,5 @@
+use crate::CodeGen;
+
 /// Shiika object (eg. `Int*`, `String*`)
 #[derive(Clone, Debug)]
 pub struct SkObj<'run>(pub inkwell::values::BasicValueEnum<'run>);
@@ -6,6 +8,16 @@ impl<'run> SkObj<'run> {
     /// A class object is a Shiika object.
     pub fn as_class_obj(self) -> SkClassObj<'run> {
         SkClassObj(self.0)
+    }
+
+    /// Bitcast this object to i8*
+    pub fn into_i8ptr(
+        self,
+        code_gen: &CodeGen<'_, 'run, '_>,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        code_gen
+            .builder
+            .build_bitcast(self.0, code_gen.i8ptr_type, "ptr")
     }
 }
 

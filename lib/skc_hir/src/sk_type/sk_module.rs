@@ -1,7 +1,7 @@
 use super::SkTypeBase;
-use shiika_core::names::ModuleFullname;
 use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
+use shiika_core::names::ModuleFullname;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkModule {

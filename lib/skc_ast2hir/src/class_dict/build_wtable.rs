@@ -1,8 +1,8 @@
 use crate::class_dict::ClassDict;
 use crate::error;
-use skc_hir::*;
 use anyhow::Result;
 use shiika_core::names::*;
+use skc_hir::*;
 use std::collections::HashMap;
 
 /// Build a witness table for a Shiika class
@@ -46,14 +46,11 @@ fn resolve_module_method(
     Ok(mod_sig.fullname.clone())
 }
 
-fn check_signature_matches(
-    sig: &MethodSignature,
-    mod_sig: &MethodSignature,
-) -> Result<()> {
+fn check_signature_matches(sig: &MethodSignature, mod_sig: &MethodSignature) -> Result<()> {
     if !sig.equivalent_to(&mod_sig) {
         return Err(error::program_error(&format!(
-                    "signature does not match (class': {:?}, module's: {:?})",
-                    sig, mod_sig,
+            "signature does not match (class': {:?}, module's: {:?})",
+            sig, mod_sig,
         )));
     }
     Ok(())

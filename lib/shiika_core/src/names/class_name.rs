@@ -1,3 +1,4 @@
+use super::const_name::*;
 use super::method_name::*;
 use super::type_name::*;
 use crate::{ty, ty::TermTy};
@@ -19,6 +20,10 @@ impl ClassFirstname {
         } else {
             class_fullname(namespace.to_string() + "::" + &self.0)
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -94,6 +99,10 @@ impl ClassFullname {
 
     pub fn to_type_fullname(&self) -> TypeFullname {
         type_fullname(&self.0)
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        toplevel_const(&self.0)
     }
 
     pub fn meta_name(&self) -> ClassFullname {

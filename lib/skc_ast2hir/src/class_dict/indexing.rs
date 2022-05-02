@@ -80,7 +80,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ))
         };
 
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
@@ -182,7 +182,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(&firstname.to_class_first_name());
-        let inner_namespace = namespace.add(&firstname.to_class_first_name());
+        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
 
@@ -232,7 +232,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
         self.add_new_class(
@@ -588,7 +588,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if let Some(typarams) = self.class_index.get(&class_fullname(resolved.join("::"))) {
+            if let Some(typarams) = self
+                .class_index
+                .get(&class_fullname(resolved.join("::")).into())
+            {
                 return Ok((resolved, typarams));
             }
         }

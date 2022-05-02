@@ -81,28 +81,27 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
-        for (name, const_is_obj) in self.class_dict.constant_list() {
-            let resolved = ResolvedConstName::unsafe_create(name);
+        for (name, const_is_obj, includes_modules) in self.class_dict.constant_list() {
             if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
-                let str_idx = self.register_string_literal(&resolved.string());
-                let ty = ty::raw(&resolved.string());
+                let str_idx = self.register_string_literal(&name.0);
+                let ty = ty::raw(&name.0);
                 // The class
                 let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), resolved.to_class_fullname(), str_idx);
+                    Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
                 // The instance
                 let expr = Hir::method_call(
                     ty,
                     cls_obj,
-                    method_fullname(&metaclass_fullname(&resolved.string()), "new"),
+                    method_fullname(&metaclass_fullname(&name.0), "new"),
                     vec![],
                 );
-                self.register_const_full(resolved.to_const_fullname(), expr);
+                self.register_const_full(name.to_const_fullname(), expr);
             } else {
-                let ty = ty::meta(&resolved.string());
-                let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(ty, resolved.to_class_fullname(), str_idx);
-                self.register_const_full(resolved.to_const_fullname(), expr);
+                let ty = ty::meta(&name.0);
+                let str_idx = self.register_string_literal(&name.0);
+                let expr = Hir::class_literal(ty, name.clone(), str_idx, includes_modules);
+                self.register_const_full(name.to_const_fullname(), expr);
             }
         }
     }
@@ -230,11 +229,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
+        let inner_namespace = namespace.add(firstname.to_string());
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
         // Register constants before processing #initialize
-        let inner_namespace = namespace.add(firstname);
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
@@ -268,13 +267,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(&firstname.to_class_first_name());
-        self.ctx_stack.push(HirMakerContext::class(
-            namespace.add(&firstname.to_class_first_name()),
-            typarams,
-        ));
+        let inner_namespace = namespace.add(firstname.to_string());
+        self.ctx_stack
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
         // Register constants before processing the methods
-        let inner_namespace = namespace.add(&firstname.to_class_first_name());
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Process inner defs
@@ -365,10 +362,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        Ok((
-            method_fullname(&found_cls.fullname, "initialize"),
-            found_cls.fullname,
-        ))
+        let fullname = found_cls.base().fullname_();
+        Ok((method_fullname(&fullname, "initialize"), fullname))
     }
 
     /// Register a constant defined in the toplevel
@@ -448,12 +443,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace, typarams));
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition {

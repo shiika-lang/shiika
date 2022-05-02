@@ -455,12 +455,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for arg in type_args {
             method_tyargs.push(self._resolve_method_tyarg(arg)?);
         }
-        let (sig, found_class_name) = self.class_dict.lookup_method(
+        let (sig, found_type) = self.class_dict.lookup_method(
             &receiver_hir.ty,
             method_name,
             method_tyargs.as_slice(),
         )?;
-        self._make_method_call(receiver_hir, arg_hirs, sig, found_class_name)
+        match found_type {
+            SkType::Class(_) => self._make_method_call(receiver_hir, arg_hirs, sig, found_type),
+            SkType::Module(sk_module) => Ok(Hir::module_method_call(
+                sig.ret_ty.clone(),
+                receiver_hir,
+                sk_module.fullname(),
+                method_name.clone(),
+                arg_hirs,
+            )),
+        }
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
@@ -480,7 +489,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         receiver_hir: HirExpression,
         mut arg_hirs: Vec<HirExpression>,
         sig: MethodSignature,
-        found_class: TermTy,
+        found_type: &SkType,
     ) -> Result<HirExpression> {
         let specialized = receiver_hir.ty.is_specialized();
         let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
@@ -495,7 +504,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             check_break_in_block(&sig, last_arg)?;
         }
 
-        let receiver = Hir::bit_cast(found_class, receiver_hir);
+        let receiver = Hir::bit_cast(found_type.erasure().to_term_ty(), receiver_hir);
         let args = if specialized {
             arg_hirs
                 .into_iter()
@@ -598,8 +607,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let found = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
-        if let Ok((sig, found_class_name)) = found {
-            self._make_method_call(self_expr, vec![], sig, found_class_name)
+        if let Ok((sig, found_type)) = found {
+            self._make_method_call(self_expr, vec![], sig, found_type)
         } else {
             Err(error::program_error(&format!(
                 "variable or method `{}' was not found",

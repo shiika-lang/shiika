@@ -161,6 +161,12 @@ pub enum HirExpressionBase {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
+    HirModuleMethodCall {
+        receiver_expr: Box<HirExpression>,
+        module_fullname: ModuleFullname,
+        method_name: MethodFirstname,
+        arg_exprs: Vec<HirExpression>,
+    },
     HirLambdaInvocation {
         lambda_expr: Box<HirExpression>,
         arg_exprs: Vec<HirExpression>,
@@ -234,6 +240,7 @@ pub enum HirExpressionBase {
     HirClassLiteral {
         fullname: ClassFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -414,6 +421,24 @@ impl Hir {
         }
     }
 
+    pub fn module_method_call(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        module_fullname: ModuleFullname,
+        method_name: MethodFirstname,
+        arg_hirs: Vec<HirExpression>,
+    ) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirModuleMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                module_fullname,
+                method_name,
+                arg_exprs: arg_hirs,
+            },
+        }
+    }
+
     pub fn lambda_invocation(
         result_ty: TermTy,
         varref_expr: HirExpression,
@@ -538,6 +563,7 @@ impl Hir {
         ty: TermTy,
         fullname: ClassFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {
@@ -545,6 +571,7 @@ impl Hir {
             node: HirExpressionBase::HirClassLiteral {
                 fullname,
                 str_literal_idx,
+                includes_modules,
             },
         }
     }

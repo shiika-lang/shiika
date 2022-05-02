@@ -5,6 +5,7 @@ use shiika_core::{names::*, ty, ty::*};
 /// `class Foo<S, T> : Pair<S, Array<T>>`
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Superclass(TermTy);
+// TODO: the content should be LitTy rather than TermTy
 
 impl Superclass {
     /// Create a `Superclass`

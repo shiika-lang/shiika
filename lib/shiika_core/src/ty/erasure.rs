@@ -1,4 +1,4 @@
-use crate::names::{ClassFullname, ModuleFullname, module_fullname, TypeFullname};
+use crate::names::{module_fullname, ClassFullname, ModuleFullname, TypeFullname};
 use crate::ty::{self, TermTy};
 use serde::{Deserialize, Serialize};
 

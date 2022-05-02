@@ -5,7 +5,7 @@ use skc_hir::*;
 use std::collections::HashMap;
 
 /// Set of pair of class name and its typaram names
-pub type ClassIndex = HashMap<ClassFullname, Vec<ty::TyParam>>;
+pub type ClassIndex = HashMap<TypeFullname, Vec<ty::TyParam>>;
 
 /// Collect class names in the program
 pub fn create(
@@ -16,19 +16,18 @@ pub fn create(
     let mut cindex = HashMap::new();
     index_sk_types(&mut cindex, initial_sk_types);
     index_sk_types(&mut cindex, imported_classes);
-    index_toplevel_defs(&mut cindex, toplevel_defs);
+    index_defs(&mut cindex, &Namespace::root(), toplevel_defs);
     cindex
 }
 
 fn index_sk_types(cindex: &mut ClassIndex, sk_types: &SkTypes) {
     for (name, class) in sk_types {
-        cindex.insert(name.clone(), class.base().typarams.clone());
+        cindex.insert(name.clone().into(), class.base().typarams.clone());
     }
 }
 
-fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::Definition]) {
-    let namespace = Namespace::root();
-    for def in toplevel_defs {
+fn index_defs(cindex: &mut ClassIndex, namespace: &Namespace, defs: &[&shiika_ast::Definition]) {
+    for def in defs {
         match def {
             shiika_ast::Definition::ClassDefinition {
                 name,
@@ -36,6 +35,12 @@ fn index_toplevel_defs(cindex: &mut ClassIndex, toplevel_defs: &[&shiika_ast::De
                 defs,
                 ..
             } => index_class(cindex, &namespace, name, parse_typarams(typarams), defs),
+            shiika_ast::Definition::ModuleDefinition {
+                name,
+                typarams,
+                defs,
+                ..
+            } => index_module(cindex, &namespace, name, parse_typarams(typarams), defs),
             shiika_ast::Definition::EnumDefinition {
                 name,
                 typarams,
@@ -55,41 +60,22 @@ fn index_class(
     defs: &[shiika_ast::Definition],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname, typarams);
-    let inner_namespace = namespace.add(firstname);
-    for def in defs {
-        match def {
-            shiika_ast::Definition::ClassDefinition {
-                name,
-                typarams,
-                defs,
-                ..
-            } => {
-                index_class(
-                    cindex,
-                    &inner_namespace,
-                    name,
-                    parse_typarams(typarams),
-                    defs,
-                );
-            }
-            shiika_ast::Definition::EnumDefinition {
-                name,
-                typarams,
-                cases,
-                ..
-            } => {
-                index_enum(
-                    cindex,
-                    &inner_namespace,
-                    name,
-                    parse_typarams(typarams),
-                    cases,
-                );
-            }
-            _ => (),
-        }
-    }
+    cindex.insert(fullname.into(), typarams);
+    let inner_namespace = namespace.add(firstname.0.clone());
+    index_defs(cindex, &inner_namespace, &defs.iter().collect::<Vec<_>>());
+}
+
+fn index_module(
+    cindex: &mut ClassIndex,
+    namespace: &Namespace,
+    firstname: &ModuleFirstname,
+    typarams: Vec<ty::TyParam>,
+    defs: &[shiika_ast::Definition],
+) {
+    let fullname = namespace.module_fullname(firstname);
+    cindex.insert(fullname.into(), typarams);
+    let inner_namespace = namespace.add(firstname.0.clone());
+    index_defs(cindex, &inner_namespace, &defs.iter().collect::<Vec<_>>());
 }
 
 fn index_enum(
@@ -100,11 +86,11 @@ fn index_enum(
     cases: &[shiika_ast::EnumCase],
 ) {
     let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname, typarams.to_vec());
+    cindex.insert(fullname.into(), typarams.to_vec());
 
-    let inner_namespace = namespace.add(firstname);
+    let inner_namespace = namespace.add(firstname.0.clone());
     for case in cases {
         let case_fullname = inner_namespace.class_fullname(&case.name);
-        cindex.insert(case_fullname, typarams.to_vec());
+        cindex.insert(case_fullname.into(), typarams.to_vec());
     }
 }

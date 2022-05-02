@@ -1,4 +1,6 @@
-use crate::names::{class_firstname, ClassFirstname, class_fullname, ClassFullname};
+use super::class_name::{class_firstname, class_fullname, ClassFirstname, ClassFullname};
+use super::const_name::{const_fullname, ConstFullname};
+use super::type_name::{type_fullname, TypeFullname};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -23,6 +25,10 @@ impl ModuleFirstname {
     pub fn to_class_first_name(&self) -> ClassFirstname {
         class_firstname(self.0.clone())
     }
+
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 pub fn module_firstname(s: impl Into<String>) -> ModuleFirstname {
@@ -38,10 +44,20 @@ impl std::fmt::Display for ModuleFullname {
     }
 }
 
+impl From<ModuleFullname> for TypeFullname {
+    fn from(x: ModuleFullname) -> Self {
+        type_fullname(x.0)
+    }
+}
+
 impl ModuleFullname {
     // TODO: Remove this
     pub fn to_class_fullname(&self) -> ClassFullname {
         class_fullname(self.0.clone())
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        const_fullname(&self.0)
     }
 }
 
