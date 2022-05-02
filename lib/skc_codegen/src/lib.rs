@@ -220,7 +220,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                             .add_function(&method_func_name(&func_name).0, func_type, None);
                     }
                 }
-                _ => todo!(),
+                _ => (),
             }
         }
     }
@@ -281,7 +281,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate functions to insert wtables
     fn gen_insert_wtables(&self, sk_types: &SkTypes) {
         for sk_class in SkType::sk_classes(sk_types) {
-            wtable::gen_insert_wtable(&self, sk_class);
+            if !sk_class.wtable.is_empty() {
+                wtable::gen_insert_wtable(&self, sk_class);
+            }
         }
     }
 

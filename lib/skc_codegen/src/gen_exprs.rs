@@ -597,7 +597,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let key = self.get_const_addr_int(&module_fullname.to_const_fullname());
         let idx = self.i64_type.const_int(0 as u64, false); //TODO
         let args = &[
-            receiver_value.0,
+            receiver_value.clone().into_i8ptr(self),
             key.as_basic_value_enum(),
             idx.as_basic_value_enum(),
         ];

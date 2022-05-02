@@ -22,6 +22,10 @@ impl WTable {
         WTable(Default::default())
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn get_len(&self, key: &ModuleFullname) -> usize {
         self.0.get(key).unwrap().len()
     }
