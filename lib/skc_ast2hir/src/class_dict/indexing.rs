@@ -589,7 +589,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
             if let Some(typarams) = self
-                .class_index
+                .type_index
                 .get(&class_fullname(resolved.join("::")).into())
             {
                 return Ok((resolved, typarams));

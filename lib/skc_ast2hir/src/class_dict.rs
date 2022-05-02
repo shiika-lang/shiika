@@ -11,7 +11,7 @@ use skc_hir::*;
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
-    class_index: type_index::ClassIndex,
+    type_index: type_index::ClassIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
@@ -35,7 +35,7 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ClassDict {
-        class_index: type_index::create(&defs, &initial_sk_types, imported_classes),
+        type_index: type_index::create(&defs, &initial_sk_types, imported_classes),
         sk_types: initial_sk_types,
         imported_classes,
     };
