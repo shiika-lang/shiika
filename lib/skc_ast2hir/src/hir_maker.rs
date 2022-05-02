@@ -229,11 +229,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
+        let inner_namespace = namespace.add(firstname.to_string());
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
         // Register constants before processing #initialize
-        let inner_namespace = namespace.add(firstname);
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
@@ -267,13 +267,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(&firstname.to_class_first_name());
-        self.ctx_stack.push(HirMakerContext::class(
-            namespace.add(&firstname.to_class_first_name()),
-            typarams,
-        ));
+        let inner_namespace = namespace.add(firstname.to_string());
+        self.ctx_stack
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
         // Register constants before processing the methods
-        let inner_namespace = namespace.add(&firstname.to_class_first_name());
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Process inner defs
@@ -445,12 +443,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace, typarams));
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition {

@@ -21,6 +21,10 @@ impl ClassFirstname {
             class_fullname(namespace.to_string() + "::" + &self.0)
         }
     }
+
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 pub fn class_firstname(s: impl Into<String>) -> ClassFirstname {
