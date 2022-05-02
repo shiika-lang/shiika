@@ -21,4 +21,8 @@ impl WTable {
     pub fn default() -> WTable {
         WTable(Default::default())
     }
+
+    pub fn get_len(&self, key: &ModuleFullname) -> usize {
+        self.0.get(key).unwrap().len()
+    }
 }

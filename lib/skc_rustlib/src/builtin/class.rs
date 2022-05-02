@@ -49,6 +49,10 @@ impl SkClass {
     }
 
     pub fn witness_table(&self) -> &WitnessTable {
+        unsafe { (*self.0).witness_table.as_ref().unwrap() }
+    }
+
+    pub fn witness_table_mut(&mut self) -> &mut WitnessTable {
         unsafe { (*self.0).witness_table.as_mut().unwrap() }
     }
 }

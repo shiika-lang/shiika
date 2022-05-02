@@ -240,6 +240,7 @@ pub enum HirExpressionBase {
     HirClassLiteral {
         fullname: ClassFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -562,6 +563,7 @@ impl Hir {
         ty: TermTy,
         fullname: ClassFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {
@@ -569,6 +571,7 @@ impl Hir {
             node: HirExpressionBase::HirClassLiteral {
                 fullname,
                 str_literal_idx,
+                includes_modules,
             },
         }
     }

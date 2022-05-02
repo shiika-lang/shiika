@@ -249,6 +249,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap()
     }
 
+    /// Call llvm function which returns `void`
+    pub fn call_void_llvm_func(
+        &self,
+        func_name: &LlvmFuncName,
+        args: &[inkwell::values::BasicValueEnum<'run>],
+        reg_name: &str,
+    ) {
+        let f = self
+            .module
+            .get_function(&func_name.0)
+            .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
+        self.builder.build_call(f, args, reg_name);
+    }
+
     /// Get nth parameter of llvm func as SkObj
     pub fn get_nth_param(
         &self,
@@ -318,14 +332,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 /// Name of llvm constant of a vtable
 pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
     format!("shiika_vtable_{}", classname.0)
-}
-
-/// Name of llvm constant of a wtable
-pub(super) fn llvm_wtable_const_name(
-    classname: &ClassFullname,
-    modulename: &ModuleFullname,
-) -> String {
-    format!("shiika_wtable_{}_{}", classname.0, modulename.0)
 }
 
 /// Returns llvm function name of the given method

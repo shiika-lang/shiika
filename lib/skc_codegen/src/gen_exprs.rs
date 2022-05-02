@@ -1,6 +1,7 @@
 use crate::code_gen_context::*;
 use crate::utils::*;
 use crate::values::*;
+use crate::wtable;
 use crate::CodeGen;
 use anyhow::Result;
 use inkwell::types::*;
@@ -141,10 +142,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
+                includes_modules,
             } => Ok(Some(self.gen_class_literal(
                 fullname,
                 &expr.ty,
                 str_literal_idx,
+                includes_modules,
             ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
@@ -1072,6 +1075,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         fullname: &ClassFullname,
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
+        includes_modules: &bool,
     ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
@@ -1105,6 +1109,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
                 ],
             );
+
+            let fname = wtable::insert_wtable_func_name(fullname);
+            if *includes_modules {
+                self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0], "_");
+            }
+
             self.bitcast(cls, clsobj_ty, "as")
         }
     }

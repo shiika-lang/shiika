@@ -4,6 +4,7 @@ mod gen_exprs;
 mod lambda;
 mod utils;
 pub mod values;
+mod wtable;
 use crate::code_gen_context::*;
 use crate::utils::*;
 use crate::values::*;
@@ -113,6 +114,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_method_funcs(&hir.sk_methods);
         self.gen_vtables();
         self.gen_wtables(&hir.sk_types);
+        self.gen_insert_wtables(&hir.sk_types);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
@@ -148,6 +150,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         );
         self.module
             .add_function("shiika_lookup_wtable", fn_type, None);
+
+        let fn_type = self.i8ptr_type.fn_type(
+            &[
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+                self.i8ptr_type.into(),
+                self.i64_type.into(),
+            ],
+            false,
+        );
+        self.module
+            .add_function("shiika_insert_wtable", fn_type, None);
 
         let str_type = self.i8_type.array_type(4);
         let global = self.module.add_global(str_type, None, "putd_tmpl");
@@ -260,25 +274,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate wtable constants
     fn gen_wtables(&self, sk_types: &SkTypes) {
         for sk_class in SkType::sk_classes(sk_types) {
-            for (mod_name, method_names) in &sk_class.wtable.0 {
-                let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
-                let cname = llvm_wtable_const_name(&sk_class.fullname(), &mod_name);
-                let global = self.module.add_global(ary_type, None, &cname);
-                global.set_constant(true);
-                let func_ptrs = method_names
-                    .iter()
-                    .map(|name| {
-                        let func = self
-                            .get_llvm_func(&method_func_name(name))
-                            .as_any_value_enum()
-                            .into_pointer_value();
-                        self.builder
-                            .build_bitcast(func, self.i8ptr_type, "")
-                            .into_pointer_value()
-                    })
-                    .collect::<Vec<_>>();
-                global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
-            }
+            wtable::gen_wtable_constants(&self, sk_class);
+        }
+    }
+
+    /// Generate functions to insert wtables
+    fn gen_insert_wtables(&self, sk_types: &SkTypes) {
+        for sk_class in SkType::sk_classes(sk_types) {
+            wtable::gen_insert_wtable(&self, sk_class);
         }
     }
 

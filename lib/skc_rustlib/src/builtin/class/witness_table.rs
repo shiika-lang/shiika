@@ -13,9 +13,9 @@ impl WitnessTable {
     /// key: Unique integer for a Shiika Module
     /// funcs: LLVM Array of function pointers
     /// len: The length of `funcs` (for safety check)
-    //    pub fn insert(&mut self, key: u64, funcs: *const *const u8, len: usize) {
-    //        self.0.insert(key, (len, funcs));
-    //    }
+    pub fn insert(&mut self, key: u64, funcs: *const *const u8, len: usize) {
+        self.0.insert(key, (len, funcs));
+    }
 
     /// Get the function pointer
     /// Panics if not found

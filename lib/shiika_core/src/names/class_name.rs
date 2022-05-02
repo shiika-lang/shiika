@@ -1,5 +1,5 @@
-use super::method_name::*;
 use super::const_name::*;
+use super::method_name::*;
 use super::type_name::*;
 use crate::{ty, ty::TermTy};
 use serde::{Deserialize, Serialize};
