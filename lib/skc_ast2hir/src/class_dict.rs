@@ -46,7 +46,7 @@ pub fn create<'hir_maker>(
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns information for creating class constants i.e. a list of
     /// `(name, const_is_obj)`
-    pub fn constant_list(&self) -> Vec<(String, bool)> {
+    pub fn constant_list(&self) -> Vec<(ClassFullname, bool)> {
         self.sk_types
             .iter()
             .filter_map(|(name, sk_type)| {
@@ -54,8 +54,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     None
                 } else {
                     match sk_type {
-                        SkType::Class(class) => Some((name.0.clone(), class.const_is_obj)),
-                        SkType::Module(_) => Some((name.0.clone(), false)),
+                        SkType::Class(class) => Some((name.clone(), class.const_is_obj)),
+                        SkType::Module(_) => Some((name.clone(), false)),
                     }
                 }
             })

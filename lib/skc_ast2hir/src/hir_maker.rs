@@ -82,27 +82,26 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
         for (name, const_is_obj) in self.class_dict.constant_list() {
-            let resolved = ResolvedConstName::unsafe_create(name);
             if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
-                let str_idx = self.register_string_literal(&resolved.string());
-                let ty = ty::raw(&resolved.string());
+                let str_idx = self.register_string_literal(&name.0);
+                let ty = ty::raw(&name.0);
                 // The class
                 let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), resolved.to_class_fullname(), str_idx);
+                    Hir::class_literal(ty.meta_ty(), name.clone(), str_idx);
                 // The instance
                 let expr = Hir::method_call(
                     ty,
                     cls_obj,
-                    method_fullname(&metaclass_fullname(&resolved.string()), "new"),
+                    method_fullname(&metaclass_fullname(&name.0), "new"),
                     vec![],
                 );
-                self.register_const_full(resolved.to_const_fullname(), expr);
+                self.register_const_full(name.to_const_fullname(), expr);
             } else {
-                let ty = ty::meta(&resolved.string());
-                let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(ty, resolved.to_class_fullname(), str_idx);
-                self.register_const_full(resolved.to_const_fullname(), expr);
+                let ty = ty::meta(&name.0);
+                let str_idx = self.register_string_literal(&name.0);
+                let expr = Hir::class_literal(ty, name.clone(), str_idx);
+                self.register_const_full(name.to_const_fullname(), expr);
             }
         }
     }
