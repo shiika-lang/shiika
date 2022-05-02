@@ -11,7 +11,7 @@ use skc_hir::*;
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
-    type_index: type_index::ClassIndex,
+    type_index: type_index::TypeIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
