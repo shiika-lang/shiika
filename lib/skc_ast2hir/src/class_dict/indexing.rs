@@ -13,13 +13,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
     pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
         let sk_type = sk_type_.into();
-        self.sk_types.insert(sk_type.base().fullname_(), sk_type);
+        self.sk_types.0.insert(sk_type.fullname(), sk_type);
     }
 
     /// Add a method
     /// Used to add auto-defined accessors
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
-        let sk_class = self.sk_types.get_mut(clsname).unwrap();
+        let sk_class = self
+            .sk_types
+            .0
+            .get_mut(&clsname.to_type_fullname())
+            .unwrap();
         sk_class
             .base_mut()
             .method_sigs
@@ -84,7 +88,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
-        match self.sk_types.get_mut(&fullname) {
+        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
             Some(class) => {
                 // Merge methods to existing class
                 // Shiika will not support reopening a class but this is needed
@@ -92,7 +96,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 class.base_mut().method_sigs.extend(instance_methods);
                 let metaclass = self
                     .sk_types
-                    .get_mut(&metaclass_fullname)
+                    .0
+                    .get_mut(&metaclass_fullname.to_type_fullname())
                     .unwrap_or_else(|| {
                         panic!(
                             "[BUG] metaclass not found: {} <- {}",
@@ -186,7 +191,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
 
-        match self.sk_types.get_mut(&fullname) {
+        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
             Some(_) => todo!(),
             None => self.add_new_module(
                 &fullname,
@@ -589,7 +594,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
             if let Some(typarams) = self
-                .class_index
+                .type_index
                 .get(&class_fullname(resolved.join("::")).into())
             {
                 return Ok((resolved, typarams));

@@ -1072,7 +1072,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// on a source text.)
     fn gen_class_literal(
         &self,
-        fullname: &ClassFullname,
+        fullname: &TypeFullname,
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
         includes_modules: &bool,
@@ -1110,8 +1110,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ],
             );
 
-            let fname = wtable::insert_wtable_func_name(fullname);
             if *includes_modules {
+                let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0], "_");
             }
 

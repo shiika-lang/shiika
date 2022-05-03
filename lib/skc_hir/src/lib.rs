@@ -238,7 +238,7 @@ pub enum HirExpressionBase {
     /// (eg. `class A; end; A = 1` shadows A, but this special expr
     /// is never be shadowed)
     HirClassLiteral {
-        fullname: ClassFullname,
+        fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
     },
@@ -561,7 +561,7 @@ impl Hir {
 
     pub fn class_literal(
         ty: TermTy,
-        fullname: ClassFullname,
+        fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
     ) -> HirExpression {

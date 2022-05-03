@@ -1,4 +1,6 @@
-use super::class_name::{class_fullname, ClassFullname};
+use super::class_name::{class_fullname, metaclass_fullname, ClassFullname};
+use super::const_name::{toplevel_const, ConstFullname};
+use super::method_name::{method_fullname_raw, MethodFirstname, MethodFullname};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -19,9 +21,24 @@ impl TypeFullname {
         }
     }
 
-    // TODO: remove this
-    pub fn _to_class_fullname(&self) -> ClassFullname {
-        class_fullname(&self.0)
+    pub fn is_meta(&self) -> bool {
+        self.0.starts_with("Meta:")
+    }
+
+    pub fn as_class_fullname(self) -> ClassFullname {
+        class_fullname(self.0)
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        toplevel_const(&self.0)
+    }
+
+    pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
+        method_fullname_raw(&self.0, &method_firstname.0)
+    }
+
+    pub fn meta_name(&self) -> ClassFullname {
+        metaclass_fullname(&self.0)
     }
 }
 

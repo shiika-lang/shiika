@@ -1,5 +1,4 @@
 use super::const_name::*;
-use super::method_name::*;
 use super::type_name::*;
 use crate::{ty, ty::TermTy};
 use serde::{Deserialize, Serialize};
@@ -107,9 +106,5 @@ impl ClassFullname {
 
     pub fn meta_name(&self) -> ClassFullname {
         metaclass_fullname(&self.0)
-    }
-
-    pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {
-        method_fullname(self, &method_firstname.0)
     }
 }

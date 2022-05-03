@@ -154,7 +154,7 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
         let sk_class = SkClass::nonmeta(base, superclass)
             .ivars(ivars)
             .const_is_obj(name == "Void");
-        sk_types.insert(ClassFullname(name.to_string()), sk_class.into());
+        sk_types.insert(ClassFullname(name.to_string()).into(), sk_class.into());
         sk_methods.insert(class_fullname(&name), imethods);
 
         if name == "Metaclass" {
@@ -170,11 +170,11 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
                 foreign: false,
             };
             let sk_class = SkClass::meta(base).ivars(class::ivars());
-            sk_types.insert(metaclass_fullname(&name), sk_class.into());
+            sk_types.insert(metaclass_fullname(&name).into(), sk_class.into());
             sk_methods.insert(metaclass_fullname(&name), cmethods);
         }
     }
-    (sk_types, sk_methods)
+    (SkTypes::new(sk_types), sk_methods)
 }
 
 fn _convert_typ(

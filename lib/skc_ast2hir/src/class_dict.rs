@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 mod build_wtable;
-mod class_index;
 mod indexing;
 mod query;
+mod type_index;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::names::*;
@@ -11,7 +11,7 @@ use skc_hir::*;
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
-    class_index: class_index::ClassIndex,
+    type_index: type_index::TypeIndex,
     /// Indexed classes.
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
@@ -35,7 +35,7 @@ pub fn create<'hir_maker>(
         })
         .collect::<Vec<_>>();
     let mut dict = ClassDict {
-        class_index: class_index::create(&defs, &initial_sk_types, imported_classes),
+        type_index: type_index::create(&defs, &initial_sk_types, imported_classes),
         sk_types: initial_sk_types,
         imported_classes,
     };
@@ -44,26 +44,6 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Returns information for creating class constants i.e. a list of
-    /// `(name, const_is_obj, includes_modules)`
-    pub fn constant_list(&self) -> Vec<(ClassFullname, bool, bool)> {
-        self.sk_types
-            .iter()
-            .filter_map(|(name, sk_type)| {
-                if name.is_meta() {
-                    None
-                } else {
-                    match sk_type {
-                        SkType::Class(class) => {
-                            Some((name.clone(), class.const_is_obj, !class.includes.is_empty()))
-                        }
-                        SkType::Module(_) => Some((name.clone(), false, false)),
-                    }
-                }
-            })
-            .collect()
-    }
-
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let ivars = self

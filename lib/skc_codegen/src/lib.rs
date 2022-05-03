@@ -41,7 +41,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub i64_type: inkwell::types::IntType<'ictx>,
     pub f64_type: inkwell::types::FloatType<'ictx>,
     pub void_type: inkwell::types::VoidType<'ictx>,
-    pub llvm_struct_types: HashMap<ClassFullname, inkwell::types::StructType<'ictx>>,
+    pub llvm_struct_types: HashMap<TypeFullname, inkwell::types::StructType<'ictx>>,
     str_literals: &'hir Vec<String>,
     vtables: &'hir VTables,
     imported_vtables: &'hir VTables,
@@ -107,7 +107,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_declares();
         self.define_class_class();
         self.gen_imports(imports);
-        self.gen_class_structs(&hir.sk_types);
+        self.gen_type_structs(&hir.sk_types);
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
@@ -188,7 +188,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Define llvm struct type for `Class` in advance
     fn define_class_class(&mut self) {
         self.llvm_struct_types.insert(
-            class_fullname("Class"),
+            type_fullname("Class"),
             self.context.opaque_struct_type("Class"),
         );
     }
@@ -200,27 +200,22 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_import_constants(&imports.constants);
     }
 
+    /// Generate LLVM types and `declare`s for imported class/modules
     fn gen_import_classes(&mut self, imported_types: &SkTypes) {
         // LLVM type
-        for name in imported_types.keys() {
+        for name in imported_types.0.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
-        self.define_class_struct_fields(imported_types);
+        self.define_type_struct_fields(imported_types);
 
         // Methods
-        for (classname, sk_type) in imported_types {
-            match sk_type {
-                SkType::Class(class) => {
-                    for (firstname, sig) in &class.base.method_sigs {
-                        let func_type =
-                            self.method_llvm_func_type(&class.base.erasure.to_term_ty(), sig);
-                        let func_name = classname.method_fullname(firstname);
-                        self.module
-                            .add_function(&method_func_name(&func_name).0, func_type, None);
-                    }
-                }
-                _ => (),
+        for (typename, sk_type) in &imported_types.0 {
+            for (firstname, sig) in &sk_type.base().method_sigs {
+                let func_type = self.method_llvm_func_type(&sk_type.erasure().to_term_ty(), sig);
+                let func_name = typename.method_fullname(firstname);
+                self.module
+                    .add_function(&method_func_name(&func_name).0, func_type, None);
             }
         }
     }
@@ -273,14 +268,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate wtable constants
     fn gen_wtables(&self, sk_types: &SkTypes) {
-        for sk_class in SkType::sk_classes(sk_types) {
+        for sk_class in sk_types.sk_classes() {
             wtable::gen_wtable_constants(&self, sk_class);
         }
     }
 
     /// Generate functions to insert wtables
     fn gen_insert_wtables(&self, sk_types: &SkTypes) {
-        for sk_class in SkType::sk_classes(sk_types) {
+        for sk_class in sk_types.sk_classes() {
             if !sk_class.wtable.is_empty() {
                 wtable::gen_insert_wtable(&self, sk_class);
             }
@@ -394,21 +389,21 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create llvm struct types for Shiika objects
-    fn gen_class_structs(&mut self, sk_types: &SkTypes) {
+    fn gen_type_structs(&mut self, sk_types: &SkTypes) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
-        for name in sk_types.keys() {
+        for name in sk_types.0.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
 
-        self.define_class_struct_fields(sk_types);
+        self.define_type_struct_fields(sk_types);
     }
 
     /// Set fields for ivars
-    fn define_class_struct_fields(&self, sk_types: &SkTypes) {
+    fn define_type_struct_fields(&self, sk_types: &SkTypes) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
-        for (name, sk_type) in sk_types {
+        for (name, sk_type) in &sk_types.0 {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match sk_type {
                 SkType::Class(class) => match name.0.as_str() {
@@ -775,7 +770,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // to pass the obj to the `initialize` func
             let ances_type = self
                 .llvm_struct_types
-                .get(init_cls_name)
+                .get(&init_cls_name.to_type_fullname())
                 .expect("ances_type not found")
                 .ptr_type(inkwell::AddressSpace::Generic);
             SkObj(

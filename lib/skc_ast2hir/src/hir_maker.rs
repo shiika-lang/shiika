@@ -81,28 +81,42 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
-        for (name, const_is_obj, includes_modules) in self.class_dict.constant_list() {
-            if const_is_obj {
+        let nonmeta = self
+            .class_dict
+            .sk_types
+            .0
+            .iter()
+            .filter(|(_, sk_type)| !sk_type.fullname().is_meta());
+        let v = nonmeta
+            .map(|(name, sk_type)| {
+                let const_is_obj = sk_type.class().map(|c| c.const_is_obj).unwrap_or(false);
+                let includes_modules = sk_type
+                    .class()
+                    .map(|c| !c.includes.is_empty())
+                    .unwrap_or(false);
+                (name.clone(), const_is_obj, includes_modules)
+            })
+            .collect::<Vec<_>>();
+        for (name, const_is_obj, includes_modules) in v {
+            let str_idx = self.register_string_literal(&name.0);
+            let expr = if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
-                let str_idx = self.register_string_literal(&name.0);
                 let ty = ty::raw(&name.0);
                 // The class
                 let cls_obj =
                     Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
                 // The instance
-                let expr = Hir::method_call(
+                Hir::method_call(
                     ty,
                     cls_obj,
                     method_fullname(&metaclass_fullname(&name.0), "new"),
                     vec![],
-                );
-                self.register_const_full(name.to_const_fullname(), expr);
+                )
             } else {
                 let ty = ty::meta(&name.0);
-                let str_idx = self.register_string_literal(&name.0);
-                let expr = Hir::class_literal(ty, name.clone(), str_idx, includes_modules);
-                self.register_const_full(name.to_const_fullname(), expr);
-            }
+                Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
+            };
+            self.register_const_full(name.to_const_fullname(), expr);
         }
     }
 
