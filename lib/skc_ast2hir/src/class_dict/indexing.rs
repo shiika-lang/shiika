@@ -88,12 +88,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
         match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
-            Some(class) => {
-                // Merge methods to existing class
-                // Shiika will not support reopening a class but this is needed
-                // for classes defined both in src corelib/ and in builtin/.
-                class.base_mut().method_sigs.extend(instance_methods);
+            Some(sk_type) => {
+                // This class is predefined in skc_corelib.
+                // Inject `includes`
+                if let SkType::Class(sk_class) = sk_type {
+                    sk_class.wtable = wtable;
+                    sk_class.includes = includes;
+                }
+                // Inject instance methods
+                sk_type.base_mut().method_sigs.extend(instance_methods);
+                // Inject class methods
                 let metaclass = self
                     .sk_types
                     .0
@@ -105,7 +111,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         )
                     });
                 metaclass.base_mut().method_sigs.extend(class_methods);
-                // Add `.new` to the metaclass
+                // Inject `.new` to the metaclass
                 if let Some(sig) = new_sig {
                     if !metaclass
                         .base()
