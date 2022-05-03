@@ -54,7 +54,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         if let Some(sig) = self.find_method_of_type(&sk_type.base().fullname(), method_name) {
             return Ok((sig.specialize(class_tyargs, method_tyargs), sk_type));
         }
-        dbg!(&sk_type.fullname(), &method_name);
         match sk_type {
             SkType::Class(sk_class) => {
                 // Look up in included modules
@@ -62,10 +61,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     if let Some(sig) =
                         self.find_method_of_type(&modinfo.erasure().to_type_fullname(), method_name)
                     {
-                        return Ok((
-                            sig.specialize(&modinfo.ty().tyargs(), method_tyargs),
-                            sk_type,
-                        ));
+                        let ssig = sig
+                            .specialize(&modinfo.ty().tyargs(), Default::default())
+                            .specialize(&class_tyargs, method_tyargs);
+                        let module = self.get_type(&modinfo.erasure().to_type_fullname());
+                        return Ok((ssig, module));
                     }
                 }
                 // Look up in superclass
