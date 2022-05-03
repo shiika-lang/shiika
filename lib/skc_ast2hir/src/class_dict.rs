@@ -44,26 +44,6 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Returns information for creating class constants i.e. a list of
-    /// `(name, const_is_obj, includes_modules)`
-    pub fn constant_list(&self) -> Vec<(ClassFullname, bool, bool)> {
-        self.sk_types
-            .iter()
-            .filter_map(|(name, sk_type)| {
-                if name.is_meta() {
-                    None
-                } else {
-                    match sk_type {
-                        SkType::Class(class) => {
-                            Some((name.clone(), class.const_is_obj, !class.includes.is_empty()))
-                        }
-                        SkType::Module(_) => Some((name.clone(), false, false)),
-                    }
-                }
-            })
-            .collect()
-    }
-
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let ivars = self

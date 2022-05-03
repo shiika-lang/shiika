@@ -13,7 +13,8 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
     for (classname, m) in rustlib_methods.into_iter() {
         // Add to sk_types
         let c = sk_types
-            .get_mut(&classname)
+            .0
+            .get_mut(&classname.to_type_fullname())
             .unwrap_or_else(|| panic!("not in sk_types: {}", &classname));
         let first_name = &m.signature.fullname.first_name;
         debug_assert!(!c.base().method_sigs.contains_key(first_name));
@@ -45,7 +46,8 @@ fn make_rustlib_method(
 ) -> (ClassFullname, SkMethod) {
     let class = corelib
         .sk_types
-        .get(classname)
+        .0
+        .get(&classname.to_type_fullname())
         .unwrap_or_else(|| panic!("no such class in Corelib: {}", classname));
     let signature = make_hir_sig(class, ast_sig);
     let method = SkMethod {

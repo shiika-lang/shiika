@@ -21,7 +21,7 @@ pub fn create(
 }
 
 fn index_sk_types(cindex: &mut TypeIndex, sk_types: &SkTypes) {
-    for (name, class) in sk_types {
+    for (name, class) in &sk_types.0 {
         cindex.insert(name.clone().into(), class.base().typarams.clone());
     }
 }

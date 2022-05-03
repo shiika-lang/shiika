@@ -9,6 +9,12 @@ pub struct Erasure {
     is_meta: bool,
 }
 
+impl From<Erasure> for TypeFullname {
+    fn from(x: Erasure) -> Self {
+        TypeFullname::new(x.base_name, x.is_meta)
+    }
+}
+
 impl Erasure {
     pub fn nonmeta(base_name_: impl Into<String>) -> Erasure {
         Self::new(base_name_.into(), false)

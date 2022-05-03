@@ -10,7 +10,37 @@ pub use sk_module::SkModule;
 use std::collections::HashMap;
 pub use wtable::WTable;
 
-pub type SkTypes = HashMap<ClassFullname, SkType>;
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+pub struct SkTypes(pub HashMap<TypeFullname, SkType>);
+
+impl SkTypes {
+    pub fn new(h: HashMap<TypeFullname, SkType>) -> SkTypes {
+        SkTypes(h)
+    }
+
+    pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {
+        self.0.values().filter_map(|sk_type| match sk_type {
+            SkType::Class(x) => Some(x.fullname()),
+            SkType::Module(_) => None,
+        })
+    }
+
+    pub fn sk_classes(&self) -> impl Iterator<Item = &SkClass> + '_ {
+        self.0.values().filter_map(|sk_type| match sk_type {
+            SkType::Class(x) => Some(x),
+            SkType::Module(_) => None,
+        })
+    }
+
+    pub fn get_class<'hir>(&'hir self, name: &ClassFullname) -> &'hir SkClass {
+        let sk_type = self.0.get(&name.to_type_fullname()).unwrap();
+        if let SkType::Class(class) = sk_type {
+            class
+        } else {
+            panic!("{} is module, not a class", name)
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SkType {
@@ -31,13 +61,6 @@ impl From<SkModule> for SkType {
 }
 
 impl SkType {
-    pub fn sk_classes(sk_types: &SkTypes) -> impl Iterator<Item = &SkClass> + '_ {
-        sk_types.values().filter_map(|sk_type| match sk_type {
-            SkType::Class(x) => Some(x),
-            SkType::Module(_) => None,
-        })
-    }
-
     pub fn base(&self) -> &SkTypeBase {
         match self {
             SkType::Class(x) => &x.base,
@@ -54,6 +77,13 @@ impl SkType {
 
     pub fn is_class(&self) -> bool {
         matches!(&self, SkType::Class(_))
+    }
+
+    pub fn class(&self) -> Option<&SkClass> {
+        match self {
+            SkType::Class(x) => Some(&x),
+            SkType::Module(_) => None,
+        }
     }
 
     pub fn find_method_sig(&self, name: &MethodFirstname) -> Option<&MethodSignature> {
