@@ -28,7 +28,7 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
     }
 }
 
-/// Define `@insert_XX_wtables` for the class
+/// Define `@insert_XX_wtables()` for the class
 pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
     let fargs = &[code_gen.llvm_type(&ty::raw("Class"))];
     let ftype = code_gen.void_type.fn_type(fargs, false);
@@ -53,8 +53,10 @@ pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
         ];
         code_gen.call_llvm_func(&llvm_func_name("shiika_insert_wtable"), args, "_");
     }
+    code_gen.builder.build_return(None);
 }
 
+/// Get the llvm constant like `@shiika_wtable_Array_Enumerable` as i8*
 fn load_wtable_const<'a>(
     code_gen: &'a CodeGen,
     llvm_const_name: &str,
