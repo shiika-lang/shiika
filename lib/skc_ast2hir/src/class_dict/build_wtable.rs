@@ -20,11 +20,15 @@ pub fn build_wtable(
     Ok(WTable::new(wtable))
 }
 
+/// Build a column of witness table whose key is `sk_module`
 fn resolve_module_methods(
     instance_methods: &MethodSignatures,
     sk_module: &SkModule,
 ) -> Result<Vec<MethodFullname>> {
     let mut resolved = vec![];
+    for mod_sig in &sk_module.requirements {
+        resolved.push(resolve_module_method(instance_methods, mod_sig)?);
+    }
     for mod_sig in sk_module.base.method_sigs.values() {
         resolved.push(resolve_module_method(instance_methods, mod_sig)?);
     }
