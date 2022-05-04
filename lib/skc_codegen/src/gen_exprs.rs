@@ -1087,12 +1087,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let vtable = self
                 .get_vtable_of_class(&class_fullname("Metaclass"))
                 .as_sk_obj();
+            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let metacls_obj = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Metaclass"), "new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
                 ],
             );
@@ -1100,16 +1102,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
             let receiver = self.null_ptr(&ty::meta("Class"));
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
+            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let cls = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Class"), "new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
                 ],
             );
-
             if *includes_modules {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0], "_");
