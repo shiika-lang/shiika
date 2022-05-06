@@ -211,9 +211,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Methods
         for (typename, sk_type) in &imported_types.0 {
-            for (firstname, sig) in &sk_type.base().method_sigs {
+            for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
                 let func_type = self.method_llvm_func_type(&sk_type.erasure().to_term_ty(), sig);
-                let func_name = typename.method_fullname(firstname);
+                let func_name = typename.method_fullname(&sig.fullname.first_name);
                 self.module
                     .add_function(&method_func_name(&func_name).0, func_type, None);
             }

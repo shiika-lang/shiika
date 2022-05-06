@@ -29,7 +29,7 @@ fn resolve_module_methods(
     for mod_sig in &sk_module.requirements {
         resolved.push(resolve_module_method(instance_methods, mod_sig)?);
     }
-    for mod_sig in sk_module.base.method_sigs.values() {
+    for (mod_sig, _) in sk_module.base.method_sigs.to_ordered() {
         resolved.push(resolve_module_method(instance_methods, mod_sig)?);
     }
     Ok(resolved)
@@ -39,7 +39,7 @@ fn resolve_module_method(
     instance_methods: &MethodSignatures,
     mod_sig: &MethodSignature,
 ) -> Result<MethodFullname> {
-    if let Some(sig) = instance_methods.get(&mod_sig.fullname.first_name) {
+    if let Some((sig, _)) = instance_methods.get(&mod_sig.fullname.first_name) {
         check_signature_matches(sig, mod_sig)?;
         return Ok(sig.fullname.clone());
     }

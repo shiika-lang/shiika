@@ -20,7 +20,7 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
         debug_assert!(!c.base().method_sigs.contains_key(first_name));
         c.base_mut()
             .method_sigs
-            .insert(first_name.clone(), m.signature.clone());
+            .insert(m.signature.clone());
         // Add to sk_methods
         let v = sk_methods
             .get_mut(&classname)
