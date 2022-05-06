@@ -2,7 +2,6 @@ mod sk_class;
 mod sk_module;
 mod sk_type_base;
 mod wtable;
-use crate::signature::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::*;
@@ -85,17 +84,6 @@ impl SkType {
         match self {
             SkType::Class(x) => Some(&x),
             SkType::Module(_) => None,
-        }
-    }
-
-    pub fn find_method_sig(&self, name: &MethodFirstname) -> Option<&MethodSignature> {
-        match self {
-            SkType::Class(sk_class) => sk_class.base.method_sigs.get(name),
-            SkType::Module(sk_module) => sk_module
-                .requirements
-                .iter()
-                .find(|sig| &sig.fullname.first_name == name)
-                .or_else(|| sk_module.base.method_sigs.get(name)),
         }
     }
 

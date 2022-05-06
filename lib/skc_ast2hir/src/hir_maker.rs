@@ -350,7 +350,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
         let (initialize_name, init_cls_name) = self._find_initialize(&class_name)?;
-        let (signature, _) = self.class_dict.lookup_method(
+        let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
             Default::default(),
@@ -359,11 +359,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             classname: class_name.fullname.clone(),
             initialize_name,
             init_cls_name,
-            arity: signature.params.len(),
+            arity: found.sig.params.len(),
             const_is_obj,
         };
         Ok(SkMethod {
-            signature,
+            signature: found.sig.clone(),
             body: new_body,
             lvars: vec![],
         })
@@ -371,12 +371,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
-        let (_, found_cls) = self.class_dict.lookup_method(
+        let found = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        let fullname = found_cls.base().fullname_();
+        let fullname = found.owner.base().fullname_();
         Ok((method_fullname(&fullname, "initialize"), fullname))
     }
 
@@ -424,9 +424,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // MethodSignature is built beforehand by class_dict::new
         let signature = self
             .class_dict
-            .find_method_of_type(type_fullname, name)
-            .unwrap_or_else(|| panic!("[BUG] signature not found ({}/{})", type_fullname, name))
-            .clone();
+            .find_method_sig(type_fullname, name)
+            .unwrap_or_else(|| panic!("[BUG] signature not found ({}/{})", type_fullname, name));
 
         self.ctx_stack
             .push(HirMakerContext::method(signature.clone(), super_ivars));
@@ -496,7 +495,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize
         let signature = self
             .class_dict
-            .find_method_of_class(&fullname, &method_firstname("initialize"))
+            .find_method_sig(&fullname.to_type_fullname(), &method_firstname("initialize"))
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
         let exprs = signature

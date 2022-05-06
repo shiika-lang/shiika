@@ -3,6 +3,8 @@ mod build_wtable;
 mod indexing;
 mod query;
 mod type_index;
+mod found_method;
+pub use found_method::FoundMethod;
 use anyhow::Result;
 use shiika_ast;
 use shiika_core::names::*;

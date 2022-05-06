@@ -227,10 +227,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.convert_params(namespace, &sig.params, typarams, Default::default())
         } else {
             // Inherit #initialize from superclass
-            let (sig, _) = self
+            let found = self
                 .lookup_method(superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
-            Ok(specialized_initialize(&sig, superclass).params)
+            Ok(specialized_initialize(&found.sig, superclass).params)
         }
     }
 

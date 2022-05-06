@@ -5,23 +5,35 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    pub fn find_method_of_type(
+    /// Find a method in a class or module. Does not lookup into superclass.
+    pub fn find_method(
         &self,
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
-    ) -> Option<&MethodSignature> {
+    ) -> Option<FoundMethod> {
         self.find_type(fullname)
-            .and_then(|sk_type| sk_type.find_method_sig(method_name))
+            .and_then(|sk_type| self._find_method(sk_type, method_name))
     }
 
-    /// Find a method from class name and first name
-    pub fn find_method_of_class(
+    fn _find_method(&self, sk_type: &'hir_maker SkType, method_name: &MethodFirstname
+    ) -> Option<FoundMethod<'hir_maker>> {
+        match sk_type {
+            SkType::Class(sk_class) => sk_class.base.method_sigs
+                .get(method_name)
+                .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone())),
+            SkType::Module(sk_module) => sk_module.base.method_sigs
+                .get(method_name)
+                .map(|(sig, idx)| FoundMethod::module(sk_type, sig.clone(), *idx)),
+        }
+    }
+
+    /// Like `find_method` but only returns the signature.
+    pub fn find_method_sig(
         &self,
-        class_fullname: &ClassFullname,
+        fullname: &TypeFullname,
         method_name: &MethodFirstname,
-    ) -> Option<&MethodSignature> {
-        self.lookup_class(class_fullname)
-            .and_then(|class| class.base.method_sigs.get(method_name))
+    ) -> Option<MethodSignature> {
+        self.find_method(fullname, method_name).map(|found| found.sig)
     }
 
     /// Similar to find_method, but lookup into superclass if not in the class.
@@ -32,7 +44,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, &SkType)> {
+    ) -> Result<FoundMethod> {
         self.lookup_method_(receiver_type, receiver_type, method_name, method_tyargs)
     }
 
@@ -43,7 +55,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         current_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, &SkType)> {
+    ) -> Result<FoundMethod> {
         let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
                 (current_type.erasure(), type_args.as_slice())
@@ -51,21 +63,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
-        if let Some(sig) = self.find_method_of_type(&sk_type.base().fullname(), method_name) {
-            return Ok((sig.specialize(class_tyargs, method_tyargs), sk_type));
+        if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            found.specialize(class_tyargs, method_tyargs);
+            return Ok(found);
         }
         match sk_type {
             SkType::Class(sk_class) => {
                 // Look up in included modules
                 for modinfo in &sk_class.includes {
-                    if let Some(sig) =
-                        self.find_method_of_type(&modinfo.erasure().to_type_fullname(), method_name)
+                    if let Some(mut found) =
+                        self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
                     {
-                        let ssig = sig
-                            .specialize(&modinfo.ty().tyargs(), Default::default())
-                            .specialize(&class_tyargs, method_tyargs);
-                        let module = self.get_type(&modinfo.erasure().to_type_fullname());
-                        return Ok((ssig, module));
+                        found.specialize(&modinfo.ty().tyargs(), Default::default());
+                        found.specialize(&class_tyargs, method_tyargs);
+                        return Ok(found)
                     }
                 }
                 // Look up in superclass
@@ -80,6 +91,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
+                return self.lookup_method_(
+                    receiver_type,
+                    &ty::raw("Object"),
+                    method_name,
+                    method_tyargs,
+                );
             }
         }
         Err(error::program_error(&format!(
