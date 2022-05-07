@@ -87,9 +87,9 @@ pub extern "C" fn class__initialize_rustlib(
         (*receiver).metacls_obj = metacls_obj;
         (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
         if witness_table.is_null() {
-            (*receiver).witness_table = witness_table;
-        } else {
             (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
+        } else {
+            (*receiver).witness_table = witness_table;
         }
     }
 }
