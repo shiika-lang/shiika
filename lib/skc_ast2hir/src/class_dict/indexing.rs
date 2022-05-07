@@ -24,10 +24,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .0
             .get_mut(&clsname.to_type_fullname())
             .unwrap();
-        sk_class
-            .base_mut()
-            .method_sigs
-            .insert(sig.fullname.first_name.clone(), sig);
+        sk_class.base_mut().method_sigs.insert(sig);
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&shiika_ast::Definition]) -> Result<()> {
@@ -88,12 +85,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
         match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
-            Some(class) => {
-                // Merge methods to existing class
-                // Shiika will not support reopening a class but this is needed
-                // for classes defined both in src corelib/ and in builtin/.
-                class.base_mut().method_sigs.extend(instance_methods);
+            Some(sk_type) => {
+                // This class is predefined in skc_corelib.
+                // Inject `includes`
+                if let SkType::Class(sk_class) = sk_type {
+                    sk_class.wtable = wtable;
+                    sk_class.includes = includes;
+                }
+                // Inject instance methods
+                sk_type.base_mut().method_sigs.append(instance_methods);
+                // Inject class methods
                 let metaclass = self
                     .sk_types
                     .0
@@ -104,18 +107,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             fullname, &metaclass_fullname
                         )
                     });
-                metaclass.base_mut().method_sigs.extend(class_methods);
-                // Add `.new` to the metaclass
+                metaclass.base_mut().method_sigs.append(class_methods);
+                // Inject `.new` to the metaclass
                 if let Some(sig) = new_sig {
                     if !metaclass
                         .base()
                         .method_sigs
                         .contains_key(&method_firstname("new"))
                     {
-                        metaclass
-                            .base_mut()
-                            .method_sigs
-                            .insert(sig.fullname.first_name.clone(), sig);
+                        metaclass.base_mut().method_sigs.insert(sig);
                     }
                 }
             }
@@ -221,10 +221,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.convert_params(namespace, &sig.params, typarams, Default::default())
         } else {
             // Inherit #initialize from superclass
-            let (sig, _) = self
+            let found = self
                 .lookup_method(superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
-            Ok(specialized_initialize(&sig, superclass).params)
+            Ok(specialized_initialize(&found.sig, superclass).params)
         }
     }
 
@@ -271,7 +271,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, typarams, &fullname);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
-        instance_methods.insert(method_firstname("initialize"), initialize_sig);
+        instance_methods.insert(initialize_sig);
 
         let case_typarams = if case.params.is_empty() {
             Default::default()
@@ -345,14 +345,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         is_module: bool,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
-        let mut instance_methods = HashMap::new();
-        let mut class_methods = HashMap::new();
+        let mut instance_methods = MethodSignatures::new();
+        let mut class_methods = MethodSignatures::new();
         let mut requirements = vec![];
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
-                    instance_methods.insert(sig.name.clone(), hir_sig);
+                    instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(
@@ -361,7 +361,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         sig,
                         Default::default(),
                     )?;
-                    class_methods.insert(sig.name.clone(), hir_sig);
+                    class_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ConstDefinition { .. } => (),
                 shiika_ast::Definition::ClassDefinition {
@@ -413,14 +413,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: Superclass,
         includes: Vec<Superclass>,
         new_sig: Option<MethodSignature>,
-        instance_methods: HashMap<MethodFirstname, MethodSignature>,
-        mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+        instance_methods: MethodSignatures,
+        mut class_methods: MethodSignatures,
         is_final: Option<bool>,
         const_is_obj: bool,
     ) -> Result<()> {
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
-            class_methods.insert(sig.fullname.first_name.clone(), sig);
+            class_methods.insert(sig);
         }
 
         let wtable = build_wtable(self, &instance_methods, &includes)?;
@@ -466,8 +466,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
-        instance_methods: HashMap<MethodFirstname, MethodSignature>,
-        class_methods: HashMap<MethodFirstname, MethodSignature>,
+        instance_methods: MethodSignatures,
+        class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
     ) {
         let base = SkTypeBase {
@@ -476,7 +476,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             method_sigs: instance_methods,
             foreign: false,
         };
-        self.add_type(SkModule { base, requirements });
+        self.add_type(SkModule::new(base, requirements));
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
@@ -662,16 +662,11 @@ fn enum_case_new_sig(
 
 /// Create signatures of getters of an enum case
 fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
-    ivars
-        .iter()
-        .map(|ivar| {
-            let sig = MethodSignature {
-                fullname: method_fullname(case_fullname, &ivar.accessor_name()),
-                ret_ty: ivar.ty.clone(),
-                params: Default::default(),
-                typarams: Default::default(),
-            };
-            (method_firstname(&ivar.name), sig)
-        })
-        .collect()
+    let iter = ivars.iter().map(|ivar| MethodSignature {
+        fullname: method_fullname(case_fullname, &ivar.accessor_name()),
+        ret_ty: ivar.ty.clone(),
+        params: Default::default(),
+        typarams: Default::default(),
+    });
+    MethodSignatures::from_iterator(iter)
 }

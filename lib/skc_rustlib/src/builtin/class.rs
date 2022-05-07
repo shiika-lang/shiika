@@ -18,6 +18,7 @@ extern "C" {
         receiver: *const u8,
         name: SkStr,
         vtable: *const u8,
+        wtable: *const WitnessTable,
         metacls_obj: SkClass,
     ) -> SkClass;
 }
@@ -55,6 +56,10 @@ impl SkClass {
     pub fn witness_table_mut(&mut self) -> &mut WitnessTable {
         unsafe { (*self.0).witness_table.as_mut().unwrap() }
     }
+
+    pub fn witness_table_ptr(&self) -> *const WitnessTable {
+        unsafe { (*self.0).witness_table }
+    }
 }
 
 #[repr(C)]
@@ -74,13 +79,18 @@ pub struct ShiikaClass {
 pub extern "C" fn class__initialize_rustlib(
     receiver: *mut ShiikaClass,
     vtable: *const u8,
+    witness_table: *mut WitnessTable,
     metacls_obj: SkClass,
 ) {
     unsafe {
         (*receiver).vtable = vtable;
         (*receiver).metacls_obj = metacls_obj;
         (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
-        (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
+        if witness_table.is_null() {
+            (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
+        } else {
+            (*receiver).witness_table = witness_table;
+        }
     }
 }
 
@@ -124,6 +134,7 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
                 std::ptr::null(),
                 name.clone().into(),
                 receiver.vtable(),
+                receiver.witness_table_ptr(),
                 spe_meta,
             )
         };

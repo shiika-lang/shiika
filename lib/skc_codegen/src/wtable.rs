@@ -4,6 +4,7 @@ use inkwell::values::*;
 use shiika_core::{names::*, ty};
 use skc_hir::SkClass;
 
+/// Define llvm constants like `@shiika_wtable_Array_Enumerable`
 pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
     for (mod_name, method_names) in &sk_class.wtable.0 {
         let ary_type = code_gen.i8ptr_type.array_type(method_names.len() as u32);
@@ -27,6 +28,7 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
     }
 }
 
+/// Define `@insert_XX_wtables()` for the class
 pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
     let fargs = &[code_gen.llvm_type(&ty::raw("Class"))];
     let ftype = code_gen.void_type.fn_type(fargs, false);
@@ -35,24 +37,26 @@ pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
     let basic_block = code_gen.context.append_basic_block(function, "");
     code_gen.builder.position_at_end(basic_block);
 
-    let cls = code_gen.get_nth_param(&function, 0);
     for mod_name in sk_class.wtable.0.keys() {
         let key = code_gen.get_const_addr_int(&mod_name.to_const_fullname());
         let funcs = load_wtable_const(
             code_gen,
             &llvm_wtable_const_name(&sk_class.fullname(), &mod_name),
         );
+        let cls = code_gen.get_nth_param(&function, 0);
         let len = sk_class.wtable.get_len(mod_name);
         let args = &[
-            cls.0,
+            cls.into_i8ptr(code_gen),
             key.as_basic_value_enum(),
             funcs,
             code_gen.i64_type.const_int(len as u64, false).into(),
         ];
         code_gen.call_llvm_func(&llvm_func_name("shiika_insert_wtable"), args, "_");
     }
+    code_gen.builder.build_return(None);
 }
 
+/// Get the llvm constant like `@shiika_wtable_Array_Enumerable` as i8*
 fn load_wtable_const<'a>(
     code_gen: &'a CodeGen,
     llvm_const_name: &str,
@@ -68,7 +72,7 @@ fn load_wtable_const<'a>(
         });
     code_gen
         .builder
-        .build_load(ptr.as_pointer_value(), llvm_const_name)
+        .build_bitcast(ptr, code_gen.i8ptr_type, "ary")
 }
 
 /// Name of llvm constant of a wtable

@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
-use std::collections::HashMap;
-
-pub type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {

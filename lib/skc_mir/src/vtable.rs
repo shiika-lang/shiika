@@ -23,11 +23,12 @@ impl VTable {
     /// Build a VTable of a class
     pub fn build(super_vtable: &VTable, class: &SkClass) -> VTable {
         let mut vtable = super_vtable.clone();
-        for name in class.base.method_names() {
-            if vtable.contains(&name.first_name) {
-                vtable.update(name);
+        // Not needed to be ordered, but this may help debugging
+        for (sig, _) in class.base.method_sigs.to_ordered() {
+            if vtable.contains(&sig.fullname.first_name) {
+                vtable.update(sig.fullname.clone());
             } else {
-                vtable.push(name);
+                vtable.push(sig.fullname.clone());
             }
         }
         vtable

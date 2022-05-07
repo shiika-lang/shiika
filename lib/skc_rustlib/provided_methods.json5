@@ -32,7 +32,7 @@
   ["Float", "floor -> Float"],
   ["Float", "to_i -> Int"],
   ["Float", "to_s -> String"],
-  ["Class", "_initialize_rustlib(vtable: Object, metacls_obj: Object) -> Object"],
+  ["Class", "_initialize_rustlib(vtable: Object, wtable: Object, metacls_obj: Object) -> Object"],
   ["Class", "<>(tyargs: Array<Class>) -> Class"],
   ["Class", "_specialize1(tyargs: Array<Class>) -> Class"],
   ["Class", "_type_argument(nth: Int) -> Class"],

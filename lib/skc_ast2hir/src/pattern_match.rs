@@ -192,10 +192,11 @@ fn convert_extractor(
 }
 
 fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
-    let (sig, _) =
+    let found =
         mk.class_dict
             .lookup_method(cls, &method_firstname("initialize"), Default::default())?;
-    Ok(sig
+    Ok(found
+        .sig
         .params
         .iter()
         .map(|x| (x.name.to_string(), x.ty.clone()))

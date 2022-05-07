@@ -1,9 +1,11 @@
 pub mod pattern_match;
 pub mod signature;
+mod signatures;
 mod sk_method;
 mod sk_type;
 mod superclass;
 pub use crate::signature::*;
+pub use crate::signatures::MethodSignatures;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::sk_type::{SkClass, SkModule, SkType, SkTypeBase, SkTypes, WTable};
 pub use crate::superclass::Superclass;
@@ -165,6 +167,7 @@ pub enum HirExpressionBase {
         receiver_expr: Box<HirExpression>,
         module_fullname: ModuleFullname,
         method_name: MethodFirstname,
+        method_idx: usize,
         arg_exprs: Vec<HirExpression>,
     },
     HirLambdaInvocation {
@@ -426,6 +429,7 @@ impl Hir {
         receiver_hir: HirExpression,
         module_fullname: ModuleFullname,
         method_name: MethodFirstname,
+        method_idx: usize,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
         HirExpression {
@@ -434,6 +438,7 @@ impl Hir {
                 receiver_expr: Box::new(receiver_hir),
                 module_fullname,
                 method_name,
+                method_idx,
                 arg_exprs: arg_hirs,
             },
         }
