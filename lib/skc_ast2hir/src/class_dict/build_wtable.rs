@@ -27,9 +27,6 @@ fn resolve_module_methods(
     sup: &Superclass,
 ) -> Result<Vec<MethodFullname>> {
     let mut resolved = vec![];
-    for mod_sig in &sk_module.requirements {
-        resolved.push(resolve_module_method(instance_methods, mod_sig, sup)?);
-    }
     for (mod_sig, _) in sk_module.base.method_sigs.to_ordered() {
         resolved.push(resolve_module_method(instance_methods, mod_sig, sup)?);
     }
