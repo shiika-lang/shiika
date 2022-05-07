@@ -495,7 +495,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize
         let signature = self
             .class_dict
-            .find_method_sig(&fullname.to_type_fullname(), &method_firstname("initialize"))
+            .find_method_sig(
+                &fullname.to_type_fullname(),
+                &method_firstname("initialize"),
+            )
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
         let exprs = signature

@@ -145,9 +145,9 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&name),
             typarams: typarams.iter().map(ty::TyParam::new).collect(),
-            method_sigs: MethodSignatures::from_iterator(imethods
-                .iter()
-                .map(|x| x.signature.clone())),
+            method_sigs: MethodSignatures::from_iterator(
+                imethods.iter().map(|x| x.signature.clone()),
+            ),
             foreign: false,
         };
         let sk_class = SkClass::nonmeta(base, superclass)
@@ -162,9 +162,9 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
             let base = SkTypeBase {
                 erasure: Erasure::meta(&name),
                 typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
-                method_sigs: MethodSignatures::from_iterator(cmethods
-                    .iter()
-                    .map(|x| x.signature.clone())),
+                method_sigs: MethodSignatures::from_iterator(
+                    cmethods.iter().map(|x| x.signature.clone()),
+                ),
                 foreign: false,
             };
             let sk_class = SkClass::meta(base).ivars(class::ivars());

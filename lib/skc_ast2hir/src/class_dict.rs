@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 mod build_wtable;
+mod found_method;
 mod indexing;
 mod query;
 mod type_index;
-mod found_method;
-pub use found_method::FoundMethod;
 use anyhow::Result;
+pub use found_method::FoundMethod;
 use shiika_ast;
 use shiika_core::names::*;
 use skc_hir::*;

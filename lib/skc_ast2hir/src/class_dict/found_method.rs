@@ -1,5 +1,5 @@
-use skc_hir::{SkType, MethodSignature};
 use shiika_core::ty::TermTy;
+use skc_hir::{MethodSignature, SkType};
 
 #[derive(Debug, Clone)]
 pub struct FoundMethod<'hir_maker> {
@@ -14,12 +14,24 @@ pub struct FoundMethod<'hir_maker> {
 impl<'hir_maker> FoundMethod<'hir_maker> {
     pub fn class(owner: &'hir_maker SkType, sig: MethodSignature) -> FoundMethod<'hir_maker> {
         debug_assert!(owner.is_class());
-        FoundMethod { owner, sig, method_idx: None }
+        FoundMethod {
+            owner,
+            sig,
+            method_idx: None,
+        }
     }
 
-    pub fn module(owner: &'hir_maker SkType, sig: MethodSignature, idx: usize) -> FoundMethod<'hir_maker> {
+    pub fn module(
+        owner: &'hir_maker SkType,
+        sig: MethodSignature,
+        idx: usize,
+    ) -> FoundMethod<'hir_maker> {
         debug_assert!(!owner.is_class());
-        FoundMethod { owner, sig, method_idx: Some(idx) }
+        FoundMethod {
+            owner,
+            sig,
+            method_idx: Some(idx),
+        }
     }
 
     pub fn specialize(&mut self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) {
@@ -28,11 +40,17 @@ impl<'hir_maker> FoundMethod<'hir_maker> {
 
     pub fn set_class(&self, owner: &'hir_maker SkType) -> FoundMethod<'hir_maker> {
         debug_assert!(owner.is_class());
-        FoundMethod { owner, ..self.clone() }
+        FoundMethod {
+            owner,
+            ..self.clone()
+        }
     }
 
     pub fn set_module(&self, owner: &'hir_maker SkType) -> FoundMethod<'hir_maker> {
         debug_assert!(!owner.is_class());
-        FoundMethod { owner, ..self.clone() }
+        FoundMethod {
+            owner,
+            ..self.clone()
+        }
     }
 }

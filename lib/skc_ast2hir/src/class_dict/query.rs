@@ -15,13 +15,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .and_then(|sk_type| self._find_method(sk_type, method_name))
     }
 
-    fn _find_method(&self, sk_type: &'hir_maker SkType, method_name: &MethodFirstname
+    fn _find_method(
+        &self,
+        sk_type: &'hir_maker SkType,
+        method_name: &MethodFirstname,
     ) -> Option<FoundMethod<'hir_maker>> {
         match sk_type {
-            SkType::Class(sk_class) => sk_class.base.method_sigs
+            SkType::Class(sk_class) => sk_class
+                .base
+                .method_sigs
                 .get(method_name)
                 .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone())),
-            SkType::Module(sk_module) => sk_module.base.method_sigs
+            SkType::Module(sk_module) => sk_module
+                .base
+                .method_sigs
                 .get(method_name)
                 .map(|(sig, idx)| FoundMethod::module(sk_type, sig.clone(), *idx)),
         }
@@ -33,7 +40,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
     ) -> Option<MethodSignature> {
-        self.find_method(fullname, method_name).map(|found| found.sig)
+        self.find_method(fullname, method_name)
+            .map(|found| found.sig)
     }
 
     /// Similar to find_method, but lookup into superclass if not in the class.
@@ -76,7 +84,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     {
                         found.specialize(&modinfo.ty().tyargs(), Default::default());
                         found.specialize(&class_tyargs, method_tyargs);
-                        return Ok(found)
+                        return Ok(found);
                     }
                 }
                 // Look up in superclass

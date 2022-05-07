@@ -24,10 +24,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .0
             .get_mut(&clsname.to_type_fullname())
             .unwrap();
-        sk_class
-            .base_mut()
-            .method_sigs
-            .insert(sig);
+        sk_class.base_mut().method_sigs.insert(sig);
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&shiika_ast::Definition]) -> Result<()> {
@@ -118,10 +115,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         .method_sigs
                         .contains_key(&method_firstname("new"))
                     {
-                        metaclass
-                            .base_mut()
-                            .method_sigs
-                            .insert(sig);
+                        metaclass.base_mut().method_sigs.insert(sig);
                     }
                 }
             }
@@ -668,15 +662,11 @@ fn enum_case_new_sig(
 
 /// Create signatures of getters of an enum case
 fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
-    let iter = ivars
-        .iter()
-        .map(|ivar| {
-            MethodSignature {
-                fullname: method_fullname(case_fullname, &ivar.accessor_name()),
-                ret_ty: ivar.ty.clone(),
-                params: Default::default(),
-                typarams: Default::default(),
-            }
-        });
+    let iter = ivars.iter().map(|ivar| MethodSignature {
+        fullname: method_fullname(case_fullname, &ivar.accessor_name()),
+        ret_ty: ivar.ty.clone(),
+        params: Default::default(),
+        typarams: Default::default(),
+    });
     MethodSignatures::from_iterator(iter)
 }

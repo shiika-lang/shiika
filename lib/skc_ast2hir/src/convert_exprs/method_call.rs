@@ -1,7 +1,7 @@
-use crate::error;
-use crate::type_checking;
-use crate::hir_maker::HirMaker;
 use crate::class_dict::FoundMethod;
+use crate::error;
+use crate::hir_maker::HirMaker;
+use crate::type_checking;
 use anyhow::Result;
 use shiika_core::ty;
 use skc_hir::*;
@@ -41,13 +41,7 @@ fn check_argument_types(
     arg_hirs: &mut [HirExpression],
 ) -> Result<()> {
     let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
-    type_checking::check_method_args(
-        &mk.class_dict,
-        sig,
-        &arg_tys,
-        receiver_hir,
-        &arg_hirs,
-    )?;
+    type_checking::check_method_args(&mk.class_dict, sig, &arg_tys, receiver_hir, &arg_hirs)?;
     if let Some(last_arg) = arg_hirs.last_mut() {
         check_break_in_block(&sig, last_arg)?;
     }
@@ -82,10 +76,10 @@ fn build_hir(
 ) -> HirExpression {
     match found.owner {
         SkType::Class(_) => Hir::method_call(
-                found.sig.ret_ty.clone(),
-                receiver_hir,
-                found.sig.fullname.clone(),
-                arg_hirs
+            found.sig.ret_ty.clone(),
+            receiver_hir,
+            found.sig.fullname.clone(),
+            arg_hirs,
         ),
         SkType::Module(sk_module) => Hir::module_method_call(
             found.sig.ret_ty.clone(),
@@ -94,6 +88,6 @@ fn build_hir(
             found.sig.fullname.first_name.clone(),
             arg_hirs,
             //TODO found.method_idx.unwrap(),
-        )
+        ),
     }
 }
