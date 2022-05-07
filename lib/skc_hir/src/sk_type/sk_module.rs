@@ -10,6 +10,14 @@ pub struct SkModule {
 }
 
 impl SkModule {
+    /// Creates new `SkModule`. Also inserts `requirements` into `method_sigs`
+    pub fn new(mut base: SkTypeBase, requirements: Vec<MethodSignature>) -> SkModule {
+        requirements
+            .iter()
+            .for_each(|sig| base.method_sigs.insert(sig.clone()));
+        SkModule { base, requirements }
+    }
+
     pub fn fullname(&self) -> ModuleFullname {
         self.base.erasure.to_module_fullname()
     }

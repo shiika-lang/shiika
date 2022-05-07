@@ -476,7 +476,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             method_sigs: instance_methods,
             foreign: false,
         };
-        self.add_type(SkModule { base, requirements });
+        self.add_type(SkModule::new(base, requirements));
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
