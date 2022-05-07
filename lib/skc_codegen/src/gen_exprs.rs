@@ -90,11 +90,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 receiver_expr,
                 module_fullname,
                 method_name,
+                method_idx,
                 arg_exprs,
             } => self.gen_module_method_call(
                 ctx,
                 module_fullname,
                 method_name,
+                method_idx,
                 receiver_expr,
                 arg_exprs,
                 &expr.ty,
@@ -575,6 +577,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         module_fullname: &ModuleFullname,
         method_name: &MethodFirstname,
+        method_idx: &usize,
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
@@ -595,7 +598,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Get the llvm function via wtable
         let key = self.get_const_addr_int(&module_fullname.to_const_fullname());
-        let idx = self.i64_type.const_int(0 as u64, false); //TODO
+        let idx = self.i64_type.const_int(*method_idx as u64, false);
         let args = &[
             receiver_value.clone().into_i8ptr(self),
             key.as_basic_value_enum(),

@@ -86,8 +86,8 @@ fn build_hir(
             receiver_hir,
             sk_module.fullname(),
             found.sig.fullname.first_name.clone(),
+            found.method_idx.unwrap(),
             arg_hirs,
-            //TODO found.method_idx.unwrap(),
         ),
     }
 }
