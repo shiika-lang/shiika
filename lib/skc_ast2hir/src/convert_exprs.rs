@@ -1,3 +1,4 @@
+mod method_call;
 use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
@@ -455,12 +456,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         for arg in type_args {
             method_tyargs.push(self._resolve_method_tyarg(arg)?);
         }
-        let (sig, found_class_name) = self.class_dict.lookup_method(
+        let found = self.class_dict.lookup_method(
             &receiver_hir.ty,
             method_name,
             method_tyargs.as_slice(),
         )?;
-        self._make_method_call(receiver_hir, arg_hirs, sig, found_class_name)
+        method_call::build(self, found, receiver_hir, arg_hirs)
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
@@ -472,44 +473,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let e = self.convert_expr(arg)?;
         self.assert_class_expr(&e)?;
         Ok(e.ty.instance_ty())
-    }
-
-    /// Check the arguments and create HirMethodCall
-    fn _make_method_call(
-        &self,
-        receiver_hir: HirExpression,
-        mut arg_hirs: Vec<HirExpression>,
-        sig: MethodSignature,
-        found_class: TermTy,
-    ) -> Result<HirExpression> {
-        let specialized = receiver_hir.ty.is_specialized();
-        let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
-        type_checking::check_method_args(
-            &self.class_dict,
-            &sig,
-            &arg_tys,
-            &receiver_hir,
-            &arg_hirs,
-        )?;
-        if let Some(last_arg) = arg_hirs.last_mut() {
-            check_break_in_block(&sig, last_arg)?;
-        }
-
-        let receiver = Hir::bit_cast(found_class, receiver_hir);
-        let args = if specialized {
-            arg_hirs
-                .into_iter()
-                .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
-                .collect::<Vec<_>>()
-        } else {
-            arg_hirs
-        };
-
-        let mut ret = Hir::method_call(sig.ret_ty.clone(), receiver, sig.fullname.clone(), args);
-        if specialized {
-            ret = Hir::bit_cast(sig.ret_ty, ret)
-        }
-        Ok(ret)
     }
 
     pub(super) fn convert_lambda_expr(
@@ -595,11 +558,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Search method
         let self_expr = self.convert_self_expr();
-        let found = self
+        let result = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
-        if let Ok((sig, found_class_name)) = found {
-            self._make_method_call(self_expr, vec![], sig, found_class_name)
+        if let Ok(found) = result {
+            method_call::build(self, found, self_expr, Default::default())
         } else {
             Err(error::program_error(&format!(
                 "variable or method `{}' was not found",
@@ -916,25 +879,4 @@ fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
     let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
     tyargs.push(ret_ty.clone());
     ty::spe(&format!("Fn{}", params.len()), tyargs)
-}
-
-/// Check if `break` in block is valid
-fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> Result<()> {
-    if let HirExpressionBase::HirLambdaExpr { has_break, .. } = last_arg.node {
-        if has_break {
-            if sig.ret_ty == ty::raw("Void") {
-                match &mut last_arg.node {
-                    HirExpressionBase::HirLambdaExpr { ret_ty, .. } => {
-                        std::mem::swap(ret_ty, &mut ty::raw("Void"));
-                    }
-                    _ => panic!("[BUG] unexpected type"),
-                }
-            } else {
-                return Err(error::program_error(
-                    "`break' not allowed because this block is expected to return a value",
-                ));
-            }
-        }
-    }
-    Ok(())
 }

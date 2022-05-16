@@ -80,6 +80,9 @@ impl<'a> Parser<'a> {
                 Token::KwClass => {
                     items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
                 }
+                Token::KwModule => {
+                    items.push(ast::TopLevelItem::Def(self.parse_module_definition()?));
+                }
                 Token::KwEnum => {
                     items.push(ast::TopLevelItem::Def(self.parse_enum_definition()?));
                 }

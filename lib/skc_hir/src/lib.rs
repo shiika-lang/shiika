@@ -1,22 +1,22 @@
 pub mod pattern_match;
 pub mod signature;
-mod sk_class;
+mod signatures;
 mod sk_method;
+mod sk_type;
 mod superclass;
 pub use crate::signature::*;
-pub use crate::sk_class::SkClass;
+pub use crate::signatures::MethodSignatures;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
+pub use crate::sk_type::{SkClass, SkModule, SkType, SkTypeBase, SkTypes, WTable};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
-pub type SkClasses = HashMap<ClassFullname, SkClass>;
-
 #[derive(Debug)]
 pub struct Hir {
-    pub sk_classes: HashMap<ClassFullname, SkClass>,
-    pub sk_methods: HashMap<ClassFullname, Vec<SkMethod>>,
+    pub sk_types: SkTypes,
+    pub sk_methods: SkMethods,
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
@@ -163,6 +163,13 @@ pub enum HirExpressionBase {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
     },
+    HirModuleMethodCall {
+        receiver_expr: Box<HirExpression>,
+        module_fullname: ModuleFullname,
+        method_name: MethodFirstname,
+        method_idx: usize,
+        arg_exprs: Vec<HirExpression>,
+    },
     HirLambdaInvocation {
         lambda_expr: Box<HirExpression>,
         arg_exprs: Vec<HirExpression>,
@@ -234,8 +241,9 @@ pub enum HirExpressionBase {
     /// (eg. `class A; end; A = 1` shadows A, but this special expr
     /// is never be shadowed)
     HirClassLiteral {
-        fullname: ClassFullname,
+        fullname: TypeFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -416,6 +424,26 @@ impl Hir {
         }
     }
 
+    pub fn module_method_call(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        module_fullname: ModuleFullname,
+        method_name: MethodFirstname,
+        method_idx: usize,
+        arg_hirs: Vec<HirExpression>,
+    ) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirModuleMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                module_fullname,
+                method_name,
+                method_idx,
+                arg_exprs: arg_hirs,
+            },
+        }
+    }
+
     pub fn lambda_invocation(
         result_ty: TermTy,
         varref_expr: HirExpression,
@@ -538,8 +566,9 @@ impl Hir {
 
     pub fn class_literal(
         ty: TermTy,
-        fullname: ClassFullname,
+        fullname: TypeFullname,
         str_literal_idx: usize,
+        includes_modules: bool,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {
@@ -547,6 +576,7 @@ impl Hir {
             node: HirExpressionBase::HirClassLiteral {
                 fullname,
                 str_literal_idx,
+                includes_modules,
             },
         }
     }

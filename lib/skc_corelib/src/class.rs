@@ -36,5 +36,14 @@ pub fn ivars() -> HashMap<String, SkIVar> {
             readonly: true,
         },
     );
+    ivars.insert(
+        "@witness_table".to_string(),
+        SkIVar {
+            name: "@witness_table".to_string(),
+            idx: 3,
+            ty: ty::raw("Object"),
+            readonly: true,
+        },
+    );
     ivars
 }

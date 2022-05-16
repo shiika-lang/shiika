@@ -1,3 +1,5 @@
+# TODO: Rename to `fn.sk` after `require` is implemented
+
 class Fn
   EXIT_NORMAL = 0
   EXIT_BREAK = 1

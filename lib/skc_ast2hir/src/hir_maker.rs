@@ -54,7 +54,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Destructively convert self to Hir
     pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
-        let sk_classes = std::mem::take(&mut self.class_dict.sk_classes);
+        let sk_types = std::mem::take(&mut self.class_dict.sk_types);
         let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
@@ -64,7 +64,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         std::mem::swap(&mut const_inits, &mut self.const_inits);
 
         Hir {
-            sk_classes,
+            sk_types,
             sk_methods,
             constants,
             str_literals,
@@ -81,47 +81,68 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
     pub fn define_class_constants(&mut self) {
-        for (name, const_is_obj) in self.class_dict.constant_list() {
-            let resolved = ResolvedConstName::unsafe_create(name);
-            if const_is_obj {
+        let nonmeta = self
+            .class_dict
+            .sk_types
+            .0
+            .iter()
+            .filter(|(_, sk_type)| !sk_type.fullname().is_meta());
+        let v = nonmeta
+            .map(|(name, sk_type)| {
+                let const_is_obj = sk_type.class().map(|c| c.const_is_obj).unwrap_or(false);
+                let includes_modules = sk_type
+                    .class()
+                    .map(|c| !c.includes.is_empty())
+                    .unwrap_or(false);
+                (name.clone(), const_is_obj, includes_modules)
+            })
+            .collect::<Vec<_>>();
+        for (name, const_is_obj, includes_modules) in v {
+            let str_idx = self.register_string_literal(&name.0);
+            let expr = if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
-                let str_idx = self.register_string_literal(&resolved.string());
-                let ty = ty::raw(&resolved.string());
+                let ty = ty::raw(&name.0);
                 // The class
                 let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), resolved.to_class_fullname(), str_idx);
+                    Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
                 // The instance
-                let expr = Hir::method_call(
+                Hir::method_call(
                     ty,
                     cls_obj,
-                    method_fullname(&metaclass_fullname(&resolved.string()), "new"),
+                    method_fullname(&metaclass_fullname(&name.0), "new"),
                     vec![],
-                );
-                self.register_const_full(resolved.to_const_fullname(), expr);
+                )
             } else {
-                let ty = ty::meta(&resolved.string());
-                let str_idx = self.register_string_literal(&resolved.string());
-                let expr = Hir::class_literal(ty, resolved.to_class_fullname(), str_idx);
-                self.register_const_full(resolved.to_const_fullname(), expr);
-            }
+                let ty = ty::meta(&name.0);
+                Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
+            };
+            self.register_const_full(name.to_const_fullname(), expr);
         }
     }
 
     pub fn convert_toplevel_items(
         &mut self,
-        items: &[shiika_ast::TopLevelItem],
+        items: Vec<shiika_ast::TopLevelItem>,
     ) -> Result<(HirExpressions, HirLVars)> {
-        let mut main_exprs = vec![];
+        let mut defs = vec![];
+        let mut top_exprs = vec![];
         for item in items {
             match item {
                 shiika_ast::TopLevelItem::Def(def) => {
-                    self.process_toplevel_def(def)?;
+                    defs.push(def);
                 }
                 shiika_ast::TopLevelItem::Expr(expr) => {
-                    main_exprs.push(self.convert_expr(expr)?);
+                    top_exprs.push(expr);
                 }
             }
         }
+        self.process_defs(&Namespace::root(), None, &defs)?;
+
+        let mut main_exprs = vec![];
+        for expr in top_exprs {
+            main_exprs.push(self.convert_expr(&expr)?);
+        }
+
         debug_assert!(self.ctx_stack.len() == 1);
         let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
         Ok((
@@ -130,28 +151,84 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ))
     }
 
-    fn process_toplevel_def(&mut self, def: &shiika_ast::Definition) -> Result<()> {
-        let namespace = Namespace::root();
-        match def {
-            // Extract instance/class methods
-            shiika_ast::Definition::ClassDefinition {
-                name,
-                typarams,
-                defs,
-                ..
-            } => {
-                self.process_class_def(&namespace, name, parse_typarams(typarams), defs)?;
+    fn process_defs(
+        &mut self,
+        namespace: &Namespace,
+        opt_fullname: Option<&ClassFullname>,
+        defs: &[shiika_ast::Definition],
+    ) -> Result<()> {
+        for def in defs {
+            match def {
+                shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
+                    if let Some(fullname) = opt_fullname {
+                        if def.is_initializer() {
+                            // Already processed in process_class_def
+                        } else {
+                            log::trace!("method {}#{}", &fullname, &sig.name);
+                            let method = self.convert_method_def(
+                                &fullname.to_type_fullname(),
+                                &sig.name,
+                                body_exprs,
+                            )?;
+                            self.method_dict.add_method(&fullname, method);
+                        }
+                    } else {
+                        return Err(error::program_error(
+                            "you cannot define methods at toplevel",
+                        ));
+                    }
+                }
+                shiika_ast::Definition::ClassMethodDefinition {
+                    sig, body_exprs, ..
+                } => {
+                    if let Some(fullname) = opt_fullname {
+                        let meta_name = fullname.meta_name();
+                        log::trace!("method {}.{}", &fullname, &sig.name);
+                        let method = self.convert_method_def(
+                            &meta_name.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
+                        self.method_dict.add_method(&meta_name, method);
+                    } else {
+                        return Err(error::program_error(
+                            "you cannot define methods at toplevel",
+                        ));
+                    }
+                }
+                shiika_ast::Definition::ConstDefinition { name, expr } => {
+                    if opt_fullname.is_some() {
+                        // Already processed
+                    } else {
+                        self.register_toplevel_const(name, expr)?;
+                    }
+                }
+                shiika_ast::Definition::ClassDefinition {
+                    name,
+                    defs,
+                    typarams,
+                    ..
+                } => self.process_class_def(namespace, name, parse_typarams(typarams), defs)?,
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                    ..
+                } => {
+                    self.process_module_def(&namespace, name, parse_typarams(typarams), defs)?;
+                }
+                shiika_ast::Definition::EnumDefinition {
+                    name,
+                    typarams,
+                    cases,
+                    defs,
+                } => {
+                    self.process_enum_def(namespace, name, parse_typarams(typarams), cases, defs)?
+                }
+                shiika_ast::Definition::MethodRequirementDefinition { .. } => {
+                    // Already processed in class_dict/indexing.rs
+                }
             }
-            shiika_ast::Definition::EnumDefinition {
-                name,
-                typarams,
-                cases,
-                defs,
-            } => self.process_enum_def(&namespace, name, parse_typarams(typarams), cases, defs)?,
-            shiika_ast::Definition::ConstDefinition { name, expr } => {
-                self.register_toplevel_const(name, expr)?;
-            }
-            _ => panic!("should be checked in hir::class_dict"),
         }
         Ok(())
     }
@@ -166,11 +243,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
+        let inner_namespace = namespace.add(firstname.to_string());
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
         // Register constants before processing #initialize
-        let inner_namespace = namespace.add(firstname);
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
@@ -190,49 +267,29 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Process inner defs
-        for def in defs {
-            match def {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
-                    if def.is_initializer() {
-                        // Already processed above
-                    } else {
-                        log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
-                        self.method_dict.add_method(&fullname, method);
-                    }
-                }
-                shiika_ast::Definition::ClassMethodDefinition {
-                    sig, body_exprs, ..
-                } => {
-                    log::trace!("method {}.{}", &fullname, &sig.name);
-                    let method = self.convert_method_def(&meta_name, &sig.name, body_exprs)?;
-                    self.method_dict.add_method(&meta_name, method);
-                }
-                shiika_ast::Definition::ConstDefinition { .. } => {
-                    // Already processed above
-                }
-                shiika_ast::Definition::ClassDefinition {
-                    name,
-                    defs,
-                    typarams,
-                    ..
-                } => {
-                    self.process_class_def(&inner_namespace, name, parse_typarams(typarams), defs)?
-                }
-                shiika_ast::Definition::EnumDefinition {
-                    name,
-                    typarams,
-                    cases,
-                    defs,
-                } => self.process_enum_def(
-                    &inner_namespace,
-                    name,
-                    parse_typarams(typarams),
-                    cases,
-                    defs,
-                )?,
-            }
-        }
+        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
+        self.ctx_stack.pop_class_ctx();
+        Ok(())
+    }
+
+    /// Process a module definition and its inner defs
+    fn process_module_def(
+        &mut self,
+        namespace: &Namespace,
+        firstname: &ModuleFirstname,
+        typarams: Vec<TyParam>,
+        defs: &[shiika_ast::Definition],
+    ) -> Result<()> {
+        let fullname = namespace.class_fullname(&firstname.to_class_first_name());
+        let inner_namespace = namespace.add(firstname.to_string());
+        self.ctx_stack
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
+
+        // Register constants before processing the methods
+        self._process_const_defs_in_class(&inner_namespace, defs)?;
+
+        // Process inner defs
+        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
     }
@@ -282,13 +339,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
         let super_ivars = self.class_dict.superclass_ivars(class_fullname);
-        self.convert_method_def_(class_fullname, name, body_exprs, super_ivars)
+        self.convert_method_def_(
+            &class_fullname.to_type_fullname(),
+            name,
+            body_exprs,
+            super_ivars,
+        )
     }
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
         let (initialize_name, init_cls_name) = self._find_initialize(&class_name)?;
-        let (signature, _) = self.class_dict.lookup_method(
+        let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
             Default::default(),
@@ -297,11 +359,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             classname: class_name.fullname.clone(),
             initialize_name,
             init_cls_name,
-            arity: signature.params.len(),
+            arity: found.sig.params.len(),
             const_is_obj,
         };
         Ok(SkMethod {
-            signature,
+            signature: found.sig.clone(),
             body: new_body,
             lvars: vec![],
         })
@@ -309,15 +371,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
-        let (_, found_cls) = self.class_dict.lookup_method(
+        let found = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        Ok((
-            method_fullname(&found_cls.fullname, "initialize"),
-            found_cls.fullname,
-        ))
+        let fullname = found.owner.base().fullname_();
+        Ok((method_fullname(&fullname, "initialize"), fullname))
     }
 
     /// Register a constant defined in the toplevel
@@ -344,30 +404,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_method_def(
         &mut self,
-        class_fullname: &ClassFullname,
+        type_fullname: &TypeFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod> {
         let (sk_method, _ivars) =
-            self.convert_method_def_(class_fullname, name, body_exprs, None)?;
+            self.convert_method_def_(type_fullname, name, body_exprs, None)?;
         Ok(sk_method)
     }
 
     /// Create a SkMethod and return it with ctx.iivars
     fn convert_method_def_(
         &mut self,
-        class_fullname: &ClassFullname,
+        type_fullname: &TypeFullname,
         name: &MethodFirstname,
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>)> {
         // MethodSignature is built beforehand by class_dict::new
-        let err = format!("[BUG] signature not found ({}/{})", class_fullname, name);
         let signature = self
             .class_dict
-            .find_method(class_fullname, name)
-            .expect(&err)
-            .clone();
+            .find_method_sig(type_fullname, name)
+            .unwrap_or_else(|| panic!("[BUG] signature not found ({}/{})", type_fullname, name));
 
         self.ctx_stack
             .push(HirMakerContext::method(signature.clone(), super_ivars));
@@ -398,12 +456,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
         self.ctx_stack
-            .push(HirMakerContext::class(namespace.add(firstname), typarams));
+            .push(HirMakerContext::class(inner_namespace, typarams));
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition {
@@ -415,7 +473,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ));
                     } else {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(&fullname, &sig.name, body_exprs)?;
+                        let method = self.convert_method_def(
+                            &fullname.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
                         self.method_dict.add_method(&fullname, method);
                     }
                 }
@@ -433,7 +495,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize
         let signature = self
             .class_dict
-            .find_method(&fullname, &method_firstname("initialize"))
+            .find_method_sig(
+                &fullname.to_type_fullname(),
+                &method_firstname("initialize"),
+            )
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
         let exprs = signature

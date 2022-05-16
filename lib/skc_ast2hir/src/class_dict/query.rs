@@ -5,14 +5,43 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Find a method from class name and first name
+    /// Find a method in a class or module. Does not lookup into superclass.
     pub fn find_method(
         &self,
-        class_fullname: &ClassFullname,
+        fullname: &TypeFullname,
         method_name: &MethodFirstname,
-    ) -> Option<&MethodSignature> {
-        self.lookup_class(class_fullname)
-            .and_then(|class| class.method_sigs.get(method_name))
+    ) -> Option<FoundMethod> {
+        self.find_type(fullname)
+            .and_then(|sk_type| self._find_method(sk_type, method_name))
+    }
+
+    fn _find_method(
+        &self,
+        sk_type: &'hir_maker SkType,
+        method_name: &MethodFirstname,
+    ) -> Option<FoundMethod<'hir_maker>> {
+        match sk_type {
+            SkType::Class(sk_class) => sk_class
+                .base
+                .method_sigs
+                .get(method_name)
+                .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone())),
+            SkType::Module(sk_module) => sk_module
+                .base
+                .method_sigs
+                .get(method_name)
+                .map(|(sig, idx)| FoundMethod::module(sk_type, sig.clone(), *idx)),
+        }
+    }
+
+    /// Like `find_method` but only returns the signature.
+    pub fn find_method_sig(
+        &self,
+        fullname: &TypeFullname,
+        method_name: &MethodFirstname,
+    ) -> Option<MethodSignature> {
+        self.find_method(fullname, method_name)
+            .map(|found| found.sig)
     }
 
     /// Similar to find_method, but lookup into superclass if not in the class.
@@ -20,72 +49,150 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Returns Err if not found.
     pub fn lookup_method(
         &self,
-        receiver_class: &TermTy,
+        receiver_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, TermTy)> {
-        self.lookup_method_(receiver_class, receiver_class, method_name, method_tyargs)
+    ) -> Result<FoundMethod> {
+        self.lookup_method_(receiver_type, receiver_type, method_name, method_tyargs)
     }
 
+    // `receiver_type` is for error message.
     fn lookup_method_(
         &self,
-        receiver_class: &TermTy,
-        class: &TermTy,
+        receiver_type: &TermTy,
+        current_type: &TermTy,
         method_name: &MethodFirstname,
         method_tyargs: &[TermTy],
-    ) -> Result<(MethodSignature, TermTy)> {
-        let ty_obj = ty::raw("Object");
-        let (class, class_tyargs) = match &class.body {
+    ) -> Result<FoundMethod> {
+        let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
-                let base_cls = &self.get_class(&class.base_class_name()).instance_ty;
-                (base_cls, type_args.as_slice())
+                (current_type.erasure(), type_args.as_slice())
             }
-            TyBody::TyPara(_) => (&ty_obj, Default::default()),
+            TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
-        if let Some(sig) = self.find_method(&class.fullname, method_name) {
-            Ok((sig.specialize(class_tyargs, method_tyargs), class.clone()))
-        } else {
-            // Look up in superclass
-            let sk_class = self.get_class(&class.erasure());
-            if let Some(superclass) = &sk_class.superclass {
-                self.lookup_method_(receiver_class, superclass.ty(), method_name, method_tyargs)
-            } else {
-                Err(error::program_error(&format!(
-                    "method {:?} not found on {:?}",
-                    method_name, receiver_class.fullname
-                )))
+        let sk_type = self.get_type(&erasure.to_type_fullname());
+        if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            found.specialize(class_tyargs, method_tyargs);
+            return Ok(found);
+        }
+        match sk_type {
+            SkType::Class(sk_class) => {
+                // Look up in included modules
+                for modinfo in &sk_class.includes {
+                    if let Some(mut found) =
+                        self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
+                    {
+                        found.specialize(&modinfo.ty().tyargs(), Default::default());
+                        found.specialize(&class_tyargs, method_tyargs);
+                        return Ok(found);
+                    }
+                }
+                // Look up in superclass
+                if let Some(superclass) = &sk_class.superclass {
+                    return self.lookup_method_(
+                        receiver_type,
+                        superclass.ty(),
+                        method_name,
+                        method_tyargs,
+                    );
+                }
+            }
+            SkType::Module(_) => {
+                // TODO: Look up in supermodule, once it's implemented
+                return self.lookup_method_(
+                    receiver_type,
+                    &ty::raw("Object"),
+                    method_name,
+                    method_tyargs,
+                );
             }
         }
+        Err(error::program_error(&format!(
+            "method {:?} not found on {:?}",
+            method_name, receiver_type.fullname
+        )))
+    }
+
+    /// Return the class/module of the specified name, if any
+    pub fn find_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
+        self.sk_types
+            .0
+            .get(fullname)
+            .or_else(|| self.imported_classes.0.get(fullname))
     }
 
     /// Return the class of the specified name, if any
     pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
-        self.sk_classes
-            .get(class_fullname)
-            .or_else(|| self.imported_classes.get(class_fullname))
+        self.sk_types
+            .0
+            .get(&class_fullname.to_type_fullname())
+            .or_else(|| {
+                self.imported_classes
+                    .0
+                    .get(&class_fullname.to_type_fullname())
+            })
+            .map(|sk_type| {
+                if let SkType::Class(c) = sk_type {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
+            .flatten()
     }
 
-    /// Returns if there is a class of the given name
+    /// Return the module of the specified name, if any
+    pub fn lookup_module(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
+        let name = module_fullname.to_type_fullname();
+        self.sk_types
+            .0
+            .get(&name)
+            .or_else(|| self.imported_classes.0.get(&name))
+            .map(|sk_type| {
+                if let SkType::Module(m) = sk_type {
+                    Some(m)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+    }
+
+    /// Find a type. Panic if not found
+    pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
+        self.find_type(fullname)
+            .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
+    }
+
     /// Find a class. Panic if not found
     pub fn get_class(&self, class_fullname: &ClassFullname) -> &SkClass {
         self.lookup_class(class_fullname)
             .unwrap_or_else(|| panic!("[BUG] class `{}' not found", &class_fullname.0))
     }
 
+    /// Find a module. Panic if not found
+    pub fn get_module(&self, module_fullname: &ModuleFullname) -> &SkModule {
+        self.lookup_module(module_fullname)
+            .unwrap_or_else(|| panic!("[BUG] module `{}' not found", &module_fullname.0))
+    }
+
     /// Find a class. Panic if not found
     pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
-        if let Some(c) = self.sk_classes.get_mut(class_fullname) {
-            c
-        } else if self.imported_classes.contains_key(class_fullname) {
+        if let Some(sk_type) = self.sk_types.0.get_mut(&class_fullname.to_type_fullname()) {
+            if let SkType::Class(c) = sk_type {
+                c
+            } else {
+                panic!("[BUG] `{}' is not a class", class_fullname)
+            }
+        } else if self
+            .imported_classes
+            .0
+            .contains_key(&class_fullname.to_type_fullname())
+        {
             panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)
         } else {
             panic!("[BUG] class `{}' not found", class_fullname)
         }
-    }
-
-    /// Return true if there is a class of the name
-    pub fn class_exists(&self, fullname: &str) -> bool {
-        self.lookup_class(&class_fullname(fullname)).is_some()
     }
 
     /// Returns supertype of `ty` (except it is `Object`)
@@ -93,7 +200,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         match &ty.body {
             TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.to_term_ty()),
             _ => self
-                .get_class(&ty.erasure())
+                .get_class(&ty.erasure().to_class_fullname())
                 .superclass
                 .as_ref()
                 .map(|scls| scls.ty().substitute(ty.tyargs(), &[])),
@@ -206,7 +313,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     pub fn find_ivar(&self, classname: &ClassFullname, ivar_name: &str) -> Option<&SkIVar> {
-        let class = self.sk_classes.get(classname).unwrap_or_else(|| {
+        let class = self.lookup_class(classname).unwrap_or_else(|| {
             panic!(
                 "[BUG] finding ivar `{}' but the class '{}' not found",
                 ivar_name, &classname
@@ -219,7 +326,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
         self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
-            let ivars = &self.get_class(&ty.erasure()).ivars;
+            let ivars = &self.get_class(&ty.erasure().to_class_fullname()).ivars;
             let tyargs = ty.tyargs();
             ivars
                 .iter()
@@ -231,9 +338,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::Error;
-    use crate::hir::class_dict::ClassDict;
+    use crate::class_dict::*;
+    use crate::error;
     use crate::ty;
+    use anyhow::Result;
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<()>
     where
@@ -241,8 +349,7 @@ mod tests {
     {
         let core = crate::runner::load_builtin_exports()?;
         let ast = crate::parser::Parser::parse(s)?;
-        let class_dict =
-            crate::hir::class_dict::create(&ast, Default::default(), &core.sk_classes)?;
+        let class_dict = crate::hir::class_dict::create(&ast, Default::default(), &core.sk_types)?;
         f(class_dict);
         Ok(())
     }

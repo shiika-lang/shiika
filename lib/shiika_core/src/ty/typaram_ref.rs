@@ -44,6 +44,7 @@ impl TyParamRef {
         }
     }
 
+    /// Create new `TyParamRef` from self with as_class: true
     pub fn as_class(&self) -> TyParamRef {
         debug_assert!(!self.as_class);
         let mut ref2 = self.clone();
@@ -51,6 +52,7 @@ impl TyParamRef {
         ref2
     }
 
+    /// Create new `TyParamRef` from self with as_class: false
     pub fn as_type(&self) -> TyParamRef {
         debug_assert!(self.as_class);
         let mut ref2 = self.clone();

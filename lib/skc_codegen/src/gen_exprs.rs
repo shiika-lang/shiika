@@ -1,6 +1,7 @@
 use crate::code_gen_context::*;
 use crate::utils::*;
 use crate::values::*;
+use crate::wtable;
 use crate::CodeGen;
 use anyhow::Result;
 use inkwell::types::*;
@@ -85,6 +86,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_fullname,
                 arg_exprs,
             } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
+            HirModuleMethodCall {
+                receiver_expr,
+                module_fullname,
+                method_name,
+                method_idx,
+                arg_exprs,
+            } => self.gen_module_method_call(
+                ctx,
+                module_fullname,
+                method_name,
+                method_idx,
+                receiver_expr,
+                arg_exprs,
+                &expr.ty,
+            ),
             HirLambdaInvocation {
                 lambda_expr,
                 arg_exprs,
@@ -128,10 +144,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
+                includes_modules,
             } => Ok(Some(self.gen_class_literal(
                 fullname,
                 &expr.ty,
                 str_literal_idx,
+                includes_modules,
             ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
@@ -534,7 +552,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_value: SkObj<'run>,
         func_type: inkwell::types::FunctionType<'ictx>,
     ) -> inkwell::values::PointerValue<'run> {
-        //let class = self.get_class_of_obj(receiver_value);
         let vtable = self.get_vtable_of_obj(receiver_value);
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
         let func_raw = self.build_vtable_ref(vtable, *idx, size);
@@ -552,6 +569,82 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             panic!("[BUG] method_idx: vtable of {} not found", &ty.fullname);
         }
+    }
+
+    /// Generate method call via wtable
+    fn gen_module_method_call(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        module_fullname: &ModuleFullname,
+        method_name: &MethodFirstname,
+        method_idx: &usize,
+        receiver_expr: &'hir HirExpression,
+        arg_exprs: &'hir [HirExpression],
+        ret_ty: &TermTy,
+    ) -> Result<Option<SkObj<'run>>> {
+        // Prepare arguments
+        let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_values = vec![];
+        for arg_expr in arg_exprs {
+            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        }
+
+        // Create basic block
+        let start_block = self
+            .context
+            .append_basic_block(ctx.function, &format!("Invoke_{}", method_name));
+        self.builder.build_unconditional_branch(start_block);
+        self.builder.position_at_end(start_block);
+
+        // Get the llvm function via wtable
+        let key = self.get_const_addr_int(&module_fullname.to_const_fullname());
+        let idx = self.i64_type.const_int(*method_idx as u64, false);
+        let args = &[
+            receiver_value.clone().into_i8ptr(self),
+            key.as_basic_value_enum(),
+            idx.as_basic_value_enum(),
+        ];
+        let func_ptr = self
+            .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
+            .into_pointer_value();
+        let func_type = self
+            .llvm_func_type(
+                Some(&receiver_expr.ty),
+                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
+                ret_ty,
+            )
+            .ptr_type(AddressSpace::Generic);
+        let func = self
+            .builder
+            .build_bitcast(func_ptr, func_type, "as")
+            .into_pointer_value();
+
+        let result = self.gen_llvm_function_call(
+            CallableValue::try_from(func).unwrap(),
+            receiver_value,
+            arg_values,
+        );
+        if ret_ty.is_never_type() {
+            self.builder.build_unreachable();
+            Ok(None)
+        } else {
+            let end_block = self
+                .context
+                .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_name));
+            self.builder.build_unconditional_branch(end_block);
+            self.builder.position_at_end(end_block);
+            Ok(Some(result))
+        }
+    }
+
+    /// Get the address of a Shiika constant and returns it as an integer
+    pub fn get_const_addr_int(&self, fullname: &ConstFullname) -> inkwell::values::IntValue<'run> {
+        let ptr = self
+            .module
+            .get_global(&fullname.0)
+            .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname))
+            .as_pointer_value();
+        ptr.const_to_int(self.i64_type.clone())
     }
 
     /// Generate invocation of a lambda
@@ -982,9 +1075,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// on a source text.)
     fn gen_class_literal(
         &self,
-        fullname: &ClassFullname,
+        fullname: &TypeFullname,
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
+        includes_modules: &bool,
     ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
@@ -996,12 +1090,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let vtable = self
                 .get_vtable_of_class(&class_fullname("Metaclass"))
                 .as_sk_obj();
+            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let metacls_obj = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Metaclass"), "new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
                 ],
             );
@@ -1009,15 +1105,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
             let receiver = self.null_ptr(&ty::meta("Class"));
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
+            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let cls = self.gen_method_func_call(
                 &method_fullname(&metaclass_fullname("Class"), "new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
+                    self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
                 ],
             );
+            if *includes_modules {
+                let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
+                self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0], "_");
+            }
+
             self.bitcast(cls, clsobj_ty, "as")
         }
     }

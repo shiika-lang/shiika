@@ -1,7 +1,9 @@
 mod library;
 mod vtable;
+mod vtables;
 pub use crate::library::LibraryExports;
-pub use crate::vtable::{VTable, VTables};
+pub use crate::vtable::VTable;
+pub use crate::vtables::VTables;
 use skc_hir::Hir;
 
 #[derive(Debug)]
@@ -12,7 +14,7 @@ pub struct Mir {
 }
 
 pub fn build(hir: Hir, imports: LibraryExports) -> Mir {
-    let vtables = VTables::build(&hir.sk_classes, &imports);
+    let vtables = VTables::build(&hir.sk_types, &imports);
     Mir {
         hir,
         vtables,

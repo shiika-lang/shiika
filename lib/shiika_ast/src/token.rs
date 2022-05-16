@@ -70,6 +70,8 @@ pub enum Token {
     Specialize,   //  <> (used internally)
     // Keywords
     KwClass,
+    KwModule,
+    KwRequirement,
     KwEnum,
     KwCase,
     KwIn,
@@ -100,16 +102,6 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn upper_word(s: &str) -> Token {
-        Token::UpperWord(s.to_string())
-    }
-    pub fn lower_word(s: &str) -> Token {
-        Token::LowerWord(s.to_string())
-    }
-    pub fn number(s: &str) -> Token {
-        Token::Number(s.to_string())
-    }
-
     pub fn is_assignment_token(&self) -> bool {
         matches!(
             self,
@@ -201,6 +193,8 @@ impl Token {
             Token::Specialize => false,   //  <>
             // Keywords
             Token::KwClass => false,
+            Token::KwModule => false,
+            Token::KwRequirement => false,
             Token::KwEnum => false,
             Token::KwCase => false,
             Token::KwIn => false,

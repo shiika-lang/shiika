@@ -1,4 +1,6 @@
 /// An instance of `::Class`
+mod witness_table;
+use crate::builtin::class::witness_table::WitnessTable;
 use crate::builtin::{SkAry, SkInt, SkStr};
 use shiika_ffi_macro::shiika_method;
 use std::collections::HashMap;
@@ -16,6 +18,7 @@ extern "C" {
         receiver: *const u8,
         name: SkStr,
         vtable: *const u8,
+        wtable: *const WitnessTable,
         metacls_obj: SkClass,
     ) -> SkClass;
 }
@@ -45,6 +48,18 @@ impl SkClass {
     fn specialized_classes(&mut self) -> &mut HashMap<String, *mut ShiikaClass> {
         unsafe { (*self.0).specialized_classes.as_mut().unwrap() }
     }
+
+    pub fn witness_table(&self) -> &WitnessTable {
+        unsafe { (*self.0).witness_table.as_ref().unwrap() }
+    }
+
+    pub fn witness_table_mut(&mut self) -> &mut WitnessTable {
+        unsafe { (*self.0).witness_table.as_mut().unwrap() }
+    }
+
+    pub fn witness_table_ptr(&self) -> *const WitnessTable {
+        unsafe { (*self.0).witness_table }
+    }
 }
 
 #[repr(C)]
@@ -55,19 +70,27 @@ pub struct ShiikaClass {
     name: SkStr,
     specialized_classes: *mut HashMap<String, *mut ShiikaClass>,
     type_args: *mut Vec<SkClass>,
+    witness_table: *mut WitnessTable,
 }
 
+/// Called from `Class.new` and initializes internal fields.
 #[shiika_method("Class#_initialize_rustlib")]
 #[allow(non_snake_case)]
 pub extern "C" fn class__initialize_rustlib(
     receiver: *mut ShiikaClass,
     vtable: *const u8,
+    witness_table: *mut WitnessTable,
     metacls_obj: SkClass,
 ) {
     unsafe {
         (*receiver).vtable = vtable;
         (*receiver).metacls_obj = metacls_obj;
         (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
+        if witness_table.is_null() {
+            (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
+        } else {
+            (*receiver).witness_table = witness_table;
+        }
     }
 }
 
@@ -111,6 +134,7 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
                 std::ptr::null(),
                 name.clone().into(),
                 receiver.vtable(),
+                receiver.witness_table_ptr(),
                 spe_meta,
             )
         };

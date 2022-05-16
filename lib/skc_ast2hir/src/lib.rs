@@ -27,11 +27,11 @@ pub fn make_hir(
     } else {
         (Default::default(), Default::default())
     };
-    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_classes)?;
+    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_types)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
     hir_maker.define_class_constants();
-    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(&ast.toplevel_items)?;
+    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 
     // While corelib classes are included in `class_dict`,

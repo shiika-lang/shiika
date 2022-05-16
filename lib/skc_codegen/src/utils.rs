@@ -192,7 +192,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         reg_name: &str,
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
-        let object_type = self.llvm_struct_type(class_fullname);
+        let object_type = self.llvm_struct_type(&class_fullname.to_type_fullname());
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
         let size = object_type
             .size_of()
@@ -249,14 +249,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap()
     }
 
-    /// Call llvm function whose return type is `void`
-    pub fn call_llvm_void_func(
+    /// Call llvm function which returns `void`
+    pub fn call_void_llvm_func(
         &self,
-        func_name: &str,
+        func_name: &LlvmFuncName,
         args: &[inkwell::values::BasicValueEnum<'run>],
+        reg_name: &str,
     ) {
-        let f = self.module.get_function(func_name).unwrap();
-        self.builder.build_call(f, args, "");
+        let f = self
+            .module
+            .get_function(&func_name.0)
+            .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
+        self.builder.build_call(f, args, reg_name);
     }
 
     /// Get nth parameter of llvm func as SkObj
@@ -301,13 +305,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        self.llvm_struct_type(&lit_ty.erasure())
+        self.llvm_struct_type(&lit_ty.erasure().into())
             .ptr_type(AddressSpace::Generic)
             .as_basic_type_enum()
     }
 
-    /// Get the llvm struct type for a class
-    fn llvm_struct_type(&self, name: &ClassFullname) -> &inkwell::types::StructType<'ictx> {
+    /// Get the llvm struct type for a class/module
+    fn llvm_struct_type(&self, name: &TypeFullname) -> &inkwell::types::StructType<'ictx> {
         self.llvm_struct_types
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", name))

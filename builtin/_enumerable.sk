@@ -1,0 +1,94 @@
+# TODO: Rename to `enumerable.sk` after `require` is implemented
+
+module Enumerable<E>
+  requirement each(f: Fn1<E, Void>) -> Void
+
+  # Return true if `f` returns true for all element of `self`
+  def all?(f: Fn1<E, Bool>) -> Bool
+    var ret = true
+    self.each do |elem: E|
+      unless f(elem)
+        ret = false
+        break
+      end
+    end
+    ret
+  end
+
+  # Return true if `f` returns true for an element of `self`
+  def any?(f: Fn1<E, Bool>) -> Bool
+    var ret = false
+    each do |item: E|
+      ret = true if f(item)
+    end
+    ret
+  end
+
+  # Like `map` but `f` should return an array and the result is flattened.
+  def flat_map<R>(f: Fn1<E, Array<R>>) -> Array<R>
+    self.map<Array<R>>(f).fold<Array<R>>(Array<R>.new){|sum: Array<R>, item: Array<R>|
+      sum.append(item)
+      sum
+    }
+  end
+
+  # Calculate a value by passing `sum` and `item` to `f` for each element
+  def fold<SUM>(initial_sum: SUM, f: Fn2<SUM, E, SUM>) -> SUM
+    var sum = initial_sum
+    each do |item: E|
+      sum = f(sum, item)
+    end
+    sum
+  end
+
+  # Return true if `self` contains `item` (compared by `==`)
+  def includes?(item: E) -> Bool
+    var ret = false
+    each do |x: E|
+      if x == item; ret = true; end
+    end
+    ret
+  end
+
+  # Create a string by joining all items with separator.
+  def join(separator: String) -> String
+    var first = true
+    ret = MutableString.new
+    each do |item: E|
+      if first
+        first = false
+      else
+        ret.append(separator)
+      end
+      ret.append(item.to_s)
+    end
+    ret._unsafe_to_s
+  end
+
+  # Create a new array by calling `f` with each element
+  def map<R>(f: Fn1<E, R>) -> Array<R>
+    ret = Array<R>.new
+    self.each do |item: E|
+      ret.push(f(item))
+    end
+    ret
+  end
+
+  # Return true if `f` returns false for all element of `self`
+  def none?(f: Fn1<E, Bool>) -> Bool
+    var ret = true
+    each do |item: E|
+      ret = false if f(item)
+    end
+    ret
+  end
+
+  # Create an array which contains items of `self` for which `f` returns true
+  def select(f: Fn1<E, Bool>) -> Array<E>
+    ret = Array<E>.new
+    each do |item: E|
+      ret.push(item) if f(item)
+    end
+    ret
+  end
+end

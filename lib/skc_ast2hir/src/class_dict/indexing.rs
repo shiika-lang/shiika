@@ -1,3 +1,4 @@
+use crate::class_dict::build_wtable::build_wtable;
 use crate::class_dict::*;
 use crate::error;
 use crate::parse_typarams;
@@ -8,21 +9,22 @@ use skc_hir::signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
 
-type MethodSignatures = HashMap<MethodFirstname, MethodSignature>;
-
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Register a class
-    pub fn add_class(&mut self, class: SkClass) {
-        self.sk_classes.insert(class.fullname.clone(), class);
+    /// Register a class or module
+    pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
+        let sk_type = sk_type_.into();
+        self.sk_types.0.insert(sk_type.fullname(), sk_type);
     }
 
     /// Add a method
     /// Used to add auto-defined accessors
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
-        let sk_class = self.sk_classes.get_mut(clsname).unwrap();
-        sk_class
-            .method_sigs
-            .insert(sig.fullname.first_name.clone(), sig);
+        let sk_class = self
+            .sk_types
+            .0
+            .get_mut(&clsname.to_type_fullname())
+            .unwrap();
+        sk_class.base_mut().method_sigs.insert(sig);
     }
 
     pub fn index_program(&mut self, toplevel_defs: &[&shiika_ast::Definition]) -> Result<()> {
@@ -32,11 +34,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
-                } => {
-                    self.index_class(&namespace, name, parse_typarams(typarams), superclass, defs)?
-                }
+                } => self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?,
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => self.index_module(&namespace, name, parse_typarams(typarams), defs)?,
                 shiika_ast::Definition::EnumDefinition {
                     name,
                     typarams,
@@ -60,21 +65,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         firstname: &ClassFirstname,
         typarams: Vec<ty::TyParam>,
-        ast_superclass: &Option<ConstName>,
+        supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
-        let superclass = if let Some(name) = ast_superclass {
-            let ty = self._resolve_typename(namespace, &typarams, Default::default(), name)?;
-
-            if self.get_class(&ty.erasure()).is_final.unwrap() {
-                return Err(error::program_error(&format!("cannot inherit from {}", ty)));
-            }
-            Superclass::from_ty(ty)
-        } else {
-            Superclass::default()
-        };
+        let (superclass, includes) = self._resolve_supers(namespace, &typarams, supers)?;
         let new_sig = if fullname.0 == "Never" {
             None
         } else {
@@ -85,32 +81,41 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ))
         };
 
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
-        match self.sk_classes.get_mut(&fullname) {
-            Some(class) => {
-                // Merge methods to existing class
-                // Shiika will not support reopening a class but this is needed
-                // for classes defined both in src corelib/ and in builtin/.
-                class.method_sigs.extend(instance_methods);
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
+        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
+            Some(sk_type) => {
+                // This class is predefined in skc_corelib.
+                // Inject `includes`
+                if let SkType::Class(sk_class) = sk_type {
+                    sk_class.wtable = wtable;
+                    sk_class.includes = includes;
+                }
+                // Inject instance methods
+                sk_type.base_mut().method_sigs.append(instance_methods);
+                // Inject class methods
                 let metaclass = self
-                    .sk_classes
-                    .get_mut(&metaclass_fullname)
+                    .sk_types
+                    .0
+                    .get_mut(&metaclass_fullname.to_type_fullname())
                     .unwrap_or_else(|| {
                         panic!(
                             "[BUG] metaclass not found: {} <- {}",
                             fullname, &metaclass_fullname
                         )
                     });
-                metaclass.method_sigs.extend(class_methods);
-                // Add `.new` to the metaclass
+                metaclass.base_mut().method_sigs.append(class_methods);
+                // Inject `.new` to the metaclass
                 if let Some(sig) = new_sig {
-                    if !metaclass.method_sigs.contains_key(&method_firstname("new")) {
-                        metaclass
-                            .method_sigs
-                            .insert(sig.fullname.first_name.clone(), sig);
+                    if !metaclass
+                        .base()
+                        .method_sigs
+                        .contains_key(&method_firstname("new"))
+                    {
+                        metaclass.base_mut().method_sigs.insert(sig);
                     }
                 }
             }
@@ -118,11 +123,82 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &fullname,
                 &typarams,
                 superclass,
+                includes,
                 new_sig,
                 instance_methods,
                 class_methods,
                 Some(false),
                 false,
+            )?,
+        }
+        Ok(())
+    }
+
+    /// Resolve superclass and included module names of a class definition
+    fn _resolve_supers(
+        &self,
+        namespace: &Namespace,
+        class_typarams: &[ty::TyParam],
+        supers: &[UnresolvedTypeName],
+    ) -> Result<(Superclass, Vec<Superclass>)> {
+        let mut modules = vec![];
+        let mut superclass = None;
+        for name in supers {
+            let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            match self.find_type(&ty.erasure().to_type_fullname()) {
+                Some(SkType::Class(c)) => {
+                    if !modules.is_empty() {
+                        return Err(error::program_error(&format!(
+                            "superclass must be the first"
+                        )));
+                    }
+                    if superclass.is_some() {
+                        return Err(error::program_error(&format!(
+                            "only one superclass is allowed"
+                        )));
+                    }
+                    if c.is_final.unwrap() {
+                        return Err(error::program_error(&format!(
+                            "inheriting {} is not allowed",
+                            ty
+                        )));
+                    }
+                    superclass = Some(Superclass::from_ty(ty))
+                }
+                Some(SkType::Module(_)) => {
+                    modules.push(Superclass::from_ty(ty));
+                }
+                None => {
+                    return Err(error::program_error(&format!(
+                        "unknown class or module {}",
+                        ty
+                    )));
+                }
+            }
+        }
+        Ok((superclass.unwrap_or(Superclass::default()), modules))
+    }
+
+    fn index_module(
+        &mut self,
+        namespace: &Namespace,
+        firstname: &ModuleFirstname,
+        typarams: Vec<ty::TyParam>,
+        defs: &[shiika_ast::Definition],
+    ) -> Result<()> {
+        let fullname = namespace.class_fullname(&firstname.to_class_first_name());
+        let inner_namespace = namespace.add(firstname.to_string());
+        let (instance_methods, class_methods, requirements) =
+            self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
+
+        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
+            Some(_) => todo!(),
+            None => self.add_new_module(
+                &fullname,
+                &typarams,
+                instance_methods,
+                class_methods,
+                requirements,
             ),
         }
         Ok(())
@@ -145,10 +221,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.convert_params(namespace, &sig.params, typarams, Default::default())
         } else {
             // Inherit #initialize from superclass
-            let (sig, _) = self
+            let found = self
                 .lookup_method(superclass.ty(), &method_firstname("initialize"), &[])
                 .expect("[BUG] initialize not found");
-            Ok(specialized_initialize(&sig, superclass).params)
+            Ok(specialized_initialize(&found.sig, superclass).params)
         }
     }
 
@@ -161,19 +237,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
-        let inner_namespace = namespace.add(firstname);
+        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
         self.add_new_class(
             &fullname,
             &typarams,
             Superclass::simple("Object"),
+            Default::default(),
             None,
             instance_methods,
             class_methods,
             Some(true),
             false,
-        );
+        )?;
         for case in cases {
             self.index_enum_case(namespace, &fullname, &typarams, case)?;
         }
@@ -194,7 +271,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, typarams, &fullname);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
-        instance_methods.insert(method_firstname("initialize"), initialize_sig);
+        instance_methods.insert(initialize_sig);
 
         let case_typarams = if case.params.is_empty() {
             Default::default()
@@ -205,12 +282,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname,
             case_typarams,
             superclass,
+            Default::default(),
             Some(new_sig),
             instance_methods,
             Default::default(),
             Some(true),
             case.params.is_empty(),
-        );
+        )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
         Ok(())
@@ -244,13 +322,37 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
-        let mut instance_methods = HashMap::new();
-        let mut class_methods = HashMap::new();
+        let (instance_methods, class_methods, _) =
+            self._index_inner_defs(namespace, fullname, typarams, defs, false)?;
+        Ok((instance_methods, class_methods))
+    }
+
+    fn index_defs_in_module(
+        &mut self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        defs: &[shiika_ast::Definition],
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
+        self._index_inner_defs(namespace, fullname, typarams, defs, true)
+    }
+
+    fn _index_inner_defs(
+        &mut self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        defs: &[shiika_ast::Definition],
+        is_module: bool,
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
+        let mut instance_methods = MethodSignatures::new();
+        let mut class_methods = MethodSignatures::new();
+        let mut requirements = vec![];
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
-                    instance_methods.insert(sig.name.clone(), hir_sig);
+                    instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(
@@ -259,16 +361,34 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         sig,
                         Default::default(),
                     )?;
-                    class_methods.insert(sig.name.clone(), hir_sig);
+                    class_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ConstDefinition { .. } => (),
                 shiika_ast::Definition::ClassDefinition {
                     name,
                     typarams,
-                    superclass,
+                    supers,
                     defs,
                 } => {
-                    self.index_class(namespace, name, parse_typarams(typarams), superclass, defs)?;
+                    self.index_class(namespace, name, parse_typarams(typarams), supers, defs)?;
+                }
+                shiika_ast::Definition::ModuleDefinition {
+                    name,
+                    typarams,
+                    defs,
+                } => {
+                    self.index_module(namespace, name, parse_typarams(typarams), defs)?;
+                }
+                shiika_ast::Definition::MethodRequirementDefinition { sig } => {
+                    if is_module {
+                        let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                        requirements.push(hir_sig);
+                    } else {
+                        return Err(error::syntax_error(&format!(
+                            "only modules have method requirement: {:?} {:?} {:?}",
+                            namespace, fullname, sig
+                        )));
+                    }
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -280,7 +400,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((instance_methods, class_methods))
+        Ok((instance_methods, class_methods, requirements))
     }
 
     /// Register a class and its metaclass to self
@@ -291,42 +411,90 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: Superclass,
+        includes: Vec<Superclass>,
         new_sig: Option<MethodSignature>,
-        instance_methods: HashMap<MethodFirstname, MethodSignature>,
-        mut class_methods: HashMap<MethodFirstname, MethodSignature>,
+        instance_methods: MethodSignatures,
+        mut class_methods: MethodSignatures,
         is_final: Option<bool>,
         const_is_obj: bool,
-    ) {
+    ) -> Result<()> {
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
-            class_methods.insert(sig.fullname.first_name.clone(), sig);
+            class_methods.insert(sig);
         }
 
-        self.add_class(SkClass {
-            fullname: fullname.clone(),
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
-            superclass: Some(superclass),
-            instance_ty: ty::raw(&fullname.0),
-            ivars: HashMap::new(), // will be set when processing `#initialize`
             method_sigs: instance_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(superclass),
+            includes,
+            ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
             const_is_obj,
-            foreign: false,
+            wtable,
         });
 
         // Create metaclass (which is a subclass of `Class`)
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
-        self.add_class(SkClass {
-            fullname: fullname.meta_name(),
+        let base = SkTypeBase {
+            erasure: Erasure::meta(&fullname.0),
             typarams: typarams.to_vec(),
-            superclass: Some(Superclass::simple("Class")),
-            instance_ty: ty::meta(&fullname.0),
-            ivars: meta_ivars,
             method_sigs: class_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
+            ivars: meta_ivars,
             is_final: None,
             const_is_obj: false,
+            wtable: Default::default(),
+        });
+        Ok(())
+    }
+
+    /// Register a class and its metaclass to self
+    fn add_new_module(
+        &mut self,
+        fullname: &ClassFullname,
+        typarams: &[ty::TyParam],
+        instance_methods: MethodSignatures,
+        class_methods: MethodSignatures,
+        requirements: Vec<MethodSignature>,
+    ) {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta(&fullname.0),
+            typarams: typarams.to_vec(),
+            method_sigs: instance_methods,
             foreign: false,
+        };
+        self.add_type(SkModule::new(base, requirements));
+
+        // Create metaclass (which is a subclass of `Class`)
+        let the_class = self.get_class(&class_fullname("Class"));
+        let meta_ivars = the_class.ivars.clone();
+        let base = SkTypeBase {
+            erasure: Erasure::meta(&fullname.0),
+            typarams: typarams.to_vec(),
+            method_sigs: class_methods,
+            foreign: false,
+        };
+        self.add_type(SkClass {
+            base,
+            superclass: Some(Superclass::simple("Class")),
+            includes: Default::default(),
+            ivars: meta_ivars,
+            is_final: None,
+            const_is_obj: false,
+            wtable: Default::default(),
         });
     }
 
@@ -387,7 +555,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
         method_typarams: &[ty::TyParam],
-        name: &ConstName,
+        name: &UnresolvedTypeName,
     ) -> Result<TermTy> {
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {
@@ -425,7 +593,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for k in 0..=n {
             let mut resolved = namespace.head(n - k).to_vec();
             resolved.append(&mut names.to_vec());
-            if let Some(typarams) = self.class_index.get(&class_fullname(resolved.join("::"))) {
+            if let Some(typarams) = self
+                .type_index
+                .get(&class_fullname(resolved.join("::")).into())
+            {
                 return Ok((resolved, typarams));
             }
         }
@@ -491,16 +662,11 @@ fn enum_case_new_sig(
 
 /// Create signatures of getters of an enum case
 fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
-    ivars
-        .iter()
-        .map(|ivar| {
-            let sig = MethodSignature {
-                fullname: method_fullname(case_fullname, &ivar.accessor_name()),
-                ret_ty: ivar.ty.clone(),
-                params: Default::default(),
-                typarams: Default::default(),
-            };
-            (method_firstname(&ivar.name), sig)
-        })
-        .collect()
+    let iter = ivars.iter().map(|ivar| MethodSignature {
+        fullname: method_fullname(case_fullname, &ivar.accessor_name()),
+        ret_ty: ivar.ty.clone(),
+        params: Default::default(),
+        typarams: Default::default(),
+    });
+    MethodSignatures::from_iterator(iter)
 }

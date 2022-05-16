@@ -5,6 +5,7 @@ use shiika_core::{names::*, ty, ty::*};
 /// `class Foo<S, T> : Pair<S, Array<T>>`
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Superclass(TermTy);
+// TODO: the content should be LitTy rather than TermTy
 
 impl Superclass {
     /// Create a `Superclass`
@@ -35,6 +36,14 @@ impl Superclass {
 
     pub fn ty(&self) -> &TermTy {
         &self.0
+    }
+
+    pub fn erasure(&self) -> Erasure {
+        self.0.erasure()
+    }
+
+    pub fn base_fullname(&self) -> ClassFullname {
+        self.0.erasure().to_class_fullname()
     }
 
     /// Create concrete superclass of a generic class

@@ -1,8 +1,9 @@
-use crate::names::{class_fullname, ClassFullname};
+use super::erasure::Erasure;
+use super::term_ty::TermTy;
 use crate::ty;
-use crate::ty::term_ty::TermTy;
 use serde::{Deserialize, Serialize};
 
+/// "Literal" type i.e. types that are not type parameter reference.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct LitTy {
     // REFACTOR: ideally these should be private
@@ -44,7 +45,7 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), self.type_args.clone(), true)
     }
 
-    pub fn erasure(&self) -> ClassFullname {
-        class_fullname(&self.base_name)
+    pub fn erasure(&self) -> Erasure {
+        Erasure::new(self.base_name.clone(), self.is_meta)
     }
 }

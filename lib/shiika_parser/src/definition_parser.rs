@@ -17,7 +17,9 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<Option<shiika_ast::Definition>, Error> {
         match self.current_token() {
             Token::KwClass => Ok(Some(self.parse_class_definition()?)),
+            Token::KwModule => Ok(Some(self.parse_module_definition()?)),
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
+            Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
             Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
             _ => Ok(None),
@@ -52,13 +54,15 @@ impl<'a> Parser<'a> {
         // Type parameters (optional)
         let typarams = self.parse_opt_typarams()?;
 
-        // Superclass name (optional)
-        let mut superclass = None;
+        // Superclass and included modules (optional)
+        let supers;
         self.skip_ws()?;
         if self.current_token_is(Token::Colon) {
             self.consume_token()?;
-            self.skip_wsn()?;
-            superclass = Some(self.parse_typ()?);
+            self.skip_ws()?;
+            supers = self.parse_superclass_and_modules()?;
+        } else {
+            supers = vec![];
         }
 
         self.expect_sep()?;
@@ -85,7 +89,68 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::Definition::ClassDefinition {
             name,
             typarams,
-            superclass,
+            supers,
+            defs,
+        })
+    }
+
+    pub fn parse_module_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_module_definition");
+        self.lv += 1;
+        let name;
+        let defs;
+
+        // `module'
+        assert!(self.consume(Token::KwModule)?);
+        self.skip_ws()?;
+
+        // Module name
+        match self.current_token() {
+            Token::UpperWord(s) => {
+                name = module_firstname(s);
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "module name must start with A-Z but got {:?}",
+                    token
+                ))
+            }
+        }
+
+        // Type parameters (optional)
+        let typarams = self.parse_opt_typarams()?;
+
+        // Module does not have a superclass
+        self.skip_ws()?;
+        if self.current_token_is(Token::Colon) {
+            return Err(parse_error!(self, "modules does not have superclass"));
+        }
+        self.expect_sep()?;
+
+        // Internal definitions
+        defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for module {:?}; got {:?}",
+                    name,
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::ModuleDefinition {
+            name,
+            typarams,
             defs,
         })
     }
@@ -203,6 +268,44 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::EnumCase { name, params })
     }
 
+    /// Parse superclass and included modules of a class.
+    fn parse_superclass_and_modules(&mut self) -> Result<Vec<UnresolvedTypeName>, Error> {
+        let mut typs = vec![];
+        loop {
+            typs.push(self.parse_typ()?);
+            self.skip_ws()?;
+            if self.current_token_is(Token::Comma) {
+                self.consume_token()?;
+                self.skip_wsn()?;
+            } else {
+                break;
+            }
+        }
+        Ok(typs)
+    }
+
+    /// Parse a method requirement. (must appear only in module definitions)
+    fn parse_requirement_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_requirement_definition");
+        self.lv += 1;
+        // `requirement'
+        self.set_lexer_state(LexerState::MethodName);
+        assert!(self.consume(Token::KwRequirement)?);
+        self.skip_ws()?;
+
+        // `foo(bar) -> Baz`
+        let (sig, with_self) = self.parse_method_signature()?;
+        self.skip_ws()?;
+        self.expect_sep()?;
+        if with_self {
+            return Err(parse_error!(self, "method requirement must not have .self"));
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::MethodRequirementDefinition { sig })
+    }
+
+    /// Parse a method definition.
     pub fn parse_method_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
         self.debug_log("parse_method_definition");
         self.lv += 1;
@@ -522,7 +625,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_typ(&mut self) -> Result<ConstName, Error> {
+    fn parse_typ(&mut self) -> Result<UnresolvedTypeName, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
                 let head = s.to_string();
@@ -538,7 +641,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a constant name. `s` must be consumed beforehand
-    fn _parse_typ(&mut self, s: String) -> Result<ConstName, Error> {
+    fn _parse_typ(&mut self, s: String) -> Result<UnresolvedTypeName, Error> {
         self.lv += 1;
         self.debug_log("_parse_typ");
         let mut names = vec![s];
@@ -597,7 +700,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(ConstName { names, args })
+        Ok(UnresolvedTypeName { names, args })
     }
 
     pub fn parse_const_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
