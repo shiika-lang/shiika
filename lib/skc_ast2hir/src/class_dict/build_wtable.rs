@@ -28,7 +28,13 @@ fn resolve_module_methods(
 ) -> Result<Vec<MethodFullname>> {
     let mut resolved = vec![];
     for (mod_sig, _) in sk_module.base.method_sigs.to_ordered() {
-        resolved.push(resolve_module_method(instance_methods, mod_sig, sup)?);
+        let required = sk_module.requirements.contains(&mod_sig);
+        resolved.push(resolve_module_method(
+            instance_methods,
+            mod_sig,
+            sup,
+            required,
+        )?);
     }
     Ok(resolved)
 }
@@ -37,16 +43,24 @@ fn resolve_module_method(
     instance_methods: &MethodSignatures,
     mod_sig: &MethodSignature,
     sup: &Superclass,
+    required: bool,
 ) -> Result<MethodFullname> {
     if let Some((sig, _)) = instance_methods.get(&mod_sig.fullname.first_name) {
         check_signature_matches(sig, mod_sig, sup)?;
         return Ok(sig.fullname.clone());
+    } else {
+        if required {
+            return Err(error::program_error(&format!(
+                "missing required method #{}",
+                &mod_sig.fullname.first_name,
+            )));
+        }
+
+        // TODO: should look into the superclass?
+
+        // If not found, use the default implementation
+        Ok(mod_sig.fullname.clone())
     }
-
-    // TODO: should look into the superclass?
-
-    // If not found, use the default implementation
-    Ok(mod_sig.fullname.clone())
 }
 
 fn check_signature_matches(

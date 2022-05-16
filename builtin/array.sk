@@ -1,4 +1,4 @@
-class Array<T>
+class Array<T> : Enumerable<T>
   BYTES_OF_PTR = 8  # Assuming 64bit env
   INITIAL_CAPA = 10
 
@@ -60,24 +60,6 @@ class Array<T>
     (@items + idx * BYTES_OF_PTR).store(obj) 
   end
 
-  # Return true if `f` returns true for all element of `self`
-  def all?(f: Fn1<T, Bool>) -> Bool
-    var ret = true
-    each do |item: T|
-      ret = false unless f(item)
-    end
-    ret
-  end
-
-  # Return true if `f` returns true for an element of `self`
-  def any?(f: Fn1<T, Bool>) -> Bool
-    var ret = false
-    each do |item: T|
-      ret = true if f(item)
-    end
-    ret
-  end
-
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
     other.each do |item: T|
@@ -126,32 +108,6 @@ class Array<T>
     end
   end
 
-  # Like `map` but `f` should return an array and the result is flattened.
-  def flat_map<W>(f: Fn1<T, Array<W>>) -> Array<W>
-    self.map<Array<W>>(f).fold<Array<W>>(Array<W>.new){|sum: Array<W>, item: Array<W>|
-      sum.append(item)
-      sum
-    }
-  end
-
-  # Calculate a value by passing `sum` and `item` to `f` for each element
-  def fold<SUM>(initial_sum: SUM, f: Fn2<SUM, T, SUM>) -> SUM
-    var sum = initial_sum
-    each do |item: T|
-      sum = f(sum, item)
-    end
-    sum
-  end
-
-  # Return true if `self` contains `item` (compared by `==`)
-  def includes?(item: T) -> Bool
-    var ret = false
-    each do |x: T|
-      if x == item; ret = true; end
-    end
-    ret
-  end
-
   # Return string representation of `self` (for debugging)
   def inspect -> String
     var first = true
@@ -174,21 +130,6 @@ class Array<T>
     @n_items == 0
   end
 
-  # Create a string by joining all items with separator.
-  def join(separator: String) -> String
-    var first = true
-    ret = MutableString.new
-    each do |item: T|
-      if first
-        first = false
-      else
-        ret.append(separator)
-      end
-      ret.append(item.to_s)
-    end
-    ret._unsafe_to_s
-  end
-
   # Returns the last item, unless `self` is empty.
   def last -> Maybe<T>
     if @n_items == 0
@@ -201,24 +142,6 @@ class Array<T>
   # Return the number of items
   def length -> Int
     @n_items
-  end
-
-  # Create a new array by calling `f` with each element
-  def map<U>(f: Fn1<T, U>) -> Array<U>
-    ret = Array<U>.new
-    self.each do |item: T|
-      ret.push(f(item))
-    end
-    ret
-  end
-
-  # Return true if `f` returns false for all element of `self`
-  def none?(f: Fn1<T, Bool>) -> Bool
-    var ret = true
-    each do |item: T|
-      ret = false if f(item)
-    end
-    ret
   end
 
   # Remove the last element and return it
@@ -280,15 +203,6 @@ class Array<T>
       f(self[i])
       i -= 1
     end
-  end
-
-  # Create an array which contains items of `self` for which `f` returns true
-  def select(f: Fn1<T, Bool>) -> Array<T>
-    ret = Array<T>.new
-    each do |item: T|
-      ret.push(item) if f(item)
-    end
-    ret
   end
 
   # Removes the first element and returns it.

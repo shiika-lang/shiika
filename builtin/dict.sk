@@ -8,7 +8,7 @@ class Triple<A, B, C>
 end
 
 # TODO: Make this behave as ordered hash (like Ruby's)
-class Dict<K, V>
+class Dict<K, V> : Enumerable<Pair<K, V>>
   N_TABLES = 1000
 
   class Table<KK, VV>
@@ -69,6 +69,10 @@ class Dict<K, V>
       end
       ret
     end
+
+    def each(f: Fn1<Pair<KK, VV>, Void>)
+      @pairs.each(f)
+    end
   end
 
   def initialize
@@ -89,6 +93,13 @@ class Dict<K, V>
   # Get the value of specified key, if any.
   def [](key: K) -> Maybe<V>
     _table(key)[key]
+  end
+
+  # Call `f` with each pair of `self`
+  def each(f: Fn1<Pair<K, V>, Void>)
+    @tables.each do |table: Dict::Table<K, V>|
+      table.each(f)
+    end
   end
 
   # Return true if `self` has `key` (compared with `==`)
