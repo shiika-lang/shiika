@@ -1,6 +1,8 @@
 *.ll
 *.out
-/builtin/builtin.bc
+*.bc
+*.s
+*.dSYM
 /builtin/exports.json
 /lib/*/Cargo.lock
 /lib/*/target
