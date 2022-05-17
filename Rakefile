@@ -43,7 +43,7 @@ RUSTLIB_FILES = [
 RUSTLIB_A = "lib/skc_rustlib/target/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
   cd "lib/skc_rustlib" do
-    sh "cargo fmt"
+    #sh "cargo fmt"
     sh "cargo build"
   end
 end
@@ -55,11 +55,15 @@ end
 
 A_OUT = "examples/a.sk.out"
 file A_OUT => [*RUST_FILES, RUSTLIB_A, BUILTIN_BC, "examples/a.sk"] do
-  sh "cargo fmt"
+  #sh "cargo fmt"
   sh "cargo run -- run examples/a.sk"
 end
 
-task :a => A_OUT
+task :fmt do
+  sh "cargo fmt"
+end
+
+task :a => [:fmt, A_OUT]
 
 task :asm do
   sh "llc examples/a.sk.ll"
