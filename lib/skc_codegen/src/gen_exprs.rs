@@ -392,7 +392,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(body_block);
         let rc1 = Rc::new(end_block);
         let rc2 = Rc::clone(&rc1);
-        let orig_loop_end = ctx.current_loop_end.as_ref().map(|e| Rc::clone(e));
+        let orig_loop_end = ctx.current_loop_end.as_ref().map(Rc::clone);
         ctx.current_loop_end = Some(rc1);
         self.gen_exprs(ctx, body_exprs)?;
         ctx.current_loop_end = orig_loop_end;

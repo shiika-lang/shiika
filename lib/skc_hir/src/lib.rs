@@ -51,7 +51,7 @@ pub struct SkIVar {
 impl SkIVar {
     /// Return "foo" for `@foo`
     pub fn accessor_name(&self) -> String {
-        self.name.replace("@", "")
+        self.name.replace('@', "")
     }
 
     /// Apply type arguments

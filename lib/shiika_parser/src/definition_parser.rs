@@ -30,7 +30,6 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_class_definition");
         self.lv += 1;
         let name;
-        let defs;
 
         // `class'
         assert!(self.consume(Token::KwClass)?);
@@ -55,20 +54,19 @@ impl<'a> Parser<'a> {
         let typarams = self.parse_opt_typarams()?;
 
         // Superclass and included modules (optional)
-        let supers;
         self.skip_ws()?;
-        if self.current_token_is(Token::Colon) {
+        let supers = if self.current_token_is(Token::Colon) {
             self.consume_token()?;
             self.skip_ws()?;
-            supers = self.parse_superclass_and_modules()?;
+            self.parse_superclass_and_modules()?
         } else {
-            supers = vec![];
-        }
+            vec![]
+        };
 
         self.expect_sep()?;
 
         // Internal definitions
-        defs = self.parse_definitions()?;
+        let defs = self.parse_definitions()?;
 
         // `end'
         match self.current_token() {
@@ -98,7 +96,6 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_module_definition");
         self.lv += 1;
         let name;
-        let defs;
 
         // `module'
         assert!(self.consume(Token::KwModule)?);
@@ -130,7 +127,7 @@ impl<'a> Parser<'a> {
         self.expect_sep()?;
 
         // Internal definitions
-        defs = self.parse_definitions()?;
+        let defs = self.parse_definitions()?;
 
         // `end'
         match self.current_token() {
@@ -159,7 +156,6 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_enum_definition");
         self.lv += 1;
         let name;
-        let cases;
 
         // `enum'
         assert!(self.consume(Token::KwEnum)?);
@@ -186,7 +182,7 @@ impl<'a> Parser<'a> {
 
         // Enum cases
         self.skip_wsn()?;
-        cases = self.parse_enum_cases()?;
+        let cases = self.parse_enum_cases()?;
         self.skip_wsn()?;
 
         // Internal definitions
@@ -352,7 +348,6 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<(shiika_ast::AstMethodSignature, bool), Error> {
         let mut name = None;
-        let params;
         let ret_typ;
         let mut is_class_method = false;
 
@@ -378,19 +373,16 @@ impl<'a> Parser<'a> {
         let typarams = self.parse_opt_typarams()?;
 
         // Params (optional)
-        match self.current_token() {
+        let params = match self.current_token() {
             Token::LParen => {
                 self.consume_token()?;
                 self.skip_wsn()?;
                 let is_initialize =
                     !is_class_method && name == Some(method_firstname("initialize"));
-                params = self.parse_params(is_initialize, vec![Token::RParen])?;
+                self.parse_params(is_initialize, vec![Token::RParen])?
             }
-            // Has no params
-            _ => {
-                params = vec![];
-            }
-        }
+            _ => vec![]
+        };
         self.skip_ws()?;
 
         // Return type (optional)

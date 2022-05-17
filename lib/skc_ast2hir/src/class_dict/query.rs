@@ -131,14 +131,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     .0
                     .get(&class_fullname.to_type_fullname())
             })
-            .map(|sk_type| {
+            .and_then(|sk_type| {
                 if let SkType::Class(c) = sk_type {
                     Some(c)
                 } else {
                     None
                 }
             })
-            .flatten()
     }
 
     /// Return the module of the specified name, if any
@@ -148,14 +147,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .0
             .get(&name)
             .or_else(|| self.imported_classes.0.get(&name))
-            .map(|sk_type| {
+            .and_then(|sk_type| {
                 if let SkType::Module(m) = sk_type {
                     Some(m)
                 } else {
                     None
                 }
             })
-            .flatten()
     }
 
     /// Find a type. Panic if not found
