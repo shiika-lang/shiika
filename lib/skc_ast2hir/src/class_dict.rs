@@ -50,7 +50,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let ivars = self
             .superclass_ivars(classname)
-            .unwrap_or_else(Default::default);
+            .unwrap_or_default();
         let class = self.get_class_mut(classname);
         if !class.ivars.is_empty() {
             // The ivars are defined in skc_corelib. Just check that

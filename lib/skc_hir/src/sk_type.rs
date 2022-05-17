@@ -43,6 +43,7 @@ impl SkTypes {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SkType {
     Class(SkClass),
