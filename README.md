@@ -157,6 +157,15 @@ With logging enabled
 $ RUST_LOG='trace' cargo test
 ```
 
+### Troubleshooting
+
+```
+  /Users/yhara/.cargo/registry/src/github.com-1ecc6299db9ec823/bdwgc-alloc-0.6.0/vendor/libatomic_ops/configure: line 4683: syntax error near unexpected token `disable-shared'                                                                        
+  /Users/yhara/.cargo/registry/src/github.com-1ecc6299db9ec823/bdwgc-alloc-0.6.0/vendor/libatomic_ops/configure: line 4683: `LT_INIT(disable-shared)'  
+```
+
+=> `brew install libtool`
+
 ## License
 
 MIT
