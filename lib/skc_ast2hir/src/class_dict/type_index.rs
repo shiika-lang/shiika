@@ -22,7 +22,7 @@ pub fn create(
 
 fn index_sk_types(cindex: &mut TypeIndex, sk_types: &SkTypes) {
     for (name, class) in &sk_types.0 {
-        cindex.insert(name.clone().into(), class.base().typarams.clone());
+        cindex.insert(name.clone(), class.base().typarams.clone());
     }
 }
 
@@ -34,19 +34,19 @@ fn index_defs(cindex: &mut TypeIndex, namespace: &Namespace, defs: &[&shiika_ast
                 typarams,
                 defs,
                 ..
-            } => index_class(cindex, &namespace, name, parse_typarams(typarams), defs),
+            } => index_class(cindex, namespace, name, parse_typarams(typarams), defs),
             shiika_ast::Definition::ModuleDefinition {
                 name,
                 typarams,
                 defs,
                 ..
-            } => index_module(cindex, &namespace, name, parse_typarams(typarams), defs),
+            } => index_module(cindex, namespace, name, parse_typarams(typarams), defs),
             shiika_ast::Definition::EnumDefinition {
                 name,
                 typarams,
                 cases,
                 ..
-            } => index_enum(cindex, &namespace, name, parse_typarams(typarams), cases),
+            } => index_enum(cindex, namespace, name, parse_typarams(typarams), cases),
             _ => (),
         }
     }

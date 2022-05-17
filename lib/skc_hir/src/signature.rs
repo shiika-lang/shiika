@@ -48,7 +48,7 @@ impl MethodSignature {
         if self.typarams != other.typarams {
             return false;
         }
-        return true;
+        true
     }
 }
 

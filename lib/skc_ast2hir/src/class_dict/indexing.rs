@@ -149,12 +149,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
                         return Err(error::program_error(&format!(
-                            "superclass must be the first"
+                            "superclass {} must be the first",
+                            ty
                         )));
                     }
                     if superclass.is_some() {
                         return Err(error::program_error(&format!(
-                            "only one superclass is allowed"
+                            "only one superclass is allowed but got {}",
+                            ty
                         )));
                     }
                     if c.is_final.unwrap() {
@@ -176,7 +178,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((superclass.unwrap_or(Superclass::default()), modules))
+        Ok((superclass.unwrap_or_else(Superclass::default), modules))
     }
 
     fn index_module(

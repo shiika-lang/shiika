@@ -175,7 +175,7 @@ fn convert_extractor(
         .instance_ty();
     let pat_ty = match &value.ty.body {
         TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
-        _ => base_ty.clone(),
+        _ => base_ty,
     };
     if !mk.class_dict.conforms(&pat_ty, &value.ty) {
         return Err(error::type_error(&format!(

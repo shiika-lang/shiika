@@ -644,7 +644,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&fullname.0)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname))
             .as_pointer_value();
-        ptr.const_to_int(self.i64_type.clone())
+        ptr.const_to_int(self.i64_type)
     }
 
     /// Generate invocation of a lambda

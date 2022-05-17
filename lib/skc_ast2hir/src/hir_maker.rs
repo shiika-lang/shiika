@@ -170,7 +170,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                                 &sig.name,
                                 body_exprs,
                             )?;
-                            self.method_dict.add_method(&fullname, method);
+                            self.method_dict.add_method(fullname, method);
                         }
                     } else {
                         return Err(error::program_error(
@@ -215,7 +215,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     defs,
                     ..
                 } => {
-                    self.process_module_def(&namespace, name, parse_typarams(typarams), defs)?;
+                    self.process_module_def(namespace, name, parse_typarams(typarams), defs)?;
                 }
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -349,7 +349,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
-        let (initialize_name, init_cls_name) = self._find_initialize(&class_name)?;
+        let (initialize_name, init_cls_name) = self._find_initialize(class_name)?;
         let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
@@ -363,7 +363,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             const_is_obj,
         };
         Ok(SkMethod {
-            signature: found.sig.clone(),
+            signature: found.sig,
             body: new_body,
             lvars: vec![],
         })
@@ -511,7 +511,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             })
             .collect();
         let initialize = SkMethod {
-            signature: signature.clone(),
+            signature,
             body: SkMethodBody::Normal {
                 exprs: HirExpressions::new(exprs),
             },

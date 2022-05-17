@@ -8,7 +8,7 @@ use skc_hir::SkClass;
 pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
     for (mod_name, method_names) in &sk_class.wtable.0 {
         let ary_type = code_gen.i8ptr_type.array_type(method_names.len() as u32);
-        let cname = llvm_wtable_const_name(&sk_class.fullname(), &mod_name);
+        let cname = llvm_wtable_const_name(&sk_class.fullname(), mod_name);
         let global = code_gen.module.add_global(ary_type, None, &cname);
         global.set_constant(true);
         let func_ptrs = method_names
@@ -41,7 +41,7 @@ pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
         let key = code_gen.get_const_addr_int(&mod_name.to_const_fullname());
         let funcs = load_wtable_const(
             code_gen,
-            &llvm_wtable_const_name(&sk_class.fullname(), &mod_name),
+            &llvm_wtable_const_name(&sk_class.fullname(), mod_name),
         );
         let cls = code_gen.get_nth_param(&function, 0);
         let len = sk_class.wtable.get_len(mod_name);

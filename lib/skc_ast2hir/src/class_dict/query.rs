@@ -82,8 +82,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     if let Some(mut found) =
                         self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
                     {
-                        found.specialize(&modinfo.ty().tyargs(), Default::default());
-                        found.specialize(&class_tyargs, method_tyargs);
+                        found.specialize(modinfo.ty().tyargs(), Default::default());
+                        found.specialize(class_tyargs, method_tyargs);
                         return Ok(found);
                     }
                 }

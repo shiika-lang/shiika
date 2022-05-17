@@ -25,10 +25,6 @@ impl ModuleFirstname {
     pub fn to_class_first_name(&self) -> ClassFirstname {
         class_firstname(self.0.clone())
     }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
 }
 
 pub fn module_firstname(s: impl Into<String>) -> ModuleFirstname {

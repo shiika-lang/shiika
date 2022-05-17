@@ -28,7 +28,7 @@ fn resolve_module_methods(
 ) -> Result<Vec<MethodFullname>> {
     let mut resolved = vec![];
     for (mod_sig, _) in sk_module.base.method_sigs.to_ordered() {
-        let required = sk_module.requirements.contains(&mod_sig);
+        let required = sk_module.requirements.contains(mod_sig);
         resolved.push(resolve_module_method(
             instance_methods,
             mod_sig,
@@ -47,7 +47,7 @@ fn resolve_module_method(
 ) -> Result<MethodFullname> {
     if let Some((sig, _)) = instance_methods.get(&mod_sig.fullname.first_name) {
         check_signature_matches(sig, mod_sig, sup)?;
-        return Ok(sig.fullname.clone());
+        Ok(sig.fullname.clone())
     } else {
         if required {
             return Err(error::program_error(&format!(
@@ -68,7 +68,7 @@ fn check_signature_matches(
     mod_sig: &MethodSignature,
     sup: &Superclass,
 ) -> Result<()> {
-    let msig = mod_sig.specialize(&sup.ty().tyargs(), Default::default());
+    let msig = mod_sig.specialize(sup.ty().tyargs(), Default::default());
     if !sig.equivalent_to(&msig) {
         return Err(error::program_error(&format!(
             "signature does not match (class': {:?}, module's: {:?})",

@@ -828,7 +828,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         item_exprs: Vec<HirExpression>,
         item_ty: TermTy,
     ) -> HirExpression {
-        let ary_ty = ty::spe("Array", vec![item_ty.clone()]);
+        let ary_ty = ty::spe("Array", vec![item_ty]);
         let mut exprs = vec![];
 
         let tmp_name = self.generate_lvar_name("ary");
@@ -855,7 +855,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ));
         }
 
-        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp_name));
+        exprs.push(Hir::lvar_ref(ary_ty, tmp_name));
         Hir::parenthesized_expression(Hir::expressions(exprs))
     }
 

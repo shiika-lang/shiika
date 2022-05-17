@@ -254,7 +254,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .iter()
                 .map(|name| {
                     let func = self
-                        .get_llvm_func(&method_func_name(&name))
+                        .get_llvm_func(&method_func_name(name))
                         .as_any_value_enum()
                         .into_pointer_value();
                     self.builder
@@ -269,7 +269,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate wtable constants
     fn gen_wtables(&self, sk_types: &SkTypes) {
         for sk_class in sk_types.sk_classes() {
-            wtable::gen_wtable_constants(&self, sk_class);
+            wtable::gen_wtable_constants(self, sk_class);
         }
     }
 
@@ -277,7 +277,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_insert_wtables(&self, sk_types: &SkTypes) {
         for sk_class in sk_types.sk_classes() {
             if !sk_class.wtable.is_empty() {
-                wtable::gen_insert_wtable(&self, sk_class);
+                wtable::gen_insert_wtable(self, sk_class);
             }
         }
     }
@@ -781,7 +781,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let args = (0..=arity)
             .map(|i| if i == 0 { addr.0 } else { llvm_func_args[i] })
             .collect::<Vec<_>>();
-        let initialize = self.get_llvm_func(&method_func_name(&initialize_name));
+        let initialize = self.get_llvm_func(&method_func_name(initialize_name));
         self.builder.build_call(initialize, &args, "");
 
         self.build_return(&obj);

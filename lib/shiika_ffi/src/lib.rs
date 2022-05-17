@@ -20,7 +20,7 @@ pub fn mangle_method(method_name: &str) -> String {
         .replace(">", "gt_")
         .replace("[]=", "aset_")
         .replace("[]", "aref_");
-    if s.ends_with("=") {
+    if s.ends_with('=') {
         format!("{}{}", "_set_", &s.replace("=", ""))
     } else {
         s

@@ -82,7 +82,7 @@ impl SkType {
 
     pub fn class(&self) -> Option<&SkClass> {
         match self {
-            SkType::Class(x) => Some(&x),
+            SkType::Class(x) => Some(x),
             SkType::Module(_) => None,
         }
     }
