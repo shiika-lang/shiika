@@ -381,7 +381,7 @@ impl<'a> Parser<'a> {
                     !is_class_method && name == Some(method_firstname("initialize"));
                 self.parse_params(is_initialize, vec![Token::RParen])?
             }
-            _ => vec![]
+            _ => vec![],
         };
         self.skip_ws()?;
 
