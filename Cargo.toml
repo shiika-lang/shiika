@@ -21,7 +21,7 @@ skc_codegen = { path = "lib/skc_codegen/" }
 anyhow = "1.0"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
 failure = "0.1.6"
-clap = { version = "3.0.0-beta.2", features = ["yaml"] }
+clap = { version = "3.1.18", features = ["derive"] }
 either = "1.5.3"
 env_logger = "0.8.2"
 log = "0.4.11"

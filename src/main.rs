@@ -1,25 +1,22 @@
 use anyhow::Result;
-use clap::load_yaml;
+use shiika::cli;
 use shiika::runner;
 
 fn main() -> Result<()> {
     env_logger::init();
-    let yaml = load_yaml!("cli.yml");
-    let matches = clap::App::from(yaml).get_matches();
+    let args = cli::parse_command_line_args();
 
-    if let Some(matches) = matches.subcommand_matches("compile") {
-        let filepath = matches.value_of("INPUT").unwrap();
-        runner::compile(filepath)?;
-    }
-
-    if let Some(matches) = matches.subcommand_matches("run") {
-        let filepath = matches.value_of("INPUT").unwrap();
-        runner::compile(filepath)?;
-        runner::run(filepath)?;
-    }
-
-    if matches.subcommand_matches("build_corelib").is_some() {
-        runner::build_corelib()?;
+    match &args.command {
+        cli::Command::Compile { filepath } => {
+            runner::compile(filepath)?;
+        }
+        cli::Command::Run { filepath } => {
+            runner::compile(filepath)?;
+            runner::run(filepath)?;
+        }
+        cli::Command::BuildCorelib => {
+            runner::build_corelib()?;
+        }
     }
 
     Ok(())
