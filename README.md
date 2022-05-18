@@ -122,10 +122,10 @@ export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
 ```
 $ cargo build
 $ cd lib/skc_rustlib; cargo build; cd ../../
-$ cargo run -- build_corelib
+$ cargo run -- build-corelib
 ```
 
-The `build_corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
+The `build-corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
 
 ### Run a program
 

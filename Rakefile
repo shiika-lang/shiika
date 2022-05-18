@@ -28,7 +28,7 @@ task :test do
   cd "lib/skc_rustlib" do
     sh "cargo build"
   end
-  sh "cargo run -- build_corelib"
+  sh "cargo run -- build-corelib"
   sh "cargo test -- --nocapture"
 end
 
@@ -50,7 +50,7 @@ end
 
 BUILTIN_BC = "builtin/builtin.bc"
 file BUILTIN_BC => [*RUST_FILES, RUSTLIB_SIG, *Dir["builtin/*.sk"]] do
-  sh "cargo run -- build_corelib"
+  sh "cargo run -- build-corelib"
 end
 
 A_OUT = "examples/a.sk.out"

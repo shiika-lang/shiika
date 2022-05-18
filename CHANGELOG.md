@@ -1,3 +1,8 @@
+## HEAD
+
+- feat: Modules
+- Breaking change: Renamed `build_corelib` subcommand to `build-corelib`
+
 ## v0.6.1 (2022-03-02)
 
 - Breaking change: `Int#/` now returns Float (#331)
