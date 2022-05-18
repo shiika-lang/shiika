@@ -1,12 +1,13 @@
-/// An instance of `Bool`. Interchangable to Rust bool via `into`.
-///
-/// # Example
-///
-/// ```rust
-/// let b = true;
-/// let sk_bool: SkBool = b.into();
-/// let rust_bool: bool = sk_bool.into();
-/// ```
+//! An instance of `Bool`. Interchangable to Rust bool via `into`.
+//!
+//! # Example
+//!
+//! ```rust
+//! let b = true;
+//! let sk_bool: SkBool = b.into();
+//! let rust_bool: bool = sk_bool.into();
+//! ```
+
 extern "C" {
     fn box_bool(b: bool) -> SkBool;
 }
