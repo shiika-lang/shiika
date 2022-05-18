@@ -13,6 +13,6 @@ skc_mir = { path = "../skc_mir" }
 anyhow = "1.0"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0"
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "02fb704" }
 either = "1.5.3"
 log = "0.4.11"
