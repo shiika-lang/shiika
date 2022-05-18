@@ -202,7 +202,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
         let raw_addr = self
             .builder
-            .build_call(func, &[size.as_basic_value_enum()], "mem")
+            .build_call(func, &[size.as_basic_value_enum().into()], "mem")
             .try_as_basic_value()
             .left()
             .unwrap();
@@ -226,8 +226,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         args: &[SkObj<'run>],
         reg_name: &str,
     ) -> SkObj<'run> {
-        let mut llvm_args = vec![receiver.0];
-        llvm_args.append(&mut args.iter().map(|x| x.0).collect());
+        let mut llvm_args = vec![receiver.0.into()];
+        llvm_args.append(&mut args.iter().map(|x| x.0.into()).collect());
         SkObj(self.call_llvm_func(&method_func_name(method_name), &llvm_args, reg_name))
     }
 
@@ -235,7 +235,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn call_llvm_func(
         &self,
         func_name: &LlvmFuncName,
-        args: &[inkwell::values::BasicValueEnum<'run>],
+        args: &[inkwell::values::BasicMetadataValueEnum<'run>],
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let f = self
@@ -253,7 +253,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn call_void_llvm_func(
         &self,
         func_name: &LlvmFuncName,
-        args: &[inkwell::values::BasicValueEnum<'run>],
+        args: &[inkwell::values::BasicMetadataValueEnum<'run>],
         reg_name: &str,
     ) {
         let f = self

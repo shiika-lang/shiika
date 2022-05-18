@@ -535,11 +535,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::types::FunctionType<'ictx> {
         let mut arg_types = param_tys
             .iter()
-            .map(|ty| self.llvm_type(ty))
+            .map(|ty| self.llvm_type(ty).into())
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {
-            arg_types.insert(0, self.llvm_type(ty));
+            arg_types.insert(0, self.llvm_type(ty).into());
         }
 
         if ret_ty.is_never_type() {
@@ -779,7 +779,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             )
         };
         let args = (0..=arity)
-            .map(|i| if i == 0 { addr.0 } else { llvm_func_args[i] })
+            .map(|i| {
+                if i == 0 {
+                    addr.0.into()
+                } else {
+                    llvm_func_args[i].into()
+                }
+            })
             .collect::<Vec<_>>();
         let initialize = self.get_llvm_func(&method_func_name(initialize_name));
         self.builder.build_call(initialize, &args, "");

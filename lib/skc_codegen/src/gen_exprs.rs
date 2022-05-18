@@ -600,9 +600,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let key = self.get_const_addr_int(&module_fullname.to_const_fullname());
         let idx = self.i64_type.const_int(*method_idx as u64, false);
         let args = &[
-            receiver_value.clone().into_i8ptr(self),
-            key.as_basic_value_enum(),
-            idx.as_basic_value_enum(),
+            receiver_value.clone().into_i8ptr(self).into(),
+            key.as_basic_value_enum().into(),
+            idx.as_basic_value_enum().into(),
         ];
         let func_ptr = self
             .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
@@ -659,9 +659,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj.0];
+        let mut args = vec![lambda_obj.0.into()];
         for e in arg_exprs {
-            args.push(self.gen_expr(ctx, e)?.unwrap().0);
+            args.push(self.gen_expr(ctx, e)?.unwrap().0.into());
         }
 
         // Create basic block
@@ -676,9 +676,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Create the type of lambda_xx()
         let fn_x_type = self.llvm_type(&ty::raw(&format!("Fn{}", n_args)));
-        let mut arg_types = vec![fn_x_type];
+        let mut arg_types = vec![fn_x_type.into()];
         for e in arg_exprs {
-            arg_types.push(self.llvm_type(&e.ty));
+            arg_types.push(self.llvm_type(&e.ty).into());
         }
         let fntype = self.llvm_type(ret_ty).fn_type(&arg_types, false);
         let fnptype = fntype.ptr_type(AddressSpace::Generic);
@@ -748,8 +748,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         receiver_value: SkObj<'run>,
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
-        let mut llvm_args = vec![receiver_value.0];
-        llvm_args.append(&mut arg_values.iter().map(|x| x.0).collect());
+        let mut llvm_args = vec![receiver_value.0.into()];
+        llvm_args.append(&mut arg_values.iter().map(|x| x.0.into()).collect());
         match self
             .builder
             .build_call(function, &llvm_args, "result")
@@ -942,7 +942,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .const_int(self.str_literals[*idx].len() as u64, false);
         SkObj(self.call_llvm_func(
             &llvm_func_name("gen_literal_string"),
-            &[i8ptr, bytesize.into()],
+            &[i8ptr.into(), bytesize.into()],
             "sk_str",
         ))
     }
@@ -1118,7 +1118,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             );
             if *includes_modules {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
-                self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0], "_");
+                self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
             }
 
             self.bitcast(cls, clsobj_ty, "as")
