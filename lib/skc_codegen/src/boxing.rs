@@ -2,7 +2,7 @@ use crate::utils::llvm_func_name;
 use crate::values::*;
 use crate::CodeGen;
 use inkwell::types::*;
-use inkwell::values::*;
+use inkwell::values::BasicValue;
 use shiika_core::{names::*, ty};
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
@@ -14,7 +14,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_bool", fn_type, None);
         let fn_type = self
             .i1_type
-            .fn_type(&[self.llvm_type(&ty::raw("Bool"))], false);
+            .fn_type(&[self.llvm_type(&ty::raw("Bool")).into()], false);
         self.module.add_function("unbox_bool", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("Int"))
@@ -22,7 +22,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_int", fn_type, None);
         let fn_type = self
             .i64_type
-            .fn_type(&[self.llvm_type(&ty::raw("Int"))], false);
+            .fn_type(&[self.llvm_type(&ty::raw("Int")).into()], false);
         self.module.add_function("unbox_int", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("Float"))
@@ -30,15 +30,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("box_float", fn_type, None);
         let fn_type = self
             .f64_type
-            .fn_type(&[self.llvm_type(&ty::raw("Float"))], false);
+            .fn_type(&[self.llvm_type(&ty::raw("Float")).into()], false);
         self.module.add_function("unbox_float", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("Shiika::Internal::Ptr"))
             .fn_type(&[self.i8ptr_type.into()], false);
         self.module.add_function("box_i8ptr", fn_type, None);
-        let fn_type = self
-            .i8ptr_type
-            .fn_type(&[self.llvm_type(&ty::raw("Shiika::Internal::Ptr"))], false);
+        let fn_type = self.i8ptr_type.fn_type(
+            &[self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).into()],
+            false,
+        );
         self.module.add_function("unbox_i8ptr", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("String"))
@@ -154,50 +155,66 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Convert Shiika Bool into LLVM bool(i1)
     pub fn unbox_bool(&self, sk_bool: SkObj<'run>) -> inkwell::values::IntValue<'run> {
-        self.call_llvm_func(&llvm_func_name("unbox_bool"), &[sk_bool.0], "llvm_bool")
-            .into_int_value()
+        self.call_llvm_func(
+            &llvm_func_name("unbox_bool"),
+            &[sk_bool.0.into()],
+            "llvm_bool",
+        )
+        .into_int_value()
     }
 
     /// Convert LLVM int into Shiika Int
     pub fn box_int(&self, i: &inkwell::values::IntValue<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func(
             &llvm_func_name("box_int"),
-            &[i.as_basic_value_enum()],
+            &[i.as_basic_value_enum().into()],
             "sk_int",
         ))
     }
 
     /// Convert Shiika Int into LLVM int
     pub fn unbox_int(&self, sk_int: SkObj<'run>) -> inkwell::values::IntValue<'run> {
-        self.call_llvm_func(&llvm_func_name("unbox_int"), &[sk_int.0], "llvm_int")
-            .into_int_value()
+        self.call_llvm_func(
+            &llvm_func_name("unbox_int"),
+            &[sk_int.0.as_basic_value_enum().into()],
+            "llvm_int",
+        )
+        .into_int_value()
     }
 
     /// Convert LLVM float into Shiika Float
     pub fn box_float(&self, fl: &inkwell::values::FloatValue<'run>) -> SkObj<'run> {
         SkObj(self.call_llvm_func(
             &llvm_func_name("box_float"),
-            &[fl.as_basic_value_enum()],
+            &[fl.as_basic_value_enum().into()],
             "sk_float",
         ))
     }
 
     /// Convert Shiika Float into LLVM float
     pub fn unbox_float(&self, sk_float: SkObj<'run>) -> inkwell::values::FloatValue<'run> {
-        self.call_llvm_func(&llvm_func_name("unbox_float"), &[sk_float.0], "llvm_float")
-            .into_float_value()
+        self.call_llvm_func(
+            &llvm_func_name("unbox_float"),
+            &[sk_float.0.into()],
+            "llvm_float",
+        )
+        .into_float_value()
     }
 
     /// Convert LLVM i8* into Shiika::Internal::Ptr
     pub fn box_i8ptr(&self, p: inkwell::values::BasicValueEnum<'run>) -> SkObj<'run> {
-        SkObj(self.call_llvm_func(&llvm_func_name("box_i8ptr"), &[p], "sk_ptr"))
+        SkObj(self.call_llvm_func(&llvm_func_name("box_i8ptr"), &[p.into()], "sk_ptr"))
     }
 
     /// Convert Shiika::Internal::Ptr into LLVM i8*
     pub fn unbox_i8ptr(&self, sk_obj: SkObj<'run>) -> I8Ptr<'run> {
         I8Ptr(
-            self.call_llvm_func(&llvm_func_name("unbox_i8ptr"), &[sk_obj.0], "llvm_ptr")
-                .into_pointer_value(),
+            self.call_llvm_func(
+                &llvm_func_name("unbox_i8ptr"),
+                &[sk_obj.0.into()],
+                "llvm_ptr",
+            )
+            .into_pointer_value(),
         )
     }
 }

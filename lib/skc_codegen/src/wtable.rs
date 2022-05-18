@@ -30,7 +30,7 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
 
 /// Define `@insert_XX_wtables()` for the class
 pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
-    let fargs = &[code_gen.llvm_type(&ty::raw("Class"))];
+    let fargs = &[code_gen.llvm_type(&ty::raw("Class")).into()];
     let ftype = code_gen.void_type.fn_type(fargs, false);
     let fname = insert_wtable_func_name(&sk_class.fullname());
     let function = code_gen.module.add_function(&fname, ftype, None);
@@ -46,9 +46,9 @@ pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
         let cls = code_gen.get_nth_param(&function, 0);
         let len = sk_class.wtable.get_len(mod_name);
         let args = &[
-            cls.into_i8ptr(code_gen),
-            key.as_basic_value_enum(),
-            funcs,
+            cls.into_i8ptr(code_gen).into(),
+            key.as_basic_value_enum().into(),
+            funcs.into(),
             code_gen.i64_type.const_int(len as u64, false).into(),
         ];
         code_gen.call_llvm_func(&llvm_func_name("shiika_insert_wtable"), args, "_");

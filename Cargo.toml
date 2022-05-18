@@ -19,7 +19,7 @@ skc_mir = { path = "lib/skc_mir/" }
 skc_codegen = { path = "lib/skc_codegen/" }
 
 anyhow = "1.0"
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "27a64448404a50549e2a635b1b918c1a1537312f" }
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "02fb704" }
 failure = "0.1.6"
 clap = { version = "3.1.18", features = ["derive"] }
 either = "1.5.3"
