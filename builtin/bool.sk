@@ -1,9 +1,17 @@
 class Bool
+  def ==(other: Bool) -> Bool
+    (self and other) or (!self and !other)
+  end
+
   def inspect -> String
     if self
       "true"
     else
       "false"
     end
+  end
+
+  def to_s -> String
+    inspect
   end
 end

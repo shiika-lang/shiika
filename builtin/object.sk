@@ -22,6 +22,12 @@ class Object
     self.to_s
   end
 
+  def loop(f: Fn0<Void>)
+    while true
+      f()
+    end
+  end
+
   def p(obj: Object)
     puts obj.inspect
   end
