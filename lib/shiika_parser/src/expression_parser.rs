@@ -484,7 +484,8 @@ impl<'a> Parser<'a> {
     fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unary_expr");
-        let expr = if self.consume(Token::Bang)? {
+        let expr = if self.consume(Token::KwNot)? {
+            self.skip_ws()?;
             let target = self.parse_secondary_expr()?;
             shiika_ast::logical_not(target)
         } else {

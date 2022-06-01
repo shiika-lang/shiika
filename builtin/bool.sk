@@ -1,6 +1,6 @@
 class Bool
   def ==(other: Bool) -> Bool
-    (self and other) or (!self and !other)
+    (self and other) or (not self and not other)
   end
 
   def inspect -> String
