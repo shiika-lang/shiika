@@ -357,6 +357,7 @@ impl<'a> Lexer<'a> {
             "var" => (Token::KwVar, LexerState::ExprBegin),
             "and" => (Token::KwAnd, LexerState::ExprBegin),
             "or" => (Token::KwOr, LexerState::ExprBegin),
+            "not" => (Token::KwNot, LexerState::ExprBegin),
             "if" => {
                 if self.state == LexerState::ExprBegin {
                     (Token::KwIf, LexerState::ExprBegin)
