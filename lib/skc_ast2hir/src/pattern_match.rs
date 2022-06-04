@@ -169,12 +169,15 @@ fn convert_extractor(
     param_patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
     // eg. `ty::raw("Maybe::Some")`
-    let base_ty = mk
-        .resolve_class_expr(&UnresolvedConstName(names.to_vec()))?
-        .ty
-        .instance_ty();
+    let base_ty = get_base_ty(mk, names)?;
     let pat_ty = match &value.ty.body {
-        TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
+        TyBody::TyRaw(LitTy { type_args, .. }) => {
+            if base_ty.has_type_args() {
+                ty::spe(&base_ty.fullname.0, type_args.clone())
+            } else {
+                base_ty
+            }
+        }
         _ => base_ty,
     };
     if !mk.class_dict.conforms(&pat_ty, &value.ty) {
@@ -189,6 +192,22 @@ fn convert_extractor(
     let test = Component::Test(test_class(mk, value, &pat_ty));
     components.insert(0, test);
     Ok(components)
+}
+
+fn get_base_ty(mk: &mut HirMaker, names: &[String]) -> Result<TermTy> {
+    let expr = mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()))?;
+    if expr.ty.is_metaclass() || expr.ty.is_typaram_ref() {
+        return Ok(expr.ty.instance_ty());
+    }
+    if let Some(cls) = mk.class_dict.lookup_class(&expr.ty.fullname) {
+        if cls.const_is_obj {
+            return Ok(expr.ty); // eg. Void, None, etc.
+        }
+    }
+    Err(error::type_error(&format!(
+        "a class expected but got {:?}",
+        &expr.ty
+    )))
 }
 
 fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
@@ -234,17 +253,30 @@ fn extract_props(
 }
 
 /// Create `expr.class == cls`
+/// If the pattern is a constant enum case (eg. `Maybe::None`), create
+/// `Object#==(expr, None)` instead.
 fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
-    let cls_ref = class_expr(mk, pat_ty);
-    Hir::method_call(
-        ty::raw("Bool"),
+    let t = mk.class_dict.get_class(&pat_ty.fullname);
+    if t.const_is_obj {
+        let const_ref = Hir::const_ref(pat_ty.clone(), pat_ty.fullname.to_const_fullname());
         Hir::method_call(
-            ty::raw("Class"),
-            value.clone(),
-            method_fullname_raw("Object", "class"),
-            vec![],
-        ),
-        method_fullname_raw("Class", "=="),
-        vec![cls_ref],
-    )
+            ty::raw("Bool"),
+            const_ref,
+            method_fullname_raw("Object", "=="),
+            vec![value.clone()],
+        )
+    } else {
+        let cls_ref = class_expr(mk, pat_ty);
+        Hir::method_call(
+            ty::raw("Bool"),
+            Hir::method_call(
+                ty::raw("Class"),
+                value.clone(),
+                method_fullname_raw("Object", "class"),
+                vec![],
+            ),
+            method_fullname_raw("Class", "=="),
+            vec![cls_ref],
+        )
+    }
 }

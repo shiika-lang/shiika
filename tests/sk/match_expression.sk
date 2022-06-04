@@ -11,7 +11,7 @@ end
 a = match A.foo
 when Some(n)
   n
-else
+when None
   0
 end
 unless a == 99; puts "failed"; end
