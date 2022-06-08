@@ -20,6 +20,7 @@ extern "C" {
         vtable: *const u8,
         wtable: *const WitnessTable,
         metacls_obj: SkClass,
+        erasure_cls: SkClass,
     ) -> SkClass;
 }
 
@@ -60,6 +61,15 @@ impl SkClass {
     pub fn witness_table_ptr(&self) -> *const WitnessTable {
         unsafe { (*self.0).witness_table }
     }
+
+    fn erasure_class(&self) -> SkClass {
+        let erasure_cls = unsafe { &(*self.0).erasure_cls };
+        if erasure_cls.0.is_null() {
+            self.dup()
+        } else {
+            erasure_cls.dup()
+        }
+    }
 }
 
 #[repr(C)]
@@ -71,6 +81,10 @@ pub struct ShiikaClass {
     specialized_classes: *mut HashMap<String, *mut ShiikaClass>,
     type_args: *mut Vec<SkClass>,
     witness_table: *mut WitnessTable,
+    // `Array<Int>` -> `Array`
+    // `Pair<Int, Bool>` -> `Pair`
+    // `Object` -> null (means that its erasure is itself)
+    erasure_cls: SkClass,
 }
 
 /// Called from `Class.new` and initializes internal fields.
@@ -81,10 +95,12 @@ pub extern "C" fn class__initialize_rustlib(
     vtable: *const u8,
     witness_table: *mut WitnessTable,
     metacls_obj: SkClass,
+    erasure_cls: SkClass,
 ) {
     unsafe {
         (*receiver).vtable = vtable;
         (*receiver).metacls_obj = metacls_obj;
+        (*receiver).erasure_cls = erasure_cls;
         (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
         if witness_table.is_null() {
             (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
@@ -136,6 +152,7 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
                 receiver.vtable(),
                 receiver.witness_table_ptr(),
                 spe_meta,
+                receiver.dup(),
             )
         };
         unsafe {
@@ -155,4 +172,9 @@ fn specialized_name(class: &SkClass, tyargs: &[SkClass]) -> String {
         .map(|cls| cls.name().as_str().to_string())
         .collect::<Vec<_>>();
     format!("{}<{}>", class.name().as_str(), args.join(", "))
+}
+
+#[shiika_method("Class#erasure_class")]
+pub extern "C" fn class_erasure_class(receiver: SkClass) -> SkClass {
+    receiver.erasure_class()
 }

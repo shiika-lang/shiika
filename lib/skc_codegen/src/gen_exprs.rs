@@ -1099,6 +1099,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
+                    self.null_ptr(&ty::raw("Class")),
                 ],
             );
 
@@ -1114,6 +1115,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(wtable, &ty::raw("Object"), "as"),
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
+                    self.null_ptr(&ty::raw("Class")),
                 ],
             );
             if *includes_modules {
