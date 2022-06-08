@@ -1,12 +1,14 @@
-use crate::names::{module_fullname, ClassFullname, ModuleFullname, TypeFullname};
+use crate::names::{
+    module_fullname, toplevel_const, ClassFullname, ConstFullname, ModuleFullname, TypeFullname,
+};
 use crate::ty::{self, TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Erasure {
-    base_name: String,
+    pub base_name: String,
     /// `true` if values of this type are classes
-    is_meta: bool,
+    pub is_meta: bool,
 }
 
 impl From<Erasure> for TypeFullname {
@@ -45,6 +47,11 @@ impl Erasure {
 
     pub fn to_type_fullname(&self) -> TypeFullname {
         TypeFullname::new(&self.base_name, self.is_meta)
+    }
+
+    pub fn to_const_fullname(&self) -> ConstFullname {
+        debug_assert!(self.is_meta);
+        toplevel_const(&self.base_name)
     }
 
     pub fn to_term_ty(&self) -> TermTy {

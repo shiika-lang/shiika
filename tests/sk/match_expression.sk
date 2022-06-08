@@ -16,4 +16,14 @@ when None
 end
 unless a == 99; puts "failed"; end
 
+f = fn(){
+  Pair<Int, Bool>.new(11, false)
+}
+match f()
+when Pair(i, b)
+  puts "ng Pair 1" if b
+else
+  puts "ng Pair 2"
+end
+
 puts "ok"
