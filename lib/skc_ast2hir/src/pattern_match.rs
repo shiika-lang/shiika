@@ -169,14 +169,8 @@ fn convert_extractor(
     param_patterns: &[AstPattern],
 ) -> Result<Vec<Component>> {
     // eg. `ty::raw("Maybe::Some")`
-    let base_ty = mk
-        .resolve_class_expr(&UnresolvedConstName(names.to_vec()))?
-        .ty
-        .instance_ty();
-    let pat_ty = match &value.ty.body {
-        TyBody::TyRaw(LitTy { type_args, .. }) => ty::spe(&base_ty.fullname.0, type_args.clone()),
-        _ => base_ty,
-    };
+    let pat_base_ty = get_base_ty(mk, names)?;
+    let pat_ty = infer_pat_ty(mk, &pat_base_ty, &value.ty);
     if !mk.class_dict.conforms(&pat_ty, &value.ty) {
         return Err(error::type_error(&format!(
             "expr of `{}' never matches to `{}'",
@@ -189,6 +183,34 @@ fn convert_extractor(
     let test = Component::Test(test_class(mk, value, &pat_ty));
     components.insert(0, test);
     Ok(components)
+}
+
+fn get_base_ty(mk: &mut HirMaker, names: &[String]) -> Result<Erasure> {
+    let expr = mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()))?;
+    if expr.ty.is_metaclass() || expr.ty.is_typaram_ref() {
+        return Ok(expr.ty.instance_ty().erasure());
+    }
+    if let Some(cls) = mk.class_dict.lookup_class(&expr.ty.fullname) {
+        if cls.const_is_obj {
+            return Ok(expr.ty.erasure()); // eg. Void, None, etc.
+        }
+    }
+    Err(error::type_error(&format!(
+        "a class expected but got {:?}",
+        &expr.ty
+    )))
+}
+
+// Infer pattern type. eg. for `when Pair(a, b)`, infer the types of
+// `a` and `b` from the type of the value to match.
+fn infer_pat_ty(mk: &mut HirMaker, pat_base_ty: &Erasure, value_ty: &TermTy) -> TermTy {
+    match &value_ty.body {
+        TyBody::TyRaw(LitTy { type_args, .. }) => {
+            let sk_type = mk.class_dict.get_type(&pat_base_ty.to_type_fullname());
+            sk_type.term_ty().substitute(type_args, &[])
+        }
+        _ => pat_base_ty.to_term_ty(),
+    }
 }
 
 fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
@@ -220,7 +242,8 @@ fn extract_props(
     }
     let mut components = vec![];
     for i in 0..ivars.len() {
-        let (name, ty) = &ivars[i];
+        let (name_, ty) = &ivars[i];
+        let name = name_.replace("@", "");
         // eg. `value.foo`
         let ivar_ref = Hir::method_call(
             ty.clone(),
@@ -234,17 +257,37 @@ fn extract_props(
 }
 
 /// Create `expr.class == cls`
+/// If the pattern is a constant enum case (eg. `Maybe::None`), create
+/// `Object#==(expr, None)` instead.
 fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
-    let cls_ref = class_expr(mk, pat_ty);
-    Hir::method_call(
-        ty::raw("Bool"),
+    let pat_erasure = pat_ty.erasure();
+    let t = mk.class_dict.get_class(&pat_erasure.to_class_fullname());
+    if t.const_is_obj {
+        let const_ref = Hir::const_ref(pat_ty.clone(), pat_ty.fullname.to_const_fullname());
         Hir::method_call(
-            ty::raw("Class"),
-            value.clone(),
-            method_fullname_raw("Object", "class"),
-            vec![],
-        ),
-        method_fullname_raw("Class", "=="),
-        vec![cls_ref],
-    )
+            ty::raw("Bool"),
+            const_ref,
+            method_fullname_raw("Object", "=="),
+            vec![value.clone()],
+        )
+    } else {
+        let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
+        // value.class.erasure_class == Foo
+        Hir::method_call(
+            ty::raw("Bool"),
+            Hir::method_call(
+                ty::raw("Class"),
+                Hir::method_call(
+                    ty::raw("Class"),
+                    value.clone(),
+                    method_fullname_raw("Object", "class"),
+                    vec![],
+                ),
+                method_fullname_raw("Class", "erasure_class"),
+                vec![],
+            ),
+            method_fullname_raw("Class", "=="),
+            vec![cls_ref],
+        )
+    }
 }

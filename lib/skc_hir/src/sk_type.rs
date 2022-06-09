@@ -4,7 +4,7 @@ mod sk_type_base;
 mod wtable;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
-use shiika_core::ty::*;
+use shiika_core::ty::{self, *};
 pub use sk_class::SkClass;
 pub use sk_module::SkModule;
 pub use sk_type_base::SkTypeBase;
@@ -94,5 +94,11 @@ impl SkType {
 
     pub fn fullname(&self) -> TypeFullname {
         self.base().fullname()
+    }
+
+    // eg. TermTy(Array<T>), TermTy(Dict<K, V>)
+    pub fn term_ty(&self) -> TermTy {
+        let type_args = ty::typarams_to_tyargs(&self.base().typarams);
+        ty::spe(self.fullname().0, type_args)
     }
 }

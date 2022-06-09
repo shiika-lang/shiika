@@ -32,6 +32,7 @@ pub fn method_fullname(
 ) -> MethodFullname {
     let first_name = first_name_.into();
     debug_assert!(!first_name.is_empty());
+    debug_assert!(!first_name.starts_with("@"));
     MethodFullname {
         full_name: class_name.0.clone() + "#" + &first_name,
         first_name: MethodFirstname(first_name),

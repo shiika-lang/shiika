@@ -57,13 +57,17 @@ pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> Te
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {
-        let args = typarams
-            .iter()
-            .enumerate()
-            .map(|(i, t)| typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
-            .collect::<Vec<_>>();
+        let args = typarams_to_tyargs(typarams);
         ty::spe(&classname.0, args)
     }
+}
+
+pub fn typarams_to_tyargs(typarams: &[TyParam]) -> Vec<TermTy> {
+    typarams
+        .iter()
+        .enumerate()
+        .map(|(i, t)| typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
+        .collect()
 }
 
 /// Shortcut for Array<T>

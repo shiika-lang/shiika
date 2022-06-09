@@ -700,7 +700,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Resolve a capitalized identifier, which is either a constant name or
     /// a type parameter reference
-    fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+    pub fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
         // Check if it is a typaram ref
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();

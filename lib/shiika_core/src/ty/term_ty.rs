@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Types for a term (types of Shiika values)
 #[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub struct TermTy {
-    pub fullname: ClassFullname,
+    pub fullname: ClassFullname, // TODO: should be TypeFullname
     pub body: TyBody,
 }
 
@@ -169,6 +169,13 @@ impl TermTy {
                 ty::spe(base_name, type_args.to_vec())
             }
             _ => panic!("instance_ty is undefined for {:?}", self),
+        }
+    }
+
+    pub fn has_type_args(&self) -> bool {
+        match &self.body {
+            TyRaw(LitTy { type_args, .. }) => !type_args.is_empty(),
+            _ => false,
         }
     }
 
