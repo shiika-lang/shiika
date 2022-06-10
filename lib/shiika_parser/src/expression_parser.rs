@@ -626,7 +626,12 @@ impl<'a> Parser<'a> {
                     self.consume_token()?;
                     self.skip_ws()?;
                     let pattern = self.parse_pattern()?;
-                    self.expect_sep()?; // TODO: Allow KwThen instead of a separator here
+                    self.skip_ws()?;
+                    if self.current_token_is(Token::KwThen) {
+                        self.consume_token()?;
+                    } else {
+                        self.expect_sep()?;
+                    }
                     let exprs =
                         self.parse_exprs(vec![Token::KwEnd, Token::KwWhen, Token::KwElse])?;
                     clauses.push((pattern, exprs));

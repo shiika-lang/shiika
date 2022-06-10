@@ -11,8 +11,7 @@ end
 a = match A.foo
 when Some(n)
   n
-when None
-  0
+when None then 0  # KwThen is allowed here
 end
 unless a == 99; puts "failed"; end
 
