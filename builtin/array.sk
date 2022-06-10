@@ -50,7 +50,7 @@ class Array<T> : Enumerable<T>
   # Count from the last if `i` is less than zero
   # Panics if the index is out of range
   def []=(i: Int, obj: T)
-    idx = i < 0 ? @n_items + i : i
+    idx = if i < 0 then @n_items + i else i end
     if idx < 0
       panic "[Array#[]=: index less than zero]"
     end

@@ -191,7 +191,7 @@ class String
       i += 1
     end
 
-    minus ? -n : n
+    if minus then -n else n end
   end
 
   # Create mutable clone of `self`
