@@ -203,11 +203,11 @@ impl<'a> Parser<'a> {
 
     // operatorExpression:
     //   assignmentExpression |
-    //   conditionalOperatorExpression
+    //   conditionalOperatorExpression (removed; next one is range_expr)
     fn parse_operator_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_operator_expr");
-        let mut expr = self.parse_conditional_expr()?;
+        let mut expr = self.parse_range_expr()?;
         if expr.is_lhs() && self.next_nonspace_token()?.is_assignment_token() {
             expr = self.parse_assignment_expr(expr)?;
         }
@@ -267,33 +267,8 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// `a ? b : c`
-    fn parse_conditional_expr(&mut self) -> Result<AstExpression, Error> {
-        self.lv += 1;
-        self.debug_log("parse_conditional_expr");
-        let expr = self.parse_range_expr()?;
-        if self.next_nonspace_token()? == Token::Question {
-            self.skip_ws()?;
-            assert!(self.consume(Token::Question)?);
-            self.skip_wsn()?;
-            let then_expr = self.parse_operator_expr()?;
-            self.skip_ws()?;
-            self.expect(Token::Colon)?;
-            self.skip_wsn()?;
-            let else_expr = self.parse_operator_expr()?;
-            self.lv -= 1;
-            Ok(shiika_ast::if_expr(
-                expr,
-                vec![then_expr],
-                Some(vec![else_expr]),
-            ))
-        } else {
-            self.lv -= 1;
-            Ok(expr)
-        }
-    }
-
-    /// `a..b`, `a...b`
+    // TODO: decide the symbol
+    // Maybe `a..=b` and `a..<b` ?
     fn parse_range_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_range_expr");
