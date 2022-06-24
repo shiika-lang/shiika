@@ -30,6 +30,14 @@ class Array<T> : Enumerable<T>
     var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
   end
 
+  # Makes an array by concatenating `self` and `other`.
+  def +(other: Array<T>) -> Array<T>
+    a = Array<T>.new
+    a.append(self)
+    a.append(other)
+    a
+  end
+
   # Return true if `other` has the same elements as `self` (compared by `==`.)
   def ==(other: Array<T>) -> Bool
     if self.length != other.length
@@ -106,6 +114,16 @@ class Array<T> : Enumerable<T>
     else
       Some<T>.new(self[0])
     end
+  end
+
+  # Returns a shallow copy of `self` which has first `n` elements (at most).
+  def first_n(n: Int) -> Array<T>
+    a = Array<T>.new
+    0.upto(n-1) do |i: Int|
+      break if i >= @n_items
+      a.push(self[i])
+    end
+    a
   end
 
   # Return string representation of `self` (for debugging)
@@ -279,5 +297,20 @@ class Array<T> : Enumerable<T>
       end
     end
     l
+  end
+
+  # Returns shallow copies of `self`, split at `idx`. The element at `idx` belongs to the latter.
+  # The latter will be empty if `idx` equals to or greater than `self.length`.
+  def split_at(idx: Int) -> Pair<Array<T>, Array<T>>
+    a = Array<T>.new
+    b = Array<T>.new
+    0.upto(@n_items-1) do |i: Int|
+      if i >= idx
+        b.push(self[i])
+      else
+        a.push(self[i])
+      end
+    end
+    Pair<Array<T>, Array<T>>.new(a, b)
   end
 end

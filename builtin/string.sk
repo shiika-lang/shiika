@@ -99,6 +99,21 @@ class String
     split("\n")
   end
 
+  # Creates a string by putting `padding` to the right of `self` until total length is larger than or
+  # equal to `width`.
+  #
+  # ## Example
+  #
+  #   "hello".ljust(10, "!")  #=> "hello!!!!!"
+  def ljust(width: Int, padding: String) -> String
+    s = MutableString.new
+    s.append(self)
+    while s.bytesize < width
+      s.append(padding)
+    end
+    s._unsafe_to_s
+  end
+
   # Return the `n`th byte of `self`
   def nth_byte(n: Int) -> Int
     if n < 0
@@ -108,6 +123,20 @@ class String
       panic "[String#nth_byte: index too large]"
     end
     (@ptr+n).read
+  end
+
+  # Creates a string by putting `padding` to the left of `self` until total length is larger than or
+  # equal to `width`.
+  #
+  # ## Example
+  #
+  #   "hello".rjust(10, ".")  #=> ".....hello"
+  def rjust(width: Int, padding: String) -> String
+    var s = self
+    while s.bytesize < width
+      s = padding + s
+    end
+    s
   end
 
   # Create a string which has a partial content of `self`

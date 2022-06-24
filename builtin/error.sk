@@ -3,4 +3,8 @@ class Error
   def initialize(@msg: String); end
 
   # def backtrace
+
+  def to_s -> String
+    "#<Error: #{@msg}>"
+  end
 end

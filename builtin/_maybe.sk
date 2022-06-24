@@ -32,6 +32,20 @@ enum Maybe<V>
       "#<None>"
     end
   end
+
+  def none? -> Bool
+    match self
+    when Some(_) then false
+    else true
+    end
+  end
+
+  def some? -> Bool
+    match self
+    when Some(_) then true
+    else false
+    end
+  end
 end
 Some = Maybe::Some
 None = Maybe::None

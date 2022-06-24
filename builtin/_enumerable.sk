@@ -50,6 +50,20 @@ module Enumerable<E>
     ret
   end
 
+  # Returns the first position where `pred` returns true.
+  def position(pred: Fn1<E, Bool>) -> Maybe<Int>
+    var i = 0
+    var ret = Maybe::None
+    each do |x: E|
+      if pred(x)
+        ret = Maybe::Some.new(i)
+        break
+      end
+      i += 1
+    end
+    ret
+  end
+
   # Create a string by joining all items with separator.
   def join(separator: String) -> String
     var first = true

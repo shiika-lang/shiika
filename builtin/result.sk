@@ -1,6 +1,20 @@
-enum Result<V, E>
+enum Result<V>
   case Ok(value: V)
-  case Fail(err: E)
+  case Fail(err: Error)
+
+  def fail? -> Bool
+    match self
+    when Fail(_) then true
+    else false
+    end
+  end
+
+  def ok? -> Bool
+    match self
+    when Ok(_) then true
+    else false
+    end
+  end
 end
 Ok = Result::Ok
 Fail = Result::Fail
