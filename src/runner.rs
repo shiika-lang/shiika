@@ -162,7 +162,12 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
 
     fs::remove_file(bc_path)?;
 
-    let mut cmd = Command::new(format!("./{}", out_path));
+    let exe_path = if out_path.starts_with("/") {
+        out_path
+    } else {
+        format!("./{}", out_path)
+    };
+    let mut cmd = Command::new(exe_path);
     if capture_out {
         let output = cmd.output().context("failed to execute process")?;
         let stdout = String::from_utf8(output.stdout).expect("invalid utf8 in stdout");
