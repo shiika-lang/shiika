@@ -47,4 +47,20 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
             returns: Default::default(),
         }
     }
+
+    /// Inject `lvars` to `self.lvars`
+    /// Returns the original HashMap.
+    pub fn inject_lvars(
+        &mut self,
+        lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
+    ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
+        let mut new_lvars = self
+            .lvars
+            .clone()
+            .into_iter()
+            .chain(lvars.into_iter())
+            .collect();
+        std::mem::swap(&mut new_lvars, &mut self.lvars);
+        new_lvars
+    }
 }

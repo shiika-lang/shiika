@@ -1,5 +1,6 @@
 use crate::class_expr;
 use crate::error;
+use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
 use crate::hir_maker_context::HirMakerContext;
 use anyhow::Result;
@@ -22,9 +23,6 @@ pub fn convert_match_expr(
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
         .collect::<Result<Vec<MatchClause>>>()?;
     let result_ty = calc_result_ty(mk, &mut clauses)?;
-    let mut lvars = collect_lvars(&clauses);
-    lvars.push((tmp_name.clone(), cond_expr.ty.clone()));
-
     let panic_msg = Hir::string_literal(mk.register_string_literal("no matching clause found"));
     clauses.push(MatchClause {
         components: vec![],
@@ -34,8 +32,10 @@ pub fn convert_match_expr(
             method_fullname_raw("Object", "panic"),
             vec![panic_msg],
         )]),
+        lvars: Default::default(),
     });
 
+    let lvars = vec![(tmp_name.clone(), cond_expr.ty.clone())];
     let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr);
     Ok((Hir::match_expression(result_ty, tmp_assign, clauses), lvars))
 }
@@ -47,10 +47,11 @@ fn convert_match_clause(
     (pat, body): &(AstPattern, Vec<AstExpression>),
 ) -> Result<MatchClause> {
     let components = convert_match(mk, value, pat)?;
-    let body_hir = compile_body(mk, &components, body)?;
+    let (body_hir, lvars) = compile_body(mk, &components, body)?;
     Ok(MatchClause {
         components,
         body_hir,
+        lvars,
     })
 }
 
@@ -59,7 +60,7 @@ fn compile_body(
     mk: &mut HirMaker,
     components: &[Component],
     body: &[AstExpression],
-) -> Result<HirExpressions> {
+) -> Result<(HirExpressions, HirLVars)> {
     mk.ctx_stack.push(HirMakerContext::match_clause());
     // Declare lvars introduced by matching
     for component in components {
@@ -69,8 +70,8 @@ fn compile_body(
         }
     }
     let hir_exprs = mk.convert_exprs(body)?;
-    mk.ctx_stack.pop_match_clause_ctx();
-    Ok(hir_exprs)
+    let mut clause_ctx = mk.ctx_stack.pop_match_clause_ctx();
+    Ok((hir_exprs, extract_lvars(&mut clause_ctx.lvars)))
 }
 
 /// Calculate the type of the match expression from clauses
@@ -111,18 +112,6 @@ fn bitcast_match_clause_body(c: &mut MatchClause, ty: TermTy) {
     std::mem::swap(&mut tmp, &mut c.body_hir);
     tmp = tmp.bitcast_to(ty);
     std::mem::swap(&mut tmp, &mut c.body_hir);
-}
-
-fn collect_lvars(clauses: &[MatchClause]) -> Vec<(String, TermTy)> {
-    let mut lvars = vec![];
-    for clause in clauses {
-        for component in &clause.components {
-            if let Component::Bind(name, expr) = component {
-                lvars.push((name.to_string(), expr.ty.clone()));
-            }
-        }
-    }
-    lvars
 }
 
 /// Create components for match against a pattern

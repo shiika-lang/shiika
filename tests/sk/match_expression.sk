@@ -15,14 +15,32 @@ when None then 0  # KwThen is allowed here
 end
 unless a == 99; puts "failed"; end
 
+# Type inference of bindings
 f = fn(){
   Pair<Int, Bool>.new(11, false)
 }
 match f()
 when Pair(i, b)
-  puts "ng Pair 1" if b
+  puts "ng Pair 1" if b  # b is Bool
 else
   puts "ng Pair 2"
 end
+
+# Lvar scope of match clause (#359)
+enum E
+  case E1(b: Int)
+  case E2(c: Int)
+end
+class B
+  def self.bar(a: E) -> String
+    match a
+    when E::E1(a)  # This `a` shadows the parameter `a`
+      "E1"
+    when E::E2(x)
+      "E2"
+    end
+  end
+end
+unless B.bar(E::E2.new(123)) == "E2"; puts "ng #359"; end
 
 puts "ok"
