@@ -343,6 +343,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // define void @user_main()
         let user_main_type = self.void_type.fn_type(&[], false);
         let function = self.module.add_function("user_main", user_main_type, None);
+        let block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(block);
+
         // alloca
         let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
 
@@ -587,6 +590,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // LLVM function
         // (Function for lambdas are created in gen_lambda_expr)
         let function = self.get_llvm_func(func_name);
+        let block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(block);
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
@@ -665,12 +670,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         lvars: &[(String, TermTy)],
     ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
         if lvars.is_empty() {
-            let block = self.context.append_basic_block(function, "");
-            self.builder.position_at_end(block);
             return HashMap::new();
         }
         let mut lvar_ptrs = HashMap::new();
         let alloca_start = self.context.append_basic_block(function, "alloca");
+        self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
         for (name, ty) in lvars {
             let ptr = self.builder.build_alloca(self.llvm_type(ty), name);

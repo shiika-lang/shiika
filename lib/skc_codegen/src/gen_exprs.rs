@@ -355,6 +355,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         skip_block: inkwell::basic_block::BasicBlock,
         result_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
+        let lvar_ptrs = self.gen_alloca_lvars(ctx.function, &clause.lvars);
+        let orig_lvars = ctx.inject_lvars(lvar_ptrs);
         for component in &clause.components {
             match component {
                 pattern_match::Component::Test(expr) => {
@@ -369,9 +371,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             }
         }
-        Ok(self
+        let result = self
             .gen_exprs(ctx, &clause.body_hir)?
-            .map(|v| self.bitcast(v, result_ty, "as")))
+            .map(|v| self.bitcast(v, result_ty, "as"));
+        ctx.lvars = orig_lvars;
+        Ok(result)
     }
 
     fn gen_while_expr(
@@ -455,7 +459,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = ctx
             .lvars
             .get(name)
-            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
+            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
         self.builder.build_store(*ptr, value.0);
         Ok(Some(value))
     }
@@ -781,7 +785,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = ctx
             .lvars
             .get(name)
-            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not alloca'ed", name));
+            .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
         SkObj(self.builder.build_load(*ptr, name))
     }
 

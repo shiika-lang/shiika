@@ -21,7 +21,7 @@ impl HirMakerContext {
             HirMakerContext::Class(c) => Some(&mut c.lvars),
             HirMakerContext::Method(c) => Some(&mut c.lvars),
             HirMakerContext::Lambda(c) => Some(&mut c.lvars),
-            HirMakerContext::MatchClause(_) => None,
+            HirMakerContext::MatchClause(c) => Some(&mut c.lvars),
             HirMakerContext::While(_) => None,
         }
     }
