@@ -735,8 +735,9 @@ impl<'a> Parser<'a> {
                 Token::Comma => {
                     self.consume_token()?;
                     self.skip_wsn()?;
-                    if let Token::UpperWord(s) = self.peek_next_token()? {
-                        name = s
+                    if let Token::UpperWord(s) = self.current_token() {
+                        name = s.to_string();
+                        self.consume_token()?;
                     } else {
                         return Err(parse_error!(
                             self,
