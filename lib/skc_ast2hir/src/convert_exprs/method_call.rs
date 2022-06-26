@@ -15,6 +15,7 @@ pub fn build(
 ) -> Result<HirExpression> {
     check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs)?;
     let specialized = receiver_hir.ty.is_specialized();
+    let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
 
     let receiver = Hir::bit_cast(found.owner.erasure().to_term_ty(), receiver_hir);
     let args = if specialized {
@@ -27,7 +28,9 @@ pub fn build(
     };
 
     let hir = build_hir(&found, receiver, args);
-    if specialized {
+    if found.sig.fullname.full_name == "Object#unsafe_cast" {
+        Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
+    } else if specialized {
         Ok(Hir::bit_cast(found.sig.ret_ty, hir))
     } else {
         Ok(hir)

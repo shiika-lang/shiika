@@ -40,4 +40,10 @@ class Object
   def to_s -> String
     "#<#{self.class.name}:#{self.object_id}>"
   end
+
+  # Force the compiler to treat this object is an instance of `cls`.
+  # Usually you should not use this method unless to avoid compiler's bug, etc.
+  def unsafe_cast(cls: Class) -> Object
+    self
+  end
 end
