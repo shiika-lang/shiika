@@ -461,6 +461,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_name,
             method_tyargs.as_slice(),
         )?;
+        // Check the arguments and create HirMethodCall or HirModuleMethodCall
         method_call::build(self, found, receiver_hir, arg_hirs)
     }
 
