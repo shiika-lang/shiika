@@ -24,25 +24,28 @@ pub fn conforms(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
             let u2 = ref2.upper_bound.to_term_ty();
             conforms(c, ty1, &u2)
         }
-    } else {
-        let is_void_fn = if let Some(ret_ty) = ty2.fn_x_info() {
-            ret_ty.is_void_type()
+    } else if let Some(t1) = ancestor_types(c, ty1)
+        .iter()
+        .find(|t| t.same_base(ty2))
+    {
+        if t1.equals_to(ty2) {
+            return true;
+        } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
+            return true;
         } else {
-            false
-        };
-        if let Some(t1) = ancestor_types(c, ty1)
-            .iter()
-            .find(|t| t.same_base(ty2))
-        {
-            if t1.equals_to(ty2) {
-                return true;
-            } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
-                return true;
-            } else {
-                // Special care for void funcs
-                return is_void_fn;
-            }
+            // Special care for void funcs
+            return is_void_fn(ty2);
         }
+    } else {
+        false
+    }
+}
+
+/// Returns if `ty` is a void-returning function (eg. `Fn1<Int, Void>`)
+fn is_void_fn(ty: &TermTy) -> bool {
+    if let Some(ret_ty) = ty.fn_x_info() {
+        ret_ty.is_void_type()
+    } else {
         false
     }
 }
