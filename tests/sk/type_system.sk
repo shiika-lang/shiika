@@ -10,4 +10,14 @@ class A
   end
 end
 
+# Enum cases conforms to the enum class
+(fn(x: Maybe<Int>){ x })(Some.new(123))
+(fn(x: Maybe<Int>){ x })(None)
+
+# Array literal type inference
+[] # Array<Object>
+class B; end
+class C : B; end
+[B.new, C.new] # Array<B>
+
 puts "ok"
