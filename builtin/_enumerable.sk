@@ -118,4 +118,39 @@ module Enumerable<E>
     end
     ret
   end
+
+  # Creates an array which contains all items of `self` 
+  def to_a -> Array<E>
+    ret = Array<E>.new
+    each do |item: E|
+      ret.push(item)
+    end
+    ret
+  end
+
+  # TODO: these methods should only available when `E: Comparable`
+  def min -> Maybe<E>
+    var ret = Maybe::None.unsafe_cast(Maybe<E>)
+    each do |item: E|
+      match ret
+      when Maybe::None
+        ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
+      when Maybe::Some(prev)
+        ret = Maybe::Some<E>.new(if prev < item then prev else item end).unsafe_cast(Maybe<E>)
+      end
+    end
+    ret
+  end
+  def max -> Maybe<E>
+    var ret = Maybe::None.unsafe_cast(Maybe<E>)
+    each do |item: E|
+      match ret
+      when Maybe::None
+        ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
+      when Maybe::Some(prev)
+        ret = Maybe::Some<E>.new(if prev < item then item else prev end).unsafe_cast(Maybe<E>)
+      end
+    end
+    ret
+  end
 end
