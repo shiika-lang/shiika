@@ -20,4 +20,11 @@ class B; end
 class C : B; end
 [B.new, C.new] # Array<B>
 
+# Modules
+module M; end
+class D : M
+  def self.foo(x: Object); end
+end
+(fn(x: M){ D.foo(x) })(D.new)
+
 puts "ok"

@@ -3,6 +3,19 @@
 module Enumerable<E>
   requirement each(f: Fn1<E, Void>) -> Void
 
+  def self.zip<A, B>(a_: Enumerable<A>, b_: Enumerable<B>) -> Array<Pair<A, B>>
+    a = a_.to_a
+    b = b_.to_a
+    ret = Array<Pair<A, B>>.new
+    match [a.length, b.length].min
+    when Maybe::Some(n)
+      0.upto(n-1) do |i: Int|
+        ret.push(Pair<A, B>.new(a[i], b[i]))
+      end
+    end
+    ret
+  end
+
   # Return true if `f` returns true for all element of `self`
   def all?(f: Fn1<E, Bool>) -> Bool
     var ret = true

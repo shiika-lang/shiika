@@ -81,6 +81,10 @@ impl SkType {
         matches!(&self, SkType::Class(_))
     }
 
+    pub fn is_module(&self) -> bool {
+        matches!(&self, SkType::Module(_))
+    }
+
     pub fn class(&self) -> Option<&SkClass> {
         match self {
             SkType::Class(x) => Some(x),

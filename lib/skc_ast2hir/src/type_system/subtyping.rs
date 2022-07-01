@@ -24,10 +24,42 @@ pub fn conforms(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
             let u2 = ref2.upper_bound.to_term_ty();
             conforms(c, ty1, &u2)
         }
-    } else if let Some(t1) = ancestor_types(c, ty1)
-        .iter()
-        .find(|t| t.same_base(ty2))
-    {
+    } else {
+        let mod1 = c.get_type(&ty1.erasure().to_type_fullname()).is_module();
+        let mod2 = c.get_type(&ty2.erasure().to_type_fullname()).is_module();
+        match (mod1, mod2) {
+            (true, true) => false,
+            (true, false) => module_conforms_to_class(c, ty1, ty2),
+            (false, true) => class_conforms_to_module(c, ty1, ty2),
+            (false, false) => class_conforms_to_class(c, ty1, ty2),
+        }
+    }
+}
+
+// Return true only if `ty2` is the top type
+fn module_conforms_to_class(_c: &ClassDict, _ty1: &TermTy, ty2: &TermTy) -> bool {
+    ty2.fullname.0 == "Object"
+}
+
+// Return true if `ty2` (or one of its ancestor) includes the module
+fn class_conforms_to_module(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
+    ancestor_types(c, ty1).iter().any(|t| includes(c, t, ty2))
+}
+
+// Return true if `class` (eg. `Array<Int>`) includes `module` (eg. `Enumerable<Int>`)
+fn includes(c: &ClassDict, class: &TermTy, module: &TermTy) -> bool {
+    let sk_class = c.get_class(&class.erasure().to_class_fullname());
+    sk_class.includes.iter().any(|m| {
+        // eg. Make `Enumerable<Int>` from `Enumerable<T>` and `Array<Int>`
+        let ms = m.ty().substitute(&class.tyargs(), Default::default());
+        ms == *module
+    })
+}
+
+// TODO: implement variance
+fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
+    let ancestors = ancestor_types(c, ty1);
+    if let Some(t1) = ancestors.iter().find(|t| t.same_base(ty2)) {
         if t1.equals_to(ty2) {
             return true;
         } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
@@ -54,11 +86,7 @@ fn is_void_fn(ty: &TermTy) -> bool {
 /// Returns `None` if there is no common ancestor except `Object`, the
 /// top type. However, returns `Some(Object)` when either of the arguments
 /// is `Object`.
-pub fn nearest_common_ancestor(
-    c: &ClassDict,
-    ty1: &TermTy,
-    ty2: &TermTy,
-) -> Option<TermTy> {
+pub fn nearest_common_ancestor(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> Option<TermTy> {
     if ty1 == ty2 {
         return Some(ty1.clone());
     }
