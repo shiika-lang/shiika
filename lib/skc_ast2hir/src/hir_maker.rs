@@ -4,7 +4,7 @@ use crate::error;
 use crate::hir_maker_context::*;
 use crate::method_dict::MethodDict;
 use crate::parse_typarams;
-use crate::type_checking;
+use crate::type_system::type_checking;
 use anyhow::Result;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};

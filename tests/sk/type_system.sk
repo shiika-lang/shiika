@@ -10,4 +10,21 @@ class A
   end
 end
 
+# Enum cases conforms to the enum class
+(fn(x: Maybe<Int>){ x })(Some.new(123))
+(fn(x: Maybe<Int>){ x })(None)
+
+# Array literal type inference
+[] # Array<Object>
+class B; end
+class C : B; end
+[B.new, C.new] # Array<B>
+
+# Modules
+module M; end
+class D : M
+  def self.foo(x: Object); end
+end
+(fn(x: M){ D.foo(x) })(D.new)
+
 puts "ok"

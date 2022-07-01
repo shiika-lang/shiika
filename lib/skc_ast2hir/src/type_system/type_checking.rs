@@ -103,26 +103,28 @@ pub fn check_method_args(
     receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
 ) -> Result<()> {
-    check_method_arity(sig, arg_tys, receiver_hir, arg_hirs)?;
-    check_arg_types(class_dict, sig, arg_tys, receiver_hir, arg_hirs)?;
-    Ok(())
+    let mut result = check_method_arity(sig, arg_tys);
+    if result.is_ok() {
+        result = check_arg_types(class_dict, sig, arg_tys);
+    }
+
+    if result.is_err() {
+        // Remove this when shiika can show the location in the .sk
+        dbg!(&receiver_hir);
+        dbg!(&sig.fullname);
+        dbg!(&arg_hirs);
+    }
+    result
 }
 
 /// Check number of method call args
-fn check_method_arity(
-    sig: &MethodSignature,
-    arg_tys: &[&TermTy],
-    receiver_hir: &HirExpression,
-    arg_hirs: &[HirExpression],
-) -> Result<()> {
+fn check_method_arity(sig: &MethodSignature, arg_tys: &[&TermTy]) -> Result<()> {
     if sig.params.len() != arg_tys.len() {
         return Err(type_error!(
-            "{} takes {} args but got {} (receiver: {:?}, args: {:?})",
+            "{} takes {} args but got {}",
             sig.fullname,
             sig.params.len(),
-            arg_tys.len(),
-            receiver_hir,
-            arg_hirs
+            arg_tys.len()
         ));
     }
     Ok(())
@@ -133,24 +135,28 @@ fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_tys: &[&TermTy],
-    receiver_hir: &HirExpression,
-    arg_hirs: &[HirExpression],
 ) -> Result<()> {
     for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
-        if !class_dict.conforms(arg_ty, &param.ty) {
-            // Remove this when shiika can show the location in the .sk
-            dbg!(&receiver_hir);
-            dbg!(&sig.fullname);
-            dbg!(&arg_hirs);
+        check_arg_type(class_dict, sig, arg_ty, param)?;
+    }
+    Ok(())
+}
 
-            return Err(type_error!(
-                "the argument `{}' of `{}' should be {} but got {}",
-                param.name,
-                sig.fullname,
-                param.ty.fullname,
-                arg_ty.fullname
-            ));
-        }
+/// Check types of method call args
+fn check_arg_type(
+    class_dict: &ClassDict,
+    sig: &MethodSignature,
+    arg_ty: &TermTy,
+    param: &MethodParam,
+) -> Result<()> {
+    if !class_dict.conforms(arg_ty, &param.ty) {
+        return Err(type_error!(
+            "the argument `{}' of `{}' should be {} but got {}",
+            param.name,
+            sig.fullname,
+            param.ty.fullname,
+            arg_ty.fullname
+        ));
     }
     Ok(())
 }

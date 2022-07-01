@@ -8,7 +8,7 @@ mod hir_maker;
 mod hir_maker_context;
 mod method_dict;
 mod pattern_match;
-mod type_checking;
+mod type_system;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
 use shiika_core::{names::*, ty, ty::*};

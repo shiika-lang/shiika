@@ -5,7 +5,7 @@ use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
 use crate::hir_maker_context::*;
 use crate::pattern_match;
-use crate::type_checking;
+use crate::type_system::type_checking;
 use anyhow::Result;
 use shiika_ast::Token;
 use shiika_ast::*;
@@ -461,6 +461,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_name,
             method_tyargs.as_slice(),
         )?;
+        // Check the arguments and create HirMethodCall or HirModuleMethodCall
         method_call::build(self, found, receiver_hir, arg_hirs)
     }
 

@@ -1,7 +1,7 @@
 use crate::class_dict::FoundMethod;
 use crate::error;
 use crate::hir_maker::HirMaker;
-use crate::type_checking;
+use crate::type_system::type_checking;
 use anyhow::Result;
 use shiika_core::ty;
 use skc_hir::*;
