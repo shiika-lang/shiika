@@ -53,41 +53,39 @@ file BUILTIN_BC => [*RUST_FILES, RUSTLIB_SIG, *Dir["builtin/*.sk"]] do
   sh "cargo run -- build-corelib"
 end
 
-A_OUT = "examples/a.sk.out"
-file A_OUT => [*RUST_FILES, RUSTLIB_A, BUILTIN_BC, "examples/a.sk"] do
+A_OUT = "./a.sk.out"
+file A_OUT => [*RUST_FILES, RUSTLIB_A, BUILTIN_BC, "./a.sk"] do
   #sh "cargo fmt"
-  sh "cargo run -- run examples/a.sk"
+  sh "cargo run -- run ./a.sk"
 end
 
 task :fmt do
   sh "cargo fmt"
 end
 
-task :a => [:fmt, A_OUT]
-
 task :asm do
-  sh "llc examples/a.sk.ll"
+  sh "llc ./a.sk.ll"
 end
 
 #
 # debugify
 #
 
-A_BC = "examples/a.sk.bc"
-file A_BC => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "examples/a.sk"] do
-  sh "cargo run -- run examples/a.sk"
+A_BC = "./a.sk.bc"
+file A_BC => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "./a.sk"] do
+  sh "cargo run -- run ./a.sk"
 end
-A_LL = "examples/a.sk.ll"
-file A_LL => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "examples/a.sk"] do
-  sh "cargo run -- run examples/a.ll"
+A_LL = "./a.sk.ll"
+file A_LL => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "./a.sk"] do
+  sh "cargo run -- run ./a.ll"
 end
 
-DEBUG_LL = "examples/a.sk.debug.ll"
+DEBUG_LL = "./a.sk.debug.ll"
 file DEBUG_LL => A_LL do
   sh "opt #{A_LL} -debugify -S -o #{DEBUG_LL}"
 end
 
-DEBUG_OUT = "examples/a.debug.out"
+DEBUG_OUT = "./a.debug.out"
 file DEBUG_OUT => [A_BC, BUILTIN_BC, RUSTLIB_A, DEBUG_LL] do
   sh "clang",
     "-lm",
@@ -100,3 +98,10 @@ file DEBUG_OUT => [A_BC, BUILTIN_BC, RUSTLIB_A, DEBUG_LL] do
 end
 
 task :debugify => DEBUG_OUT
+
+#task :a => [:fmt, A_OUT]
+task :a => [:fmt] do
+#   sh "cargo run -- run a.sk"
+  sh "cargo run -- run ~/proj/BidirectionalTypechecking/bidi.sk"
+end
+
