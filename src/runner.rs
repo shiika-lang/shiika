@@ -1,6 +1,7 @@
+use crate::loader;
 use crate::targets;
 use anyhow::{anyhow, Context, Error, Result};
-use shiika_parser::Parser;
+use shiika_parser::{Parser, SourceFile};
 use skc_ast2hir;
 use skc_codegen;
 use skc_corelib;
@@ -48,7 +49,7 @@ fn load_builtin_exports() -> Result<LibraryExports, Error> {
 /// Create builtin.bc and exports.json from builtin/*.sk and skc_corelib
 pub fn build_corelib() -> Result<(), Error> {
     let builtin = load_builtin()?;
-    let ast = Parser::parse(&builtin)?;
+    let ast = Parser::parse_files(&builtin)?;
     log::debug!("created ast");
     let corelib = skc_corelib::create();
     log::debug!("loaded corelib");
@@ -75,26 +76,9 @@ pub fn build_corelib() -> Result<(), Error> {
     Ok(())
 }
 
-/// Load ./builtin/*.sk into a String
-fn load_builtin() -> Result<String> {
-    let mut s = String::new();
-    let dir = fs::read_dir("builtin").context("./builtin not found")?;
-    let mut files = vec![];
-    for entry in dir {
-        let pathbuf = entry?.path();
-        let path = pathbuf
-            .to_str()
-            .ok_or_else(|| anyhow!("Filename not utf8"))?;
-        files.push(path.to_string());
-    }
-    files.sort();
-    for path in files {
-        if path.ends_with(".sk") {
-            let src = fs::read_to_string(&path).context(format!("failed to load {}", path))?;
-            s += &src;
-        }
-    }
-    Ok(s)
+/// Load ./builtin/*.sk
+fn load_builtin() -> Result<Vec<SourceFile>> {
+    loader::load(Path::new("./builtin/index.sk"))
 }
 
 /// Execute compiled .ll

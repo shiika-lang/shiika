@@ -18,9 +18,11 @@ mod definition_parser;
 mod error;
 mod expression_parser;
 pub mod lexer;
+mod source_file;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::lexer::LexerState;
+pub use crate::source_file::SourceFile;
 use shiika_ast as ast;
 use shiika_ast::Token;
 
@@ -48,6 +50,15 @@ impl<'a> Parser<'a> {
         // Check if entire string is consumed
         parser.expect_eof()?;
         Ok(ast_sig)
+    }
+
+    pub fn parse_files(files: &[SourceFile]) -> Result<ast::Program, Error> {
+        let mut program = ast::Program::default();
+        for file in files {
+            let mut parser = Parser::new(&file.content);
+            program.append(&mut parser.parse_program()?);
+        }
+        Ok(program)
     }
 
     pub fn parse(src: &str) -> Result<ast::Program, Error> {
