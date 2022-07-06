@@ -1,3 +1,6 @@
+require "./enumerable.sk"
+require "./maybe.sk"
+
 class Array<T> : Enumerable<T>
   BYTES_OF_PTR = 8  # Assuming 64bit env
   INITIAL_CAPA = 10

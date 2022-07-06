@@ -18,9 +18,11 @@ mod definition_parser;
 mod error;
 mod expression_parser;
 pub mod lexer;
+mod source_file;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::lexer::LexerState;
+pub use crate::source_file::SourceFile;
 use shiika_ast as ast;
 use shiika_ast::Token;
 
@@ -50,6 +52,15 @@ impl<'a> Parser<'a> {
         Ok(ast_sig)
     }
 
+    pub fn parse_files(files: &[SourceFile]) -> Result<ast::Program, Error> {
+        let mut program = ast::Program::default();
+        for file in files {
+            let mut parser = Parser::new(&file.content);
+            program.append(&mut parser.parse_program()?);
+        }
+        Ok(program)
+    }
+
     pub fn parse(src: &str) -> Result<ast::Program, Error> {
         let mut parser = Parser::new(src);
         parser.parse_program()
@@ -77,6 +88,9 @@ impl<'a> Parser<'a> {
         let mut items = vec![];
         loop {
             match self.current_token() {
+                Token::KwRequire => {
+                    self.skip_require()?;
+                }
                 Token::KwClass => {
                     items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
                 }
@@ -105,5 +119,16 @@ impl<'a> Parser<'a> {
             self.skip_wsn()?;
         }
         Ok(items)
+    }
+
+    /// Skip `require "foo"`
+    fn skip_require(&mut self) -> Result<(), Error> {
+        assert!(self.consume(Token::KwRequire)?);
+        self.skip_ws()?;
+        match self.current_token() {
+            Token::Str(_) | Token::StrWithInterpolation { .. } => self.consume_token()?,
+            _ => return Err(parse_error!(self, "unexpected argument for require")),
+        };
+        Ok(())
     }
 }

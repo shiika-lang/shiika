@@ -69,6 +69,7 @@ pub enum Token {
     SetMethod,    //  []=
     Specialize,   //  <> (used internally)
     // Keywords
+    KwRequire,
     KwClass,
     KwModule,
     KwRequirement,
@@ -193,6 +194,7 @@ impl Token {
             Token::SetMethod => false,    //  []=
             Token::Specialize => false,   //  <>
             // Keywords
+            Token::KwRequire => false,
             Token::KwClass => false,
             Token::KwModule => false,
             Token::KwRequirement => false,

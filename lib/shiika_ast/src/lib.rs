@@ -7,6 +7,18 @@ pub struct Program {
     pub toplevel_items: Vec<TopLevelItem>,
 }
 
+impl Program {
+    pub fn default() -> Program {
+        Program {
+            toplevel_items: vec![],
+        }
+    }
+
+    pub fn append(&mut self, other: &mut Program) {
+        self.toplevel_items.append(&mut other.toplevel_items);
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum TopLevelItem {
     Def(Definition),
