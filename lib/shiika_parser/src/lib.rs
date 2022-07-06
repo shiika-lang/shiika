@@ -88,6 +88,9 @@ impl<'a> Parser<'a> {
         let mut items = vec![];
         loop {
             match self.current_token() {
+                Token::KwRequire => {
+                    self.skip_require()?;
+                }
                 Token::KwClass => {
                     items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
                 }
@@ -116,5 +119,16 @@ impl<'a> Parser<'a> {
             self.skip_wsn()?;
         }
         Ok(items)
+    }
+
+    /// Skip `require "foo"`
+    fn skip_require(&mut self) -> Result<(), Error> {
+        assert!(self.consume(Token::KwRequire)?);
+        self.skip_ws()?;
+        match self.current_token() {
+            Token::Str(_) | Token::StrWithInterpolation { .. } => self.consume_token()?,
+            _ => return Err(parse_error!(self, "unexpected argument for require")),
+        };
+        Ok(())
     }
 }
