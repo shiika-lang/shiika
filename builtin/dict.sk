@@ -1,14 +1,4 @@
-# TODO: Move to _tuples.sk (#233)
-class Pair<A, B>
-  def initialize(@fst: A, @snd: B); end
-  def inspect -> String
-    "Pair(#{@fst.inspect}, #{@snd.inspect})"
-  end
-end
-
-class Triple<A, B, C>
-  def initialize(@fst: A, @snd: B, @thd: C); end
-end
+require "./pair.sk"
 
 # TODO: Make this behave as ordered hash (like Ruby's)
 class Dict<K, V> : Enumerable<Pair<K, V>>
