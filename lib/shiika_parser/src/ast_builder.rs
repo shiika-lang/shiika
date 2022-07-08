@@ -1,0 +1,43 @@
+use shiika_ast::*;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+
+pub struct AstBuilder {
+    filepath: Rc<PathBuf>,
+}
+
+impl AstBuilder {
+    pub fn new(filepath: &Rc<PathBuf>) -> AstBuilder {
+        AstBuilder {
+            filepath: filepath.clone(),
+        }
+    }
+
+    pub fn empty() -> AstBuilder {
+        AstBuilder {
+            filepath: Rc::new(Path::new("").to_path_buf()),
+        }
+    }
+
+    pub fn decimal_literal(
+        &self,
+        begin: Location,
+        end: Location,
+        value: i64,
+    ) -> shiika_ast::AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::DecimalLiteral { value })
+    }
+
+    fn primary_expression(
+        &self,
+        begin: Location,
+        end: Location,
+        body: AstExpressionBody,
+    ) -> AstExpression {
+        AstExpression {
+            primary: true,
+            body,
+            locs: LocationSpan::new(&self.filepath, begin, end),
+        }
+    }
+}

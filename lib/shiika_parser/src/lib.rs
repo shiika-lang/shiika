@@ -13,12 +13,14 @@ macro_rules! parse_error {
     })
 }
 
+mod ast_builder;
 mod base;
 mod definition_parser;
 mod error;
 mod expression_parser;
 pub mod lexer;
 mod source_file;
+use crate::ast_builder::AstBuilder;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::lexer::LexerState;
@@ -28,22 +30,26 @@ use shiika_ast::Token;
 
 pub struct Parser<'a> {
     pub lexer: Lexer<'a>,
+    ast: AstBuilder,
     /// For debug print
     pub lv: usize,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(src: &str) -> Parser {
+    pub fn new(file: &'a SourceFile) -> Parser<'a> {
         Parser {
-            lexer: Lexer::new(src),
+            lexer: Lexer::new(&file.content),
+            ast: AstBuilder::new(&file.path),
             lv: 0,
         }
     }
 
     /// Parse a method signature
     pub fn parse_signature(sig_str: &str) -> Result<ast::AstMethodSignature, Error> {
+        let lexer = Lexer::new_with_state(sig_str, LexerState::MethodName);
         let mut parser = Parser {
-            lexer: Lexer::new_with_state(sig_str, LexerState::MethodName),
+            lexer,
+            ast: AstBuilder::empty(),
             lv: 0,
         };
         let (ast_sig, _) = parser.parse_method_signature()?;
@@ -55,15 +61,10 @@ impl<'a> Parser<'a> {
     pub fn parse_files(files: &[SourceFile]) -> Result<ast::Program, Error> {
         let mut program = ast::Program::default();
         for file in files {
-            let mut parser = Parser::new(&file.content);
+            let mut parser = Parser::new(file);
             program.append(&mut parser.parse_program()?);
         }
         Ok(program)
-    }
-
-    pub fn parse(src: &str) -> Result<ast::Program, Error> {
-        let mut parser = Parser::new(src);
-        parser.parse_program()
     }
 
     fn parse_program(&mut self) -> Result<ast::Program, Error> {

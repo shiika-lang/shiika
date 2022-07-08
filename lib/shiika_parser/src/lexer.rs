@@ -1,11 +1,16 @@
 use crate::error::Error;
-use shiika_ast::Token;
+use shiika_ast::{Location, Token};
 
+/// Lexer
 #[derive(Debug)]
 pub struct Lexer<'a> {
+    /// Reference to source code.
     pub src: &'a str,
+    /// Current position
     pub cur: Cursor,
+    /// A token starts from `cur`
     pub current_token: Token,
+    /// Next position when `current_token` is consumed
     next_cur: Option<Cursor>,
     /// Flag to decide +/- etc. is unary or binary
     state: LexerState,
@@ -136,6 +141,10 @@ impl<'a> Lexer<'a> {
     fn set_current_token(&mut self, token: Token) {
         self.space_seen = self.current_token == Token::Space;
         self.current_token = token;
+    }
+
+    pub fn location(&self) -> Location {
+        Location::new(self.cur.line, self.cur.col)
     }
 
     pub fn debug_info(&self) -> String {
