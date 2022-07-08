@@ -1003,14 +1003,16 @@ impl<'a> Parser<'a> {
     fn parse_decimal_literal(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_decimal_literal");
+        let begin = self.lexer.location();
         let expr = match self.consume_token()? {
             Token::Number(s) => {
                 if s.contains('.') {
                     let value = s.parse().unwrap();
                     shiika_ast::float_literal(value)
                 } else {
+                    let end = self.lexer.location();
                     let value = s.parse().unwrap();
-                    shiika_ast::decimal_literal(value)
+                    self.ast.decimal_literal(begin, end, value)
                 }
             }
             _ => {
