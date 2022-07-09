@@ -144,7 +144,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn location(&self) -> Location {
-        Location::new(self.cur.line, self.cur.col)
+        Location::new(self.cur.line, self.cur.col, self.cur.pos)
     }
 
     pub fn debug_info(&self) -> String {
