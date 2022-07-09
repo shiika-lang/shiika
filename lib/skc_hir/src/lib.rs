@@ -10,6 +10,7 @@ pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::sk_type::{SkClass, SkModule, SkType, SkTypeBase, SkTypes, WTable};
 pub use crate::superclass::Superclass;
 use serde::{Deserialize, Serialize};
+use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
 use std::collections::HashMap;
 
@@ -108,6 +109,7 @@ fn void_const_ref() -> HirExpression {
 pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
+    pub locs: LocationSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -289,6 +291,7 @@ impl Hir {
             node: HirExpressionBase::HirLogicalNot {
                 expr: Box::new(expr_hir),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -299,6 +302,7 @@ impl Hir {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -309,6 +313,7 @@ impl Hir {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -325,6 +330,7 @@ impl Hir {
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -339,6 +345,7 @@ impl Hir {
                 cond_assign_expr: Box::new(cond_assign_hir),
                 clauses,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -349,6 +356,7 @@ impl Hir {
                 cond_expr: Box::new(cond_hir),
                 body_exprs: Box::new(body_hirs),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -356,6 +364,7 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Never"),
             node: HirExpressionBase::HirBreakExpression { from },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -366,6 +375,7 @@ impl Hir {
                 from,
                 arg: Box::new(arg_expr),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -376,6 +386,7 @@ impl Hir {
                 name: name.to_string(),
                 rhs: Box::new(rhs),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -395,6 +406,7 @@ impl Hir {
                 writable,
                 self_ty,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -405,6 +417,7 @@ impl Hir {
                 fullname,
                 rhs: Box::new(rhs),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -421,6 +434,7 @@ impl Hir {
                 method_fullname,
                 arg_exprs: arg_hirs,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -441,6 +455,7 @@ impl Hir {
                 method_idx,
                 arg_exprs: arg_hirs,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -455,6 +470,7 @@ impl Hir {
                 lambda_expr: Box::new(varref_expr),
                 arg_exprs: arg_hirs,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -462,6 +478,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirArgRef { idx },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -469,6 +486,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirLVarRef { name },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -476,6 +494,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirIVarRef { name, idx, self_ty },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -486,6 +505,7 @@ impl Hir {
                 typaram_ref,
                 self_ty,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -493,6 +513,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirConstRef { fullname },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -517,6 +538,7 @@ impl Hir {
                 ret_ty,
                 has_break,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -524,6 +546,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirSelfExpression,
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -531,13 +554,15 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Float"),
             node: HirExpressionBase::HirFloatLiteral { value },
+            locs: LocationSpan::todo(),
         }
     }
 
-    pub fn decimal_literal(value: i64) -> HirExpression {
+    pub fn decimal_literal(value: i64, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("Int"),
             node: HirExpressionBase::HirDecimalLiteral { value },
+            locs,
         }
     }
 
@@ -545,6 +570,7 @@ impl Hir {
         HirExpression {
             ty: ty::raw("String"),
             node: HirExpressionBase::HirStringLiteral { idx },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -552,6 +578,7 @@ impl Hir {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -561,6 +588,7 @@ impl Hir {
             node: HirExpressionBase::HirBitCast {
                 expr: Box::new(expr),
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -578,6 +606,7 @@ impl Hir {
                 str_literal_idx,
                 includes_modules,
             },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -585,6 +614,7 @@ impl Hir {
         HirExpression {
             ty: exprs.ty.clone(),
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -592,6 +622,7 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaCaptureRef { idx, readonly },
+            locs: LocationSpan::todo(),
         }
     }
 
@@ -602,6 +633,7 @@ impl Hir {
                 cidx,
                 rhs: Box::new(rhs),
             },
+            locs: LocationSpan::todo(),
         }
     }
 }

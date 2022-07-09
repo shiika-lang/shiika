@@ -28,7 +28,7 @@ pub fn convert_match_expr(
         components: vec![],
         body_hir: Hir::expressions(vec![Hir::method_call(
             ty::raw("Never"),
-            Hir::decimal_literal(0), // whatever.
+            Hir::decimal_literal(0, LocationSpan::todo()), // whatever.
             method_fullname_raw("Object", "panic"),
             vec![panic_msg],
         )]),
@@ -142,7 +142,7 @@ fn convert_match(
                 ty::raw("Bool"),
                 value.clone(),
                 method_fullname_raw("Int", "=="),
-                vec![Hir::decimal_literal(*i)],
+                vec![Hir::decimal_literal(*i, LocationSpan::todo())],
             );
             Ok(vec![Component::Test(test)])
         }

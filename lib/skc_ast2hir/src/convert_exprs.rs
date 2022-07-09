@@ -130,7 +130,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::FloatLiteral { value } => Ok(Hir::float_literal(*value)),
 
-            AstExpressionBody::DecimalLiteral { value } => Ok(Hir::decimal_literal(*value)),
+            AstExpressionBody::DecimalLiteral { value } => {
+                Ok(Hir::decimal_literal(*value, expr.locs.clone()))
+            }
 
             AstExpressionBody::StringLiteral { content } => {
                 Ok(self.convert_string_literal(content))
