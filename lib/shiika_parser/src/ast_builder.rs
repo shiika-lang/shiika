@@ -21,9 +21,9 @@ impl AstBuilder {
 
     pub fn decimal_literal(
         &self,
+        value: i64,
         begin: Location,
         end: Location,
-        value: i64,
     ) -> shiika_ast::AstExpression {
         self.primary_expression(begin, end, AstExpressionBody::DecimalLiteral { value })
     }

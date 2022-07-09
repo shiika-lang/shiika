@@ -447,10 +447,6 @@ pub fn float_literal(value: f64) -> AstExpression {
     primary_expression(AstExpressionBody::FloatLiteral { value })
 }
 
-pub fn decimal_literal(value: i64) -> AstExpression {
-    primary_expression(AstExpressionBody::DecimalLiteral { value })
-}
-
 pub fn string_literal(content: String) -> AstExpression {
     primary_expression(AstExpressionBody::StringLiteral { content })
 }

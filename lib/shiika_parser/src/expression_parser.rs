@@ -1012,7 +1012,7 @@ impl<'a> Parser<'a> {
                 } else {
                     let end = self.lexer.location();
                     let value = s.parse().unwrap();
-                    self.ast.decimal_literal(begin, end, value)
+                    self.ast.decimal_literal(value, begin, end)
                 }
             }
             _ => {
