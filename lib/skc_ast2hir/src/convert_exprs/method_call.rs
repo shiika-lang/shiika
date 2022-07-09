@@ -43,8 +43,7 @@ fn check_argument_types(
     receiver_hir: &HirExpression,
     arg_hirs: &mut [HirExpression],
 ) -> Result<()> {
-    let arg_tys = arg_hirs.iter().map(|expr| &expr.ty).collect::<Vec<_>>();
-    type_checking::check_method_args(&mk.class_dict, sig, &arg_tys, receiver_hir, arg_hirs)?;
+    type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs)?;
     if let Some(last_arg) = arg_hirs.last_mut() {
         check_break_in_block(sig, last_arg)?;
     }

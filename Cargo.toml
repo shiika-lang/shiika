@@ -7,6 +7,7 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 [workspace]
 members = [
   "lib/*",
+  "aria"
 ]
 
 [dependencies]

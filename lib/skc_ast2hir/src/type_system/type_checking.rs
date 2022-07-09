@@ -1,7 +1,9 @@
 use crate::class_dict::ClassDict;
 use anyhow::Result;
+use ariadne::{Label, Report, ReportKind, Source};
 use shiika_core::{ty, ty::*};
 use skc_hir::*;
+use std::fs;
 
 macro_rules! type_error {
     ( $( $arg:expr ),* ) => ({
@@ -99,13 +101,12 @@ pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> 
 pub fn check_method_args(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    arg_tys: &[&TermTy],
     receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
 ) -> Result<()> {
-    let mut result = check_method_arity(sig, arg_tys);
+    let mut result = check_method_arity(sig, arg_hirs);
     if result.is_ok() {
-        result = check_arg_types(class_dict, sig, arg_tys);
+        result = check_arg_types(class_dict, sig, arg_hirs);
     }
 
     if result.is_err() {
@@ -118,13 +119,13 @@ pub fn check_method_args(
 }
 
 /// Check number of method call args
-fn check_method_arity(sig: &MethodSignature, arg_tys: &[&TermTy]) -> Result<()> {
-    if sig.params.len() != arg_tys.len() {
+fn check_method_arity(sig: &MethodSignature, arg_hirs: &[HirExpression]) -> Result<()> {
+    if sig.params.len() != arg_hirs.len() {
         return Err(type_error!(
             "{} takes {} args but got {}",
             sig.fullname,
             sig.params.len(),
-            arg_tys.len()
+            arg_hirs.len()
         ));
     }
     Ok(())
@@ -134,10 +135,10 @@ fn check_method_arity(sig: &MethodSignature, arg_tys: &[&TermTy]) -> Result<()> 
 fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    arg_tys: &[&TermTy],
+    arg_hirs: &[HirExpression],
 ) -> Result<()> {
-    for (param, arg_ty) in sig.params.iter().zip(arg_tys.iter()) {
-        check_arg_type(class_dict, sig, arg_ty, param)?;
+    for (param, arg_hir) in sig.params.iter().zip(arg_hirs.iter()) {
+        check_arg_type(class_dict, sig, arg_hir, param)?;
     }
     Ok(())
 }
@@ -146,17 +147,30 @@ fn check_arg_types(
 fn check_arg_type(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    arg_ty: &TermTy,
+    arg_hir: &HirExpression,
     param: &MethodParam,
 ) -> Result<()> {
+    let arg_ty = &arg_hir.ty;
     if !class_dict.conforms(arg_ty, &param.ty) {
-        return Err(type_error!(
+        let msg = format!(
             "the argument `{}' of `{}' should be {} but got {}",
-            param.name,
-            sig.fullname,
-            param.ty.fullname,
-            arg_ty.fullname
-        ));
+            param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
+        );
+        //ariadne(&msg, &arg_hir);
+        return Err(type_error!("{}", &msg));
     }
     Ok(())
+}
+
+#[allow(dead_code)]
+fn ariadne(msg: &str, arg_hir: &HirExpression) {
+    let locs = &arg_hir.locs;
+    let label = Label::new(locs.begin.pos..locs.end.pos);
+    let sk = fs::read_to_string(&*locs.filepath).unwrap();
+    Report::build(ReportKind::Error, (), 34)
+        .with_message(msg)
+        .with_label(label.with_message(&arg_hir.ty))
+        .finish()
+        .eprint(Source::from(sk))
+        .unwrap();
 }
