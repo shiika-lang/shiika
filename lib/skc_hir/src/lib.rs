@@ -542,11 +542,11 @@ impl Hir {
         }
     }
 
-    pub fn self_expression(ty: TermTy) -> HirExpression {
+    pub fn self_expression(ty: TermTy, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirSelfExpression,
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -574,11 +574,11 @@ impl Hir {
         }
     }
 
-    pub fn boolean_literal(value: bool) -> HirExpression {
+    pub fn boolean_literal(value: bool, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirBooleanLiteral { value },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

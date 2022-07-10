@@ -1,4 +1,4 @@
-use shiika_ast::{AstExpression, AstExpressionBody, Location, LocationSpan};
+use shiika_ast::{AstExpression, AstExpressionBody, Location, LocationSpan, Token};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -17,6 +17,10 @@ impl AstBuilder {
         AstBuilder {
             filepath: Rc::new(Path::new("").to_path_buf()),
         }
+    }
+
+    pub fn pseudo_variable(&self, token: Token, begin: Location, end: Location) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::PseudoVariable(token))
     }
 
     pub fn array_literal(

@@ -124,7 +124,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 self.convert_specialize_expr(base_name, args)
             }
 
-            AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
+            AstExpressionBody::PseudoVariable(token) => {
+                self.convert_pseudo_variable(token, &expr.locs)
+            }
 
             AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs, &expr.locs),
 
@@ -454,7 +456,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let receiver_hir = match receiver_expr {
             Some(expr) => self.convert_expr(expr)?,
             // Implicit self
-            _ => self.convert_self_expr(),
+            _ => self.convert_self_expr(&LocationSpan::todo()),
         };
         let mut method_tyargs = vec![];
         for arg in type_args {
@@ -562,7 +564,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Search method
-        let self_expr = self.convert_self_expr();
+        let self_expr = self.convert_self_expr(&LocationSpan::todo());
         let result = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
@@ -787,11 +789,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression> {
+    fn convert_pseudo_variable(&self, token: &Token, locs: &LocationSpan) -> Result<HirExpression> {
         match token {
-            Token::KwSelf => Ok(self.convert_self_expr()),
-            Token::KwTrue => Ok(Hir::boolean_literal(true)),
-            Token::KwFalse => Ok(Hir::boolean_literal(false)),
+            Token::KwSelf => Ok(self.convert_self_expr(locs)),
+            Token::KwTrue => Ok(Hir::boolean_literal(true, locs.clone())),
+            Token::KwFalse => Ok(Hir::boolean_literal(false, locs.clone())),
             _ => panic!("[BUG] not a pseudo variable token: {:?}", token),
         }
     }
@@ -873,8 +875,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Hir::parenthesized_expression(Hir::expressions(exprs), locs)
     }
 
-    fn convert_self_expr(&self) -> HirExpression {
-        Hir::self_expression(self.ctx_stack.self_ty())
+    fn convert_self_expr(&self, locs: &LocationSpan) -> HirExpression {
+        Hir::self_expression(self.ctx_stack.self_ty(), locs.clone())
     }
 
     fn convert_string_literal(&mut self, content: &str, locs: &LocationSpan) -> HirExpression {

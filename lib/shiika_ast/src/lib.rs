@@ -435,10 +435,6 @@ pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -
     })
 }
 
-pub fn pseudo_variable(token: Token) -> AstExpression {
-    primary_expression(AstExpressionBody::PseudoVariable(token))
-}
-
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: true,

@@ -803,8 +803,10 @@ impl<'a> Parser<'a> {
             Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
+                let begin = self.lexer.location();
                 self.consume_token()?;
-                Ok(shiika_ast::pseudo_variable(t))
+                let end = self.lexer.location();
+                Ok(self.ast.pseudo_variable(t, begin, end))
             }
             Token::IVar(s) => {
                 let name = s.to_string();
