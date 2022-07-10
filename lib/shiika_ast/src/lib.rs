@@ -439,10 +439,6 @@ pub fn pseudo_variable(token: Token) -> AstExpression {
     primary_expression(AstExpressionBody::PseudoVariable(token))
 }
 
-pub fn array_literal(exprs: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::ArrayLiteral(exprs))
-}
-
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: true,

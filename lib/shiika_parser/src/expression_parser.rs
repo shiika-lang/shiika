@@ -963,6 +963,7 @@ impl<'a> Parser<'a> {
     fn parse_array_literal(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_array_literal");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::LSqBracket)?);
         let mut exprs = vec![];
         self.skip_wsn()?;
@@ -996,8 +997,9 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::array_literal(exprs))
+        Ok(self.ast.array_literal(exprs, begin, end))
     }
 
     fn parse_decimal_literal(&mut self) -> Result<AstExpression, Error> {

@@ -19,6 +19,15 @@ impl AstBuilder {
         }
     }
 
+    pub fn array_literal(
+        &self,
+        exprs: Vec<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::ArrayLiteral(exprs))
+    }
+
     pub fn float_literal(&self, value: f64, begin: Location, end: Location) -> AstExpression {
         self.primary_expression(begin, end, AstExpressionBody::FloatLiteral { value })
     }

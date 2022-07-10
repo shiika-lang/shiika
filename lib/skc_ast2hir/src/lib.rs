@@ -11,6 +11,7 @@ mod pattern_match;
 mod type_system;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
+use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
 use skc_corelib::Corelib;
 use skc_hir::{Hir, HirExpression};
@@ -109,7 +110,7 @@ fn call_class_specialize(
             ty::meta(base_name),
             base,
             method_fullname_raw("Class", "<>"),
-            vec![mk.create_array_instance(tyargs)],
+            vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
         )
     }
 }

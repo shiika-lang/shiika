@@ -126,7 +126,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
 
-            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs),
+            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs, &expr.locs),
 
             AstExpressionBody::FloatLiteral { value } => {
                 Ok(Hir::float_literal(*value, expr.locs.clone()))
@@ -765,7 +765,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             meta_spe_ty,
             base_expr,
             method_fullname(&class_fullname("Class"), "<>"),
-            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"))],
+            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
         ))
     }
 
@@ -797,17 +797,25 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Generate HIR for an array literal
-    fn convert_array_literal(&mut self, item_exprs: &[AstExpression]) -> Result<HirExpression> {
+    fn convert_array_literal(
+        &mut self,
+        item_exprs: &[AstExpression],
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         let item_exprs = item_exprs
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(self.create_array_instance(item_exprs))
+        Ok(self.create_array_instance(item_exprs, locs.clone()))
     }
 
-    pub fn create_array_instance(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
+    pub fn create_array_instance(
+        &mut self,
+        item_exprs: Vec<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
         let item_ty = self.array_item_ty(&item_exprs);
-        self.create_array_instance_(item_exprs, item_ty)
+        self.create_array_instance_(item_exprs, item_ty, locs)
     }
 
     fn array_item_ty(&self, item_exprs: &[HirExpression]) -> TermTy {
@@ -832,6 +840,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         item_exprs: Vec<HirExpression>,
         item_ty: TermTy,
+        locs: LocationSpan,
     ) -> HirExpression {
         let ary_ty = ty::spe("Array", vec![item_ty]);
         let mut exprs = vec![];
@@ -861,7 +870,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         exprs.push(Hir::lvar_ref(ary_ty, tmp_name));
-        Hir::parenthesized_expression(Hir::expressions(exprs))
+        Hir::parenthesized_expression(Hir::expressions(exprs), locs)
     }
 
     fn convert_self_expr(&self) -> HirExpression {

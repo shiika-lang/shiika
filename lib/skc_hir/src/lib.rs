@@ -610,11 +610,11 @@ impl Hir {
         }
     }
 
-    pub fn parenthesized_expression(exprs: HirExpressions) -> HirExpression {
+    pub fn parenthesized_expression(exprs: HirExpressions, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: exprs.ty.clone(),
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
