@@ -692,10 +692,9 @@ impl<'a> Parser<'a> {
         let mut type_args = vec![];
         if self.current_token_is(Token::LessThan) {
             // TODO: Allow `ary.map< Int >{ ... }` ?
-            if let Token::UpperWord(s) = self.peek_next_token()? {
+            if let Token::UpperWord(_) = self.peek_next_token()? {
                 self.consume_token()?;
-                self.consume_token()?;
-                type_args = self.parse_type_arguments(s)?;
+                type_args = self.parse_type_arguments()?;
             }
         }
 
@@ -723,21 +722,19 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_type_arguments(&mut self, s: String) -> Result<Vec<AstExpression>, Error> {
+    fn parse_type_arguments(&mut self) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1;
         self.debug_log("parse_type_arguments");
-        let mut name = s;
         let mut type_args = vec![];
         loop {
-            type_args.push(self.parse_specialize_expression(name)?);
+            type_args.push(self.parse_specialize_expression()?);
             self.skip_ws()?;
             match self.current_token() {
                 Token::Comma => {
                     self.consume_token()?;
                     self.skip_wsn()?;
-                    if let Token::UpperWord(s) = self.current_token() {
-                        name = s.to_string();
-                        self.consume_token()?;
+                    if let Token::UpperWord(_) = self.current_token() {
+                        // Go next loop
                     } else {
                         return Err(parse_error!(
                             self,
@@ -795,10 +792,8 @@ impl<'a> Parser<'a> {
                 self.consume_token()?;
                 Ok(shiika_ast::return_expr(None))
             }
-            Token::UpperWord(s) => {
-                let name = s.to_string();
-                self.consume_token()?;
-                self.parse_specialize_expression(name)
+            Token::UpperWord(_) => {
+                self.parse_specialize_expression()
             }
             Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
@@ -849,26 +844,30 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    /// Parse a constant name. `s` must be consumed beforehand
+    /// Parse a constant name
     pub(super) fn parse_specialize_expression(
         &mut self,
-        s: String,
     ) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_specialize_expression");
         self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
-        let name = self._parse_specialize_expr(s)?;
+        let name = self._parse_specialize_expr()?;
         self.set_lexer_gtgt_mode(false); // End special mode
         self.lv -= 1;
         Ok(name)
     }
 
     /// Main routine of parse_specialize_expression
-    fn _parse_specialize_expr(&mut self, s: String) -> Result<AstExpression, Error> {
+    fn _parse_specialize_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("_parse_specialize_expr");
-        let mut names = vec![s];
         let begin = self.lexer.location();
+        let mut names = vec![];
+        if let Token::UpperWord(s) = self.consume_token()? {
+            names.push(s);
+        } else {
+            panic!("expected UpperWord");
+        };
         let mut lessthan_seen = false;
         let mut args = vec![];
         loop {
@@ -904,13 +903,13 @@ impl<'a> Parser<'a> {
                     }
                 }
                 Token::UpperWord(s) => {
-                    let name = s.to_string();
-                    self.consume_token()?;
                     if lessthan_seen {
-                        let inner = self._parse_specialize_expr(name)?;
+                        let inner = self._parse_specialize_expr()?;
                         args.push(inner);
                         self.skip_wsn()?;
                     } else {
+                        let name = s.to_string();
+                        self.consume_token()?;
                         names.push(name);
                     }
                 }
