@@ -77,7 +77,7 @@ fn build_hir(
     arg_hirs: Vec<HirExpression>,
 ) -> HirExpression {
     match found.owner {
-        SkType::Class(_) => Hir::method_call(
+        SkType::Class(_) => Hir::method_call_(
             found.sig.ret_ty.clone(),
             receiver_hir,
             found.sig.fullname.clone(),

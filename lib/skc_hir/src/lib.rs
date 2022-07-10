@@ -421,7 +421,8 @@ impl Hir {
         }
     }
 
-    pub fn method_call(
+    // TODO: remove this
+    pub fn method_call_(
         result_ty: TermTy,
         receiver_hir: HirExpression,
         method_fullname: MethodFullname,
@@ -435,6 +436,24 @@ impl Hir {
                 arg_exprs: arg_hirs,
             },
             locs: LocationSpan::todo(),
+        }
+    }
+
+    pub fn method_call(
+        result_ty: TermTy,
+        receiver_hir: HirExpression,
+        method_fullname: MethodFullname,
+        arg_hirs: Vec<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
+        HirExpression {
+            ty: result_ty,
+            node: HirExpressionBase::HirMethodCall {
+                receiver_expr: Box::new(receiver_hir),
+                method_fullname,
+                arg_exprs: arg_hirs,
+            },
+            locs,
         }
     }
 

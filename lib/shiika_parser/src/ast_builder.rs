@@ -1,4 +1,5 @@
 use shiika_ast::{AstExpression, AstExpressionBody, Location, LocationSpan, Token};
+use shiika_core::names::UnresolvedConstName;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -17,6 +18,23 @@ impl AstBuilder {
         AstBuilder {
             filepath: Rc::new(Path::new("").to_path_buf()),
         }
+    }
+
+    pub fn specialize_expr(
+        &self,
+        base_name: Vec<String>,
+        args: Vec<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::SpecializeExpression {
+                base_name: UnresolvedConstName(base_name),
+                args,
+            },
+        )
     }
 
     pub fn pseudo_variable(&self, token: Token, begin: Location, end: Location) -> AstExpression {

@@ -400,13 +400,6 @@ pub fn capitalized_name(name: Vec<String>) -> AstExpression {
     )))
 }
 
-pub fn specialize_expr(base_name: Vec<String>, args: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::SpecializeExpression {
-        base_name: UnresolvedConstName(base_name),
-        args,
-    })
-}
-
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
     primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),

@@ -29,7 +29,7 @@ pub fn convert_match_expr(
     );
     clauses.push(MatchClause {
         components: vec![],
-        body_hir: Hir::expressions(vec![Hir::method_call(
+        body_hir: Hir::expressions(vec![Hir::method_call_(
             ty::raw("Never"),
             Hir::decimal_literal(0, LocationSpan::todo()), // whatever.
             method_fullname_raw("Object", "panic"),
@@ -141,7 +141,7 @@ fn convert_match(
                     value.ty,
                 )));
             }
-            let test = Hir::method_call(
+            let test = Hir::method_call_(
                 ty::raw("Bool"),
                 value.clone(),
                 method_fullname_raw("Int", "=="),
@@ -237,7 +237,7 @@ fn extract_props(
         let (name_, ty) = &ivars[i];
         let name = name_.replace('@', "");
         // eg. `value.foo`
-        let ivar_ref = Hir::method_call(
+        let ivar_ref = Hir::method_call_(
             ty.clone(),
             value.clone(),
             method_fullname(&pat_ty.base_class_name(), name),
@@ -256,7 +256,7 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     let t = mk.class_dict.get_class(&pat_erasure.to_class_fullname());
     if t.const_is_obj {
         let const_ref = Hir::const_ref(pat_ty.clone(), pat_ty.fullname.to_const_fullname());
-        Hir::method_call(
+        Hir::method_call_(
             ty::raw("Bool"),
             const_ref,
             method_fullname_raw("Object", "=="),
@@ -265,11 +265,11 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     } else {
         let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
         // value.class.erasure_class == Foo
-        Hir::method_call(
+        Hir::method_call_(
             ty::raw("Bool"),
-            Hir::method_call(
+            Hir::method_call_(
                 ty::raw("Class"),
-                Hir::method_call(
+                Hir::method_call_(
                     ty::raw("Class"),
                     value.clone(),
                     method_fullname_raw("Object", "class"),

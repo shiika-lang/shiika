@@ -121,7 +121,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             AstExpressionBody::CapitalizedName(names) => self.convert_capitalized_name(names),
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
-                self.convert_specialize_expr(base_name, args)
+                self.convert_specialize_expr(base_name, args, &expr.locs)
             }
 
             AstExpressionBody::PseudoVariable(token) => {
@@ -745,6 +745,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
         let base_expr = self.resolve_class_expr(base_name)?;
@@ -756,7 +757,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?,
+                } => self.convert_specialize_expr(n, a, &arg.locs)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
             type_args.push(cls_expr.ty.as_type_argument());
@@ -768,6 +769,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             base_expr,
             method_fullname(&class_fullname("Class"), "<>"),
             vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
+            locs.clone(),
         ))
     }
 
@@ -853,7 +855,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .declare_lvar(&tmp_name, ary_ty.clone(), readonly);
 
         // `Array<X>.new`
-        let call_new = Hir::method_call(
+        let call_new = Hir::method_call_(
             ary_ty.clone(),
             class_expr(self, &ary_ty),
             method_fullname_raw("Array", "new"),
@@ -863,7 +865,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // `tmp.push(item)`
         for item_expr in item_exprs {
-            exprs.push(Hir::method_call(
+            exprs.push(Hir::method_call_(
                 ty::raw("Void"),
                 Hir::lvar_ref(ary_ty.clone(), tmp_name.clone()),
                 method_fullname_raw("Array", "push"),

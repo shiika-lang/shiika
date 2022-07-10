@@ -868,6 +868,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("_parse_specialize_expr");
         let mut names = vec![s];
+        let begin = self.lexer.location();
         let mut lessthan_seen = false;
         let mut args = vec![];
         loop {
@@ -922,11 +923,12 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        let end = self.lexer.location();
         self.lv -= 1;
         if args.is_empty() {
             Ok(shiika_ast::capitalized_name(names))
         } else {
-            Ok(shiika_ast::specialize_expr(names, args))
+            Ok(self.ast.specialize_expr(names, args, begin, end))
         }
     }
 
