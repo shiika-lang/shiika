@@ -116,7 +116,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(name),
 
-            AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
+            AstExpressionBody::IVarRef(name) => self.convert_ivar_ref(name, &expr.locs),
 
             AstExpressionBody::CapitalizedName(names) => {
                 self.convert_capitalized_name(names, &expr.locs)
@@ -684,7 +684,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok((None, None))
     }
 
-    fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression> {
+    fn convert_ivar_ref(&self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
             .class_dict
@@ -703,6 +703,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 name.to_string(),
                 ivar.idx,
                 base_ty,
+                locs.clone(),
             )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",

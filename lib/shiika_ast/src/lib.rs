@@ -390,10 +390,6 @@ pub fn bare_name(name: &str) -> AstExpression {
     primary_expression(AstExpressionBody::BareName(name.to_string()))
 }
 
-pub fn ivar_ref(name: String) -> AstExpression {
-    primary_expression(AstExpressionBody::IVarRef(name))
-}
-
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
     primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),

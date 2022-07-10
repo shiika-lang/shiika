@@ -513,11 +513,17 @@ impl Hir {
         }
     }
 
-    pub fn ivar_ref(ty: TermTy, name: String, idx: usize, self_ty: TermTy) -> HirExpression {
+    pub fn ivar_ref(
+        ty: TermTy,
+        name: String,
+        idx: usize,
+        self_ty: TermTy,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirIVarRef { name, idx, self_ty },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

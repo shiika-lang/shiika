@@ -35,7 +35,10 @@ impl AstBuilder {
     // MethodCall {
     // LambdaExpr {
     // BareName(String),
-    // IVarRef(String),
+
+    pub fn ivar_ref(&self, name: String, begin: Location, end: Location) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::IVarRef(name))
+    }
 
     pub fn capitalized_name(
         &self,
