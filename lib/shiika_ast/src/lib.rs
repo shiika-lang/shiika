@@ -443,10 +443,6 @@ pub fn array_literal(exprs: Vec<AstExpression>) -> AstExpression {
     primary_expression(AstExpressionBody::ArrayLiteral(exprs))
 }
 
-pub fn float_literal(value: f64) -> AstExpression {
-    primary_expression(AstExpressionBody::FloatLiteral { value })
-}
-
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: true,

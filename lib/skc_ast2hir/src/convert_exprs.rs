@@ -128,7 +128,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs),
 
-            AstExpressionBody::FloatLiteral { value } => Ok(Hir::float_literal(*value)),
+            AstExpressionBody::FloatLiteral { value } => {
+                Ok(Hir::float_literal(*value, expr.locs.clone()))
+            }
 
             AstExpressionBody::DecimalLiteral { value } => {
                 Ok(Hir::decimal_literal(*value, expr.locs.clone()))

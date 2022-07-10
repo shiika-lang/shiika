@@ -550,11 +550,11 @@ impl Hir {
         }
     }
 
-    pub fn float_literal(value: f64) -> HirExpression {
+    pub fn float_literal(value: f64, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("Float"),
             node: HirExpressionBase::HirFloatLiteral { value },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

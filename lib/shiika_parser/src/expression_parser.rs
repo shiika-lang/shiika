@@ -1007,8 +1007,9 @@ impl<'a> Parser<'a> {
         let expr = match self.consume_token()? {
             Token::Number(s) => {
                 if s.contains('.') {
+                    let end = self.lexer.location();
                     let value = s.parse().unwrap();
-                    shiika_ast::float_literal(value)
+                    self.ast.float_literal(value, begin, end)
                 } else {
                     let end = self.lexer.location();
                     let value = s.parse().unwrap();

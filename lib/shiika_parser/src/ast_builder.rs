@@ -19,6 +19,10 @@ impl AstBuilder {
         }
     }
 
+    pub fn float_literal(&self, value: f64, begin: Location, end: Location) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::FloatLiteral { value })
+    }
+
     pub fn string_literal(&self, content: String, begin: Location, end: Location) -> AstExpression {
         self.primary_expression(begin, end, AstExpressionBody::StringLiteral { content })
     }
