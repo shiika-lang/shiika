@@ -31,6 +31,7 @@ impl LocationSpan {
         }
     }
 
+    // TODO: remove this
     pub fn todo() -> LocationSpan {
         LocationSpan {
             filepath: Rc::new(PathBuf::new()),

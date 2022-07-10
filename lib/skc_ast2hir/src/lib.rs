@@ -70,7 +70,11 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
             is_meta,
         }) => {
             debug_assert!(!is_meta);
-            let base = Hir::const_ref(ty::meta(base_name), toplevel_const(base_name));
+            let base = Hir::const_ref(
+                ty::meta(base_name),
+                toplevel_const(base_name),
+                LocationSpan::todo(),
+            );
             if type_args.is_empty() {
                 base
             } else {
@@ -83,7 +87,12 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
         }
         TyBody::TyPara(typaram_ref) => {
             let ref2 = typaram_ref.as_class();
-            Hir::tvar_ref(ref2.to_term_ty(), ref2, mk.ctx_stack.self_ty())
+            Hir::tvar_ref(
+                ref2.to_term_ty(),
+                ref2,
+                mk.ctx_stack.self_ty(),
+                LocationSpan::todo(),
+            )
         }
     }
 }

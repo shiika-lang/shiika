@@ -792,9 +792,7 @@ impl<'a> Parser<'a> {
                 self.consume_token()?;
                 Ok(shiika_ast::return_expr(None))
             }
-            Token::UpperWord(_) => {
-                self.parse_specialize_expression()
-            }
+            Token::UpperWord(_) => self.parse_specialize_expression(),
             Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
@@ -845,9 +843,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a constant name
-    pub(super) fn parse_specialize_expression(
-        &mut self,
-    ) -> Result<AstExpression, Error> {
+    pub(super) fn parse_specialize_expression(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_specialize_expression");
         self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
@@ -925,7 +921,7 @@ impl<'a> Parser<'a> {
         let end = self.lexer.location();
         self.lv -= 1;
         if args.is_empty() {
-            Ok(shiika_ast::capitalized_name(names))
+            Ok(self.ast.capitalized_name(names, begin, end))
         } else {
             Ok(self.ast.specialize_expr(names, args, begin, end))
         }

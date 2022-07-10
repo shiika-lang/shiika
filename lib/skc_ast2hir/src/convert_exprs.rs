@@ -118,7 +118,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
 
-            AstExpressionBody::CapitalizedName(names) => self.convert_capitalized_name(names),
+            AstExpressionBody::CapitalizedName(names) => {
+                self.convert_capitalized_name(names, &expr.locs)
+            }
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
                 self.convert_specialize_expr(base_name, args, &expr.locs)
@@ -272,7 +274,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let arg_expr = if let Some(x) = arg {
             self.convert_expr(x)?
         } else {
-            Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
+            Hir::const_ref(
+                ty::raw("Void"),
+                toplevel_const("Void"),
+                LocationSpan::todo(),
+            )
         };
         self._validate_return_type(&arg_expr.ty)?;
         Ok(Hir::return_expression(from, arg_expr))
@@ -707,14 +713,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Resolve a capitalized identifier, which is either a constant name or
     /// a type parameter reference
-    pub fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+    pub fn convert_capitalized_name(
+        &self,
+        name: &UnresolvedConstName,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         // Check if it is a typaram ref
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
                 let base_ty = self.ctx_stack.self_ty().erasure_ty();
                 let cls_ty = typaram_ref.clone().into_term_ty();
-                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty));
+                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone()));
             }
         }
 
@@ -722,7 +732,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let resolved = resolved_const_name(namespace, name.0.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
-                return Ok(Hir::const_ref(ty, full));
+                return Ok(Hir::const_ref(ty, full, locs.clone()));
             }
         }
         Err(error::program_error(&format!(
@@ -748,12 +758,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let base_expr = self.resolve_class_expr(base_name)?;
+        let base_expr = self.resolve_class_expr(base_name, &LocationSpan::todo())?;
         let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
             let cls_expr = match &arg.body {
-                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n)?,
+                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n, &arg.locs)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
@@ -773,8 +783,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ))
     }
 
-    pub fn resolve_class_expr(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
-        let e = self.convert_capitalized_name(name)?;
+    pub fn resolve_class_expr(
+        &self,
+        name: &UnresolvedConstName,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        let e = self.convert_capitalized_name(name, locs)?;
         self.assert_class_expr(&e)?;
         Ok(e)
     }

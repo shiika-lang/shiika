@@ -394,12 +394,6 @@ pub fn ivar_ref(name: String) -> AstExpression {
     primary_expression(AstExpressionBody::IVarRef(name))
 }
 
-pub fn capitalized_name(name: Vec<String>) -> AstExpression {
-    primary_expression(AstExpressionBody::CapitalizedName(UnresolvedConstName(
-        name,
-    )))
-}
-
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
     primary_expression(AstExpressionBody::MethodCall {
         receiver_expr: Some(Box::new(expr)),

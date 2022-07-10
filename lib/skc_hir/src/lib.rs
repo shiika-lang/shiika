@@ -102,7 +102,11 @@ impl HirExpressions {
 
 /// Make a HirExpression to refer `::Void`
 fn void_const_ref() -> HirExpression {
-    Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
+    Hir::const_ref(
+        ty::raw("Void"),
+        toplevel_const("Void"),
+        LocationSpan::todo(),
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -517,22 +521,27 @@ impl Hir {
         }
     }
 
-    pub fn tvar_ref(ty: TermTy, typaram_ref: TyParamRef, self_ty: TermTy) -> HirExpression {
+    pub fn tvar_ref(
+        ty: TermTy,
+        typaram_ref: TyParamRef,
+        self_ty: TermTy,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirTVarRef {
                 typaram_ref,
                 self_ty,
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn const_ref(ty: TermTy, fullname: ConstFullname) -> HirExpression {
+    pub fn const_ref(ty: TermTy, fullname: ConstFullname, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirConstRef { fullname },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

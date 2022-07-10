@@ -178,7 +178,8 @@ fn convert_extractor(
 }
 
 fn get_base_ty(mk: &mut HirMaker, names: &[String]) -> Result<Erasure> {
-    let expr = mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()))?;
+    let expr =
+        mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()), &LocationSpan::todo())?;
     if expr.ty.is_metaclass() || expr.ty.is_typaram_ref() {
         return Ok(expr.ty.instance_ty().erasure());
     }
@@ -255,7 +256,11 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     let pat_erasure = pat_ty.erasure();
     let t = mk.class_dict.get_class(&pat_erasure.to_class_fullname());
     if t.const_is_obj {
-        let const_ref = Hir::const_ref(pat_ty.clone(), pat_ty.fullname.to_const_fullname());
+        let const_ref = Hir::const_ref(
+            pat_ty.clone(),
+            pat_ty.fullname.to_const_fullname(),
+            LocationSpan::todo(),
+        );
         Hir::method_call_(
             ty::raw("Bool"),
             const_ref,

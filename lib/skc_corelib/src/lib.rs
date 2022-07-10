@@ -1,6 +1,7 @@
 pub mod class;
 mod fn_x;
 pub mod rustlib_methods;
+use shiika_ast::LocationSpan;
 use shiika_core::names::*;
 use shiika_core::ty::{self, Erasure};
 use skc_hir::*;
@@ -208,6 +209,7 @@ fn object_initialize() -> SkMethod {
             exprs: Hir::expressions(vec![Hir::const_ref(
                 ty::raw("Void"),
                 toplevel_const("Void"),
+                LocationSpan::todo(),
             )]),
         },
         lvars: vec![],

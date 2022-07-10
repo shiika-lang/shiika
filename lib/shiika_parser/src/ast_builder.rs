@@ -20,6 +20,36 @@ impl AstBuilder {
         }
     }
 
+    // TODO
+    // LogicalNot {
+    // LogicalAnd {
+    // LogicalOr {
+    // If {
+    // Match {
+    // While {
+    // Break,
+    // Return {
+    // LVarAssign {
+    // IVarAssign {
+    // ConstAssign {
+    // MethodCall {
+    // LambdaExpr {
+    // BareName(String),
+    // IVarRef(String),
+
+    pub fn capitalized_name(
+        &self,
+        name: Vec<String>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::CapitalizedName(UnresolvedConstName(name)),
+        )
+    }
+
     pub fn specialize_expr(
         &self,
         base_name: Vec<String>,
