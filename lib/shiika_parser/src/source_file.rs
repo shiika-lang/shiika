@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct SourceFile {
     pub path: Rc<PathBuf>,
     pub content: String,

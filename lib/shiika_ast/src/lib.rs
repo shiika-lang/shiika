@@ -447,10 +447,6 @@ pub fn float_literal(value: f64) -> AstExpression {
     primary_expression(AstExpressionBody::FloatLiteral { value })
 }
 
-pub fn string_literal(content: String) -> AstExpression {
-    primary_expression(AstExpressionBody::StringLiteral { content })
-}
-
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: true,

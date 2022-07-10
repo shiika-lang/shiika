@@ -1,4 +1,4 @@
-use shiika_ast::*;
+use shiika_ast::{AstExpression, AstExpressionBody, Location, LocationSpan};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -19,12 +19,11 @@ impl AstBuilder {
         }
     }
 
-    pub fn decimal_literal(
-        &self,
-        value: i64,
-        begin: Location,
-        end: Location,
-    ) -> shiika_ast::AstExpression {
+    pub fn string_literal(&self, content: String, begin: Location, end: Location) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::StringLiteral { content })
+    }
+
+    pub fn decimal_literal(&self, value: i64, begin: Location, end: Location) -> AstExpression {
         self.primary_expression(begin, end, AstExpressionBody::DecimalLiteral { value })
     }
 

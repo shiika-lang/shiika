@@ -135,7 +135,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
 
             AstExpressionBody::StringLiteral { content } => {
-                Ok(self.convert_string_literal(content))
+                Ok(self.convert_string_literal(content, &expr.locs))
             } //x => panic!("TODO: {:?}", x)
         }
     }
@@ -866,9 +866,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Hir::self_expression(self.ctx_stack.self_ty())
     }
 
-    fn convert_string_literal(&mut self, content: &str) -> HirExpression {
+    fn convert_string_literal(&mut self, content: &str, locs: &LocationSpan) -> HirExpression {
         let idx = self.register_string_literal(content);
-        Hir::string_literal(idx)
+        Hir::string_literal(idx, locs.clone())
     }
 
     pub(super) fn register_string_literal(&mut self, content: &str) -> usize {

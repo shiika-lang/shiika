@@ -566,11 +566,11 @@ impl Hir {
         }
     }
 
-    pub fn string_literal(idx: usize) -> HirExpression {
+    pub fn string_literal(idx: usize, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("String"),
             node: HirExpressionBase::HirStringLiteral { idx },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

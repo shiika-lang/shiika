@@ -23,7 +23,10 @@ pub fn convert_match_expr(
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
         .collect::<Result<Vec<MatchClause>>>()?;
     let result_ty = calc_result_ty(mk, &mut clauses)?;
-    let panic_msg = Hir::string_literal(mk.register_string_literal("no matching clause found"));
+    let panic_msg = Hir::string_literal(
+        mk.register_string_literal("no matching clause found"),
+        LocationSpan::todo(),
+    );
     clauses.push(MatchClause {
         components: vec![],
         body_hir: Hir::expressions(vec![Hir::method_call(

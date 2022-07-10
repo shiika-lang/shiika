@@ -1025,8 +1025,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_string_literal(&mut self) -> Result<AstExpression, Error> {
+        let begin = self.lexer.location();
         if let Token::Str(content) = self.consume_token()? {
-            Ok(shiika_ast::string_literal(content))
+            let end = self.lexer.location();
+            Ok(self.ast.string_literal(content, begin, end))
         } else {
             Err(self.parseerror("invalid call"))
         }
@@ -1036,14 +1038,16 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
+        let begin = self.lexer.location();
         let (head, inspect1) =
             if let Token::StrWithInterpolation { head, inspect } = self.consume_token()? {
                 (head, inspect)
             } else {
                 panic!("invalid call")
             };
+        let end = self.lexer.location();
         let mut inspect = inspect1;
-        let mut expr = shiika_ast::string_literal(head);
+        let mut expr = self.ast.string_literal(head, begin, end);
         loop {
             self.skip_wsn()?;
             let inner_expr = self.parse_expr()?;
@@ -1066,6 +1070,7 @@ impl<'a> Parser<'a> {
             self.set_lexer_state(LexerState::StrLiteral);
             self.expect(Token::RBrace)?;
             self.set_lexer_state(LexerState::ExprEnd);
+            let begin = self.lexer.location();
             let (s, finish) = match self.consume_token()? {
                 Token::Str(tail) => (tail, true),
                 Token::StrWithInterpolation {
@@ -1077,10 +1082,11 @@ impl<'a> Parser<'a> {
                 }
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
             };
+            let end = self.lexer.location();
             expr = shiika_ast::method_call(
                 Some(expr),
                 "+",
-                vec![shiika_ast::string_literal(s)],
+                vec![self.ast.string_literal(s, begin, end)],
                 vec![],
                 false, // primary
                 false, // may_have_paren_wo_args
