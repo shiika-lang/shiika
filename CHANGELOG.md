@@ -1,7 +1,12 @@
-## HEAD
+## v0.7.0 (2022-07-12)
 
-- feat: Modules
+- feat: Modules (#346)
+- feat: require (#366)
 - Breaking change: Renamed `build_corelib` subcommand to `build-corelib`
+- Breaking change: Replace `!` with `not` (#351)
+- Breaking change: Remove conditional operator (`? :`) (#357)
+- feat: Object#unsafe_cast (#363)
+- feat: Added many core methods
 
 ## v0.6.1 (2022-03-02)
 
