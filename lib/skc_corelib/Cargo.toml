@@ -2,7 +2,7 @@
 name = "skc_corelib"
 version = "0.1.0"
 authors = ["Yutaka HARA <yutaka.hara+github@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 shiika_core = { path = "../shiika_core" }
