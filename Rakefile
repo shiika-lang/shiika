@@ -2,7 +2,6 @@
 # Rakefile
 #
 # Basically you don't need to run this. Miscellaneous tasks
-require 'yaml'
 
 task :doc do
   chdidr "doc/shg" do
@@ -13,7 +12,7 @@ end
 desc "git ci, git tag and git push"
 task :release do
   sh "git diff --cached"
-  v = "v" + YAML.load_file("src/cli.yml")["version"]
+  v = "v" + File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
