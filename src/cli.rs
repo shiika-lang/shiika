@@ -17,15 +17,6 @@ pub enum Command {
     BuildCorelib,
 }
 
-//#[derive(Debug, Args)]
-//struct Compile();
-//
-//#[derive(Debug, Args)]
-//struct Run();
-//
-//#[derive(Debug, Args)]
-//struct BuildCorelib();
-
 pub fn parse_command_line_args() -> Arguments {
     Arguments::parse()
 }
