@@ -16,7 +16,7 @@ LIMIT_SQUARED = 4.0
 
 var byte_acc = 0
 var bit_num = 0
-out = MutableString.new
+buf = MutableString.new
 
 count_size = size - 1
 
@@ -43,17 +43,17 @@ var y=0; while y <= count_size
       dummy = dummy + 1
     end
 
-    byte_acc = byte_acc.lshift(1).or(escape ? 0 : 1)
+    byte_acc = byte_acc.lshift(1).or(if escape then 0 else 1 end)
     bit_num = bit_num + 1
 
     if bit_num == 8
-      out.append_byte(byte_acc)
+      buf.append_byte(byte_acc)
       byte_acc = 0
       bit_num = 0
       a += 1
     elsif x == count_size
       byte_acc = byte_acc.lshift(8 - bit_num)
-      out.append_byte(byte_acc)
+      buf.append_byte(byte_acc)
       byte_acc = 0
       bit_num = 0
       b += 1
@@ -63,4 +63,4 @@ var y=0; while y <= count_size
   end
   y += 1
 end
-print out.to_s
+print buf.to_s

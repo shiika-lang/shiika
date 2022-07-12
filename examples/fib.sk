@@ -9,4 +9,5 @@ class A
 end
 a = A.new
 n = 30
-puts "fib(#{n}) = #{a.fib(n)}"
+puts "fib(#{n}) is..."
+p a.fib(n)
