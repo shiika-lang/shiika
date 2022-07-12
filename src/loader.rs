@@ -12,7 +12,11 @@ pub fn load(path: &Path) -> Result<Vec<SourceFile>> {
     Ok(files)
 }
 
-fn load_file(path: &Path, files: &mut Vec<SourceFile>, loading_files: &mut Vec<PathBuf>) -> Result<()> {
+fn load_file(
+    path: &Path,
+    files: &mut Vec<SourceFile>,
+    loading_files: &mut Vec<PathBuf>,
+) -> Result<()> {
     if loading_files.contains(&path.into()) {
         return Ok(());
     }
