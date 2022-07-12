@@ -232,7 +232,7 @@ fn extract_props(
     let mut components = vec![];
     for i in 0..ivars.len() {
         let (name_, ty) = &ivars[i];
-        let name = name_.replace("@", "");
+        let name = name_.replace('@', "");
         // eg. `value.foo`
         let ivar_ref = Hir::method_call(
             ty.clone(),

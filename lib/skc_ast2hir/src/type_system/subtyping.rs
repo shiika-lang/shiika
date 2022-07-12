@@ -51,22 +51,23 @@ fn includes(c: &ClassDict, class: &TermTy, module: &TermTy) -> bool {
     let sk_class = c.get_class(&class.erasure().to_class_fullname());
     sk_class.includes.iter().any(|m| {
         // eg. Make `Enumerable<Int>` from `Enumerable<T>` and `Array<Int>`
-        let ms = m.ty().substitute(&class.tyargs(), Default::default());
+        let ms = m.ty().substitute(class.tyargs(), Default::default());
         ms == *module
     })
 }
 
 // TODO: implement variance
+#[allow(clippy::if_same_then_else)]
 fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
     let ancestors = ancestor_types(c, ty1);
     if let Some(t1) = ancestors.iter().find(|t| t.same_base(ty2)) {
         if t1.equals_to(ty2) {
-            return true;
+            true
         } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
-            return true;
+            true
         } else {
             // Special care for void funcs
-            return is_void_fn(ty2);
+            is_void_fn(ty2)
         }
     } else {
         false

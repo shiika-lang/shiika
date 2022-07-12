@@ -146,7 +146,7 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
 
     fs::remove_file(bc_path)?;
 
-    let exe_path = if out_path.starts_with("/") {
+    let exe_path = if out_path.starts_with('/') {
         out_path
     } else {
         format!("./{}", out_path)

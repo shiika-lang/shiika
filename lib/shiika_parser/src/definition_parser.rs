@@ -698,11 +698,10 @@ impl<'a> Parser<'a> {
     pub fn parse_const_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
         self.debug_log("parse_const_definition");
         self.lv += 1;
-        let name;
-        match self.current_token() {
-            Token::UpperWord(s) => name = s.to_string(),
+        let name = match self.current_token() {
+            Token::UpperWord(s) => s.to_string(),
             _ => panic!("must be called on an UpperWord"),
-        }
+        };
         self.consume_token()?;
 
         self.skip_wsn()?;
