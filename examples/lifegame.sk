@@ -1,0 +1,92 @@
+class LifeGame
+  class Board
+    W = 30
+    H = 10
+
+    def initialize
+      var @cells = Array.build<Array<Bool>>(H) do |y: Int|
+        Array.build<Bool>(W) do |x: Int|
+          false
+        end
+      end
+      @cells[0][0] = true
+      @cells[0][1] = true
+      @cells[0][2] = true
+      @cells[1][0] = true
+      @cells[2][1] = true
+    end
+
+    def all_dead? -> Bool
+      var ret = true
+      0.upto(H-1) do |y: Int|
+        0.upto(W-1) do |x: Int|
+          ret = false if @cells[y][x]
+        end
+      end
+      ret
+    end
+
+    def simulate -> Array<Array<Bool>>
+      new_board = Array.build<Array<Bool>>(H) do |y: Int|
+        Array.repeat<Bool>(false, W)
+      end
+      0.upto(H-1) do |y: Int|
+        0.upto(W-1) do |x: Int|
+          n_alive = _count_around(x, y, true)
+          if @cells[y][x]
+            new_board[y][x] = n_alive == 2 or n_alive == 3
+          else
+            new_board[y][x] = n_alive == 3
+          end
+        end
+      end
+      @cells = new_board
+    end
+
+    def _count_around(x: Int, y: Int, b: Bool) -> Int
+      var n = 0
+      [x-1, x, x+1].each do |xx: Int|
+        [y-1, y, y+1].each do |yy: Int|
+          if _is(xx, yy, b)
+            n += 1
+          end
+        end
+      end
+      n
+    end
+
+    def _is(x: Int, y: Int, b: Bool) -> Bool
+      return false if x < 0 or x >= W
+      return false if y < 0 or y >= H
+      @cells[y][x] == b
+    end
+  end
+
+  def initialize
+    @board = Board.new
+  end
+
+  def run
+    loop do
+      _print_board(@board)
+      @board.simulate
+      break if @board.all_dead?
+    end
+  end
+
+  def _print_board(board: Board)
+    board.cells.each do |line: Array<Bool>|
+      line.each do |c: Bool|
+        if c
+          print "o"
+        else
+          print "."
+        end
+      end
+      puts ""
+    end
+    puts ""
+  end
+end
+
+LifeGame.new.run
