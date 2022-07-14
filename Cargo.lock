@@ -18,13 +18,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
-name = "aria"
-version = "0.1.0"
-dependencies = [
- "ariadne",
-]
-
-[[package]]
 name = "ariadne"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -636,6 +629,7 @@ name = "shiika"
 version = "0.7.0"
 dependencies = [
  "anyhow",
+ "ariadne",
  "clap",
  "either",
  "env_logger",
@@ -685,6 +679,7 @@ dependencies = [
 name = "shiika_parser"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "shiika_ast",
  "shiika_core",
  "thiserror",

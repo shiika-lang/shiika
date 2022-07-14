@@ -7,7 +7,6 @@ authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
 [workspace]
 members = [
   "lib/*",
-  "aria"
 ]
 
 [dependencies]
@@ -19,6 +18,7 @@ skc_ast2hir = { path = "lib/skc_ast2hir/" }
 skc_mir = { path = "lib/skc_mir/" }
 skc_codegen = { path = "lib/skc_codegen/" }
 
+ariadne = "0.1.5"
 anyhow = "1.0"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm12-0"], rev = "02fb704" }
 clap = { version = "3.1.18", features = ["derive"] }
