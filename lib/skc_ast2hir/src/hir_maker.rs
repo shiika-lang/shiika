@@ -106,7 +106,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let cls_obj =
                     Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
                 // The instance
-                Hir::method_call(
+                Hir::method_call_(
                     ty,
                     cls_obj,
                     method_fullname(&metaclass_fullname(&name.0), "new"),

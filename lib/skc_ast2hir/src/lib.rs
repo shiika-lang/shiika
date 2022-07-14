@@ -11,6 +11,7 @@ mod pattern_match;
 mod type_system;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
+use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
 use skc_corelib::Corelib;
 use skc_hir::{Hir, HirExpression};
@@ -69,7 +70,11 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
             is_meta,
         }) => {
             debug_assert!(!is_meta);
-            let base = Hir::const_ref(ty::meta(base_name), toplevel_const(base_name));
+            let base = Hir::const_ref(
+                ty::meta(base_name),
+                toplevel_const(base_name),
+                LocationSpan::todo(),
+            );
             if type_args.is_empty() {
                 base
             } else {
@@ -82,7 +87,12 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
         }
         TyBody::TyPara(typaram_ref) => {
             let ref2 = typaram_ref.as_class();
-            Hir::tvar_ref(ref2.to_term_ty(), ref2, mk.ctx_stack.self_ty())
+            Hir::tvar_ref(
+                ref2.to_term_ty(),
+                ref2,
+                mk.ctx_stack.self_ty(),
+                LocationSpan::todo(),
+            )
         }
     }
 }
@@ -98,18 +108,18 @@ fn call_class_specialize(
         // Workaround for bootstrap problem of arrays.
         // `_specialize1` is the same as `<>` except it accepts only one
         // type argument and therefore does not need to create an array.
-        Hir::method_call(
+        Hir::method_call_(
             ty::meta(base_name),
             base,
             method_fullname_raw("Class", "_specialize1"),
             vec![tyargs.remove(0)],
         )
     } else {
-        Hir::method_call(
+        Hir::method_call_(
             ty::meta(base_name),
             base,
             method_fullname_raw("Class", "<>"),
-            vec![mk.create_array_instance(tyargs)],
+            vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
         )
     }
 }

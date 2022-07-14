@@ -19,8 +19,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
         .to_str()
         .expect("failed to unwrap filepath")
         .to_string();
-    let str = fs::read_to_string(filepath).context(format!("{} is not utf8", path))?;
-    let ast = Parser::parse(&str)?;
+    let src = loader::load(filepath.as_ref())?;
+    let ast = Parser::parse_files(&src)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
     let hir = skc_ast2hir::make_hir(ast, None, &imports)?;

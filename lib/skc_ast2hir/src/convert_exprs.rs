@@ -116,24 +116,32 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::BareName(name) => self.convert_bare_name(name),
 
-            AstExpressionBody::IVarRef(names) => self.convert_ivar_ref(names),
+            AstExpressionBody::IVarRef(name) => self.convert_ivar_ref(name, &expr.locs),
 
-            AstExpressionBody::CapitalizedName(names) => self.convert_capitalized_name(names),
-
-            AstExpressionBody::SpecializeExpression { base_name, args } => {
-                self.convert_specialize_expr(base_name, args)
+            AstExpressionBody::CapitalizedName(names) => {
+                self.convert_capitalized_name(names, &expr.locs)
             }
 
-            AstExpressionBody::PseudoVariable(token) => self.convert_pseudo_variable(token),
+            AstExpressionBody::SpecializeExpression { base_name, args } => {
+                self.convert_specialize_expr(base_name, args, &expr.locs)
+            }
 
-            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs),
+            AstExpressionBody::PseudoVariable(token) => {
+                self.convert_pseudo_variable(token, &expr.locs)
+            }
 
-            AstExpressionBody::FloatLiteral { value } => Ok(Hir::float_literal(*value)),
+            AstExpressionBody::ArrayLiteral(exprs) => self.convert_array_literal(exprs, &expr.locs),
 
-            AstExpressionBody::DecimalLiteral { value } => Ok(Hir::decimal_literal(*value)),
+            AstExpressionBody::FloatLiteral { value } => {
+                Ok(Hir::float_literal(*value, expr.locs.clone()))
+            }
+
+            AstExpressionBody::DecimalLiteral { value } => {
+                Ok(Hir::decimal_literal(*value, expr.locs.clone()))
+            }
 
             AstExpressionBody::StringLiteral { content } => {
-                Ok(self.convert_string_literal(content))
+                Ok(self.convert_string_literal(content, &expr.locs))
             } //x => panic!("TODO: {:?}", x)
         }
     }
@@ -266,7 +274,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let arg_expr = if let Some(x) = arg {
             self.convert_expr(x)?
         } else {
-            Hir::const_ref(ty::raw("Void"), toplevel_const("Void"))
+            Hir::const_ref(
+                ty::raw("Void"),
+                toplevel_const("Void"),
+                LocationSpan::todo(),
+            )
         };
         self._validate_return_type(&arg_expr.ty)?;
         Ok(Hir::return_expression(from, arg_expr))
@@ -450,7 +462,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let receiver_hir = match receiver_expr {
             Some(expr) => self.convert_expr(expr)?,
             // Implicit self
-            _ => self.convert_self_expr(),
+            _ => self.convert_self_expr(&LocationSpan::todo()),
         };
         let mut method_tyargs = vec![];
         for arg in type_args {
@@ -558,7 +570,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Search method
-        let self_expr = self.convert_self_expr();
+        let self_expr = self.convert_self_expr(&LocationSpan::todo());
         let result = self
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
@@ -672,7 +684,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok((None, None))
     }
 
-    fn convert_ivar_ref(&self, name: &str) -> Result<HirExpression> {
+    fn convert_ivar_ref(&self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
             .class_dict
@@ -691,6 +703,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 name.to_string(),
                 ivar.idx,
                 base_ty,
+                locs.clone(),
             )),
             None => Err(error::program_error(&format!(
                 "ivar `{}' was not found",
@@ -701,14 +714,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Resolve a capitalized identifier, which is either a constant name or
     /// a type parameter reference
-    pub fn convert_capitalized_name(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
+    pub fn convert_capitalized_name(
+        &self,
+        name: &UnresolvedConstName,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         // Check if it is a typaram ref
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
                 let base_ty = self.ctx_stack.self_ty().erasure_ty();
                 let cls_ty = typaram_ref.clone().into_term_ty();
-                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty));
+                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone()));
             }
         }
 
@@ -716,7 +733,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let resolved = resolved_const_name(namespace, name.0.to_vec());
             let full = resolved.to_const_fullname();
             if let Some(ty) = self._lookup_const(&full) {
-                return Ok(Hir::const_ref(ty, full));
+                return Ok(Hir::const_ref(ty, full, locs.clone()));
             }
         }
         Err(error::program_error(&format!(
@@ -739,18 +756,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let base_expr = self.resolve_class_expr(base_name)?;
+        let base_expr = self.resolve_class_expr(base_name, &LocationSpan::todo())?;
         let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
             let cls_expr = match &arg.body {
-                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n)?,
+                AstExpressionBody::CapitalizedName(n) => self.resolve_class_expr(n, &arg.locs)?,
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?,
+                } => self.convert_specialize_expr(n, a, &arg.locs)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
             type_args.push(cls_expr.ty.as_type_argument());
@@ -761,12 +779,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             meta_spe_ty,
             base_expr,
             method_fullname(&class_fullname("Class"), "<>"),
-            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"))],
+            vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
+            locs.clone(),
         ))
     }
 
-    pub fn resolve_class_expr(&self, name: &UnresolvedConstName) -> Result<HirExpression> {
-        let e = self.convert_capitalized_name(name)?;
+    pub fn resolve_class_expr(
+        &self,
+        name: &UnresolvedConstName,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        let e = self.convert_capitalized_name(name, locs)?;
         self.assert_class_expr(&e)?;
         Ok(e)
     }
@@ -783,27 +806,35 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_pseudo_variable(&self, token: &Token) -> Result<HirExpression> {
+    fn convert_pseudo_variable(&self, token: &Token, locs: &LocationSpan) -> Result<HirExpression> {
         match token {
-            Token::KwSelf => Ok(self.convert_self_expr()),
-            Token::KwTrue => Ok(Hir::boolean_literal(true)),
-            Token::KwFalse => Ok(Hir::boolean_literal(false)),
+            Token::KwSelf => Ok(self.convert_self_expr(locs)),
+            Token::KwTrue => Ok(Hir::boolean_literal(true, locs.clone())),
+            Token::KwFalse => Ok(Hir::boolean_literal(false, locs.clone())),
             _ => panic!("[BUG] not a pseudo variable token: {:?}", token),
         }
     }
 
     /// Generate HIR for an array literal
-    fn convert_array_literal(&mut self, item_exprs: &[AstExpression]) -> Result<HirExpression> {
+    fn convert_array_literal(
+        &mut self,
+        item_exprs: &[AstExpression],
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         let item_exprs = item_exprs
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(self.create_array_instance(item_exprs))
+        Ok(self.create_array_instance(item_exprs, locs.clone()))
     }
 
-    pub fn create_array_instance(&mut self, item_exprs: Vec<HirExpression>) -> HirExpression {
+    pub fn create_array_instance(
+        &mut self,
+        item_exprs: Vec<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
         let item_ty = self.array_item_ty(&item_exprs);
-        self.create_array_instance_(item_exprs, item_ty)
+        self.create_array_instance_(item_exprs, item_ty, locs)
     }
 
     fn array_item_ty(&self, item_exprs: &[HirExpression]) -> TermTy {
@@ -828,6 +859,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         item_exprs: Vec<HirExpression>,
         item_ty: TermTy,
+        locs: LocationSpan,
     ) -> HirExpression {
         let ary_ty = ty::spe("Array", vec![item_ty]);
         let mut exprs = vec![];
@@ -838,7 +870,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .declare_lvar(&tmp_name, ary_ty.clone(), readonly);
 
         // `Array<X>.new`
-        let call_new = Hir::method_call(
+        let call_new = Hir::method_call_(
             ary_ty.clone(),
             class_expr(self, &ary_ty),
             method_fullname_raw("Array", "new"),
@@ -848,7 +880,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // `tmp.push(item)`
         for item_expr in item_exprs {
-            exprs.push(Hir::method_call(
+            exprs.push(Hir::method_call_(
                 ty::raw("Void"),
                 Hir::lvar_ref(ary_ty.clone(), tmp_name.clone()),
                 method_fullname_raw("Array", "push"),
@@ -857,16 +889,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         exprs.push(Hir::lvar_ref(ary_ty, tmp_name));
-        Hir::parenthesized_expression(Hir::expressions(exprs))
+        Hir::parenthesized_expression(Hir::expressions(exprs), locs)
     }
 
-    fn convert_self_expr(&self) -> HirExpression {
-        Hir::self_expression(self.ctx_stack.self_ty())
+    fn convert_self_expr(&self, locs: &LocationSpan) -> HirExpression {
+        Hir::self_expression(self.ctx_stack.self_ty(), locs.clone())
     }
 
-    fn convert_string_literal(&mut self, content: &str) -> HirExpression {
+    fn convert_string_literal(&mut self, content: &str, locs: &LocationSpan) -> HirExpression {
         let idx = self.register_string_literal(content);
-        Hir::string_literal(idx)
+        Hir::string_literal(idx, locs.clone())
     }
 
     pub(super) fn register_string_literal(&mut self, content: &str) -> usize {

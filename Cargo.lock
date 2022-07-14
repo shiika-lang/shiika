@@ -18,6 +18,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
+name = "ariadne"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1cb2a2046bea8ce5e875551f5772024882de0b540c7f93dfc5d6cf1ca8b030c"
+dependencies = [
+ "yansi",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -620,6 +629,7 @@ name = "shiika"
 version = "0.7.0"
 dependencies = [
  "anyhow",
+ "ariadne",
  "clap",
  "either",
  "env_logger",
@@ -669,6 +679,7 @@ dependencies = [
 name = "shiika_parser"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "shiika_ast",
  "shiika_core",
  "thiserror",
@@ -679,6 +690,7 @@ name = "skc_ast2hir"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ariadne",
  "log",
  "shiika_ast",
  "shiika_core",
@@ -923,3 +935,9 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "yansi"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"

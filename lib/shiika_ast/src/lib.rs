@@ -1,4 +1,6 @@
+mod location;
 mod token;
+pub use crate::location::{Location, LocationSpan};
 pub use crate::token::Token;
 use shiika_core::names::*;
 
@@ -101,6 +103,7 @@ pub struct Param {
 pub struct AstExpression {
     pub body: AstExpressionBody,
     pub primary: bool,
+    pub locs: LocationSpan,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -379,28 +382,12 @@ pub fn method_call(
             type_args,
             may_have_paren_wo_args,
         },
+        locs: LocationSpan::todo(),
     }
 }
 
 pub fn bare_name(name: &str) -> AstExpression {
     primary_expression(AstExpressionBody::BareName(name.to_string()))
-}
-
-pub fn ivar_ref(name: String) -> AstExpression {
-    primary_expression(AstExpressionBody::IVarRef(name))
-}
-
-pub fn capitalized_name(name: Vec<String>) -> AstExpression {
-    primary_expression(AstExpressionBody::CapitalizedName(UnresolvedConstName(
-        name,
-    )))
-}
-
-pub fn specialize_expr(base_name: Vec<String>, args: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::SpecializeExpression {
-        base_name: UnresolvedConstName(base_name),
-        args,
-    })
 }
 
 pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
@@ -431,30 +418,11 @@ pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -
     })
 }
 
-pub fn pseudo_variable(token: Token) -> AstExpression {
-    primary_expression(AstExpressionBody::PseudoVariable(token))
-}
-
-pub fn array_literal(exprs: Vec<AstExpression>) -> AstExpression {
-    primary_expression(AstExpressionBody::ArrayLiteral(exprs))
-}
-
-pub fn float_literal(value: f64) -> AstExpression {
-    primary_expression(AstExpressionBody::FloatLiteral { value })
-}
-
-pub fn decimal_literal(value: i64) -> AstExpression {
-    primary_expression(AstExpressionBody::DecimalLiteral { value })
-}
-
-pub fn string_literal(content: String) -> AstExpression {
-    primary_expression(AstExpressionBody::StringLiteral { content })
-}
-
 pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: true,
         body,
+        locs: LocationSpan::todo(),
     }
 }
 
@@ -462,6 +430,7 @@ pub fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: false,
         body,
+        locs: LocationSpan::todo(),
     }
 }
 
@@ -492,6 +461,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                     type_args,
                     may_have_paren_wo_args: false,
                 },
+                locs: LocationSpan::todo(),
             }
         }
         AstExpressionBody::BareName(s) => AstExpression {
@@ -503,6 +473,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                 type_args: vec![],
                 may_have_paren_wo_args: false,
             },
+            locs: LocationSpan::todo(),
         },
         b => panic!("[BUG] `extend' takes a MethodCall but got {:?}", b),
     }

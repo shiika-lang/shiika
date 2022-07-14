@@ -692,10 +692,9 @@ impl<'a> Parser<'a> {
         let mut type_args = vec![];
         if self.current_token_is(Token::LessThan) {
             // TODO: Allow `ary.map< Int >{ ... }` ?
-            if let Token::UpperWord(s) = self.peek_next_token()? {
+            if let Token::UpperWord(_) = self.peek_next_token()? {
                 self.consume_token()?;
-                self.consume_token()?;
-                type_args = self.parse_type_arguments(s)?;
+                type_args = self.parse_type_arguments()?;
             }
         }
 
@@ -723,21 +722,19 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_type_arguments(&mut self, s: String) -> Result<Vec<AstExpression>, Error> {
+    fn parse_type_arguments(&mut self) -> Result<Vec<AstExpression>, Error> {
         self.lv += 1;
         self.debug_log("parse_type_arguments");
-        let mut name = s;
         let mut type_args = vec![];
         loop {
-            type_args.push(self.parse_specialize_expression(name)?);
+            type_args.push(self.parse_specialize_expression()?);
             self.skip_ws()?;
             match self.current_token() {
                 Token::Comma => {
                     self.consume_token()?;
                     self.skip_wsn()?;
-                    if let Token::UpperWord(s) = self.current_token() {
-                        name = s.to_string();
-                        self.consume_token()?;
+                    if let Token::UpperWord(_) = self.current_token() {
+                        // Go next loop
                     } else {
                         return Err(parse_error!(
                             self,
@@ -784,6 +781,7 @@ impl<'a> Parser<'a> {
     fn parse_atomic(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_atomic");
+        let begin = self.lexer.location();
         let token = self.current_token();
         let expr = match token {
             Token::LowerWord(s) => {
@@ -795,21 +793,19 @@ impl<'a> Parser<'a> {
                 self.consume_token()?;
                 Ok(shiika_ast::return_expr(None))
             }
-            Token::UpperWord(s) => {
-                let name = s.to_string();
-                self.consume_token()?;
-                self.parse_specialize_expression(name)
-            }
+            Token::UpperWord(_) => self.parse_specialize_expression(),
             Token::KwFn => self.parse_lambda(),
             Token::KwSelf | Token::KwTrue | Token::KwFalse => {
                 let t = token.clone();
                 self.consume_token()?;
-                Ok(shiika_ast::pseudo_variable(t))
+                let end = self.lexer.location();
+                Ok(self.ast.pseudo_variable(t, begin, end))
             }
             Token::IVar(s) => {
                 let name = s.to_string();
                 self.consume_token()?;
-                Ok(shiika_ast::ivar_ref(name))
+                let end = self.lexer.location();
+                Ok(self.ast.ivar_ref(name, begin, end))
             }
             Token::LSqBracket => self.parse_array_literal(),
             Token::Number(_) => self.parse_decimal_literal(),
@@ -847,25 +843,28 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    /// Parse a constant name. `s` must be consumed beforehand
-    pub(super) fn parse_specialize_expression(
-        &mut self,
-        s: String,
-    ) -> Result<AstExpression, Error> {
+    /// Parse a constant name
+    pub(super) fn parse_specialize_expression(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_specialize_expression");
         self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
-        let name = self._parse_specialize_expr(s)?;
+        let name = self._parse_specialize_expr()?;
         self.set_lexer_gtgt_mode(false); // End special mode
         self.lv -= 1;
         Ok(name)
     }
 
     /// Main routine of parse_specialize_expression
-    fn _parse_specialize_expr(&mut self, s: String) -> Result<AstExpression, Error> {
+    fn _parse_specialize_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("_parse_specialize_expr");
-        let mut names = vec![s];
+        let begin = self.lexer.location();
+        let mut names = vec![];
+        if let Token::UpperWord(s) = self.consume_token()? {
+            names.push(s);
+        } else {
+            panic!("expected UpperWord");
+        };
         let mut lessthan_seen = false;
         let mut args = vec![];
         loop {
@@ -901,13 +900,13 @@ impl<'a> Parser<'a> {
                     }
                 }
                 Token::UpperWord(s) => {
-                    let name = s.to_string();
-                    self.consume_token()?;
                     if lessthan_seen {
-                        let inner = self._parse_specialize_expr(name)?;
+                        let inner = self._parse_specialize_expr()?;
                         args.push(inner);
                         self.skip_wsn()?;
                     } else {
+                        let name = s.to_string();
+                        self.consume_token()?;
                         names.push(name);
                     }
                 }
@@ -920,11 +919,12 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        let end = self.lexer.location();
         self.lv -= 1;
         if args.is_empty() {
-            Ok(shiika_ast::capitalized_name(names))
+            Ok(self.ast.capitalized_name(names, begin, end))
         } else {
-            Ok(shiika_ast::specialize_expr(names, args))
+            Ok(self.ast.specialize_expr(names, args, begin, end))
         }
     }
 
@@ -963,6 +963,7 @@ impl<'a> Parser<'a> {
     fn parse_array_literal(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_array_literal");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::LSqBracket)?);
         let mut exprs = vec![];
         self.skip_wsn()?;
@@ -996,21 +997,25 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::array_literal(exprs))
+        Ok(self.ast.array_literal(exprs, begin, end))
     }
 
     fn parse_decimal_literal(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_decimal_literal");
+        let begin = self.lexer.location();
         let expr = match self.consume_token()? {
             Token::Number(s) => {
                 if s.contains('.') {
+                    let end = self.lexer.location();
                     let value = s.parse().unwrap();
-                    shiika_ast::float_literal(value)
+                    self.ast.float_literal(value, begin, end)
                 } else {
+                    let end = self.lexer.location();
                     let value = s.parse().unwrap();
-                    shiika_ast::decimal_literal(value)
+                    self.ast.decimal_literal(value, begin, end)
                 }
             }
             _ => {
@@ -1023,8 +1028,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_string_literal(&mut self) -> Result<AstExpression, Error> {
+        let begin = self.lexer.location();
         if let Token::Str(content) = self.consume_token()? {
-            Ok(shiika_ast::string_literal(content))
+            let end = self.lexer.location();
+            Ok(self.ast.string_literal(content, begin, end))
         } else {
             Err(self.parseerror("invalid call"))
         }
@@ -1034,14 +1041,16 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
+        let begin = self.lexer.location();
         let (head, inspect1) =
             if let Token::StrWithInterpolation { head, inspect } = self.consume_token()? {
                 (head, inspect)
             } else {
                 panic!("invalid call")
             };
+        let end = self.lexer.location();
         let mut inspect = inspect1;
-        let mut expr = shiika_ast::string_literal(head);
+        let mut expr = self.ast.string_literal(head, begin, end);
         loop {
             self.skip_wsn()?;
             let inner_expr = self.parse_expr()?;
@@ -1064,6 +1073,7 @@ impl<'a> Parser<'a> {
             self.set_lexer_state(LexerState::StrLiteral);
             self.expect(Token::RBrace)?;
             self.set_lexer_state(LexerState::ExprEnd);
+            let begin = self.lexer.location();
             let (s, finish) = match self.consume_token()? {
                 Token::Str(tail) => (tail, true),
                 Token::StrWithInterpolation {
@@ -1075,10 +1085,11 @@ impl<'a> Parser<'a> {
                 }
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
             };
+            let end = self.lexer.location();
             expr = shiika_ast::method_call(
                 Some(expr),
                 "+",
-                vec![shiika_ast::string_literal(s)],
+                vec![self.ast.string_literal(s, begin, end)],
                 vec![],
                 false, // primary
                 false, // may_have_paren_wo_args

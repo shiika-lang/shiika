@@ -23,12 +23,15 @@ pub fn convert_match_expr(
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
         .collect::<Result<Vec<MatchClause>>>()?;
     let result_ty = calc_result_ty(mk, &mut clauses)?;
-    let panic_msg = Hir::string_literal(mk.register_string_literal("no matching clause found"));
+    let panic_msg = Hir::string_literal(
+        mk.register_string_literal("no matching clause found"),
+        LocationSpan::todo(),
+    );
     clauses.push(MatchClause {
         components: vec![],
-        body_hir: Hir::expressions(vec![Hir::method_call(
+        body_hir: Hir::expressions(vec![Hir::method_call_(
             ty::raw("Never"),
-            Hir::decimal_literal(0), // whatever.
+            Hir::decimal_literal(0, LocationSpan::todo()), // whatever.
             method_fullname_raw("Object", "panic"),
             vec![panic_msg],
         )]),
@@ -138,11 +141,11 @@ fn convert_match(
                     value.ty,
                 )));
             }
-            let test = Hir::method_call(
+            let test = Hir::method_call_(
                 ty::raw("Bool"),
                 value.clone(),
                 method_fullname_raw("Int", "=="),
-                vec![Hir::decimal_literal(*i)],
+                vec![Hir::decimal_literal(*i, LocationSpan::todo())],
             );
             Ok(vec![Component::Test(test)])
         }
@@ -175,7 +178,8 @@ fn convert_extractor(
 }
 
 fn get_base_ty(mk: &mut HirMaker, names: &[String]) -> Result<Erasure> {
-    let expr = mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()))?;
+    let expr =
+        mk.convert_capitalized_name(&UnresolvedConstName(names.to_vec()), &LocationSpan::todo())?;
     if expr.ty.is_metaclass() || expr.ty.is_typaram_ref() {
         return Ok(expr.ty.instance_ty().erasure());
     }
@@ -234,7 +238,7 @@ fn extract_props(
         let (name_, ty) = &ivars[i];
         let name = name_.replace('@', "");
         // eg. `value.foo`
-        let ivar_ref = Hir::method_call(
+        let ivar_ref = Hir::method_call_(
             ty.clone(),
             value.clone(),
             method_fullname(&pat_ty.base_class_name(), name),
@@ -252,8 +256,12 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     let pat_erasure = pat_ty.erasure();
     let t = mk.class_dict.get_class(&pat_erasure.to_class_fullname());
     if t.const_is_obj {
-        let const_ref = Hir::const_ref(pat_ty.clone(), pat_ty.fullname.to_const_fullname());
-        Hir::method_call(
+        let const_ref = Hir::const_ref(
+            pat_ty.clone(),
+            pat_ty.fullname.to_const_fullname(),
+            LocationSpan::todo(),
+        );
+        Hir::method_call_(
             ty::raw("Bool"),
             const_ref,
             method_fullname_raw("Object", "=="),
@@ -262,11 +270,11 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     } else {
         let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
         // value.class.erasure_class == Foo
-        Hir::method_call(
+        Hir::method_call_(
             ty::raw("Bool"),
-            Hir::method_call(
+            Hir::method_call_(
                 ty::raw("Class"),
-                Hir::method_call(
+                Hir::method_call_(
                     ty::raw("Class"),
                     value.clone(),
                     method_fullname_raw("Object", "class"),

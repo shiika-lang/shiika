@@ -1,12 +1,17 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct SourceFile {
-    pub path: PathBuf,
+    pub path: Rc<PathBuf>,
     pub content: String,
 }
 
 impl SourceFile {
     pub fn new(path: PathBuf, content: String) -> SourceFile {
-        SourceFile { path, content }
+        SourceFile {
+            path: Rc::new(path),
+            content,
+        }
     }
 }
