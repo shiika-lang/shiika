@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 pub struct AstBuilder {
-    filepath: Rc<PathBuf>,
+    pub filepath: Rc<PathBuf>,
 }
 
 impl AstBuilder {

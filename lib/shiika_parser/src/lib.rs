@@ -5,10 +5,10 @@
 /// Implementaion rules
 /// - Call `skip_ws`/`skip_wsn` before calling other `parse_xx`
 
+/// Create ParseError with `format!`
 macro_rules! parse_error {
     ( $self:ident, $( $arg:expr ),* ) => ({
-        let rest = $self.lexer.peek_n(100);
-        let msg = format!( $( $arg ),* ) + " | " + &rest;
+        let msg = format!( $( $arg ),* );
         $self.parseerror(&msg)
     })
 }
@@ -21,7 +21,7 @@ mod expression_parser;
 pub mod lexer;
 mod source_file;
 use crate::ast_builder::AstBuilder;
-use crate::error::Error;
+pub use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::lexer::LexerState;
 pub use crate::source_file::SourceFile;

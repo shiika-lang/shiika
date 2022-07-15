@@ -2,6 +2,9 @@ use crate::error::Error;
 pub use crate::lexer;
 pub use crate::lexer::*;
 pub use crate::Parser;
+use ariadne::{Label, Report, ReportKind, Source};
+use std::fs;
+
 use shiika_ast::*;
 
 impl<'a> Parser<'a> {
@@ -116,10 +119,20 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parseerror(&self, msg: &str) -> Error {
+        let location = self.lexer.location();
+        let path = format!("{}", self.ast.filepath.display()); // ariadne 0.1.5 needs Id: Display (zesterer/ariadne#12)
+        let span = (&path, location.pos..(location.pos + 1));
+        let src = Source::from(fs::read_to_string(&*self.ast.filepath).unwrap_or_default());
+        let mut report = vec![];
+        Report::build(ReportKind::Error, &path, location.pos)
+            .with_message(msg)
+            .with_label(Label::new(span))
+            .finish()
+            .write((&path, src), &mut report)
+            .unwrap();
         Error::ParseError {
             msg: msg.to_string(),
-            backtrace: std::backtrace::Backtrace::capture(),
-            location: self.lexer.cur.clone(),
+            report,
         }
     }
 
