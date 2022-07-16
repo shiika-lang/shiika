@@ -24,9 +24,9 @@ pub fn syntax_error(msg: &str) -> anyhow::Error {
     .into()
 }
 
-pub fn type_error(msg: &str) -> anyhow::Error {
+pub fn type_error(msg: impl Into<String>) -> anyhow::Error {
     Error::TypeError {
-        msg: msg.to_string(),
+        msg: msg.into(),
         backtrace: Backtrace::capture(),
     }
     .into()
