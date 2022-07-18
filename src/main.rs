@@ -1,23 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use shiika::cli;
 use shiika::runner;
-use std::io::{self, Write};
 
 fn main() -> Result<()> {
-    match main_() {
-        // Print error report if available
-        Err(e) => match e.downcast_ref::<shiika_parser::Error>() {
-            Some(shiika_parser::Error::ParseError { report, .. }) => {
-                io::stderr().write(report).unwrap();
-                Err(anyhow!("ParseError"))
-            }
-            _ => Err(e),
-        },
-        other => other,
-    }
-}
-
-fn main_() -> Result<()> {
     env_logger::init();
     let args = cli::parse_command_line_args();
 

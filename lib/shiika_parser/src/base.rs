@@ -130,10 +130,7 @@ impl<'a> Parser<'a> {
             .finish()
             .write((&path, src), &mut report)
             .unwrap();
-        Error::ParseError {
-            msg: msg.to_string(),
-            report,
-        }
+        Error::ParseError(String::from_utf8_lossy(&report).to_string())
     }
 
     /// Print parser debug log (uncomment to enable)
