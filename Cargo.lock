@@ -679,6 +679,7 @@ dependencies = [
 name = "shiika_parser"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "shiika_ast",
  "shiika_core",
  "thiserror",

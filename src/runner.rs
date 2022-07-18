@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::Command;
 
 /// Generate .ll from .sk
-pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<(), Error> {
+pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     let path = filepath
         .as_ref()
         .to_str()

@@ -1,4 +1,5 @@
 use crate::class_dict::ClassDict;
+use crate::error::type_error;
 use anyhow::Result;
 use ariadne::{Label, Report, ReportKind, Source};
 use shiika_core::{ty, ty::*};
@@ -7,7 +8,7 @@ use std::fs;
 
 macro_rules! type_error {
     ( $( $arg:expr ),* ) => ({
-        crate::error::type_error(&format!( $( $arg ),* ))
+        type_error(&format!( $( $arg ),* ))
     })
 }
 
@@ -151,26 +152,28 @@ fn check_arg_type(
     param: &MethodParam,
 ) -> Result<()> {
     let arg_ty = &arg_hir.ty;
-    if !class_dict.conforms(arg_ty, &param.ty) {
-        let msg = format!(
-            "the argument `{}' of `{}' should be {} but got {}",
-            param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
-        );
-        //ariadne(&msg, &arg_hir);
-        return Err(type_error!("{}", &msg));
+    if class_dict.conforms(arg_ty, &param.ty) {
+        return Ok(());
     }
-    Ok(())
-}
 
-#[allow(dead_code)]
-fn ariadne(msg: &str, arg_hir: &HirExpression) {
+    let msg = format!(
+        "the argument `{}' of `{}' should be {} but got {}",
+        param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
+    );
+
     let locs = &arg_hir.locs;
-    let label = Label::new(locs.begin.pos..locs.end.pos);
-    let sk = fs::read_to_string(&*locs.filepath).unwrap();
-    Report::build(ReportKind::Error, (), 34)
-        .with_message(msg)
-        .with_label(label.with_message(&arg_hir.ty))
+    let path = format!("{}", locs.filepath.display()); // ariadne 0.1.5 needs Id: Display (zesterer/ariadne#12)
+    if path.is_empty() {
+        return Err(type_error(msg));
+    }
+    let span = (&path, locs.begin.pos..locs.end.pos);
+    let src = Source::from(fs::read_to_string(&*locs.filepath).unwrap_or_default());
+    let mut report = vec![];
+    Report::build(ReportKind::Error, &path, locs.begin.pos)
+        .with_message(msg.clone())
+        .with_label(Label::new(span).with_message(&arg_hir.ty))
         .finish()
-        .eprint(Source::from(sk))
+        .write((&path, src), &mut report)
         .unwrap();
+    return Err(type_error(String::from_utf8_lossy(&report).to_string()));
 }
