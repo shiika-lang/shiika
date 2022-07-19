@@ -119,12 +119,12 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parseerror(&self, msg: &str) -> Error {
-        let location = self.lexer.location();
+        let (begin, end) = self.lexer.location_span();
         let path = format!("{}", self.ast.filepath.display()); // ariadne 0.1.5 needs Id: Display (zesterer/ariadne#12)
-        let span = (&path, location.pos..(location.pos + 1));
+        let span = (&path, begin.pos..end.pos);
         let src = Source::from(fs::read_to_string(&*self.ast.filepath).unwrap_or_default());
         let mut report = vec![];
-        Report::build(ReportKind::Error, &path, location.pos)
+        Report::build(ReportKind::Error, &path, begin.pos)
             .with_message(msg)
             .with_label(Label::new(span))
             .finish()

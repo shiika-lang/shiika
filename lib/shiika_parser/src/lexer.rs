@@ -147,6 +147,13 @@ impl<'a> Lexer<'a> {
         Location::new(self.cur.line, self.cur.col, self.cur.pos)
     }
 
+    pub fn location_span(&self) -> (Location, Location) {
+        let begin = Location::new(self.cur.line, self.cur.col, self.cur.pos);
+        let nc = self.next_cur.as_ref().unwrap();
+        let end = Location::new(nc.line, nc.col, nc.pos);
+        (begin, end)
+    }
+
     pub fn debug_info(&self) -> String {
         format!("{:?} {:?}", self.current_token, self.state)
     }
