@@ -935,7 +935,7 @@ impl<'a> Parser<'a> {
         assert!(self.consume(Token::KwFn)?);
         let params;
         if self.consume(Token::LParen)? {
-            params = self.parse_params(false, vec![Token::RParen])?;
+            params = self.parse_block_params(true)?;
             self.skip_ws()?;
         } else {
             params = vec![];
@@ -1160,7 +1160,7 @@ impl<'a> Parser<'a> {
         self.expect(Token::KwDo)?;
         self.skip_ws()?;
         let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params()?
+            self.parse_block_params(false)?
         } else {
             vec![]
         };
@@ -1178,7 +1178,7 @@ impl<'a> Parser<'a> {
         self.expect(Token::LBrace)?;
         self.skip_ws()?;
         let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params()?
+            self.parse_block_params(false)?
         } else {
             vec![]
         };
@@ -1190,14 +1190,80 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse `|a, b, ...|`
-    fn parse_block_params(&mut self) -> Result<Vec<Param>, Error> {
+    fn parse_block_params(&mut self, type_required: bool) -> Result<Vec<BlockParam>, Error> {
         self.lv += 1;
         self.debug_log("parse_block_params");
         self.expect(Token::Or)?;
-        self.skip_wsn()?;
-        let params = self.parse_params(false, vec![Token::Or])?;
+        self.skip_ws()?;
+        let mut params = vec![];
+        let mut comma_seen = false;
+        loop {
+            match self.current_token() {
+                Token::Or => {
+                    if comma_seen {
+                        return Err(parse_error!(self, "extra comma in block params"));
+                    } else {
+                        self.consume_token()?;
+                        break;
+                    }
+                }
+                Token::Comma => {
+                    if comma_seen {
+                        return Err(parse_error!(self, "extra comma in block params"));
+                    } else {
+                        self.consume_token()?;
+                        self.skip_wsn()?;
+                        comma_seen = true;
+                    }
+                }
+                Token::LowerWord(_) => {
+                    params.push(self.parse_block_param(type_required)?);
+                    comma_seen = false;
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "invalid token in block params: {:?}",
+                        token
+                    ))
+                }
+            }
+        }
         self.lv -= 1;
         Ok(params)
+    }
+
+    fn parse_block_param(&mut self, type_required: bool) -> Result<BlockParam, Error> {
+        // Name
+        let name;
+        match self.current_token() {
+            Token::LowerWord(s) => {
+                name = s.to_string();
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "invalid token as block param: {:?}",
+                    token
+                ))
+            }
+        }
+        self.skip_ws()?;
+
+        // `:' Type
+        let opt_typ = if self.current_token_is(Token::Colon) {
+            self.consume_token()?;
+            self.skip_ws()?;
+            Some(self.parse_typ()?)
+        } else {
+            if type_required {
+                return Err(parse_error!(self, "type annotation required here"));
+            }
+            None
+        };
+
+        Ok(shiika_ast::BlockParam { name, opt_typ })
     }
 
     /// Parse pattern of match expr

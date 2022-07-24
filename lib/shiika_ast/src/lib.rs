@@ -100,6 +100,12 @@ pub struct Param {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct BlockParam {
+    pub name: String,
+    pub opt_typ: Option<UnresolvedTypeName>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,
     pub primary: bool,
@@ -160,7 +166,7 @@ pub enum AstExpressionBody {
         may_have_paren_wo_args: bool,
     },
     LambdaExpr {
-        params: Vec<Param>,
+        params: Vec<BlockParam>,
         exprs: Vec<AstExpression>,
         /// true if this is from `fn(){}`. false if this is a block (do-end/{})
         is_fn: bool,
@@ -411,7 +417,11 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
     })
 }
 
-pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -> AstExpression {
+pub fn lambda_expr(
+    params: Vec<BlockParam>,
+    exprs: Vec<AstExpression>,
+    is_fn: bool,
+) -> AstExpression {
     primary_expression(AstExpressionBody::LambdaExpr {
         params,
         exprs,

@@ -617,7 +617,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_typ(&mut self) -> Result<UnresolvedTypeName, Error> {
+    pub(super) fn parse_typ(&mut self) -> Result<UnresolvedTypeName, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
                 let head = s.to_string();
