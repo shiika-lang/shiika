@@ -1,5 +1,3 @@
-# TODO: Rename to `enumerable.sk` after `require` is implemented
-
 module Enumerable<E>
   requirement each(f: Fn1<E, Void>) -> Void
 
