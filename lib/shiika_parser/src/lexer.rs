@@ -730,7 +730,6 @@ impl<'a> Lexer<'a> {
     fn lex_error(&self, msg: &str) -> Error {
         Error::LexError {
             msg: msg.to_string(),
-            backtrace: std::backtrace::Backtrace::capture(),
             location: self.cur.clone(),
         }
     }
