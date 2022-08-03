@@ -110,7 +110,7 @@ See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 ### Prerequisites
 
 - Tested on Mac and Linux
-- Rust nightly (for std::backtrace)
+- Rust
 - LLVM (eg. `brew install llvm@12`)
 
 ```sh

@@ -1,5 +1,4 @@
 use crate::lexer::Cursor;
-use std::backtrace::Backtrace;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -8,9 +7,5 @@ pub enum Error {
     ParseError(String),
     /// Error on tokenizing
     #[error("{msg}")]
-    LexError {
-        msg: String,
-        backtrace: Backtrace,
-        location: Cursor,
-    },
+    LexError { msg: String, location: Cursor },
 }
