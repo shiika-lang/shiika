@@ -1,5 +1,3 @@
-#![feature(backtrace)]
-
 /// Parser
 ///
 /// Implementaion rules

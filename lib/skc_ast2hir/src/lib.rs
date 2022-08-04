@@ -1,4 +1,3 @@
-#![feature(backtrace)]
 mod accessors;
 pub mod class_dict;
 mod convert_exprs;
