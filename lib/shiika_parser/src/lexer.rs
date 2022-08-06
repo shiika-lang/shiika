@@ -106,7 +106,7 @@ enum CharType {
     Separator, // Newline or ';'
     Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
-    LowerWord, // Keyword or identifier which starts with lower-case letter
+    LowerWord, // Keyword or identifier which starts with lower-case letter. May suffixed by '?'
     IVar,      // Instance variable (eg. "foo" for @foo)
     Symbol,    // '+', '(', etc.
     Number,    // '0'~'9'
@@ -346,10 +346,11 @@ impl<'a> Lexer<'a> {
                 CharType::UpperWord | CharType::LowerWord | CharType::Number => {
                     next_cur.proceed(self.src);
                 }
-                CharType::Symbol if (c == Some('=') || c == Some('?')) => {
-                    if self.state == LexerState::MethodName {
-                        next_cur.proceed(self.src);
-                    }
+                CharType::Symbol
+                    if c == Some('?')
+                        || (c == Some('=') && self.state == LexerState::MethodName) =>
+                {
+                    next_cur.proceed(self.src);
                     break;
                 }
                 _ => break,
