@@ -1,6 +1,14 @@
 // List of methods defined by skc_rustlib
 [
+  ["Array", "_initialize_rustlib"],
   ["Array", "[](idx: Int) -> T"],
+  ["Array", "[]=(idx: Int, obj: T)"],
+  ["Array", "clear"],
+  ["Array", "length -> Int"],
+  ["Array", "push(item: T)"],
+  ["Array", "pop -> T"],
+  ["Array", "reserve(additional: Int)"],
+  ["Array", "shift -> Maybe<T>"],
   ["Int", "-@ -> Int"],
   ["Int", "+(other: Int) -> Int"],
   ["Int", "-(other: Int) -> Int"],

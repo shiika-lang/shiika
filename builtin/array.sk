@@ -28,9 +28,7 @@ class Array<T> : Enumerable<T>
   end
 
   def initialize
-    var @capa = INITIAL_CAPA
-    var @n_items = 0
-    var @items = Shiika::Internal::Memory.gc_malloc(BYTES_OF_PTR * INITIAL_CAPA)
+    _initialize_rustlib
   end
 
   # Makes an array by concatenating `self` and `other`.
@@ -47,7 +45,7 @@ class Array<T> : Enumerable<T>
       false
     else
       var ret = true
-      0.upto(@n_items - 1) do |i: Int|
+      0.upto(self.length - 1) do |i: Int|
         if self[i] != other[i]
           ret = false
           break
@@ -60,28 +58,13 @@ class Array<T> : Enumerable<T>
   # Replace the `i`th item with `obj`
   # Count from the last if `i` is less than zero
   # Panics if the index is out of range
-  def []=(i: Int, obj: T)
-    idx = if i < 0 then @n_items + i else i end
-    if idx < 0
-      panic "[Array#[]=: index less than zero]"
-    end
-    if idx >= @n_items
-      panic "[Array#[]=: index too large]"
-    end
-    (@items + idx * BYTES_OF_PTR).store(obj) 
-  end
+  #def []=(i: Int, obj: T)
 
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
     other.each do |item: T|
       push(item)
     end
-  end
-
-  # Remove all elements of `self`
-  def clear
-    @n_items = 0
-    # QUESTION: should we call gc_realloc?
   end
 
   # Create shallow clone of `self`
@@ -96,7 +79,7 @@ class Array<T> : Enumerable<T>
   # Create an array which contains elements of `self` without first `n` elements.
   def drop(n: Int) -> Array<T>
     ret = Array<T>.new
-    n.upto(@n_items - 1) do |i: Int|
+    n.upto(length - 1) do |i: Int|
       ret.push(self[i])
     end
     ret
@@ -104,7 +87,7 @@ class Array<T> : Enumerable<T>
 
   # Call `f` with each element of `self`
   def each(f: Fn1<T, Void>)
-    var i = 0; while i < @n_items
+    var i = 0; while i < length
       f(self[i])
       i += 1
     end
@@ -123,7 +106,7 @@ class Array<T> : Enumerable<T>
   def first_n(n: Int) -> Array<T>
     a = Array<T>.new
     0.upto(n-1) do |i: Int|
-      break if i >= @n_items
+      break if i >= length
       a.push(self[i])
     end
     a
@@ -148,7 +131,7 @@ class Array<T> : Enumerable<T>
 
   # Return true if `self` has no elements
   def empty? -> Bool
-    @n_items == 0
+    length == 0
   end
 
   # Returns the last item, unless `self` is empty.
@@ -156,39 +139,18 @@ class Array<T> : Enumerable<T>
     if empty?
       None
     else
-      Some<T>.new(self[@n_items - 1])
+      Some<T>.new(self[length - 1])
     end
   end
 
   # Return the number of items
-  def length -> Int
-    @n_items
-  end
+  #def length -> Int
 
   # Remove the last element and return it
-  def pop -> T
-    if @n_items == 0
-      panic "[Array#pop: array is empty]"
-    end
-    ret = self[@n_items-1]
-    @n_items -= 1
-    ret
-  end
+  #def pop -> T
 
   # Push an object to the end of `self`
-  def push(value: T)
-    if @n_items == @capa
-      if @capa < 1024
-        @capa *= 2
-      else
-        @capa += 256
-      end
-      @items = Shiika::Internal::Memory.gc_realloc(@items, BYTES_OF_PTR * @capa + 1)
-    end
-    ptr = @items + @n_items * BYTES_OF_PTR
-    ptr.store(value)
-    @n_items += 1
-  end
+  #def push(value: T)
 
   # Create an array which contains items of `self` for which `f` does not return true
   def reject(f: Fn1<T, Bool>) -> Array<T>
@@ -201,13 +163,7 @@ class Array<T> : Enumerable<T>
 
   # Reserves capacity for at least `additional` elements to be inserted
   # without reallocation. Does nothing if capacity is already sufficient.
-  def reserve(additional: Int)
-    new_capa = @n_items + additional
-    if new_capa > @capa
-      @items = Shiika::Internal::Memory.gc_realloc(@items, BYTES_OF_PTR * new_capa)
-      @capa = new_capa
-    end
-  end
+  #def reserve(additional: Int)
 
   # Create a new array which has reversed elements of `self`
   def reverse -> Array<T>
@@ -220,7 +176,7 @@ class Array<T> : Enumerable<T>
 
   # Call `f` with each element of `self` in the reversed order
   def reverse_each(f: Fn1<T, Void>)
-    var i = @n_items - 1; while i >= 0
+    var i = length - 1; while i >= 0
       f(self[i])
       i -= 1
     end
@@ -228,17 +184,7 @@ class Array<T> : Enumerable<T>
 
   # Removes the first element and returns it.
   # Panics if `self` is empty
-  def shift -> Maybe<T>
-    if @n_items == 0
-      None
-    else
-      ret = self[0]
-      @capa -= 1
-      @n_items -= 1
-      @items += BYTES_OF_PTR
-      Some<T>.new(ret)
-    end
-  end
+  #def shift -> Maybe<T>
 
   # Create sorted version of `self`
   # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
@@ -254,7 +200,7 @@ class Array<T> : Enumerable<T>
     if self.empty?
       # do nothing
     else
-      _quicksort(0, @n_items - 1)
+      _quicksort(0, length - 1)
     end
   end
   def _quicksort(i: Int, j: Int)
@@ -307,7 +253,7 @@ class Array<T> : Enumerable<T>
   def split_at(idx: Int) -> Pair<Array<T>, Array<T>>
     a = Array<T>.new
     b = Array<T>.new
-    0.upto(@n_items-1) do |i: Int|
+    0.upto(length-1) do |i: Int|
       if i >= idx
         b.push(self[i])
       else

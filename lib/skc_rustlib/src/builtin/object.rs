@@ -24,6 +24,11 @@ impl SkObj {
     //        SkObj(p)
     //    }
 
+    /// Shallow clone
+    pub fn dup(&self) -> SkObj {
+        SkObj(self.0)
+    }
+
     pub fn class(&self) -> SkClass {
         unsafe { (*self.0).class_obj.dup() }
     }
