@@ -119,9 +119,8 @@ pub extern "C" fn class_type_argument(receiver: SkClass, nth: SkInt) -> SkClass 
 
 #[allow(non_snake_case)]
 #[shiika_method("Class#<>")]
-pub extern "C" fn class__specialize(receiver: SkClass, tyargs_: SkAry<ShiikaClass>) -> SkClass {
-    let tyargs = tyargs_.iter().map(|ptr| SkClass::new(ptr)).collect();
-    class_specialize(receiver, tyargs)
+pub extern "C" fn class__specialize(receiver: SkClass, tyargs: SkAry<SkClass>) -> SkClass {
+    class_specialize(receiver, tyargs.into_vec())
 }
 
 /// Same as `Class#<>` but does not need `Array` to call.

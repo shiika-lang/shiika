@@ -2,6 +2,7 @@
 //! May represent big number in the future
 use crate::builtin::{SkBool, SkFloat};
 use shiika_ffi_macro::shiika_method;
+use std::fmt;
 
 extern "C" {
     fn box_int(i: i64) -> SkInt;
@@ -25,9 +26,27 @@ impl From<SkInt> for i64 {
     }
 }
 
+impl From<SkInt> for usize {
+    fn from(sk_int: SkInt) -> Self {
+        unsafe { (*sk_int.0).value as usize }
+    }
+}
+
 impl From<i64> for SkInt {
     fn from(i: i64) -> Self {
         unsafe { box_int(i) }
+    }
+}
+
+impl From<usize> for SkInt {
+    fn from(i: usize) -> Self {
+        unsafe { box_int(i as i64) }
+    }
+}
+
+impl fmt::Display for SkInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.val())
     }
 }
 

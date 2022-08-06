@@ -1,19 +1,16 @@
-use crate::builtin::object::ShiikaObject;
-use crate::builtin::{SkInt, SkPtr};
+use crate::builtin::{SkInt, SkObj};
 use shiika_ffi_macro::shiika_method;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct SkAry<T>(*mut ShiikaArray, [T; 0]);
+pub struct SkAry<T>(*mut ShiikaArray<T>);
 
 #[repr(C)]
 #[derive(Debug)]
-struct ShiikaArray {
+struct ShiikaArray<T> {
     vtable: *const u8,
     class_obj: *const u8,
-    capa: SkInt,
-    n_items: SkInt,
-    items: SkPtr,
+    vec: *mut Vec<T>,
 }
 
 impl<T> SkAry<T> {
@@ -22,59 +19,68 @@ impl<T> SkAry<T> {
     //        SkAry::<T>(self.0, [])
     //    }
 
-    /// Returns iterator
-    pub fn iter(&self) -> SkAryIter<T> {
-        SkAryIter {
-            sk_ary: self,
-            idx: 0,
-        }
+    pub fn as_vec(&self) -> &Vec<T> {
+        unsafe { (*self.0).vec.as_ref().unwrap() }
     }
 
-    //    /// Create a `Vec` that has the same elements
-    //    pub fn to_vec(&self) -> Vec<*mut T> {
-    //        self.iter().collect()
-    //    }
-
-    /// Returns the number of elements
-    pub fn len(&self) -> usize {
-        unsafe { (*self.0).n_items.val() as usize }
+    pub fn as_vec_mut(&self) -> &mut Vec<T> {
+        unsafe { (*self.0).vec.as_mut().unwrap() }
     }
 
-    /// Returns the element
-    /// Panics if idx is too large
-    pub fn get(&self, idx: usize) -> *mut T {
-        if idx >= self.len() {
-            panic!("idx too large (len: {}, idx: {})", self.len(), idx);
-        }
-        unsafe {
-            let items_ptr = (*self.0).items.unbox() as *const *mut T;
-            let item_ptr = items_ptr.offset(idx as isize);
-            *item_ptr
-        }
+    pub fn into_vec(&self) -> Vec<T> {
+        unsafe { (*self.0).vec.read() }
+    }
+}
+
+/// Called from `Array.new` and initializes internal fields.
+#[shiika_method("Array#_initialize_rustlib")]
+#[allow(non_snake_case)]
+pub extern "C" fn array__initialize_rustlib(receiver: SkAry<SkObj>) {
+    unsafe {
+        (*receiver.0).vec = Box::leak(Box::new(Vec::new()));
     }
 }
 
 #[shiika_method("Array#[]")]
-pub extern "C" fn array_get(receiver: SkAry<ShiikaObject>, idx: SkInt) -> *const ShiikaObject {
-    receiver.get(idx.val() as usize)
+pub extern "C" fn array_get(receiver: SkAry<SkObj>, idx: SkInt) -> SkObj {
+    let v: &Vec<SkObj> = receiver.as_vec();
+    v.get(idx.val() as usize)
+        .unwrap_or_else(|| panic!("idx too large (len: {}, idx: {})", v.len(), idx))
+        .dup()
 }
 
-/// Iterates over each lvar scope.
-pub struct SkAryIter<'ary, T> {
-    sk_ary: &'ary SkAry<T>,
-    idx: usize,
+#[shiika_method("Array#[]=")]
+pub extern "C" fn array_set(receiver: SkAry<SkObj>, idx: SkInt, obj: SkObj) {
+    let v = receiver.as_vec_mut();
+    v[idx.val() as usize] = obj;
 }
 
-impl<'ary, T> Iterator for SkAryIter<'ary, T> {
-    type Item = *mut T;
+#[shiika_method("Array#clear")]
+pub extern "C" fn array_clear(receiver: SkAry<SkObj>) {
+    receiver.as_vec_mut().clear();
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.idx >= self.sk_ary.len() {
-            None
-        } else {
-            let item = self.sk_ary.get(self.idx);
-            self.idx += 1;
-            Some(item)
-        }
-    }
+#[shiika_method("Array#length")]
+pub extern "C" fn array_length(receiver: SkAry<SkObj>) -> SkInt {
+    receiver.as_vec().len().into()
+}
+
+#[shiika_method("Array#push")]
+pub extern "C" fn array_push(receiver: SkAry<SkObj>, item: SkObj) {
+    receiver.as_vec_mut().push(item);
+}
+
+#[shiika_method("Array#pop")]
+pub extern "C" fn array_pop(receiver: SkAry<SkObj>) -> SkObj {
+    receiver.as_vec_mut().pop().unwrap().dup()
+}
+
+#[shiika_method("Array#reserve")]
+pub extern "C" fn array_reserve(receiver: SkAry<SkObj>, additional: SkInt) {
+    receiver.as_vec_mut().reserve(additional.into());
+}
+
+#[shiika_method("Array#shift")]
+pub extern "C" fn array_shift(receiver: SkAry<SkObj>) -> SkObj {
+    receiver.as_vec_mut().remove(0)
 }
