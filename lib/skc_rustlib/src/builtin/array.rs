@@ -1,6 +1,13 @@
 use crate::builtin::{SkInt, SkObj};
 use shiika_ffi_macro::shiika_method;
 
+extern "C" {
+    /// `Array.new`
+    /// `receiver` should be the class `Array` but currently may be just `null`.
+    #[allow(improper_ctypes)]
+    fn Meta_Array_new(receiver: *const u8) -> SkAry<SkObj>;
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkAry<T>(*mut ShiikaArray<T>);
@@ -14,10 +21,15 @@ struct ShiikaArray<T> {
 }
 
 impl<T> SkAry<T> {
-    //    /// Shallow clone
-    //    pub fn dup(&self) -> SkAry<T> {
-    //        SkAry::<T>(self.0, [])
-    //    }
+    /// Call `Array.new`.
+    pub fn new<U>() -> SkAry<U> {
+        unsafe {
+            let sk_ary = Meta_Array_new(std::ptr::null());
+            // Force cast because external function (Meta_Array_new)
+            // cannot have type a parameter.
+            SkAry(sk_ary.0 as *mut ShiikaArray<U>)
+        }
+    }
 
     pub fn as_vec(&self) -> &Vec<T> {
         unsafe { (*self.0).vec.as_ref().unwrap() }
@@ -29,6 +41,12 @@ impl<T> SkAry<T> {
 
     pub fn into_vec(&self) -> Vec<T> {
         unsafe { (*self.0).vec.read() }
+    }
+
+    /// Replace the contents with `v`.
+    /// The original Vec will be free'd by GC.
+    pub fn set_vec(&self, v: Vec<T>) {
+        unsafe { (*self.0).vec = Box::leak(Box::new(v)) }
     }
 }
 

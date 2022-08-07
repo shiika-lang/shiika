@@ -11,3 +11,4 @@ crate-type = ["staticlib"]
 shiika_ffi_macro = { path = "../shiika_ffi_macro" }
 bdwgc-alloc = "0.6.0"
 plain = "0.2.3"
+unicode-segmentation = "1.7.1"

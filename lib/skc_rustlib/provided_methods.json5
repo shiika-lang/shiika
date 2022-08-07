@@ -51,6 +51,7 @@
   ["Object", "object_id -> Int"],
   ["Object", "print(str: String)"],
   ["Object", "puts(str: String)"],
+  ["String", "chars -> Array<String>"],
   ["Meta:Math", "sin(x: Float) -> Float"],
   ["Meta:Math", "cos(x: Float) -> Float"],
   ["Meta:Math", "sqrt(x: Float) -> Float"],
