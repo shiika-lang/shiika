@@ -1,6 +1,8 @@
 //! Instance of `::String`
-use crate::builtin::{SkInt, SkPtr};
+use crate::builtin::{SkAry, SkInt, SkPtr};
+use shiika_ffi_macro::shiika_method;
 use std::ffi::CString;
+use unicode_segmentation::UnicodeSegmentation;
 
 extern "C" {
     // TODO: better name
@@ -61,4 +63,14 @@ impl SkStr {
     pub fn as_str(&self) -> &str {
         std::str::from_utf8(self.as_byteslice()).unwrap()
     }
+}
+
+#[shiika_method("String#chars")]
+pub extern "C" fn string_chars(receiver: SkStr) -> SkAry<SkStr> {
+    let ary = SkAry::<SkStr>::new();
+    let v = UnicodeSegmentation::graphemes(receiver.as_str(), true)
+        .map(|s| s.to_string().into())
+        .collect::<Vec<SkStr>>();
+    ary.set_vec(v);
+    ary
 }
