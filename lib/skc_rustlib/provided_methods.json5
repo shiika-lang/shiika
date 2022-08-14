@@ -59,6 +59,7 @@
   ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"],
   ["Meta:Shiika::Internal::Memory", "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr"],
   ["Shiika::Internal::Ptr", "+(n_bytes: Int) -> Shiika::Internal::Ptr"],
+  ["Shiika::Internal::Ptr", "inspect -> String"],
   ["Shiika::Internal::Ptr", "load -> Object"],
   ["Shiika::Internal::Ptr", "read -> Int"],
   ["Shiika::Internal::Ptr", "store(value: Object)"],
