@@ -1,5 +1,5 @@
 //! Instance of `::String`
-use crate::builtin::{SkAry, SkInt, SkPtr};
+use crate::builtin::{SkAry, SkFn1, SkInt, SkPtr, SkVoid};
 use shiika_ffi_macro::shiika_method;
 use std::ffi::CString;
 use unicode_segmentation::UnicodeSegmentation;
@@ -74,3 +74,13 @@ pub extern "C" fn string_chars(receiver: SkStr) -> SkAry<SkStr> {
     ary.set_vec(v);
     ary
 }
+
+// TODO: How to support `break`
+//#[shiika_method("String#each_char")]
+//pub extern "C" fn string_each_char(receiver: SkStr, block: SkFn1<SkStr, SkVoid>) {
+//    UnicodeSegmentation::graphemes(receiver.as_str(), true)
+//        .map(|s| s.to_string().into())
+//        .for_each(|sk_str| {
+//            block.call(sk_str);
+//        });
+//}
