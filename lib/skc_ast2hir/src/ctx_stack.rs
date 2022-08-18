@@ -8,17 +8,12 @@ use std::collections::HashMap;
 pub struct CtxStack {
     /// List of ctxs
     vec: Vec<HirMakerContext>,
-    /// Indices of LambdaCtx
-    lambda_idx: Vec<usize>,
 }
 
 impl CtxStack {
     /// Create a CtxStack
     pub fn new(v: Vec<HirMakerContext>) -> CtxStack {
-        CtxStack {
-            vec: v,
-            lambda_idx: Default::default(),
-        }
+        CtxStack { vec: v }
     }
 
     /// Returns length of stack
@@ -31,31 +26,14 @@ impl CtxStack {
         &self.vec[idx]
     }
 
-    /// Returns the ctx of innermost lambda, if any
-    pub fn innermost_lambda(&self) -> Option<&LambdaCtx> {
-        self.lambda_idx.last().map(|i| {
-            if let HirMakerContext::Lambda(lambda_ctx) = self.vec.get(*i).unwrap() {
-                lambda_ctx
-            } else {
-                panic!("[BUG] not LambdaCtx");
-            }
-        })
-    }
-
     /// Push a ctx
     pub fn push(&mut self, c: HirMakerContext) {
-        if matches!(c, HirMakerContext::Lambda(_)) {
-            self.lambda_idx.push(self.vec.len());
-        }
         self.vec.push(c);
     }
 
     /// Pop a ctx
     fn pop(&mut self) -> HirMakerContext {
         let c = self.vec.pop().expect("[BUG] no ctx to pop");
-        if matches!(c, HirMakerContext::Lambda(_)) {
-            self.lambda_idx.pop();
-        }
         c
     }
 
