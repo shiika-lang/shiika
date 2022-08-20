@@ -1,5 +1,5 @@
 //! Instance of `::String`
-use crate::builtin::{SkAry, SkFn1, SkInt, SkPtr, SkVoid};
+use crate::builtin::{SkAry, SkInt, SkPtr};
 use shiika_ffi_macro::shiika_method;
 use std::ffi::CString;
 use unicode_segmentation::UnicodeSegmentation;
