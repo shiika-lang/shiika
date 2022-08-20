@@ -329,6 +329,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         if incoming_blocks.is_empty() {
             // All the clauses ends with a jump; no merge block needed
+            self.builder.position_at_end(merge_block);
+            self.builder.build_unreachable();
             Ok(None)
         } else {
             // MatchEnd:

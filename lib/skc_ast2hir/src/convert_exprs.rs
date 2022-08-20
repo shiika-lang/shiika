@@ -248,8 +248,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_break_expr(&mut self) -> Result<HirExpression> {
         let from;
-        match self.ctx_stack.top_mut() {
-            HirMakerContext::Lambda(lambda_ctx) => {
+        match self.ctx_stack.loop_ctx_mut() {
+            Some(HirMakerContext::Lambda(lambda_ctx)) => {
                 if lambda_ctx.is_fn {
                     return Err(error::program_error("`break' inside a fn"));
                 } else {
@@ -259,7 +259,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     from = HirBreakFrom::Block;
                 }
             }
-            HirMakerContext::While(_) => {
+            Some(HirMakerContext::While(_)) => {
                 from = HirBreakFrom::While;
             }
             _ => {
@@ -592,7 +592,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Find the variable of the given name.
     /// If it is a free variable, lambda_ctx.captures will be modified
     fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>> {
-        let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.innermost_lambda() {
+        let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
             (true, lambda_ctx.captures.len())
         } else {
             (false, 0)

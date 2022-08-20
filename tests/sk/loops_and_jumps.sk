@@ -42,6 +42,19 @@ var n = 0
 }
 unless n == 4 then puts "ng: break from block" end
 
+# break in match expr
+class Issue376
+  def self.foo
+    loop do
+      match 1
+      when a
+        p a
+        break
+      end
+    end
+  end
+end
+
 class A
   # return without arguments
   def self.wo_arg
