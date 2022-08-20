@@ -78,13 +78,16 @@ fn compile_body(
 }
 
 /// Calculate the type of the match expression from clauses
-fn calc_result_ty(mk: &HirMaker, clauses: &mut [MatchClause]) -> Result<TermTy> {
-    debug_assert!(!clauses.is_empty());
-    let mut clauses = clauses
+fn calc_result_ty(mk: &HirMaker, clauses_: &mut [MatchClause]) -> Result<TermTy> {
+    debug_assert!(!clauses_.is_empty());
+    let mut clauses = clauses_
         .iter_mut()
         .filter(|c| !c.body_hir.ty.is_never_type())
         .collect::<Vec<_>>();
-    if clauses.iter().any(|c| c.body_hir.ty.is_void_type()) {
+    if clauses.is_empty() {
+        // All clauses are type `Never`.
+        Ok(ty::raw("Never"))
+    } else if clauses.iter().any(|c| c.body_hir.ty.is_void_type()) {
         for c in clauses.iter_mut() {
             if !c.body_hir.ty.is_void_type() {
                 c.body_hir.voidify();
