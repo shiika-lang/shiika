@@ -97,12 +97,6 @@ impl CtxStack {
         self.vec.last().expect("[BUG] ctx_stack is empty")
     }
 
-    /// Returns the ctx on the top of the stack
-    pub fn top_mut(&mut self) -> &mut HirMakerContext {
-        // ctx_stack will not be empty because toplevel ctx is always there
-        self.vec.last_mut().expect("[BUG] ctx_stack is empty")
-    }
-
     /// Return nearest enclosing class ctx, if any
     pub fn class_ctx(&self) -> Option<&ClassCtx> {
         for x in self.vec.iter().rev() {
@@ -148,6 +142,16 @@ impl CtxStack {
         for x in self.vec.iter_mut().rev() {
             if let HirMakerContext::Lambda(c) = x {
                 return Some(c);
+            }
+        }
+        None
+    }
+
+    /// Return ctx of nearest enclosing loop, if any
+    pub fn loop_ctx_mut(&mut self) -> Option<&mut HirMakerContext> {
+        for x in self.vec.iter_mut().rev() {
+            if matches!(x, HirMakerContext::Lambda(_) | HirMakerContext::While(_)) {
+                return Some(x);
             }
         }
         None

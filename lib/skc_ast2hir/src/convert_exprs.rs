@@ -248,8 +248,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     fn convert_break_expr(&mut self) -> Result<HirExpression> {
         let from;
-        match self.ctx_stack.top_mut() {
-            HirMakerContext::Lambda(lambda_ctx) => {
+        match self.ctx_stack.loop_ctx_mut() {
+            Some(HirMakerContext::Lambda(lambda_ctx)) => {
                 if lambda_ctx.is_fn {
                     return Err(error::program_error("`break' inside a fn"));
                 } else {
@@ -259,7 +259,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     from = HirBreakFrom::Block;
                 }
             }
-            HirMakerContext::While(_) => {
+            Some(HirMakerContext::While(_)) => {
                 from = HirBreakFrom::While;
             }
             _ => {
