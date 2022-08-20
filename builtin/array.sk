@@ -2,9 +2,6 @@ require "./enumerable.sk"
 require "./maybe.sk"
 
 class Array<T> : Enumerable<T>
-  BYTES_OF_PTR = 8  # Assuming 64bit env
-  INITIAL_CAPA = 10
-
   # Build an array of length `len` by passing index to `f`
   def self.build<U>(len: Int, f: Fn1<Int, U>) -> Array<U>
     ret = Array<U>.new
