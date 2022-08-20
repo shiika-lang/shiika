@@ -63,7 +63,7 @@ pub extern "C" fn array__initialize_rustlib(receiver: SkAry<SkObj>) {
 pub extern "C" fn array_get(receiver: SkAry<SkObj>, idx: SkInt) -> SkObj {
     let v: &Vec<SkObj> = receiver.as_vec();
     v.get(idx.val() as usize)
-        .unwrap_or_else(|| panic!("idx too large (len: {}, idx: {})", v.len(), idx))
+        .unwrap_or_else(|| panic!("Array#[]: idx too large (len: {}, idx: {})", v.len(), idx))
         .dup()
 }
 
