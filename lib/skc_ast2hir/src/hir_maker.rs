@@ -151,6 +151,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ))
     }
 
+    // Process definitions in a class or the toplevel.
     fn process_defs(
         &mut self,
         namespace: &Namespace,
@@ -461,29 +462,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             self._register_enum_case_class(&inner_namespace, case)?;
         }
         self.ctx_stack
-            .push(HirMakerContext::class(inner_namespace, typarams));
-        for def in defs {
-            match def {
-                shiika_ast::Definition::InstanceMethodDefinition {
-                    sig, body_exprs, ..
-                } => {
-                    if def.is_initializer() {
-                        return Err(error::program_error(
-                            "you cannot define #initialize of enum",
-                        ));
-                    } else {
-                        log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(
-                            &fullname.to_type_fullname(),
-                            &sig.name,
-                            body_exprs,
-                        )?;
-                        self.method_dict.add_method(&fullname, method);
-                    }
-                }
-                _ => panic!("[TODO] in enum {:?}", def),
-            }
-        }
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
+
+        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
     }

@@ -8,4 +8,23 @@ unless a.value == 1; puts "ng Some#value"; end
 o = Ok<Int, Error>.new(0)
 e = Fail<Int, Error>.new(Error.new("fail"))
 
+# Class method of enum
+enum EnumWithClassMethod
+  def self.foo -> Int
+    1
+  end
+end
+unless EnumWithClassMethod.foo == 1; puts "ng EnumWithClassMethod.foo"; end
+  
+# Inner class of enum
+enum EnumWithInnerClass
+  class InnerClassInEnum
+    def foo -> Int
+      1
+    end
+  end
+end
+obj = EnumWithInnerClass::InnerClassInEnum.new
+unless obj.foo == 1; puts "ng InnerClassInEnum#foo"; end
+
 puts "ok"
