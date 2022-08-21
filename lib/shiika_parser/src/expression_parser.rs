@@ -1217,26 +1217,29 @@ impl<'a> Parser<'a> {
                 self.parse_extractor_pattern(name)?
             }
             Token::KwTrue | Token::KwFalse => {
-                //let t = token.clone();
+                let b = *token == Token::KwTrue;
                 self.consume_token()?;
-                todo!();
-                //shiika_ast::AstPattern::BoolLiteralPattern(t)
+                shiika_ast::AstPattern::BooleanLiteralPattern(b)
             }
             Token::Number(s) => {
                 if s.contains('.') {
-                    todo!()
-                    //let value = s.parse().unwrap();
-                    //shiika_ast::AstPattern::FloatLiteralPattern(value)
+                    let value = s.parse().unwrap();
+                    self.consume_token()?;
+                    shiika_ast::AstPattern::FloatLiteralPattern(value)
                 } else {
                     let value = s.parse().unwrap();
+                    self.consume_token()?;
                     shiika_ast::AstPattern::IntegerLiteralPattern(value)
                 }
             }
-            // Not sure we'll need these
-            // Token::Str(content) => {
-            //     shiika_ast::AstPattern::StringLiteralPattern(content)
-            // }
-            // Token::StrWithInterpolation { .. } =>
+            Token::Str(content) => {
+                let s = content.to_string();
+                self.consume_token()?;
+                shiika_ast::AstPattern::StringLiteralPattern(s)
+            }
+            Token::StrWithInterpolation { .. } => {
+                todo!()
+            }
             _ => {
                 return Err(parse_error!(self, "expected a pattern but got {:?}", token));
             }

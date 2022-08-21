@@ -896,7 +896,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Hir::self_expression(self.ctx_stack.self_ty(), locs.clone())
     }
 
-    fn convert_string_literal(&mut self, content: &str, locs: &LocationSpan) -> HirExpression {
+    pub(super) fn convert_string_literal(
+        &mut self,
+        content: &str,
+        locs: &LocationSpan,
+    ) -> HirExpression {
         let idx = self.register_string_literal(content);
         Hir::string_literal(idx, locs.clone())
     }
