@@ -194,9 +194,10 @@ pub enum AstPattern {
         params: Vec<AstPattern>,
     },
     VariablePattern(String),
-    PseudoVariablePattern(Token),
-    FloatLiteralPattern(f64),
+    BooleanLiteralPattern(bool),
     IntegerLiteralPattern(i64),
+    FloatLiteralPattern(f64),
+    StringLiteralPattern(String),
 }
 
 pub type AstMatchClause = (AstPattern, Vec<AstExpression>);

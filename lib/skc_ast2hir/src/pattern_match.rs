@@ -100,7 +100,8 @@ fn calc_result_ty(mk: &HirMaker, clauses_: &mut [MatchClause]) -> Result<TermTy>
             if let Some(t) = mk.class_dict.nearest_common_ancestor(&ty, &c.body_hir.ty) {
                 ty = t;
             } else {
-                return Err(error::type_error("match clause type mismatch"));
+                let msg = format!("match clause type mismatch ({} vs {})", &ty, &c.body_hir.ty);
+                return Err(error::type_error(msg));
             }
         }
         for c in clauses.iter_mut() {
@@ -137,23 +138,49 @@ fn convert_match(
                 Ok(vec![Component::Bind(name.to_string(), value.clone())])
             }
         }
-        AstPattern::IntegerLiteralPattern(i) => {
-            if value.ty != ty::raw("Int") {
-                return Err(error::type_error(&format!(
-                    "expr of `{}' never matches to `Int'",
-                    value.ty,
-                )));
-            }
-            let test = Hir::method_call_(
-                ty::raw("Bool"),
-                value.clone(),
-                method_fullname_raw("Int", "=="),
-                vec![Hir::decimal_literal(*i, LocationSpan::todo())],
-            );
-            Ok(vec![Component::Test(test)])
+        AstPattern::BooleanLiteralPattern(b) => {
+            check_ty_raw(value, "Bool")?;
+            let hir_bool = Hir::boolean_literal(*b, LocationSpan::todo());
+            Ok(vec![make_eq_test(value, "Bool", hir_bool)])
         }
-        _ => todo!(),
+        AstPattern::IntegerLiteralPattern(i) => {
+            check_ty_raw(value, "Int")?;
+            let hir_int = Hir::decimal_literal(*i, LocationSpan::todo());
+            Ok(vec![make_eq_test(value, "Int", hir_int)])
+        }
+        AstPattern::FloatLiteralPattern(f) => {
+            check_ty_raw(value, "Float")?;
+            let hir_int = Hir::float_literal(*f, LocationSpan::todo());
+            Ok(vec![make_eq_test(value, "Float", hir_int)])
+        }
+        AstPattern::StringLiteralPattern(s) => {
+            check_ty_raw(value, "String")?;
+            let hir_str = mk.convert_string_literal(s, &LocationSpan::todo());
+            Ok(vec![make_eq_test(value, "String", hir_str)])
+        }
     }
+}
+
+/// Check the type of `value` is `ty::raw(name)`
+fn check_ty_raw(value: &HirExpression, name: &str) -> Result<()> {
+    if value.ty != ty::raw(name) {
+        return Err(error::type_error(&format!(
+            "expr of `{}' never matches to `{}'",
+            value.ty, name
+        )));
+    }
+    Ok(())
+}
+
+/// Make `lhs == rhs`
+fn make_eq_test(value: &HirExpression, name: &str, rhs: HirExpression) -> Component {
+    let test = Hir::method_call_(
+        ty::raw("Bool"),
+        value.clone(),
+        method_fullname_raw(name, "=="),
+        vec![rhs],
+    );
+    Component::Test(test)
 }
 
 /// Create components for match against extractor pattern
