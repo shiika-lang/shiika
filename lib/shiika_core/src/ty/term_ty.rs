@@ -6,13 +6,13 @@ use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 use serde::{Deserialize, Serialize};
 
 /// Types for a term (types of Shiika values)
-#[derive(PartialEq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct TermTy {
     pub fullname: ClassFullname, // TODO: should be TypeFullname
     pub body: TyBody,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum TyBody {
     /// Types of classes
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.

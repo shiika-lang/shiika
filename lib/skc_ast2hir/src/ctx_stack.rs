@@ -1,5 +1,5 @@
 use crate::hir_maker_context::*;
-use shiika_core::names::{class_fullname, Namespace};
+use shiika_core::names::Namespace;
 use shiika_core::{ty, ty::*};
 use skc_hir::MethodParam;
 use std::collections::HashMap;
@@ -177,9 +177,13 @@ impl CtxStack {
     /// The type of `self` in the current scope
     pub fn self_ty(&self) -> TermTy {
         if let Some(class_ctx) = self.class_ctx() {
-            if self.method_ctx().is_some() {
-                let classname = class_fullname(class_ctx.namespace.string());
-                ty::return_type_of_new(&classname, &class_ctx.typarams)
+            if let Some(method_ctx) = self.method_ctx() {
+                if method_ctx.signature.is_class_method() {
+                    ty::meta(&class_ctx.namespace.string())
+                } else {
+                    let classname = &method_ctx.signature.fullname.class_name;
+                    ty::return_type_of_new(classname, &class_ctx.typarams)
+                }
             } else {
                 ty::meta(&class_ctx.namespace.string())
             }

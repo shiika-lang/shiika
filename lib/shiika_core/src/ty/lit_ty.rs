@@ -4,7 +4,7 @@ use crate::ty;
 use serde::{Deserialize, Serialize};
 
 /// "Literal" type i.e. types that are not type parameter reference.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct LitTy {
     // REFACTOR: ideally these should be private
     pub base_name: String,

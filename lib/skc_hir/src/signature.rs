@@ -10,6 +10,10 @@ pub struct MethodSignature {
 }
 
 impl MethodSignature {
+    pub fn is_class_method(&self) -> bool {
+        self.fullname.class_name.is_meta()
+    }
+
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
     }
