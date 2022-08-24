@@ -1,5 +1,6 @@
 use super::class_name::*;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct MethodFirstname(pub String);
@@ -20,10 +21,20 @@ impl MethodFirstname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct MethodFullname {
-    pub full_name: String,
+    // class part
+    pub class_name: ClassFullname,
+    // method part
     pub first_name: MethodFirstname,
+    // cache
+    pub full_name: String,
+}
+
+impl Hash for MethodFullname {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.full_name.hash(state);
+    }
 }
 
 pub fn method_fullname(
@@ -34,6 +45,7 @@ pub fn method_fullname(
     debug_assert!(!first_name.is_empty());
     debug_assert!(!first_name.starts_with('@'));
     MethodFullname {
+        class_name: class_name.clone(),
         full_name: class_name.0.clone() + "#" + &first_name,
         first_name: MethodFirstname(first_name),
     }

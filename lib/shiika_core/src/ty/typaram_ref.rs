@@ -3,7 +3,7 @@ use crate::ty::lit_ty::LitTy;
 use crate::ty::term_ty::{TermTy, TyBody};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct TyParamRef {
     pub kind: TyParamKind,
     pub name: String,
@@ -14,7 +14,7 @@ pub struct TyParamRef {
     pub as_class: bool,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum TyParamKind {
     /// eg. `class A<B>`
     Class,
