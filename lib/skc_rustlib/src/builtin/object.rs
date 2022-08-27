@@ -58,6 +58,11 @@ pub extern "C" fn object_object_id(receiver: SkObj) -> SkInt {
     }
 }
 
+#[shiika_method("Object#panic")]
+pub extern "C" fn object_panic(_receiver: *const u8, s: SkStr) {
+    panic!("{}", s.as_str());
+}
+
 #[shiika_method("Object#print")]
 pub extern "C" fn object_print(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid

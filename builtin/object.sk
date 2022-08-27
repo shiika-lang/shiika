@@ -32,11 +32,6 @@ class Object
     puts obj.inspect
   end
 
-  def panic(msg: String) -> Never
-    puts msg
-    exit 1
-  end
-
   def to_s -> String
     "#<#{self.class.name}:#{self.object_id}>"
   end

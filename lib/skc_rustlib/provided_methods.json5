@@ -49,6 +49,7 @@
   ["Object", "class -> Class"],
   ["Object", "exit(code: Int) -> Never"],
   ["Object", "object_id -> Int"],
+  ["Object", "panic(msg: String) -> Never"],
   ["Object", "print(str: String)"],
   ["Object", "puts(str: String)"],
   ["String", "chars -> Array<String>"],
