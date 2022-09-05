@@ -1,34 +1,31 @@
+use shiika_core::names::TypeFullname;
 use shiika_core::ty::TermTy;
 use skc_hir::{MethodSignature, SkType};
 
 #[derive(Debug, Clone)]
-pub struct FoundMethod<'hir_maker> {
+pub struct FoundMethod {
     /// A Shiika class or Shiika module
-    pub owner: &'hir_maker SkType,
+    pub owner: TypeFullname,
     /// The signature of the method
     pub sig: MethodSignature,
     /// Index in the method list of `owner` (used for module method call via wtable)
     pub method_idx: Option<usize>,
 }
 
-impl<'hir_maker> FoundMethod<'hir_maker> {
-    pub fn class(owner: &'hir_maker SkType, sig: MethodSignature) -> FoundMethod<'hir_maker> {
+impl FoundMethod {
+    pub fn class(owner: &SkType, sig: MethodSignature) -> FoundMethod {
         debug_assert!(owner.is_class());
         FoundMethod {
-            owner,
+            owner: owner.fullname(),
             sig,
             method_idx: None,
         }
     }
 
-    pub fn module(
-        owner: &'hir_maker SkType,
-        sig: MethodSignature,
-        idx: usize,
-    ) -> FoundMethod<'hir_maker> {
+    pub fn module(owner: &SkType, sig: MethodSignature, idx: usize) -> FoundMethod {
         debug_assert!(!owner.is_class());
         FoundMethod {
-            owner,
+            owner: owner.fullname(),
             sig,
             method_idx: Some(idx),
         }
@@ -38,18 +35,18 @@ impl<'hir_maker> FoundMethod<'hir_maker> {
         self.sig = self.sig.specialize(class_tyargs, method_tyargs);
     }
 
-    pub fn set_class(&self, owner: &'hir_maker SkType) -> FoundMethod<'hir_maker> {
+    pub fn set_class(&self, owner: &SkType) -> FoundMethod {
         debug_assert!(owner.is_class());
         FoundMethod {
-            owner,
+            owner: owner.fullname(),
             ..self.clone()
         }
     }
 
-    pub fn set_module(&self, owner: &'hir_maker SkType) -> FoundMethod<'hir_maker> {
+    pub fn set_module(&self, owner: &SkType) -> FoundMethod {
         debug_assert!(!owner.is_class());
         FoundMethod {
-            owner,
+            owner: owner.fullname(),
             ..self.clone()
         }
     }
