@@ -118,8 +118,8 @@ impl TermTy {
         }
     }
 
-    // Returns ret_ty if this is any of Fn0, .., Fn9
-    pub fn fn_x_info(&self) -> Option<TermTy> {
+    // If this is any of Fn0, .., Fn9, returns its type arguments.
+    pub fn fn_x_info(&self) -> Option<&[TermTy]> {
         match &self.body {
             TyRaw(LitTy {
                 base_name,
@@ -131,8 +131,7 @@ impl TermTy {
                 }
                 for i in 0..=9 {
                     if *base_name == format!("Fn{}", i) {
-                        let ret_ty = type_args.last().unwrap().clone();
-                        return Some(ret_ty);
+                        return Some(type_args);
                     }
                 }
                 None
