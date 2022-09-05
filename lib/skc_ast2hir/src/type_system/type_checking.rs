@@ -2,6 +2,7 @@ use crate::class_dict::ClassDict;
 use crate::error::type_error;
 use anyhow::Result;
 use ariadne::{Label, Report, ReportKind, Source};
+use shiika_ast;
 use shiika_core::{ty, ty::*};
 use skc_hir::*;
 use std::fs;
@@ -176,4 +177,18 @@ fn check_arg_type(
         .write((&path, src), &mut report)
         .unwrap();
     return Err(type_error(String::from_utf8_lossy(&report).to_string()));
+}
+
+/// Check number of block parameters
+pub fn check_block_arity(sig: &MethodSignature, params: &[shiika_ast::BlockParam]) -> Result<()> {
+    let block_ty = sig.block_ty().unwrap();
+    if params.len() != block_ty.len() - 1 {
+        return Err(type_error!(
+            "the block of {} takes {} args but got {}",
+            sig.fullname,
+            sig.params.len(),
+            params.len()
+        ));
+    }
+    Ok(())
 }

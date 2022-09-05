@@ -16,11 +16,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .and_then(|sk_type| self._find_method(sk_type, method_name))
     }
 
-    fn _find_method(
-        &self,
-        sk_type: &'hir_maker SkType,
-        method_name: &MethodFirstname,
-    ) -> Option<FoundMethod<'hir_maker>> {
+    fn _find_method(&self, sk_type: &SkType, method_name: &MethodFirstname) -> Option<FoundMethod> {
         match sk_type {
             SkType::Class(sk_class) => sk_class
                 .base

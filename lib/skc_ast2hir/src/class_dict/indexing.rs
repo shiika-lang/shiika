@@ -1,5 +1,6 @@
 use crate::class_dict::build_wtable::build_wtable;
 use crate::class_dict::*;
+use crate::convert_exprs::params;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
@@ -220,7 +221,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
-            self.convert_params(namespace, &sig.params, typarams, Default::default())
+            params::convert_params(self, namespace, &sig.params, typarams, Default::default())
         } else {
             // Inherit #initialize from superclass
             let found = self
@@ -518,7 +519,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(MethodSignature {
             fullname,
             ret_ty,
-            params: self.convert_params(
+            params: params::convert_params(
+                self,
                 namespace,
                 &sig.params,
                 class_typarams,
@@ -528,31 +530,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         })
     }
 
-    /// Convert ast params to hir params
-    pub fn convert_params(
-        &self,
-        namespace: &Namespace,
-        ast_params: &[shiika_ast::Param],
-        class_typarams: &[ty::TyParam],
-        method_typarams: &[ty::TyParam],
-    ) -> Result<Vec<MethodParam>> {
-        let mut hir_params = vec![];
-        for param in ast_params {
-            hir_params.push(MethodParam {
-                name: param.name.to_string(),
-                ty: self._resolve_typename(
-                    namespace,
-                    class_typarams,
-                    method_typarams,
-                    &param.typ,
-                )?,
-            });
-        }
-        Ok(hir_params)
-    }
-
     /// Resolve the given type name to fullname
-    fn _resolve_typename(
+    // TODO: Remove `_`
+    pub fn _resolve_typename(
         &self,
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],

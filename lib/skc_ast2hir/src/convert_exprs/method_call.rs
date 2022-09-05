@@ -1,10 +1,32 @@
 use crate::class_dict::FoundMethod;
+use crate::convert_exprs::block;
 use crate::error;
 use crate::hir_maker::HirMaker;
 use crate::type_system::type_checking;
 use anyhow::Result;
+use shiika_ast::AstExpression;
 use shiika_core::ty;
 use skc_hir::*;
+
+/// Convert method call arguments to HirExpression's
+pub fn convert_method_args(
+    mk: &mut HirMaker,
+    block_taker: &block::BlockTaker,
+    arg_exprs: &[AstExpression],
+    has_block: &bool,
+) -> Result<Vec<HirExpression>> {
+    let n = arg_exprs.len();
+    let mut arg_hirs = vec![];
+    for i in 0..n {
+        let arg_hir = if *has_block && i == n - 1 {
+            block::convert_block(mk, block_taker, &arg_exprs[i])?
+        } else {
+            mk.convert_expr(&arg_exprs[i])?
+        };
+        arg_hirs.push(arg_hir);
+    }
+    Ok(arg_hirs)
+}
 
 /// Check the arguments and create HirMethodCall or HirModuleMethodCall
 pub fn build(
@@ -17,7 +39,8 @@ pub fn build(
     let specialized = receiver_hir.ty.is_specialized();
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
 
-    let receiver = Hir::bit_cast(found.owner.erasure().to_term_ty(), receiver_hir);
+    let owner = mk.class_dict.get_type(&found.owner);
+    let receiver = Hir::bit_cast(owner.erasure().to_term_ty(), receiver_hir);
     let args = if specialized {
         arg_hirs
             .into_iter()
@@ -27,7 +50,7 @@ pub fn build(
         arg_hirs
     };
 
-    let hir = build_hir(&found, receiver, args);
+    let hir = build_hir(&found, &owner, receiver, args);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
     } else if specialized {
@@ -73,10 +96,11 @@ fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> 
 
 fn build_hir(
     found: &FoundMethod,
+    owner: &SkType,
     receiver_hir: HirExpression,
     arg_hirs: Vec<HirExpression>,
 ) -> HirExpression {
-    match found.owner {
+    match owner {
         SkType::Class(_) => Hir::method_call_(
             found.sig.ret_ty.clone(),
             receiver_hir,

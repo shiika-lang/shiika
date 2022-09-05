@@ -18,6 +18,11 @@ impl MethodSignature {
         &self.fullname.first_name
     }
 
+    /// If this method takes a block, returns types of block params and block value.
+    pub fn block_ty(&self) -> Option<&[TermTy]> {
+        self.params.last().and_then(|param| param.ty.fn_x_info())
+    }
+
     /// Substitute type parameters with type arguments
     pub fn specialize(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> MethodSignature {
         MethodSignature {
