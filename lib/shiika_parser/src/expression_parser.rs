@@ -974,7 +974,7 @@ impl<'a> Parser<'a> {
         assert!(self.consume(Token::KwFn)?);
         let params;
         if self.consume(Token::LParen)? {
-            params = self.parse_block_params(true)?;
+            params = self.parse_block_params(true, &Token::RParen)?;
             self.skip_ws()?;
         } else {
             params = vec![];
@@ -1201,8 +1201,8 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_do_block");
         self.expect(Token::KwDo)?;
         self.skip_ws()?;
-        let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params(false)?
+        let block_params = if self.consume(Token::Or)? {
+            self.parse_block_params(false, &Token::Or)?
         } else {
             vec![]
         };
@@ -1219,8 +1219,8 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_brace_block");
         self.expect(Token::LBrace)?;
         self.skip_ws()?;
-        let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params(false)?
+        let block_params = if self.consume(Token::Or)? {
+            self.parse_block_params(false, &Token::Or)?
         } else {
             vec![]
         };
@@ -1231,24 +1231,19 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
     }
 
-    /// Parse `|a, b, ...|`
-    fn parse_block_params(&mut self, type_required: bool) -> Result<Vec<BlockParam>, Error> {
+    /// Parse `a, b, ...` in `|...|` or `fn(...){`
+    fn parse_block_params(
+        &mut self,
+        type_required: bool,
+        stop_tok: &Token,
+    ) -> Result<Vec<BlockParam>, Error> {
         self.lv += 1;
         self.debug_log("parse_block_params");
-        self.expect(Token::Or)?;
         self.skip_ws()?;
         let mut params = vec![];
         let mut comma_seen = false;
         loop {
             match self.current_token() {
-                Token::Or => {
-                    if comma_seen {
-                        return Err(parse_error!(self, "extra comma in block params"));
-                    } else {
-                        self.consume_token()?;
-                        break;
-                    }
-                }
                 Token::Comma => {
                     if comma_seen {
                         return Err(parse_error!(self, "extra comma in block params"));
@@ -1263,11 +1258,19 @@ impl<'a> Parser<'a> {
                     comma_seen = false;
                 }
                 token => {
+                    if token == stop_tok {
+                        if comma_seen {
+                            return Err(parse_error!(self, "extra comma in block params"));
+                        } else {
+                            self.consume_token()?;
+                            break;
+                        }
+                    }
                     return Err(parse_error!(
                         self,
                         "invalid token in block params: {:?}",
                         token
-                    ))
+                    ));
                 }
             }
         }
@@ -1300,7 +1303,10 @@ impl<'a> Parser<'a> {
             Some(self.parse_typ()?)
         } else {
             if type_required {
-                return Err(parse_error!(self, "type annotation required here"));
+                return Err(parse_error!(
+                    self,
+                    "type annotation of fn param is mandatory"
+                ));
             }
             None
         };
