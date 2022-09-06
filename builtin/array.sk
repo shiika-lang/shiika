@@ -42,7 +42,7 @@ class Array<T> : Enumerable<T>
       false
     else
       var ret = true
-      0.upto(self.length - 1) do |i: Int|
+      0.upto(self.length - 1) do |i|
         if self[i] != other[i]
           ret = false
           break
@@ -59,7 +59,7 @@ class Array<T> : Enumerable<T>
 
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
-    other.each do |item: T|
+    other.each do |item|
       push(item)
     end
   end
@@ -67,7 +67,7 @@ class Array<T> : Enumerable<T>
   # Create shallow clone of `self`
   def clone -> Array<T>
     ret = Array<T>.new
-    each do |item: T|
+    each do |item|
       ret.push(item)
     end
     ret
@@ -76,7 +76,7 @@ class Array<T> : Enumerable<T>
   # Create an array which contains elements of `self` without first `n` elements.
   def drop(n: Int) -> Array<T>
     ret = Array<T>.new
-    n.upto(length - 1) do |i: Int|
+    n.upto(length - 1) do |i|
       ret.push(self[i])
     end
     ret
@@ -102,7 +102,7 @@ class Array<T> : Enumerable<T>
   # Returns a shallow copy of `self` which has first `n` elements (at most).
   def first_n(n: Int) -> Array<T>
     a = Array<T>.new
-    0.upto(n-1) do |i: Int|
+    0.upto(n-1) do |i|
       break if i >= length
       a.push(self[i])
     end
@@ -114,7 +114,7 @@ class Array<T> : Enumerable<T>
     var first = true
     ret = MutableString.new
     ret.append("[")
-    each do |item: T|
+    each do |item|
       if first
         first = false
       else
@@ -152,7 +152,7 @@ class Array<T> : Enumerable<T>
   # Create an array which contains items of `self` for which `f` does not return true
   def reject(f: Fn1<T, Bool>) -> Array<T>
     ret = Array<T>.new
-    each do |item: T|
+    each do |item|
       ret.push(item) unless f(item)
     end
     ret
@@ -165,7 +165,7 @@ class Array<T> : Enumerable<T>
   # Create a new array which has reversed elements of `self`
   def reverse -> Array<T>
     ret = Array<T>.new
-    reverse_each do |item: T|
+    reverse_each do |item|
       ret.push(item)
     end
     ret
@@ -250,7 +250,7 @@ class Array<T> : Enumerable<T>
   def split_at(idx: Int) -> Pair<Array<T>, Array<T>>
     a = Array<T>.new
     b = Array<T>.new
-    0.upto(length-1) do |i: Int|
+    0.upto(length-1) do |i|
       if i >= idx
         b.push(self[i])
       else

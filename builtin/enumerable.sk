@@ -7,7 +7,7 @@ module Enumerable<E>
     ret = Array<Pair<A, B>>.new
     match [a.length, b.length].min
     when Maybe::Some(n)
-      0.upto(n-1) do |i: Int|
+      0.upto(n-1) do |i|
         ret.push(Pair<A, B>.new(a[i], b[i]))
       end
     end
@@ -17,7 +17,7 @@ module Enumerable<E>
   # Return true if `f` returns true for all element of `self`
   def all?(f: Fn1<E, Bool>) -> Bool
     var ret = true
-    self.each do |elem: E|
+    self.each do |elem|
       unless f(elem)
         ret = false
         break
@@ -29,7 +29,7 @@ module Enumerable<E>
   # Return true if `f` returns true for an element of `self`
   def any?(f: Fn1<E, Bool>) -> Bool
     var ret = false
-    each do |item: E|
+    each do |item|
       ret = true if f(item)
     end
     ret
@@ -46,7 +46,7 @@ module Enumerable<E>
   # Calculate a value by passing `sum` and `item` to `f` for each element
   def fold<SUM>(initial_sum: SUM, f: Fn2<SUM, E, SUM>) -> SUM
     var sum = initial_sum
-    each do |item: E|
+    each do |item|
       sum = f(sum, item)
     end
     sum
@@ -55,7 +55,7 @@ module Enumerable<E>
   # Return true if `self` contains `item` (compared by `==`)
   def includes?(item: E) -> Bool
     var ret = false
-    each do |x: E|
+    each do |x|
       if x == item; ret = true; end
     end
     ret
@@ -65,7 +65,7 @@ module Enumerable<E>
   def position(pred: Fn1<E, Bool>) -> Maybe<Int>
     var i = 0
     var ret = Maybe::None
-    each do |x: E|
+    each do |x|
       if pred(x)
         ret = Maybe::Some.new(i)
         break
@@ -79,7 +79,7 @@ module Enumerable<E>
   def join(separator: String) -> String
     var first = true
     ret = MutableString.new
-    each do |item: E|
+    each do |item|
       if first
         first = false
       else
@@ -93,7 +93,7 @@ module Enumerable<E>
   # Create a new array by calling `f` with each element
   def map<R>(f: Fn1<E, R>) -> Array<R>
     ret = Array<R>.new
-    self.each do |item: E|
+    self.each do |item|
       ret.push(f(item))
     end
     ret
@@ -102,7 +102,7 @@ module Enumerable<E>
   # Return true if `f` returns false for all element of `self`
   def none?(f: Fn1<E, Bool>) -> Bool
     var ret = true
-    each do |item: E|
+    each do |item|
       ret = false if f(item)
     end
     ret
@@ -111,7 +111,7 @@ module Enumerable<E>
   # Create an array which contains items of `self` for which `f` returns true
   def select(f: Fn1<E, Bool>) -> Array<E>
     ret = Array<E>.new
-    each do |item: E|
+    each do |item|
       ret.push(item) if f(item)
     end
     ret
@@ -120,7 +120,7 @@ module Enumerable<E>
   # Creates an array which contains all items of `self` 
   def to_a -> Array<E>
     ret = Array<E>.new
-    each do |item: E|
+    each do |item|
       ret.push(item)
     end
     ret
@@ -129,7 +129,7 @@ module Enumerable<E>
   # TODO: these methods should only available when `E: Comparable`
   def min -> Maybe<E>
     var ret = Maybe::None.unsafe_cast(Maybe<E>)
-    each do |item: E|
+    each do |item|
       match ret
       when Maybe::None
         ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
@@ -141,7 +141,7 @@ module Enumerable<E>
   end
   def max -> Maybe<E>
     var ret = Maybe::None.unsafe_cast(Maybe<E>)
-    each do |item: E|
+    each do |item|
       match ret
       when Maybe::None
         ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)

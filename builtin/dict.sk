@@ -12,7 +12,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     # Set the value of specified key.
     def []=(key: KK, value: VV)
       var done = false
-      @pairs.each do |pair: Pair<KK, VV>|
+      @pairs.each do |pair|
         if pair.fst == key
           pair.snd = value
           done = true
@@ -26,7 +26,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     # Get the value of specified key.
     def [](key: KK) -> Maybe<VV>
       var ret = None
-      @pairs.each do |pair: Pair<KK, VV>|
+      @pairs.each do |pair|
         if pair.fst == key
           ret = Some.new(pair.snd)
         end
@@ -37,7 +37,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     # Return true if `self` has `key` (compared with `==`)
     def has_key?(key: KK) -> Bool
       var ret = false
-      @pairs.each do |pair: Pair<KK, VV>|
+      @pairs.each do |pair|
         if pair.fst == key
           ret = true
         end
@@ -48,7 +48,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     # Return list of the keys
     def keys -> Array<KK>
       ret = Array<KK>.new
-      @pairs.each do |pair: Pair<KK, VV>|
+      @pairs.each do |pair|
         ret.push(pair.fst)
       end
       ret
@@ -57,7 +57,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     # Return list of the values
     def values -> Array<VV>
       ret = Array<VV>.new
-      @pairs.each do |pair: Pair<KK, VV>|
+      @pairs.each do |pair|
         ret.push(pair.snd)
       end
       ret
@@ -70,7 +70,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   def initialize
     @tables = Array<Dict::Table<K, V>>.new
-    N_TABLES.times{|_: Int| @tables.push(Dict::Table<K, V>.new) }
+    N_TABLES.times{|_| @tables.push(Dict::Table<K, V>.new) }
   end
 
   # Return the `Dict::Table` which contains the `key`
@@ -90,7 +90,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   # Call `f` with each pair of `self`
   def each(f: Fn1<Pair<K, V>, Void>)
-    @tables.each do |table: Dict::Table<K, V>|
+    @tables.each do |table|
       table.each(f)
     end
   end
@@ -103,7 +103,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
   # Return list of the keys
   def keys -> Array<K>
     ret = Array<K>.new
-    @tables.each do |table: Dict::Table<K, V>|
+    @tables.each do |table|
       ret.append(table.keys)
     end
     ret
@@ -112,7 +112,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
   # Return list of the values
   def values -> Array<V>
     ret = Array<V>.new
-    @tables.each do |table: Dict::Table<K, V>|
+    @tables.each do |table|
       ret.append(table.values)
     end
     ret

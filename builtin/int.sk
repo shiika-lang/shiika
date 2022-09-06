@@ -68,7 +68,7 @@ class Int
       ret.append("-") 
       i = 1
     end
-    a.reverse_each do |b: Int|
+    a.reverse_each do |b|
       ret.write_byte(i, b)
       i += 1
     end
