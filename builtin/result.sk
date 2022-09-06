@@ -2,6 +2,10 @@ enum Result<V>
   case Ok(value: V)
   case Fail(err: Error)
 
+  def self.fail<V>(msg: String) -> Fail<V>
+    Fail<V>.new(Error.new(msg))
+  end
+
   def fail? -> Bool
     match self
     when Fail(_) then true
@@ -13,6 +17,13 @@ enum Result<V>
     match self
     when Ok(_) then true
     else false
+    end
+  end
+
+  def inspect -> String
+    match self
+    when Ok(v) then "#<Ok(\{v})>"
+    when Fail(e) then "#<Fail(\{e})>"
     end
   end
 end

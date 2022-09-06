@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {
@@ -9,6 +10,12 @@ pub struct MethodSignature {
     pub typarams: Vec<TyParam>,
 }
 
+impl fmt::Display for MethodSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.fullname)
+    }
+}
+
 impl MethodSignature {
     pub fn is_class_method(&self) -> bool {
         self.fullname.class_name.is_meta()
@@ -16,6 +23,11 @@ impl MethodSignature {
 
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
+    }
+
+    /// If this method takes a block, returns types of block params and block value.
+    pub fn block_ty(&self) -> Option<&[TermTy]> {
+        self.params.last().and_then(|param| param.ty.fn_x_info())
     }
 
     /// Substitute type parameters with type arguments

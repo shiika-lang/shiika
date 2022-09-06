@@ -116,16 +116,19 @@ impl<'a> Parser<'a> {
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
             let mut args = self.parse_operator_exprs()?;
+            let mut has_block = false;
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
                     args.push(lambda);
+                    has_block = true;
                 }
-                expr = shiika_ast::set_method_call_args(expr, args);
+                expr = shiika_ast::set_method_call_args(expr, args, has_block);
             } else if self.next_nonspace_token()? == Token::KwDo {
+                has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
-                expr = shiika_ast::set_method_call_args(expr, vec![lambda]);
+                expr = shiika_ast::set_method_call_args(expr, vec![lambda], has_block);
             }
         }
 
@@ -134,11 +137,11 @@ impl<'a> Parser<'a> {
     }
 
     // Returns `Some` if there is one of the following.
-    // Otherwise, returns `None` and rewind the lexer position.
     // - `foo 1, 2, 3`
     // - `return 1`
+    // Otherwise, returns `None` and rewind the lexer position.
     fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
-        let token = self.current_token().clone();
+        let first_token = self.current_token().clone();
         let cur = self.current_position();
         self.consume_token()?;
         self.set_lexer_state(LexerState::ExprArg);
@@ -147,10 +150,13 @@ impl<'a> Parser<'a> {
         self.debug_log(&format!("tried/args: {:?}", args));
         if !args.is_empty() {
             self.skip_ws()?;
-            if let Some(lambda) = self.parse_opt_do_block()? {
+            let has_block = if let Some(lambda) = self.parse_opt_do_block()? {
                 args.push(lambda);
-            }
-            match &token {
+                true
+            } else {
+                false
+            };
+            match &first_token {
                 Token::LowerWord(s) => {
                     return Ok(Some(shiika_ast::method_call(
                         None,
@@ -158,6 +164,7 @@ impl<'a> Parser<'a> {
                         args,
                         vec![],
                         false,
+                        has_block,
                         false,
                     )));
                 }
@@ -350,7 +357,8 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.skip_wsn()?;
         let right = self.parse_relational_expr()?;
-        let call_eq = shiika_ast::method_call(Some(left), "==", vec![right], vec![], false, false);
+        let call_eq =
+            shiika_ast::method_call(Some(left), "==", vec![right], vec![], false, false, false);
         let expr = if op == "!=" {
             shiika_ast::logical_not(call_eq)
         } else {
@@ -382,12 +390,27 @@ impl<'a> Parser<'a> {
             if nesting {
                 if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
                     let mid = arg_exprs[0].clone();
-                    let compare =
-                        shiika_ast::method_call(Some(mid), op, vec![right], vec![], false, false);
+                    let compare = shiika_ast::method_call(
+                        Some(mid),
+                        op,
+                        vec![right],
+                        vec![],
+                        false,
+                        false,
+                        false,
+                    );
                     expr = shiika_ast::logical_and(expr, compare);
                 }
             } else {
-                expr = shiika_ast::method_call(Some(expr), op, vec![right], vec![], false, false);
+                expr = shiika_ast::method_call(
+                    Some(expr),
+                    op,
+                    vec![right],
+                    vec![],
+                    false,
+                    false,
+                    false,
+                );
                 nesting = true;
             }
         }
@@ -661,7 +684,15 @@ impl<'a> Parser<'a> {
                 // TODO: parse multiple arguments
                 self.skip_wsn()?;
                 self.expect(Token::RSqBracket)?;
-                expr = shiika_ast::method_call(Some(expr), "[]", vec![arg], vec![], true, false);
+                expr = shiika_ast::method_call(
+                    Some(expr),
+                    "[]",
+                    vec![arg],
+                    vec![],
+                    true,
+                    false,
+                    false,
+                );
             } else if self.next_nonspace_token()? == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
                 self.skip_ws()?;
@@ -707,9 +738,12 @@ impl<'a> Parser<'a> {
         };
 
         // Block
-        if let Some(lambda) = self.parse_opt_block()? {
-            args.push(lambda)
-        }
+        let has_block = if let Some(lambda) = self.parse_opt_block()? {
+            args.push(lambda);
+            true
+        } else {
+            false
+        };
 
         self.lv -= 1;
         Ok(shiika_ast::method_call(
@@ -718,6 +752,7 @@ impl<'a> Parser<'a> {
             args,
             type_args,
             true,
+            has_block,
             may_have_paren_wo_args,
         ))
     }
@@ -825,16 +860,20 @@ impl<'a> Parser<'a> {
         let expr = match self.current_token() {
             Token::LParen => {
                 let mut args = self.parse_paren_and_args()?;
-                if let Some(lambda) = self.parse_opt_block()? {
-                    args.push(lambda)
-                }
+                let has_block = if let Some(lambda) = self.parse_opt_block()? {
+                    args.push(lambda);
+                    true
+                } else {
+                    false
+                };
                 shiika_ast::method_call(
                     None, // receiver_expr
                     bare_name_str,
                     args,
                     vec![], // TODO: type_args
                     true,   // primary
-                    false,  // may_have_paren_wo_args
+                    has_block,
+                    false, // may_have_paren_wo_args
                 )
             }
             _ => shiika_ast::bare_name(bare_name_str),
@@ -935,7 +974,7 @@ impl<'a> Parser<'a> {
         assert!(self.consume(Token::KwFn)?);
         let params;
         if self.consume(Token::LParen)? {
-            params = self.parse_params(false, vec![Token::RParen])?;
+            params = self.parse_block_params(true, &Token::RParen)?;
             self.skip_ws()?;
         } else {
             params = vec![];
@@ -1060,6 +1099,7 @@ impl<'a> Parser<'a> {
                 vec![],
                 vec![],
                 false, // primary
+                false, // has_block
                 false, // may_have_paren_wo_args
             );
             expr = shiika_ast::method_call(
@@ -1068,6 +1108,7 @@ impl<'a> Parser<'a> {
                 vec![arg],
                 vec![],
                 false, // primary
+                false, // has_block
                 false, // may_have_paren_wo_args
             );
             self.set_lexer_state(LexerState::StrLiteral);
@@ -1092,6 +1133,7 @@ impl<'a> Parser<'a> {
                 vec![self.ast.string_literal(s, begin, end)],
                 vec![],
                 false, // primary
+                false, // has_block
                 false, // may_have_paren_wo_args
             );
             if finish {
@@ -1159,8 +1201,8 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_do_block");
         self.expect(Token::KwDo)?;
         self.skip_ws()?;
-        let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params()?
+        let block_params = if self.consume(Token::Or)? {
+            self.parse_block_params(false, &Token::Or)?
         } else {
             vec![]
         };
@@ -1177,8 +1219,8 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_brace_block");
         self.expect(Token::LBrace)?;
         self.skip_ws()?;
-        let block_params = if self.current_token_is(Token::Or) {
-            self.parse_block_params()?
+        let block_params = if self.consume(Token::Or)? {
+            self.parse_block_params(false, &Token::Or)?
         } else {
             vec![]
         };
@@ -1189,15 +1231,87 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
     }
 
-    /// Parse `|a, b, ...|`
-    fn parse_block_params(&mut self) -> Result<Vec<Param>, Error> {
+    /// Parse `a, b, ...` in `|...|` or `fn(...){`
+    fn parse_block_params(
+        &mut self,
+        type_required: bool,
+        stop_tok: &Token,
+    ) -> Result<Vec<BlockParam>, Error> {
         self.lv += 1;
         self.debug_log("parse_block_params");
-        self.expect(Token::Or)?;
-        self.skip_wsn()?;
-        let params = self.parse_params(false, vec![Token::Or])?;
+        self.skip_ws()?;
+        let mut params = vec![];
+        let mut comma_seen = false;
+        loop {
+            match self.current_token() {
+                Token::Comma => {
+                    if comma_seen {
+                        return Err(parse_error!(self, "extra comma in block params"));
+                    } else {
+                        self.consume_token()?;
+                        self.skip_wsn()?;
+                        comma_seen = true;
+                    }
+                }
+                Token::LowerWord(_) => {
+                    params.push(self.parse_block_param(type_required)?);
+                    comma_seen = false;
+                }
+                token => {
+                    if token == stop_tok {
+                        if comma_seen {
+                            return Err(parse_error!(self, "extra comma in block params"));
+                        } else {
+                            self.consume_token()?;
+                            break;
+                        }
+                    }
+                    return Err(parse_error!(
+                        self,
+                        "invalid token in block params: {:?}",
+                        token
+                    ));
+                }
+            }
+        }
         self.lv -= 1;
         Ok(params)
+    }
+
+    fn parse_block_param(&mut self, type_required: bool) -> Result<BlockParam, Error> {
+        // Name
+        let name;
+        match self.current_token() {
+            Token::LowerWord(s) => {
+                name = s.to_string();
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "invalid token as block param: {:?}",
+                    token
+                ))
+            }
+        }
+        self.skip_ws()?;
+
+        // `:' Type
+        let opt_typ = if self.current_token_is(Token::Colon) {
+            self.consume_token()?;
+            self.skip_ws()?;
+            Some(self.parse_typ()?)
+        } else {
+            if type_required {
+                return Err(parse_error!(
+                    self,
+                    "type annotation of fn param is mandatory"
+                ));
+            }
+            None
+        };
+
+        Ok(shiika_ast::BlockParam { name, opt_typ })
     }
 
     /// Parse pattern of match expr

@@ -76,8 +76,8 @@ fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
 
 /// Returns if `ty` is a void-returning function (eg. `Fn1<Int, Void>`)
 fn is_void_fn(ty: &TermTy) -> bool {
-    if let Some(ret_ty) = ty.fn_x_info() {
-        ret_ty.is_void_type()
+    if let Some(tys) = ty.fn_x_info() {
+        tys.last().unwrap().is_void_type()
     } else {
         false
     }

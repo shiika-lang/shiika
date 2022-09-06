@@ -377,7 +377,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &method_firstname("initialize"),
             Default::default(),
         )?;
-        let fullname = found.owner.base().fullname_();
+        let fullname = found.owner.as_class_fullname();
         Ok((method_fullname(&fullname, "initialize"), fullname))
     }
 

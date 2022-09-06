@@ -100,6 +100,12 @@ pub struct Param {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct BlockParam {
+    pub name: String,
+    pub opt_typ: Option<UnresolvedTypeName>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,
     pub primary: bool,
@@ -157,10 +163,11 @@ pub enum AstExpressionBody {
         method_name: MethodFirstname,
         arg_exprs: Vec<AstExpression>,
         type_args: Vec<AstExpression>,
+        has_block: bool,
         may_have_paren_wo_args: bool,
     },
     LambdaExpr {
-        params: Vec<Param>,
+        params: Vec<BlockParam>,
         exprs: Vec<AstExpression>,
         /// true if this is from `fn(){}`. false if this is a block (do-end/{})
         is_fn: bool,
@@ -334,6 +341,7 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
                 method_name: method_name.append("="),
                 arg_exprs,
                 type_args: vec![],
+                has_block: false,
                 may_have_paren_wo_args: false,
             }
         }
@@ -372,6 +380,7 @@ pub fn method_call(
     arg_exprs: Vec<AstExpression>,
     type_args: Vec<AstExpression>,
     primary: bool,
+    has_block: bool,
     may_have_paren_wo_args: bool,
 ) -> AstExpression {
     AstExpression {
@@ -381,6 +390,7 @@ pub fn method_call(
             method_name: method_firstname(method_name),
             arg_exprs,
             type_args,
+            has_block,
             may_have_paren_wo_args,
         },
         locs: LocationSpan::todo(),
@@ -397,6 +407,7 @@ pub fn unary_expr(expr: AstExpression, op: &str) -> AstExpression {
         method_name: method_firstname(op),
         arg_exprs: vec![],
         type_args: vec![],
+        has_block: false,
         may_have_paren_wo_args: false,
     })
 }
@@ -407,11 +418,16 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
         method_name: method_firstname(op),
         arg_exprs: vec![right],
         type_args: vec![],
+        has_block: false,
         may_have_paren_wo_args: false,
     })
 }
 
-pub fn lambda_expr(params: Vec<Param>, exprs: Vec<AstExpression>, is_fn: bool) -> AstExpression {
+pub fn lambda_expr(
+    params: Vec<BlockParam>,
+    exprs: Vec<AstExpression>,
+    is_fn: bool,
+) -> AstExpression {
     primary_expression(AstExpressionBody::LambdaExpr {
         params,
         exprs,
@@ -437,7 +453,11 @@ pub fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
 
 /// Extend `foo.bar` to `foo.bar args`
 /// (expr must be a MethodCall or a BareName)
-pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> AstExpression {
+pub fn set_method_call_args(
+    expr: AstExpression,
+    args: Vec<AstExpression>,
+    has_block: bool,
+) -> AstExpression {
     match expr.body {
         AstExpressionBody::MethodCall {
             receiver_expr,
@@ -460,6 +480,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                     method_name,
                     arg_exprs: args,
                     type_args,
+                    has_block,
                     may_have_paren_wo_args: false,
                 },
                 locs: LocationSpan::todo(),
@@ -472,6 +493,7 @@ pub fn set_method_call_args(expr: AstExpression, args: Vec<AstExpression>) -> As
                 method_name: method_firstname(s),
                 arg_exprs: args,
                 type_args: vec![],
+                has_block,
                 may_have_paren_wo_args: false,
             },
             locs: LocationSpan::todo(),

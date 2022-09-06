@@ -1,4 +1,6 @@
+pub mod block;
 mod method_call;
+pub mod params;
 use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
@@ -105,8 +107,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 method_name,
                 arg_exprs,
                 type_args,
+                has_block,
                 ..
-            } => self.convert_method_call(receiver_expr, method_name, arg_exprs, type_args),
+            } => self.convert_method_call(
+                receiver_expr,
+                method_name,
+                arg_exprs,
+                has_block,
+                type_args,
+            ),
 
             AstExpressionBody::LambdaExpr {
                 params,
@@ -443,18 +452,25 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         receiver_expr: &Option<Box<AstExpression>>,
         method_name: &MethodFirstname,
         arg_exprs: &[AstExpression],
+        has_block: &bool,
         type_args: &[AstExpression],
     ) -> Result<HirExpression> {
-        let arg_hirs = arg_exprs
-            .iter()
-            .map(|arg_expr| self.convert_expr(arg_expr))
-            .collect::<Result<Vec<_>, _>>()?;
-
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
             if let Some(lvar) = self._lookup_var(&method_name.0) {
-                if let Some(ret_ty) = lvar.ty.fn_x_info() {
-                    return Ok(Hir::lambda_invocation(ret_ty, lvar.ref_expr(), arg_hirs));
+                if let Some(tys) = lvar.ty.fn_x_info() {
+                    let arg_hirs = method_call::convert_method_args(
+                        self,
+                        &block::BlockTaker::Function(&lvar.ty),
+                        arg_exprs,
+                        has_block, // true if `f(){ ... }`, for example.
+                    )?;
+                    let ret_ty = tys.last().unwrap();
+                    return Ok(Hir::lambda_invocation(
+                        ret_ty.clone(),
+                        lvar.ref_expr(),
+                        arg_hirs,
+                    ));
                 }
             }
         }
@@ -465,15 +481,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             _ => self.convert_self_expr(&LocationSpan::todo()),
         };
         let mut method_tyargs = vec![];
-        for arg in type_args {
-            method_tyargs.push(self._resolve_method_tyarg(arg)?);
+        for tyarg in type_args {
+            method_tyargs.push(self._resolve_method_tyarg(tyarg)?);
         }
-        let found = self.class_dict.lookup_method(
-            &receiver_hir.ty,
-            method_name,
-            method_tyargs.as_slice(),
+        let found = self
+            .class_dict
+            .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
+            .clone();
+        let arg_hirs = method_call::convert_method_args(
+            self,
+            &block::BlockTaker::Method(found.sig.clone()),
+            arg_exprs,
+            has_block,
         )?;
-        // Check the arguments and create HirMethodCall or HirModuleMethodCall
         method_call::build(self, found, receiver_hir, arg_hirs)
     }
 
@@ -490,16 +510,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     pub(super) fn convert_lambda_expr(
         &mut self,
-        params: &[shiika_ast::Param],
+        params: &[shiika_ast::BlockParam],
         exprs: &[AstExpression],
         is_fn: &bool,
     ) -> Result<HirExpression> {
+        // This method only handles `fn(){}` because blocks are handled in
+        // convert_method_call.
+        debug_assert!(is_fn);
+
         let namespace = self.ctx_stack.const_scopes().next().unwrap();
-        let hir_params = self.class_dict.convert_params(
+        let hir_params = params::convert_block_params(
+            &self.class_dict,
             &namespace,
             params,
             &self.ctx_stack.current_class_typarams(),
             &self.ctx_stack.current_method_typarams(),
+            Default::default(),
         )?;
 
         // Convert lambda body
@@ -508,7 +534,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
         Ok(Hir::lambda_expr(
-            lambda_ty(&hir_params, &hir_exprs.ty),
+            block::lambda_ty(&hir_params, &hir_exprs.ty),
             self.create_lambda_name(),
             hir_params,
             hir_exprs,
@@ -910,10 +936,4 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.str_literals.push(content.to_string());
         idx
     }
-}
-
-fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
-    let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
-    tyargs.push(ret_ty.clone());
-    ty::spe(&format!("Fn{}", params.len()), tyargs)
 }

@@ -22,7 +22,7 @@ class String
   # Create a string by repeating `self` for `n` times
   def *(n: Int) -> String
     ret = MutableString.new
-    n.times do |_: Int|
+    n.times do |_|
       ret.append(self)
     end
     ret._unsafe_to_s
@@ -47,7 +47,7 @@ class String
   # Create an array of bytes of `self`
   def bytes -> Array<Int>
     ret = Array<Int>.new
-    each_byte do |b: Int|
+    each_byte do |b|
       ret.push(b)
     end
     ret
@@ -55,7 +55,7 @@ class String
 
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
-    @bytesize.times do |i: Int|
+    @bytesize.times do |i|
       f(nth_byte(i))
     end
   end
@@ -63,7 +63,7 @@ class String
   # Call `f` for each char
   # TODO: support multibyte
   def each_char(f: Fn1<String, Void>)
-    @bytesize.times do |i: Int|
+    @bytesize.times do |i|
       f(slice_bytes(i, 1))
     end
   end
