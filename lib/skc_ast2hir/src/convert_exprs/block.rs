@@ -6,12 +6,23 @@ use anyhow::Result;
 use shiika_ast::{AstExpression, AstExpressionBody};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{Hir, HirExpression, MethodParam, MethodSignature};
+use std::fmt;
 
 /// Type information of the method or fn which takes the block.
 #[derive(Debug)]
 pub enum BlockTaker<'hir_maker> {
     Method(MethodSignature),
     Function(&'hir_maker TermTy),
+}
+
+// For error message
+impl<'hir_maker> fmt::Display for BlockTaker<'hir_maker> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BlockTaker::Method(sig) => write!(f, "{}", sig),
+            BlockTaker::Function(fn_ty) => write!(f, "fn {}", fn_ty),
+        }
+    }
 }
 
 /// Convert a block to HirLambdaExpr.
@@ -42,22 +53,16 @@ fn _convert_block(
     params: &[shiika_ast::BlockParam],
     body_exprs: &[AstExpression],
 ) -> Result<HirExpression> {
-    let method_sig = if let BlockTaker::Method(sig) = block_taker {
-        sig
-    } else {
-        todo!();
-    };
-    type_checking::check_block_arity(method_sig, params)?;
+    type_checking::check_block_arity(block_taker, params)?;
 
     let namespace = mk.ctx_stack.const_scopes().next().unwrap();
-    let block_ty = method_sig.block_ty().unwrap();
     let hir_params = params::convert_block_params(
         &mk.class_dict,
         &namespace,
         params,
         &mk.ctx_stack.current_class_typarams(),
         &mk.ctx_stack.current_method_typarams(),
-        block_ty,
+        block_ty_of(block_taker),
     )?;
 
     // Convert lambda body
@@ -80,4 +85,16 @@ pub fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
     let mut tyargs = params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
     tyargs.push(ret_ty.clone());
     ty::spe(&format!("Fn{}", params.len()), tyargs)
+}
+
+/// Returns the type of block accepted by the method or fn.
+fn block_ty_of<'a>(block_taker: &'a BlockTaker) -> &'a [TermTy] {
+    match block_taker {
+        BlockTaker::Method(sig) => sig.block_ty().unwrap(),
+        BlockTaker::Function(fn_ty) => {
+            let tys = fn_ty.fn_x_info().unwrap();
+            let last_arg_ty = tys.get(tys.len() - 2).unwrap();
+            last_arg_ty.fn_x_info().unwrap()
+        }
+    }
 }

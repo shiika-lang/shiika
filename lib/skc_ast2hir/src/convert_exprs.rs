@@ -1,4 +1,4 @@
-mod block;
+pub mod block;
 mod method_call;
 pub mod params;
 use crate::class_expr;

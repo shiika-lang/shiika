@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {
@@ -7,6 +8,12 @@ pub struct MethodSignature {
     pub ret_ty: TermTy,
     pub params: Vec<MethodParam>,
     pub typarams: Vec<TyParam>,
+}
+
+impl fmt::Display for MethodSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.fullname)
+    }
 }
 
 impl MethodSignature {

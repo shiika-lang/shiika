@@ -1,4 +1,5 @@
 use crate::class_dict::ClassDict;
+use crate::convert_exprs::block::BlockTaker;
 use crate::error::type_error;
 use anyhow::Result;
 use ariadne::{Label, Report, ReportKind, Source};
@@ -180,13 +181,19 @@ fn check_arg_type(
 }
 
 /// Check number of block parameters
-pub fn check_block_arity(sig: &MethodSignature, params: &[shiika_ast::BlockParam]) -> Result<()> {
-    let block_ty = sig.block_ty().unwrap();
-    if params.len() != block_ty.len() - 1 {
+pub fn check_block_arity(
+    block_taker: &BlockTaker,
+    params: &[shiika_ast::BlockParam],
+) -> Result<()> {
+    let expected = match block_taker {
+        BlockTaker::Method(sig) => sig.block_ty().unwrap().len() - 1,
+        BlockTaker::Function(fn_ty) => fn_ty.fn_x_info().unwrap().len() - 1,
+    };
+    if params.len() != expected {
         return Err(type_error!(
             "the block of {} takes {} args but got {}",
-            sig.fullname,
-            sig.params.len(),
+            block_taker,
+            expected,
             params.len()
         ));
     }
