@@ -341,7 +341,8 @@ impl<'a> Parser<'a> {
             Ok(shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs })
         } else {
             if is_initializer {
-                Ok(shiika_ast::Definition::InitializerDefinition { sig, body_exprs })
+                let d = shiika_ast::InitializerDefinition { sig, body_exprs };
+                Ok(shiika_ast::Definition::InitializerDefinition(d))
             } else {
                 Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
             }

@@ -251,8 +251,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
-        let own_ivars =
-            self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
+        let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
             self.class_dict.define_ivars(&fullname, own_ivars.clone());
@@ -298,16 +297,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _process_initialize(
         &mut self,
         fullname: &ClassFullname,
-        initialize: Option<&shiika_ast::Definition>,
+        initializer: Option<&shiika_ast::InitializerDefinition>,
     ) -> Result<SkIVars> {
         let mut own_ivars = HashMap::default();
-        if let Some(shiika_ast::Definition::InitializerDefinition {
-            sig, body_exprs, ..
-        }) = initialize
-        {
+        if let Some(d) = initializer {
             log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
-                self.create_initialize(fullname, &sig.name, body_exprs)?;
+                self.create_initialize(fullname, &d.sig.name, &d.body_exprs)?;
             self.method_dict.add_method(fullname, sk_method);
             own_ivars = found_ivars;
         }
