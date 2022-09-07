@@ -162,22 +162,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
-                        if def.is_initializer() {
-                            // Already processed in process_class_def
-                        } else {
-                            log::trace!("method {}#{}", &fullname, &sig.name);
-                            let method = self.convert_method_def(
-                                &fullname.to_type_fullname(),
-                                &sig.name,
-                                body_exprs,
-                            )?;
-                            self.method_dict.add_method(fullname, method);
-                        }
+                        log::trace!("method {}#{}", &fullname, &sig.name);
+                        let method = self.convert_method_def(
+                            &fullname.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
+                        self.method_dict.add_method(fullname, method);
                     } else {
                         return Err(error::program_error(
                             "you cannot define methods at toplevel",
                         ));
                     }
+                }
+                shiika_ast::Definition::InitializerDefinition { .. } => {
+                    // Already processed in process_class_def
                 }
                 shiika_ast::Definition::ClassMethodDefinition {
                     sig, body_exprs, ..
@@ -302,7 +301,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         initialize: Option<&shiika_ast::Definition>,
     ) -> Result<SkIVars> {
         let mut own_ivars = HashMap::default();
-        if let Some(shiika_ast::Definition::InstanceMethodDefinition {
+        if let Some(shiika_ast::Definition::InitializerDefinition {
             sig, body_exprs, ..
         }) = initialize
         {

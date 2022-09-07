@@ -217,7 +217,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: &Superclass,
         defs: &[shiika_ast::Definition],
     ) -> Result<Vec<MethodParam>> {
-        if let Some(shiika_ast::Definition::InstanceMethodDefinition { sig, .. }) =
+        if let Some(shiika_ast::Definition::InitializerDefinition { sig, .. }) =
             defs.iter().find(|d| d.is_initializer())
         {
             // Has explicit initializer definition
@@ -353,7 +353,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut requirements = vec![];
         for def in defs {
             match def {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+                | shiika_ast::Definition::InitializerDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(hir_sig);
                 }

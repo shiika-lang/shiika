@@ -50,6 +50,10 @@ pub enum Definition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
     },
+    InitializerDefinition {
+        sig: AstMethodSignature,
+        body_exprs: Vec<AstExpression>,
+    },
     // TODO: Rename to `SingletonMethodDefinition`?
     ClassMethodDefinition {
         sig: AstMethodSignature,
@@ -211,10 +215,7 @@ pub type AstMatchClause = (AstPattern, Vec<AstExpression>);
 
 impl Definition {
     pub fn is_initializer(&self) -> bool {
-        match self {
-            Definition::InstanceMethodDefinition { sig, .. } => sig.name.0 == "initialize",
-            _ => false,
-        }
+        matches!(self, Definition::InitializerDefinition { .. })
     }
 }
 
