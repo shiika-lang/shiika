@@ -196,6 +196,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ));
                     }
                 }
+                shiika_ast::Definition::ClassInitializerDefinition { .. } => {
+                    // Already processed in process_class_def
+                }
                 shiika_ast::Definition::ConstDefinition { name, expr } => {
                     if opt_fullname.is_some() {
                         // Already processed
@@ -263,6 +266,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let class_name = ty::raw(&fullname.0);
             self.method_dict
                 .add_method(&meta_name, self.create_new(&class_name, false)?);
+        }
+
+        // Register class-level initialize and ivars
+        let cls_ivars =
+            self._process_initialize(&meta_name, shiika_ast::find_class_initializer(defs))?;
+        if !cls_ivars.is_empty() {
+            self.class_dict.define_ivars(&meta_name, cls_ivars.clone());
+            self.define_accessors(&meta_name, cls_ivars, defs);
         }
 
         // Process inner defs

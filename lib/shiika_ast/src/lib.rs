@@ -51,11 +51,11 @@ pub enum Definition {
         body_exprs: Vec<AstExpression>,
     },
     InitializerDefinition(InitializerDefinition),
-    // TODO: Rename to `SingletonMethodDefinition`?
     ClassMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
     },
+    ClassInitializerDefinition(InitializerDefinition),
     MethodRequirementDefinition {
         sig: AstMethodSignature,
     },
@@ -74,6 +74,13 @@ pub struct InitializerDefinition {
 pub fn find_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
     defs.iter().find_map(|def| match def {
         Definition::InitializerDefinition(x) => Some(x),
+        _ => None,
+    })
+}
+
+pub fn find_class_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
+    defs.iter().find_map(|def| match def {
+        Definition::ClassInitializerDefinition(x) => Some(x),
         _ => None,
     })
 }
