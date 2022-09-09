@@ -1,12 +1,4 @@
 class Class
-  # (Class.new is not considered a public API)
-  # Called when a class object is created
-  #
-  # Dev note: this is called from lib/skc_codegen/src/gen_exprs.rs
-  def initialize(@name: String, vtable: Object, wtable: Object, meta_cls: Metaclass, erasure_cls: Class)
-    _initialize_rustlib(vtable, wtable, meta_cls, erasure_cls)
-  end
-
   def name -> String
     # Accessors does not defined automatically for classes defined skc_corelib
     @name

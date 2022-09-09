@@ -1098,7 +1098,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 .as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let metacls_obj = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Metaclass"), "new"),
+                &method_fullname(&metaclass_fullname("Metaclass"), "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
@@ -1114,7 +1114,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let cls = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Class"), "new"),
+                &method_fullname(&metaclass_fullname("Class"), "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
