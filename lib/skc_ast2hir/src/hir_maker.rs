@@ -98,13 +98,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             })
             .collect::<Vec<_>>();
         for (name, const_is_obj, includes_modules) in v {
-            let str_idx = self.register_string_literal(&name.0);
             let expr = if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
                 let ty = ty::raw(&name.0);
                 // The class
-                let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
+                let cls_obj = self.create_class_literal(&name, includes_modules);
                 // The instance
                 Hir::method_call_(
                     ty,
@@ -113,11 +111,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     vec![],
                 )
             } else {
-                let ty = ty::meta(&name.0);
-                Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
+                self.create_class_literal(&name, includes_modules)
             };
             self.register_const_full(name.to_const_fullname(), expr);
         }
+    }
+
+    fn create_class_literal(
+        &mut self,
+        name: &TypeFullname,
+        includes_modules: bool,
+    ) -> HirExpression {
+        let ty = ty::meta(&name.0);
+        let str_idx = self.register_string_literal(&name.0);
+        Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
     }
 
     pub fn convert_toplevel_items(
