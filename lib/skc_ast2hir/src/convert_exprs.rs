@@ -68,7 +68,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression> {
         match &expr.body {
-            AstExpressionBody::LogicalNot { expr } => self.convert_logical_not(expr),
+            AstExpressionBody::LogicalNot { expr: arg_expr } => {
+                self.convert_logical_not(arg_expr, &expr.locs)
+            }
             AstExpressionBody::LogicalAnd { left, right } => self.convert_logical_and(left, right),
             AstExpressionBody::LogicalOr { left, right } => self.convert_logical_or(left, right),
             AstExpressionBody::If {
@@ -155,10 +157,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_logical_not(&mut self, expr: &AstExpression) -> Result<HirExpression> {
+    fn convert_logical_not(
+        &mut self,
+        expr: &AstExpression,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         let expr_hir = self.convert_expr(expr)?;
         type_checking::check_logical_operator_ty(&expr_hir.ty, "argument of logical not")?;
-        Ok(Hir::logical_not(expr_hir))
+        Ok(Hir::logical_not(expr_hir, locs.clone()))
     }
 
     fn convert_logical_and(

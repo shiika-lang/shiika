@@ -143,10 +143,13 @@ impl<'a> Lexer<'a> {
         self.current_token = token;
     }
 
+    /// Returns the current location.
     pub fn location(&self) -> Location {
         Location::new(self.cur.line, self.cur.col, self.cur.pos)
     }
 
+    /// Returns pair of locations which are the beginning and the end of the
+    /// current token.
     pub fn location_span(&self) -> (Location, Location) {
         let begin = Location::new(self.cur.line, self.cur.col, self.cur.pos);
         let nc = self.next_cur.as_ref().unwrap();

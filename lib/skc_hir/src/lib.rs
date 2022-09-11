@@ -291,13 +291,13 @@ impl Hir {
         HirExpressions::new(exprs)
     }
 
-    pub fn logical_not(expr_hir: HirExpression) -> HirExpression {
+    pub fn logical_not(expr_hir: HirExpression, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalNot {
                 expr: Box::new(expr_hir),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 

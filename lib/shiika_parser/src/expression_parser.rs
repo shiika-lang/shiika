@@ -82,7 +82,8 @@ impl<'a> Parser<'a> {
             self.skip_ws()?;
             assert!(self.consume(Token::ModUnless)?);
             self.skip_ws()?;
-            let cond = shiika_ast::logical_not(self.parse_call_wo_paren()?);
+            let cond_inner = self.parse_call_wo_paren()?;
+            let cond = self.ast.wrap_with_logical_not(cond_inner);
             expr = shiika_ast::if_expr(cond, vec![expr], None)
         }
         self.lv -= 1;
@@ -344,7 +345,6 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_equality_expr");
         let left = self.parse_relational_expr()?;
         let op = match self.next_nonspace_token()? {
-            // TODO: <=> === =~ !~
             Token::EqEq => "==",
             Token::NotEq => "!=",
             _ => {
@@ -360,7 +360,7 @@ impl<'a> Parser<'a> {
         let call_eq =
             shiika_ast::method_call(Some(left), "==", vec![right], vec![], false, false, false);
         let expr = if op == "!=" {
-            shiika_ast::logical_not(call_eq)
+            self.ast.wrap_with_logical_not(call_eq)
         } else {
             call_eq
         };
@@ -482,10 +482,12 @@ impl<'a> Parser<'a> {
     fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unary_expr");
+        let begin = self.lexer.location();
         let expr = if self.consume(Token::KwNot)? {
             self.skip_ws()?;
             let target = self.parse_secondary_expr()?;
-            shiika_ast::logical_not(target)
+            let end = self.lexer.location();
+            self.ast.logical_not(target, begin, end)
         } else {
             self.parse_secondary_expr()?
         };
@@ -603,7 +605,7 @@ impl<'a> Parser<'a> {
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
         Ok(shiika_ast::if_expr(
-            shiika_ast::logical_not(cond_expr),
+            self.ast.wrap_with_logical_not(cond_expr),
             then_exprs,
             None,
         ))

@@ -20,8 +20,33 @@ impl AstBuilder {
         }
     }
 
+    pub fn logical_not(
+        &self,
+        expr: AstExpression,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::LogicalNot {
+                expr: Box::new(expr),
+            },
+        )
+    }
+
+    pub fn wrap_with_logical_not(&self, expr: AstExpression) -> AstExpression {
+        let locs = expr.locs.clone();
+        AstExpression {
+            primary: true,
+            body: AstExpressionBody::LogicalNot {
+                expr: Box::new(expr),
+            },
+            locs,
+        }
+    }
+
     // TODO
-    // LogicalNot {
     // LogicalAnd {
     // LogicalOr {
     // If {
