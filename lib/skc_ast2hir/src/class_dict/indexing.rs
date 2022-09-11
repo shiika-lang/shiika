@@ -360,10 +360,24 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(hir_sig);
                 }
-                shiika_ast::Definition::ClassMethodDefinition { sig, .. }
-                | shiika_ast::Definition::ClassInitializerDefinition(
+                shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
+                    let hir_sig = self.create_signature(
+                        namespace,
+                        &fullname.meta_name(),
+                        sig,
+                        Default::default(),
+                    )?;
+                    class_methods.insert(hir_sig);
+                }
+                shiika_ast::Definition::ClassInitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
+                    if sig.params.len() != 0 {
+                        return Err(error::program_error(&format!(
+                            "{}.{} should take no parameters",
+                            namespace, &sig.name
+                        )));
+                    }
                     let hir_sig = self.create_signature(
                         namespace,
                         &fullname.meta_name(),

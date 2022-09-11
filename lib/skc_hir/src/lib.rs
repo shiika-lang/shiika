@@ -250,6 +250,8 @@ pub enum HirExpressionBase {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
+        initialize_name: MethodFullname,
+        init_cls_name: ClassFullname,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -631,6 +633,8 @@ impl Hir {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
+        initialize_name: MethodFullname,
+        init_cls_name: ClassFullname,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {
@@ -639,6 +643,8 @@ impl Hir {
                 fullname,
                 str_literal_idx,
                 includes_modules,
+                initialize_name,
+                init_cls_name,
             },
             locs: LocationSpan::todo(),
         }

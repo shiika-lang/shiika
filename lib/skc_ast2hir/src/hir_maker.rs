@@ -80,7 +80,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Array (#<class Array>)
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
-    pub fn define_class_constants(&mut self) {
+    pub fn define_class_constants(&mut self) -> Result<()> {
         let nonmeta = self
             .class_dict
             .sk_types
@@ -102,7 +102,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // Create constant like `Void`, `Maybe::None`.
                 let ty = ty::raw(&name.0);
                 // The class
-                let cls_obj = self.create_class_literal(&name, includes_modules);
+                let cls_obj = self.create_class_literal(&name, includes_modules)?;
                 // The instance
                 Hir::method_call_(
                     ty,
@@ -111,20 +111,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     vec![],
                 )
             } else {
-                self.create_class_literal(&name, includes_modules)
+                self.create_class_literal(&name, includes_modules)?
             };
             self.register_const_full(name.to_const_fullname(), expr);
         }
+        Ok(())
     }
 
     fn create_class_literal(
         &mut self,
         name: &TypeFullname,
         includes_modules: bool,
-    ) -> HirExpression {
+    ) -> Result<HirExpression> {
         let ty = ty::meta(&name.0);
         let str_idx = self.register_string_literal(&name.0);
-        Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
+        // These two are for calling class-level initialize.
+        let (initialize_name, init_cls_name) = self._find_initialize(&ty)?;
+        Ok(Hir::class_literal(
+            ty,
+            name.clone(),
+            str_idx,
+            includes_modules,
+            initialize_name,
+            init_cls_name,
+        ))
     }
 
     pub fn convert_toplevel_items(
