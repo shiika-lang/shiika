@@ -301,25 +301,33 @@ impl Hir {
         }
     }
 
-    pub fn logical_and(left_hir: HirExpression, right_hir: HirExpression) -> HirExpression {
+    pub fn logical_and(
+        left_hir: HirExpression,
+        right_hir: HirExpression,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalAnd {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn logical_or(left_hir: HirExpression, right_hir: HirExpression) -> HirExpression {
+    pub fn logical_or(
+        left_hir: HirExpression,
+        right_hir: HirExpression,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: ty::raw("Bool"),
             node: HirExpressionBase::HirLogicalOr {
                 left: Box::new(left_hir),
                 right: Box::new(right_hir),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -328,6 +336,7 @@ impl Hir {
         cond_hir: HirExpression,
         then_hir: HirExpressions,
         else_hir: HirExpressions,
+        locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty,
@@ -336,7 +345,7 @@ impl Hir {
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -344,6 +353,7 @@ impl Hir {
         ty: TermTy,
         cond_assign_hir: HirExpression,
         clauses: Vec<pattern_match::MatchClause>,
+        locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty,
@@ -351,48 +361,56 @@ impl Hir {
                 cond_assign_expr: Box::new(cond_assign_hir),
                 clauses,
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn while_expression(cond_hir: HirExpression, body_hirs: HirExpressions) -> HirExpression {
+    pub fn while_expression(
+        cond_hir: HirExpression,
+        body_hirs: HirExpressions,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: ty::raw("Void"),
             node: HirExpressionBase::HirWhileExpression {
                 cond_expr: Box::new(cond_hir),
                 body_exprs: Box::new(body_hirs),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn break_expression(from: HirBreakFrom) -> HirExpression {
+    pub fn break_expression(from: HirBreakFrom, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
             node: HirExpressionBase::HirBreakExpression { from },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn return_expression(from: HirReturnFrom, arg_expr: HirExpression) -> HirExpression {
+    pub fn return_expression(
+        from: HirReturnFrom,
+        arg_expr: HirExpression,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
             node: HirExpressionBase::HirReturnExpression {
                 from,
                 arg: Box::new(arg_expr),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn lvar_assign(name: &str, rhs: HirExpression) -> HirExpression {
+    pub fn lvar_assign(name: &str, rhs: HirExpression, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLVarAssign {
                 name: name.to_string(),
                 rhs: Box::new(rhs),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -402,6 +420,7 @@ impl Hir {
         rhs: HirExpression,
         writable: bool,
         self_ty: TermTy,
+        locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
@@ -412,18 +431,22 @@ impl Hir {
                 writable,
                 self_ty,
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn const_assign(fullname: ConstFullname, rhs: HirExpression) -> HirExpression {
+    pub fn const_assign(
+        fullname: ConstFullname,
+        rhs: HirExpression,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirConstAssign {
                 fullname,
                 rhs: Box::new(rhs),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -488,6 +511,7 @@ impl Hir {
         result_ty: TermTy,
         varref_expr: HirExpression,
         arg_hirs: Vec<HirExpression>,
+        locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty: result_ty,
@@ -495,23 +519,23 @@ impl Hir {
                 lambda_expr: Box::new(varref_expr),
                 arg_exprs: arg_hirs,
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn arg_ref(ty: TermTy, idx: usize) -> HirExpression {
+    pub fn arg_ref(ty: TermTy, idx: usize, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirArgRef { idx },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn lvar_ref(ty: TermTy, name: String) -> HirExpression {
+    pub fn lvar_ref(ty: TermTy, name: String, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirLVarRef { name },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -561,6 +585,7 @@ impl Hir {
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
         has_break: bool,
+        locs: LocationSpan,
     ) -> HirExpression {
         let ret_ty = exprs.ty.clone();
         HirExpression {
@@ -574,7 +599,7 @@ impl Hir {
                 ret_ty,
                 has_break,
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
@@ -658,22 +683,31 @@ impl Hir {
         }
     }
 
-    pub fn lambda_capture_ref(ty: TermTy, idx: usize, readonly: bool) -> HirExpression {
+    pub fn lambda_capture_ref(
+        ty: TermTy,
+        idx: usize,
+        readonly: bool,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaCaptureRef { idx, readonly },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
-    pub fn lambda_capture_write(cidx: usize, rhs: HirExpression) -> HirExpression {
+    pub fn lambda_capture_write(
+        cidx: usize,
+        rhs: HirExpression,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLambdaCaptureWrite {
                 cidx,
                 rhs: Box::new(rhs),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 }

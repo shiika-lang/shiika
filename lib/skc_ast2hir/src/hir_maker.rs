@@ -413,7 +413,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let hir_expr = self.convert_expr(expr)?;
         self.constants
             .insert(toplevel_const(name), hir_expr.ty.clone());
-        let op = Hir::const_assign(toplevel_const(name), hir_expr);
+        let op = Hir::const_assign(toplevel_const(name), hir_expr, LocationSpan::todo());
         self.const_inits.push(op);
         Ok(())
     }
@@ -422,7 +422,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn register_const_full(&mut self, fullname: ConstFullname, hir_expr: HirExpression) {
         debug_assert!(!self.constants.contains_key(&fullname));
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        let op = Hir::const_assign(fullname, hir_expr);
+        let op = Hir::const_assign(fullname, hir_expr, LocationSpan::todo());
         self.const_inits.push(op);
     }
 
@@ -510,8 +510,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .enumerate()
             .map(|(idx, param)| {
-                let argref = Hir::arg_ref(param.ty.clone(), idx);
-                Hir::ivar_assign(&param.name, idx, argref, false, self_ty.clone())
+                let argref = Hir::arg_ref(param.ty.clone(), idx, LocationSpan::todo());
+                Hir::ivar_assign(
+                    &param.name,
+                    idx,
+                    argref,
+                    false,
+                    self_ty.clone(),
+                    LocationSpan::todo(),
+                )
             })
             .collect();
         let initialize = SkMethod {

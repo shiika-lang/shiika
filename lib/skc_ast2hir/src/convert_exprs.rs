@@ -38,10 +38,14 @@ impl LVarInfo {
     /// Returns HirExpression to refer this lvar
     fn ref_expr(&self) -> HirExpression {
         match &self.detail {
-            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty.clone(), name.clone()),
-            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty.clone(), *idx),
+            LVarDetail::CurrentScope { name } => {
+                Hir::lvar_ref(self.ty.clone(), name.clone(), LocationSpan::todo())
+            }
+            LVarDetail::Argument { idx } => {
+                Hir::arg_ref(self.ty.clone(), *idx, LocationSpan::todo())
+            }
             LVarDetail::OuterScope { cidx, readonly } => {
-                Hir::lambda_capture_ref(self.ty.clone(), *cidx, *readonly)
+                Hir::lambda_capture_ref(self.ty.clone(), *cidx, *readonly, LocationSpan::todo())
             }
         }
     }
@@ -49,9 +53,13 @@ impl LVarInfo {
     /// Returns HirExpression to update this lvar
     fn assign_expr(&self, expr: HirExpression) -> HirExpression {
         match &self.detail {
-            LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr),
+            LVarDetail::CurrentScope { name, .. } => {
+                Hir::lvar_assign(name, expr, LocationSpan::todo())
+            }
             LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(*cidx, expr),
+            LVarDetail::OuterScope { cidx, .. } => {
+                Hir::lambda_capture_write(*cidx, expr, LocationSpan::todo())
+            }
         }
     }
 }
@@ -71,37 +79,41 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             AstExpressionBody::LogicalNot { expr: arg_expr } => {
                 self.convert_logical_not(arg_expr, &expr.locs)
             }
-            AstExpressionBody::LogicalAnd { left, right } => self.convert_logical_and(left, right),
-            AstExpressionBody::LogicalOr { left, right } => self.convert_logical_or(left, right),
+            AstExpressionBody::LogicalAnd { left, right } => {
+                self.convert_logical_and(left, right, &expr.locs)
+            }
+            AstExpressionBody::LogicalOr { left, right } => {
+                self.convert_logical_or(left, right, &expr.locs)
+            }
             AstExpressionBody::If {
                 cond_expr,
                 then_exprs,
                 else_exprs,
-            } => self.convert_if_expr(cond_expr, then_exprs, else_exprs),
+            } => self.convert_if_expr(cond_expr, then_exprs, else_exprs, &expr.locs),
 
             AstExpressionBody::Match { cond_expr, clauses } => {
-                self.convert_match_expr(cond_expr, clauses)
+                self.convert_match_expr(cond_expr, clauses, &expr.locs)
             }
 
             AstExpressionBody::While {
                 cond_expr,
                 body_exprs,
-            } => self.convert_while_expr(cond_expr, body_exprs),
+            } => self.convert_while_expr(cond_expr, body_exprs, &expr.locs),
 
-            AstExpressionBody::Break => self.convert_break_expr(),
+            AstExpressionBody::Break => self.convert_break_expr(&expr.locs),
 
-            AstExpressionBody::Return { arg } => self.convert_return_expr(arg),
+            AstExpressionBody::Return { arg } => self.convert_return_expr(arg, &expr.locs),
 
             AstExpressionBody::LVarAssign { name, rhs, is_var } => {
-                self.convert_lvar_assign(name, &*rhs, is_var)
+                self.convert_lvar_assign(name, &*rhs, is_var, &expr.locs)
             }
 
             AstExpressionBody::IVarAssign { name, rhs, is_var } => {
-                self.convert_ivar_assign(name, &*rhs, is_var)
+                self.convert_ivar_assign(name, &*rhs, is_var, &expr.locs)
             }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
-                self.convert_const_assign(names, &*rhs)
+                self.convert_const_assign(names, &*rhs, &expr.locs)
             }
 
             AstExpressionBody::MethodCall {
@@ -117,15 +129,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 arg_exprs,
                 has_block,
                 type_args,
+                &expr.locs,
             ),
 
             AstExpressionBody::LambdaExpr {
                 params,
                 exprs,
                 is_fn,
-            } => self.convert_lambda_expr(params, exprs, is_fn),
+            } => self.convert_lambda_expr(params, exprs, is_fn, &expr.locs),
 
-            AstExpressionBody::BareName(name) => self.convert_bare_name(name),
+            AstExpressionBody::BareName(name) => self.convert_bare_name(name, &expr.locs),
 
             AstExpressionBody::IVarRef(name) => self.convert_ivar_ref(name, &expr.locs),
 
@@ -171,24 +184,26 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         left: &AstExpression,
         right: &AstExpression,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let left_hir = self.convert_expr(left)?;
         let right_hir = self.convert_expr(right)?;
         type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical and")?;
         type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical and")?;
-        Ok(Hir::logical_and(left_hir, right_hir))
+        Ok(Hir::logical_and(left_hir, right_hir, locs.clone()))
     }
 
     fn convert_logical_or(
         &mut self,
         left: &AstExpression,
         right: &AstExpression,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let left_hir = self.convert_expr(left)?;
         let right_hir = self.convert_expr(right)?;
         type_checking::check_logical_operator_ty(&left_hir.ty, "lhs of logical or")?;
         type_checking::check_logical_operator_ty(&right_hir.ty, "rhs of logical or")?;
-        Ok(Hir::logical_or(left_hir, right_hir))
+        Ok(Hir::logical_or(left_hir, right_hir, locs.clone()))
     }
 
     fn convert_if_expr(
@@ -196,6 +211,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         cond_expr: &AstExpression,
         then_exprs: &[AstExpression],
         else_exprs: &Option<Vec<AstExpression>>,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
@@ -230,13 +246,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ty
         };
 
-        Ok(Hir::if_expression(if_ty, cond_hir, then_hirs, else_hirs))
+        Ok(Hir::if_expression(
+            if_ty,
+            cond_hir,
+            then_hirs,
+            else_hirs,
+            locs.clone(),
+        ))
     }
 
     fn convert_match_expr(
         &mut self,
         cond_expr: &AstExpression,
         clauses: &[AstMatchClause],
+        _locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
         for (name, ty) in lvars {
@@ -250,6 +273,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         cond_expr: &AstExpression,
         body_exprs: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "while")?;
@@ -258,10 +282,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let body_hirs = self.convert_exprs(body_exprs)?;
         self.ctx_stack.pop_while_ctx();
 
-        Ok(Hir::while_expression(cond_hir, body_hirs))
+        Ok(Hir::while_expression(cond_hir, body_hirs, locs.clone()))
     }
 
-    fn convert_break_expr(&mut self) -> Result<HirExpression> {
+    fn convert_break_expr(&mut self, locs: &LocationSpan) -> Result<HirExpression> {
         let from;
         match self.ctx_stack.loop_ctx_mut() {
             Some(HirMakerContext::Lambda(lambda_ctx)) => {
@@ -281,10 +305,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 return Err(error::program_error("`break' outside a loop"));
             }
         }
-        Ok(Hir::break_expression(from))
+        Ok(Hir::break_expression(from, locs.clone()))
     }
 
-    fn convert_return_expr(&mut self, arg: &Option<Box<AstExpression>>) -> Result<HirExpression> {
+    fn convert_return_expr(
+        &mut self,
+        arg: &Option<Box<AstExpression>>,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         let from = self._validate_return()?;
         let arg_expr = if let Some(x) = arg {
             self.convert_expr(x)?
@@ -296,7 +324,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             )
         };
         self._validate_return_type(&arg_expr.ty)?;
-        Ok(Hir::return_expression(from, arg_expr))
+        Ok(Hir::return_expression(from, arg_expr, locs.clone()))
     }
 
     /// Check if `return' is valid in the current context
@@ -334,6 +362,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &str,
         rhs: &AstExpression,
         is_var: &bool,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         // For `var x`, `x` should not be exist
@@ -364,7 +393,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         } else {
             // Create new lvar
             self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
-            Ok(Hir::lvar_assign(name, expr))
+            Ok(Hir::lvar_assign(name, expr, locs.clone()))
         }
     }
 
@@ -373,13 +402,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &str,
         rhs: &AstExpression,
         is_var: &bool,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
         if self.ctx_stack.in_initializer() {
             let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(name, idx, expr, *is_var, base_ty));
+            return Ok(Hir::ivar_assign(
+                name,
+                idx,
+                expr,
+                *is_var,
+                base_ty,
+                locs.clone(),
+            ));
         }
 
         if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
@@ -396,7 +433,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     name, ivar.ty, expr.ty
                 )));
             }
-            Ok(Hir::ivar_assign(name, ivar.idx, expr, false, base_ty))
+            Ok(Hir::ivar_assign(
+                name,
+                ivar.idx,
+                expr,
+                false,
+                base_ty,
+                locs.clone(),
+            ))
         } else {
             Err(error::program_error(&format!(
                 "instance variable `{}' not found",
@@ -445,12 +489,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         names: &[String],
         rhs: &AstExpression,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         // TODO: forbid `A::B = 1`
         let fullname = toplevel_const(&names.join("::"));
         let hir_expr = self.convert_expr(rhs)?;
         self.constants.insert(fullname.clone(), hir_expr.ty.clone());
-        Ok(Hir::const_assign(fullname, hir_expr))
+        Ok(Hir::const_assign(fullname, hir_expr, locs.clone()))
     }
 
     fn convert_method_call(
@@ -460,6 +505,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         arg_exprs: &[AstExpression],
         has_block: &bool,
         type_args: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
@@ -476,6 +522,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ret_ty.clone(),
                         lvar.ref_expr(),
                         arg_hirs,
+                        locs.clone(),
                     ));
                 }
             }
@@ -519,6 +566,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         params: &[shiika_ast::BlockParam],
         exprs: &[AstExpression],
         is_fn: &bool,
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         // This method only handles `fn(){}` because blocks are handled in
         // convert_method_call.
@@ -547,6 +595,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
             extract_lvars(&mut lambda_ctx.lvars),               // lvars
             lambda_ctx.has_break,
+            locs.clone(),
         ))
     }
 
@@ -595,7 +644,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
-    fn convert_bare_name(&mut self, name: &str) -> Result<HirExpression> {
+    fn convert_bare_name(&mut self, name: &str, _locs: &LocationSpan) -> Result<HirExpression> {
         // Found a local variable
         if let Some(lvar_info) = self._find_var(name, false)? {
             return Ok(lvar_info.ref_expr());
@@ -908,19 +957,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_fullname_raw("Array", "new"),
             vec![],
         );
-        exprs.push(Hir::lvar_assign(&tmp_name, call_new));
+        exprs.push(Hir::lvar_assign(&tmp_name, call_new, locs.clone()));
 
         // `tmp.push(item)`
         for item_expr in item_exprs {
             exprs.push(Hir::method_call_(
                 ty::raw("Void"),
-                Hir::lvar_ref(ary_ty.clone(), tmp_name.clone()),
+                Hir::lvar_ref(ary_ty.clone(), tmp_name.clone(), locs.clone()),
                 method_fullname_raw("Array", "push"),
                 vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
             ));
         }
 
-        exprs.push(Hir::lvar_ref(ary_ty, tmp_name));
+        exprs.push(Hir::lvar_ref(ary_ty, tmp_name, locs.clone()));
         Hir::parenthesized_expression(Hir::expressions(exprs), locs)
     }
 

@@ -17,7 +17,7 @@ pub fn convert_match_expr(
 ) -> Result<(HirExpression, HirLVars)> {
     let cond_expr = mk.convert_expr(cond)?;
     let tmp_name = mk.generate_lvar_name("expr");
-    let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone());
+    let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone(), LocationSpan::todo());
     let mut clauses = ast_clauses
         .iter()
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
@@ -39,8 +39,11 @@ pub fn convert_match_expr(
     });
 
     let lvars = vec![(tmp_name.clone(), cond_expr.ty.clone())];
-    let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr);
-    Ok((Hir::match_expression(result_ty, tmp_assign, clauses), lvars))
+    let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr, LocationSpan::todo());
+    Ok((
+        Hir::match_expression(result_ty, tmp_assign, clauses, LocationSpan::todo()),
+        lvars,
+    ))
 }
 
 /// Convert a match clause into a big `if` expression
