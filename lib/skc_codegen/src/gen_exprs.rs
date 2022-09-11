@@ -145,11 +145,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 fullname,
                 str_literal_idx,
                 includes_modules,
+                initialize_name,
+                init_cls_name,
             } => Ok(Some(self.gen_class_literal(
                 fullname,
                 &expr.ty,
                 str_literal_idx,
                 includes_modules,
+                initialize_name,
+                init_cls_name,
             ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
         }
@@ -1085,6 +1089,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
         includes_modules: &bool,
+        initialize_name: &MethodFullname,
+        init_cls_name: &ClassFullname,
     ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
@@ -1098,7 +1104,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 .as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let metacls_obj = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Metaclass"), "new"),
+                &method_fullname(&metaclass_fullname("Metaclass"), "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
@@ -1114,7 +1120,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let cls = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Class"), "new"),
+                &method_fullname(&metaclass_fullname("Class"), "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
@@ -1128,9 +1134,31 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
             }
+            self.call_class_level_initialize(&cls, initialize_name, init_cls_name);
 
             self.bitcast(cls, clsobj_ty, "as")
         }
+    }
+
+    fn call_class_level_initialize(
+        &self,
+        receiver: &SkObj,
+        initialize_name: &MethodFullname,
+        init_cls_name: &ClassFullname,
+    ) {
+        let ances_type = self
+            .llvm_struct_types
+            .get(&init_cls_name.to_type_fullname())
+            .expect("ances_type not found")
+            .ptr_type(inkwell::AddressSpace::Generic);
+        let addr = SkObj(self.builder.build_bitcast(
+            receiver.clone().0,
+            ances_type,
+            "obj_as_super",
+        ));
+        let args = vec![addr.0.into()];
+        let initialize = self.get_llvm_func(&method_func_name(initialize_name));
+        self.builder.build_call(initialize, &args, "");
     }
 
     /// Create the metaclass object `Metaclass`

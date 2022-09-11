@@ -336,10 +336,21 @@ impl<'a> Parser<'a> {
         }
 
         self.lv -= 1;
+        let is_initializer = sig.name.0 == "initialize";
         if is_class_method {
-            Ok(shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs })
+            if is_initializer {
+                let d = shiika_ast::InitializerDefinition { sig, body_exprs };
+                Ok(shiika_ast::Definition::ClassInitializerDefinition(d))
+            } else {
+                Ok(shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs })
+            }
         } else {
-            Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
+            if is_initializer {
+                let d = shiika_ast::InitializerDefinition { sig, body_exprs };
+                Ok(shiika_ast::Definition::InitializerDefinition(d))
+            } else {
+                Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
+            }
         }
     }
 

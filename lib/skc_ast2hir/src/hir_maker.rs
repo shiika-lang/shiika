@@ -80,7 +80,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// - ::Array (#<class Array>)
     /// - ::Void (the only instance of the class Void)
     /// - ::Maybe::None (the only instance of the class Maybe::None)
-    pub fn define_class_constants(&mut self) {
+    pub fn define_class_constants(&mut self) -> Result<()> {
         let nonmeta = self
             .class_dict
             .sk_types
@@ -98,13 +98,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             })
             .collect::<Vec<_>>();
         for (name, const_is_obj, includes_modules) in v {
-            let str_idx = self.register_string_literal(&name.0);
             let expr = if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.
                 let ty = ty::raw(&name.0);
                 // The class
-                let cls_obj =
-                    Hir::class_literal(ty.meta_ty(), name.clone(), str_idx, includes_modules);
+                let cls_obj = self.create_class_literal(&name, includes_modules)?;
                 // The instance
                 Hir::method_call_(
                     ty,
@@ -113,11 +111,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     vec![],
                 )
             } else {
-                let ty = ty::meta(&name.0);
-                Hir::class_literal(ty, name.clone(), str_idx, includes_modules)
+                self.create_class_literal(&name, includes_modules)?
             };
             self.register_const_full(name.to_const_fullname(), expr);
         }
+        Ok(())
+    }
+
+    fn create_class_literal(
+        &mut self,
+        name: &TypeFullname,
+        includes_modules: bool,
+    ) -> Result<HirExpression> {
+        let ty = ty::meta(&name.0);
+        let str_idx = self.register_string_literal(&name.0);
+        // These two are for calling class-level initialize.
+        let (initialize_name, init_cls_name) = self._find_initialize(&ty)?;
+        Ok(Hir::class_literal(
+            ty,
+            name.clone(),
+            str_idx,
+            includes_modules,
+            initialize_name,
+            init_cls_name,
+        ))
     }
 
     pub fn convert_toplevel_items(
@@ -162,22 +179,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
-                        if def.is_initializer() {
-                            // Already processed in process_class_def
-                        } else {
-                            log::trace!("method {}#{}", &fullname, &sig.name);
-                            let method = self.convert_method_def(
-                                &fullname.to_type_fullname(),
-                                &sig.name,
-                                body_exprs,
-                            )?;
-                            self.method_dict.add_method(fullname, method);
-                        }
+                        log::trace!("method {}#{}", &fullname, &sig.name);
+                        let method = self.convert_method_def(
+                            &fullname.to_type_fullname(),
+                            &sig.name,
+                            body_exprs,
+                        )?;
+                        self.method_dict.add_method(fullname, method);
                     } else {
                         return Err(error::program_error(
                             "you cannot define methods at toplevel",
                         ));
                     }
+                }
+                shiika_ast::Definition::InitializerDefinition { .. } => {
+                    // Already processed in process_class_def
                 }
                 shiika_ast::Definition::ClassMethodDefinition {
                     sig, body_exprs, ..
@@ -196,6 +212,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             "you cannot define methods at toplevel",
                         ));
                     }
+                }
+                shiika_ast::Definition::ClassInitializerDefinition { .. } => {
+                    // Already processed in process_class_def
                 }
                 shiika_ast::Definition::ConstDefinition { name, expr } => {
                     if opt_fullname.is_some() {
@@ -252,8 +271,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Register #initialize and ivars
-        let own_ivars =
-            self._process_initialize(&fullname, defs.iter().find(|d| d.is_initializer()))?;
+        let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
         if !own_ivars.is_empty() {
             // Be careful not to reset ivars of corelib/* by builtin/*
             self.class_dict.define_ivars(&fullname, own_ivars.clone());
@@ -265,6 +283,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let class_name = ty::raw(&fullname.0);
             self.method_dict
                 .add_method(&meta_name, self.create_new(&class_name, false)?);
+        }
+
+        // Register class-level initialize and ivars
+        let cls_ivars =
+            self._process_initialize(&meta_name, shiika_ast::find_class_initializer(defs))?;
+        if !cls_ivars.is_empty() {
+            self.class_dict.define_ivars(&meta_name, cls_ivars.clone());
+            self.define_accessors(&meta_name, cls_ivars, defs);
         }
 
         // Process inner defs
@@ -299,16 +325,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _process_initialize(
         &mut self,
         fullname: &ClassFullname,
-        initialize: Option<&shiika_ast::Definition>,
+        initializer: Option<&shiika_ast::InitializerDefinition>,
     ) -> Result<SkIVars> {
         let mut own_ivars = HashMap::default();
-        if let Some(shiika_ast::Definition::InstanceMethodDefinition {
-            sig, body_exprs, ..
-        }) = initialize
-        {
+        if let Some(d) = initializer {
             log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
-                self.create_initialize(fullname, &sig.name, body_exprs)?;
+                self.create_initialize(fullname, &d.sig.name, &d.body_exprs)?;
             self.method_dict.add_method(fullname, sk_method);
             own_ivars = found_ivars;
         }

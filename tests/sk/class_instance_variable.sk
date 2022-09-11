@@ -1,0 +1,22 @@
+# Basic example
+class A
+  def self.initialize
+    @a = 0
+  end
+end
+if A.a != 0; puts "A.a returned \{A.a}"; end
+
+# Generics
+#
+#CT = [0]   # https://github.com/shiika-lang/shiika/issues/390
+#class B<T>
+#  def self.initialize
+#    CT[0] += 1
+#  end
+#end
+#if CT[0] != 1; puts "B.initialize did not called"; end
+#B<Int>.new
+#if CT[0] > 1; puts "B.initialize called more than once"; end
+
+puts "ok"
+

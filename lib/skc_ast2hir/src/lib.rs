@@ -30,7 +30,7 @@ pub fn make_hir(
     let class_dict = class_dict::create(&ast, core_classes, &imports.sk_types)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
-    hir_maker.define_class_constants();
+    hir_maker.define_class_constants()?;
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
 

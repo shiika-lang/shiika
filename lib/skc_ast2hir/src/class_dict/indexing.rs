@@ -217,8 +217,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: &Superclass,
         defs: &[shiika_ast::Definition],
     ) -> Result<Vec<MethodParam>> {
-        if let Some(shiika_ast::Definition::InstanceMethodDefinition { sig, .. }) =
-            defs.iter().find(|d| d.is_initializer())
+        if let Some(shiika_ast::InitializerDefinition { sig, .. }) =
+            shiika_ast::find_initializer(defs)
         {
             // Has explicit initializer definition
             params::convert_params(self, namespace, &sig.params, typarams, Default::default())
@@ -353,11 +353,31 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut requirements = vec![];
         for def in defs {
             match def {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+                | shiika_ast::Definition::InitializerDefinition(
+                    shiika_ast::InitializerDefinition { sig, .. },
+                ) => {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
                     instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
+                    let hir_sig = self.create_signature(
+                        namespace,
+                        &fullname.meta_name(),
+                        sig,
+                        Default::default(),
+                    )?;
+                    class_methods.insert(hir_sig);
+                }
+                shiika_ast::Definition::ClassInitializerDefinition(
+                    shiika_ast::InitializerDefinition { sig, .. },
+                ) => {
+                    if sig.params.len() != 0 {
+                        return Err(error::program_error(&format!(
+                            "{}.{} should take no parameters",
+                            namespace, &sig.name
+                        )));
+                    }
                     let hir_sig = self.create_signature(
                         namespace,
                         &fullname.meta_name(),

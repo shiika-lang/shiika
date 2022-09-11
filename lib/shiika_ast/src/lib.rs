@@ -50,11 +50,12 @@ pub enum Definition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
     },
-    // TODO: Rename to `SingletonMethodDefinition`?
+    InitializerDefinition(InitializerDefinition),
     ClassMethodDefinition {
         sig: AstMethodSignature,
         body_exprs: Vec<AstExpression>,
     },
+    ClassInitializerDefinition(InitializerDefinition),
     MethodRequirementDefinition {
         sig: AstMethodSignature,
     },
@@ -62,6 +63,26 @@ pub enum Definition {
         name: String,
         expr: AstExpression,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InitializerDefinition {
+    pub sig: AstMethodSignature,
+    pub body_exprs: Vec<AstExpression>,
+}
+
+pub fn find_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
+    defs.iter().find_map(|def| match def {
+        Definition::InitializerDefinition(x) => Some(x),
+        _ => None,
+    })
+}
+
+pub fn find_class_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
+    defs.iter().find_map(|def| match def {
+        Definition::ClassInitializerDefinition(x) => Some(x),
+        _ => None,
+    })
 }
 
 #[derive(Debug, PartialEq)]
@@ -208,15 +229,6 @@ pub enum AstPattern {
 }
 
 pub type AstMatchClause = (AstPattern, Vec<AstExpression>);
-
-impl Definition {
-    pub fn is_initializer(&self) -> bool {
-        match self {
-            Definition::InstanceMethodDefinition { sig, .. } => sig.name.0 == "initialize",
-            _ => false,
-        }
-    }
-}
 
 impl AstExpression {
     pub fn may_have_paren_wo_args(&self) -> bool {

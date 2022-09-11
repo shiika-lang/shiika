@@ -82,6 +82,7 @@ impl ClassFullname {
         self.0.starts_with("Meta:")
     }
 
+    // TODO: what's this?
     pub fn to_ty(&self) -> TermTy {
         if self.is_meta() {
             let mut name = self.0.clone();

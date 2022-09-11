@@ -14,14 +14,7 @@ extern "C" {
     // TODO: is there a better way?
     // TODO: macro to convert "Meta:Class#new" into this name
     #[allow(improper_ctypes)]
-    fn Meta_Class_new(
-        receiver: *const u8,
-        name: SkStr,
-        vtable: *const u8,
-        wtable: *const WitnessTable,
-        metacls_obj: SkClass,
-        erasure_cls: SkClass,
-    ) -> SkClass;
+    fn Meta_Class_new(receiver: *const u8) -> SkClass;
 }
 
 impl SkClass {
@@ -58,10 +51,6 @@ impl SkClass {
         unsafe { (*self.0).witness_table.as_mut().unwrap() }
     }
 
-    pub fn witness_table_ptr(&self) -> *const WitnessTable {
-        unsafe { (*self.0).witness_table }
-    }
-
     fn erasure_class(&self) -> SkClass {
         let erasure_cls = unsafe { &(*self.0).erasure_cls };
         if erasure_cls.0.is_null() {
@@ -87,27 +76,50 @@ pub struct ShiikaClass {
     erasure_cls: SkClass,
 }
 
-/// Called from `Class.new` and initializes internal fields.
-#[shiika_method("Class#_initialize_rustlib")]
+#[shiika_method("Meta:Class#_new")]
 #[allow(non_snake_case)]
-pub extern "C" fn class__initialize_rustlib(
-    receiver: *mut ShiikaClass,
+pub extern "C" fn meta_class__new(
+    _receiver: *const u8,
+    name: SkStr,
     vtable: *const u8,
     witness_table: *mut WitnessTable,
     metacls_obj: SkClass,
     erasure_cls: SkClass,
-) {
+) -> SkClass {
+    let cls_obj = unsafe { Meta_Class_new(std::ptr::null()) };
     unsafe {
-        (*receiver).vtable = vtable;
-        (*receiver).metacls_obj = metacls_obj;
-        (*receiver).erasure_cls = erasure_cls;
-        (*receiver).specialized_classes = Box::leak(Box::new(HashMap::new()));
+        (*cls_obj.0).vtable = vtable;
+        (*cls_obj.0).name = name;
+        (*cls_obj.0).metacls_obj = metacls_obj;
+        (*cls_obj.0).erasure_cls = erasure_cls;
+        (*cls_obj.0).specialized_classes = Box::leak(Box::new(HashMap::new()));
         if witness_table.is_null() {
-            (*receiver).witness_table = Box::leak(Box::new(WitnessTable::new()));
+            (*cls_obj.0).witness_table = Box::leak(Box::new(WitnessTable::new()));
         } else {
-            (*receiver).witness_table = witness_table;
+            (*cls_obj.0).witness_table = witness_table;
         }
     }
+    cls_obj
+}
+
+#[shiika_method("Metaclass#_new")]
+#[allow(non_snake_case)]
+pub extern "C" fn metaclass__new(
+    _receiver: *const u8,
+    name: SkStr,
+    vtable: *const u8,
+    witness_table: *mut WitnessTable,
+    metacls_obj: SkClass,
+    erasure_cls: SkClass,
+) -> SkClass {
+    meta_class__new(
+        _receiver,
+        name,
+        vtable,
+        witness_table,
+        metacls_obj,
+        erasure_cls,
+    )
 }
 
 // Returns the n-th type argument. Panics if the index is out of bound
@@ -144,16 +156,14 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
             let cloned = tyargs.iter().map(SkClass::dup).collect();
             class_specialize(receiver.metacls_obj(), cloned)
         };
-        let c = unsafe {
-            Meta_Class_new(
-                std::ptr::null(),
-                name.clone().into(),
-                receiver.vtable(),
-                receiver.witness_table_ptr(),
-                spe_meta,
-                receiver.dup(),
-            )
-        };
+        let c = meta_class__new(
+            std::ptr::null(),
+            name.clone().into(),
+            receiver.vtable(),
+            receiver.witness_table_mut(),
+            spe_meta,
+            receiver.dup(),
+        );
         unsafe {
             // Q. Why not just `(*c.0).type_args = tyargs` ?
             // A. To avoid `improper_ctypes` warning of some extern funcs.
