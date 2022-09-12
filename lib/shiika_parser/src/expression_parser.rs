@@ -145,6 +145,7 @@ impl<'a> Parser<'a> {
     // - `return 1`
     // Otherwise, returns `None` and rewind the lexer position.
     fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
+        let begin = self.lexer.location();
         let first_token = self.current_token().clone();
         let cur = self.current_position();
         self.consume_token()?;
@@ -179,7 +180,12 @@ impl<'a> Parser<'a> {
                             "`return' cannot take more than one args"
                         ));
                     }
-                    return Ok(Some(shiika_ast::return_expr(Some(args.pop().unwrap()))));
+                    let end = self.lexer.location();
+                    return Ok(Some(self.ast.return_expr(
+                        Some(args.pop().unwrap()),
+                        begin,
+                        end,
+                    )));
                 }
                 _ => panic!("must not happen: {:?}", self.current_token()),
             }
@@ -524,9 +530,11 @@ impl<'a> Parser<'a> {
     fn parse_break_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_break_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwBreak)?);
         self.lv -= 1;
-        Ok(shiika_ast::break_expr())
+        let end = self.lexer.location();
+        Ok(self.ast.break_expr(begin, end))
     }
 
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {
@@ -629,6 +637,7 @@ impl<'a> Parser<'a> {
     fn parse_match_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_match_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwMatch)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -671,12 +680,14 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(shiika_ast::match_expr(cond_expr, clauses))
+        let end = self.lexer.location();
+        Ok(self.ast.match_expr(cond_expr, clauses, begin, end))
     }
 
     fn parse_while_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_while_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwWhile)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -686,7 +697,8 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
-        Ok(shiika_ast::while_expr(cond_expr, body_exprs))
+        let end = self.lexer.location();
+        Ok(self.ast.while_expr(cond_expr, body_exprs, begin, end))
     }
 
     // prim . methodName argumentWithParentheses? block?
@@ -843,7 +855,8 @@ impl<'a> Parser<'a> {
             }
             Token::KwReturn => {
                 self.consume_token()?;
-                Ok(shiika_ast::return_expr(None))
+                let end = self.lexer.location();
+                Ok(self.ast.return_expr(None, begin, end))
             }
             Token::UpperWord(_) => self.parse_specialize_expression(),
             Token::KwFn => self.parse_lambda(),

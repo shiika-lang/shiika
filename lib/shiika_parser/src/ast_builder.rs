@@ -1,4 +1,4 @@
-use shiika_ast::{AstExpression, AstExpressionBody, Location, LocationSpan, Token};
+use shiika_ast::{AstExpression, AstExpressionBody, AstMatchClause, Location, LocationSpan, Token};
 use shiika_core::names::UnresolvedConstName;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -87,11 +87,60 @@ impl AstBuilder {
         )
     }
 
+    pub fn match_expr(
+        &self,
+        cond_expr: AstExpression,
+        clauses: Vec<AstMatchClause>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::Match {
+                cond_expr: Box::new(cond_expr),
+                clauses,
+            },
+        )
+    }
+
+    pub fn while_expr(
+        &self,
+        cond_expr: AstExpression,
+        body_exprs: Vec<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::While {
+                cond_expr: Box::new(cond_expr),
+                body_exprs,
+            },
+        )
+    }
+
+    pub fn break_expr(&self, begin: Location, end: Location) -> AstExpression {
+        self.non_primary_expression(begin, end, AstExpressionBody::Break {})
+    }
+
+    pub fn return_expr(
+        &self,
+        arg: Option<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::Return {
+                arg: arg.map(Box::new),
+            },
+        )
+    }
+
     // TODO
-    // Match {
-    // While {
-    // Break,
-    // Return {
     // LVarAssign {
     // IVarAssign {
     // ConstAssign {

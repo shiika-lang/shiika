@@ -268,30 +268,6 @@ impl AstExpression {
     }
 }
 
-pub fn match_expr(cond_expr: AstExpression, clauses: Vec<AstMatchClause>) -> AstExpression {
-    non_primary_expression(AstExpressionBody::Match {
-        cond_expr: Box::new(cond_expr),
-        clauses,
-    })
-}
-
-pub fn while_expr(cond_expr: AstExpression, body_exprs: Vec<AstExpression>) -> AstExpression {
-    non_primary_expression(AstExpressionBody::While {
-        cond_expr: Box::new(cond_expr),
-        body_exprs,
-    })
-}
-
-pub fn break_expr() -> AstExpression {
-    non_primary_expression(AstExpressionBody::Break {})
-}
-
-pub fn return_expr(arg: Option<AstExpression>) -> AstExpression {
-    non_primary_expression(AstExpressionBody::Return {
-        arg: arg.map(Box::new),
-    })
-}
-
 /// Create an expression for an assigment
 pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     let body = match lhs.body {
