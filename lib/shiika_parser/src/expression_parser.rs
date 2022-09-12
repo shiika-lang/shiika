@@ -71,20 +71,23 @@ impl<'a> Parser<'a> {
     pub fn parse_if_unless_modifier(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_if_unless_modifier");
+        let begin = self.lexer.location();
         let mut expr = self.parse_call_wo_paren()?;
         if self.next_nonspace_token()? == Token::ModIf {
             self.skip_ws()?;
             assert!(self.consume(Token::ModIf)?);
             self.skip_ws()?;
             let cond = self.parse_call_wo_paren()?;
-            expr = shiika_ast::if_expr(cond, vec![expr], None)
+            let end = self.lexer.location();
+            expr = self.ast.if_expr(cond, vec![expr], None, begin, end)
         } else if self.next_nonspace_token()? == Token::ModUnless {
             self.skip_ws()?;
             assert!(self.consume(Token::ModUnless)?);
             self.skip_ws()?;
             let cond_inner = self.parse_call_wo_paren()?;
             let cond = self.ast.wrap_with_logical_not(cond_inner);
-            expr = shiika_ast::if_expr(cond, vec![expr], None)
+            let end = self.lexer.location();
+            expr = self.ast.if_expr(cond, vec![expr], None, begin, end)
         }
         self.lv -= 1;
         Ok(expr)
@@ -529,6 +532,7 @@ impl<'a> Parser<'a> {
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_if_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwIf)?);
         self.skip_ws()?;
         // cond
@@ -547,7 +551,7 @@ impl<'a> Parser<'a> {
         let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
         self.skip_wsn()?;
 
-        self._parse_if_expr(cond_expr, then_exprs)
+        self._parse_if_expr(cond_expr, then_exprs, begin)
     }
 
     /// Parse latter part of if-expr
@@ -555,6 +559,7 @@ impl<'a> Parser<'a> {
         &mut self,
         cond_expr: AstExpression,
         then_exprs: Vec<AstExpression>,
+        begin: Location,
     ) -> Result<AstExpression, Error> {
         if self.consume(Token::KwElsif)? {
             self.skip_ws()?;
@@ -568,28 +573,33 @@ impl<'a> Parser<'a> {
             let then_exprs2 =
                 self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
             self.skip_wsn()?;
-            Ok(shiika_ast::if_expr(
-                cond_expr,
-                then_exprs,
-                Some(vec![self._parse_if_expr(cond_expr2, then_exprs2)?]),
-            ))
+            let cont = self._parse_if_expr(cond_expr2, then_exprs2, begin.clone())?;
+            let end = cont.locs.end.clone();
+            Ok(self
+                .ast
+                .if_expr(cond_expr, then_exprs, Some(vec![cont]), begin, end))
         } else if self.consume(Token::KwElse)? {
             self.skip_wsn()?;
             let else_exprs = self.parse_exprs(vec![Token::KwEnd])?;
             self.skip_wsn()?;
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
-            Ok(shiika_ast::if_expr(cond_expr, then_exprs, Some(else_exprs)))
+            let end = self.lexer.location();
+            Ok(self
+                .ast
+                .if_expr(cond_expr, then_exprs, Some(else_exprs), begin, end))
         } else {
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
-            Ok(shiika_ast::if_expr(cond_expr, then_exprs, None))
+            let end = self.lexer.location();
+            Ok(self.ast.if_expr(cond_expr, then_exprs, None, begin, end))
         }
     }
 
     fn parse_unless_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unless_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwUnless)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -606,10 +616,13 @@ impl<'a> Parser<'a> {
         }
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
-        Ok(shiika_ast::if_expr(
+        let end = self.lexer.location();
+        Ok(self.ast.if_expr(
             self.ast.wrap_with_logical_not(cond_expr),
             then_exprs,
             None,
+            begin,
+            end,
         ))
     }
 

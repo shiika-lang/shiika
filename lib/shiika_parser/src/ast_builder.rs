@@ -68,8 +68,26 @@ impl AstBuilder {
         )
     }
 
+    pub fn if_expr(
+        &self,
+        cond_expr: AstExpression,
+        then_exprs: Vec<AstExpression>,
+        else_exprs: Option<Vec<AstExpression>>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::If {
+                cond_expr: Box::new(cond_expr),
+                then_exprs,
+                else_exprs,
+            },
+        )
+    }
+
     // TODO
-    // If {
     // Match {
     // While {
     // Break,
@@ -148,6 +166,19 @@ impl AstBuilder {
     ) -> AstExpression {
         AstExpression {
             primary: true,
+            body,
+            locs: LocationSpan::new(&self.filepath, begin, end),
+        }
+    }
+
+    fn non_primary_expression(
+        &self,
+        begin: Location,
+        end: Location,
+        body: AstExpressionBody,
+    ) -> AstExpression {
+        AstExpression {
+            primary: false,
             body,
             locs: LocationSpan::new(&self.filepath, begin, end),
         }
