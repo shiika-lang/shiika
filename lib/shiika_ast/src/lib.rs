@@ -268,38 +268,6 @@ impl AstExpression {
     }
 }
 
-pub fn logical_not(expr: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::LogicalNot {
-        expr: Box::new(expr),
-    })
-}
-
-pub fn logical_and(left: AstExpression, right: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::LogicalAnd {
-        left: Box::new(left),
-        right: Box::new(right),
-    })
-}
-
-pub fn logical_or(left: AstExpression, right: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::LogicalOr {
-        left: Box::new(left),
-        right: Box::new(right),
-    })
-}
-
-pub fn if_expr(
-    cond_expr: AstExpression,
-    then_exprs: Vec<AstExpression>,
-    else_exprs: Option<Vec<AstExpression>>,
-) -> AstExpression {
-    non_primary_expression(AstExpressionBody::If {
-        cond_expr: Box::new(cond_expr),
-        then_exprs,
-        else_exprs,
-    })
-}
-
 pub fn match_expr(cond_expr: AstExpression, clauses: Vec<AstMatchClause>) -> AstExpression {
     non_primary_expression(AstExpressionBody::Match {
         cond_expr: Box::new(cond_expr),
