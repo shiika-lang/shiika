@@ -306,7 +306,8 @@ impl<'a> Parser<'a> {
                 self.skip_ws()?;
                 assert!(self.consume(Token::KwOr)?);
                 self.skip_wsn()?;
-                expr = shiika_ast::logical_or(expr, self.parse_operator_and()?);
+                let right_expr = self.parse_operator_and()?;
+                expr = self.ast.logical_or(expr, right_expr);
                 self.skip_ws()?;
                 token = self.current_token();
             } else {
@@ -328,7 +329,8 @@ impl<'a> Parser<'a> {
                 self.skip_ws()?;
                 assert!(self.consume(Token::KwAnd)?);
                 self.skip_wsn()?;
-                expr = shiika_ast::logical_and(expr, self.parse_equality_expr()?);
+                let right_expr = self.parse_equality_expr()?;
+                expr = self.ast.logical_and(expr, right_expr);
                 self.skip_ws()?;
                 token = self.current_token();
             } else {
@@ -399,7 +401,7 @@ impl<'a> Parser<'a> {
                         false,
                         false,
                     );
-                    expr = shiika_ast::logical_and(expr, compare);
+                    expr = self.ast.logical_and(expr, compare);
                 }
             } else {
                 expr = shiika_ast::method_call(

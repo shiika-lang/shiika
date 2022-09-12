@@ -46,9 +46,29 @@ impl AstBuilder {
         }
     }
 
+    pub fn logical_and(&self, left: AstExpression, right: AstExpression) -> AstExpression {
+        self.primary_expression(
+            left.locs.begin.clone(),
+            right.locs.end.clone(),
+            AstExpressionBody::LogicalAnd {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
+        )
+    }
+
+    pub fn logical_or(&self, left: AstExpression, right: AstExpression) -> AstExpression {
+        self.primary_expression(
+            left.locs.begin.clone(),
+            right.locs.end.clone(),
+            AstExpressionBody::LogicalOr {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
+        )
+    }
+
     // TODO
-    // LogicalAnd {
-    // LogicalOr {
     // If {
     // Match {
     // While {
