@@ -34,6 +34,7 @@ impl<'a> Parser<'a> {
     pub fn parse_var_decl(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_var_decl");
+        let begin = self.lexer.location();
         let expr;
         if self.current_token_is(Token::KwVar) {
             self.consume_token()?;
@@ -46,7 +47,8 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
-                    expr = shiika_ast::lvar_decl(name, rhs);
+                    let end = self.lexer.location();
+                    expr = self.ast.lvar_decl(name, rhs, begin, end);
                 }
                 Token::IVar(s) => {
                     let name = s.to_string();
@@ -55,7 +57,8 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
-                    expr = shiika_ast::ivar_decl(name, rhs);
+                    let end = self.lexer.location();
+                    expr = self.ast.ivar_decl(name, rhs, begin, end);
                 }
                 token => return Err(parse_error!(self, "invalid var name: {:?}", token)),
             }

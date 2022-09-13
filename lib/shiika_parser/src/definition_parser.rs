@@ -316,7 +316,7 @@ impl<'a> Parser<'a> {
         self.expect_sep()?;
 
         // Body (optional)
-        let mut body_exprs = iparam_exprs(&sig.params);
+        let mut body_exprs = self.iparam_exprs(&sig.params);
         body_exprs.append(&mut self.parse_exprs(vec![Token::KwEnd])?);
 
         // `end'
@@ -352,6 +352,25 @@ impl<'a> Parser<'a> {
                 Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
             }
         }
+    }
+
+    /// `def initialize(@a: Int)` is equivalent to
+    /// `def initialize(a: Int); @a = a`.
+    /// Returns expressions like `@a = a`
+    fn iparam_exprs(&self, params: &[Param]) -> Vec<shiika_ast::AstExpression> {
+        params
+            .iter()
+            .filter(|param| param.is_iparam)
+            .map(|param| {
+                let span = LocationSpan::todo();
+                self.ast.ivar_assign(
+                    param.name.clone(),
+                    shiika_ast::bare_name(&param.name),
+                    span.begin,
+                    span.end,
+                )
+            })
+            .collect()
     }
 
     // Parse `foo(bar) -> Baz`
@@ -724,17 +743,4 @@ impl<'a> Parser<'a> {
         self.lv -= 1;
         Ok(shiika_ast::Definition::ConstDefinition { name, expr })
     }
-}
-
-/// `def initialize(@a: Int)` is equivalent to
-/// `def initialize(a: Int); @a = a`.
-/// Returns expressions like `@a = a`
-fn iparam_exprs(params: &[Param]) -> Vec<shiika_ast::AstExpression> {
-    params
-        .iter()
-        .filter(|param| param.is_iparam)
-        .map(|param| {
-            shiika_ast::ivar_assign(param.name.clone(), shiika_ast::bare_name(&param.name))
-        })
-        .collect()
 }

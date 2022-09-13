@@ -140,10 +140,61 @@ impl AstBuilder {
         )
     }
 
+    pub fn lvar_decl(
+        &self,
+        name: String,
+        rhs: AstExpression,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::LVarAssign {
+                name,
+                rhs: Box::new(rhs),
+                is_var: true,
+            },
+        )
+    }
+
+    pub fn ivar_decl(
+        &self,
+        name: String,
+        rhs: AstExpression,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::IVarAssign {
+                name,
+                rhs: Box::new(rhs),
+                is_var: true,
+            },
+        )
+    }
+
+    pub fn ivar_assign(
+        &self,
+        name: String,
+        rhs: AstExpression,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::IVarAssign {
+                name,
+                rhs: Box::new(rhs),
+                is_var: false,
+            },
+        )
+    }
+
     // TODO
-    // LVarAssign {
-    // IVarAssign {
-    // ConstAssign {
     // MethodCall {
     // LambdaExpr {
     // BareName(String),

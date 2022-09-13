@@ -306,30 +306,6 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     non_primary_expression(body)
 }
 
-pub fn lvar_decl(name: String, rhs: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::LVarAssign {
-        name,
-        rhs: Box::new(rhs),
-        is_var: true,
-    })
-}
-
-pub fn ivar_decl(name: String, rhs: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::IVarAssign {
-        name,
-        rhs: Box::new(rhs),
-        is_var: true,
-    })
-}
-
-pub fn ivar_assign(name: String, rhs: AstExpression) -> AstExpression {
-    non_primary_expression(AstExpressionBody::IVarAssign {
-        name,
-        rhs: Box::new(rhs),
-        is_var: false,
-    })
-}
-
 pub fn method_call(
     receiver_expr: Option<AstExpression>,
     method_name: &str,
