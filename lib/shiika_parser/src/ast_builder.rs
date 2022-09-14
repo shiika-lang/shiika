@@ -194,6 +194,30 @@ impl AstBuilder {
         )
     }
 
+    pub fn method_call(
+        &self,
+        receiver_expr: Option<AstExpression>,
+        method_name: &str,
+        arg_exprs: Vec<AstExpression>,
+        type_args: Vec<AstExpression>,
+        primary: bool,
+        has_block: bool,
+        may_have_paren_wo_args: bool,
+    ) -> AstExpression {
+        AstExpression {
+            primary,
+            body: AstExpressionBody::MethodCall {
+                receiver_expr: receiver_expr.map(Box::new),
+                method_name: method_firstname(method_name),
+                arg_exprs,
+                type_args,
+                has_block,
+                may_have_paren_wo_args,
+            },
+            locs: LocationSpan::todo(),
+        }
+    }
+
     pub fn simple_method_call(
         &self,
         receiver_expr: Option<AstExpression>,

@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
             };
             match &first_token {
                 Token::LowerWord(s) => {
-                    return Ok(Some(shiika_ast::method_call(
+                    return Ok(Some(self.ast.method_call(
                         None,
                         s,
                         args,
@@ -710,15 +710,9 @@ impl<'a> Parser<'a> {
                 // TODO: parse multiple arguments
                 self.skip_wsn()?;
                 self.expect(Token::RSqBracket)?;
-                expr = shiika_ast::method_call(
-                    Some(expr),
-                    "[]",
-                    vec![arg],
-                    vec![],
-                    true,
-                    false,
-                    false,
-                );
+                expr =
+                    self.ast
+                        .method_call(Some(expr), "[]", vec![arg], vec![], true, false, false);
             } else if self.next_nonspace_token()? == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
                 self.skip_ws()?;
@@ -772,7 +766,7 @@ impl<'a> Parser<'a> {
         };
 
         self.lv -= 1;
-        Ok(shiika_ast::method_call(
+        Ok(self.ast.method_call(
             Some(expr),
             &method_name,
             args,
@@ -893,7 +887,7 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-                shiika_ast::method_call(
+                self.ast.method_call(
                     None, // receiver_expr
                     bare_name_str,
                     args,
