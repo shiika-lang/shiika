@@ -1,4 +1,6 @@
-use shiika_ast::{AstExpression, AstExpressionBody, AstMatchClause, Location, LocationSpan, Token};
+use shiika_ast::{
+    AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, Location, LocationSpan, Token,
+};
 use shiika_core::names::{method_firstname, UnresolvedConstName};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -194,26 +196,10 @@ impl AstBuilder {
         )
     }
 
-    pub fn method_call(
-        &self,
-        receiver_expr: Option<AstExpression>,
-        method_name: &str,
-        arg_exprs: Vec<AstExpression>,
-        type_args: Vec<AstExpression>,
-        primary: bool,
-        has_block: bool,
-        may_have_paren_wo_args: bool,
-    ) -> AstExpression {
+    pub fn method_call(&self, primary: bool, body: AstMethodCall) -> AstExpression {
         AstExpression {
             primary,
-            body: AstExpressionBody::MethodCall {
-                receiver_expr: receiver_expr.map(Box::new),
-                method_name: method_firstname(method_name),
-                arg_exprs,
-                type_args,
-                has_block,
-                may_have_paren_wo_args,
-            },
+            body: AstExpressionBody::MethodCall(body),
             locs: LocationSpan::todo(),
         }
     }
@@ -229,14 +215,14 @@ impl AstBuilder {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::MethodCall {
+            AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr: receiver_expr.map(Box::new),
                 method_name: method_firstname(method_name),
                 arg_exprs,
                 type_args: Default::default(),
                 has_block: false,
                 may_have_paren_wo_args: false,
-            },
+            }),
         )
     }
 

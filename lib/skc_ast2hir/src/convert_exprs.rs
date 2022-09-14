@@ -116,14 +116,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 self.convert_const_assign(names, &*rhs, &expr.locs)
             }
 
-            AstExpressionBody::MethodCall {
+            AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr,
                 method_name,
                 arg_exprs,
                 type_args,
                 has_block,
                 ..
-            } => self.convert_method_call(
+            }) => self.convert_method_call(
                 receiver_expr,
                 method_name,
                 arg_exprs,

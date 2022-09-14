@@ -2,6 +2,7 @@ use crate::base::*;
 use crate::error::Error;
 use crate::lexer::LexerState;
 use shiika_ast::*;
+use shiika_core::names::method_firstname;
 use std::collections::HashMap;
 
 impl<'a> Parser<'a> {
@@ -167,13 +168,15 @@ impl<'a> Parser<'a> {
             match &first_token {
                 Token::LowerWord(s) => {
                     return Ok(Some(self.ast.method_call(
-                        None,
-                        s,
-                        args,
-                        vec![],
                         false,
-                        has_block,
-                        false,
+                        AstMethodCall {
+                            receiver_expr: None,
+                            method_name: method_firstname(s),
+                            arg_exprs: args,
+                            type_args: Default::default(),
+                            has_block,
+                            may_have_paren_wo_args: false,
+                        },
                     )));
                 }
                 Token::KwReturn => {
@@ -407,8 +410,8 @@ impl<'a> Parser<'a> {
             let end = self.lexer.location();
 
             if nesting {
-                if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
-                    let mid = arg_exprs[0].clone();
+                if let AstExpressionBody::MethodCall(x) = &expr.body {
+                    let mid = x.first_arg_cloned();
                     let compare =
                         self.ast
                             .simple_method_call(Some(mid), op, vec![right], begin, end.clone());
@@ -476,9 +479,12 @@ impl<'a> Parser<'a> {
         //  parse_unary_minus_expr
         //  parse_power_expr
         //  parse_unary_expr
+        let begin = self.lexer.location();
         let expr = if self.consume(Token::UnaryMinus)? {
             let target = self.parse_unary_expr()?;
-            shiika_ast::unary_expr(target, "-@")
+            let end = self.lexer.location();
+            self.ast
+                .simple_method_call(Some(target), "-@", Default::default(), begin, end)
         } else {
             self.parse_unary_expr()?
         };
@@ -710,9 +716,17 @@ impl<'a> Parser<'a> {
                 // TODO: parse multiple arguments
                 self.skip_wsn()?;
                 self.expect(Token::RSqBracket)?;
-                expr =
-                    self.ast
-                        .method_call(Some(expr), "[]", vec![arg], vec![], true, false, false);
+                expr = self.ast.method_call(
+                    true,
+                    AstMethodCall {
+                        receiver_expr: Some(Box::new(expr)),
+                        method_name: method_firstname("[]"),
+                        arg_exprs: vec![arg],
+                        type_args: Default::default(),
+                        has_block: false,
+                        may_have_paren_wo_args: false,
+                    },
+                );
             } else if self.next_nonspace_token()? == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
                 self.skip_ws()?;
@@ -767,13 +781,15 @@ impl<'a> Parser<'a> {
 
         self.lv -= 1;
         Ok(self.ast.method_call(
-            Some(expr),
-            &method_name,
-            args,
-            type_args,
             true,
-            has_block,
-            may_have_paren_wo_args,
+            AstMethodCall {
+                receiver_expr: Some(Box::new(expr)),
+                method_name: method_firstname(&method_name),
+                arg_exprs: args,
+                type_args,
+                has_block,
+                may_have_paren_wo_args,
+            },
         ))
     }
 
@@ -888,13 +904,15 @@ impl<'a> Parser<'a> {
                     false
                 };
                 self.ast.method_call(
-                    None, // receiver_expr
-                    bare_name_str,
-                    args,
-                    vec![], // TODO: type_args
-                    true,   // primary
-                    has_block,
-                    false, // may_have_paren_wo_args
+                    true,
+                    AstMethodCall {
+                        receiver_expr: None,
+                        method_name: method_firstname(bare_name_str),
+                        arg_exprs: args,
+                        type_args: Default::default(),
+                        has_block,
+                        may_have_paren_wo_args: false,
+                    },
                 )
             }
             _ => shiika_ast::bare_name(bare_name_str),
