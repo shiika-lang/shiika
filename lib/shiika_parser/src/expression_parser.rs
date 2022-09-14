@@ -357,6 +357,7 @@ impl<'a> Parser<'a> {
     fn parse_equality_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_equality_expr");
+        let begin = self.lexer.location();
         let left = self.parse_relational_expr()?;
         let op = match self.next_nonspace_token()? {
             Token::EqEq => "==",
@@ -371,8 +372,10 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.skip_wsn()?;
         let right = self.parse_relational_expr()?;
-        let call_eq =
-            shiika_ast::method_call(Some(left), "==", vec![right], vec![], false, false, false);
+        let end = self.lexer.location();
+        let call_eq = self
+            .ast
+            .simple_method_call(Some(left), "==", vec![right], begin, end);
         let expr = if op == "!=" {
             self.ast.wrap_with_logical_not(call_eq)
         } else {
@@ -386,6 +389,7 @@ impl<'a> Parser<'a> {
     fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_relational_expr");
+        let mut begin = self.lexer.location();
         let mut expr = self.parse_bitwise_or()?; // additive (> >= < <=) additive
         let mut nesting = false;
         loop {
@@ -400,33 +404,23 @@ impl<'a> Parser<'a> {
             self.consume_token()?;
             self.skip_wsn()?;
             let right = self.parse_bitwise_or()?;
+            let end = self.lexer.location();
 
             if nesting {
                 if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
                     let mid = arg_exprs[0].clone();
-                    let compare = shiika_ast::method_call(
-                        Some(mid),
-                        op,
-                        vec![right],
-                        vec![],
-                        false,
-                        false,
-                        false,
-                    );
+                    let compare =
+                        self.ast
+                            .simple_method_call(Some(mid), op, vec![right], begin, end.clone());
                     expr = self.ast.logical_and(expr, compare);
                 }
             } else {
-                expr = shiika_ast::method_call(
-                    Some(expr),
-                    op,
-                    vec![right],
-                    vec![],
-                    false,
-                    false,
-                    false,
-                );
+                expr = self
+                    .ast
+                    .simple_method_call(Some(expr), op, vec![right], begin, end.clone());
                 nesting = true;
             }
+            begin = end;
         }
         self.lv -= 1;
         Ok(expr)
@@ -1113,41 +1107,35 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
-        let begin = self.lexer.location();
+        let mut begin = self.lexer.location();
         let (head, inspect1) =
             if let Token::StrWithInterpolation { head, inspect } = self.consume_token()? {
                 (head, inspect)
             } else {
                 panic!("invalid call")
             };
-        let end = self.lexer.location();
+        let mut end = self.lexer.location();
         let mut inspect = inspect1;
         let mut expr = self.ast.string_literal(head, begin, end);
+        begin = self.lexer.location();
         loop {
             self.skip_wsn()?;
             let inner_expr = self.parse_expr()?;
-            let arg = shiika_ast::method_call(
+            end = self.lexer.location();
+            let arg = self.ast.simple_method_call(
                 Some(inner_expr),
                 if inspect { "inspect" } else { "to_s" },
                 vec![],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
+                begin.clone(),
+                end.clone(),
             );
-            expr = shiika_ast::method_call(
-                Some(expr),
-                "+",
-                vec![arg],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
-            );
+            expr = self
+                .ast
+                .simple_method_call(Some(expr), "+", vec![arg], begin, end);
             self.set_lexer_state(LexerState::StrLiteral);
             self.expect(Token::RBrace)?;
             self.set_lexer_state(LexerState::ExprEnd);
-            let begin = self.lexer.location();
+            begin = self.lexer.location();
             let (s, finish) = match self.consume_token()? {
                 Token::Str(tail) => (tail, true),
                 Token::StrWithInterpolation {
@@ -1160,14 +1148,12 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
             };
             let end = self.lexer.location();
-            expr = shiika_ast::method_call(
+            expr = self.ast.simple_method_call(
                 Some(expr),
                 "+",
-                vec![self.ast.string_literal(s, begin, end)],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
+                vec![self.ast.string_literal(s, begin.clone(), end.clone())],
+                begin.clone(),
+                end,
             );
             if finish {
                 break;

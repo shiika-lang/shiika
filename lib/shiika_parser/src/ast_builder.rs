@@ -1,5 +1,5 @@
 use shiika_ast::{AstExpression, AstExpressionBody, AstMatchClause, Location, LocationSpan, Token};
-use shiika_core::names::UnresolvedConstName;
+use shiika_core::names::{method_firstname, UnresolvedConstName};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -194,8 +194,29 @@ impl AstBuilder {
         )
     }
 
+    pub fn simple_method_call(
+        &self,
+        receiver_expr: Option<AstExpression>,
+        method_name: &str,
+        arg_exprs: Vec<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::MethodCall {
+                receiver_expr: receiver_expr.map(Box::new),
+                method_name: method_firstname(method_name),
+                arg_exprs,
+                type_args: Default::default(),
+                has_block: false,
+                may_have_paren_wo_args: false,
+            },
+        )
+    }
+
     // TODO
-    // MethodCall {
     // LambdaExpr {
     // BareName(String),
 
