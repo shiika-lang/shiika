@@ -644,12 +644,13 @@ impl Hir {
     }
 
     pub fn bit_cast(ty: TermTy, expr: HirExpression) -> HirExpression {
+        let locs = expr.locs.clone();
         HirExpression {
             ty,
             node: HirExpressionBase::HirBitCast {
                 expr: Box::new(expr),
             },
-            locs: LocationSpan::todo(),
+            locs,
         }
     }
 
