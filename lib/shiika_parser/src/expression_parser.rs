@@ -1010,6 +1010,7 @@ impl<'a> Parser<'a> {
     fn parse_lambda(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_lambda");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwFn)?);
         let params;
         if self.consume(Token::LParen)? {
@@ -1022,8 +1023,9 @@ impl<'a> Parser<'a> {
         self.expect(Token::LBrace)?;
         let exprs = self.parse_exprs(vec![Token::RBrace])?;
         assert!(self.consume(Token::RBrace)?);
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(params, exprs, true))
+        Ok(self.ast.lambda_expr(params, exprs, true, begin, end))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
@@ -1230,6 +1232,7 @@ impl<'a> Parser<'a> {
     fn parse_do_block(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_do_block");
+        let begin = self.lexer.location();
         self.expect(Token::KwDo)?;
         self.skip_ws()?;
         let block_params = if self.consume(Token::Or)? {
@@ -1240,14 +1243,18 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.expect(Token::KwEnd)?;
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
+        Ok(self
+            .ast
+            .lambda_expr(block_params, body_exprs, false, begin, end))
     }
 
     /// Parse `{|..| ...}`
     fn parse_brace_block(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_brace_block");
+        let begin = self.lexer.location();
         self.expect(Token::LBrace)?;
         self.skip_ws()?;
         let block_params = if self.consume(Token::Or)? {
@@ -1258,8 +1265,11 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
         self.expect(Token::RBrace)?;
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
+        Ok(self
+            .ast
+            .lambda_expr(block_params, body_exprs, false, begin, end))
     }
 
     /// Parse `a, b, ...` in `|...|` or `fn(...){`

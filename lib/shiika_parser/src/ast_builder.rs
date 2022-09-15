@@ -1,5 +1,6 @@
 use shiika_ast::{
-    AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, Location, LocationSpan, Token,
+    AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, BlockParam, Location,
+    LocationSpan, Token,
 };
 use shiika_core::names::{method_firstname, UnresolvedConstName};
 use std::path::{Path, PathBuf};
@@ -226,8 +227,26 @@ impl AstBuilder {
         )
     }
 
+    pub fn lambda_expr(
+        &self,
+        params: Vec<BlockParam>,
+        exprs: Vec<AstExpression>,
+        is_fn: bool,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::LambdaExpr {
+                params,
+                exprs,
+                is_fn,
+            },
+        )
+    }
+
     // TODO
-    // LambdaExpr {
     // BareName(String),
 
     pub fn ivar_ref(&self, name: String, begin: Location, end: Location) -> AstExpression {
