@@ -131,12 +131,12 @@ impl<'a> Parser<'a> {
                     args.push(lambda);
                     has_block = true;
                 }
-                expr = shiika_ast::set_method_call_args(expr, args, has_block);
+                expr = self.ast.set_method_call_args(expr, args, has_block);
             } else if self.next_nonspace_token()? == Token::KwDo {
                 has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
-                expr = shiika_ast::set_method_call_args(expr, vec![lambda], has_block);
+                expr = self.ast.set_method_call_args(expr, vec![lambda], has_block);
             }
         }
 
@@ -255,37 +255,37 @@ impl<'a> Parser<'a> {
         self.lv -= 1;
 
         Ok(match op {
-            Token::Equal => shiika_ast::assignment(lhs, rhs),
-            Token::PlusEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "+", rhs))
-            }
-            Token::MinusEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "-", rhs))
-            }
-            Token::MulEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "*", rhs))
-            }
-            Token::DivEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "/", rhs))
-            }
-            Token::ModEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "%", rhs))
-            }
-            Token::LShiftEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "<<", rhs))
-            }
-            Token::RShiftEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, ">>", rhs))
-            }
-            Token::AndEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "&", rhs))
-            }
-            Token::OrEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "|", rhs))
-            }
-            Token::XorEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "^", rhs))
-            }
+            Token::Equal => self.ast.assignment(lhs, rhs),
+            Token::PlusEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "+", rhs)),
+            Token::MinusEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "-", rhs)),
+            Token::MulEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "*", rhs)),
+            Token::DivEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "/", rhs)),
+            Token::ModEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "%", rhs)),
+            Token::LShiftEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "<<", rhs)),
+            Token::RShiftEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, ">>", rhs)),
+            Token::AndEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "&", rhs)),
+            Token::OrEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "|", rhs)),
+            Token::XorEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "^", rhs)),
             _unexpected => unimplemented!(),
         })
     }
@@ -1208,7 +1208,7 @@ impl<'a> Parser<'a> {
             self.consume_token()?; // Consume t
             self.skip_wsn()?; // TODO: should ban ';' here
             let right = func(self)?;
-            left = shiika_ast::bin_op_expr(left, op, right)
+            left = self.ast.bin_op_expr(left, op, right)
         }
     }
 

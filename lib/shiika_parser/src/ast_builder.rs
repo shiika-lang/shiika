@@ -334,4 +334,107 @@ impl AstBuilder {
             locs: LocationSpan::new(&self.filepath, begin, end),
         }
     }
+
+    /// Create an expression of the form `left <op> right`
+    pub fn bin_op_expr(
+        &self,
+        left: AstExpression,
+        op: &str,
+        right: AstExpression,
+    ) -> AstExpression {
+        let begin = left.locs.begin.clone();
+        let end = right.locs.end.clone();
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::MethodCall(AstMethodCall {
+                receiver_expr: Some(Box::new(left)),
+                method_name: method_firstname(op),
+                arg_exprs: vec![right],
+                type_args: vec![],
+                has_block: false,
+                may_have_paren_wo_args: false,
+            }),
+        )
+    }
+
+    /// Create an expression of the form `lhs = rhs`
+    pub fn assignment(&self, lhs: AstExpression, rhs: AstExpression) -> AstExpression {
+        let begin = lhs.locs.begin.clone();
+        let end = rhs.locs.end.clone();
+        let body = match lhs.body {
+            AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
+                name: s,
+                rhs: Box::new(rhs),
+                is_var: false,
+            },
+            AstExpressionBody::IVarRef(name) => AstExpressionBody::IVarAssign {
+                name,
+                rhs: Box::new(rhs),
+                is_var: false,
+            },
+            AstExpressionBody::CapitalizedName(names) => AstExpressionBody::ConstAssign {
+                names: names.0,
+                rhs: Box::new(rhs),
+            },
+            AstExpressionBody::MethodCall(mut x) => {
+                x.arg_exprs.push(rhs);
+                AstExpressionBody::MethodCall(AstMethodCall {
+                    receiver_expr: x.receiver_expr,
+                    method_name: x.method_name.append("="),
+                    arg_exprs: x.arg_exprs,
+                    type_args: Default::default(),
+                    has_block: false,
+                    may_have_paren_wo_args: false,
+                })
+            }
+            _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body),
+        };
+        self.non_primary_expression(begin, end, body)
+    }
+
+    /// Extend `foo.bar` to `foo.bar args`, or
+    ///        `foo`     to `foo args`.
+    /// (expr must be a MethodCall or a BareName and args must not be empty)
+    pub fn set_method_call_args(
+        &self,
+        expr: AstExpression,
+        args: Vec<AstExpression>,
+        has_block: bool,
+    ) -> AstExpression {
+        let begin = expr.locs.begin.clone();
+        let end = args.last().unwrap().locs.end.clone();
+        match expr.body {
+            AstExpressionBody::MethodCall(x) => {
+                if !x.arg_exprs.is_empty() {
+                    panic!(
+                        "[BUG] cannot extend because arg_exprs is not empty: {:?}",
+                        x.arg_exprs
+                    );
+                }
+                self.non_primary_expression(
+                    begin,
+                    end,
+                    AstExpressionBody::MethodCall(AstMethodCall {
+                        arg_exprs: args,
+                        may_have_paren_wo_args: false,
+                        ..x
+                    }),
+                )
+            }
+            AstExpressionBody::BareName(s) => self.non_primary_expression(
+                begin,
+                end,
+                AstExpressionBody::MethodCall(AstMethodCall {
+                    receiver_expr: None,
+                    method_name: method_firstname(s),
+                    arg_exprs: args,
+                    type_args: vec![],
+                    has_block,
+                    may_have_paren_wo_args: false,
+                }),
+            ),
+            b => panic!("[BUG] `extend' takes a MethodCall but got {:?}", b),
+        }
+    }
 }
