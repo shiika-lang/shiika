@@ -365,7 +365,8 @@ impl<'a> Parser<'a> {
                 let span = LocationSpan::todo();
                 self.ast.ivar_assign(
                     param.name.clone(),
-                    shiika_ast::bare_name(&param.name),
+                    self.ast
+                        .bare_name(&param.name, span.begin.clone(), span.end.clone()),
                     span.begin,
                     span.end,
                 )

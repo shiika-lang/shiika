@@ -308,10 +308,6 @@ pub fn assignment(lhs: AstExpression, rhs: AstExpression) -> AstExpression {
     non_primary_expression(body)
 }
 
-pub fn bare_name(name: &str) -> AstExpression {
-    primary_expression(AstExpressionBody::BareName(name.to_string()))
-}
-
 pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstExpression {
     non_primary_expression(AstExpressionBody::MethodCall(AstMethodCall {
         receiver_expr: Some(Box::new(left)),
@@ -323,15 +319,7 @@ pub fn bin_op_expr(left: AstExpression, op: &str, right: AstExpression) -> AstEx
     }))
 }
 
-pub fn primary_expression(body: AstExpressionBody) -> AstExpression {
-    AstExpression {
-        primary: true,
-        body,
-        locs: LocationSpan::todo(),
-    }
-}
-
-pub fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
+fn non_primary_expression(body: AstExpressionBody) -> AstExpression {
     AstExpression {
         primary: false,
         body,

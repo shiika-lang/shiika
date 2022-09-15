@@ -246,8 +246,9 @@ impl AstBuilder {
         )
     }
 
-    // TODO
-    // BareName(String),
+    pub fn bare_name(&self, name: &str, begin: Location, end: Location) -> AstExpression {
+        self.primary_expression(begin, end, AstExpressionBody::BareName(name.to_string()))
+    }
 
     pub fn ivar_ref(&self, name: String, begin: Location, end: Location) -> AstExpression {
         self.primary_expression(begin, end, AstExpressionBody::IVarRef(name))

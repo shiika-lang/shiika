@@ -858,7 +858,7 @@ impl<'a> Parser<'a> {
             Token::LowerWord(s) => {
                 let name = s.to_string();
                 self.consume_token()?;
-                self.parse_primary_method_call(&name)
+                self.parse_primary_method_call(&name, begin)
             }
             Token::KwReturn => {
                 self.consume_token()?;
@@ -891,7 +891,11 @@ impl<'a> Parser<'a> {
     }
 
     // Method call with explicit parenthesis (eg. `foo(bar)`) optionally followed by a block
-    fn parse_primary_method_call(&mut self, bare_name_str: &str) -> Result<AstExpression, Error> {
+    fn parse_primary_method_call(
+        &mut self,
+        bare_name_str: &str,
+        begin: Location,
+    ) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_primary_method_call");
         let expr = match self.current_token() {
@@ -915,7 +919,10 @@ impl<'a> Parser<'a> {
                     },
                 )
             }
-            _ => shiika_ast::bare_name(bare_name_str),
+            _ => {
+                let end = self.lexer.location();
+                self.ast.bare_name(bare_name_str, begin, end)
+            }
         };
         self.lv -= 1;
         Ok(expr)
