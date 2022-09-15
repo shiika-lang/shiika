@@ -107,14 +107,14 @@ fn call_class_specialize(
         // Workaround for bootstrap problem of arrays.
         // `_specialize1` is the same as `<>` except it accepts only one
         // type argument and therefore does not need to create an array.
-        Hir::method_call_(
+        Hir::method_call(
             ty::meta(base_name),
             base,
             method_fullname_raw("Class", "_specialize1"),
             vec![tyargs.remove(0)],
         )
     } else {
-        Hir::method_call_(
+        Hir::method_call(
             ty::meta(base_name),
             base,
             method_fullname_raw("Class", "<>"),

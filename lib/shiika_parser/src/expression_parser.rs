@@ -2,6 +2,7 @@ use crate::base::*;
 use crate::error::Error;
 use crate::lexer::LexerState;
 use shiika_ast::*;
+use shiika_core::names::method_firstname;
 use std::collections::HashMap;
 
 impl<'a> Parser<'a> {
@@ -34,6 +35,7 @@ impl<'a> Parser<'a> {
     pub fn parse_var_decl(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_var_decl");
+        let begin = self.lexer.location();
         let expr;
         if self.current_token_is(Token::KwVar) {
             self.consume_token()?;
@@ -46,7 +48,8 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
-                    expr = shiika_ast::lvar_decl(name, rhs);
+                    let end = self.lexer.location();
+                    expr = self.ast.lvar_decl(name, rhs, begin, end);
                 }
                 Token::IVar(s) => {
                     let name = s.to_string();
@@ -55,7 +58,8 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
-                    expr = shiika_ast::ivar_decl(name, rhs);
+                    let end = self.lexer.location();
+                    expr = self.ast.ivar_decl(name, rhs, begin, end);
                 }
                 token => return Err(parse_error!(self, "invalid var name: {:?}", token)),
             }
@@ -71,19 +75,23 @@ impl<'a> Parser<'a> {
     pub fn parse_if_unless_modifier(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_if_unless_modifier");
+        let begin = self.lexer.location();
         let mut expr = self.parse_call_wo_paren()?;
         if self.next_nonspace_token()? == Token::ModIf {
             self.skip_ws()?;
             assert!(self.consume(Token::ModIf)?);
             self.skip_ws()?;
             let cond = self.parse_call_wo_paren()?;
-            expr = shiika_ast::if_expr(cond, vec![expr], None)
+            let end = self.lexer.location();
+            expr = self.ast.if_expr(cond, vec![expr], None, begin, end)
         } else if self.next_nonspace_token()? == Token::ModUnless {
             self.skip_ws()?;
             assert!(self.consume(Token::ModUnless)?);
             self.skip_ws()?;
-            let cond = shiika_ast::logical_not(self.parse_call_wo_paren()?);
-            expr = shiika_ast::if_expr(cond, vec![expr], None)
+            let cond_inner = self.parse_call_wo_paren()?;
+            let cond = self.ast.wrap_with_logical_not(cond_inner);
+            let end = self.lexer.location();
+            expr = self.ast.if_expr(cond, vec![expr], None, begin, end)
         }
         self.lv -= 1;
         Ok(expr)
@@ -123,12 +131,12 @@ impl<'a> Parser<'a> {
                     args.push(lambda);
                     has_block = true;
                 }
-                expr = shiika_ast::set_method_call_args(expr, args, has_block);
+                expr = self.ast.set_method_call_args(expr, args, has_block);
             } else if self.next_nonspace_token()? == Token::KwDo {
                 has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
-                expr = shiika_ast::set_method_call_args(expr, vec![lambda], has_block);
+                expr = self.ast.set_method_call_args(expr, vec![lambda], has_block);
             }
         }
 
@@ -141,6 +149,7 @@ impl<'a> Parser<'a> {
     // - `return 1`
     // Otherwise, returns `None` and rewind the lexer position.
     fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
+        let begin = self.lexer.location();
         let first_token = self.current_token().clone();
         let cur = self.current_position();
         self.consume_token()?;
@@ -158,14 +167,16 @@ impl<'a> Parser<'a> {
             };
             match &first_token {
                 Token::LowerWord(s) => {
-                    return Ok(Some(shiika_ast::method_call(
-                        None,
-                        s,
-                        args,
-                        vec![],
+                    return Ok(Some(self.ast.method_call(
                         false,
-                        has_block,
-                        false,
+                        AstMethodCall {
+                            receiver_expr: None,
+                            method_name: method_firstname(s),
+                            arg_exprs: args,
+                            type_args: Default::default(),
+                            has_block,
+                            may_have_paren_wo_args: false,
+                        },
                     )));
                 }
                 Token::KwReturn => {
@@ -175,7 +186,12 @@ impl<'a> Parser<'a> {
                             "`return' cannot take more than one args"
                         ));
                     }
-                    return Ok(Some(shiika_ast::return_expr(Some(args.pop().unwrap()))));
+                    let end = self.lexer.location();
+                    return Ok(Some(self.ast.return_expr(
+                        Some(args.pop().unwrap()),
+                        begin,
+                        end,
+                    )));
                 }
                 _ => panic!("must not happen: {:?}", self.current_token()),
             }
@@ -239,37 +255,37 @@ impl<'a> Parser<'a> {
         self.lv -= 1;
 
         Ok(match op {
-            Token::Equal => shiika_ast::assignment(lhs, rhs),
-            Token::PlusEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "+", rhs))
-            }
-            Token::MinusEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "-", rhs))
-            }
-            Token::MulEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "*", rhs))
-            }
-            Token::DivEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "/", rhs))
-            }
-            Token::ModEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "%", rhs))
-            }
-            Token::LShiftEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "<<", rhs))
-            }
-            Token::RShiftEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, ">>", rhs))
-            }
-            Token::AndEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "&", rhs))
-            }
-            Token::OrEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "|", rhs))
-            }
-            Token::XorEq => {
-                shiika_ast::assignment(lhs.clone(), shiika_ast::bin_op_expr(lhs, "^", rhs))
-            }
+            Token::Equal => self.ast.assignment(lhs, rhs),
+            Token::PlusEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "+", rhs)),
+            Token::MinusEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "-", rhs)),
+            Token::MulEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "*", rhs)),
+            Token::DivEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "/", rhs)),
+            Token::ModEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "%", rhs)),
+            Token::LShiftEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "<<", rhs)),
+            Token::RShiftEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, ">>", rhs)),
+            Token::AndEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "&", rhs)),
+            Token::OrEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "|", rhs)),
+            Token::XorEq => self
+                .ast
+                .assignment(lhs.clone(), self.ast.bin_op_expr(lhs, "^", rhs)),
             _unexpected => unimplemented!(),
         })
     }
@@ -305,7 +321,8 @@ impl<'a> Parser<'a> {
                 self.skip_ws()?;
                 assert!(self.consume(Token::KwOr)?);
                 self.skip_wsn()?;
-                expr = shiika_ast::logical_or(expr, self.parse_operator_and()?);
+                let right_expr = self.parse_operator_and()?;
+                expr = self.ast.logical_or(expr, right_expr);
                 self.skip_ws()?;
                 token = self.current_token();
             } else {
@@ -327,7 +344,8 @@ impl<'a> Parser<'a> {
                 self.skip_ws()?;
                 assert!(self.consume(Token::KwAnd)?);
                 self.skip_wsn()?;
-                expr = shiika_ast::logical_and(expr, self.parse_equality_expr()?);
+                let right_expr = self.parse_equality_expr()?;
+                expr = self.ast.logical_and(expr, right_expr);
                 self.skip_ws()?;
                 token = self.current_token();
             } else {
@@ -342,9 +360,9 @@ impl<'a> Parser<'a> {
     fn parse_equality_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_equality_expr");
+        let begin = self.lexer.location();
         let left = self.parse_relational_expr()?;
         let op = match self.next_nonspace_token()? {
-            // TODO: <=> === =~ !~
             Token::EqEq => "==",
             Token::NotEq => "!=",
             _ => {
@@ -357,10 +375,12 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.skip_wsn()?;
         let right = self.parse_relational_expr()?;
-        let call_eq =
-            shiika_ast::method_call(Some(left), "==", vec![right], vec![], false, false, false);
+        let end = self.lexer.location();
+        let call_eq = self
+            .ast
+            .simple_method_call(Some(left), "==", vec![right], begin, end);
         let expr = if op == "!=" {
-            shiika_ast::logical_not(call_eq)
+            self.ast.wrap_with_logical_not(call_eq)
         } else {
             call_eq
         };
@@ -372,6 +392,7 @@ impl<'a> Parser<'a> {
     fn parse_relational_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_relational_expr");
+        let mut begin = self.lexer.location();
         let mut expr = self.parse_bitwise_or()?; // additive (> >= < <=) additive
         let mut nesting = false;
         loop {
@@ -386,33 +407,23 @@ impl<'a> Parser<'a> {
             self.consume_token()?;
             self.skip_wsn()?;
             let right = self.parse_bitwise_or()?;
+            let end = self.lexer.location();
 
             if nesting {
-                if let AstExpressionBody::MethodCall { arg_exprs, .. } = &expr.body {
-                    let mid = arg_exprs[0].clone();
-                    let compare = shiika_ast::method_call(
-                        Some(mid),
-                        op,
-                        vec![right],
-                        vec![],
-                        false,
-                        false,
-                        false,
-                    );
-                    expr = shiika_ast::logical_and(expr, compare);
+                if let AstExpressionBody::MethodCall(x) = &expr.body {
+                    let mid = x.first_arg_cloned();
+                    let compare =
+                        self.ast
+                            .simple_method_call(Some(mid), op, vec![right], begin, end.clone());
+                    expr = self.ast.logical_and(expr, compare);
                 }
             } else {
-                expr = shiika_ast::method_call(
-                    Some(expr),
-                    op,
-                    vec![right],
-                    vec![],
-                    false,
-                    false,
-                    false,
-                );
+                expr = self
+                    .ast
+                    .simple_method_call(Some(expr), op, vec![right], begin, end.clone());
                 nesting = true;
             }
+            begin = end;
         }
         self.lv -= 1;
         Ok(expr)
@@ -468,9 +479,12 @@ impl<'a> Parser<'a> {
         //  parse_unary_minus_expr
         //  parse_power_expr
         //  parse_unary_expr
+        let begin = self.lexer.location();
         let expr = if self.consume(Token::UnaryMinus)? {
             let target = self.parse_unary_expr()?;
-            shiika_ast::unary_expr(target, "-@")
+            let end = self.lexer.location();
+            self.ast
+                .simple_method_call(Some(target), "-@", Default::default(), begin, end)
         } else {
             self.parse_unary_expr()?
         };
@@ -482,10 +496,12 @@ impl<'a> Parser<'a> {
     fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unary_expr");
+        let begin = self.lexer.location();
         let expr = if self.consume(Token::KwNot)? {
             self.skip_ws()?;
             let target = self.parse_secondary_expr()?;
-            shiika_ast::logical_not(target)
+            let end = self.lexer.location();
+            self.ast.logical_not(target, begin, end)
         } else {
             self.parse_secondary_expr()?
         };
@@ -517,14 +533,17 @@ impl<'a> Parser<'a> {
     fn parse_break_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_break_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwBreak)?);
         self.lv -= 1;
-        Ok(shiika_ast::break_expr())
+        let end = self.lexer.location();
+        Ok(self.ast.break_expr(begin, end))
     }
 
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_if_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwIf)?);
         self.skip_ws()?;
         // cond
@@ -543,7 +562,7 @@ impl<'a> Parser<'a> {
         let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
         self.skip_wsn()?;
 
-        self._parse_if_expr(cond_expr, then_exprs)
+        self._parse_if_expr(cond_expr, then_exprs, begin)
     }
 
     /// Parse latter part of if-expr
@@ -551,6 +570,7 @@ impl<'a> Parser<'a> {
         &mut self,
         cond_expr: AstExpression,
         then_exprs: Vec<AstExpression>,
+        begin: Location,
     ) -> Result<AstExpression, Error> {
         if self.consume(Token::KwElsif)? {
             self.skip_ws()?;
@@ -564,28 +584,33 @@ impl<'a> Parser<'a> {
             let then_exprs2 =
                 self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
             self.skip_wsn()?;
-            Ok(shiika_ast::if_expr(
-                cond_expr,
-                then_exprs,
-                Some(vec![self._parse_if_expr(cond_expr2, then_exprs2)?]),
-            ))
+            let cont = self._parse_if_expr(cond_expr2, then_exprs2, begin.clone())?;
+            let end = cont.locs.end.clone();
+            Ok(self
+                .ast
+                .if_expr(cond_expr, then_exprs, Some(vec![cont]), begin, end))
         } else if self.consume(Token::KwElse)? {
             self.skip_wsn()?;
             let else_exprs = self.parse_exprs(vec![Token::KwEnd])?;
             self.skip_wsn()?;
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
-            Ok(shiika_ast::if_expr(cond_expr, then_exprs, Some(else_exprs)))
+            let end = self.lexer.location();
+            Ok(self
+                .ast
+                .if_expr(cond_expr, then_exprs, Some(else_exprs), begin, end))
         } else {
             self.expect(Token::KwEnd)?;
             self.lv -= 1;
-            Ok(shiika_ast::if_expr(cond_expr, then_exprs, None))
+            let end = self.lexer.location();
+            Ok(self.ast.if_expr(cond_expr, then_exprs, None, begin, end))
         }
     }
 
     fn parse_unless_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unless_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwUnless)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -602,16 +627,20 @@ impl<'a> Parser<'a> {
         }
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
-        Ok(shiika_ast::if_expr(
-            shiika_ast::logical_not(cond_expr),
+        let end = self.lexer.location();
+        Ok(self.ast.if_expr(
+            self.ast.wrap_with_logical_not(cond_expr),
             then_exprs,
             None,
+            begin,
+            end,
         ))
     }
 
     fn parse_match_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_match_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwMatch)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -654,12 +683,14 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(shiika_ast::match_expr(cond_expr, clauses))
+        let end = self.lexer.location();
+        Ok(self.ast.match_expr(cond_expr, clauses, begin, end))
     }
 
     fn parse_while_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_while_expr");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwWhile)?);
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
@@ -669,7 +700,8 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         self.expect(Token::KwEnd)?;
         self.lv -= 1;
-        Ok(shiika_ast::while_expr(cond_expr, body_exprs))
+        let end = self.lexer.location();
+        Ok(self.ast.while_expr(cond_expr, body_exprs, begin, end))
     }
 
     // prim . methodName argumentWithParentheses? block?
@@ -684,14 +716,16 @@ impl<'a> Parser<'a> {
                 // TODO: parse multiple arguments
                 self.skip_wsn()?;
                 self.expect(Token::RSqBracket)?;
-                expr = shiika_ast::method_call(
-                    Some(expr),
-                    "[]",
-                    vec![arg],
-                    vec![],
+                expr = self.ast.method_call(
                     true,
-                    false,
-                    false,
+                    AstMethodCall {
+                        receiver_expr: Some(Box::new(expr)),
+                        method_name: method_firstname("[]"),
+                        arg_exprs: vec![arg],
+                        type_args: Default::default(),
+                        has_block: false,
+                        may_have_paren_wo_args: false,
+                    },
                 );
             } else if self.next_nonspace_token()? == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
@@ -746,14 +780,16 @@ impl<'a> Parser<'a> {
         };
 
         self.lv -= 1;
-        Ok(shiika_ast::method_call(
-            Some(expr),
-            &method_name,
-            args,
-            type_args,
+        Ok(self.ast.method_call(
             true,
-            has_block,
-            may_have_paren_wo_args,
+            AstMethodCall {
+                receiver_expr: Some(Box::new(expr)),
+                method_name: method_firstname(&method_name),
+                arg_exprs: args,
+                type_args,
+                has_block,
+                may_have_paren_wo_args,
+            },
         ))
     }
 
@@ -822,11 +858,12 @@ impl<'a> Parser<'a> {
             Token::LowerWord(s) => {
                 let name = s.to_string();
                 self.consume_token()?;
-                self.parse_primary_method_call(&name)
+                self.parse_primary_method_call(&name, begin)
             }
             Token::KwReturn => {
                 self.consume_token()?;
-                Ok(shiika_ast::return_expr(None))
+                let end = self.lexer.location();
+                Ok(self.ast.return_expr(None, begin, end))
             }
             Token::UpperWord(_) => self.parse_specialize_expression(),
             Token::KwFn => self.parse_lambda(),
@@ -854,7 +891,11 @@ impl<'a> Parser<'a> {
     }
 
     // Method call with explicit parenthesis (eg. `foo(bar)`) optionally followed by a block
-    fn parse_primary_method_call(&mut self, bare_name_str: &str) -> Result<AstExpression, Error> {
+    fn parse_primary_method_call(
+        &mut self,
+        bare_name_str: &str,
+        begin: Location,
+    ) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_primary_method_call");
         let expr = match self.current_token() {
@@ -866,17 +907,22 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-                shiika_ast::method_call(
-                    None, // receiver_expr
-                    bare_name_str,
-                    args,
-                    vec![], // TODO: type_args
-                    true,   // primary
-                    has_block,
-                    false, // may_have_paren_wo_args
+                self.ast.method_call(
+                    true,
+                    AstMethodCall {
+                        receiver_expr: None,
+                        method_name: method_firstname(bare_name_str),
+                        arg_exprs: args,
+                        type_args: Default::default(),
+                        has_block,
+                        may_have_paren_wo_args: false,
+                    },
                 )
             }
-            _ => shiika_ast::bare_name(bare_name_str),
+            _ => {
+                let end = self.lexer.location();
+                self.ast.bare_name(bare_name_str, begin, end)
+            }
         };
         self.lv -= 1;
         Ok(expr)
@@ -971,6 +1017,7 @@ impl<'a> Parser<'a> {
     fn parse_lambda(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_lambda");
+        let begin = self.lexer.location();
         assert!(self.consume(Token::KwFn)?);
         let params;
         if self.consume(Token::LParen)? {
@@ -983,8 +1030,9 @@ impl<'a> Parser<'a> {
         self.expect(Token::LBrace)?;
         let exprs = self.parse_exprs(vec![Token::RBrace])?;
         assert!(self.consume(Token::RBrace)?);
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(params, exprs, true))
+        Ok(self.ast.lambda_expr(params, exprs, true, begin, end))
     }
 
     fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
@@ -1080,41 +1128,35 @@ impl<'a> Parser<'a> {
     fn parse_string_with_interpolation(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_string_with_interpolation");
-        let begin = self.lexer.location();
+        let mut begin = self.lexer.location();
         let (head, inspect1) =
             if let Token::StrWithInterpolation { head, inspect } = self.consume_token()? {
                 (head, inspect)
             } else {
                 panic!("invalid call")
             };
-        let end = self.lexer.location();
+        let mut end = self.lexer.location();
         let mut inspect = inspect1;
         let mut expr = self.ast.string_literal(head, begin, end);
+        begin = self.lexer.location();
         loop {
             self.skip_wsn()?;
             let inner_expr = self.parse_expr()?;
-            let arg = shiika_ast::method_call(
+            end = self.lexer.location();
+            let arg = self.ast.simple_method_call(
                 Some(inner_expr),
                 if inspect { "inspect" } else { "to_s" },
                 vec![],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
+                begin.clone(),
+                end.clone(),
             );
-            expr = shiika_ast::method_call(
-                Some(expr),
-                "+",
-                vec![arg],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
-            );
+            expr = self
+                .ast
+                .simple_method_call(Some(expr), "+", vec![arg], begin, end);
             self.set_lexer_state(LexerState::StrLiteral);
             self.expect(Token::RBrace)?;
             self.set_lexer_state(LexerState::ExprEnd);
-            let begin = self.lexer.location();
+            begin = self.lexer.location();
             let (s, finish) = match self.consume_token()? {
                 Token::Str(tail) => (tail, true),
                 Token::StrWithInterpolation {
@@ -1127,14 +1169,12 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpeced token in LexerState::StrLiteral"),
             };
             let end = self.lexer.location();
-            expr = shiika_ast::method_call(
+            expr = self.ast.simple_method_call(
                 Some(expr),
                 "+",
-                vec![self.ast.string_literal(s, begin, end)],
-                vec![],
-                false, // primary
-                false, // has_block
-                false, // may_have_paren_wo_args
+                vec![self.ast.string_literal(s, begin.clone(), end.clone())],
+                begin.clone(),
+                end,
             );
             if finish {
                 break;
@@ -1168,7 +1208,7 @@ impl<'a> Parser<'a> {
             self.consume_token()?; // Consume t
             self.skip_wsn()?; // TODO: should ban ';' here
             let right = func(self)?;
-            left = shiika_ast::bin_op_expr(left, op, right)
+            left = self.ast.bin_op_expr(left, op, right)
         }
     }
 
@@ -1199,6 +1239,7 @@ impl<'a> Parser<'a> {
     fn parse_do_block(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_do_block");
+        let begin = self.lexer.location();
         self.expect(Token::KwDo)?;
         self.skip_ws()?;
         let block_params = if self.consume(Token::Or)? {
@@ -1209,14 +1250,18 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.expect(Token::KwEnd)?;
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
+        Ok(self
+            .ast
+            .lambda_expr(block_params, body_exprs, false, begin, end))
     }
 
     /// Parse `{|..| ...}`
     fn parse_brace_block(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_brace_block");
+        let begin = self.lexer.location();
         self.expect(Token::LBrace)?;
         self.skip_ws()?;
         let block_params = if self.consume(Token::Or)? {
@@ -1227,8 +1272,11 @@ impl<'a> Parser<'a> {
         self.skip_wsn()?;
         let body_exprs = self.parse_exprs(vec![Token::RBrace])?;
         self.expect(Token::RBrace)?;
+        let end = self.lexer.location();
         self.lv -= 1;
-        Ok(shiika_ast::lambda_expr(block_params, body_exprs, false))
+        Ok(self
+            .ast
+            .lambda_expr(block_params, body_exprs, false, begin, end))
     }
 
     /// Parse `a, b, ...` in `|...|` or `fn(...){`

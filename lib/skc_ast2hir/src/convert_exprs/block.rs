@@ -3,7 +3,7 @@ use crate::hir_maker::{extract_lvars, HirMaker};
 use crate::hir_maker_context::HirMakerContext;
 use crate::type_system::type_checking;
 use anyhow::Result;
-use shiika_ast::{AstExpression, AstExpressionBody};
+use shiika_ast::{AstExpression, AstExpressionBody, LocationSpan};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{Hir, HirExpression, MethodParam, MethodSignature};
 use std::fmt;
@@ -78,6 +78,7 @@ fn _convert_block(
         mk._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
         extract_lvars(&mut lambda_ctx.lvars),             // lvars
         lambda_ctx.has_break,
+        LocationSpan::todo(),
     ))
 }
 

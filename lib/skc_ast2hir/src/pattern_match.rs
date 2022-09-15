@@ -17,7 +17,7 @@ pub fn convert_match_expr(
 ) -> Result<(HirExpression, HirLVars)> {
     let cond_expr = mk.convert_expr(cond)?;
     let tmp_name = mk.generate_lvar_name("expr");
-    let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone());
+    let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone(), LocationSpan::todo());
     let mut clauses = ast_clauses
         .iter()
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
@@ -29,7 +29,7 @@ pub fn convert_match_expr(
     );
     clauses.push(MatchClause {
         components: vec![],
-        body_hir: Hir::expressions(vec![Hir::method_call_(
+        body_hir: Hir::expressions(vec![Hir::method_call(
             ty::raw("Never"),
             Hir::decimal_literal(0, LocationSpan::todo()), // whatever.
             method_fullname_raw("Object", "panic"),
@@ -39,8 +39,11 @@ pub fn convert_match_expr(
     });
 
     let lvars = vec![(tmp_name.clone(), cond_expr.ty.clone())];
-    let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr);
-    Ok((Hir::match_expression(result_ty, tmp_assign, clauses), lvars))
+    let tmp_assign = Hir::lvar_assign(&tmp_name, cond_expr, LocationSpan::todo());
+    Ok((
+        Hir::match_expression(result_ty, tmp_assign, clauses, LocationSpan::todo()),
+        lvars,
+    ))
 }
 
 /// Convert a match clause into a big `if` expression
@@ -174,7 +177,7 @@ fn check_ty_raw(value: &HirExpression, name: &str) -> Result<()> {
 
 /// Make `lhs == rhs`
 fn make_eq_test(value: &HirExpression, name: &str, rhs: HirExpression) -> Component {
-    let test = Hir::method_call_(
+    let test = Hir::method_call(
         ty::raw("Bool"),
         value.clone(),
         method_fullname_raw(name, "=="),
@@ -268,7 +271,7 @@ fn extract_props(
         let (name_, ty) = &ivars[i];
         let name = name_.replace('@', "");
         // eg. `value.foo`
-        let ivar_ref = Hir::method_call_(
+        let ivar_ref = Hir::method_call(
             ty.clone(),
             value.clone(),
             method_fullname(&pat_ty.base_class_name(), name),
@@ -291,7 +294,7 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
             pat_ty.fullname.to_const_fullname(),
             LocationSpan::todo(),
         );
-        Hir::method_call_(
+        Hir::method_call(
             ty::raw("Bool"),
             const_ref,
             method_fullname_raw("Object", "=="),
@@ -300,11 +303,11 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
     } else {
         let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
         // value.class.erasure_class == Foo
-        Hir::method_call_(
+        Hir::method_call(
             ty::raw("Bool"),
-            Hir::method_call_(
+            Hir::method_call(
                 ty::raw("Class"),
-                Hir::method_call_(
+                Hir::method_call(
                     ty::raw("Class"),
                     value.clone(),
                     method_fullname_raw("Object", "class"),

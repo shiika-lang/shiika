@@ -31,6 +31,10 @@ impl LocationSpan {
         }
     }
 
+    pub fn begin_end(&self) -> (Location, Location) {
+        (self.begin.clone(), self.end.clone())
+    }
+
     // TODO: remove this
     pub fn todo() -> LocationSpan {
         LocationSpan {
