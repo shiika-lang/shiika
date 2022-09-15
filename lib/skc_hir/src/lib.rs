@@ -450,31 +450,21 @@ impl Hir {
         }
     }
 
-    // TODO: remove this
-    pub fn method_call_(
-        result_ty: TermTy,
-        receiver_hir: HirExpression,
-        method_fullname: MethodFullname,
-        arg_hirs: Vec<HirExpression>,
-    ) -> HirExpression {
-        HirExpression {
-            ty: result_ty,
-            node: HirExpressionBase::HirMethodCall {
-                receiver_expr: Box::new(receiver_hir),
-                method_fullname,
-                arg_exprs: arg_hirs,
-            },
-            locs: LocationSpan::todo(),
-        }
-    }
-
     pub fn method_call(
         result_ty: TermTy,
         receiver_hir: HirExpression,
         method_fullname: MethodFullname,
         arg_hirs: Vec<HirExpression>,
-        locs: LocationSpan,
     ) -> HirExpression {
+        let locs = LocationSpan {
+            filepath: receiver_hir.locs.filepath.clone(),
+            begin: receiver_hir.locs.begin.clone(),
+            end: if let Some(e) = arg_hirs.last() {
+                e.locs.end.clone()
+            } else {
+                receiver_hir.locs.end.clone()
+            },
+        };
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
@@ -494,6 +484,15 @@ impl Hir {
         method_idx: usize,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
+        let locs = LocationSpan {
+            filepath: receiver_hir.locs.filepath.clone(),
+            begin: receiver_hir.locs.begin.clone(),
+            end: if let Some(e) = arg_hirs.last() {
+                e.locs.end.clone()
+            } else {
+                receiver_hir.locs.end.clone()
+            },
+        };
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirModuleMethodCall {
@@ -503,7 +502,7 @@ impl Hir {
                 method_idx,
                 arg_exprs: arg_hirs,
             },
-            locs: LocationSpan::todo(),
+            locs
         }
     }
 
