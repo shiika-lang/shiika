@@ -502,7 +502,7 @@ impl Hir {
                 method_idx,
                 arg_exprs: arg_hirs,
             },
-            locs
+            locs,
         }
     }
 
