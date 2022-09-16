@@ -11,16 +11,31 @@ use std::fmt;
 /// Type information of the method or fn which takes the block.
 #[derive(Debug)]
 pub enum BlockTaker<'hir_maker> {
-    Method(MethodSignature),
-    Function(&'hir_maker TermTy),
+    Method {
+        locs: &'hir_maker LocationSpan,
+        sig: MethodSignature,
+    },
+    Function {
+        locs: &'hir_maker LocationSpan,
+        fn_ty: &'hir_maker TermTy,
+    },
 }
 
 // For error message
 impl<'hir_maker> fmt::Display for BlockTaker<'hir_maker> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BlockTaker::Method(sig) => write!(f, "{}", sig),
-            BlockTaker::Function(fn_ty) => write!(f, "fn {}", fn_ty),
+            BlockTaker::Method { sig, .. } => write!(f, "{}", sig),
+            BlockTaker::Function { fn_ty, .. } => write!(f, "fn {}", fn_ty),
+        }
+    }
+}
+
+impl<'hir_maker> BlockTaker<'hir_maker> {
+    pub fn locs(&self) -> &LocationSpan {
+        match self {
+            BlockTaker::Method { locs, .. } => locs,
+            BlockTaker::Function { locs, .. } => locs,
         }
     }
 }
@@ -91,8 +106,8 @@ pub fn lambda_ty(params: &[MethodParam], ret_ty: &TermTy) -> TermTy {
 /// Returns the type of block accepted by the method or fn.
 fn block_ty_of<'a>(block_taker: &'a BlockTaker) -> &'a [TermTy] {
     match block_taker {
-        BlockTaker::Method(sig) => sig.block_ty().unwrap(),
-        BlockTaker::Function(fn_ty) => {
+        BlockTaker::Method { sig, .. } => sig.block_ty().unwrap(),
+        BlockTaker::Function { fn_ty, .. } => {
             let tys = fn_ty.fn_x_info().unwrap();
             let last_arg_ty = tys.get(tys.len() - 2).unwrap();
             last_arg_ty.fn_x_info().unwrap()

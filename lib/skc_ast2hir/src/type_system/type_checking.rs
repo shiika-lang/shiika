@@ -172,7 +172,7 @@ fn check_arg_type(
     let src = Source::from(fs::read_to_string(&*locs.filepath).unwrap_or_default());
     let mut report = vec![];
     Report::build(ReportKind::Error, &path, locs.begin.pos)
-        .with_message(msg.clone())
+        .with_message(msg)
         .with_label(Label::new(span).with_message(&arg_hir.ty))
         .finish()
         .write((&path, src), &mut report)
@@ -186,16 +186,31 @@ pub fn check_block_arity(
     params: &[shiika_ast::BlockParam],
 ) -> Result<()> {
     let expected = match block_taker {
-        BlockTaker::Method(sig) => sig.block_ty().unwrap().len() - 1,
-        BlockTaker::Function(fn_ty) => fn_ty.fn_x_info().unwrap().len() - 1,
+        BlockTaker::Method { sig, .. } => sig.block_ty().unwrap().len() - 1,
+        BlockTaker::Function { fn_ty, .. } => fn_ty.fn_x_info().unwrap().len() - 1,
     };
-    if params.len() != expected {
-        return Err(type_error!(
-            "the block of {} takes {} args but got {}",
-            block_taker,
-            expected,
-            params.len()
-        ));
+    if params.len() == expected {
+        return Ok(());
     }
-    Ok(())
+
+    let msg = format!(
+        "the block of {} takes {} args but got {}",
+        block_taker,
+        expected,
+        params.len()
+    );
+    let locs = &block_taker.locs();
+    let path = format!("{}", locs.filepath.display());
+    if path.is_empty() {
+        return Err(type_error(msg));
+    }
+    let span = (&path, locs.begin.pos..locs.end.pos);
+    let src = Source::from(fs::read_to_string(&*locs.filepath).unwrap_or_default());
+    let mut report = vec![];
+    Report::build(ReportKind::Error, &path, locs.begin.pos)
+        .with_label(Label::new(span).with_message(msg))
+        .finish()
+        .write((&path, src), &mut report)
+        .unwrap();
+    return Err(type_error(String::from_utf8_lossy(&report).to_string()));
 }
