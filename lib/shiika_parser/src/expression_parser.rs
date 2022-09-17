@@ -165,6 +165,7 @@ impl<'a> Parser<'a> {
             } else {
                 false
             };
+            let end = self.lexer.location();
             match &first_token {
                 Token::LowerWord(s) => {
                     return Ok(Some(self.ast.method_call(
@@ -177,6 +178,8 @@ impl<'a> Parser<'a> {
                             has_block,
                             may_have_paren_wo_args: false,
                         },
+                        begin,
+                        end,
                     )));
                 }
                 Token::KwReturn => {
@@ -186,7 +189,6 @@ impl<'a> Parser<'a> {
                             "`return' cannot take more than one args"
                         ));
                     }
-                    let end = self.lexer.location();
                     return Ok(Some(self.ast.return_expr(
                         Some(args.pop().unwrap()),
                         begin,
@@ -709,6 +711,7 @@ impl<'a> Parser<'a> {
     fn parse_primary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_primary_expr");
+        let begin = self.lexer.location();
         let mut expr = self.parse_atomic()?;
         loop {
             if self.consume(Token::LSqBracket)? {
@@ -716,6 +719,7 @@ impl<'a> Parser<'a> {
                 // TODO: parse multiple arguments
                 self.skip_wsn()?;
                 self.expect(Token::RSqBracket)?;
+                let end = self.lexer.location();
                 expr = self.ast.method_call(
                     true,
                     AstMethodCall {
@@ -726,6 +730,8 @@ impl<'a> Parser<'a> {
                         has_block: false,
                         may_have_paren_wo_args: false,
                     },
+                    begin.clone(),
+                    end,
                 );
             } else if self.next_nonspace_token()? == Token::Dot {
                 // TODO: Newline should also be allowed here (but Semicolon is not)
@@ -780,6 +786,8 @@ impl<'a> Parser<'a> {
         };
 
         self.lv -= 1;
+        let begin = expr.locs.begin.clone();
+        let end = self.lexer.location();
         Ok(self.ast.method_call(
             true,
             AstMethodCall {
@@ -790,6 +798,8 @@ impl<'a> Parser<'a> {
                 has_block,
                 may_have_paren_wo_args,
             },
+            begin,
+            end,
         ))
     }
 
@@ -907,6 +917,7 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
+                let end = self.lexer.location();
                 self.ast.method_call(
                     true,
                     AstMethodCall {
@@ -917,6 +928,8 @@ impl<'a> Parser<'a> {
                         has_block,
                         may_have_paren_wo_args: false,
                     },
+                    begin,
+                    end,
                 )
             }
             _ => {

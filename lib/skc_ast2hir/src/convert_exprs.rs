@@ -513,7 +513,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 if let Some(tys) = lvar.ty.fn_x_info() {
                     let arg_hirs = method_call::convert_method_args(
                         self,
-                        &block::BlockTaker::Function(&lvar.ty),
+                        &block::BlockTaker::Function {
+                            fn_ty: &lvar.ty,
+                            locs,
+                        },
                         arg_exprs,
                         has_block, // true if `f(){ ... }`, for example.
                     )?;
@@ -543,7 +546,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .clone();
         let arg_hirs = method_call::convert_method_args(
             self,
-            &block::BlockTaker::Method(found.sig.clone()),
+            &block::BlockTaker::Method {
+                sig: found.sig.clone(),
+                locs,
+            },
             arg_exprs,
             has_block,
         )?;

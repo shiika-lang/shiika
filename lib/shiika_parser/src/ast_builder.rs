@@ -197,11 +197,17 @@ impl AstBuilder {
         )
     }
 
-    pub fn method_call(&self, primary: bool, body: AstMethodCall) -> AstExpression {
+    pub fn method_call(
+        &self,
+        primary: bool,
+        mc: AstMethodCall,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
         AstExpression {
             primary,
-            body: AstExpressionBody::MethodCall(body),
-            locs: LocationSpan::todo(),
+            body: AstExpressionBody::MethodCall(mc),
+            locs: LocationSpan::new(&self.filepath, begin, end),
         }
     }
 
