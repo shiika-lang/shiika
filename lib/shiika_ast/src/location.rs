@@ -16,22 +16,25 @@ impl Location {
 
 /// Range in a source file (end-exclusive)
 #[derive(Debug, PartialEq, Clone)]
-pub struct LocationSpan {
-    pub filepath: Rc<PathBuf>,
-    pub begin: Location,
-    pub end: Location,
+pub enum LocationSpan {
+    Empty,
+    Just {
+        filepath: Rc<PathBuf>,
+        begin: Location,
+        end: Location,
+    },
 }
 
 impl LocationSpan {
     pub fn new(filepath: &Rc<PathBuf>, begin: Location, end: Location) -> LocationSpan {
         if begin.pos > end.pos {
             println!(
-                "[BUG] invalid LocationSpan (begin: {}, end: {})",
+                "[BUG] invalid LocationSpan pos (begin: {}, end: {})",
                 begin.pos, end.pos
             );
             return LocationSpan::internal();
         }
-        LocationSpan {
+        LocationSpan::Just {
             filepath: filepath.clone(),
             begin,
             end,
@@ -39,51 +42,56 @@ impl LocationSpan {
     }
 
     pub fn merge(begin: &LocationSpan, end: &LocationSpan) -> LocationSpan {
-        if begin.filepath != end.filepath {
-            println!(
-                "[BUG] invalid LocationSpan (begin: {:?}, end: {:?})",
-                begin, end
-            );
-            return LocationSpan::internal();
+        match (begin, end) {
+            (LocationSpan::Empty, LocationSpan::Empty) => LocationSpan::Empty,
+            (LocationSpan::Just { .. }, LocationSpan::Empty) => begin.clone(),
+            (LocationSpan::Empty, LocationSpan::Just { .. }) => end.clone(),
+            (
+                LocationSpan::Just {
+                    filepath, begin, ..
+                },
+                LocationSpan::Just {
+                    filepath: filepath2,
+                    end,
+                    ..
+                },
+            ) if filepath == filepath2 => Self::new(&filepath, begin.clone(), end.clone()),
+            _ => {
+                println!(
+                    "[BUG] invalid LocationSpan (begin: {:?}, end: {:?})",
+                    begin, end
+                );
+                LocationSpan::Empty
+            }
         }
-        Self::new(&begin.filepath, begin.begin.clone(), end.end.clone())
     }
 
-    pub fn begin_end(&self) -> (Location, Location) {
-        (self.begin.clone(), self.end.clone())
+    pub fn get_begin(&self) -> Location {
+        match self {
+            LocationSpan::Just { begin, .. } => begin.clone(),
+            _ => panic!("get_end called on Empty"),
+        }
     }
+
+    pub fn get_end(&self) -> Location {
+        match self {
+            LocationSpan::Just { end, .. } => end.clone(),
+            _ => panic!("get_end called on Empty"),
+        }
+    }
+
+    //    fn begin_end(&self) -> (Location, Location) {
+    //        (self.begin.clone(), self.end.clone())
+    //    }
 
     /// Denotes that this ast or hir does not correspond to any source text.
     pub fn internal() -> LocationSpan {
-        LocationSpan {
-            filepath: Rc::new(PathBuf::from("<<internal>>")),
-            begin: Location {
-                line: 0,
-                col: 0,
-                pos: 0,
-            },
-            end: Location {
-                line: 0,
-                col: 0,
-                pos: 0,
-            },
-        }
+        LocationSpan::Empty
     }
 
+    // Used as placeholder.
     // TODO: remove this
     pub fn todo() -> LocationSpan {
-        LocationSpan {
-            filepath: Rc::new(PathBuf::new()),
-            begin: Location {
-                line: 0,
-                col: 0,
-                pos: 0,
-            },
-            end: Location {
-                line: 0,
-                col: 0,
-                pos: 0,
-            },
-        }
+        LocationSpan::Empty
     }
 }

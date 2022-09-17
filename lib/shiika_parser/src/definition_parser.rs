@@ -362,13 +362,16 @@ impl<'a> Parser<'a> {
             .iter()
             .filter(|param| param.is_iparam)
             .map(|param| {
-                let span = LocationSpan::internal();
+                let loc = Location {
+                    pos: 0,
+                    col: 0,
+                    line: 0,
+                };
                 self.ast.ivar_assign(
                     param.name.clone(),
-                    self.ast
-                        .bare_name(&param.name, span.begin.clone(), span.end.clone()),
-                    span.begin,
-                    span.end,
+                    self.ast.bare_name(&param.name, loc.clone(), loc.clone()),
+                    loc.clone(),
+                    loc.clone(),
                 )
             })
             .collect()

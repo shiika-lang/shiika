@@ -141,7 +141,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
-                self.convert_specialize_expr(base_name, args)
+                self.convert_specialize_expr(base_name, args, &expr.locs)
             }
 
             AstExpressionBody::PseudoVariable(token) => {
@@ -847,9 +847,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let base_expr = self.resolve_class_expr(base_name, &LocationSpan::todo())?;
+        let base_expr = self.resolve_class_expr(base_name, locs)?;
         let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
@@ -858,7 +859,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?,
+                } => self.convert_specialize_expr(n, a, locs)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
             type_args.push(cls_expr.ty.as_type_argument());

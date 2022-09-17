@@ -50,9 +50,9 @@ impl AstBuilder {
     }
 
     pub fn logical_and(&self, left: AstExpression, right: AstExpression) -> AstExpression {
-        self.primary_expression(
-            left.locs.begin.clone(),
-            right.locs.end.clone(),
+        self.primary_expression_(
+            &left.locs.clone(),
+            &right.locs.clone(),
             AstExpressionBody::LogicalAnd {
                 left: Box::new(left),
                 right: Box::new(right),
@@ -61,9 +61,9 @@ impl AstBuilder {
     }
 
     pub fn logical_or(&self, left: AstExpression, right: AstExpression) -> AstExpression {
-        self.primary_expression(
-            left.locs.begin.clone(),
-            right.locs.end.clone(),
+        self.primary_expression_(
+            &left.locs.clone(),
+            &right.locs.clone(),
             AstExpressionBody::LogicalOr {
                 left: Box::new(left),
                 right: Box::new(right),
@@ -328,6 +328,19 @@ impl AstBuilder {
         }
     }
 
+    fn primary_expression_(
+        &self,
+        begin: &LocationSpan,
+        end: &LocationSpan,
+        body: AstExpressionBody,
+    ) -> AstExpression {
+        AstExpression {
+            primary: true,
+            body,
+            locs: LocationSpan::merge(begin, end),
+        }
+    }
+
     fn non_primary_expression(
         &self,
         begin: Location,
@@ -341,6 +354,19 @@ impl AstBuilder {
         }
     }
 
+    fn non_primary_expression_(
+        &self,
+        begin: &LocationSpan,
+        end: &LocationSpan,
+        body: AstExpressionBody,
+    ) -> AstExpression {
+        AstExpression {
+            primary: false,
+            body,
+            locs: LocationSpan::merge(begin, end),
+        }
+    }
+
     /// Create an expression of the form `left <op> right`
     pub fn bin_op_expr(
         &self,
@@ -348,11 +374,9 @@ impl AstBuilder {
         op: &str,
         right: AstExpression,
     ) -> AstExpression {
-        let begin = left.locs.begin.clone();
-        let end = right.locs.end.clone();
-        self.non_primary_expression(
-            begin,
-            end,
+        self.non_primary_expression_(
+            &left.locs.clone(),
+            &right.locs.clone(),
             AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr: Some(Box::new(left)),
                 method_name: method_firstname(op),
@@ -366,8 +390,8 @@ impl AstBuilder {
 
     /// Create an expression of the form `lhs = rhs`
     pub fn assignment(&self, lhs: AstExpression, rhs: AstExpression) -> AstExpression {
-        let begin = lhs.locs.begin.clone();
-        let end = rhs.locs.end.clone();
+        let begin = &lhs.locs.clone();
+        let end = &rhs.locs.clone();
         let body = match lhs.body {
             AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
                 name: s,
@@ -396,7 +420,7 @@ impl AstBuilder {
             }
             _ => panic!("[BUG] unexpectd lhs: {:?}", lhs.body),
         };
-        self.non_primary_expression(begin, end, body)
+        self.non_primary_expression_(begin, end, body)
     }
 
     /// Extend `foo.bar` to `foo.bar args`, or
@@ -408,8 +432,8 @@ impl AstBuilder {
         args: Vec<AstExpression>,
         has_block: bool,
     ) -> AstExpression {
-        let begin = expr.locs.begin.clone();
-        let end = args.last().unwrap().locs.end.clone();
+        let begin = &expr.locs;
+        let end = &args.last().unwrap().locs.clone();
         match expr.body {
             AstExpressionBody::MethodCall(x) => {
                 if !x.arg_exprs.is_empty() {
@@ -418,7 +442,7 @@ impl AstBuilder {
                         x.arg_exprs
                     );
                 }
-                self.non_primary_expression(
+                self.non_primary_expression_(
                     begin,
                     end,
                     AstExpressionBody::MethodCall(AstMethodCall {
@@ -428,7 +452,7 @@ impl AstBuilder {
                     }),
                 )
             }
-            AstExpressionBody::BareName(s) => self.non_primary_expression(
+            AstExpressionBody::BareName(s) => self.non_primary_expression_(
                 begin,
                 end,
                 AstExpressionBody::MethodCall(AstMethodCall {
