@@ -80,10 +80,6 @@ impl LocationSpan {
         }
     }
 
-    //    fn begin_end(&self) -> (Location, Location) {
-    //        (self.begin.clone(), self.end.clone())
-    //    }
-
     /// Denotes that this ast or hir does not correspond to any source text.
     pub fn internal() -> LocationSpan {
         LocationSpan::Empty
