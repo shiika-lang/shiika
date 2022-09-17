@@ -101,11 +101,11 @@ impl HirExpressions {
 }
 
 /// Make a HirExpression to refer `::Void`
-fn void_const_ref() -> HirExpression {
+pub fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
         toplevel_const("Void"),
-        LocationSpan::todo(),
+        LocationSpan::internal(),
     )
 }
 
@@ -403,11 +403,11 @@ impl Hir {
         }
     }
 
-    pub fn lvar_assign(name: &str, rhs: HirExpression, locs: LocationSpan) -> HirExpression {
+    pub fn lvar_assign(name: String, rhs: HirExpression, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLVarAssign {
-                name: name.to_string(),
+                name,
                 rhs: Box::new(rhs),
             },
             locs,
@@ -456,15 +456,14 @@ impl Hir {
         method_fullname: MethodFullname,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
-        let locs = LocationSpan {
-            filepath: receiver_hir.locs.filepath.clone(),
-            begin: receiver_hir.locs.begin.clone(),
-            end: if let Some(e) = arg_hirs.last() {
-                e.locs.end.clone()
+        let locs = LocationSpan::merge(
+            &receiver_hir.locs,
+            if let Some(e) = arg_hirs.last() {
+                &e.locs
             } else {
-                receiver_hir.locs.end.clone()
+                &receiver_hir.locs
             },
-        };
+        );
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
@@ -484,15 +483,14 @@ impl Hir {
         method_idx: usize,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
-        let locs = LocationSpan {
-            filepath: receiver_hir.locs.filepath.clone(),
-            begin: receiver_hir.locs.begin.clone(),
-            end: if let Some(e) = arg_hirs.last() {
-                e.locs.end.clone()
+        let locs = LocationSpan::merge(
+            &receiver_hir.locs,
+            if let Some(e) = arg_hirs.last() {
+                &e.locs
             } else {
-                receiver_hir.locs.end.clone()
+                &receiver_hir.locs
             },
-        };
+        );
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirModuleMethodCall {
@@ -671,7 +669,7 @@ impl Hir {
                 initialize_name,
                 init_cls_name,
             },
-            locs: LocationSpan::todo(),
+            locs: LocationSpan::internal(),
         }
     }
 

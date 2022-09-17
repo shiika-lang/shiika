@@ -587,7 +587,7 @@ impl<'a> Parser<'a> {
                 self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
             self.skip_wsn()?;
             let cont = self._parse_if_expr(cond_expr2, then_exprs2, begin.clone())?;
-            let end = cont.locs.end.clone();
+            let end = cont.locs.get_end();
             Ok(self
                 .ast
                 .if_expr(cond_expr, then_exprs, Some(vec![cont]), begin, end))
@@ -749,6 +749,7 @@ impl<'a> Parser<'a> {
     fn parse_method_chain(&mut self, expr: AstExpression) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_method_chain");
+        let begin = self.lexer.location();
         // .
         self.set_lexer_state(LexerState::MethodName);
         assert!(self.consume(Token::Dot)?);
@@ -786,7 +787,6 @@ impl<'a> Parser<'a> {
         };
 
         self.lv -= 1;
-        let begin = expr.locs.begin.clone();
         let end = self.lexer.location();
         Ok(self.ast.method_call(
             true,

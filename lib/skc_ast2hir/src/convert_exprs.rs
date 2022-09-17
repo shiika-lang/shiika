@@ -19,6 +19,8 @@ use skc_hir::*;
 struct LVarInfo {
     ty: TermTy,
     detail: LVarDetail,
+    /// The position of this lvar in the source text
+    locs: LocationSpan,
 }
 #[derive(Debug)]
 enum LVarDetail {
@@ -36,30 +38,22 @@ enum LVarDetail {
 
 impl LVarInfo {
     /// Returns HirExpression to refer this lvar
-    fn ref_expr(&self) -> HirExpression {
-        match &self.detail {
-            LVarDetail::CurrentScope { name } => {
-                Hir::lvar_ref(self.ty.clone(), name.clone(), LocationSpan::todo())
-            }
-            LVarDetail::Argument { idx } => {
-                Hir::arg_ref(self.ty.clone(), *idx, LocationSpan::todo())
-            }
+    fn ref_expr(self) -> HirExpression {
+        match self.detail {
+            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, self.locs),
+            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, self.locs),
             LVarDetail::OuterScope { cidx, readonly } => {
-                Hir::lambda_capture_ref(self.ty.clone(), *cidx, *readonly, LocationSpan::todo())
+                Hir::lambda_capture_ref(self.ty, cidx, readonly, self.locs)
             }
         }
     }
 
     /// Returns HirExpression to update this lvar
-    fn assign_expr(&self, expr: HirExpression) -> HirExpression {
-        match &self.detail {
-            LVarDetail::CurrentScope { name, .. } => {
-                Hir::lvar_assign(name, expr, LocationSpan::todo())
-            }
+    fn assign_expr(self, expr: HirExpression) -> HirExpression {
+        match self.detail {
+            LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr, self.locs),
             LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarDetail::OuterScope { cidx, .. } => {
-                Hir::lambda_capture_write(*cidx, expr, LocationSpan::todo())
-            }
+            LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(cidx, expr, self.locs),
         }
     }
 }
@@ -147,7 +141,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
 
             AstExpressionBody::SpecializeExpression { base_name, args } => {
-                self.convert_specialize_expr(base_name, args)
+                self.convert_specialize_expr(base_name, args, &expr.locs)
             }
 
             AstExpressionBody::PseudoVariable(token) => {
@@ -366,13 +360,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         // For `var x`, `x` should not be exist
-        if *is_var && self._lookup_var(name).is_some() {
+        if *is_var && self._lookup_var(name, locs.clone()).is_some() {
             return Err(error::program_error(&format!(
                 "variable `{}' already exists",
                 name
             )));
         }
-        if let Some(mut lvar_info) = self._find_var(name, true)? {
+        if let Some(mut lvar_info) = self._find_var(name, locs.clone(), true)? {
             // Reassigning
             if lvar_info.ty != expr.ty {
                 if let Some(t) = self
@@ -393,7 +387,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         } else {
             // Create new lvar
             self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
-            Ok(Hir::lvar_assign(name, expr, locs.clone()))
+            Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
         }
     }
 
@@ -509,7 +503,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<HirExpression> {
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
-            if let Some(lvar) = self._lookup_var(&method_name.0) {
+            if let Some(lvar) = self._lookup_var(&method_name.0, locs.clone()) {
                 if let Some(tys) = lvar.ty.fn_x_info() {
                     let arg_hirs = method_call::convert_method_args(
                         self,
@@ -650,9 +644,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Generate local variable reference or method call with implicit receiver(self)
-    fn convert_bare_name(&mut self, name: &str, _locs: &LocationSpan) -> Result<HirExpression> {
+    fn convert_bare_name(&mut self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         // Found a local variable
-        if let Some(lvar_info) = self._find_var(name, false)? {
+        if let Some(lvar_info) = self._find_var(name, locs.clone(), false)? {
             return Ok(lvar_info.ref_expr());
         }
 
@@ -672,19 +666,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Return the variable of the given name, if any
-    fn _lookup_var(&mut self, name: &str) -> Option<LVarInfo> {
-        self._find_var(name, false).unwrap()
+    fn _lookup_var(&mut self, name: &str, locs: LocationSpan) -> Option<LVarInfo> {
+        self._find_var(name, locs, false).unwrap()
     }
 
     /// Find the variable of the given name.
     /// If it is a free variable, lambda_ctx.captures will be modified
-    fn _find_var(&mut self, name: &str, updating: bool) -> Result<Option<LVarInfo>> {
+    fn _find_var(
+        &mut self,
+        name: &str,
+        locs: LocationSpan,
+        updating: bool,
+    ) -> Result<Option<LVarInfo>> {
         let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
             (true, lambda_ctx.captures.len())
         } else {
             (false, 0)
         };
-        let (found, opt_cap) = self.__find_var(in_lambda, cidx, name, updating)?;
+        let (found, opt_cap) = self.__find_var(in_lambda, cidx, name, locs, updating)?;
         if let Some(cap) = opt_cap {
             self.ctx_stack.push_lambda_capture(cap);
         }
@@ -696,6 +695,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         in_lambda: bool,
         cidx: usize,
         name: &str,
+        locs: LocationSpan,
         updating: bool,
     ) -> Result<(Option<LVarInfo>, Option<LambdaCapture>)> {
         let mut lambda_seen = false;
@@ -722,6 +722,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             cidx,
                             readonly: false,
                         },
+                        locs,
                     };
                     return Ok((Some(lvar_info), Some(cap)));
                 } else {
@@ -730,6 +731,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         detail: LVarDetail::CurrentScope {
                             name: name.to_string(),
                         },
+                        locs,
                     };
                     return Ok((Some(lvar_info), None));
                 }
@@ -753,12 +755,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             cidx,
                             readonly: true,
                         },
+                        locs,
                     };
                     return Ok((Some(lvar_info), Some(cap)));
                 } else {
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
                         detail: LVarDetail::Argument { idx },
+                        locs,
                     };
                     return Ok((Some(lvar_info), None));
                 }
@@ -843,9 +847,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         base_name: &UnresolvedConstName,
         args: &[AstExpression],
+        locs: &LocationSpan,
     ) -> Result<HirExpression> {
         debug_assert!(!args.is_empty());
-        let base_expr = self.resolve_class_expr(base_name, &LocationSpan::todo())?;
+        let base_expr = self.resolve_class_expr(base_name, locs)?;
         let mut arg_exprs = vec![];
         let mut type_args = vec![];
         for arg in args {
@@ -854,7 +859,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 AstExpressionBody::SpecializeExpression {
                     base_name: n,
                     args: a,
-                } => self.convert_specialize_expr(n, a)?,
+                } => self.convert_specialize_expr(n, a, locs)?,
                 _ => panic!("[BUG] unexpected arg in SpecializeExpression"),
             };
             type_args.push(cls_expr.ty.as_type_argument());
@@ -961,7 +966,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_fullname_raw("Array", "new"),
             vec![],
         );
-        exprs.push(Hir::lvar_assign(&tmp_name, call_new, locs.clone()));
+        exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
 
         // `tmp.push(item)`
         for item_expr in item_exprs {
