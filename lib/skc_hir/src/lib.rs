@@ -101,11 +101,11 @@ impl HirExpressions {
 }
 
 /// Make a HirExpression to refer `::Void`
-fn void_const_ref() -> HirExpression {
+pub fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
         toplevel_const("Void"),
-        LocationSpan::todo(),
+        LocationSpan::internal(),
     )
 }
 

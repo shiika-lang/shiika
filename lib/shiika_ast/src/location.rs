@@ -35,6 +35,23 @@ impl LocationSpan {
         (self.begin.clone(), self.end.clone())
     }
 
+    /// Denotes that this ast or hir does not correspond to any source text.
+    pub fn internal() -> LocationSpan {
+        LocationSpan {
+            filepath: Rc::new(PathBuf::from("<<internal>>")),
+            begin: Location {
+                line: 0,
+                col: 0,
+                pos: 0,
+            },
+            end: Location {
+                line: 0,
+                col: 0,
+                pos: 0,
+            },
+        }
+    }
+
     // TODO: remove this
     pub fn todo() -> LocationSpan {
         LocationSpan {
