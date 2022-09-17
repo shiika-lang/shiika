@@ -219,7 +219,8 @@ where
     let r = f(
         Report::build(ReportKind::Error, &id, locs.begin.pos),
         locs_span,
-    ).with_message(main_msg);
+    )
+    .with_message(main_msg);
     let mut rendered = vec![];
     r.finish().write((&id, src), &mut rendered).unwrap();
     let u8str = String::from_utf8_lossy(&rendered).to_string();
