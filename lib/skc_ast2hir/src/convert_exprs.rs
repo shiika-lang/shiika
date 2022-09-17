@@ -36,29 +36,25 @@ enum LVarDetail {
 
 impl LVarInfo {
     /// Returns HirExpression to refer this lvar
-    fn ref_expr(&self) -> HirExpression {
-        match &self.detail {
-            LVarDetail::CurrentScope { name } => {
-                Hir::lvar_ref(self.ty.clone(), name.clone(), LocationSpan::todo())
-            }
-            LVarDetail::Argument { idx } => {
-                Hir::arg_ref(self.ty.clone(), *idx, LocationSpan::todo())
-            }
+    fn ref_expr(self) -> HirExpression {
+        match self.detail {
+            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, LocationSpan::todo()),
+            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, LocationSpan::todo()),
             LVarDetail::OuterScope { cidx, readonly } => {
-                Hir::lambda_capture_ref(self.ty.clone(), *cidx, *readonly, LocationSpan::todo())
+                Hir::lambda_capture_ref(self.ty, cidx, readonly, LocationSpan::todo())
             }
         }
     }
 
     /// Returns HirExpression to update this lvar
-    fn assign_expr(&self, expr: HirExpression) -> HirExpression {
-        match &self.detail {
+    fn assign_expr(self, expr: HirExpression) -> HirExpression {
+        match self.detail {
             LVarDetail::CurrentScope { name, .. } => {
                 Hir::lvar_assign(name, expr, LocationSpan::todo())
             }
             LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
             LVarDetail::OuterScope { cidx, .. } => {
-                Hir::lambda_capture_write(*cidx, expr, LocationSpan::todo())
+                Hir::lambda_capture_write(cidx, expr, LocationSpan::todo())
             }
         }
     }
@@ -393,7 +389,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         } else {
             // Create new lvar
             self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
-            Ok(Hir::lvar_assign(name, expr, locs.clone()))
+            Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
         }
     }
 
@@ -961,7 +957,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_fullname_raw("Array", "new"),
             vec![],
         );
-        exprs.push(Hir::lvar_assign(&tmp_name, call_new, locs.clone()));
+        exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
 
         // `tmp.push(item)`
         for item_expr in item_exprs {

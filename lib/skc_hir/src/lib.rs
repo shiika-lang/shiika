@@ -403,11 +403,11 @@ impl Hir {
         }
     }
 
-    pub fn lvar_assign(name: &str, rhs: HirExpression, locs: LocationSpan) -> HirExpression {
+    pub fn lvar_assign(name: String, rhs: HirExpression, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty: rhs.ty.clone(),
             node: HirExpressionBase::HirLVarAssign {
-                name: name.to_string(),
+                name,
                 rhs: Box::new(rhs),
             },
             locs,
