@@ -671,7 +671,7 @@ impl Hir {
                 initialize_name,
                 init_cls_name,
             },
-            locs: LocationSpan::todo(),
+            locs: LocationSpan::internal(),
         }
     }
 

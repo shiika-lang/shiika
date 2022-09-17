@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
             .iter()
             .filter(|param| param.is_iparam)
             .map(|param| {
-                let span = LocationSpan::todo();
+                let span = LocationSpan::internal();
                 self.ast.ivar_assign(
                     param.name.clone(),
                     self.ast
