@@ -4,11 +4,12 @@
 *.s
 *.dSYM
 /builtin/exports.json
+/coverage
+/examples/*.actual.*
 /lib/*/Cargo.lock
 /lib/*/target
-/coverage
-/lib/shiika/parser.ry
 /lib/shiika/parser.rb
+/lib/shiika/parser.ry
 /rusty-tags.vi
 /target
 /tests/tmp.*
