@@ -31,6 +31,21 @@ task :test do
   sh "cargo test -- --nocapture"
 end
 
+desc "Test if examples/*.sk runs as expected"
+task :release_test do
+  Dir["examples/*.expected_out.*"].each do |exp|
+    next if ENV["FILTER"] && !exp.include?(ENV["FILTER"])
+    exp =~ %r{examples/(.*)\.expected_out\.(.*)} or raise
+    name, ext = $1, $2
+    actual = "examples/#{name}.actual.#{ext}"
+    sh "cargo run -- run examples/#{name}.sk > #{actual}"
+    if File.read(actual) != File.read(exp)
+      sh "diff #{exp} #{actual}"
+      raise "release_test failed for #{name}.sk"
+    end
+  end
+end
+
 RUST_FILES = Dir["lib/**/*.rs"] + Dir["src/*.rs"]
 RUSTLIB_SIG = "lib/skc_rustlib/provided_methods.json5"
 
