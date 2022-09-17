@@ -165,8 +165,7 @@ fn check_arg_type(
     );
     let locs = &arg_hir.locs;
     let report = build_report(msg.clone(), locs, |r, locs_span| {
-        r.with_message(msg)
-            .with_label(Label::new(locs_span).with_message(&arg_hir.ty))
+        r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
     });
     Err(report)
 }
@@ -199,7 +198,8 @@ pub fn check_block_arity(
 
 type AriadneSpan<'a> = (&'a String, Range<usize>);
 
-fn build_report<F>(fallback_msg: String, locs: &LocationSpan, f: F) -> Error
+/// Helper for building report with ariadne crate.
+fn build_report<F>(main_msg: String, locs: &LocationSpan, f: F) -> Error
 where
     F: for<'b> FnOnce(
         ReportBuilder<AriadneSpan<'b>>,
@@ -213,14 +213,13 @@ where
     let locs_span = (&id, locs.begin.pos..locs.end.pos);
 
     if id.is_empty() {
-        // This would never happen once LocationSpan::todo() is removed.
-        return type_error(fallback_msg);
+        return type_error(main_msg);
     }
     let src = Source::from(fs::read_to_string(&*locs.filepath).unwrap_or_default());
     let r = f(
         Report::build(ReportKind::Error, &id, locs.begin.pos),
         locs_span,
-    );
+    ).with_message(main_msg);
     let mut rendered = vec![];
     r.finish().write((&id, src), &mut rendered).unwrap();
     let u8str = String::from_utf8_lossy(&rendered).to_string();
