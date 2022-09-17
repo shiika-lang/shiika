@@ -456,15 +456,14 @@ impl Hir {
         method_fullname: MethodFullname,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
-        let locs = LocationSpan {
-            filepath: receiver_hir.locs.filepath.clone(),
-            begin: receiver_hir.locs.begin.clone(),
-            end: if let Some(e) = arg_hirs.last() {
-                e.locs.end.clone()
+        let locs = LocationSpan::merge(
+            &receiver_hir.locs,
+            if let Some(e) = arg_hirs.last() {
+                &e.locs
             } else {
-                receiver_hir.locs.end.clone()
+                &receiver_hir.locs
             },
-        };
+        );
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirMethodCall {
@@ -484,15 +483,14 @@ impl Hir {
         method_idx: usize,
         arg_hirs: Vec<HirExpression>,
     ) -> HirExpression {
-        let locs = LocationSpan {
-            filepath: receiver_hir.locs.filepath.clone(),
-            begin: receiver_hir.locs.begin.clone(),
-            end: if let Some(e) = arg_hirs.last() {
-                e.locs.end.clone()
+        let locs = LocationSpan::merge(
+            &receiver_hir.locs,
+            if let Some(e) = arg_hirs.last() {
+                &e.locs
             } else {
-                receiver_hir.locs.end.clone()
+                &receiver_hir.locs
             },
-        };
+        );
         HirExpression {
             ty: result_ty,
             node: HirExpressionBase::HirModuleMethodCall {

@@ -24,11 +24,29 @@ pub struct LocationSpan {
 
 impl LocationSpan {
     pub fn new(filepath: &Rc<PathBuf>, begin: Location, end: Location) -> LocationSpan {
+        if begin.pos > end.pos {
+            println!(
+                "[BUG] invalid LocationSpan (begin: {}, end: {})",
+                begin.pos, end.pos
+            );
+            return LocationSpan::internal();
+        }
         LocationSpan {
             filepath: filepath.clone(),
             begin,
             end,
         }
+    }
+
+    pub fn merge(begin: &LocationSpan, end: &LocationSpan) -> LocationSpan {
+        if begin.filepath != end.filepath {
+            println!(
+                "[BUG] invalid LocationSpan (begin: {:?}, end: {:?})",
+                begin, end
+            );
+            return LocationSpan::internal();
+        }
+        Self::new(&begin.filepath, begin.begin.clone(), end.end.clone())
     }
 
     pub fn begin_end(&self) -> (Location, Location) {
