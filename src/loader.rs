@@ -39,6 +39,10 @@ fn resolve_requires(path: &Path, content: &str) -> Vec<PathBuf> {
     for line in content.lines() {
         if line.trim_start().starts_with("require") {
             paths.push(parse_require(line, path));
+        } else if line.trim_start().starts_with("#") {
+            // skip comment line.
+        } else if line.trim_start().is_empty() {
+            // skip empty line.
         } else {
             break;
         }
