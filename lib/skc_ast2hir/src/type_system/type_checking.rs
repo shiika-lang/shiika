@@ -1,13 +1,10 @@
 use crate::class_dict::ClassDict;
 use crate::convert_exprs::block::BlockTaker;
 use crate::error::type_error;
-use anyhow::{Error, Result};
-use ariadne::{Label, Report, ReportBuilder, ReportKind, Source};
-use shiika_ast::LocationSpan;
+use anyhow::Result;
 use shiika_core::{ty, ty::*};
+use skc_error::{self, Label};
 use skc_hir::*;
-use std::fs;
-use std::ops::Range;
 
 macro_rules! type_error {
     ( $( $arg:expr ),* ) => ({
@@ -164,10 +161,10 @@ fn check_arg_type(
         param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
     );
     let locs = &arg_hir.locs;
-    let report = build_report(msg.clone(), locs, |r, locs_span| {
+    let report = skc_error::build_report(msg, locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
     });
-    Err(report)
+    Err(type_error(report))
 }
 
 /// Check number of block parameters
@@ -190,54 +187,8 @@ pub fn check_block_arity(
         params.len()
     );
     let locs = &block_taker.locs();
-    let report = build_report(msg.clone(), locs, |r, locs_span| {
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(msg))
     });
-    Err(report)
-}
-
-type AriadneSpan<'a> = (&'a String, Range<usize>);
-
-/// Helper for building report with ariadne crate.
-fn build_report<F>(main_msg: String, locs: &LocationSpan, f: F) -> Error
-where
-    F: for<'b> FnOnce(
-        ReportBuilder<AriadneSpan<'b>>,
-        AriadneSpan<'b>,
-    ) -> ReportBuilder<AriadneSpan<'b>>,
-{
-    if let LocationSpan::Just {
-        filepath,
-        begin,
-        end,
-    } = locs
-    {
-        // ariadne::Id for the file `locs.filepath`
-        // ariadne 0.1.5 needs Id: Display (zesterer/ariadne#12)
-        let id = format!("{}", filepath.display());
-        // ariadne::Span equivalent to `locs`
-        let locs_span = (&id, begin.pos..end.pos);
-
-        if id.is_empty() {}
-        let src = Source::from(fs::read_to_string(&**filepath).unwrap_or_default());
-        let report = f(Report::build(ReportKind::Error, &id, begin.pos), locs_span)
-            .with_message(main_msg.clone())
-            .finish();
-
-        match std::panic::catch_unwind(|| {
-            let mut rendered = vec![];
-            report.write((&id, src), &mut rendered).unwrap();
-            String::from_utf8_lossy(&rendered).to_string()
-        }) {
-            Ok(u8str) => type_error(u8str),
-            Err(e) => {
-                println!("[BUG] ariadne crate crashed!");
-                dbg!(&e);
-                type_error(main_msg)
-            }
-        }
-    } else {
-        // No location information available
-        type_error(main_msg)
-    }
+    Err(type_error(report))
 }

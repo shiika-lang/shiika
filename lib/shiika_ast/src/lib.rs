@@ -126,6 +126,15 @@ pub struct BlockParam {
     pub opt_typ: Option<UnresolvedTypeName>,
 }
 
+/// A type name not yet resolved.
+/// eg. for `A::B<C>`, `names` is `A, B` and `args` is `C`.
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnresolvedTypeName {
+    pub names: Vec<String>,
+    pub args: Vec<UnresolvedTypeName>,
+    pub locs: LocationSpan,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,

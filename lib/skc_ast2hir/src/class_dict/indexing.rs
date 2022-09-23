@@ -4,8 +4,9 @@ use crate::convert_exprs::params;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
-use shiika_ast;
+use shiika_ast::{self, LocationSpan, UnresolvedTypeName};
 use shiika_core::{names::*, ty, ty::*};
+use skc_error::{self, Label};
 use skc_hir::signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
@@ -145,7 +146,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut modules = vec![];
         let mut superclass = None;
         for name in supers {
-            let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
@@ -306,7 +307,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<Vec<SkIVar>> {
         let mut ivars = vec![];
         for (idx, param) in case.params.iter().enumerate() {
-            let ty = self._resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
+            let ty = self.resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
             let ivar = SkIVar {
                 idx,
                 name: param.name.clone(),
@@ -532,7 +533,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(class_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
-            self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
+            self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
         };
@@ -551,8 +552,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Resolve the given type name to fullname
-    // TODO: Remove `_`
-    pub fn _resolve_typename(
+    pub fn resolve_typename(
         &self,
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
@@ -571,10 +571,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // Otherwise:
         let mut tyargs = vec![];
         for arg in &name.args {
-            tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
+            tyargs.push(self.resolve_typename(namespace, class_typarams, method_typarams, arg)?);
         }
         let (resolved_base, base_typarams) =
-            self._resolve_simple_typename(namespace, &name.names)?;
+            self._resolve_simple_typename(namespace, &name.names, &name.locs)?;
         if name.args.len() != base_typarams.len() {
             return Err(error::type_error(&format!(
                 "wrong number of type arguments: {:?}",
@@ -590,6 +590,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         names: &[String],
+        locs: &LocationSpan,
     ) -> Result<(Vec<String>, &[TyParam])> {
         let n = namespace.size();
         for k in 0..=n {
@@ -602,10 +603,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 return Ok((resolved, typarams));
             }
         }
-        Err(error::name_error(&format!(
-            "unknown type {:?} in {:?}",
-            names, namespace,
-        )))
+
+        let msg = format!("unknown type {} in {:?}", names.join("::"), namespace);
+        let report = skc_error::build_report(msg, locs, |r, locs_span| {
+            r.with_label(Label::new(locs_span).with_message("unknown type"))
+        });
+        Err(error::name_error(&report))
     }
 }
 

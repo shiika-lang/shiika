@@ -654,10 +654,11 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_typ(&mut self) -> Result<UnresolvedTypeName, Error> {
         match self.current_token() {
             Token::UpperWord(s) => {
+                let begin = self.lexer.location();
                 let head = s.to_string();
                 self.consume_token()?;
                 self.set_lexer_gtgt_mode(true); // Prevent `>>` is parsed as RShift
-                let name = self._parse_typ(head)?;
+                let name = self._parse_typ(head, begin)?;
                 self.set_lexer_gtgt_mode(false); // End special mode
                 Ok(name)
             }
@@ -667,7 +668,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a constant name. `s` must be consumed beforehand
-    fn _parse_typ(&mut self, s: String) -> Result<UnresolvedTypeName, Error> {
+    fn _parse_typ(&mut self, s: String, begin: Location) -> Result<UnresolvedTypeName, Error> {
         self.lv += 1;
         self.debug_log("_parse_typ");
         let mut names = vec![s];
@@ -706,10 +707,11 @@ impl<'a> Parser<'a> {
                     }
                 }
                 Token::UpperWord(s) => {
+                    let inner_begin = self.lexer.location();
                     let name = s.to_string();
                     self.consume_token()?;
                     if lessthan_seen {
-                        let inner = self._parse_typ(name)?;
+                        let inner = self._parse_typ(name, inner_begin)?;
                         args.push(inner);
                         self.skip_wsn()?;
                     } else {
@@ -726,7 +728,8 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(UnresolvedTypeName { names, args })
+        let end = self.lexer.location();
+        Ok(self.ast.unresolved_type_name(names, args, begin, end))
     }
 
     pub fn parse_const_definition(&mut self) -> Result<shiika_ast::Definition, Error> {

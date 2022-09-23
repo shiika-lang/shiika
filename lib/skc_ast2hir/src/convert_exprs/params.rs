@@ -26,7 +26,7 @@ pub fn convert_params(
     let mut hir_params = vec![];
     for param in ast_params {
         let ty =
-            class_dict._resolve_typename(namespace, class_typarams, method_typarams, &param.typ)?;
+            class_dict.resolve_typename(namespace, class_typarams, method_typarams, &param.typ)?;
         hir_params.push(MethodParam {
             name: param.name.to_string(),
             ty: ty.clone(),
@@ -54,7 +54,7 @@ pub fn convert_block_params(
         let hir_param = if let Some(typ) = &param.opt_typ {
             // Has type annotation `typ`
             let ty =
-                class_dict._resolve_typename(namespace, class_typarams, method_typarams, typ)?;
+                class_dict.resolve_typename(namespace, class_typarams, method_typarams, typ)?;
             MethodParam {
                 name: param.name.to_string(),
                 ty: ty.clone(),

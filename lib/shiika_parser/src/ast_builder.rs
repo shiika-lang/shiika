@@ -1,6 +1,6 @@
 use shiika_ast::{
     AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, BlockParam, Location,
-    LocationSpan, Token,
+    LocationSpan, Token, UnresolvedTypeName,
 };
 use shiika_core::names::{method_firstname, UnresolvedConstName};
 use std::path::{Path, PathBuf};
@@ -20,6 +20,24 @@ impl AstBuilder {
     pub fn empty() -> AstBuilder {
         AstBuilder {
             filepath: Rc::new(Path::new("").to_path_buf()),
+        }
+    }
+
+    fn locs(&self, begin: Location, end: Location) -> LocationSpan {
+        LocationSpan::new(&self.filepath, begin, end)
+    }
+
+    pub fn unresolved_type_name(
+        &self,
+        names: Vec<String>,
+        args: Vec<UnresolvedTypeName>,
+        begin: Location,
+        end: Location,
+    ) -> UnresolvedTypeName {
+        UnresolvedTypeName {
+            names,
+            args,
+            locs: self.locs(begin, end),
         }
     }
 

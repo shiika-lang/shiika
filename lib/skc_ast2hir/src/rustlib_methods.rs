@@ -1,5 +1,5 @@
-use shiika_ast::AstMethodSignature;
-use shiika_core::names::{ClassFullname, UnresolvedTypeName};
+use shiika_ast::{AstMethodSignature, UnresolvedTypeName};
+use shiika_core::names::ClassFullname;
 use shiika_core::{names::method_fullname, ty, ty::TermTy};
 use skc_corelib::{self, Corelib};
 use skc_hir::*;
