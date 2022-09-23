@@ -1,0 +1,8 @@
+[package]
+name = "skc_error"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+shiika_ast = { path = "../shiika_ast" }
+ariadne = "0.1.5"

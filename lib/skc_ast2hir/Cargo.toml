@@ -7,8 +7,8 @@ edition = "2021"
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
 skc_corelib = { path = "../skc_corelib" }
+skc_error = { path = "../skc_error" }
 skc_hir = { path = "../skc_hir" }
-ariadne = "0.1.5"
 anyhow = "1.0"
 thiserror = "1.0"
 log = "0.4.11"
