@@ -161,7 +161,7 @@ fn check_arg_type(
         param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
     );
     let locs = &arg_hir.locs;
-    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+    let report = skc_error::build_report(msg, locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
     });
     Err(type_error(report))
