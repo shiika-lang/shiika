@@ -6,6 +6,7 @@ use crate::parse_typarams;
 use anyhow::Result;
 use shiika_ast::{self, LocationSpan, UnresolvedTypeName};
 use shiika_core::{names::*, ty, ty::*};
+use skc_error::{self, Label};
 use skc_hir::signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
@@ -602,10 +603,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 return Ok((resolved, typarams));
             }
         }
-        Err(error::name_error(&format!(
-            "unknown type {:?} in {:?} at {:?}",
-            names, namespace, locs
-        )))
+
+        let msg = format!("unknown type {} in {:?}", names.join("::"), namespace);
+        let report = skc_error::build_report(msg, locs, |r, locs_span| {
+            r.with_label(Label::new(locs_span).with_message("unknown type"))
+        });
+        Err(error::name_error(&report))
     }
 }
 
