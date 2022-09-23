@@ -16,4 +16,4 @@ pub use method_name::{
 };
 pub use module_name::{module_firstname, module_fullname, ModuleFirstname, ModuleFullname};
 pub use namespace::Namespace;
-pub use type_name::{type_fullname, unresolved_type_name, TypeFullname, UnresolvedTypeName};
+pub use type_name::{type_fullname, TypeFullname};

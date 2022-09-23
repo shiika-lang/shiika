@@ -4,7 +4,7 @@ use crate::convert_exprs::params;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
-use shiika_ast;
+use shiika_ast::{self, LocationSpan, UnresolvedTypeName};
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::signature::*;
 use skc_hir::*;
@@ -574,7 +574,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
         }
         let (resolved_base, base_typarams) =
-            self._resolve_simple_typename(namespace, &name.names)?;
+            self._resolve_simple_typename(namespace, &name.names, &name.locs)?;
         if name.args.len() != base_typarams.len() {
             return Err(error::type_error(&format!(
                 "wrong number of type arguments: {:?}",
@@ -590,6 +590,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         names: &[String],
+        locs: &LocationSpan,
     ) -> Result<(Vec<String>, &[TyParam])> {
         let n = namespace.size();
         for k in 0..=n {
@@ -603,8 +604,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         Err(error::name_error(&format!(
-            "unknown type {:?} in {:?}",
-            names, namespace,
+            "unknown type {:?} in {:?} at {:?}",
+            names, namespace, locs
         )))
     }
 }

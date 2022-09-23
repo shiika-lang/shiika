@@ -175,26 +175,6 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
     (SkTypes::new(sk_types), sk_methods)
 }
 
-fn _convert_typ(
-    typ: &UnresolvedTypeName,
-    class_typarams: &[String],
-    method_typarams: &[shiika_ast::AstTyParam],
-) -> ty::TermTy {
-    let s = typ.names.join("::");
-    if let Some(idx) = class_typarams.iter().position(|t| s == *t) {
-        ty::typaram_ref(s, ty::TyParamKind::Class, idx).into_term_ty()
-    } else if let Some(idx) = method_typarams.iter().position(|t| s == t.name) {
-        ty::typaram_ref(s, ty::TyParamKind::Method, idx).into_term_ty()
-    } else {
-        let tyargs = typ
-            .args
-            .iter()
-            .map(|arg| _convert_typ(arg, class_typarams, method_typarams))
-            .collect::<Vec<_>>();
-        ty::nonmeta(&typ.names, tyargs)
-    }
-}
-
 fn object_initialize() -> SkMethod {
     let sig = MethodSignature {
         fullname: method_fullname_raw("Object", "initialize"),

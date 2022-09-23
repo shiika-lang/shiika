@@ -59,16 +59,3 @@ pub fn metatype_fullname(base_: impl Into<String>) -> TypeFullname {
         type_fullname(&("Meta:".to_string() + &base))
     }
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct UnresolvedTypeName {
-    pub names: Vec<String>,
-    pub args: Vec<UnresolvedTypeName>,
-}
-
-pub fn unresolved_type_name(names: Vec<String>) -> UnresolvedTypeName {
-    UnresolvedTypeName {
-        names,
-        args: vec![],
-    }
-}
