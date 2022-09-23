@@ -145,7 +145,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut modules = vec![];
         let mut superclass = None;
         for name in supers {
-            let ty = self._resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
@@ -306,7 +306,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<Vec<SkIVar>> {
         let mut ivars = vec![];
         for (idx, param) in case.params.iter().enumerate() {
-            let ty = self._resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
+            let ty = self.resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
             let ivar = SkIVar {
                 idx,
                 name: param.name.clone(),
@@ -532,7 +532,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(class_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
-            self._resolve_typename(namespace, class_typarams, &method_typarams, typ)?
+            self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
         };
@@ -551,8 +551,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Resolve the given type name to fullname
-    // TODO: Remove `_`
-    pub fn _resolve_typename(
+    pub fn resolve_typename(
         &self,
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
@@ -571,7 +570,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // Otherwise:
         let mut tyargs = vec![];
         for arg in &name.args {
-            tyargs.push(self._resolve_typename(namespace, class_typarams, method_typarams, arg)?);
+            tyargs.push(self.resolve_typename(namespace, class_typarams, method_typarams, arg)?);
         }
         let (resolved_base, base_typarams) =
             self._resolve_simple_typename(namespace, &name.names, &name.locs)?;
