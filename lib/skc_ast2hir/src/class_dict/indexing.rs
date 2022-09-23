@@ -70,6 +70,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
+        let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
         let (superclass, includes) = self._resolve_supers(namespace, &typarams, supers)?;
@@ -78,12 +79,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             Some(signature::signature_of_new(
                 &metaclass_fullname,
-                self._initializer_params(namespace, &typarams, &superclass, defs)?,
+                self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
                 &ty::return_type_of_new(&fullname, &typarams),
             ))
         };
 
-        let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
