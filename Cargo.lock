@@ -690,11 +690,11 @@ name = "skc_ast2hir"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ariadne",
  "log",
  "shiika_ast",
  "shiika_core",
  "skc_corelib",
+ "skc_error",
  "skc_hir",
  "skc_mir",
  "thiserror",
@@ -729,6 +729,14 @@ dependencies = [
  "shiika_core",
  "shiika_parser",
  "skc_hir",
+]
+
+[[package]]
+name = "skc_error"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "shiika_ast",
 ]
 
 [[package]]
