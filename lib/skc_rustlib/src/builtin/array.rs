@@ -1,12 +1,6 @@
 use crate::builtin::{SkInt, SkObj};
+use crate::sk_methods::meta_array_new;
 use shiika_ffi_macro::shiika_method;
-
-extern "C" {
-    /// `Array.new`
-    /// `receiver` should be the class `Array` but currently may be just `null`.
-    #[allow(improper_ctypes)]
-    fn Meta_Array_new(receiver: *const u8) -> SkAry<SkObj>;
-}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -23,12 +17,10 @@ struct ShiikaArray<T> {
 impl<T> SkAry<T> {
     /// Call `Array.new`.
     pub fn new<U>() -> SkAry<U> {
-        unsafe {
-            let sk_ary = Meta_Array_new(std::ptr::null());
-            // Force cast because external function (Meta_Array_new)
-            // cannot have type a parameter.
-            SkAry(sk_ary.0 as *mut ShiikaArray<U>)
-        }
+        let sk_ary = meta_array_new(std::ptr::null());
+        // Force cast because external function (Meta_Array_new)
+        // cannot have type a parameter.
+        SkAry(sk_ary.0 as *mut ShiikaArray<U>)
     }
 
     pub fn as_vec(&self) -> &Vec<T> {
