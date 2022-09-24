@@ -10,3 +10,4 @@ proc-macro = true
 shiika_ffi = { path = "../shiika_ffi" }
 syn = { version = "1.0.82", features = ["full"] }
 quote = "1.0"
+proc-macro2 = "1.0.43"

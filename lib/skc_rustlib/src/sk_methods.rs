@@ -1,20 +1,25 @@
 //! This module provides Rust bindings for llvm functions for Shiika methods.
 //!
 use crate::builtin::{SkAry, SkClass, SkObj};
+use shiika_ffi_macro::shiika_method_ref;
 
-// Is it possible to generate this from `"Meta:Array.new"` by proc macro?
-extern "C" {
-    #[allow(improper_ctypes)]
-    pub fn Meta_Array_new(receiver: *const u8) -> SkAry<SkObj>;
-}
-pub fn meta_array_new(receiver: *const u8) -> SkAry<SkObj> {
-    unsafe { Meta_Array_new(receiver) }
-}
+// This macro call expands into:
+//
+//    extern "C" {
+//        #[allow(improper_ctypes)]
+//        fn Meta_Array_new(receiver: *const u8) -> SkAry<SkObj>;
+//    }
+//    pub fn meta_array_new(receiver: *const u8) -> SkAry<SkObj> {
+//        unsafe { Meta_Array_new(receiver) }
+//    }
+shiika_method_ref!(
+    "Meta:Array#new",
+    fn(receiver: *const u8) -> SkAry<SkObj>,
+    "meta_array_new"
+);
 
-extern "C" {
-    #[allow(improper_ctypes)]
-    fn Meta_Class_new(receiver: *const u8) -> SkClass;
-}
-pub fn meta_class_new(receiver: *const u8) -> SkClass {
-    unsafe { Meta_Class_new(receiver) }
-}
+shiika_method_ref!(
+    "Meta:Class#new",
+    fn(receiver: *const u8) -> SkClass,
+    "meta_class_new"
+);

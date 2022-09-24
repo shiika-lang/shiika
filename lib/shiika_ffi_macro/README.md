@@ -1,3 +1,3 @@
 # shiika_ffi_macro
 
-This crate provides `#[shiika_method(...)]` attribute which expands into `#[export_name = "..."]`.
+This crate provides Rust macros to deal with Shiika objects and methods.
