@@ -2,20 +2,12 @@
 mod witness_table;
 use crate::builtin::class::witness_table::WitnessTable;
 use crate::builtin::{SkAry, SkInt, SkStr};
+use crate::sk_methods::meta_class_new;
 use shiika_ffi_macro::shiika_method;
 use std::collections::HashMap;
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkClass(*mut ShiikaClass);
-
-extern "C" {
-    // SkClass contains *mut of `HashMap`, which is not `repr(C)`.
-    // I think it's ok because the hashmap is not accessible in Shiika.
-    // TODO: is there a better way?
-    // TODO: macro to convert "Meta:Class#new" into this name
-    #[allow(improper_ctypes)]
-    fn Meta_Class_new(receiver: *const u8) -> SkClass;
-}
 
 impl SkClass {
     pub fn new(ptr: *mut ShiikaClass) -> SkClass {
@@ -86,7 +78,7 @@ pub extern "C" fn meta_class__new(
     metacls_obj: SkClass,
     erasure_cls: SkClass,
 ) -> SkClass {
-    let cls_obj = unsafe { Meta_Class_new(std::ptr::null()) };
+    let cls_obj = meta_class_new(std::ptr::null());
     unsafe {
         (*cls_obj.0).vtable = vtable;
         (*cls_obj.0).name = name;
