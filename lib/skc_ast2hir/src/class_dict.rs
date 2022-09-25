@@ -24,7 +24,6 @@ pub struct ClassDict<'hir_maker> {
 
 pub fn create<'hir_maker>(
     ast: &shiika_ast::Program,
-    // Corelib classes (REFACTOR: corelib should provide methods only)
     initial_sk_types: SkTypes,
     imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {

@@ -3,13 +3,14 @@ use shiika_core::names::ClassFullname;
 use shiika_core::{names::method_fullname, ty, ty::TermTy};
 use skc_corelib::{self, Corelib};
 use skc_hir::*;
+use std::collections::HashMap;
 
 /// Returns complete list of corelib classes/methods i.e. both those
 /// implemented in Shiika and in Rust.
 pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
     let rustlib_methods = make_rustlib_methods(&corelib);
     let mut sk_types = corelib.sk_types;
-    let mut sk_methods = corelib.sk_methods;
+    let mut sk_methods = HashMap::new();
     for (classname, m) in rustlib_methods.into_iter() {
         // Add to sk_types
         let c = sk_types
@@ -20,9 +21,10 @@ pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
         debug_assert!(!c.base().method_sigs.contains_key(first_name));
         c.base_mut().method_sigs.insert(m.signature.clone());
         // Add to sk_methods
-        let v = sk_methods
-            .get_mut(&classname)
-            .unwrap_or_else(|| panic!("not in sk_methods: {}", &classname));
+        if !sk_methods.contains_key(&classname) {
+            sk_methods.insert(classname.clone(), vec![]);
+        }
+        let v = sk_methods.get_mut(&classname).unwrap();
         v.push(m);
     }
     (sk_types, sk_methods)

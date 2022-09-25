@@ -8,24 +8,17 @@ use std::collections::HashMap;
 
 pub struct Corelib {
     pub sk_types: SkTypes,
-    pub sk_methods: SkMethods,
 }
 
 /// Create a `Corelib`
 pub fn create() -> Corelib {
-    let (sk_types, sk_methods) = make_classes(rust_body_items());
-
-    Corelib {
-        sk_types,
-        sk_methods,
-    }
+    let sk_types = make_classes(rust_body_items());
+    Corelib { sk_types }
 }
 
 type ClassItem = (
     String,
     Option<Superclass>,
-    Vec<SkMethod>,
-    Vec<SkMethod>,
     HashMap<String, SkIVar>,
     Vec<String>,
 );
@@ -38,16 +31,12 @@ fn rust_body_items() -> Vec<ClassItem> {
             // `Meta::XX` inherits `Class`.
             "Class".to_string(),
             Some(Superclass::simple("Object")),
-            Default::default(),
-            vec![],
             class::ivars(),
             vec![],
         ),
         (
             "Metaclass".to_string(),
             Some(Superclass::simple("Class")),
-            Default::default(),
-            vec![],
             class::ivars(),
             vec![],
         ),
@@ -56,62 +45,41 @@ fn rust_body_items() -> Vec<ClassItem> {
             Some(Superclass::simple("Object")),
             Default::default(),
             vec![],
-            Default::default(),
-            vec![],
         ),
         (
             "Array".to_string(),
             Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
             HashMap::new(),
             vec!["T".to_string()],
         ),
         (
             "Bool".to_string(),
             Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
             HashMap::new(),
             vec![],
         ),
         (
             "Float".to_string(),
             Some(Superclass::simple("Object")),
-            vec![], //float::create_methods(),
-            vec![],
             HashMap::new(),
             vec![],
         ),
         (
             "Int".to_string(),
             Some(Superclass::simple("Object")),
-            vec![], //int::create_methods(),
-            vec![],
             HashMap::new(),
             vec![],
         ),
-        (
-            "Object".to_string(),
-            None,
-            vec![object_initialize()], // object::create_methods(),
-            vec![],
-            HashMap::new(),
-            vec![],
-        ),
+        ("Object".to_string(), None, HashMap::new(), vec![]),
         (
             "Void".to_string(),
             Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
             HashMap::new(),
             vec![],
         ),
         (
             "Shiika::Internal::Ptr".to_string(),
             Some(Superclass::simple("Object")),
-            vec![], //shiika_internal_ptr::create_methods(),
-            vec![],
             HashMap::new(),
             vec![],
         ),
@@ -119,16 +87,12 @@ fn rust_body_items() -> Vec<ClassItem> {
         (
             "Math".to_string(),
             Some(Superclass::simple("Object")),
-            vec![],
-            vec![],
             HashMap::new(),
             vec![],
         ),
         (
             "Shiika::Internal::Memory".to_string(),
             Some(Superclass::simple("Object")),
-            vec![],
-            vec![], //shiika_internal_memory::create_class_methods(),
             HashMap::new(),
             vec![],
         ),
@@ -138,23 +102,19 @@ fn rust_body_items() -> Vec<ClassItem> {
 }
 
 #[allow(clippy::if_same_then_else)]
-fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
+fn make_classes(items: Vec<ClassItem>) -> SkTypes {
     let mut sk_types = HashMap::new();
-    let mut sk_methods = HashMap::new();
-    for (name, superclass, imethods, cmethods, ivars, typarams) in items {
+    for (name, superclass, ivars, typarams) in items {
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&name),
             typarams: typarams.iter().map(ty::TyParam::new).collect(),
-            method_sigs: MethodSignatures::from_iterator(
-                imethods.iter().map(|x| x.signature.clone()),
-            ),
+            method_sigs: Default::default(),
             foreign: false,
         };
         let sk_class = SkClass::nonmeta(base, superclass)
             .ivars(ivars)
             .const_is_obj(name == "Void");
         sk_types.insert(ClassFullname(name.to_string()).into(), sk_class.into());
-        sk_methods.insert(class_fullname(&name), imethods);
 
         if name == "Metaclass" {
             // The class of `Metaclass` is `Metaclass` itself. So we don't need to create again
@@ -162,31 +122,12 @@ fn make_classes(items: Vec<ClassItem>) -> (SkTypes, SkMethods) {
             let base = SkTypeBase {
                 erasure: Erasure::meta(&name),
                 typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
-                method_sigs: MethodSignatures::from_iterator(
-                    cmethods.iter().map(|x| x.signature.clone()),
-                ),
+                method_sigs: Default::default(),
                 foreign: false,
             };
             let sk_class = SkClass::meta(base).ivars(class::ivars());
             sk_types.insert(metaclass_fullname(&name).into(), sk_class.into());
-            sk_methods.insert(metaclass_fullname(&name), cmethods);
         }
     }
-    (SkTypes::new(sk_types), sk_methods)
-}
-
-fn object_initialize() -> SkMethod {
-    let sig = MethodSignature {
-        fullname: method_fullname_raw("Object", "initialize"),
-        ret_ty: ty::raw("Void"),
-        params: vec![],
-        typarams: vec![],
-    };
-    SkMethod {
-        signature: sig,
-        body: SkMethodBody::Normal {
-            exprs: Hir::expressions(vec![]),
-        },
-        lvars: vec![],
-    }
+    SkTypes::new(sk_types)
 }

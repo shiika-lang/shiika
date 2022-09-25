@@ -1,3 +1,5 @@
+require "./object.sk"
+
 require "./array.sk"
 require "./bool.sk"
 require "./class.sk"
@@ -11,7 +13,6 @@ require "./maybe.sk"
 require "./metaclass.sk"
 require "./mutable_string.sk"
 require "./never.sk"
-require "./object.sk"
 require "./pair.sk"
 require "./result.sk"
 require "./string.sk"

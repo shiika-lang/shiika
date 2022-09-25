@@ -19,6 +19,7 @@ mod rustlib_methods;
 
 pub fn make_hir(
     ast: shiika_ast::Program,
+    // `Some` on build-corelib, otherwise `None`.
     corelib: Option<Corelib>,
     imports: &LibraryExports,
 ) -> Result<Hir> {

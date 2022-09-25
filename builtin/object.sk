@@ -1,4 +1,7 @@
 class Object
+  def initialize
+  end
+
   # TODO: These will be removed when `Comparable` is implemented
   def <(other: Object) -> Bool
     panic "[`<` is not implemented for this class]"
