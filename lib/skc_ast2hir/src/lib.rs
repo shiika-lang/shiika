@@ -18,36 +18,41 @@ use skc_hir::{Hir, HirExpression};
 use skc_mir::LibraryExports;
 mod rustlib_methods;
 
-pub fn make_hir(
+pub fn make_hir(ast: shiika_ast::Program, imports: &LibraryExports) -> Result<Hir> {
+    let defs = ast.defs();
+    let class_dict = class_dict::create(&defs, &imports.sk_types)?;
+
+    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
+    hir_maker.define_class_constants()?;
+    let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
+    let hir = hir_maker.extract_hir(main_exprs, main_lvars);
+
+    Ok(hir)
+}
+
+pub fn make_corelib_hir(
+    // ast of builtin/*.sk
     ast: shiika_ast::Program,
-    // `Some` on build-corelib, otherwise `None`.
-    corelib: Option<Corelib>,
-    // Only used when `corelib` is `None` (TODO: refactor)
-    imports: &LibraryExports,
+    corelib: Corelib,
 ) -> Result<Hir> {
     let defs = ast.defs();
     // TODO: Remove this. (`imports` is a reference because it is used for building
     // mir too. But I think we can put `imports` into hir)
     let dummy_imports = Default::default();
-    let (class_dict, rust_method_sigs) = if let Some(c) = corelib {
-        // Collect types defined in .sk, so that...
-        let type_index = type_index::create(&defs, &c.sk_types, &Default::default());
-        // they can be referred in the signatures of methods written with Rust.
-        let rust_method_sigs = rustlib_methods::create_method_sigs(&type_index);
-        let class_dict = class_dict::create_for_corelib(
-            &defs,
-            &dummy_imports,
-            c.sk_types,
-            type_index,
-            &rust_method_sigs,
-        )?;
-        (class_dict, rust_method_sigs)
-    } else {
-        let class_dict = class_dict::create(&defs, &imports.sk_types)?;
-        (class_dict, Default::default())
-    };
+    let dummy_constants = Default::default();
+    // Collect types defined in .sk, so that...
+    let type_index = type_index::create(&defs, &corelib.sk_types, &Default::default());
+    // they can be referred in the signatures of methods written with Rust.
+    let rust_method_sigs = rustlib_methods::create_method_sigs(&type_index);
+    let class_dict = class_dict::create_for_corelib(
+        &defs,
+        &dummy_imports,
+        corelib.sk_types,
+        type_index,
+        &rust_method_sigs,
+    )?;
 
-    let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
+    let mut hir_maker = HirMaker::new(class_dict, &dummy_constants);
     hir_maker.define_class_constants()?;
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
