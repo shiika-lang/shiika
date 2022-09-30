@@ -20,7 +20,8 @@ mod rustlib_methods;
 
 pub fn make_hir(ast: shiika_ast::Program, imports: &LibraryExports) -> Result<Hir> {
     let defs = ast.defs();
-    let class_dict = class_dict::create(&defs, &imports.sk_types)?;
+    let type_index = type_index::create(&defs, &Default::default(), &imports.sk_types);
+    let class_dict = class_dict::create(&defs, type_index, &imports.sk_types)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
     hir_maker.define_class_constants()?;

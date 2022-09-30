@@ -28,10 +28,11 @@ pub struct ClassDict<'hir_maker> {
 
 pub fn create<'hir_maker>(
     defs: &[&shiika_ast::Definition],
+    type_index: TypeIndex,
     imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {
     let mut dict = ClassDict {
-        type_index: Default::default(),
+        type_index,
         sk_types: Default::default(),
         imported_classes,
         rust_methods: Default::default(),
