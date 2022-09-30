@@ -1,0 +1,9 @@
+module Shiika
+  module Internal
+    class Memory
+    end
+
+    class Ptr
+    end
+  end
+end

@@ -10,19 +10,23 @@ pub type TypeIndex = HashMap<TypeFullname, Vec<ty::TyParam>>;
 /// Collect class names in the program
 pub fn create(
     toplevel_defs: &[&shiika_ast::Definition],
-    initial_sk_types: &SkTypes,
+    corelib_sk_types: &SkTypes,
     imported_classes: &SkTypes,
 ) -> TypeIndex {
     let mut cindex = HashMap::new();
-    index_sk_types(&mut cindex, initial_sk_types);
-    index_sk_types(&mut cindex, imported_classes);
+    index_sk_types(&mut cindex, corelib_sk_types, true);
+    index_sk_types(&mut cindex, imported_classes, false);
     index_defs(&mut cindex, &Namespace::root(), toplevel_defs);
     cindex
 }
 
-fn index_sk_types(cindex: &mut TypeIndex, sk_types: &SkTypes) {
+fn index_sk_types(cindex: &mut TypeIndex, sk_types: &SkTypes, create_meta: bool) {
     for (name, class) in &sk_types.0 {
         cindex.insert(name.clone(), class.base().typarams.clone());
+        if create_meta {
+            let meta_name = name.meta_name();
+            cindex.insert(meta_name.into(), Default::default());
+        }
     }
 }
 
@@ -59,8 +63,8 @@ fn index_class(
     typarams: Vec<ty::TyParam>,
     defs: &[shiika_ast::Definition],
 ) {
-    let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname.into(), typarams);
+    let fullname = namespace.type_fullname(&firstname.0);
+    insert_class_and_metaclass(cindex, fullname, typarams);
     let inner_namespace = namespace.add(firstname.0.clone());
     index_defs(cindex, &inner_namespace, &defs.iter().collect::<Vec<_>>());
 }
@@ -72,8 +76,8 @@ fn index_module(
     typarams: Vec<ty::TyParam>,
     defs: &[shiika_ast::Definition],
 ) {
-    let fullname = namespace.module_fullname(firstname);
-    cindex.insert(fullname.into(), typarams);
+    let fullname = namespace.type_fullname(&firstname.0);
+    insert_class_and_metaclass(cindex, fullname, typarams);
     let inner_namespace = namespace.add(firstname.0.clone());
     index_defs(cindex, &inner_namespace, &defs.iter().collect::<Vec<_>>());
 }
@@ -85,12 +89,21 @@ fn index_enum(
     typarams: Vec<ty::TyParam>,
     cases: &[shiika_ast::EnumCase],
 ) {
-    let fullname = namespace.class_fullname(firstname);
-    cindex.insert(fullname.into(), typarams.to_vec());
-
+    let fullname = namespace.type_fullname(&firstname.0);
+    insert_class_and_metaclass(cindex, fullname, typarams.clone());
     let inner_namespace = namespace.add(firstname.0.clone());
     for case in cases {
-        let case_fullname = inner_namespace.class_fullname(&case.name);
-        cindex.insert(case_fullname.into(), typarams.to_vec());
+        let case_fullname = inner_namespace.type_fullname(&case.name.0);
+        insert_class_and_metaclass(cindex, case_fullname, typarams.clone());
     }
+}
+
+fn insert_class_and_metaclass(
+    cindex: &mut TypeIndex,
+    name: TypeFullname,
+    typarams: Vec<ty::TyParam>,
+) {
+    let meta_name = name.meta_name();
+    cindex.insert(name, typarams);
+    cindex.insert(meta_name.into(), Default::default());
 }

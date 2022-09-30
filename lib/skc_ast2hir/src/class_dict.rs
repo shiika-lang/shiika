@@ -3,12 +3,15 @@ mod build_wtable;
 mod found_method;
 mod indexing;
 mod query;
-mod type_index;
+pub mod type_index;
 use anyhow::Result;
 pub use found_method::FoundMethod;
 use shiika_ast;
 use shiika_core::names::*;
 use skc_hir::*;
+use type_index::TypeIndex;
+
+type RustMethods = HashMap<TypeFullname, Vec<MethodSignature>>;
 
 #[derive(Debug, PartialEq)]
 pub struct ClassDict<'hir_maker> {
@@ -20,28 +23,47 @@ pub struct ClassDict<'hir_maker> {
     pub sk_types: SkTypes,
     /// Imported classes
     imported_classes: &'hir_maker SkTypes,
+    rust_methods: RustMethods,
 }
 
 pub fn create<'hir_maker>(
-    ast: &shiika_ast::Program,
-    initial_sk_types: SkTypes,
+    defs: &[&shiika_ast::Definition],
     imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {
-    let defs = ast
-        .toplevel_items
-        .iter()
-        .filter_map(|item| match item {
-            shiika_ast::TopLevelItem::Def(x) => Some(x),
-            shiika_ast::TopLevelItem::Expr(_) => None,
-        })
-        .collect::<Vec<_>>();
     let mut dict = ClassDict {
-        type_index: type_index::create(&defs, &initial_sk_types, imported_classes),
-        sk_types: initial_sk_types,
+        type_index: Default::default(),
+        sk_types: Default::default(),
         imported_classes,
+        rust_methods: Default::default(),
     };
     dict.index_program(&defs)?;
     Ok(dict)
+}
+
+pub fn create_for_corelib<'hir_maker>(
+    defs: &[&shiika_ast::Definition],
+    imported_classes: &'hir_maker SkTypes,
+    sk_types: SkTypes,
+    type_index: TypeIndex,
+    rust_method_sigs: &[MethodSignature],
+) -> Result<ClassDict<'hir_maker>> {
+    let mut dict = ClassDict {
+        type_index,
+        sk_types,
+        imported_classes,
+        rust_methods: index_rust_method_sigs(rust_method_sigs),
+    };
+    dict.index_program(&defs)?;
+    Ok(dict)
+}
+
+fn index_rust_method_sigs(rust_method_sigs: &[MethodSignature]) -> RustMethods {
+    let mut rust_methods = HashMap::new();
+    for sig in rust_method_sigs {
+        let v: &mut Vec<MethodSignature> = rust_methods.entry(sig.typename()).or_default();
+        v.push(sig.clone());
+    }
+    rust_methods
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {

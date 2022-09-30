@@ -8,6 +8,7 @@ mod hir_maker_context;
 mod method_dict;
 mod pattern_match;
 mod type_system;
+use crate::class_dict::type_index;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
 use shiika_ast::LocationSpan;
@@ -21,23 +22,36 @@ pub fn make_hir(
     ast: shiika_ast::Program,
     // `Some` on build-corelib, otherwise `None`.
     corelib: Option<Corelib>,
+    // Only used when `corelib` is `None` (TODO: refactor)
     imports: &LibraryExports,
 ) -> Result<Hir> {
-    let (core_classes, core_methods) = if let Some(c) = corelib {
-        rustlib_methods::mix_with_corelib(c)
+    let defs = ast.defs();
+    // TODO: Remove this. (`imports` is a reference because it is used for building
+    // mir too. But I think we can put `imports` into hir)
+    let dummy_imports = Default::default();
+    let (class_dict, rust_method_sigs) = if let Some(c) = corelib {
+        // Collect types defined in .sk, so that...
+        let type_index = type_index::create(&defs, &c.sk_types, &Default::default());
+        // they can be referred in the signatures of methods written with Rust.
+        let rust_method_sigs = rustlib_methods::create_method_sigs(&type_index);
+        let class_dict = class_dict::create_for_corelib(
+            &defs,
+            &dummy_imports,
+            c.sk_types,
+            type_index,
+            &rust_method_sigs,
+        )?;
+        (class_dict, rust_method_sigs)
     } else {
-        (Default::default(), Default::default())
+        let class_dict = class_dict::create(&defs, &imports.sk_types)?;
+        (class_dict, Default::default())
     };
-    let class_dict = class_dict::create(&ast, core_classes, &imports.sk_types)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &imports.constants);
     hir_maker.define_class_constants()?;
     let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
     let mut hir = hir_maker.extract_hir(main_exprs, main_lvars);
-
-    // While corelib classes are included in `class_dict`,
-    // corelib methods are not. Here we need to add them manually
-    hir.add_methods(core_methods);
+    hir.add_methods(rustlib_methods::make_sk_methods(rust_method_sigs));
 
     Ok(hir)
 }

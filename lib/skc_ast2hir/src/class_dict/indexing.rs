@@ -97,7 +97,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     sk_class.includes = includes;
                 }
                 // Inject instance methods
-                sk_type.base_mut().method_sigs.append(instance_methods);
+                let method_sigs = &mut sk_type.base_mut().method_sigs;
+                method_sigs.append(instance_methods);
+                if let Some(sigs) = self.rust_methods.remove(&fullname.to_type_fullname()) {
+                    method_sigs.append_vec(sigs);
+                }
                 // Inject class methods
                 let metaclass = self
                     .sk_types
@@ -109,7 +113,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             fullname, &metaclass_fullname
                         )
                     });
-                metaclass.base_mut().method_sigs.append(class_methods);
+                let meta_method_sigs = &mut metaclass.base_mut().method_sigs;
+                meta_method_sigs.append(class_methods);
+                if let Some(sigs) = self
+                    .rust_methods
+                    .remove(&metaclass_fullname.to_type_fullname())
+                {
+                    meta_method_sigs.append_vec(sigs);
+                }
                 // Inject `.new` to the metaclass
                 if let Some(sig) = new_sig {
                     if !metaclass
@@ -121,17 +132,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     }
                 }
             }
-            None => self.add_new_class(
-                &fullname,
-                &typarams,
-                superclass,
-                includes,
-                new_sig,
-                instance_methods,
-                class_methods,
-                Some(false),
-                false,
-            )?,
+            None => {
+                self.add_new_class(
+                    &fullname,
+                    &typarams,
+                    superclass,
+                    includes,
+                    new_sig,
+                    instance_methods,
+                    class_methods,
+                    Some(false),
+                    false,
+                )?;
+            }
         }
         Ok(())
     }
@@ -437,11 +450,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: Superclass,
         includes: Vec<Superclass>,
         new_sig: Option<MethodSignature>,
-        instance_methods: MethodSignatures,
+        mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
         is_final: Option<bool>,
         const_is_obj: bool,
     ) -> Result<()> {
+        self.transfer_rust_method_sigs(&fullname.to_type_fullname(), &mut instance_methods);
+
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             class_methods.insert(sig);
@@ -465,6 +480,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
 
         // Create metaclass (which is a subclass of `Class`)
+        self.transfer_rust_method_sigs(
+            &fullname.meta_name().to_type_fullname(),
+            &mut class_methods,
+        );
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         let base = SkTypeBase {
@@ -490,10 +509,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
-        instance_methods: MethodSignatures,
-        class_methods: MethodSignatures,
+        mut instance_methods: MethodSignatures,
+        mut class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
     ) {
+        self.transfer_rust_method_sigs(&fullname.to_type_fullname(), &mut instance_methods);
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&fullname.0),
             typarams: typarams.to_vec(),
@@ -503,6 +523,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_type(SkModule::new(base, requirements));
 
         // Create metaclass (which is a subclass of `Class`)
+        self.transfer_rust_method_sigs(
+            &fullname.meta_name().to_type_fullname(),
+            &mut class_methods,
+        );
         let the_class = self.get_class(&class_fullname("Class"));
         let meta_ivars = the_class.ivars.clone();
         let base = SkTypeBase {
@@ -609,6 +633,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             r.with_label(Label::new(locs_span).with_message("unknown type"))
         });
         Err(error::name_error(&report))
+    }
+
+    fn transfer_rust_method_sigs(
+        &mut self,
+        fullname: &TypeFullname,
+        method_sigs: &mut MethodSignatures,
+    ) {
+        if let Some(sigs) = self.rust_methods.remove(fullname) {
+            method_sigs.append_vec(sigs);
+        }
     }
 }
 

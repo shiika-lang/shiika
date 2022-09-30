@@ -1,4 +1,5 @@
 use super::class_name::*;
+use super::type_name::*;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -23,7 +24,7 @@ impl MethodFirstname {
 
 #[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct MethodFullname {
-    // class part
+    // class part (TODO: this should be TypeFullname)
     pub class_name: ClassFullname,
     // method part
     pub first_name: MethodFirstname,
@@ -65,5 +66,9 @@ impl MethodFullname {
     /// Returns true if this method isn't an instance method
     pub fn is_class_method(&self) -> bool {
         self.full_name.starts_with("Meta:")
+    }
+
+    pub fn typename(&self) -> TypeFullname {
+        type_fullname(&self.class_name.0)
     }
 }

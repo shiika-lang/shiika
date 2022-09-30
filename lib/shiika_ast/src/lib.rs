@@ -19,6 +19,16 @@ impl Program {
     pub fn append(&mut self, other: &mut Program) {
         self.toplevel_items.append(&mut other.toplevel_items);
     }
+
+    pub fn defs(&self) -> Vec<&Definition> {
+        self.toplevel_items
+            .iter()
+            .filter_map(|item| match item {
+                TopLevelItem::Def(x) => Some(x),
+                TopLevelItem::Expr(_) => None,
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, PartialEq)]

@@ -43,6 +43,11 @@ impl MethodSignatures {
             .for_each(|(s, _)| self.insert(s));
     }
 
+    /// Destructively append `other` to `self`.
+    pub fn append_vec(&mut self, other: Vec<MethodSignature>) {
+        other.into_iter().for_each(|s| self.insert(s));
+    }
+
     /// Returns list of signatures in the order.
     fn into_ordered(self) -> Vec<(MethodSignature, usize)> {
         let mut v = self.0.into_values().collect::<Vec<_>>();
