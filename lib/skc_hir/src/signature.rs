@@ -25,6 +25,10 @@ impl MethodSignature {
         &self.fullname.first_name
     }
 
+    pub fn typename(&self) -> TypeFullname {
+        self.fullname.typename()
+    }
+
     /// If this method takes a block, returns types of block params and block value.
     pub fn block_ty(&self) -> Option<&[TermTy]> {
         self.params.last().and_then(|param| param.ty.fn_x_info())

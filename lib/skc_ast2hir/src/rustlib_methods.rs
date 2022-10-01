@@ -1,76 +1,61 @@
+use crate::type_index::TypeIndex;
 use shiika_ast::{AstMethodSignature, UnresolvedTypeName};
 use shiika_core::names::ClassFullname;
 use shiika_core::{names::method_fullname, ty, ty::TermTy};
-use skc_corelib::{self, Corelib};
+use skc_corelib::{self};
 use skc_hir::*;
+use std::collections::HashMap;
 
-/// Returns complete list of corelib classes/methods i.e. both those
-/// implemented in Shiika and in Rust.
-pub fn mix_with_corelib(corelib: Corelib) -> (SkTypes, SkMethods) {
-    let rustlib_methods = make_rustlib_methods(&corelib);
-    let mut sk_types = corelib.sk_types;
-    let mut sk_methods = corelib.sk_methods;
-    for (classname, m) in rustlib_methods.into_iter() {
-        // Add to sk_types
-        let c = sk_types
-            .0
-            .get_mut(&classname.to_type_fullname())
-            .unwrap_or_else(|| panic!("not in sk_types: {}", &classname));
-        let first_name = &m.signature.fullname.first_name;
-        debug_assert!(!c.base().method_sigs.contains_key(first_name));
-        c.base_mut().method_sigs.insert(m.signature.clone());
-        // Add to sk_methods
-        let v = sk_methods
-            .get_mut(&classname)
-            .unwrap_or_else(|| panic!("not in sk_methods: {}", &classname));
-        v.push(m);
+/// Convert signatures of Rust methods to SkMethods
+pub fn make_sk_methods(sigs: Vec<MethodSignature>) -> SkMethods {
+    let mut sk_methods = HashMap::new();
+    for signature in sigs {
+        let class_name = signature.fullname.class_name.clone();
+        let method = SkMethod {
+            signature,
+            body: SkMethodBody::RustLib,
+            lvars: Default::default(),
+        };
+        let v: &mut Vec<SkMethod> = sk_methods.entry(class_name).or_default();
+        v.push(method);
     }
-    (sk_types, sk_methods)
+    sk_methods
 }
 
-// Make SkMethod of corelib methods implemented in Rust
-fn make_rustlib_methods(corelib: &Corelib) -> Vec<(ClassFullname, SkMethod)> {
-    let sigs = skc_corelib::rustlib_methods::provided_methods();
-    sigs.iter()
-        .map(|(classname, ast_sig)| make_rustlib_method(classname, ast_sig, corelib))
+pub fn create_method_sigs(type_index: &TypeIndex) -> Vec<MethodSignature> {
+    let ast_sigs = skc_corelib::rustlib_methods::provided_methods();
+    ast_sigs
+        .iter()
+        .map(|(classname, ast_sig)| make_rustlib_method_sig(&classname, &ast_sig, type_index))
         .collect()
 }
 
 // Create a SkMethod by converting ast_sig to hir_sig
-fn make_rustlib_method(
+fn make_rustlib_method_sig(
     classname: &ClassFullname,
     ast_sig: &AstMethodSignature,
-    corelib: &Corelib,
-) -> (ClassFullname, SkMethod) {
-    let class = corelib
-        .sk_types
-        .0
+    type_index: &TypeIndex,
+) -> MethodSignature {
+    let class_typarams = type_index
         .get(&classname.to_type_fullname())
-        .unwrap_or_else(|| panic!("no such class in Corelib: {}", classname));
-    let signature = make_hir_sig(class, ast_sig);
-    let method = SkMethod {
-        signature,
-        body: SkMethodBody::RustLib,
-        lvars: Default::default(),
-    };
-    (classname.clone(), method)
+        .unwrap_or_else(|| panic!("no such built-in class: {}", classname));
+    make_hir_sig(classname, class_typarams, ast_sig)
 }
 
 // Convert ast_sig into hir_sig
-fn make_hir_sig(sk_type: &SkType, ast_sig: &AstMethodSignature) -> MethodSignature {
-    let class_typarams = sk_type
-        .base()
-        .typarams
-        .iter()
-        .map(|x| &x.name)
-        .collect::<Vec<_>>();
-    let fullname = method_fullname(&sk_type.base().fullname_(), &ast_sig.name.0);
+fn make_hir_sig(
+    type_name: &ClassFullname,
+    class_typarams: &[ty::TyParam],
+    ast_sig: &AstMethodSignature,
+) -> MethodSignature {
+    let class_typaram_names = class_typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
+    let fullname = method_fullname(&type_name, &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
-        convert_typ(typ, &class_typarams)
+        convert_typ(typ, &class_typaram_names)
     } else {
         ty::raw("Void")
     };
-    let params = convert_params(&ast_sig.params, &class_typarams);
+    let params = convert_params(&ast_sig.params, &class_typaram_names);
     MethodSignature {
         fullname,
         ret_ty,

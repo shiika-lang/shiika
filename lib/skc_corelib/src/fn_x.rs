@@ -11,8 +11,6 @@ macro_rules! fn_item {
         (
             format!("Fn{}", $i),
             Some(Superclass::simple("Fn")),
-            vec![],
-            vec![],
             ivars(),
             typarams,
         )

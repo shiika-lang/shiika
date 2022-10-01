@@ -23,7 +23,7 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     let ast = Parser::parse_files(&src)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, None, &imports)?;
+    let hir = skc_ast2hir::make_hir(ast, &imports)?;
     log::debug!("created hir");
     let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
@@ -54,7 +54,7 @@ pub fn build_corelib() -> Result<(), Error> {
     let corelib = skc_corelib::create();
     log::debug!("loaded corelib");
     let imports = Default::default();
-    let hir = skc_ast2hir::make_hir(ast, Some(corelib), &imports)?;
+    let hir = skc_ast2hir::make_corelib_hir(ast, corelib)?;
     log::debug!("created hir");
     let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");

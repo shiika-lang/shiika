@@ -1,6 +1,7 @@
 use super::class_name::*;
 use super::const_name::*;
 use super::module_name::*;
+use super::type_name::{type_fullname, TypeFullname};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
@@ -47,6 +48,16 @@ impl Namespace {
             module_fullname(&name.0)
         } else {
             module_fullname(format!("{}::{}", n, &name.0))
+        }
+    }
+
+    /// Returns fullname of the class/module in this namespace
+    pub fn type_fullname(&self, name: &str) -> TypeFullname {
+        let n = self.string();
+        if n.is_empty() {
+            type_fullname(name)
+        } else {
+            type_fullname(format!("{}::{}", &n, name))
         }
     }
 
