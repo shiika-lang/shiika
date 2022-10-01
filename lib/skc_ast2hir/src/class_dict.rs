@@ -61,7 +61,8 @@ pub fn create_for_corelib<'hir_maker>(
 fn index_rust_method_sigs(rust_method_sigs: &[MethodSignature]) -> RustMethods {
     let mut rust_methods = HashMap::new();
     for sig in rust_method_sigs {
-        let v: &mut Vec<MethodSignature> = rust_methods.entry(sig.typename()).or_default();
+        let typename = sig.fullname.type_name.clone();
+        let v: &mut Vec<MethodSignature> = rust_methods.entry(typename).or_default();
         v.push(sig.clone());
     }
     rust_methods

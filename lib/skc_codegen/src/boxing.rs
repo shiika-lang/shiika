@@ -140,7 +140,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let bytesize = function.get_nth_param(1).unwrap().into_int_value();
         let args = vec![self.box_i8ptr(str_i8ptr), self.box_int(&bytesize)];
         let sk_str = self.call_method_func(
-            &method_fullname(&metaclass_fullname("String"), "new"),
+            &method_fullname(metaclass_fullname("String").into(), "new"),
             receiver,
             &args,
             "sk_str",

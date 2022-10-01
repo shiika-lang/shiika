@@ -53,7 +53,7 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 /// Create the type of return value of `.new` method of the class
-pub fn return_type_of_new(classname: &ClassFullname, typarams: &[TyParam]) -> TermTy {
+pub fn return_type_of_new(classname: &TypeFullname, typarams: &[TyParam]) -> TermTy {
     if typarams.is_empty() {
         ty::raw(&classname.0)
     } else {

@@ -869,7 +869,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(Hir::method_call(
             meta_spe_ty,
             base_expr,
-            method_fullname(&class_fullname("Class"), "<>"),
+            method_fullname_raw("Class", "<>"),
             vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
         ))
     }

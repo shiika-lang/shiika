@@ -107,7 +107,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 Hir::method_call(
                     ty,
                     cls_obj,
-                    method_fullname(&metaclass_fullname(&name.0), "new"),
+                    method_fullname(metaclass_fullname(&name.0).into(), "new"),
                     vec![],
                 )
             } else {
@@ -401,7 +401,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Default::default(),
         )?;
         let fullname = found.owner.as_class_fullname();
-        Ok((method_fullname(&fullname, "initialize"), fullname))
+        Ok((
+            method_fullname(fullname.clone().into(), "initialize"),
+            fullname,
+        ))
     }
 
     /// Register a constant defined in the toplevel

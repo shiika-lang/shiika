@@ -10,13 +10,13 @@ use std::collections::HashMap;
 pub fn make_sk_methods(sigs: Vec<MethodSignature>) -> SkMethods {
     let mut sk_methods = HashMap::new();
     for signature in sigs {
-        let class_name = signature.fullname.class_name.clone();
+        let typename = signature.fullname.type_name.clone().as_class_fullname();
         let method = SkMethod {
             signature,
             body: SkMethodBody::RustLib,
             lvars: Default::default(),
         };
-        let v: &mut Vec<SkMethod> = sk_methods.entry(class_name).or_default();
+        let v: &mut Vec<SkMethod> = sk_methods.entry(typename).or_default();
         v.push(method);
     }
     sk_methods
@@ -49,7 +49,7 @@ fn make_hir_sig(
     ast_sig: &AstMethodSignature,
 ) -> MethodSignature {
     let class_typaram_names = class_typarams.iter().map(|x| &x.name).collect::<Vec<_>>();
-    let fullname = method_fullname(&type_name, &ast_sig.name.0);
+    let fullname = method_fullname(type_name.clone().into(), &ast_sig.name.0);
     let ret_ty = if let Some(typ) = &ast_sig.ret_typ {
         convert_typ(typ, &class_typaram_names)
     } else {
