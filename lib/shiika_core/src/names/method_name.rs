@@ -1,4 +1,3 @@
-use super::class_name::*;
 use super::type_name::*;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -24,8 +23,8 @@ impl MethodFirstname {
 
 #[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct MethodFullname {
-    // class part (TODO: this should be TypeFullname)
-    pub class_name: ClassFullname,
+    // class/module part
+    pub type_name: TypeFullname,
     // method part
     pub first_name: MethodFirstname,
     // cache
@@ -38,22 +37,20 @@ impl Hash for MethodFullname {
     }
 }
 
-pub fn method_fullname(
-    class_name: &ClassFullname,
-    first_name_: impl Into<String>,
-) -> MethodFullname {
+pub fn method_fullname(type_name: TypeFullname, first_name_: impl Into<String>) -> MethodFullname {
     let first_name = first_name_.into();
     debug_assert!(!first_name.is_empty());
     debug_assert!(!first_name.starts_with('@'));
+    let full_name = type_name.0.clone() + "#" + &first_name;
     MethodFullname {
-        class_name: class_name.clone(),
-        full_name: class_name.0.clone() + "#" + &first_name,
+        type_name,
+        full_name,
         first_name: MethodFirstname(first_name),
     }
 }
 
 pub fn method_fullname_raw(cls: impl Into<String>, method: impl Into<String>) -> MethodFullname {
-    method_fullname(&class_fullname(cls), method)
+    method_fullname(type_fullname(cls), method)
 }
 
 impl std::fmt::Display for MethodFullname {
@@ -66,9 +63,5 @@ impl MethodFullname {
     /// Returns true if this method isn't an instance method
     pub fn is_class_method(&self) -> bool {
         self.full_name.starts_with("Meta:")
-    }
-
-    pub fn typename(&self) -> TypeFullname {
-        type_fullname(&self.class_name.0)
     }
 }
