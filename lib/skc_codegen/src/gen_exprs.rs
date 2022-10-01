@@ -714,7 +714,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let exit_status =
                 self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_method_func_call(
-                &method_fullname(&class_fullname("Int"), "=="),
+                &method_fullname_raw("Int", "=="),
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
             );
@@ -827,7 +827,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
         let cls_obj = self.get_class_of_obj(self_obj);
         self.gen_method_func_call(
-            &method_fullname(&class_fullname("Class"), "_type_argument"),
+            &method_fullname_raw("Class", "_type_argument"),
             self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
             vec![self.gen_decimal_literal(idx as i64)],
         )
@@ -868,7 +868,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)];
         self.gen_method_func_call(
-            &method_fullname(&metaclass_fullname(cls_name), "new"),
+            &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
             arg_values,
         )
@@ -880,7 +880,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         captures: &'hir [HirLambdaCapture],
     ) -> SkObj<'run> {
         let ary = self.gen_method_func_call(
-            &method_fullname(&metaclass_fullname("Array"), "new"),
+            &method_fullname(metaclass_fullname("Array").into(), "new"),
             self.gen_const_ref(&toplevel_const("Array")),
             vec![],
         );
@@ -901,7 +901,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             };
             let obj = self.bitcast(item, &ty::raw("Object"), "capture_item");
             self.call_method_func(
-                &method_fullname(&class_fullname("Array"), "push"),
+                &method_fullname_raw("Array", "push"),
                 ary.clone(),
                 &[obj],
                 "_",
@@ -995,7 +995,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let captures = self._gen_get_lambda_captures(ctx);
         let item = self.gen_method_func_call(
-            &method_fullname(&class_fullname("Array"), "[]"),
+            &method_fullname_raw("Array", "[]"),
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         );
@@ -1036,7 +1036,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let captures = self._gen_get_lambda_captures(ctx);
         let ptr_ = self.gen_method_func_call(
-            &method_fullname(&class_fullname("Array"), "[]"),
+            &method_fullname_raw("Array", "[]"),
             captures,
             vec![self.gen_decimal_literal(*idx_in_captures as i64)],
         );
@@ -1104,7 +1104,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 .as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let metacls_obj = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Metaclass"), "_new"),
+                &method_fullname_raw("Metaclass", "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),
@@ -1120,7 +1120,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
             let cls = self.gen_method_func_call(
-                &method_fullname(&metaclass_fullname("Class"), "_new"),
+                &method_fullname(metaclass_fullname("Class").into(), "_new"),
                 receiver,
                 vec![
                     self.gen_string_literal(str_literal_idx),

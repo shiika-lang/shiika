@@ -80,7 +80,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(signature::signature_of_new(
                 &metaclass_fullname,
                 self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
-                &ty::return_type_of_new(&fullname, &typarams),
+                &ty::return_type_of_new(&fullname.clone().into(), &typarams),
             ))
         };
 
@@ -555,7 +555,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
-        let fullname = method_fullname(class_fullname, &sig.name.0);
+        let fullname = method_fullname(class_fullname.to_type_fullname_(), &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
             self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
@@ -702,7 +702,7 @@ fn enum_case_new_sig(
 /// Create signatures of getters of an enum case
 fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodSignatures {
     let iter = ivars.iter().map(|ivar| MethodSignature {
-        fullname: method_fullname(case_fullname, &ivar.accessor_name()),
+        fullname: method_fullname(case_fullname.to_type_fullname(), &ivar.accessor_name()),
         ret_ty: ivar.ty.clone(),
         params: Default::default(),
         typarams: Default::default(),

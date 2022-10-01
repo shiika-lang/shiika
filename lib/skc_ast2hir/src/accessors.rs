@@ -42,7 +42,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
 fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let sig = MethodSignature {
-        fullname: method_fullname(clsname, &ivar.accessor_name()),
+        fullname: method_fullname(clsname.to_type_fullname(), &ivar.accessor_name()),
         ret_ty: ivar.ty.clone(),
         params: vec![],
         typarams: vec![],
@@ -61,7 +61,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
     let accessor_name = ivar.accessor_name();
     let setter_name = format!("{}=", accessor_name);
     let sig = MethodSignature {
-        fullname: method_fullname(clsname, &setter_name),
+        fullname: method_fullname(clsname.to_type_fullname(), &setter_name),
         ret_ty: ivar.ty.clone(),
         params: vec![MethodParam {
             name: ivar.accessor_name(),

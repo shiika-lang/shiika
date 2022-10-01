@@ -18,15 +18,11 @@ impl fmt::Display for MethodSignature {
 
 impl MethodSignature {
     pub fn is_class_method(&self) -> bool {
-        self.fullname.class_name.is_meta()
+        self.fullname.type_name.is_meta()
     }
 
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
-    }
-
-    pub fn typename(&self) -> TypeFullname {
-        self.fullname.typename()
     }
 
     /// If this method takes a block, returns types of block params and block value.
@@ -102,7 +98,7 @@ pub fn signature_of_new(
     instance_ty: &TermTy,
 ) -> MethodSignature {
     MethodSignature {
-        fullname: method_fullname(metaclass_fullname, "new"),
+        fullname: method_fullname(metaclass_fullname.clone().into(), "new"),
         ret_ty: instance_ty.clone(),
         params: initialize_params,
         typarams: vec![],
@@ -115,7 +111,7 @@ pub fn signature_of_initialize(
     params: Vec<MethodParam>,
 ) -> MethodSignature {
     MethodSignature {
-        fullname: method_fullname(class_fullname, "initialize"),
+        fullname: method_fullname(class_fullname.clone().into(), "initialize"),
         ret_ty: ty::raw("Void"),
         params,
         typarams: vec![],

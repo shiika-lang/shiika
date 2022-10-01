@@ -274,7 +274,7 @@ fn extract_props(
         let ivar_ref = Hir::method_call(
             ty.clone(),
             value.clone(),
-            method_fullname(&pat_ty.base_class_name(), name),
+            method_fullname(pat_ty.base_class_name().into(), name),
             vec![],
         );
         components.append(&mut convert_match(mk, &ivar_ref, &patterns[i])?);
