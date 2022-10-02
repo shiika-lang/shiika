@@ -232,8 +232,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Declare `external global` for each imported constant
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in imported_constants {
-            let name = &fullname.0;
-            let global = self.module.add_global(self.llvm_type(ty), None, name);
+            let name = llvm_const_name(fullname);
+            let global = self.module.add_global(self.llvm_type(ty), None, &name);
             global.set_linkage(inkwell::module::Linkage::External);
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
@@ -473,8 +473,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate llvm global that holds Shiika constants
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in constants {
-            let name = &fullname.0;
-            let global = self.module.add_global(self.llvm_type(ty), None, name);
+            let name = llvm_const_name(fullname);
+            let global = self.module.add_global(self.llvm_type(ty), None, &name);
             let null = self.llvm_type(ty).into_pointer_type().const_null();
             global.set_initializer(&null);
         }

@@ -4,7 +4,7 @@ use inkwell::types::*;
 use inkwell::values::*;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
-use shiika_ffi::mangle_method;
+use shiika_ffi::{mangle_const, mangle_method};
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
@@ -177,7 +177,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Load a class object
     pub fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
-        let class_const_name = format!("::{}", class_fullname.0);
+        let class_const_name = llvm_const_name(&class_fullname.to_const_fullname());
         let class_obj_addr = self
             .module
             .get_global(&class_const_name)
@@ -337,4 +337,9 @@ pub(super) fn llvm_vtable_const_name(classname: &ClassFullname) -> String {
 /// Returns llvm function name of the given method
 pub fn method_func_name(method_name: &MethodFullname) -> LlvmFuncName {
     LlvmFuncName(mangle_method(&method_name.full_name))
+}
+
+/// Returns llvm function name of the given constant
+pub fn llvm_const_name(name: &ConstFullname) -> String {
+    mangle_const(&name.0)
 }
