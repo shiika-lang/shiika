@@ -133,6 +133,8 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     cmd.arg("-target");
     cmd.arg(triple.as_str().to_str().unwrap());
     cmd.arg("-lm");
+    cmd.arg("-framework");
+    cmd.arg("Foundation");
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");

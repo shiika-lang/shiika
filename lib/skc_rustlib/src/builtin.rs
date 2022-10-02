@@ -2,6 +2,7 @@ pub mod array;
 pub mod bool;
 pub mod class;
 pub mod float;
+mod time;
 //mod fn_x;
 pub mod int;
 mod math;

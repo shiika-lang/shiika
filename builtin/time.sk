@@ -1,0 +1,52 @@
+class Time
+  def self.local -> Time
+    new(Instant.now, Zone::Local)
+  end
+
+  def self.utc -> Time
+    new(Instant.now, Zone::Utc)
+  end
+
+  def initialize(@instant: Instant, @zone: Zone); end
+
+  class Date
+    def initialize(@plain_date: PlainDate, @zone: Zone)
+    end
+  end
+
+  # Represents time duration with nanosecond precision.
+  class Duration
+    def initialize(@sec: Int, @nano_frac: Int)
+    end
+  end
+
+  enum Zone
+    case Utc
+    case Local
+    case Iana(inner: Object)
+
+    #def self.local -> Zone
+    #def self.utc -> Zone
+  end
+
+  # Represents absolute time from the unix epoch.
+  class Instant
+    def initialize(@sec: Int, @nano_frac: Int)
+    end
+  end
+
+  class PlainDateTime
+    def initialize(@plain_date: PlainDate, @plain_time: PlainTime)
+    end
+  end
+
+  class PlainDate
+    def initialize(@year: Int, @month: Int, @day: Int)
+    end
+  end
+
+  class PlainTime
+    def initialize(@hour: Int, @minutes: Int, @seconds: Int, @nano_frac: Int)
+    end
+  end
+end

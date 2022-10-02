@@ -11,4 +11,8 @@ crate-type = ["staticlib"]
 shiika_ffi_macro = { path = "../shiika_ffi_macro" }
 bdwgc-alloc = "0.6.0"
 plain = "0.2.3"
+# For String#chars
 unicode-segmentation = "1.7.1"
+# For Time
+chrono = "0.4"
+chrono-tz = "0.6"
