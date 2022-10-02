@@ -26,3 +26,14 @@ pub fn mangle_method(method_name: &str) -> String {
         s
     }
 }
+
+pub fn mangle_const(const_name: &str) -> String {
+    let s = const_name
+        // Replace '_' to use '_' as delimiter
+        .replace('_', "__")
+        // Trim the first "::"
+        .trim_start_matches("::")
+        // Replace symbols to make the global variable accesible from Rust
+        .replace("::", "_");
+    format!("shiika_const_{}", &s)
+}
