@@ -491,9 +491,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let value = self.gen_expr(ctx, rhs)?.unwrap();
+        let name = llvm_const_name(fullname);
         let ptr = self
             .module
-            .get_global(&fullname.0)
+            .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0))
             .as_pointer_value();
         self.builder.build_store(ptr, value.0);
@@ -649,9 +650,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Get the address of a Shiika constant and returns it as an integer
     pub fn get_const_addr_int(&self, fullname: &ConstFullname) -> inkwell::values::IntValue<'run> {
+        let name = llvm_const_name(fullname);
         let ptr = self
             .module
-            .get_global(&fullname.0)
+            .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname))
             .as_pointer_value();
         ptr.const_to_int(self.i64_type)
@@ -834,11 +836,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     pub fn gen_const_ref(&self, fullname: &ConstFullname) -> SkObj<'run> {
+        let name = llvm_const_name(fullname);
         let ptr = self
             .module
-            .get_global(&fullname.0)
+            .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname));
-        SkObj(self.builder.build_load(ptr.as_pointer_value(), &fullname.0))
+        SkObj(self.builder.build_load(ptr.as_pointer_value(), &name))
     }
 
     fn gen_lambda_expr(
