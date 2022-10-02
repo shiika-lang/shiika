@@ -9,6 +9,10 @@ class Time
 
   def initialize(@instant: Instant, @zone: Zone); end
 
+  def inspect -> String
+    "#<Time(instant: \{@instant}, zone: \{@zone})>"
+  end
+
   class Date
     def initialize(@plain_date: PlainDate, @zone: Zone)
     end
@@ -24,14 +28,15 @@ class Time
     case Utc
     case Local
     case Iana(inner: Object)
-
-    #def self.local -> Zone
-    #def self.utc -> Zone
   end
 
   # Represents absolute time from the unix epoch.
   class Instant
     def initialize(@sec: Int, @nano_frac: Int)
+    end
+
+    def inspect -> String
+      "#<Time::Instant #{@sec} #{@nano_frac})>"
     end
   end
 
