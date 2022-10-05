@@ -46,8 +46,9 @@ impl ShiikaMethodRef {
 
     /// Returns list of parameters for forwarding function call (eg. `a, b, c`)
     pub fn forwaring_args(&self) -> Punctuated<Ident, Token![,]> {
-        self.parameters.iter().map(|field| {
-            field.ident.clone().expect("Field::ident is None. why?")
-        }).collect()
+        self.parameters
+            .iter()
+            .map(|field| field.ident.clone().expect("Field::ident is None. why?"))
+            .collect()
     }
 }
