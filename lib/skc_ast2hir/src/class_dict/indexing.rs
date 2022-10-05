@@ -367,11 +367,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut requirements = vec![];
         for def in defs {
             match def {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
-                | shiika_ast::Definition::InitializerDefinition(
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
+                    let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                    instance_methods.insert(hir_sig);
+                }
+                shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
                     let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                    self._index_accessors(&mut instance_methods, sig, &hir_sig);
                     instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
@@ -438,6 +442,28 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         Ok((instance_methods, class_methods, requirements))
+    }
+
+    /// Register getters/setters from signature of `#initialize`
+    fn _index_accessors(
+        &self,
+        instance_methods: &mut MethodSignatures,
+        sig: &shiika_ast::AstMethodSignature,
+        hir_sig: &MethodSignature,
+    ) {
+        let type_name = &hir_sig.fullname.type_name;
+        for (param, hir_param) in sig.params.iter().zip(hir_sig.params.iter()) {
+            if !param.is_iparam {
+                continue;
+            }
+            let sig = MethodSignature {
+                fullname: method_fullname(type_name.clone(), &param.name.replace('@', "")),
+                ret_ty: hir_param.ty.clone(),
+                params: Default::default(),
+                typarams: Default::default(),
+            };
+            instance_methods.insert(sig);
+        }
     }
 
     /// Register a class and its metaclass to self
