@@ -136,7 +136,8 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     cmd.arg("-o");
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");
-    cmd.arg("target/debug/libskc_rustlib.a");
+    let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
+    cmd.arg(format!("{}/debug/libskc_rustlib.a", cargo_target));
     cmd.arg(bc_path.clone());
     cmd.arg("-ldl");
     cmd.arg("-lpthread");
