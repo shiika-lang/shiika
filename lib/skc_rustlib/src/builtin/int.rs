@@ -26,6 +26,12 @@ impl From<SkInt> for i64 {
     }
 }
 
+impl From<SkInt> for u64 {
+    fn from(sk_int: SkInt) -> Self {
+        unsafe { (*sk_int.0).value as u64 }
+    }
+}
+
 impl From<SkInt> for usize {
     fn from(sk_int: SkInt) -> Self {
         unsafe { (*sk_int.0).value as usize }
@@ -35,6 +41,18 @@ impl From<SkInt> for usize {
 impl From<i64> for SkInt {
     fn from(i: i64) -> Self {
         unsafe { box_int(i) }
+    }
+}
+
+impl From<i32> for SkInt {
+    fn from(i: i32) -> Self {
+        unsafe { box_int(i as i64) }
+    }
+}
+
+impl From<u32> for SkInt {
+    fn from(i: u32) -> Self {
+        unsafe { box_int(i as i64) }
     }
 }
 

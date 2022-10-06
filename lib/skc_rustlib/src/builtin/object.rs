@@ -32,6 +32,10 @@ impl SkObj {
     pub fn class(&self) -> SkClass {
         unsafe { (*self.0).class_obj.dup() }
     }
+
+    pub fn same_object<T>(&self, other: *const T) -> bool {
+        self.0 == (other as *const ShiikaObject)
+    }
 }
 
 #[shiika_method("Object#==")]
