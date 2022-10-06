@@ -1,6 +1,7 @@
 use super::class_name::{class_fullname, metaclass_fullname, ClassFullname};
 use super::const_name::{toplevel_const, ConstFullname};
 use super::method_name::{method_fullname_raw, MethodFirstname, MethodFullname};
+use crate::{ty, ty::TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -31,6 +32,16 @@ impl TypeFullname {
 
     pub fn to_const_fullname(&self) -> ConstFullname {
         toplevel_const(&self.0)
+    }
+
+    pub fn to_ty(&self) -> TermTy {
+        if self.is_meta() {
+            ty::meta(&self.0.clone().split_off(5))
+        } else if self.0 == "Metaclass" {
+            ty::new("Metaclass", Default::default(), true)
+        } else {
+            ty::raw(&self.0)
+        }
     }
 
     pub fn method_fullname(&self, method_firstname: &MethodFirstname) -> MethodFullname {

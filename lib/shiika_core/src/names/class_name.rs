@@ -1,6 +1,5 @@
 use super::const_name::*;
 use super::type_name::*;
-use crate::{ty, ty::TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -68,29 +67,8 @@ impl ClassFullname {
         }
     }
 
-    pub fn instance_ty(&self) -> TermTy {
-        if self.0 == "Metaclass" {
-            ty::new("Metaclass", Default::default(), true)
-        } else if self.0.starts_with("Meta:") {
-            ty::meta(&self.0.clone().split_off(5))
-        } else {
-            ty::raw(&self.0)
-        }
-    }
-
     pub fn is_meta(&self) -> bool {
         self.0.starts_with("Meta:")
-    }
-
-    // TODO: what's this?
-    pub fn to_ty(&self) -> TermTy {
-        if self.is_meta() {
-            let mut name = self.0.clone();
-            name.replace_range(0..=4, "");
-            ty::meta(&name)
-        } else {
-            self.instance_ty()
-        }
     }
 
     pub fn to_type_fullname(&self) -> TypeFullname {
