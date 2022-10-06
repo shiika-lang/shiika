@@ -1134,7 +1134,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ],
             );
             if *includes_modules {
-                let fname = wtable::insert_wtable_func_name(&fullname.clone().as_class_fullname());
+                let fname = wtable::insert_wtable_func_name(&fullname.clone().to_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
             }
             self.call_class_level_initialize(&cls, initialize_name, init_cls_name);

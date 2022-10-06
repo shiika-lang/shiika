@@ -26,7 +26,9 @@ impl TypeFullname {
         self.0.starts_with("Meta:")
     }
 
-    pub fn as_class_fullname(self) -> ClassFullname {
+    /// Returns a ClassFullname of the same name. Should only be called when
+    /// `self` is a class (i.e. is not a module.)
+    pub fn to_class_fullname(self) -> ClassFullname {
         class_fullname(self.0)
     }
 
