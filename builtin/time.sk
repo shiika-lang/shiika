@@ -1,0 +1,77 @@
+class Time
+  def self.local -> Time
+    new(Instant.now, Zone::Local)
+  end
+
+  def self.utc -> Time
+    new(Instant.now, Zone::Utc)
+  end
+
+  def initialize(@instant: Instant, @zone: Zone); end
+
+  def inspect -> String
+    t = self.to_plain
+    "#<Time(#{t.year}/#{t.month}/#{t.day} #{t.hour}:#{t.minute}:#{t.second}.#{t.nano_frac} @ \{@zone})>"
+  end
+
+  # Convert `self` to PlainDateTime.
+  #def to_plain -> PlainDateTime
+
+  class Date
+    def initialize(@plain_date: PlainDate, @zone: Zone)
+    end
+
+    # TODO: Add Date.local, Date.utc, etc.
+  end
+
+  # Represents time duration with nanosecond precision.
+  class Duration
+    def initialize(@sec: Int, @nano_frac: Int)
+    end
+
+    # TODO: Add some apis which returns this
+  end
+
+  enum Zone
+    case Utc
+    case Local
+    # TODO: Support explicit timezone
+    #case Iana(inner: Object)
+  end
+
+  # Represents absolute time from the unix epoch.
+  class Instant
+    # Returns current time.
+    #def self.now -> Instant
+
+    def initialize(@nano_timestamp: Int)
+    end
+
+    def inspect -> String
+      "#<Time::Instant #{@nano_timestamp})>"
+    end
+  end
+
+  class PlainDate
+    def initialize(@year: Int, @month: Int, @day: Int)
+    end
+  end
+
+  class PlainTime
+    def initialize(@hour: Int, @minute: Int, @second: Int, @nano_frac: Int)
+    end
+  end
+
+  class PlainDateTime
+    def initialize(@plain_date: PlainDate, @plain_time: PlainTime)
+    end
+
+    def year -> Int; @plain_date.year; end
+    def month -> Int; @plain_date.month; end
+    def day -> Int; @plain_date.day; end
+    def hour -> Int; @plain_time.hour; end
+    def minute -> Int; @plain_time.minute; end
+    def second -> Int; @plain_time.second; end
+    def nano_frac -> Int; @plain_time.nano_frac; end
+  end
+end
