@@ -129,6 +129,10 @@ $ cargo run -- build-corelib
 
 The `build-corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
 
+### Specify cargo target folder
+
+`shiika` expects Rust to generate artifacts into `./target` by default. You can change this by `SHIIKA_CARGO_TARGET` envvar.
+
 ### Run a program
 
 ```
