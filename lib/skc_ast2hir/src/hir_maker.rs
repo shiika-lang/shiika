@@ -55,7 +55,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_types = std::mem::take(&mut self.class_dict.sk_types);
-        let sk_methods = std::mem::take(&mut self.method_dict.sk_methods);
+        let sk_methods = std::mem::take(&mut self.method_dict.0);
         let mut constants = HashMap::new();
         std::mem::swap(&mut constants, &mut self.constants);
         let mut str_literals = vec![];
@@ -185,7 +185,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             &sig.name,
                             body_exprs,
                         )?;
-                        self.method_dict.add_method(fullname, method);
+                        self.method_dict
+                            .add_method(fullname.to_type_fullname(), method);
                     } else {
                         return Err(error::program_error(
                             "you cannot define methods at toplevel",
@@ -206,7 +207,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             &sig.name,
                             body_exprs,
                         )?;
-                        self.method_dict.add_method(&meta_name, method);
+                        self.method_dict
+                            .add_method(meta_name.to_type_fullname(), method);
                     } else {
                         return Err(error::program_error(
                             "you cannot define methods at toplevel",
@@ -281,8 +283,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register .new
         if fullname.0 != "Never" {
             let class_name = ty::raw(&fullname.0);
-            self.method_dict
-                .add_method(&meta_name, self.create_new(&class_name, false)?);
+            self.method_dict.add_method(
+                meta_name.to_type_fullname(),
+                self.create_new(&class_name, false)?,
+            );
         }
 
         // Register class-level initialize and ivars
@@ -332,7 +336,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
                 self.create_initialize(fullname, &d.sig.name, &d.body_exprs)?;
-            self.method_dict.add_method(fullname, sk_method);
+            self.method_dict
+                .add_method(fullname.to_type_fullname(), sk_method);
             own_ivars = found_ivars;
         }
         Ok(own_ivars)
@@ -531,7 +536,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             },
             lvars: Default::default(),
         };
-        self.method_dict.add_method(&fullname, initialize);
+        self.method_dict
+            .add_method(fullname.to_type_fullname(), initialize);
 
         // Register accessors
         let ivars = self.class_dict.get_class(&fullname).ivars.clone();
@@ -541,7 +547,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let const_is_obj = case.params.is_empty();
         let class = ty::raw(&fullname.0);
         self.method_dict.add_method(
-            &fullname.meta_name(),
+            fullname.meta_name().into(),
             self.create_new(&class, const_is_obj)?,
         );
         Ok(())

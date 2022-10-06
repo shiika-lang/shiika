@@ -27,7 +27,7 @@ pub struct Hir {
 }
 
 impl Hir {
-    pub fn add_methods(&mut self, sk_methods: HashMap<ClassFullname, Vec<SkMethod>>) {
+    pub fn add_methods(&mut self, sk_methods: SkMethods) {
         for (classname, mut new_methods) in sk_methods {
             match self.sk_methods.get_mut(&classname) {
                 Some(methods) => {
