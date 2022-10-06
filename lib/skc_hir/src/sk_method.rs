@@ -10,7 +10,7 @@ pub struct SkMethod {
     pub lvars: HirLVars,
 }
 
-pub type SkMethods = HashMap<ClassFullname, Vec<SkMethod>>;
+pub type SkMethods = HashMap<TypeFullname, Vec<SkMethod>>;
 
 #[derive(Debug)]
 pub enum SkMethodBody {
