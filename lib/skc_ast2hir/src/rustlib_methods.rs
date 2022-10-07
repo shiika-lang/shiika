@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub fn make_sk_methods(sigs: Vec<MethodSignature>) -> SkMethods {
     let mut sk_methods = HashMap::new();
     for signature in sigs {
-        let typename = signature.fullname.type_name.clone().as_class_fullname();
+        let typename = signature.fullname.type_name.clone();
         let method = SkMethod {
             signature,
             body: SkMethodBody::RustLib,

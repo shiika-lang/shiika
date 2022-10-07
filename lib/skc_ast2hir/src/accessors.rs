@@ -25,7 +25,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             if !method_names.iter().any(|x| ***x == accessor_name) {
                 let getter = create_getter(clsname, ivar);
                 let sig = getter.signature.clone();
-                self.method_dict.add_method(clsname, getter);
+                self.method_dict
+                    .add_method(clsname.to_type_fullname(), getter);
                 self.class_dict.add_method(clsname, sig);
             }
 
@@ -33,7 +34,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             if !method_names.iter().any(|x| ***x == setter_name) {
                 let setter = create_setter(clsname, ivar);
                 let sig = setter.signature.clone();
-                self.method_dict.add_method(clsname, setter);
+                self.method_dict
+                    .add_method(clsname.to_type_fullname(), setter);
                 self.class_dict.add_method(clsname, sig);
             }
         }

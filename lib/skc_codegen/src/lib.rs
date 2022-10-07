@@ -508,10 +508,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create inkwell functions
-    fn gen_method_funcs(&self, methods: &HashMap<ClassFullname, Vec<SkMethod>>) {
-        methods.iter().for_each(|(cname, sk_methods)| {
+    fn gen_method_funcs(&self, methods: &HashMap<TypeFullname, Vec<SkMethod>>) {
+        methods.iter().for_each(|(tname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
-                let self_ty = cname.to_ty();
+                let self_ty = tname.to_ty();
                 let func_type = self.method_llvm_func_type(&self_ty, &method.signature);
                 let func_name = method_func_name(&method.signature.fullname);
                 self.module.add_function(&func_name.0, func_type, None);
@@ -553,7 +553,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &'hir HashMap<ClassFullname, Vec<SkMethod>>) -> Result<()> {
+    fn gen_methods(&self, methods: &'hir HashMap<TypeFullname, Vec<SkMethod>>) -> Result<()> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
