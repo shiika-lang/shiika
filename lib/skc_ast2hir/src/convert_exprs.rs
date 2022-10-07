@@ -504,23 +504,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Check if this is a lambda invocation
         if receiver_expr.is_none() {
             if let Some(lvar) = self._lookup_var(&method_name.0, locs.clone()) {
-                if let Some(tys) = lvar.ty.fn_x_info() {
-                    let arg_hirs = method_call::convert_method_args(
-                        self,
-                        &block::BlockTaker::Function {
-                            fn_ty: &lvar.ty,
-                            locs,
-                        },
-                        arg_exprs,
-                        has_block, // true if `f(){ ... }`, for example.
-                    )?;
-                    let ret_ty = tys.last().unwrap();
-                    return Ok(Hir::lambda_invocation(
-                        ret_ty.clone(),
-                        lvar.ref_expr(),
-                        arg_hirs,
-                        locs.clone(),
-                    ));
+                if let Some(hir) =
+                    self._convert_lambda_invocation(arg_exprs, has_block, locs, lvar)?
+                {
+                    return Ok(hir);
                 }
             }
         }
@@ -548,6 +535,37 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             has_block,
         )?;
         method_call::build(self, found, receiver_hir, arg_hirs)
+    }
+
+    /// Returns `Some` if the method call is a lambda invocation.
+    fn _convert_lambda_invocation(
+        &mut self,
+        arg_exprs: &[AstExpression],
+        has_block: &bool,
+        locs: &LocationSpan,
+        lvar: LVarInfo,
+    ) -> Result<Option<HirExpression>> {
+        let tys = if let Some(tys) = lvar.ty.fn_x_info() {
+            tys
+        } else {
+            return Ok(None);
+        };
+        let arg_hirs = method_call::convert_method_args(
+            self,
+            &block::BlockTaker::Function {
+                fn_ty: &lvar.ty,
+                locs,
+            },
+            arg_exprs,
+            has_block, // true if `f(){ ... }`, for example.
+        )?;
+        let ret_ty = tys.last().unwrap();
+        Ok(Some(Hir::lambda_invocation(
+            ret_ty.clone(),
+            lvar.ref_expr(),
+            arg_hirs,
+            locs.clone(),
+        )))
     }
 
     /// Resolve a method tyarg (a ConstName) into a TermTy
