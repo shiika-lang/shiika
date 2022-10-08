@@ -1,12 +1,97 @@
 use crate::class_dict::FoundMethod;
-use crate::convert_exprs::block;
+use crate::convert_exprs::{block, LVarInfo};
 use crate::error;
 use crate::hir_maker::HirMaker;
 use crate::type_system::type_checking;
 use anyhow::Result;
-use shiika_ast::AstExpression;
-use shiika_core::ty;
+use shiika_ast::{AstExpression, LocationSpan};
+use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
 use skc_hir::*;
+
+pub fn convert_method_call(
+    mk: &mut HirMaker,
+    receiver_expr: &Option<Box<AstExpression>>,
+    method_name: &MethodFirstname,
+    arg_exprs: &[AstExpression],
+    has_block: &bool,
+    type_args: &[AstExpression],
+    locs: &LocationSpan,
+) -> Result<HirExpression> {
+    // Check if this is a lambda invocation
+    if receiver_expr.is_none() {
+        if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone()) {
+            if let Some(hir) = convert_lambda_invocation(mk, arg_exprs, has_block, locs, lvar)? {
+                return Ok(hir);
+            }
+        }
+    }
+
+    let receiver_hir = match receiver_expr {
+        Some(expr) => mk.convert_expr(expr)?,
+        // Implicit self
+        _ => mk.convert_self_expr(&LocationSpan::todo()),
+    };
+    let mut method_tyargs = vec![];
+    for tyarg in type_args {
+        method_tyargs.push(resolve_method_tyarg(mk, tyarg)?);
+    }
+    let found = mk
+        .class_dict
+        .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
+        .clone();
+    let arg_hirs = convert_method_args(
+        mk,
+        &block::BlockTaker::Method {
+            sig: found.sig.clone(),
+            locs,
+        },
+        arg_exprs,
+        has_block,
+    )?;
+    build(mk, found, receiver_hir, arg_hirs)
+}
+
+/// Returns `Some` if the method call is a lambda invocation.
+fn convert_lambda_invocation(
+    mk: &mut HirMaker,
+    arg_exprs: &[AstExpression],
+    has_block: &bool,
+    locs: &LocationSpan,
+    lvar: LVarInfo,
+) -> Result<Option<HirExpression>> {
+    let tys = if let Some(tys) = lvar.ty.fn_x_info() {
+        tys
+    } else {
+        return Ok(None);
+    };
+    let arg_hirs = convert_method_args(
+        mk,
+        &block::BlockTaker::Function {
+            fn_ty: &lvar.ty,
+            locs,
+        },
+        arg_exprs,
+        has_block, // true if `f(){ ... }`, for example.
+    )?;
+    let ret_ty = tys.last().unwrap();
+    Ok(Some(Hir::lambda_invocation(
+        ret_ty.clone(),
+        lvar.ref_expr(),
+        arg_hirs,
+        locs.clone(),
+    )))
+}
+
+/// Resolve a method tyarg (a ConstName) into a TermTy
+/// eg.
+///     ary.map<Array<T>>(f)
+///             ~~~~~~~~
+///             => TermTy(Array<TyParamRef(T)>)
+fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy> {
+    let e = mk.convert_expr(arg)?;
+    mk.assert_class_expr(&e)?;
+    Ok(e.ty.instance_ty())
+}
 
 /// Convert method call arguments to HirExpression's
 pub fn convert_method_args(
