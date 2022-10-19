@@ -12,7 +12,7 @@ pub struct MethodSignature {
 
 impl fmt::Display for MethodSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.fullname)
+        write!(f, "{}", self.full_string())
     }
 }
 
@@ -65,6 +65,31 @@ impl MethodSignature {
             return false;
         }
         true
+    }
+
+    pub fn full_string(&self) -> String {
+        let typarams = if self.typarams.is_empty() {
+            "".to_string()
+        } else {
+            "<".to_string()
+                + &self
+                    .typarams
+                    .iter()
+                    .map(|x| format!("{}", &x.name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+                + ">"
+        };
+        let params = self
+            .params
+            .iter()
+            .map(|x| format!("{}: {}", &x.name, &x.ty))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "{}{}({}) -> {}",
+            &self.fullname, typarams, params, &self.ret_ty
+        )
     }
 }
 

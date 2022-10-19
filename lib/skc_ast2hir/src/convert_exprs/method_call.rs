@@ -1,9 +1,10 @@
 use crate::class_dict::FoundMethod;
-use crate::convert_exprs::{block, LVarInfo};
+use crate::convert_exprs::{block, block::BlockTaker, LVarInfo};
 use crate::error;
 use crate::hir_maker::HirMaker;
+use crate::type_inference::method_call_inf;
 use crate::type_system::type_checking;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use shiika_ast::{AstExpression, LocationSpan};
 use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
 use skc_hir::*;
@@ -31,24 +32,37 @@ pub fn convert_method_call(
         // Implicit self
         _ => mk.convert_self_expr(&LocationSpan::todo()),
     };
+
     let mut method_tyargs = vec![];
     for tyarg in type_args {
         method_tyargs.push(resolve_method_tyarg(mk, tyarg)?);
     }
+
     let found = mk
         .class_dict
         .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
         .clone();
-    let arg_hirs = convert_method_args(
+    if type_args.len() > 0 && type_args.len() != found.sig.typarams.len() {
+        return Err(error::type_error(format!(
+            "wrong number of method-wise type arguments ({} for {:?}",
+            type_args.len(),
+            &found.sig,
+        )));
+    }
+
+    let inf1 = method_call_inf::MethodCallInf1::new(&found.sig, *has_block);
+    let (arg_hirs, inf3) = convert_method_args(
         mk,
-        &block::BlockTaker::Method {
+        inf1,
+        &BlockTaker::Method {
             sig: found.sig.clone(),
             locs,
         },
         arg_exprs,
         has_block,
-    )?;
-    build(mk, found, receiver_hir, arg_hirs)
+    )
+    .context(format!("{}", found.sig))?;
+    build(mk, found, receiver_hir, arg_hirs, inf3)
 }
 
 /// Returns `Some` if the method call is a lambda invocation.
@@ -64,9 +78,10 @@ fn convert_lambda_invocation(
     } else {
         return Ok(None);
     };
-    let arg_hirs = convert_method_args(
+    let (arg_hirs, _) = convert_method_args(
         mk,
-        &block::BlockTaker::Function {
+        method_call_inf::MethodCallInf1::for_fn(&lvar.ty, *has_block),
+        &BlockTaker::Function {
             fn_ty: &lvar.ty,
             locs,
         },
@@ -94,23 +109,55 @@ fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy
 }
 
 /// Convert method call arguments to HirExpression's
-pub fn convert_method_args(
+/// Also returns inferred type of this method call.
+fn convert_method_args(
     mk: &mut HirMaker,
-    block_taker: &block::BlockTaker,
+    inf: method_call_inf::MethodCallInf1,
+    block_taker: &BlockTaker,
     arg_exprs: &[AstExpression],
     has_block: &bool,
-) -> Result<Vec<HirExpression>> {
+) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
     let n = arg_exprs.len();
     let mut arg_hirs = vec![];
-    for i in 0..n {
-        let arg_hir = if *has_block && i == n - 1 {
-            block::convert_block(mk, block_taker, &arg_exprs[i])?
-        } else {
-            mk.convert_expr(&arg_exprs[i])?
-        };
-        arg_hirs.push(arg_hir);
+    if *has_block {
+        if n > 1 {
+            for i in 0..n - 1 {
+                arg_hirs.push(mk.convert_expr(&arg_exprs[i])?);
+            }
+        }
+        let last_arg = &arg_exprs.last().unwrap();
+
+        let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
+        let inf2 = method_call_inf::infer_block_param(inf, &arg_tys)?;
+        let block_hir = block::convert_block(mk, block_taker, &inf2, &last_arg)?;
+        let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)?;
+
+        arg_hirs.push(block_hir);
+        Ok((arg_hirs, Some(inf3)))
+    } else {
+        for expr in arg_exprs {
+            arg_hirs.push(mk.convert_expr(&expr)?);
+        }
+        //let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
+        //        let inf3 = method_call_inf::infer_result_ty_without_block(&mut inf, &arg_tys)
+        //            .context(format!("inf: {:?}, arg_tys: {:?}", inf, arg_tys))?;
+        Ok((arg_hirs, None))
     }
-    Ok(arg_hirs)
+}
+
+/// For method calls without any arguments.
+pub fn build_simple(
+    mk: &HirMaker,
+    found: FoundMethod,
+    receiver_hir: HirExpression,
+) -> Result<HirExpression> {
+    build(
+        mk,
+        found,
+        receiver_hir,
+        Default::default(),
+        Default::default(),
+    )
 }
 
 /// Check the arguments and create HirMethodCall or HirModuleMethodCall
@@ -119,8 +166,9 @@ pub fn build(
     found: FoundMethod,
     receiver_hir: HirExpression,
     mut arg_hirs: Vec<HirExpression>,
+    inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<HirExpression> {
-    check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs)?;
+    check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs, inf)?;
     let specialized = receiver_hir.ty.is_specialized();
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
 
@@ -150,8 +198,9 @@ fn check_argument_types(
     sig: &MethodSignature,
     receiver_hir: &HirExpression,
     arg_hirs: &mut [HirExpression],
+    inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
-    type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs)?;
+    type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs, inf)?;
     if let Some(last_arg) = arg_hirs.last_mut() {
         check_break_in_block(sig, last_arg)?;
     }

@@ -11,9 +11,10 @@
 //! ```
 use crate::class_dict::ClassDict;
 use crate::convert_exprs::MethodParam;
+use crate::type_inference::method_call_inf;
 use anyhow::Result;
 use shiika_core::names::Namespace;
-use shiika_core::ty::{self, TermTy};
+use shiika_core::ty::{self};
 
 /// Convert `shiika_ast::Param`s to hir params.
 pub fn convert_params(
@@ -46,8 +47,8 @@ pub fn convert_block_params(
     // Blocks cannot have type parameters. However, it is allowed to refer to
     // the typarams of the current method.
     method_typarams: &[ty::TyParam],
-    // `[arg1_ty, arg2_ty, ..., ret_ty]`
-    type_hint: &[TermTy],
+    // Inferred block parameter types
+    inf: Option<&method_call_inf::MethodCallInf2>,
 ) -> Result<Vec<MethodParam>> {
     let mut hir_params = vec![];
     for (i, param) in ast_params.iter().enumerate() {
@@ -61,7 +62,11 @@ pub fn convert_block_params(
             }
         } else {
             // Infer from hint
-            let ty = type_hint.get(i).expect("type hint not found");
+            let ty = inf
+                .expect("parameter types of a `fn` must not omitted")
+                .solved_block_param_tys
+                .get(i)
+                .expect("type hint not found");
             MethodParam {
                 name: param.name.to_string(),
                 ty: ty.clone(),
