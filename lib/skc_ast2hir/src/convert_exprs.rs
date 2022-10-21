@@ -500,10 +500,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         is_fn: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        // This method only handles `fn(){}` because blocks are handled in
-        // convert_method_call.
-        debug_assert!(is_fn);
-
         let namespace = self.ctx_stack.const_scopes().next().unwrap();
         let hir_params = params::convert_block_params(
             &self.class_dict,

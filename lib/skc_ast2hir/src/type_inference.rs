@@ -133,14 +133,11 @@ fn unify(mut equations: Vec<Equation>, ans: &mut Answer) -> Result<()> {
                     equations.push(Equation(l.clone(), r.clone()));
                 }
             }
-            Equation(TmpTy::Literal { .. }, TmpTy::Literal { .. }) => {
-                return Err(type_error(format!("not equal: {} vs {}", &eq.0, &eq.1)));
-            }
-            Equation(TmpTy::TyParamRef(_), TmpTy::Literal { .. }) => {
-                return Err(type_error(format!("not equal: {:?}", &eq)))
-            }
-            Equation(_, TmpTy::TyParamRef(_)) => {
-                equations.push(eq.swap());
+            _ => {
+                // Skip this equation because it is not useful for resolving
+                // `Unknown`s. (Note that this function is not used for type
+                // checking at the moment)
+                continue;
             }
         }
     }

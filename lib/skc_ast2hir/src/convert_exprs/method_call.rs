@@ -50,7 +50,14 @@ pub fn convert_method_call(
         )));
     }
 
-    let inf1 = method_call_inf::MethodCallInf1::new(&found.sig, *has_block);
+    let inf1 = if found.sig.typarams.len() > 0 && type_args.is_empty() {
+        Some(method_call_inf::MethodCallInf1::new(&found.sig, *has_block))
+    } else if *has_block {
+        Some(method_call_inf::MethodCallInf1::infer_block(&found.sig))
+    } else {
+        None
+    };
+    let msg = format!("{:?}", inf1);
     let (arg_hirs, inf3) = convert_method_args(
         mk,
         inf1,
@@ -61,7 +68,7 @@ pub fn convert_method_call(
         arg_exprs,
         has_block,
     )
-    .context(format!("{}", found.sig))?;
+    .context(msg)?;
     build(mk, found, receiver_hir, arg_hirs, inf3)
 }
 
@@ -80,7 +87,7 @@ fn convert_lambda_invocation(
     };
     let (arg_hirs, _) = convert_method_args(
         mk,
-        method_call_inf::MethodCallInf1::for_fn(&lvar.ty, *has_block),
+        None,
         &BlockTaker::Function {
             fn_ty: &lvar.ty,
             locs,
@@ -112,14 +119,14 @@ fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy
 /// Also returns inferred type of this method call.
 fn convert_method_args(
     mk: &mut HirMaker,
-    inf: method_call_inf::MethodCallInf1,
+    inf: Option<method_call_inf::MethodCallInf1>,
     block_taker: &BlockTaker,
     arg_exprs: &[AstExpression],
     has_block: &bool,
 ) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
     let n = arg_exprs.len();
     let mut arg_hirs = vec![];
-    if *has_block {
+    if *has_block && inf.is_some() {
         if n > 1 {
             for i in 0..n - 1 {
                 arg_hirs.push(mk.convert_expr(&arg_exprs[i])?);
@@ -128,7 +135,7 @@ fn convert_method_args(
         let last_arg = &arg_exprs.last().unwrap();
 
         let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
-        let inf2 = method_call_inf::infer_block_param(inf, &arg_tys)?;
+        let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys)?;
         let block_hir = block::convert_block(mk, block_taker, &inf2, &last_arg)?;
         let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)?;
 
@@ -138,9 +145,6 @@ fn convert_method_args(
         for expr in arg_exprs {
             arg_hirs.push(mk.convert_expr(&expr)?);
         }
-        //let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
-        //        let inf3 = method_call_inf::infer_result_ty_without_block(&mut inf, &arg_tys)
-        //            .context(format!("inf: {:?}, arg_tys: {:?}", inf, arg_tys))?;
         Ok((arg_hirs, None))
     }
 }

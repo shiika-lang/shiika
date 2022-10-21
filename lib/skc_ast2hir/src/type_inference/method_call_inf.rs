@@ -32,15 +32,17 @@ impl MethodCallInf1 {
         }
     }
 
-    /// Same as `new` but slightly simpler because `fn`s does not have
-    /// type parameters.
-    pub fn for_fn(fn_ty: &TermTy, has_block: bool) -> MethodCallInf1 {
-        let fn_x_info = fn_ty.fn_x_info().unwrap();
-        let mut method_arg_tys = TmpTy::from_vec(&fn_x_info);
-        let method_ret_ty = method_arg_tys.pop().unwrap();
+    pub fn infer_block(sig: &MethodSignature) -> MethodCallInf1 {
+        let vars = [];
+        let method_arg_tys = sig
+            .params
+            .iter()
+            .map(|param| TmpTy::make(&param.ty, &vars))
+            .collect::<Vec<_>>();
+        let method_ret_ty = TmpTy::make(&sig.ret_ty, &vars);
 
         MethodCallInf1 {
-            has_block,
+            has_block: true,
             method_arg_tys,
             method_ret_ty,
             answer: Default::default(),
