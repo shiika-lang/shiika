@@ -57,7 +57,7 @@ pub fn convert_method_call(
     } else {
         None
     };
-    let msg = format!("{:?}", inf1);
+    let msg = format!("Type inferrence failed: {:?}", inf1);
     let (arg_hirs, inf3) = convert_method_args(
         mk,
         inf1,
