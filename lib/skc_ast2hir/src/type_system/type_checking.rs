@@ -1,6 +1,7 @@
 use crate::class_dict::ClassDict;
 use crate::convert_exprs::block::BlockTaker;
 use crate::error::type_error;
+use crate::type_inference::method_call_inf;
 use anyhow::Result;
 use shiika_core::{ty, ty::*};
 use skc_error::{self, Label};
@@ -104,10 +105,11 @@ pub fn check_method_args(
     sig: &MethodSignature,
     receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
+    inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
     let mut result = check_method_arity(sig, arg_hirs);
     if result.is_ok() {
-        result = check_arg_types(class_dict, sig, arg_hirs);
+        result = check_arg_types(class_dict, sig, arg_hirs, inf);
     }
 
     if result.is_err() {
@@ -137,9 +139,13 @@ fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_hirs: &[HirExpression],
+    inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
-    for (param, arg_hir) in sig.params.iter().zip(arg_hirs.iter()) {
-        check_arg_type(class_dict, sig, arg_hir, param)?;
+    for i in 0..sig.params.len() {
+        let param = &sig.params[i];
+        let arg_hir = &arg_hirs[i];
+        let inferred = inf.as_ref().map(|x| &x.solved_method_arg_tys[i]);
+        check_arg_type(class_dict, sig, arg_hir, param, &inferred)?;
     }
     Ok(())
 }
@@ -150,16 +156,25 @@ fn check_arg_type(
     sig: &MethodSignature,
     arg_hir: &HirExpression,
     param: &MethodParam,
+    inferred: &Option<&TermTy>,
 ) -> Result<()> {
+    let expected = if let Some(t) = inferred { t } else { &param.ty };
     let arg_ty = &arg_hir.ty;
-    if class_dict.conforms(arg_ty, &param.ty) {
+    if class_dict.conforms(arg_ty, expected) {
         return Ok(());
     }
 
-    let msg = format!(
-        "the argument `{}' of `{}' should be {} but got {}",
-        param.name, sig.fullname, param.ty.fullname, arg_ty.fullname
-    );
+    let msg = if inferred.is_some() {
+        format!(
+            "the argument `{}' of `{}' is inferred to {} but got {}",
+            param.name, sig.fullname, expected, arg_ty.fullname
+        )
+    } else {
+        format!(
+            "the argument `{}' of `{}' should be {} but got {}",
+            param.name, sig.fullname, param.ty, arg_ty
+        )
+    };
     let locs = &arg_hir.locs;
     let report = skc_error::build_report(msg, locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
@@ -169,13 +184,11 @@ fn check_arg_type(
 
 /// Check number of block parameters
 pub fn check_block_arity(
-    block_taker: &BlockTaker,
+    block_taker: &BlockTaker, // for error message
+    inf: &method_call_inf::MethodCallInf2,
     params: &[shiika_ast::BlockParam],
 ) -> Result<()> {
-    let expected = match block_taker {
-        BlockTaker::Method { sig, .. } => sig.block_ty().unwrap().len() - 1,
-        BlockTaker::Function { fn_ty, .. } => fn_ty.fn_x_info().unwrap().len() - 1,
-    };
+    let expected = inf.solved_block_param_tys.len();
     if params.len() == expected {
         return Ok(());
     }

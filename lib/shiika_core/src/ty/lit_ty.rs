@@ -13,6 +13,12 @@ pub struct LitTy {
     pub is_meta: bool,
 }
 
+impl From<LitTy> for TermTy {
+    fn from(x: LitTy) -> Self {
+        x.into_term_ty()
+    }
+}
+
 impl LitTy {
     pub fn new(base_name: String, type_args: Vec<TermTy>, is_meta_: bool) -> LitTy {
         let is_meta = if base_name == "Metaclass" {
