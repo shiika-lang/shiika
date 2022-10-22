@@ -369,14 +369,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         readonly: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        let expr = self.convert_expr(rhs)?;
         if self._lookup_var(name, locs.clone()).is_some() {
-            return Err(error::program_error(&format!(
-                "variable `{}' already exists (shadowing not supported in Shiika)",
-                name
-            )));
+            return Err(error::lvar_redeclaration(name, locs));
         }
-        // Create new lvar
+        let expr = self.convert_expr(rhs)?;
         self.ctx_stack
             .declare_lvar(name, expr.ty.clone(), *readonly);
         Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
@@ -408,10 +404,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
             Ok(lvar_info.assign_expr(expr))
         } else {
-            return Err(error::program_error(&format!(
-                "variable `{}' not declared (hint: `let {} = ...`)",
-                name, name
-            )));
+            Err(error::assign_to_undeclared_lvar(name, locs))
         }
     }
 
