@@ -98,11 +98,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::Return { arg } => self.convert_return_expr(arg, &expr.locs),
 
-            AstExpressionBody::LVarAssign {
+            AstExpressionBody::LVarDecl {
                 name,
                 rhs,
                 readonly,
-            } => self.convert_lvar_assign(name, &*rhs, readonly, &expr.locs),
+            } => self.convert_lvar_decl(name, &*rhs, readonly, &expr.locs),
+
+            AstExpressionBody::LVarAssign { name, rhs } => {
+                self.convert_lvar_assign(name, &*rhs, &expr.locs)
+            }
 
             AstExpressionBody::IVarAssign {
                 name,
@@ -356,7 +360,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(())
     }
 
-    fn convert_lvar_assign(
+    /// Local variable declaration
+    /// `let a = ...` or `var a = ...`
+    fn convert_lvar_decl(
         &mut self,
         name: &str,
         rhs: &AstExpression,
@@ -364,15 +370,27 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
-        // For `var x`, `x` should not be exist
-        if !*readonly && self._lookup_var(name, locs.clone()).is_some() {
+        if self._lookup_var(name, locs.clone()).is_some() {
             return Err(error::program_error(&format!(
-                "variable `{}' already exists",
+                "variable `{}' already exists (shadowing not supported in Shiika)",
                 name
             )));
         }
+        // Create new lvar
+        self.ctx_stack
+            .declare_lvar(name, expr.ty.clone(), *readonly);
+        Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
+    }
+
+    /// Local variable reassignment (`a = ...`)
+    fn convert_lvar_assign(
+        &mut self,
+        name: &str,
+        rhs: &AstExpression,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        let expr = self.convert_expr(rhs)?;
         if let Some(mut lvar_info) = self._find_var(name, locs.clone(), true)? {
-            // Reassigning
             if lvar_info.ty != expr.ty {
                 if let Some(t) = self
                     .class_dict
@@ -390,10 +408,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
             Ok(lvar_info.assign_expr(expr))
         } else {
-            // Create new lvar
-            self.ctx_stack
-                .declare_lvar(name, expr.ty.clone(), *readonly);
-            Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
+            return Err(error::program_error(&format!(
+                "variable `{}' not declared (hint: `let {} = ...`)",
+                name, name
+            )));
         }
     }
 

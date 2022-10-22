@@ -182,10 +182,14 @@ pub enum AstExpressionBody {
     Return {
         arg: Option<Box<AstExpression>>,
     },
-    LVarAssign {
+    LVarDecl {
         name: String,
         rhs: Box<AstExpression>,
         readonly: bool,
+    },
+    LVarAssign {
+        name: String,
+        rhs: Box<AstExpression>,
     },
     IVarAssign {
         name: String,

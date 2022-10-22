@@ -165,16 +165,17 @@ impl AstBuilder {
         &self,
         name: String,
         rhs: AstExpression,
+        readonly: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::LVarAssign {
+            AstExpressionBody::LVarDecl {
                 name,
                 rhs: Box::new(rhs),
-                readonly: false,
+                readonly,
             },
         )
     }
@@ -414,7 +415,6 @@ impl AstBuilder {
             AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
                 name: s,
                 rhs: Box::new(rhs),
-                readonly: true,
             },
             AstExpressionBody::IVarRef(name) => AstExpressionBody::IVarAssign {
                 name,
