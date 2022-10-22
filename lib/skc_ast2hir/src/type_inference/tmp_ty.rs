@@ -62,11 +62,6 @@ impl TmpTy {
         Self::make(t, Default::default())
     }
 
-    /// Convert TermTy's to TmpTy's
-    pub fn from_vec(ts: &[TermTy]) -> Vec<TmpTy> {
-        ts.iter().map(Self::from).collect()
-    }
-
     /// Returns true if `Unknown(id)` appears in self
     pub fn contains(&self, id: Id) -> bool {
         match self {

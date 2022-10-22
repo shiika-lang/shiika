@@ -102,56 +102,22 @@ impl MethodCallInf2 {
 /// Phase 3 (All solved)
 pub struct MethodCallInf3 {
     pub solved_method_arg_tys: Vec<TermTy>,
-    solved_method_ret_ty: TermTy,
+    // Not used in current implementation
+    //solved_method_ret_ty: TermTy,
 }
 
 impl MethodCallInf3 {
-    fn with_block(
-        inf: MethodCallInf2,
-        solved_method_ret_ty: TermTy,
-        solved_block_ret_ty: TermTy,
-    ) -> MethodCallInf3 {
+    fn with_block(inf: MethodCallInf2, solved_block_ret_ty: TermTy) -> MethodCallInf3 {
         let solved_block_ty = ty::fn_ty(inf.solved_block_param_tys, solved_block_ret_ty);
         let mut solved_method_arg_tys = inf.solved_pre_block_arg_tys;
         solved_method_arg_tys.push(solved_block_ty);
         MethodCallInf3 {
             solved_method_arg_tys,
-            solved_method_ret_ty,
-        }
-    }
-
-    fn without_block(
-        solved_method_arg_tys: Vec<TermTy>,
-        solved_method_ret_ty: TermTy,
-    ) -> MethodCallInf3 {
-        MethodCallInf3 {
-            solved_method_arg_tys,
-            solved_method_ret_ty,
         }
     }
 }
 
 pub fn infer_block_param(
-    mut inf: MethodCallInf1,
-    pre_block_arg_tys: &[&TermTy],
-) -> Result<MethodCallInf2> {
-    let equations = inf
-        .method_arg_tys
-        .iter()
-        .zip(pre_block_arg_tys.iter())
-        .map(|(l, r)| Equation(l.clone(), TmpTy::from(r)))
-        .collect::<Vec<_>>();
-    unify(equations, &mut inf.answer)?;
-    let solved_pre_block_arg_tys = inf.answer.apply_to_vec(&inf.pre_block_arg_tys())?;
-    let solved_block_param_tys = inf.answer.apply_to_vec(&inf.block_param_tys())?;
-    Ok(MethodCallInf2::new(
-        inf,
-        solved_pre_block_arg_tys,
-        solved_block_param_tys,
-    ))
-}
-
-pub fn infer_method_param(
     mut inf: MethodCallInf1,
     pre_block_arg_tys: &[&TermTy],
 ) -> Result<MethodCallInf2> {
@@ -180,28 +146,6 @@ pub fn infer_result_ty_with_block(
         TmpTy::from(&block_ty.tyargs().last().unwrap()),
     )];
     unify(equations, &mut inf.answer)?;
-    let solved_method_ret_ty = inf.answer.apply_to(&inf.method_ret_ty)?;
     let solved_block_ret_ty = inf.answer.apply_to(&inf.block_ret_ty)?;
-    Ok(MethodCallInf3::with_block(
-        inf,
-        solved_method_ret_ty,
-        solved_block_ret_ty,
-    ))
-}
-
-pub fn infer_result_ty_without_block(
-    inf: &mut MethodCallInf1,
-    arg_tys: &[&TermTy],
-) -> Result<MethodCallInf3> {
-    let equations = inf
-        .method_arg_tys
-        .iter()
-        .zip(arg_tys.iter())
-        .map(|(l, r)| Equation(l.clone(), TmpTy::from(r)))
-        .collect::<Vec<_>>();
-    unify(equations, &mut inf.answer)?;
-    Ok(MethodCallInf3::without_block(
-        inf.answer.apply_to_vec(&inf.method_arg_tys)?,
-        inf.answer.apply_to(&inf.method_ret_ty)?,
-    ))
+    Ok(MethodCallInf3::with_block(inf, solved_block_ret_ty))
 }
