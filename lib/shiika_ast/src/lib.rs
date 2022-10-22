@@ -185,14 +185,12 @@ pub enum AstExpressionBody {
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var` (TODO: rename to `readonly`?)
-        is_var: bool,
+        readonly: bool,
     },
     IVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var`
-        is_var: bool,
+        readonly: bool,
     },
     ConstAssign {
         names: Vec<String>,

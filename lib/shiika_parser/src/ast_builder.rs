@@ -174,7 +174,7 @@ impl AstBuilder {
             AstExpressionBody::LVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
+                readonly: false,
             },
         )
     }
@@ -192,7 +192,7 @@ impl AstBuilder {
             AstExpressionBody::IVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
+                readonly: false,
             },
         )
     }
@@ -210,7 +210,7 @@ impl AstBuilder {
             AstExpressionBody::IVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: false,
+                readonly: true,
             },
         )
     }
@@ -414,12 +414,12 @@ impl AstBuilder {
             AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
                 name: s,
                 rhs: Box::new(rhs),
-                is_var: false,
+                readonly: true,
             },
             AstExpressionBody::IVarRef(name) => AstExpressionBody::IVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: false,
+                readonly: true,
             },
             AstExpressionBody::CapitalizedName(names) => AstExpressionBody::ConstAssign {
                 names: names.0,

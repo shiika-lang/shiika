@@ -98,13 +98,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::Return { arg } => self.convert_return_expr(arg, &expr.locs),
 
-            AstExpressionBody::LVarAssign { name, rhs, is_var } => {
-                self.convert_lvar_assign(name, &*rhs, is_var, &expr.locs)
-            }
+            AstExpressionBody::LVarAssign {
+                name,
+                rhs,
+                readonly,
+            } => self.convert_lvar_assign(name, &*rhs, readonly, &expr.locs),
 
-            AstExpressionBody::IVarAssign { name, rhs, is_var } => {
-                self.convert_ivar_assign(name, &*rhs, is_var, &expr.locs)
-            }
+            AstExpressionBody::IVarAssign {
+                name,
+                rhs,
+                readonly,
+            } => self.convert_ivar_assign(name, &*rhs, readonly, &expr.locs),
 
             AstExpressionBody::ConstAssign { names, rhs } => {
                 self.convert_const_assign(names, &*rhs, &expr.locs)
@@ -356,12 +360,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         name: &str,
         rhs: &AstExpression,
-        is_var: &bool,
+        readonly: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         // For `var x`, `x` should not be exist
-        if *is_var && self._lookup_var(name, locs.clone()).is_some() {
+        if !*readonly && self._lookup_var(name, locs.clone()).is_some() {
             return Err(error::program_error(&format!(
                 "variable `{}' already exists",
                 name
@@ -387,7 +391,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Ok(lvar_info.assign_expr(expr))
         } else {
             // Create new lvar
-            self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
+            self.ctx_stack
+                .declare_lvar(name, expr.ty.clone(), *readonly);
             Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
         }
     }
@@ -396,19 +401,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         name: &str,
         rhs: &AstExpression,
-        is_var: &bool,
+        readonly: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
         if self.ctx_stack.in_initializer() {
-            let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
+            let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
             return Ok(Hir::ivar_assign(
                 name,
                 idx,
                 expr,
-                *is_var,
+                !*readonly,
                 base_ty,
                 locs.clone(),
             ));
