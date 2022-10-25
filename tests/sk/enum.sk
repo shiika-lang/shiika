@@ -1,12 +1,12 @@
-a = Some<Int>.new(1)
-b = None
-f = fn(x: Maybe<Int>) { x }
+let a = Some<Int>.new(1)
+let b = None
+let f = fn(x: Maybe<Int>) { x }
 f(a)
 f(b)
 unless a.value == 1; puts "ng Some#value"; end
 
-o = Ok<Int, Error>.new(0)
-e = Fail<Int, Error>.new(Error.new("fail"))
+let o = Ok<Int, Error>.new(0)
+let e = Fail<Int, Error>.new(Error.new("fail"))
 
 # Class method of enum
 enum EnumWithClassMethod
@@ -24,7 +24,7 @@ enum EnumWithInnerClass
     end
   end
 end
-obj = EnumWithInnerClass::InnerClassInEnum.new
+let obj = EnumWithInnerClass::InnerClassInEnum.new
 unless obj.foo == 1; puts "ng InnerClassInEnum#foo"; end
 
 puts "ok"

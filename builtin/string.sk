@@ -13,7 +13,7 @@ class String
 
   # Create a string by concatenating `self` and `other`
   def +(other: String) -> String
-    ret = MutableString.new
+    let ret = MutableString.new
     ret.append(self)
     ret.append(other)
     ret._unsafe_to_s
@@ -21,7 +21,7 @@ class String
 
   # Create a string by repeating `self` for `n` times
   def *(n: Int) -> String
-    ret = MutableString.new
+    let ret = MutableString.new
     n.times do |_|
       ret.append(self)
     end
@@ -46,7 +46,7 @@ class String
 
   # Create an array of bytes of `self`
   def bytes -> Array<Int>
-    ret = Array<Int>.new
+    let ret = Array<Int>.new
     each_byte do |b|
       ret.push(b)
     end
@@ -78,7 +78,7 @@ class String
     if s.bytesize > @bytesize
       false
     else
-      from = @bytesize - s.bytesize
+      let from = @bytesize - s.bytesize
       slice_bytes(from, s.bytesize) == s
     end
   end
@@ -106,7 +106,7 @@ class String
   #
   #   "hello".ljust(10, "!")  #=> "hello!!!!!"
   def ljust(width: Int, padding: String) -> String
-    s = MutableString.new
+    let s = MutableString.new
     s.append(self)
     while s.bytesize < width
       s.append(padding)
@@ -147,7 +147,7 @@ class String
     if from + bytes > @bytesize
       panic "[String#slice_bytes: `from + bytes` too large (from: \{from}, bytes: \{bytes}, self.bytesize: \{@bytesize})]"
     end
-    newptr = Shiika::Internal::Memory.gc_malloc(bytes+1)
+    let newptr = Shiika::Internal::Memory.gc_malloc(bytes+1)
     Shiika::Internal::Memory.memcpy(newptr, @ptr+from, bytes)
     String.new(newptr, bytes)
   end
@@ -157,7 +157,7 @@ class String
     if sep.bytesize == 0
       [self]
     else
-      ret = Array<String>.new
+      let ret = Array<String>.new
       var word_start = 0
       var sep_cur = 0
       var i = 0
@@ -209,7 +209,7 @@ class String
     var n = 0
     # TODO: Use each_byte (#177)
     var i = start; while i < @bytesize
-      b = self.nth_byte(i)
+      let b = self.nth_byte(i)
       if 48 <= b and b <= 57
         n *= 10
         n += b - 48
@@ -225,7 +225,7 @@ class String
 
   # Create mutable clone of `self`
   def to_mutable -> MutableString
-    ret = MutableString.new
+    let ret = MutableString.new
     ret.append(self)
     ret
   end

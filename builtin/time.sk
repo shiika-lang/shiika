@@ -10,7 +10,7 @@ class Time
   def initialize(@instant: Instant, @zone: Zone); end
 
   def inspect -> String
-    t = self.to_plain
+    let t = self.to_plain
     "#<Time(#{t.year}/#{t.month}/#{t.day} #{t.hour}:#{t.minute}:#{t.second}.#{t.nano_frac} @ \{@zone})>"
   end
 

@@ -5,13 +5,13 @@ class A
 end
 if A.foo([99]) != 99; puts "ng 1"; end
 
-a = Array<Array<Int>>.new
+let a = Array<Array<Int>>.new
 unless a.length == 0; puts "ng 2"; end
 
 # Type parameter substitution
 class Foo<T>
   def bar<W>(f: Fn1<T, W>) -> Int
-    foo = Foo<W>.new
+    let foo = Foo<W>.new
     foo.bar<Int>{|arg: W| 0} if false
     99
   end

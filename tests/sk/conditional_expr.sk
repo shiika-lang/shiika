@@ -3,11 +3,11 @@ class Helper
 end
 
 # Void + Never
-a = if true
-      Helper.void # Void
-    else
-      panic "" # Never
-    end
+let a = if true
+          Helper.void # Void
+        else
+          panic "" # Never
+        end
 
 # Never + Never
 class A
@@ -21,10 +21,10 @@ class A
 end
 
 # String + Object
-b = if true
-      ""
-    else
-      Object.new
-    end
+let b = if true
+          ""
+        else
+          Object.new
+        end
 
 puts "ok"

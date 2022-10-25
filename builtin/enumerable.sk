@@ -2,9 +2,9 @@ module Enumerable<E>
   requirement each(f: Fn1<E, Void>) -> Void
 
   def self.zip<A, B>(a_: Enumerable<A>, b_: Enumerable<B>) -> Array<Pair<A, B>>
-    a = a_.to_a
-    b = b_.to_a
-    ret = Array<Pair<A, B>>.new
+    let a = a_.to_a
+    let b = b_.to_a
+    let ret = Array<Pair<A, B>>.new
     match [a.length, b.length].min
     when Maybe::Some(n)
       0.upto(n-1) do |i|
@@ -78,7 +78,7 @@ module Enumerable<E>
   # Create a string by joining all items with separator.
   def join(separator: String) -> String
     var first = true
-    ret = MutableString.new
+    let ret = MutableString.new
     each do |item|
       if first
         first = false
@@ -92,7 +92,7 @@ module Enumerable<E>
 
   # Create a new array by calling `f` with each element
   def map<R>(f: Fn1<E, R>) -> Array<R>
-    ret = Array<R>.new
+    let ret = Array<R>.new
     self.each do |item|
       ret.push(f(item))
     end
@@ -110,7 +110,7 @@ module Enumerable<E>
 
   # Create an array which contains items of `self` for which `f` returns true
   def select(f: Fn1<E, Bool>) -> Array<E>
-    ret = Array<E>.new
+    let ret = Array<E>.new
     each do |item|
       ret.push(item) if f(item)
     end
@@ -119,7 +119,7 @@ module Enumerable<E>
 
   # Creates an array which contains all items of `self` 
   def to_a -> Array<E>
-    ret = Array<E>.new
+    let ret = Array<E>.new
     each do |item|
       ret.push(item)
     end

@@ -87,7 +87,7 @@ class A
 #  end
 
   def self.return_from_fn -> Int
-    f = fn(){ return 1; 2 } # Jumps to the end of this fn
+    let f = fn(){ return 1; 2 } # Jumps to the end of this fn
     f()
   end
 end

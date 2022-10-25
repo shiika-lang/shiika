@@ -8,7 +8,7 @@ class A
   # TODO: If B is here, indexing C fails as it finds B#initialize
   #class B; end
 end
-b = A::B.new
+let b = A::B.new
 unless A::C.new.foo(b) == 1 then puts "ng 1" end
 
 puts "ok"
