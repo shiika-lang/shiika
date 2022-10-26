@@ -6,7 +6,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   class Table<KK, VV>
     def initialize
-      @pairs = Array<Pair<KK, VV>>.new
+      let @pairs = Array<Pair<KK, VV>>.new
     end
 
     # Set the value of specified key.
@@ -69,7 +69,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
   end
 
   def initialize
-    @tables = Array<Dict::Table<K, V>>.new
+    let @tables = Array<Dict::Table<K, V>>.new
     N_TABLES.times{|_| @tables.push(Dict::Table<K, V>.new) }
   end
 

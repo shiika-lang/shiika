@@ -14,7 +14,7 @@ unless sub1.foo == 1 then puts "ng 1" end
 # Inherit initializer
 class Base2
   def initialize
-    @a = 9
+    let @a = 9
   end
 end
 
@@ -30,14 +30,14 @@ unless sub2.a == 9 then puts "ng 2" end
 # Inherit ivars
 class Base3
   def initialize(i: Int)
-    @a = i
+    let @a = i
   end
 end
 
 class Sub3 : Base3
   def initialize
-    @a = 2
-    @b = 2.0
+    let @a = 2
+    let @b = 2.0
   end
 end
 
