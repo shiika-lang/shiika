@@ -59,8 +59,9 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
+                    let readonly = token == Token::KwLet;
                     let end = self.lexer.location();
-                    expr = self.ast.ivar_decl(name, rhs, begin, end);
+                    expr = self.ast.ivar_decl(name, rhs, readonly, begin, end);
                 }
                 token => return Err(parse_error!(self, "invalid var name: {:?}", token)),
             }

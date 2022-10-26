@@ -191,10 +191,14 @@ pub enum AstExpressionBody {
         name: String,
         rhs: Box<AstExpression>,
     },
-    IVarAssign {
+    IVarDecl {
         name: String,
         rhs: Box<AstExpression>,
         readonly: bool,
+    },
+    IVarAssign {
+        name: String,
+        rhs: Box<AstExpression>,
     },
     ConstAssign {
         names: Vec<String>,

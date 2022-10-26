@@ -108,11 +108,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 self.convert_lvar_assign(name, &*rhs, &expr.locs)
             }
 
-            AstExpressionBody::IVarAssign {
+            AstExpressionBody::IVarDecl {
                 name,
                 rhs,
                 readonly,
-            } => self.convert_ivar_assign(name, &*rhs, readonly, &expr.locs),
+            } => self.convert_ivar_decl(name, &*rhs, readonly, &expr.locs),
+
+            AstExpressionBody::IVarAssign { name, rhs } => {
+                self.convert_ivar_assign(name, &*rhs, &expr.locs)
+            }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
                 self.convert_const_assign(names, &*rhs, &expr.locs)
@@ -408,27 +412,39 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_ivar_assign(
+    /// Instance variable declaration
+    fn convert_ivar_decl(
         &mut self,
         name: &str,
         rhs: &AstExpression,
         readonly: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
+        if !self.ctx_stack.in_initializer() {
+            return Err(error::ivar_decl_outside_initializer(name, locs))
+        }
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
+        let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
+        return Ok(Hir::ivar_assign(
+            name,
+            idx,
+            expr,
+            !*readonly,
+            base_ty,
+            locs.clone(),
+        ));
+    }
 
-        if self.ctx_stack.in_initializer() {
-            let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
-            return Ok(Hir::ivar_assign(
-                name,
-                idx,
-                expr,
-                !*readonly,
-                base_ty,
-                locs.clone(),
-            ));
-        }
+    /// Instance variable reassignment (`@a = ...`)
+    fn convert_ivar_assign(
+        &mut self,
+        name: &str,
+        rhs: &AstExpression,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        let expr = self.convert_expr(rhs)?;
+        let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
         if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
             if ivar.readonly {
@@ -453,10 +469,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 locs.clone(),
             ))
         } else {
-            Err(error::program_error(&format!(
-                "instance variable `{}' not found",
-                name
-            )))
+            Err(error::assign_to_undeclared_ivar(name, locs))
         }
     }
 
