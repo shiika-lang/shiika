@@ -23,6 +23,13 @@ end
 
 task :default => :test
 
+task :compile do
+  cd "lib/skc_rustlib" do
+    sh "cargo build"
+  end
+  sh "cargo run -- build-corelib"
+end
+
 task :test do
   cd "lib/skc_rustlib" do
     sh "cargo build"
@@ -46,6 +53,13 @@ task :release_test do
   end
 end
 
+task :llvm do
+  cd "lib/skc_rustlib" do
+    sh "cargo rustc -- --emit=llvm-ir -C debuginfo=0 -C opt-level=3 "
+  end
+  # ~/tmp/cargo_target/debug/deps/
+end
+
 RUST_FILES = Dir["lib/**/*.rs"] + Dir["src/*.rs"]
 RUSTLIB_SIG = "lib/skc_rustlib/provided_methods.json5"
 
@@ -53,11 +67,11 @@ RUSTLIB_FILES = [
   *Dir["lib/skc_rustlib/src/**/*.rs"],
   RUSTLIB_SIG,
   "lib/skc_rustlib/Cargo.toml",
+  "lib/skc_rustlib/Cargo.lock",
 ]
-RUSTLIB_A = "lib/skc_rustlib/target/debug/libskc_rustlib.a"
+RUSTLIB_A = File.expand_path "~/tmp/cargo_target/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
   cd "lib/skc_rustlib" do
-    #sh "cargo fmt"
     sh "cargo build"
   end
 end
@@ -87,11 +101,11 @@ end
 
 A_BC = "./a.sk.bc"
 file A_BC => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "./a.sk"] do
-  sh "cargo run -- run ./a.sk"
+  sh "cargo run -- compile ./a.sk"
 end
 A_LL = "./a.sk.ll"
 file A_LL => RUST_FILES + [BUILTIN_BC, RUSTLIB_A, "./a.sk"] do
-  sh "cargo run -- run ./a.ll"
+  sh "cargo run -- compile ./a.sk"
 end
 
 DEBUG_LL = "./a.sk.debug.ll"
@@ -106,16 +120,18 @@ file DEBUG_OUT => [A_BC, BUILTIN_BC, RUSTLIB_A, DEBUG_LL] do
     "-ldl",
     "-lpthread",
     "-o", DEBUG_OUT,
+    "-O0",
     BUILTIN_BC,
     RUSTLIB_A,
-    SK_LL
+    DEBUG_LL
 end
 
 task :debugify => DEBUG_OUT
 
-#task :a => [:fmt, A_OUT]
-task :a => [:fmt] do
-#   sh "cargo run -- run a.sk"
-  sh "cargo run -- run ~/proj/BidirectionalTypechecking/bidi.sk"
-end
+task :a => [:fmt, A_OUT]
+#task :a => [:fmt] do
+#  sh "cargo run -- run a.sk"
+ #sh "cargo run -- run ~/proj/BidirectionalTypechecking/bidi.sk"
+ #sh "cargo run -- run /Users/yhara/proj/BidirectionalTypechecking/sexp.sk"
+#end
 
