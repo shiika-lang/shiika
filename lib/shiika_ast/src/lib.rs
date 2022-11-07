@@ -182,17 +182,23 @@ pub enum AstExpressionBody {
     Return {
         arg: Option<Box<AstExpression>>,
     },
+    LVarDecl {
+        name: String,
+        rhs: Box<AstExpression>,
+        readonly: bool,
+    },
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var` (TODO: rename to `readonly`?)
-        is_var: bool,
+    },
+    IVarDecl {
+        name: String,
+        rhs: Box<AstExpression>,
+        readonly: bool,
     },
     IVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var`
-        is_var: bool,
     },
     ConstAssign {
         names: Vec<String>,

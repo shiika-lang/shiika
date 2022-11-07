@@ -37,8 +37,8 @@ impl<'a> Parser<'a> {
         self.debug_log("parse_var_decl");
         let begin = self.lexer.location();
         let expr;
-        if self.current_token_is(Token::KwVar) {
-            self.consume_token()?;
+        if self.current_token_is(Token::KwLet) || self.current_token_is(Token::KwVar) {
+            let token = self.consume_token()?;
             self.skip_ws()?;
             match self.current_token() {
                 Token::LowerWord(s) => {
@@ -48,8 +48,9 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
+                    let readonly = token == Token::KwLet;
                     let end = self.lexer.location();
-                    expr = self.ast.lvar_decl(name, rhs, begin, end);
+                    expr = self.ast.lvar_decl(name, rhs, readonly, begin, end);
                 }
                 Token::IVar(s) => {
                     let name = s.to_string();
@@ -58,8 +59,9 @@ impl<'a> Parser<'a> {
                     self.expect(Token::Equal)?;
                     self.skip_wsn()?;
                     let rhs = self.parse_operator_expr()?;
+                    let readonly = token == Token::KwLet;
                     let end = self.lexer.location();
-                    expr = self.ast.ivar_decl(name, rhs, begin, end);
+                    expr = self.ast.ivar_decl(name, rhs, readonly, begin, end);
                 }
                 token => return Err(parse_error!(self, "invalid var name: {:?}", token)),
             }

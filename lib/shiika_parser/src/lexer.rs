@@ -375,6 +375,7 @@ impl<'a> Lexer<'a> {
             "out" => (Token::KwOut, LexerState::ExprBegin),
             "end" => (Token::KwEnd, LexerState::ExprEnd),
             "def" => (Token::KwDef, LexerState::ExprBegin),
+            "let" => (Token::KwLet, LexerState::ExprBegin),
             "var" => (Token::KwVar, LexerState::ExprBegin),
             "and" => (Token::KwAnd, LexerState::ExprBegin),
             "or" => (Token::KwOr, LexerState::ExprBegin),

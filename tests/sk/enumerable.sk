@@ -1,4 +1,4 @@
-s = [1,2,3].map<String>{|i: Int|
+let s = [1,2,3].map<String>{|i: Int|
   i.to_s
 }.join(", ")
 unless s == "1, 2, 3"; puts "ng Array#map"; end

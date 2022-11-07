@@ -358,6 +358,7 @@ impl<'a> Parser<'a> {
     /// `def initialize(a: Int); @a = a`.
     /// Returns expressions like `@a = a`
     fn iparam_exprs(&self, params: &[Param]) -> Vec<shiika_ast::AstExpression> {
+        let readonly = true; // TODO: Allow `(var @a: Int)`?
         params
             .iter()
             .filter(|param| param.is_iparam)
@@ -367,9 +368,10 @@ impl<'a> Parser<'a> {
                     col: 0,
                     line: 0,
                 };
-                self.ast.ivar_assign(
+                self.ast.ivar_decl(
                     param.name.clone(),
                     self.ast.bare_name(&param.name, loc.clone(), loc.clone()),
+                    readonly,
                     loc.clone(),
                     loc.clone(),
                 )

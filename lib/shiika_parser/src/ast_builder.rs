@@ -165,16 +165,17 @@ impl AstBuilder {
         &self,
         name: String,
         rhs: AstExpression,
+        readonly: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::LVarAssign {
+            AstExpressionBody::LVarDecl {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
+                readonly,
             },
         )
     }
@@ -183,34 +184,17 @@ impl AstBuilder {
         &self,
         name: String,
         rhs: AstExpression,
+        readonly: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::IVarAssign {
+            AstExpressionBody::IVarDecl {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
-            },
-        )
-    }
-
-    pub fn ivar_assign(
-        &self,
-        name: String,
-        rhs: AstExpression,
-        begin: Location,
-        end: Location,
-    ) -> AstExpression {
-        self.non_primary_expression(
-            begin,
-            end,
-            AstExpressionBody::IVarAssign {
-                name,
-                rhs: Box::new(rhs),
-                is_var: false,
+                readonly,
             },
         )
     }
@@ -414,12 +398,10 @@ impl AstBuilder {
             AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
                 name: s,
                 rhs: Box::new(rhs),
-                is_var: false,
             },
             AstExpressionBody::IVarRef(name) => AstExpressionBody::IVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: false,
             },
             AstExpressionBody::CapitalizedName(names) => AstExpressionBody::ConstAssign {
                 names: names.0,

@@ -6,7 +6,7 @@ unless Class.name == "Class"; puts "ng Class"; end
 unless Class.class.name == "Meta:Class"; puts "ng Meta:Class"; end
 unless Class.class.class.name == "Metaclass"; puts "ng Class Metaclass"; end
 
-metaclass = Int.class.class
+let metaclass = Int.class.class
 unless Metaclass == metaclass; puts "ng Metaclass"; end
 unless metaclass.name == "Metaclass"; puts "ng Metaclass"; end
 unless metaclass.class == Metaclass; puts "ng metaclass.class"; end
