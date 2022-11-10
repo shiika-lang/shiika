@@ -2,7 +2,7 @@
 
 - Syntax
 - [Basic Concepts](./basic_concepts.md)
-- [Types](./types)
+- [Types](./types.md)
 - [Classes](./classes.md)
 - [Enums](./enums.md)
 - [Expressions](./expressions.md)
