@@ -3,6 +3,7 @@ use crate::convert_exprs::block::BlockTaker;
 use crate::error::type_error;
 use crate::type_inference::method_call_inf;
 use anyhow::Result;
+use shiika_ast::LocationSpan;
 use shiika_core::{ty, ty::*};
 use skc_error::{self, Label};
 use skc_hir::*;
@@ -202,6 +203,29 @@ pub fn check_block_arity(
     let locs = &block_taker.locs();
     let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    Err(type_error(report))
+}
+
+pub fn check_class_specialization(
+    class: &SkType,
+    given_tyargs: &[HirExpression],
+    locs: &LocationSpan,
+) -> Result<()> {
+    let expected = class.base().typarams.len();
+    if expected == given_tyargs.len() {
+        return Ok(());
+    }
+
+    let main_msg = format!(
+        "the type {} takes {} type arg(s) but got {}",
+        class.fullname(),
+        expected,
+        given_tyargs.len()
+    );
+    let sub_msg = format!("should take {} type arg(s)", expected,);
+    let report = skc_error::build_report(main_msg, locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(sub_msg))
     });
     Err(type_error(report))
 }
