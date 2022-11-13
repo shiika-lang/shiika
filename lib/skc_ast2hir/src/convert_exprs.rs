@@ -837,6 +837,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             type_args.push(cls_expr.ty.as_type_argument());
             arg_exprs.push(cls_expr);
         }
+
+        let sk_type = self
+            .class_dict
+            .get_type(&base_expr.ty.instance_ty().fullname.to_type_fullname());
+        type_checking::check_class_specialization(&sk_type, &arg_exprs, &locs)?;
+
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
         Ok(Hir::method_call(
             meta_spe_ty,
