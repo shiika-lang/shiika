@@ -167,7 +167,7 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
-            _ => panic!("instance_ty is undefined for {:?}", self),
+            TyPara(_) => self.clone(),
         }
     }
 
