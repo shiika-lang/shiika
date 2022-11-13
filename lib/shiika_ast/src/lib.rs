@@ -148,6 +148,7 @@ pub struct UnresolvedTypeName {
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,
+    /// Can invoke method with `.foo`
     pub primary: bool,
     pub locs: LocationSpan,
 }
@@ -205,6 +206,11 @@ pub enum AstExpressionBody {
         rhs: Box<AstExpression>,
     },
     MethodCall(AstMethodCall),
+    LambdaInvocation {
+        fn_expr: Box<AstExpression>,
+        arg_exprs: Vec<AstExpression>,
+        has_block: bool,
+    },
     LambdaExpr {
         params: Vec<BlockParam>,
         exprs: Vec<AstExpression>,

@@ -895,7 +895,7 @@ impl<'a> Parser<'a> {
             Token::Number(_) => self.parse_decimal_literal(),
             Token::Str(_) => self.parse_string_literal(),
             Token::StrWithInterpolation { .. } => self.parse_string_with_interpolation(),
-            Token::LParen => self.parse_parenthesized_expr(),
+            Token::LParen => self.parse_parenthesized_funcall(),
             token => Err(parse_error!(self, "unexpected token: {:?}", token)),
         }?;
         self.lv -= 1;
@@ -1050,6 +1050,30 @@ impl<'a> Parser<'a> {
         Ok(self.ast.lambda_expr(params, exprs, true, begin, end))
     }
 
+    // `(fn_expr)(args, ...)`
+    fn parse_parenthesized_funcall(&mut self) -> Result<AstExpression, Error> {
+        self.lv += 1;
+        self.debug_log("parse_parenthesized_funcall");
+        let begin = self.lexer.location();
+        let mut expr = self.parse_parenthesized_expr()?;
+        if self.current_token_is(Token::LParen) {
+            let mut args = self.parse_paren_and_args()?;
+            let has_block = if let Some(lambda) = self.parse_opt_block()? {
+                args.push(lambda);
+                true
+            } else {
+                false
+            };
+            let end = self.lexer.location();
+            expr = self
+                .ast
+                .lambda_invocation(expr, args, has_block, begin, end);
+        }
+        self.lv -= 1;
+        Ok(expr)
+    }
+
+    // `(expr)`
     fn parse_parenthesized_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_parenthesized_expr");

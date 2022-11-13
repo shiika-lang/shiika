@@ -235,6 +235,25 @@ impl AstBuilder {
         )
     }
 
+    pub fn lambda_invocation(
+        &self,
+        fn_expr: AstExpression,
+        arg_exprs: Vec<AstExpression>,
+        has_block: bool,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::LambdaInvocation {
+                fn_expr: Box::new(fn_expr),
+                arg_exprs,
+                has_block,
+            },
+        )
+    }
+
     pub fn lambda_expr(
         &self,
         params: Vec<BlockParam>,
