@@ -139,6 +139,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 &expr.locs,
             ),
 
+            AstExpressionBody::LambdaInvocation {
+                fn_expr,
+                arg_exprs,
+                has_block,
+            } => {
+                let hir_fn_expr = self.convert_expr(fn_expr)?;
+                method_call::convert_lambda_invocation(
+                    self,
+                    hir_fn_expr,
+                    arg_exprs,
+                    has_block,
+                    &expr.locs,
+                )
+            }
+
             AstExpressionBody::LambdaExpr {
                 params,
                 exprs,
@@ -421,7 +436,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         if !self.ctx_stack.in_initializer() {
-            return Err(error::ivar_decl_outside_initializer(name, locs))
+            return Err(error::ivar_decl_outside_initializer(name, locs));
         }
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();

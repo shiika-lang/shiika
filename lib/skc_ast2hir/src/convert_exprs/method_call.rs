@@ -1,5 +1,5 @@
 use crate::class_dict::FoundMethod;
-use crate::convert_exprs::{block, block::BlockTaker, LVarInfo};
+use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
 use crate::type_inference::method_call_inf;
@@ -21,8 +21,8 @@ pub fn convert_method_call(
     // Check if this is a lambda invocation
     if receiver_expr.is_none() {
         if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone()) {
-            if let Some(hir) = convert_lambda_invocation(mk, arg_exprs, has_block, locs, lvar)? {
-                return Ok(hir);
+            if lvar.ty.fn_x_info().is_some() {
+                return convert_lambda_invocation(mk, lvar.ref_expr(), arg_exprs, has_block, locs);
             }
         }
     }
@@ -73,35 +73,30 @@ pub fn convert_method_call(
 }
 
 /// Returns `Some` if the method call is a lambda invocation.
-fn convert_lambda_invocation(
+pub fn convert_lambda_invocation(
     mk: &mut HirMaker,
+    fn_expr: HirExpression,
     arg_exprs: &[AstExpression],
     has_block: &bool,
     locs: &LocationSpan,
-    lvar: LVarInfo,
-) -> Result<Option<HirExpression>> {
-    let tys = if let Some(tys) = lvar.ty.fn_x_info() {
-        tys
-    } else {
-        return Ok(None);
-    };
+) -> Result<HirExpression> {
     let (arg_hirs, _) = convert_method_args(
         mk,
         None,
         &BlockTaker::Function {
-            fn_ty: &lvar.ty,
+            fn_ty: &fn_expr.ty,
             locs,
         },
         arg_exprs,
         has_block, // true if `f(){ ... }`, for example.
     )?;
-    let ret_ty = tys.last().unwrap();
-    Ok(Some(Hir::lambda_invocation(
-        ret_ty.clone(),
-        lvar.ref_expr(),
+    let ret_ty = fn_expr.ty.fn_x_info().unwrap().last().unwrap().clone();
+    Ok(Hir::lambda_invocation(
+        ret_ty,
+        fn_expr,
         arg_hirs,
         locs.clone(),
-    )))
+    ))
 }
 
 /// Resolve a method tyarg (a ConstName) into a TermTy

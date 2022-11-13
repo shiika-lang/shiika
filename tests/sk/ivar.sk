@@ -8,4 +8,16 @@ unless a.i == 1 then puts "ng 1" end
 a.i = 2
 unless a.i == 2 then puts "ng 2" end
 
+# Store function to ivar and call it
+class IvarFn
+  def initialize
+    let @inc = fn(x: Int){ x + 1 }
+  end
+
+  def foo -> Int
+    (@inc)(2)
+  end
+end
+unless IvarFn.new.foo == 3; puts "ng IvarFn"; end
+
 puts "ok"
