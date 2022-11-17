@@ -53,6 +53,7 @@ pub fn convert_method_call(
     let inf1 = if found.sig.typarams.len() > 0 && type_args.is_empty() {
         Some(method_call_inf::MethodCallInf1::new(&found.sig, *has_block))
     } else if *has_block {
+        type_checking::check_takes_block(&found.sig, locs)?;
         Some(method_call_inf::MethodCallInf1::infer_block(&found.sig))
     } else {
         None

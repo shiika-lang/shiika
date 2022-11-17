@@ -1,0 +1,9 @@
+# This file contains various errornous Shiika program.
+# The compiler should not panic and show compile error instead.
+
+# #424
+class A
+  def foo
+  end
+end
+A.new.foo{}

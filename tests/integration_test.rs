@@ -24,6 +24,15 @@ fn test_compile_and_run() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn test_no_panic() -> Result<()> {
+    let path = "tests/no_panic.sk";
+    // `compile` may return an Err here; it just should not panic.
+    let _ = runner::compile(path);
+    runner::cleanup(path)?;
+    Ok(())
+}
+
 /// Execute tests/sk/x.sk
 /// Fail if it prints something
 fn run_sk_test(path: &str) -> Result<()> {
