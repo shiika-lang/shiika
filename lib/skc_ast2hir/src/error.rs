@@ -82,4 +82,3 @@ pub fn assign_to_undeclared_ivar(name: &str, locs: &LocationSpan) -> anyhow::Err
     });
     program_error(report)
 }
-
