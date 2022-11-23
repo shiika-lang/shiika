@@ -56,7 +56,7 @@ pub fn convert_block(
             is_fn,
         } => {
             debug_assert!(!is_fn);
-            _convert_block(mk, block_taker, inf, params, exprs)
+            _convert_block(mk, block_taker, inf, params, exprs, arg_expr.locs.clone())
         }
         _ => panic!("expected LambdaExpr but got {:?}", arg_expr),
     }
@@ -71,6 +71,7 @@ fn _convert_block(
     inf: &method_call_inf::MethodCallInf2,
     params: &[shiika_ast::BlockParam],
     body_exprs: &[AstExpression],
+    locs: LocationSpan,
 ) -> Result<HirExpression> {
     type_checking::check_block_arity(block_taker, inf, params)?;
 
@@ -97,7 +98,7 @@ fn _convert_block(
         mk._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
         extract_lvars(&mut lambda_ctx.lvars),             // lvars
         lambda_ctx.has_break,
-        LocationSpan::todo(),
+        locs,
     ))
 }
 
