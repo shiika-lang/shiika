@@ -67,7 +67,6 @@ RUSTLIB_FILES = [
   *Dir["lib/skc_rustlib/src/**/*.rs"],
   RUSTLIB_SIG,
   "lib/skc_rustlib/Cargo.toml",
-  "lib/skc_rustlib/Cargo.lock",
 ]
 RUSTLIB_A = File.expand_path "~/tmp/cargo_target/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
