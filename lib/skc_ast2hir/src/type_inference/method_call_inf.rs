@@ -52,14 +52,22 @@ impl MethodCallInf1 {
     pub fn pre_block_arg_tys(&self) -> &[TmpTy] {
         debug_assert!(&self.has_block);
         let tys = &self.method_arg_tys;
-        &tys[..tys.len() - 1]
+        if tys.is_empty() {
+            &[]
+        } else {
+            &tys[..tys.len() - 1]
+        }
     }
 
     pub fn block_param_tys(&self) -> &[TmpTy] {
         debug_assert!(&self.has_block);
         let block_ty = self.method_arg_tys.last().unwrap();
         let tys = block_ty.type_args().unwrap();
-        &tys[..tys.len() - 1]
+        if tys.is_empty() {
+            &[]
+        } else {
+            &tys[..tys.len() - 1]
+        }
     }
 
     pub fn block_ret_ty(&self) -> &TmpTy {
