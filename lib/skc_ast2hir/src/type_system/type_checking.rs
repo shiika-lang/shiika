@@ -38,7 +38,7 @@ pub fn check_return_value(
         Ok(())
     } else {
         Err(type_error!(
-            "{} should return {:?} but returns {:?}",
+            "{} should return {} but returns {}",
             sig.fullname,
             sig.ret_ty,
             ty
