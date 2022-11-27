@@ -100,6 +100,7 @@ impl MethodCallInf2 {
 }
 
 /// Phase 3 (All solved)
+#[derive(Debug)]
 pub struct MethodCallInf3 {
     pub solved_method_arg_tys: Vec<TermTy>,
     // Not used in current implementation
