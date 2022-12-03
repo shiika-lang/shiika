@@ -51,7 +51,8 @@ pub fn convert_method_call(
     }
 
     let inf1 = if found.sig.typarams.len() > 0 && type_args.is_empty() {
-        Some(method_call_inf::MethodCallInf1::new(&found.sig, *has_block))
+        let sig = &found.sig; //.specialize(class_tyargs, method_tyargs);
+        Some(method_call_inf::MethodCallInf1::new(sig, *has_block))
     } else if *has_block {
         type_checking::check_takes_block(&found.sig, locs)?;
         Some(method_call_inf::MethodCallInf1::infer_block(&found.sig))
@@ -229,20 +230,20 @@ fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> 
 }
 
 fn build_hir(
+    // The method
     found: &FoundMethod,
+    // The class/module which has the method
     owner: &SkType,
     receiver_hir: HirExpression,
     arg_hirs: Vec<HirExpression>,
 ) -> HirExpression {
+    let ret_ty = found.sig.ret_ty.clone(); //substitute(class_tyargs, method_tyargs);
     match owner {
-        SkType::Class(_) => Hir::method_call(
-            found.sig.ret_ty.clone(),
-            receiver_hir,
-            found.sig.fullname.clone(),
-            arg_hirs,
-        ),
+        SkType::Class(_) => {
+            Hir::method_call(ret_ty, receiver_hir, found.sig.fullname.clone(), arg_hirs)
+        }
         SkType::Module(sk_module) => Hir::module_method_call(
-            found.sig.ret_ty.clone(),
+            ret_ty,
             receiver_hir,
             sk_module.fullname(),
             found.sig.fullname.first_name.clone(),

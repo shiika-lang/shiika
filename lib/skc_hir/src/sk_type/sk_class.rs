@@ -4,6 +4,7 @@ use crate::superclass::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ClassFullname;
+use shiika_core::ty::{TermTy, TyBody};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -60,5 +61,56 @@ impl SkClass {
 
     pub fn fullname(&self) -> ClassFullname {
         self.base.erasure.to_class_fullname()
+    }
+
+    /// Returns supertype of `self` with given `type_args`.
+    /// eg. given `class B<Y, X> : A<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
+    /// returns `A<Bool>`.
+    pub fn specialized_superclass(&self, type_args: &[TermTy]) -> Option<TermTy> {
+        self.superclass.as_ref().map(|sup| {
+            let tyargs = sup
+                .type_args()
+                .iter()
+                .map(|t| match &t.body {
+                    TyBody::TyRaw(x) => x.to_term_ty(),
+                    TyBody::TyPara(tpref) => {
+                        match self
+                            .base
+                            .typarams
+                            .iter()
+                            .position(|tp| tp.name == tpref.name)
+                        {
+                            Some(idx) => type_args[idx].clone(),
+                            _ => panic!("broken superclass."),
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+            sup.ty().substitute(&tyargs, Default::default())
+        })
+    }
+
+    /// Returns type args to specialize included module.
+    /// eg. given `class B<Y, X> : M<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
+    /// returns `[Bool]`.
+    pub fn specialize_module(&self, modinfo: &Superclass, type_args: &[TermTy]) -> Vec<TermTy> {
+        modinfo
+            .type_args()
+            .iter()
+            .map(|t| match &t.body {
+                TyBody::TyRaw(x) => x.to_term_ty(),
+                TyBody::TyPara(tpref) => {
+                    match self
+                        .base
+                        .typarams
+                        .iter()
+                        .position(|tp| tp.name == tpref.name)
+                    {
+                        Some(idx) => type_args[idx].clone(),
+                        _ => panic!("broken superclass."),
+                    }
+                }
+            })
+            .collect::<Vec<_>>()
     }
 }

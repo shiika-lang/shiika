@@ -31,4 +31,15 @@ result = A.one{|i: Int|
 }
 unless result == 2; puts "assignment rhs/brace/multiline"; end
 
+# Should pass type check (#426)
+class B
+  def foo(g: Fn1<Int, Int>)
+    bar(){
+      let z = Some<Int>.new(0)
+      z.map{|x| g(x + 1)}
+    }
+  end
+  def bar(f: Fn0<Maybe<Int>>); end
+end
+
 puts "ok"

@@ -159,7 +159,11 @@ fn check_arg_type(
     param: &MethodParam,
     inferred: &Option<&TermTy>,
 ) -> Result<()> {
-    let expected = if let Some(t) = inferred { t } else { &param.ty };
+    if inferred.is_some() {
+        // Type inferrence succeed == no type error found
+        return Ok(());
+    }
+    let expected = &param.ty;
     let arg_ty = &arg_hir.ty;
     if class_dict.conforms(arg_ty, expected) {
         return Ok(());
