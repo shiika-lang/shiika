@@ -38,7 +38,7 @@ pub fn check_return_value(
         Ok(())
     } else {
         Err(type_error!(
-            "{} should return {:?} but returns {:?}",
+            "{} should return {} but returns {}",
             sig.fullname,
             sig.ret_ty,
             ty
@@ -104,7 +104,7 @@ pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> 
 pub fn check_method_args(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    receiver_hir: &HirExpression,
+    _receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
     inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
@@ -115,9 +115,9 @@ pub fn check_method_args(
 
     if result.is_err() {
         // Remove this when shiika can show the location in the .sk
-        dbg!(&receiver_hir);
-        dbg!(&sig.fullname);
-        dbg!(&arg_hirs);
+        //dbg!(&receiver_hir);
+        //dbg!(&sig.fullname);
+        //dbg!(&arg_hirs);
     }
     result
 }
@@ -159,7 +159,11 @@ fn check_arg_type(
     param: &MethodParam,
     inferred: &Option<&TermTy>,
 ) -> Result<()> {
-    let expected = if let Some(t) = inferred { t } else { &param.ty };
+    if inferred.is_some() {
+        // Type inferrence succeed == no type error found
+        return Ok(());
+    }
+    let expected = &param.ty;
     let arg_ty = &arg_hir.ty;
     if class_dict.conforms(arg_ty, expected) {
         return Ok(());

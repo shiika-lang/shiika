@@ -71,7 +71,7 @@ fn check_signature_matches(
     let msig = mod_sig.specialize(sup.ty().tyargs(), Default::default());
     if !sig.equivalent_to(&msig) {
         return Err(error::program_error(&format!(
-            "signature does not match (class': {:?}, module's: {:?})",
+            "signature does not match:\n  class': {}\n  module's: {}",
             sig, msig,
         )));
     }

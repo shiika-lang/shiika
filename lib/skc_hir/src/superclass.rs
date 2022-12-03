@@ -38,6 +38,13 @@ impl Superclass {
         &self.0
     }
 
+    pub fn type_args(&self) -> &[TermTy] {
+        match &self.0.body {
+            TyBody::TyRaw(lit_ty) => &lit_ty.type_args,
+            _ => panic!("broken Superclass"),
+        }
+    }
+
     pub fn erasure(&self) -> Erasure {
         self.0.erasure()
     }

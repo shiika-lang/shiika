@@ -79,16 +79,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     if let Some(mut found) =
                         self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
                     {
-                        found.specialize(modinfo.ty().tyargs(), Default::default());
-                        found.specialize(class_tyargs, method_tyargs);
+                        let mod_tyargs = sk_class.specialize_module(modinfo, &class_tyargs);
+                        found.specialize(&mod_tyargs, method_tyargs);
                         return Ok(found);
                     }
                 }
                 // Look up in superclass
-                if let Some(superclass) = &sk_class.superclass {
+                if let Some(super_ty) = &sk_class.specialized_superclass(&class_tyargs) {
                     return self.lookup_method_(
                         receiver_type,
-                        superclass.ty(),
+                        super_ty,
                         method_name,
                         method_tyargs,
                     );
