@@ -271,17 +271,7 @@ impl TermTy {
                     }
                 }
             },
-            TyRaw(LitTy {
-                base_name,
-                type_args,
-                is_meta,
-            }) => {
-                let args = type_args
-                    .iter()
-                    .map(|t| t.substitute(class_tyargs, method_tyargs))
-                    .collect();
-                ty::new(base_name, args, *is_meta)
-            }
+            TyRaw(lit_ty) => lit_ty.substitute(class_tyargs, method_tyargs).into(),
         }
     }
 

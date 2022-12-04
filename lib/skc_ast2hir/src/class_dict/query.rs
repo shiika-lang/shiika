@@ -88,7 +88,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 if let Some(super_ty) = &sk_class.specialized_superclass(&class_tyargs) {
                     return self.lookup_method_(
                         receiver_type,
-                        super_ty,
+                        &super_ty.to_term_ty(),
                         method_name,
                         method_tyargs,
                     );
@@ -191,9 +191,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Returns supertype of `ty` (except it is `Object`)
-    pub fn supertype(&self, ty: &TermTy) -> Option<TermTy> {
+    pub fn supertype(&self, ty: &TermTy) -> Option<LitTy> {
         match &ty.body {
-            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.to_term_ty()),
+            TyBody::TyPara(TyParamRef { upper_bound, .. }) => Some(upper_bound.clone()),
             _ => self
                 .get_class(&ty.erasure().to_class_fullname())
                 .superclass
@@ -228,10 +228,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.get_class(classname).superclass.as_ref().map(|scls| {
             let ty = scls.ty();
             let ivars = &self.get_class(&ty.erasure().to_class_fullname()).ivars;
-            let tyargs = ty.tyargs();
             ivars
                 .iter()
-                .map(|(name, ivar)| (name.clone(), ivar.substitute(tyargs)))
+                .map(|(name, ivar)| (name.clone(), ivar.substitute(&ty.type_args)))
                 .collect()
         })
     }

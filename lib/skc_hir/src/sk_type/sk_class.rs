@@ -4,7 +4,7 @@ use crate::superclass::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ClassFullname;
-use shiika_core::ty::{TermTy, TyBody};
+use shiika_core::ty::{LitTy, TermTy, TyBody};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ impl SkClass {
     /// Returns supertype of `self` with given `type_args`.
     /// eg. given `class B<Y, X> : A<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
     /// returns `A<Bool>`.
-    pub fn specialized_superclass(&self, type_args: &[TermTy]) -> Option<TermTy> {
+    pub fn specialized_superclass(&self, type_args: &[TermTy]) -> Option<LitTy> {
         self.superclass.as_ref().map(|sup| {
             let tyargs = sup
                 .type_args()

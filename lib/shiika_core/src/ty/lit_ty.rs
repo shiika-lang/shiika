@@ -54,4 +54,13 @@ impl LitTy {
     pub fn erasure(&self) -> Erasure {
         Erasure::new(self.base_name.clone(), self.is_meta)
     }
+
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> LitTy {
+        let args = self
+            .type_args
+            .iter()
+            .map(|t| t.substitute(class_tyargs, method_tyargs))
+            .collect();
+        LitTy::new(self.base_name.clone(), args, self.is_meta)
+    }
 }

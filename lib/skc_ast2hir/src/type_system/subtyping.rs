@@ -10,28 +10,29 @@ pub fn conforms(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
         true
     } else if ty1.equals_to(ty2) {
         true
-    } else if let TyBody::TyPara(ref1) = &ty1.body {
-        if let TyBody::TyPara(ref2) = &ty2.body {
-            ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
-        } else {
-            let u1 = ref1.upper_bound.to_term_ty();
-            conforms(c, &u1, ty2)
-        }
-    } else if let TyBody::TyPara(ref2) = &ty2.body {
-        if let TyBody::TyPara(ref1) = &ty1.body {
-            ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
-        } else {
-            let u2 = ref2.upper_bound.to_term_ty();
-            conforms(c, ty1, &u2)
-        }
     } else {
-        let mod1 = c.get_type(&ty1.erasure().to_type_fullname()).is_module();
-        let mod2 = c.get_type(&ty2.erasure().to_type_fullname()).is_module();
-        match (mod1, mod2) {
-            (true, true) => false,
-            (true, false) => module_conforms_to_class(c, ty1, ty2),
-            (false, true) => class_conforms_to_module(c, ty1, ty2),
-            (false, false) => class_conforms_to_class(c, ty1, ty2),
+        match (&ty1.body, &ty2.body) {
+            (TyBody::TyPara(ref1), TyBody::TyPara(ref2)) => {
+                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
+            }
+            (TyBody::TyPara(ref1), _) => {
+                let u1 = ref1.upper_bound.to_term_ty();
+                conforms(c, &u1, ty2)
+            }
+            (_, TyBody::TyPara(ref2)) => {
+                let u2 = ref2.upper_bound.to_term_ty();
+                conforms(c, ty1, &u2)
+            }
+            (TyBody::TyRaw(raw1), TyBody::TyRaw(raw2)) => {
+                let mod1 = c.get_type(&raw1.erasure().to_type_fullname()).is_module();
+                let mod2 = c.get_type(&raw2.erasure().to_type_fullname()).is_module();
+                match (mod1, mod2) {
+                    (true, true) => false,
+                    (true, false) => module_conforms_to_class(c, ty1, ty2),
+                    (false, true) => class_conforms_to_module(c, ty1, raw2),
+                    (false, false) => class_conforms_to_class(c, ty1, ty2),
+                }
+            }
         }
     }
 }
@@ -41,13 +42,13 @@ fn module_conforms_to_class(_c: &ClassDict, _ty1: &TermTy, ty2: &TermTy) -> bool
     ty2.fullname.0 == "Object"
 }
 
-// Return true if `ty2` (or one of its ancestor) includes the module
-fn class_conforms_to_module(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
-    ancestor_types(c, ty1).iter().any(|t| includes(c, t, ty2))
+// Return true if `ty1` (or one of its ancestor) includes the module
+fn class_conforms_to_module(c: &ClassDict, ty1: &TermTy, m: &LitTy) -> bool {
+    ancestor_types(c, ty1).iter().any(|t| includes(c, t, m))
 }
 
 // Return true if `class` (eg. `Array<Int>`) includes `module` (eg. `Enumerable<Int>`)
-fn includes(c: &ClassDict, class: &TermTy, module: &TermTy) -> bool {
+fn includes(c: &ClassDict, class: &TermTy, module: &LitTy) -> bool {
     let sk_class = c.get_class(&class.erasure().to_class_fullname());
     sk_class.includes.iter().any(|m| {
         // eg. Make `Enumerable<Int>` from `Enumerable<T>` and `Array<Int>`
@@ -139,7 +140,7 @@ fn ancestor_types(class_dict: &ClassDict, ty: &TermTy) -> Vec<TermTy> {
     let mut v = vec![];
     let mut t = Some(ty.clone());
     while let Some(tt) = t {
-        t = class_dict.supertype(&tt);
+        t = class_dict.supertype(&tt).map(|lit_ty| lit_ty.to_term_ty());
         v.push(tt);
     }
     v

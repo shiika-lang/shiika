@@ -68,7 +68,7 @@ fn check_signature_matches(
     mod_sig: &MethodSignature,
     sup: &Superclass,
 ) -> Result<()> {
-    let msig = mod_sig.specialize(sup.ty().tyargs(), Default::default());
+    let msig = mod_sig.specialize(sup.type_args(), Default::default());
     if !sig.equivalent_to(&msig) {
         return Err(error::program_error(&format!(
             "signature does not match:\n  class': {}\n  module's: {}",
