@@ -1,6 +1,6 @@
 use super::SkTypeBase;
 use crate::sk_type::wtable::WTable;
-use crate::superclass::Superclass;
+use crate::supertype::Superclass;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ClassFullname;
