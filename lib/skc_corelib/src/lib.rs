@@ -18,7 +18,7 @@ pub fn create() -> Corelib {
 
 type ClassItem = (
     String,
-    Option<Superclass>,
+    Option<Supertype>,
     HashMap<String, SkIVar>,
     Vec<String>,
 );
@@ -30,69 +30,69 @@ fn rust_body_items() -> Vec<ClassItem> {
             // `Class` must be created before loading builtin/* because
             // `Meta::XX` inherits `Class`.
             "Class".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             class::ivars(),
             vec![],
         ),
         (
             "Metaclass".to_string(),
-            Some(Superclass::simple("Class")),
+            Some(Supertype::simple("Class")),
             class::ivars(),
             vec![],
         ),
         (
             "String".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             Default::default(),
             vec![],
         ),
         (
             "Array".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec!["T".to_string()],
         ),
         (
             "Bool".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         (
             "Float".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         (
             "Int".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         ("Object".to_string(), None, HashMap::new(), vec![]),
         (
             "Void".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         (
             "Shiika::Internal::Ptr".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         // Modules
         (
             "Math".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),
         (
             "Shiika::Internal::Memory".to_string(),
-            Some(Superclass::simple("Object")),
+            Some(Supertype::simple("Object")),
             HashMap::new(),
             vec![],
         ),

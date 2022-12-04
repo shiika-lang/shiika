@@ -1,25 +1,27 @@
 use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty::*};
 
+/// Represents supertype i.e. ancestor class of a class or included module of
+/// a class.
 /// Note that superclass can have type parameters eg.
 /// `class Foo<S, T> : Pair<S, Array<T>>`
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct Superclass(LitTy);
+pub struct Supertype(LitTy);
 
-impl Superclass {
-    /// Create a `Superclass`
-    pub fn from_ty(t: LitTy) -> Superclass {
-        Superclass(t)
+impl Supertype {
+    /// Create a `Supertype`
+    pub fn from_ty(t: LitTy) -> Supertype {
+        Supertype(t)
     }
 
     /// Shortcut from a class name
-    pub fn simple(s: &str) -> Superclass {
-        Superclass::from_ty(LitTy::raw(s))
+    pub fn simple(s: &str) -> Supertype {
+        Supertype::from_ty(LitTy::raw(s))
     }
 
     /// Default superclass (= Object)
-    pub fn default() -> Superclass {
-        Superclass::simple("Object")
+    pub fn default() -> Supertype {
+        Supertype::simple("Object")
     }
 
     pub fn ty(&self) -> &LitTy {
@@ -43,8 +45,8 @@ impl Superclass {
     }
 
     /// Create concrete superclass of a generic class
-    pub fn substitute(&self, tyargs: &[TermTy]) -> Superclass {
+    pub fn substitute(&self, tyargs: &[TermTy]) -> Supertype {
         let t = self.0.substitute(tyargs, Default::default());
-        Superclass::from_ty(t)
+        Supertype::from_ty(t)
     }
 }

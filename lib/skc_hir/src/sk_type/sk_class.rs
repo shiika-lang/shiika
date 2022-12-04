@@ -1,6 +1,6 @@
 use super::SkTypeBase;
 use crate::sk_type::wtable::WTable;
-use crate::supertype::Superclass;
+use crate::supertype::Supertype;
 use crate::{SkIVar, SkIVars};
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ClassFullname;
@@ -10,9 +10,9 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SkClass {
     pub base: SkTypeBase,
-    pub superclass: Option<Superclass>,
-    /// Included modules (TODO: Rename `Superclass` to something better)
-    pub includes: Vec<Superclass>,
+    pub superclass: Option<Supertype>,
+    /// Included modules
+    pub includes: Vec<Supertype>,
     pub ivars: HashMap<String, SkIVar>,
     /// true if this class cannot be a explicit superclass.
     /// None if not applicable (eg. metaclasses cannot be a explicit superclass because there is no
@@ -25,7 +25,7 @@ pub struct SkClass {
 }
 
 impl SkClass {
-    pub fn nonmeta(base: SkTypeBase, superclass: Option<Superclass>) -> SkClass {
+    pub fn nonmeta(base: SkTypeBase, superclass: Option<Supertype>) -> SkClass {
         SkClass {
             base,
             superclass,
@@ -40,7 +40,7 @@ impl SkClass {
     pub fn meta(base: SkTypeBase) -> SkClass {
         SkClass {
             base,
-            superclass: Some(Superclass::simple("Class")),
+            superclass: Some(Supertype::simple("Class")),
             includes: Default::default(),
             ivars: Default::default(),
             is_final: Some(false),
@@ -93,7 +93,7 @@ impl SkClass {
     /// Returns type args to specialize included module.
     /// eg. given `class B<Y, X> : M<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
     /// returns `[Bool]`.
-    pub fn specialize_module(&self, modinfo: &Superclass, type_args: &[TermTy]) -> Vec<TermTy> {
+    pub fn specialize_module(&self, modinfo: &Supertype, type_args: &[TermTy]) -> Vec<TermTy> {
         modinfo
             .type_args()
             .iter()
