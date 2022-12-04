@@ -180,11 +180,29 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             ty
                         )));
                     }
-                    superclass = Some(Superclass::from_ty(ty))
+                    match &ty.body {
+                        TyBody::TyPara(_) => {
+                            return Err(error::program_error(&format!(
+                                "type parameter {} cannot be a supertype",
+                                ty
+                            )));
+                        }
+                        TyBody::TyRaw(lit_ty) => {
+                            superclass = Some(Superclass::from_ty(lit_ty.clone()));
+                        }
+                    }
                 }
-                Some(SkType::Module(_)) => {
-                    modules.push(Superclass::from_ty(ty));
-                }
+                Some(SkType::Module(_)) => match &ty.body {
+                    TyBody::TyPara(_) => {
+                        return Err(error::program_error(&format!(
+                            "type parameter {} cannot be a supertype",
+                            ty
+                        )));
+                    }
+                    TyBody::TyRaw(lit_ty) => {
+                        modules.push(Superclass::from_ty(lit_ty.clone()));
+                    }
+                },
                 None => {
                     return Err(error::program_error(&format!(
                         "unknown class or module {}",
@@ -239,7 +257,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             // Inherit #initialize from superclass
             let found = self
-                .lookup_method(superclass.ty(), &method_firstname("initialize"), &[])
+                .lookup_method(
+                    &superclass.to_term_ty(),
+                    &method_firstname("initialize"),
+                    &[],
+                )
                 .expect("[BUG] initialize not found");
             Ok(specialized_initialize(&found.sig, superclass).params)
         }
@@ -684,7 +706,7 @@ fn enum_case_superclass(
             .iter()
             .map(|_| ty::raw("Never"))
             .collect::<Vec<_>>();
-        Superclass::new(enum_fullname, tyargs)
+        Superclass::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
     } else {
         // eg. Maybe::Some<out V> : Maybe<V>
         let tyargs = typarams
@@ -692,7 +714,7 @@ fn enum_case_superclass(
             .enumerate()
             .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
             .collect::<Vec<_>>();
-        Superclass::new(enum_fullname, tyargs)
+        Superclass::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
     }
 }
 

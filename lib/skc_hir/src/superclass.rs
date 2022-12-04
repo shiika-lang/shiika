@@ -1,32 +1,20 @@
 use serde::{Deserialize, Serialize};
-use shiika_core::{names::*, ty, ty::*};
+use shiika_core::{names::*, ty::*};
 
 /// Note that superclass can have type parameters eg.
 /// `class Foo<S, T> : Pair<S, Array<T>>`
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct Superclass(TermTy);
-// TODO: the content should be LitTy rather than TermTy
+pub struct Superclass(LitTy);
 
 impl Superclass {
     /// Create a `Superclass`
-    pub fn from_ty(t: TermTy) -> Superclass {
-        debug_assert!(matches!(t.body, TyBody::TyRaw { .. }));
+    pub fn from_ty(t: LitTy) -> Superclass {
         Superclass(t)
-    }
-
-    /// Create a (possiblly generic) `Superclass`
-    pub fn new(base_name: &ClassFullname, tyargs: Vec<TermTy>) -> Superclass {
-        let t = if tyargs.is_empty() {
-            ty::raw(&base_name.0)
-        } else {
-            ty::spe(&base_name.0, tyargs)
-        };
-        Superclass::from_ty(t)
     }
 
     /// Shortcut from a class name
     pub fn simple(s: &str) -> Superclass {
-        Superclass::from_ty(ty::raw(s))
+        Superclass::from_ty(LitTy::raw(s))
     }
 
     /// Default superclass (= Object)
@@ -34,15 +22,16 @@ impl Superclass {
         Superclass::simple("Object")
     }
 
-    pub fn ty(&self) -> &TermTy {
+    pub fn ty(&self) -> &LitTy {
         &self.0
     }
 
+    pub fn to_term_ty(&self) -> TermTy {
+        self.0.to_term_ty()
+    }
+
     pub fn type_args(&self) -> &[TermTy] {
-        match &self.0.body {
-            TyBody::TyRaw(lit_ty) => &lit_ty.type_args,
-            _ => panic!("broken Superclass"),
-        }
+        &self.0.type_args
     }
 
     pub fn erasure(&self) -> Erasure {

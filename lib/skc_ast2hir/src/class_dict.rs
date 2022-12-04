@@ -96,5 +96,5 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 ///     # no explicit initialize
 /// Foo will have `#initialize(a: Array<T>)`
 fn specialized_initialize(sig: &MethodSignature, superclass: &Superclass) -> MethodSignature {
-    sig.specialize(superclass.ty().tyargs(), &[])
+    sig.specialize(superclass.type_args(), &[])
 }
