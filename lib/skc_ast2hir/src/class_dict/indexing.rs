@@ -155,7 +155,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
         supers: &[UnresolvedTypeName],
-    ) -> Result<(Superclass, Vec<Superclass>)> {
+    ) -> Result<(Supertype, Vec<Supertype>)> {
         let mut modules = vec![];
         let mut superclass = None;
         for name in supers {
@@ -188,7 +188,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             )));
                         }
                         TyBody::TyRaw(lit_ty) => {
-                            superclass = Some(Superclass::from_ty(lit_ty.clone()));
+                            superclass = Some(Supertype::from_ty(lit_ty.clone()));
                         }
                     }
                 }
@@ -200,7 +200,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         )));
                     }
                     TyBody::TyRaw(lit_ty) => {
-                        modules.push(Superclass::from_ty(lit_ty.clone()));
+                        modules.push(Supertype::from_ty(lit_ty.clone()));
                     }
                 },
                 None => {
@@ -211,7 +211,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((superclass.unwrap_or_else(Superclass::default), modules))
+        Ok((superclass.unwrap_or_else(Supertype::default), modules))
     }
 
     fn index_module(
@@ -246,7 +246,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         namespace: &Namespace,
         typarams: &[ty::TyParam],
-        superclass: &Superclass,
+        superclass: &Supertype,
         defs: &[shiika_ast::Definition],
     ) -> Result<Vec<MethodParam>> {
         if let Some(shiika_ast::InitializerDefinition { sig, .. }) =
@@ -282,7 +282,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_new_class(
             &fullname,
             &typarams,
-            Superclass::simple("Object"),
+            Supertype::simple("Object"),
             Default::default(),
             None,
             instance_methods,
@@ -495,8 +495,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
-        superclass: Superclass,
-        includes: Vec<Superclass>,
+        superclass: Supertype,
+        includes: Vec<Supertype>,
         new_sig: Option<MethodSignature>,
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
@@ -542,7 +542,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         self.add_type(SkClass {
             base,
-            superclass: Some(Superclass::simple("Class")),
+            superclass: Some(Supertype::simple("Class")),
             includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
@@ -585,7 +585,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         self.add_type(SkClass {
             base,
-            superclass: Some(Superclass::simple("Class")),
+            superclass: Some(Supertype::simple("Class")),
             includes: Default::default(),
             ivars: meta_ivars,
             is_final: None,
@@ -699,14 +699,14 @@ fn enum_case_superclass(
     enum_fullname: &ClassFullname,
     typarams: &[ty::TyParam],
     case: &shiika_ast::EnumCase,
-) -> Superclass {
+) -> Supertype {
     if case.params.is_empty() {
         // eg. Maybe::None : Maybe<Never>
         let tyargs = typarams
             .iter()
             .map(|_| ty::raw("Never"))
             .collect::<Vec<_>>();
-        Superclass::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
+        Supertype::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
     } else {
         // eg. Maybe::Some<out V> : Maybe<V>
         let tyargs = typarams
@@ -714,7 +714,7 @@ fn enum_case_superclass(
             .enumerate()
             .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
             .collect::<Vec<_>>();
-        Superclass::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
+        Supertype::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
     }
 }
 

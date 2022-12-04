@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub fn build_wtable(
     class_dict: &ClassDict,
     instance_methods: &MethodSignatures,
-    includes: &[Superclass],
+    includes: &[Supertype],
 ) -> Result<WTable> {
     let mut wtable = HashMap::new();
     for sup in includes {
@@ -24,7 +24,7 @@ pub fn build_wtable(
 fn resolve_module_methods(
     instance_methods: &MethodSignatures,
     sk_module: &SkModule,
-    sup: &Superclass,
+    sup: &Supertype,
 ) -> Result<Vec<MethodFullname>> {
     let mut resolved = vec![];
     for (mod_sig, _) in sk_module.base.method_sigs.to_ordered() {
@@ -42,7 +42,7 @@ fn resolve_module_methods(
 fn resolve_module_method(
     instance_methods: &MethodSignatures,
     mod_sig: &MethodSignature,
-    sup: &Superclass,
+    sup: &Supertype,
     required: bool,
 ) -> Result<MethodFullname> {
     if let Some((sig, _)) = instance_methods.get(&mod_sig.fullname.first_name) {
@@ -66,7 +66,7 @@ fn resolve_module_method(
 fn check_signature_matches(
     sig: &MethodSignature,
     mod_sig: &MethodSignature,
-    sup: &Superclass,
+    sup: &Supertype,
 ) -> Result<()> {
     let msig = mod_sig.specialize(sup.type_args(), Default::default());
     if !sig.equivalent_to(&msig) {

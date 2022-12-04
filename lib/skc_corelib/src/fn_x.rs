@@ -1,6 +1,6 @@
 use crate::ClassItem;
 use shiika_core::ty;
-use skc_hir::{SkIVar, Superclass};
+use skc_hir::{SkIVar, Supertype};
 use std::collections::HashMap;
 
 macro_rules! fn_item {
@@ -10,7 +10,7 @@ macro_rules! fn_item {
 
         (
             format!("Fn{}", $i),
-            Some(Superclass::simple("Fn")),
+            Some(Supertype::simple("Fn")),
             ivars(),
             typarams,
         )
