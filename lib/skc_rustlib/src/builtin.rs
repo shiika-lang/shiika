@@ -1,6 +1,7 @@
 pub mod array;
 pub mod bool;
 pub mod class;
+mod file;
 pub mod float;
 mod time;
 //mod fn_x;

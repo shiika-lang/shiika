@@ -1,0 +1,5 @@
+class File
+  # def self.read(path: String) -> String
+
+  # def self.write(path: String, content: String)
+end
