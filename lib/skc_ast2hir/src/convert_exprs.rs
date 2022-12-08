@@ -1,4 +1,5 @@
 pub mod block;
+mod lvar;
 mod method_call;
 pub mod params;
 use crate::class_expr;
@@ -9,54 +10,11 @@ use crate::hir_maker_context::*;
 use crate::pattern_match;
 use crate::type_system::type_checking;
 use anyhow::Result;
+use lvar::{LVarDetail, LVarInfo};
 use shiika_ast::Token;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
-
-/// Result of looking up a lvar
-#[derive(Debug)]
-struct LVarInfo {
-    ty: TermTy,
-    detail: LVarDetail,
-    /// The position of this lvar in the source text
-    locs: LocationSpan,
-}
-#[derive(Debug)]
-enum LVarDetail {
-    /// Found in the current scope
-    CurrentScope { name: String },
-    /// Found in the current method/lambda argument
-    Argument { idx: usize },
-    /// Found in outer scope
-    OuterScope {
-        /// Index of the lvar in `captures`
-        cidx: usize,
-        readonly: bool,
-    },
-}
-
-impl LVarInfo {
-    /// Returns HirExpression to refer this lvar
-    fn ref_expr(self) -> HirExpression {
-        match self.detail {
-            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, self.locs),
-            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, self.locs),
-            LVarDetail::OuterScope { cidx, readonly } => {
-                Hir::lambda_capture_ref(self.ty, cidx, readonly, self.locs)
-            }
-        }
-    }
-
-    /// Returns HirExpression to update this lvar
-    fn assign_expr(self, expr: HirExpression) -> HirExpression {
-        match self.detail {
-            LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr, self.locs),
-            LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(cidx, expr, self.locs),
-        }
-    }
-}
 
 impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn convert_exprs(&mut self, exprs: &[AstExpression]) -> Result<HirExpressions> {
@@ -608,7 +566,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
-                let cidx = self.ctx_stack.push_lambda_capture(cap);
+                let cidx = self
+                    .ctx_stack
+                    .lambda_ctx_mut()
+                    .unwrap()
+                    .push_lambda_capture(cap);
                 ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
             }
         }
@@ -650,22 +612,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: LocationSpan,
         updating: bool,
     ) -> Result<Option<LVarInfo>> {
-        let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
-            (true, lambda_ctx.captures.len())
+        if self.ctx_stack.lambda_ctx().is_some() {
+            let (mut found, opt_cap) = self.__find_var(true, name, locs, updating)?;
+            if let Some(cap) = opt_cap {
+                let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
+                if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
+                    found.as_mut().map(|x| x.set_cidx(existing));
+                } else {
+                    let cidx = lambda_ctx.captures.len();
+                    lambda_ctx.push_lambda_capture(cap);
+                    found.as_mut().map(|x| x.set_cidx(cidx));
+                }
+            }
+            Ok(found)
         } else {
-            (false, 0)
-        };
-        let (found, opt_cap) = self.__find_var(in_lambda, cidx, name, locs, updating)?;
-        if let Some(cap) = opt_cap {
-            self.ctx_stack.push_lambda_capture(cap);
+            let (found, _) = self.__find_var(false, name, locs, updating)?;
+            Ok(found)
         }
-        Ok(found)
     }
 
     fn __find_var(
         &mut self,
         in_lambda: bool,
-        cidx: usize,
         name: &str,
         locs: LocationSpan,
         updating: bool,
@@ -690,10 +658,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     };
                     let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
-                        detail: LVarDetail::OuterScope {
-                            cidx,
-                            readonly: false,
-                        },
+                        detail: LVarDetail::OuterScope_ { readonly: false },
                         locs,
                     };
                     return Ok((Some(lvar_info), Some(cap)));
@@ -723,10 +688,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     };
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
-                        detail: LVarDetail::OuterScope {
-                            cidx,
-                            readonly: true,
-                        },
+                        detail: LVarDetail::OuterScope_ { readonly: true },
                         locs,
                     };
                     return Ok((Some(lvar_info), Some(cap)));

@@ -115,6 +115,19 @@ pub struct LambdaCtx {
     pub has_break: bool,
 }
 
+impl LambdaCtx {
+    /// Push a LambdaCapture to captures
+    pub fn push_lambda_capture(&mut self, cap: LambdaCapture) -> usize {
+        self.captures.push(cap);
+        self.captures.len() - 1
+    }
+
+    /// Returns cidx if `cap` is already in the `captuers`.
+    pub fn check_already_captured(&self, cap: &LambdaCapture) -> Option<usize> {
+        self.captures.iter().position(|x| x.equals(cap))
+    }
+}
+
 /// Indicates we're in a while expr
 #[derive(Debug)]
 pub struct WhileCtx;
@@ -149,4 +162,27 @@ pub struct LambdaCapture {
 pub enum LambdaCaptureDetail {
     CapLVar { name: String },
     CapFnArg { idx: usize },
+}
+
+impl LambdaCapture {
+    fn equals(&self, other: &LambdaCapture) -> bool {
+        if self.ctx_depth != other.ctx_depth {
+            return false;
+        }
+        let equals = match (&self.detail, &other.detail) {
+            (
+                LambdaCaptureDetail::CapLVar { name },
+                LambdaCaptureDetail::CapLVar { name: name2 },
+            ) => name == name2,
+            (
+                LambdaCaptureDetail::CapFnArg { idx },
+                LambdaCaptureDetail::CapFnArg { idx: idx2 },
+            ) => idx == idx2,
+            _ => false,
+        };
+        if equals {
+            debug_assert!(self.ty == other.ty);
+        }
+        equals
+    }
 }

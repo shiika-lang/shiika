@@ -214,13 +214,6 @@ impl CtxStack {
         }
     }
 
-    /// Push a LambdaCapture to captures
-    pub fn push_lambda_capture(&mut self, cap: LambdaCapture) -> usize {
-        let lambda_ctx = self.lambda_ctx_mut().expect("not in lambda");
-        lambda_ctx.captures.push(cap);
-        lambda_ctx.captures.len() - 1
-    }
-
     /// Returns type parameter of the current class
     pub fn current_class_typarams(&self) -> Vec<TyParam> {
         if let Some(class_ctx) = self.class_ctx() {
