@@ -16,8 +16,8 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
             .map(|name| {
                 let func = code_gen
                     .get_llvm_func(&method_func_name(name))
-                    .as_any_value_enum()
-                    .into_pointer_value();
+                    .as_global_value()
+                    .as_pointer_value();
                 code_gen
                     .builder
                     .build_bitcast(func, code_gen.i8ptr_type, "")

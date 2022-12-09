@@ -255,8 +255,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .map(|name| {
                     let func = self
                         .get_llvm_func(&method_func_name(name))
-                        .as_any_value_enum()
-                        .into_pointer_value();
+                        .as_global_value()
+                        .as_pointer_value();
                     self.builder
                         .build_bitcast(func, self.i8ptr_type, "")
                         .into_pointer_value()
