@@ -1,7 +1,7 @@
 use crate::values::*;
 use crate::CodeGen;
 use inkwell::types::*;
-use inkwell::values::*;
+use inkwell::values::BasicValue;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
@@ -146,7 +146,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Set value to nth element of llvm struct
-    fn build_llvm_struct_set<'a>(
+    /// REFACTOR: merge this into build_llvm_struct_set_
+    pub fn build_llvm_struct_set<'a>(
         &'a self,
         object: &'a SkObj<'a>,
         idx: usize,
@@ -167,6 +168,47 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 )
             });
         self.builder.build_store(ptr, value);
+    }
+
+    /// Same as build_llvm_struct_set but takes PointerValue
+    pub fn build_llvm_struct_set_<'a>(
+        &'a self,
+        struct_ptr: inkwell::values::PointerValue<'a>,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'a>,
+        name: &str,
+    ) {
+        let ptr = self
+            .builder
+            .build_struct_gep(
+                struct_ptr,
+                idx as u32,
+                &format!("addr_{}", name),
+            )
+            .unwrap_or_else(|_| {
+                panic!(
+                    "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
+                    &idx, &name, &struct_ptr
+                )
+            });
+        self.builder.build_store(ptr, value);
+    }
+    pub fn build_llvm_struct_ref_(
+        &self,
+        struct_ptr: inkwell::values::PointerValue<'run>,
+        idx: usize,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let ptr = self
+            .builder
+            .build_struct_gep(struct_ptr, idx as u32, &format!("addr_{}", name))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, struct_ptr: {:?})",
+                    &idx, &name, &struct_ptr
+                )
+            });
+        self.builder.build_load(ptr, name)
     }
 
     /// Generate call of malloc and returns a ptr to Shiika object
@@ -216,6 +258,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.set_class_of_obj(&obj, class_obj);
 
         obj
+    }
+
+    /// Allocate some memory for a value of LLVM type `t`
+    pub fn allocate_mem(&self, t: &inkwell::types::BasicTypeEnum<'run>) -> I8Ptr<'run> {
+        let size = t.size_of().expect("[BUG] type has no size");
+        self.shiika_malloc(size)
+    }
+
+    /// Call `shiika_malloc`
+    pub fn shiika_malloc(&self, size: inkwell::values::IntValue<'run>) -> I8Ptr<'run> {
+        let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
+        I8Ptr(
+            self.builder
+                .build_call(func, &[size.as_basic_value_enum().into()], "mem")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
+                .into_pointer_value(),
+        )
     }
 
     /// Call llvm function which corresponds to a Shiika method
@@ -327,6 +388,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_function(&name.0)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))
     }
+}
+
+/// Name of llvm struct of lambda captures
+pub(super) fn lambda_capture_struct_name(name: &str) -> String {
+    format!("shiika_captures_{}", name)
 }
 
 /// Name of llvm constant of a vtable

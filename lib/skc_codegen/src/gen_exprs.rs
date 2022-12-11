@@ -1,4 +1,5 @@
 use crate::code_gen_context::*;
+use crate::lambda::LambdaCapture;
 use crate::utils::*;
 use crate::values::*;
 use crate::wtable;
@@ -39,7 +40,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for expr in &exprs.exprs {
             let value = self.gen_expr(ctx, expr)?;
             if value.is_none() {
-                log::warn!("detected unreachable code");
+                //log::warn!("detected unreachable code");
                 return Ok(None);
             } else {
                 last_value = Some(value);
@@ -121,13 +122,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 captures,
                 ret_ty,
                 ..
-            } => Ok(Some(self.gen_lambda_expr(
-                ctx,
-                &llvm_func_name(name),
-                params,
-                captures,
-                ret_ty,
-            ))),
+            } => Ok(Some(
+                self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
+            )),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
             HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
@@ -137,9 +134,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaCaptureRef { idx, readonly } => Ok(Some(
                 self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
             )),
-            HirLambdaCaptureWrite { cidx, rhs } => {
-                self.gen_lambda_capture_write(ctx, cidx, rhs, &rhs.ty)
-            }
+            HirLambdaCaptureWrite { cidx, rhs } => self.gen_lambda_capture_write(ctx, cidx, rhs),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
                 fullname,
@@ -427,7 +422,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 None => panic!("[BUG] break outside of a loop"),
             },
             HirBreakFrom::Block => {
-                debug_assert!(ctx.function_origin == FunctionOrigin::Lambda);
+                debug_assert!(matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }));
                 // Set @exit_status
                 let fn_x = self.get_nth_param(&ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
@@ -779,7 +774,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             FunctionOrigin::Method => {
                 SkObj(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
             }
-            FunctionOrigin::Lambda => {
+            FunctionOrigin::Lambda { .. } => {
                 // +1 for the first %self
                 let obj = self.get_nth_param(&ctx.function, *idx + 1);
                 // Bitcast is needed because lambda params are always `%Object*`
@@ -847,11 +842,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_lambda_expr(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
-        func_name: &LlvmFuncName,
+        name: &str,
         params: &[MethodParam],
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
     ) -> SkObj<'run> {
+        let func_name = LlvmFuncName(name.to_string());
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
         let mut arg_types = (1..=params.len()).map(|_| &obj_type).collect::<Vec<_>>();
@@ -863,13 +859,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let cls_name = format!("Fn{}", params.len());
         let meta = self.gen_const_ref(&toplevel_const(&cls_name));
         let fnptr = self
-            .get_llvm_func(func_name)
+            .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
         let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
-        let arg_values = vec![sk_ptr, the_self, self._gen_lambda_captures(ctx, captures)];
+        let captured = self._gen_lambda_captures(ctx, name, captures);
+        let arg_values = vec![sk_ptr, the_self, captured.boxed(self)];
         self.gen_method_func_call(
             &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
@@ -880,20 +877,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn _gen_lambda_captures(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        name: &str,
         captures: &'hir [HirLambdaCapture],
-    ) -> SkObj<'run> {
-        let ary = self.gen_method_func_call(
-            &method_fullname(metaclass_fullname("Array").into(), "new"),
-            self.gen_const_ref(&toplevel_const("Array")),
-            vec![],
-        );
-        for cap in captures {
+    ) -> LambdaCapture<'run> {
+        let struct_type = LambdaCapture::get_struct_type(self, name);
+        let mem = self.allocate_mem(&struct_type.as_basic_type_enum());
+        let lambda_capture = LambdaCapture::from_void_ptr(self, mem, name);
+
+        for (i, cap) in captures.iter().enumerate() {
             let item = match cap {
-                HirLambdaCapture::CaptureLVar { name } => {
+                HirLambdaCapture::CaptureLVar { name, .. } => {
                     // Local vars are captured by pointer
                     SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())
                 }
-                HirLambdaCapture::CaptureArg { idx } => {
+                HirLambdaCapture::CaptureArg { idx, .. } => {
                     // Args are captured by value
                     self.gen_arg_ref(ctx, idx)
                 }
@@ -902,15 +899,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_lambda_capture_ref(ctx, cidx, deref, ty)
                 }
             };
-            let obj = self.bitcast(item, &ty::raw("Object"), "capture_item");
-            self.call_method_func(
-                &method_fullname_raw("Array", "push"),
-                ary.clone(),
-                &[obj],
-                "_",
-            );
+            lambda_capture.store(self, i, item.0);
         }
-        ary
+        lambda_capture
     }
 
     /// Get the object referred by `self`
@@ -923,7 +914,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> SkObj<'run> {
         let the_main = if ctx.function.get_name().to_str().unwrap() == "user_main" {
             self.the_main.clone().unwrap()
-        } else if ctx.function_origin == FunctionOrigin::Lambda {
+        } else if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
             let fn_x = self.get_nth_param(&ctx.function, 0);
             self.build_ivar_load(fn_x, FN_X_THE_SELF_IDX, "@obj")
         } else {
@@ -997,22 +988,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let item = self.gen_method_func_call(
-            &method_fullname_raw("Array", "[]"),
-            captures,
-            vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        );
+        let item = captures.load(self, *idx_in_captures);
         let ret = if deref {
             // `item` is a pointer
             let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
             let ptr = self
                 .builder
-                .build_bitcast(item.0, ptr_ty, "ptr")
+                .build_bitcast(item, ptr_ty, "ptr")
                 .into_pointer_value();
             SkObj(self.builder.build_load(ptr, "ret"))
         } else {
             // `item` is a value
-            self.bitcast(item, ty, "ret")
+            self.bitcast(SkObj(item), ty, "ret")
         };
 
         let block = self.context.append_basic_block(
@@ -1029,7 +1016,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
         rhs: &'hir HirExpression,
-        ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         let block = self
             .context
@@ -1038,16 +1024,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let ptr_ = self.gen_method_func_call(
-            &method_fullname_raw("Array", "[]"),
-            captures,
-            vec![self.gen_decimal_literal(*idx_in_captures as i64)],
-        );
-        let ptr_type = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
-        let ptr = self
-            .builder
-            .build_bitcast(ptr_.0, ptr_type, "ptr")
-            .into_pointer_value();
+        let ptr = captures.load(self, *idx_in_captures).into_pointer_value();
         let value = self.gen_expr(ctx, rhs)?.unwrap();
         self.builder.build_store(ptr, value.0);
 
@@ -1060,9 +1037,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         Ok(Some(value))
     }
 
-    fn _gen_get_lambda_captures(&self, ctx: &mut CodeGenContext<'hir, 'run>) -> SkObj<'run> {
+    fn _gen_get_lambda_captures(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+    ) -> LambdaCapture<'run> {
         let fn_x = self.get_nth_param(&ctx.function, 0);
-        self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "@captures")
+        let boxed = self.build_ivar_load(fn_x, FN_X_CAPTURES_IDX, "@captures");
+        LambdaCapture::from_boxed(self, boxed, ctx.lambda_name().unwrap())
     }
 
     fn gen_bitcast(
