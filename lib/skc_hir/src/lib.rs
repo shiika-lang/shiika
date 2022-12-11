@@ -228,13 +228,13 @@ pub enum HirExpressionBase {
     //
     // Special opecodes (does not appear in a source program directly)
     //
-    /// Refer a variable in `captures`
+    /// Refer a variable in the `captures` of the current lambda
     HirLambdaCaptureRef {
         idx: usize,
         /// Whether this capture is a readonly one (i.e. passed by value)
         readonly: bool,
     },
-    /// Reassign to a variable in `captures`
+    /// Reassign to a variable in the `captures` of the current lambda
     HirLambdaCaptureWrite {
         cidx: usize,
         rhs: Box<HirExpression>,
@@ -263,9 +263,9 @@ pub enum HirExpressionBase {
 #[derive(Debug, Clone)]
 pub enum HirLambdaCapture {
     /// Local variable
-    CaptureLVar { name: String },
+    CaptureLVar { name: String, ty: TermTy },
     /// Method/Function argument
-    CaptureArg { idx: usize },
+    CaptureArg { idx: usize, ty: TermTy },
     /// Variable in the current `captures`
     /// `ty` is needed for bitcast
     CaptureFwd { cidx: usize, ty: TermTy },

@@ -557,10 +557,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
-                        ret.push(HirLambdaCapture::CaptureLVar { name });
+                        ret.push(HirLambdaCapture::CaptureLVar { name, ty: cap.ty });
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture::CaptureArg { idx });
+                        ret.push(HirLambdaCapture::CaptureArg { idx, ty: cap.ty });
                     }
                 }
             } else {
