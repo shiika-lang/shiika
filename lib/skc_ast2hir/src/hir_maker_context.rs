@@ -122,6 +122,11 @@ impl LambdaCtx {
         self.captures.len() - 1
     }
 
+    pub fn update_capture_ty(&mut self, cidx: usize, ty: TermTy) {
+        let cap = self.captures[cidx];
+        cap.ty = ty;
+    }
+
     /// Returns cidx if `cap` is already in the `captuers`.
     pub fn check_already_captured(&self, cap: &LambdaCapture) -> Option<usize> {
         self.captures.iter().position(|x| x.equals(cap))

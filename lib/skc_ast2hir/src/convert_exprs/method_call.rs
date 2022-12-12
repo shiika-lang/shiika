@@ -20,7 +20,7 @@ pub fn convert_method_call(
 ) -> Result<HirExpression> {
     // Check if this is a lambda invocation
     if receiver_expr.is_none() {
-        if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone()) {
+        if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone())? {
             if lvar.ty.fn_x_info().is_some() {
                 return convert_lambda_invocation(mk, lvar.ref_expr(), arg_exprs, has_block, locs);
             }
