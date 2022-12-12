@@ -261,14 +261,21 @@ pub enum HirExpressionBase {
 
 /// Denotes which variable to include in the `captures`
 #[derive(Debug, Clone)]
-pub enum HirLambdaCapture {
+pub struct HirLambdaCapture {
+    pub ty: TermTy,
+    pub upcast_needed: bool,
+    pub detail: HirLambdaCaptureDetail,
+}
+
+#[derive(Debug, Clone)]
+pub enum HirLambdaCaptureDetail {
     /// Local variable
-    CaptureLVar { name: String, ty: TermTy },
+    CaptureLVar { name: String },
     /// Method/Function argument
-    CaptureArg { idx: usize, ty: TermTy },
+    CaptureArg { idx: usize },
     /// Variable in the current `captures`
     /// `ty` is needed for bitcast
-    CaptureFwd { cidx: usize, ty: TermTy },
+    CaptureFwd { cidx: usize },
 }
 
 /// Denotes what a `break` escapes from

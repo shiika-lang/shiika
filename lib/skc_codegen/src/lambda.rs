@@ -374,15 +374,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn capture_ty(&self, cap: &HirLambdaCapture) -> inkwell::types::BasicTypeEnum {
-        match cap {
+        match &cap.detail {
             // Local vars are captured by reference
-            HirLambdaCapture::CaptureLVar { ty, .. } => self
-                .llvm_type(ty)
+            HirLambdaCaptureDetail::CaptureLVar { .. } => self
+                .llvm_type(&cap.ty)
                 .ptr_type(inkwell::AddressSpace::Generic)
                 .as_basic_type_enum(),
             // Method args are captured by value (because they are not writable)
-            HirLambdaCapture::CaptureArg { ty, .. } => self.llvm_type(ty),
-            HirLambdaCapture::CaptureFwd { ty, .. } => self.llvm_type(ty),
+            HirLambdaCaptureDetail::CaptureArg { .. } => self.llvm_type(&cap.ty),
+            HirLambdaCaptureDetail::CaptureFwd { .. } => self.llvm_type(&cap.ty),
         }
     }
 }

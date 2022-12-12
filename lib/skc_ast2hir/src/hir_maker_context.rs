@@ -123,8 +123,9 @@ impl LambdaCtx {
     }
 
     pub fn update_capture_ty(&mut self, cidx: usize, ty: TermTy) {
-        let cap = self.captures[cidx];
+        let cap = &mut self.captures[cidx];
         cap.ty = ty;
+        cap.upcast_needed = true;
     }
 
     /// Returns cidx if `cap` is already in the `captuers`.
@@ -160,6 +161,7 @@ pub struct LambdaCapture {
     /// None if the lvar does not belong to a lambda (method argument, etc.)
     pub ctx_depth: Option<usize>,
     pub ty: TermTy,
+    pub upcast_needed: bool,
     pub detail: LambdaCaptureDetail,
 }
 

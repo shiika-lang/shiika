@@ -885,20 +885,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let lambda_capture = LambdaCapture::from_void_ptr(self, mem, name);
 
         for (i, cap) in captures.iter().enumerate() {
-            let item = match cap {
-                HirLambdaCapture::CaptureLVar { name, .. } => {
+            let mut item = match &cap.detail {
+                HirLambdaCaptureDetail::CaptureLVar { name } => {
                     // Local vars are captured by pointer
                     SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())
                 }
-                HirLambdaCapture::CaptureArg { idx, .. } => {
+                HirLambdaCaptureDetail::CaptureArg { idx } => {
                     // Args are captured by value
                     self.gen_arg_ref(ctx, idx)
                 }
-                HirLambdaCapture::CaptureFwd { cidx, ty } => {
+                HirLambdaCaptureDetail::CaptureFwd { cidx } => {
                     let deref = false; // When forwarding, pass the item as is
-                    self.gen_lambda_capture_ref(ctx, cidx, deref, ty)
+                    self.gen_lambda_capture_ref(ctx, cidx, deref, &cap.ty)
                 }
             };
+            if cap.upcast_needed {
+                let ty = struct_type.get_field_type_at_index(i as u32).unwrap();
+                item = SkObj(self.builder.build_bitcast(item.0, ty, "upcast_needed"));
+            }
             lambda_capture.store(self, i, item.0);
         }
         lambda_capture

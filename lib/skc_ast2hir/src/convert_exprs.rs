@@ -563,21 +563,34 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
-                        ret.push(HirLambdaCapture::CaptureLVar { name, ty: cap.ty });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureLVar { name },
+                        });
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture::CaptureArg { idx, ty: cap.ty });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureArg { idx },
+                        });
                     }
                 }
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
+                let upcast_needed = cap.upcast_needed;
                 let cidx = self
                     .ctx_stack
                     .lambda_ctx_mut()
                     .unwrap()
                     .push_lambda_capture(cap);
-                ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
+                ret.push(HirLambdaCapture {
+                    ty,
+                    upcast_needed,
+                    detail: HirLambdaCaptureDetail::CaptureFwd { cidx },
+                });
             }
         }
         ret
@@ -663,6 +676,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     let cap = LambdaCapture {
                         ctx_depth: opt_depth,
                         ty: lvar.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapLVar {
                             name: name.to_string(),
                         },
@@ -695,6 +709,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     let cap = LambdaCapture {
                         ctx_depth: opt_depth,
                         ty: param.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapFnArg { idx },
                     };
                     let lvar_info = LVarInfo {
