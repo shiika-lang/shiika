@@ -11,6 +11,7 @@ use skc_hir::*;
 /// A lambda capture
 #[derive(Debug)]
 pub struct LambdaCapture<'run> {
+    lambda_name: String,
     /// Pointer to the struct
     raw: inkwell::values::PointerValue<'run>,
 }
@@ -33,7 +34,7 @@ impl<'run> LambdaCapture<'run> {
         raw: inkwell::values::PointerValue<'run>,
     ) -> LambdaCapture<'run> {
         debug_assert!(raw.get_type() == Self::struct_ptr_type(gen, &lambda_name));
-        LambdaCapture { raw }
+        LambdaCapture { lambda_name, raw }
     }
 
     pub fn from_boxed(
@@ -85,6 +86,20 @@ impl<'run> LambdaCapture<'run> {
         idx: usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
         gen.build_llvm_struct_ref_(self.to_struct_ptr(), idx, "load")
+    }
+
+    /// Given there is a pointer stored at `idx`, update its value.
+    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
+        let struct_type = Self::get_struct_type(gen, &self.lambda_name);
+        let ptr_ty = struct_type
+            .get_field_type_at_index(idx as u32)
+            .unwrap()
+            .into_pointer_type();
+        let ty = ptr_ty.get_element_type().into_pointer_type();
+        let upcast = gen.builder.build_bitcast(value.0, ty, "upcast");
+
+        let ptr = self.load(gen, idx).into_pointer_value();
+        gen.builder.build_store(ptr, upcast);
     }
 }
 

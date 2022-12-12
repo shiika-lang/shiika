@@ -1028,9 +1028,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let ptr = captures.load(self, *idx_in_captures).into_pointer_value();
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        self.builder.build_store(ptr, value.0);
+        captures.reassign(self, *idx_in_captures, value.clone());
 
         let block = self.context.append_basic_block(
             ctx.function,
