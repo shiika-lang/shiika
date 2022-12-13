@@ -71,7 +71,7 @@ impl<'run> LambdaCapture<'run> {
 
     /// Store `value` at the given index
     pub fn store(&self, gen: &CodeGen, idx: usize, value: inkwell::values::BasicValueEnum<'run>) {
-        gen.build_llvm_struct_set_(
+        gen.build_llvm_struct_set(
             self.to_struct_ptr(),
             idx,
             value,
@@ -85,7 +85,7 @@ impl<'run> LambdaCapture<'run> {
         gen: &CodeGen<'_, 'run, '_>,
         idx: usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        gen.build_llvm_struct_ref_(self.to_struct_ptr(), idx, "load")
+        gen.build_llvm_struct_ref(self.to_struct_ptr(), idx, "load")
     }
 
     /// Given there is a pointer stored at `idx`, update its value.
