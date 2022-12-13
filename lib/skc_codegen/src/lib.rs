@@ -162,27 +162,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         );
         self.module
             .add_function("shiika_insert_wtable", fn_type, None);
-
-        let str_type = self.i8_type.array_type(4);
-        let global = self.module.add_global(str_type, None, "putd_tmpl");
-        global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[
-            self.i8_type.const_int(37, false),  // %
-            self.i8_type.const_int(108, false), // l
-            self.i8_type.const_int(100, false), // d
-            self.i8_type.const_int(0, false),
-        ]));
-        global.set_constant(true);
-
-        let str_type = self.i8_type.array_type(3);
-        let global = self.module.add_global(str_type, None, "putf_tmpl");
-        global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[
-            self.i8_type.const_int(37, false),  // %
-            self.i8_type.const_int(102, false), // f
-            self.i8_type.const_int(0, false),
-        ]));
-        global.set_constant(true);
     }
 
     /// Define llvm struct type for `Class` in advance
