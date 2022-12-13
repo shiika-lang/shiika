@@ -235,22 +235,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
         let object_type = self.llvm_struct_type(&class_fullname.to_type_fullname());
-        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let size = object_type
-            .size_of()
-            .expect("[BUG] object_type has no size");
-
-        // %mem = call i8* @shiika_malloc(i64 %size)",
-        let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
-        let raw_addr = self
-            .builder
-            .build_call(func, &[size.as_basic_value_enum().into()], "mem")
-            .try_as_basic_value()
-            .left()
-            .unwrap();
+        let raw_addr = self.allocate_mem(&object_type.as_basic_type_enum());
 
         // %foo = bitcast i8* %mem to %#{t}*",
-        let obj = SkObj(self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name));
+        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
+        let obj = SkObj(self.builder.build_bitcast(raw_addr.0, obj_ptr_type, reg_name));
 
         // Store reference to vtable
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
