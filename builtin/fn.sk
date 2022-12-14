@@ -5,7 +5,7 @@ class Fn
   def initialize(
     @func: Shiika::Internal::Ptr,
     @the_self: Object,
-    @captures: Array<Shiika::Internal::Ptr>,
+    @captures: Shiika::Internal::Ptr,
   )
     let @exit_status = EXIT_NORMAL
   end

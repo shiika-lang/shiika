@@ -108,6 +108,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.define_class_class();
         self.gen_imports(imports);
         self.gen_type_structs(&hir.sk_types);
+        self.gen_lambda_capture_structs(hir)?;
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
@@ -551,7 +552,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(&method.body),
             &method.lvars,
             &method.signature.ret_ty,
-            false,
+            None,
         )
     }
 
@@ -564,8 +565,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &[(String, TermTy)],
         ret_ty: &TermTy,
-        is_lambda: bool,
+        lambda_name: Option<String>,
     ) -> Result<()> {
+        let is_lambda = lambda_name.is_some();
         // LLVM function
         // (Function for lambdas are created in gen_lambda_expr)
         let function = self.get_llvm_func(func_name);
@@ -632,7 +634,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_shiika_function_body(
                     function,
                     Some(params),
-                    FunctionOrigin::Lambda,
+                    FunctionOrigin::Lambda {
+                        name: lambda_name.unwrap(),
+                    },
                     ret_ty,
                     exprs,
                     lvar_ptrs,

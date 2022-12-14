@@ -346,7 +346,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         readonly: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        if self._lookup_var(name, locs.clone()).is_some() {
+        if self._lookup_var(name, locs.clone())?.is_some() {
             return Err(error::lvar_redeclaration(name, locs));
         }
         let expr = self.convert_expr(rhs)?;
@@ -363,14 +363,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
-        if let Some(mut lvar_info) = self._find_var(name, locs.clone(), true)? {
+        if let (Some(mut lvar_info), opt_cidx) = self._find_var(name, locs.clone(), true)? {
             if lvar_info.ty != expr.ty {
                 if let Some(t) = self
                     .class_dict
                     .nearest_common_ancestor(&lvar_info.ty, &expr.ty)
                 {
                     // Upgrade lvar type (eg. from `None` to `Maybe<Int>`)
-                    lvar_info.ty = t;
+                    lvar_info.ty = t.clone();
+                    if let Some(cidx) = opt_cidx {
+                        self.ctx_stack
+                            .lambda_ctx_mut()
+                            .unwrap()
+                            .update_capture_ty(cidx, t);
+                    }
                 } else {
                     return Err(type_checking::invalid_reassign_error(
                         &lvar_info.ty,
@@ -557,21 +563,34 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
-                        ret.push(HirLambdaCapture::CaptureLVar { name });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureLVar { name },
+                        });
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture::CaptureArg { idx });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureArg { idx },
+                        });
                     }
                 }
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
+                let upcast_needed = cap.upcast_needed;
                 let cidx = self
                     .ctx_stack
                     .lambda_ctx_mut()
                     .unwrap()
                     .push_lambda_capture(cap);
-                ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
+                ret.push(HirLambdaCapture {
+                    ty,
+                    upcast_needed,
+                    detail: HirLambdaCaptureDetail::CaptureFwd { cidx },
+                });
             }
         }
         ret
@@ -580,7 +599,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         // Found a local variable
-        if let Some(lvar_info) = self._find_var(name, locs.clone(), false)? {
+        if let (Some(lvar_info), _) = self._find_var(name, locs.clone(), false)? {
             return Ok(lvar_info.ref_expr());
         }
 
@@ -600,8 +619,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Return the variable of the given name, if any
-    fn _lookup_var(&mut self, name: &str, locs: LocationSpan) -> Option<LVarInfo> {
-        self._find_var(name, locs, false).unwrap()
+    fn _lookup_var(&mut self, name: &str, locs: LocationSpan) -> Result<Option<LVarInfo>> {
+        let (lvar, _) = self._find_var(name, locs, false)?;
+        Ok(lvar)
     }
 
     /// Find the variable of the given name.
@@ -611,23 +631,27 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &str,
         locs: LocationSpan,
         updating: bool,
-    ) -> Result<Option<LVarInfo>> {
+    ) -> Result<(Option<LVarInfo>, Option<usize>)> {
         if self.ctx_stack.lambda_ctx().is_some() {
             let (mut found, opt_cap) = self.__find_var(true, name, locs, updating)?;
-            if let Some(cap) = opt_cap {
+            let opt_cidx = if let Some(cap) = opt_cap {
                 let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
                 if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
                     found.as_mut().map(|x| x.set_cidx(existing));
+                    Some(existing)
                 } else {
                     let cidx = lambda_ctx.captures.len();
                     lambda_ctx.push_lambda_capture(cap);
                     found.as_mut().map(|x| x.set_cidx(cidx));
+                    Some(cidx)
                 }
-            }
-            Ok(found)
+            } else {
+                None
+            };
+            Ok((found, opt_cidx))
         } else {
             let (found, _) = self.__find_var(false, name, locs, updating)?;
-            Ok(found)
+            Ok((found, None))
         }
     }
 
@@ -652,6 +676,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     let cap = LambdaCapture {
                         ctx_depth: opt_depth,
                         ty: lvar.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapLVar {
                             name: name.to_string(),
                         },
@@ -684,6 +709,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     let cap = LambdaCapture {
                         ctx_depth: opt_depth,
                         ty: param.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapFnArg { idx },
                     };
                     let lvar_info = LVarInfo {
