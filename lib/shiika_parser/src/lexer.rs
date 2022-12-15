@@ -268,7 +268,7 @@ impl<'a> Lexer<'a> {
                     self.read_separator(&mut next_cur),
                     Some(LexerState::ExprBegin),
                 ),
-                CharType::Comment => (self.read_comment(&mut next_cur), None),
+                CharType::Comment => (self.read_comment(&mut next_cur), Some(LexerState::ExprBegin)),
                 CharType::UpperWord => (
                     self.read_upper_word(&mut next_cur, None),
                     Some(LexerState::ExprEnd),
