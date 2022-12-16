@@ -299,6 +299,7 @@ impl<'a> Parser<'a> {
     fn parse_range_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_range_expr");
+        self.skip_ws()?;
         let expr = self.parse_operator_or()?;
         //        self.skip_ws();
         //        match self.current_token() {
