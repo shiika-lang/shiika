@@ -242,9 +242,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         _locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
-        for (name, ty) in lvars {
+        for lvar in lvars {
             let readonly = true;
-            self.ctx_stack.declare_lvar(&name, ty, readonly);
+            self.ctx_stack.declare_lvar(&lvar.name, lvar.ty, readonly);
         }
         Ok(match_expr)
     }

@@ -38,7 +38,11 @@ pub fn convert_match_expr(
         lvars: Default::default(),
     });
 
-    let lvars = vec![(tmp_name.clone(), cond_expr.ty.clone())];
+    let lvars = vec![HirLVar {
+        name: tmp_name.clone(),
+        ty: cond_expr.ty.clone(),
+        captured: false, // This lvar cannot be captured because its name is hidden to the programmer.
+    }];
     let tmp_assign = Hir::lvar_assign(tmp_name, cond_expr, LocationSpan::todo());
     Ok((
         Hir::match_expression(result_ty, tmp_assign, clauses, LocationSpan::todo()),

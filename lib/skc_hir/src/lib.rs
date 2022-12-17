@@ -65,7 +65,15 @@ impl SkIVar {
 
 pub type SkIVars = HashMap<String, SkIVar>;
 
-pub type HirLVars = Vec<(String, TermTy)>;
+pub type HirLVars = Vec<HirLVar>;
+
+#[derive(Debug, Clone)]
+pub struct HirLVar {
+    pub name: String,
+    pub ty: TermTy,
+    /// `true` when this variable is captured by a lambda.
+    pub captured: bool,
+}
 
 #[derive(Debug, Clone)]
 pub struct HirExpressions {
