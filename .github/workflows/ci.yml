@@ -1,4 +1,4 @@
-name: ubuntu
+name: CI
 
 on:
   - push
@@ -6,10 +6,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v2
-
       - uses: actions/cache@v2
         with:
           path: |
@@ -43,3 +45,23 @@ jobs:
           cd lib/skc_rustlib; cargo build; cd ../../
           env -- LLC=llc-12 CLANG=clang-12 cargo run -- build-corelib
           env -- LLC=llc-12 CLANG=clang-12 cargo test
+
+  # Run cargo fmt --all -- --check
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+          override: true
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
