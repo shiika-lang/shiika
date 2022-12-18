@@ -569,6 +569,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
     std::mem::take(lvars)
         .into_iter()
-        .map(|(name, ctx_lvar)| (name, ctx_lvar.ty))
+        .map(|(name, ctx_lvar)| HirLVar {
+            name,
+            ty: ctx_lvar.ty,
+            captured: ctx_lvar.captured,
+        })
         .collect::<Vec<_>>()
 }

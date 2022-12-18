@@ -563,7 +563,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
-        lvars: &[(String, TermTy)],
+        lvars: &HirLVars,
         ret_ty: &TermTy,
         lambda_name: Option<String>,
     ) -> Result<()> {
@@ -650,7 +650,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_alloca_lvars(
         &self,
         function: inkwell::values::FunctionValue,
-        lvars: &[(String, TermTy)],
+        lvars: &[HirLVar],
     ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
         if lvars.is_empty() {
             return HashMap::new();
@@ -659,9 +659,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let alloca_start = self.context.append_basic_block(function, "alloca");
         self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
-        for (name, ty) in lvars {
-            let ptr = self.builder.build_alloca(self.llvm_type(ty), name);
-            lvar_ptrs.insert(name.to_string(), ptr);
+        for HirLVar { name, ty, captured } in lvars {
+            let obj_ty = self.llvm_type(ty);
+            if *captured {
+                // Allocate memory on heap in case it lives longer than the method call.
+                let ptrptr = self
+                    .allocate_llvm_obj(&obj_ty, "ptrptr")
+                    .into_pointer_value();
+                lvar_ptrs.insert(name.to_string(), ptrptr);
+            } else {
+                let ptr = self.builder.build_alloca(obj_ty, name);
+                lvar_ptrs.insert(name.to_string(), ptr);
+            }
         }
         let alloca_end = self.context.append_basic_block(function, "alloca_End");
         self.builder.build_unconditional_branch(alloca_end);
