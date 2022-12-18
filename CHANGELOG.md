@@ -1,3 +1,9 @@
+## v0.8.0 (unreleased)
+
+- Syntax
+  - Breaking change: need `let` for variable declaration (#418)
+  - feat: Add syntax to call a function stored in ivar (#420)
+
 ## v0.7.1 (2022-11-04)
 
 - Syntax

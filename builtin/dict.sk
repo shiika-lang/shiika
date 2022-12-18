@@ -28,7 +28,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
       var ret = None
       @pairs.each do |pair|
         if pair.fst == key
-          ret = Some.new(pair.snd)
+          ret = Some<VV>.new(pair.snd)
         end
       end
       ret

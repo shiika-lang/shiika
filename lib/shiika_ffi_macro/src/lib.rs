@@ -27,7 +27,7 @@ pub fn shiika_method(args: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-/// Define a wrapper function to call Shiika method.
+/// Define a wrapper function to call a Shiika method.
 ///
 /// ## Example
 /// ```rust
@@ -56,3 +56,33 @@ pub fn shiika_method_ref(input: TokenStream) -> TokenStream {
     };
     gen.into()
 }
+
+///// Define a wrapper function to call a Shiika method.
+/////
+///// ## Example
+///// ```rust
+///// shiika_const_ref!(
+/////     "::Time::Zone", // Shiika const name
+/////     SkClass, // Type of the constant
+/////     "meta_class_new" // Name of the function
+///// );
+///// ```
+//#[proc_macro]
+//pub fn shiika_const_ref(input: TokenStream) -> TokenStream {
+//    let spec = parse_macro_input!(input as ShiikaMethodRef);
+//    let mangled_name = spec.mangled_name();
+//    let parameters = &spec.parameters;
+//    let return_type = &spec.ret_ty;
+//    let wrapper_name = spec.wrapper_name();
+//    let args = spec.forwaring_args();
+//    let gen = quote! {
+//        extern "C" {
+//            #[allow(improper_ctypes)]
+//            fn #mangled_name(#parameters) -> #return_type;
+//        }
+//        pub fn #wrapper_name(#parameters) -> #return_type {
+//            unsafe { #mangled_name(#args) }
+//        }
+//    };
+//    gen.into()
+//}

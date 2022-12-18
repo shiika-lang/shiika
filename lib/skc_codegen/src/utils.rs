@@ -209,24 +209,26 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
         let object_type = self.llvm_struct_type(&class_fullname.to_type_fullname());
-        let raw_addr = self.allocate_mem(&object_type.as_basic_type_enum());
-
-        // %foo = bitcast i8* %mem to %#{t}*",
-        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let obj = SkObj(
-            self.builder
-                .build_bitcast(raw_addr.0, obj_ptr_type, reg_name),
-        );
-
-        // Store reference to vtable
+        let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum(), reg_name);
+        let obj = SkObj(ptr.as_basic_value_enum());
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
-        // Store reference to class obj
         self.set_class_of_obj(&obj, class_obj);
 
         obj
     }
 
-    /// Allocate some memory for a value of LLVM type `t`
+    /// Allocate some memory for a value of LLVM type `t`. Returns pointer.
+    pub fn allocate_llvm_obj(
+        &self,
+        t: &inkwell::types::BasicTypeEnum<'run>,
+        reg_name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let mem = self.allocate_mem(t);
+        let ptr_type = t.ptr_type(AddressSpace::Generic);
+        self.builder.build_bitcast(mem.0, ptr_type, reg_name)
+    }
+
+    /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.
     pub fn allocate_mem(&self, t: &inkwell::types::BasicTypeEnum<'run>) -> I8Ptr<'run> {
         let size = t.size_of().expect("[BUG] type has no size");
         self.shiika_malloc(size)

@@ -1,3 +1,59 @@
+require "./maybe.sk"
+
+#class Sequence<T> : Enumerable<T>
+#  def initialize(@f: Fn0<Maybe<T>>)
+#  end
+#  def each(f: Fn1<E, Void>)
+#    loop do
+#      match (@f)()
+#      when Some(item)
+#        f(item)
+#      else
+#        break
+#      end
+#    end
+#  end
+#end
+
+module LazyEnumerable<E>
+  requirement succ() -> Maybe<E>
+  def map<R>(f: Fn1<E, R>) -> LazyEnumerable<R>
+    Stream<R>.new{
+      succ().map<R>{|x| f(x)}
+    }
+  end
+  def first(n: Int) -> LazyEnumerable<E>
+    var i = 0
+    Stream<E>.new{
+      i += 1
+      if i <= n
+        succ()
+      else
+        None
+      end
+    }
+  end
+  def to_a -> Array<E>
+    let ret = Array<E>.new
+    loop do
+      match succ
+      when Some(x)
+        ret.push(x)
+      else
+        break
+      end
+    end
+    ret
+  end
+end
+
+class Stream<T> : LazyEnumerable<T>
+  def initialize(@f: Fn0<Maybe<T>>); end
+  def succ -> Maybe<T>
+    (@f)()
+  end
+end
+
 module Enumerable<E>
   requirement each(f: Fn1<E, Void>) -> Void
 
@@ -13,6 +69,10 @@ module Enumerable<E>
     end
     ret
   end
+
+#  def lazy -> Stream<E>
+#    Stream<E>.new{ 
+#  end
 
   # Return true if `f` returns true for all element of `self`
   def all?(f: Fn1<E, Bool>) -> Bool

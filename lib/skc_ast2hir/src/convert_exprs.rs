@@ -555,9 +555,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut ret = vec![];
         for cap in lambda_captures {
             let captured_here = if let HirMakerContext::Lambda(_) = self.ctx_stack.top() {
-                matches!(cap.ctx_depth, Some(idx) if idx == self.ctx_stack.len() - 1)
+                cap.is_lambda_scope && cap.ctx_idx == self.ctx_stack.len() - 1
             } else {
-                cap.ctx_depth.is_none()
+                !cap.is_lambda_scope
             };
             if captured_here {
                 // The variable is in this scope
@@ -584,7 +584,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let cidx = self
                     .ctx_stack
                     .lambda_ctx_mut()
-                    .unwrap()
+                    .expect("[BUG] no lambda_ctx found")
                     .push_lambda_capture(cap);
                 ret.push(HirLambdaCapture {
                     ty,
@@ -663,9 +663,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         updating: bool,
     ) -> Result<(Option<LVarInfo>, Option<LambdaCapture>)> {
         let mut lambda_seen = false;
-        for (lvars, params, opt_depth) in self.ctx_stack.lvar_scopes() {
+        let mut result = (None, None);
+        let mut captured = None;
+        for scope in self.ctx_stack.lvar_scopes() {
             let is_lambda_capture = in_lambda && lambda_seen;
-            if let Some(lvar) = lvars.get(name) {
+            if let Some(lvar) = scope.lvars.get(name) {
                 if updating && lvar.readonly {
                     return Err(error::program_error(&format!(
                         "cannot reassign to `{}' (Hint: declare it with `var')",
@@ -673,8 +675,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     )));
                 }
                 if is_lambda_capture {
+                    captured = Some((scope.ctx_idx, name));
                     let cap = LambdaCapture {
-                        ctx_depth: opt_depth,
+                        ctx_idx: scope.ctx_idx,
+                        is_lambda_scope: scope.is_lambda_scope,
                         ty: lvar.ty.clone(),
                         upcast_needed: false,
                         detail: LambdaCaptureDetail::CapLVar {
@@ -686,7 +690,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         detail: LVarDetail::OuterScope_ { readonly: false },
                         locs,
                     };
-                    return Ok((Some(lvar_info), Some(cap)));
+                    result = (Some(lvar_info), Some(cap));
+                    break;
                 } else {
                     let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
@@ -698,7 +703,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            if let Some((idx, param)) = signature::find_param(params, name) {
+            if let Some((idx, param)) = signature::find_param(&scope.params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
                         "you cannot reassign to argument `{}'",
@@ -707,7 +712,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
                 if is_lambda_capture {
                     let cap = LambdaCapture {
-                        ctx_depth: opt_depth,
+                        ctx_idx: scope.ctx_idx,
+                        is_lambda_scope: scope.is_lambda_scope,
                         ty: param.ty.clone(),
                         upcast_needed: false,
                         detail: LambdaCaptureDetail::CapFnArg { idx },
@@ -727,12 +733,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            let is_lambda_scope = opt_depth.is_some();
-            if is_lambda_scope {
+            if scope.is_lambda_scope {
                 lambda_seen = true;
             }
         }
-        Ok((None, None))
+        if let Some((ctx_idx, name)) = captured {
+            // Set `captured` to `true` so that this lvar is allocated on heap, not stack.
+            // (PERF: technically, it can be on the stack if the lambda does not live
+            // after returning the method.)
+            let ctx = self.ctx_stack.get_mut(ctx_idx);
+            ctx.set_lvar_captured(name, true);
+            Ok(result)
+        } else {
+            Ok((None, None))
+        }
     }
 
     fn convert_ivar_ref(&self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
