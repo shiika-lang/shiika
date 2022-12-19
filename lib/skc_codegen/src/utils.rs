@@ -213,7 +213,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // %foo = bitcast i8* %mem to %#{t}*",
         let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let obj = SkObj(self.builder.build_bitcast(raw_addr.0, obj_ptr_type, reg_name));
+        let obj = SkObj(
+            self.builder
+                .build_bitcast(raw_addr.0, obj_ptr_type, reg_name),
+        );
 
         // Store reference to vtable
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
