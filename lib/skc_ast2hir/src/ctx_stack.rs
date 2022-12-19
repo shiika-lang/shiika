@@ -26,6 +26,11 @@ impl CtxStack {
         &self.vec[idx]
     }
 
+    /// Returns nth item
+    pub fn get_mut(&mut self, idx: usize) -> &mut HirMakerContext {
+        &mut self.vec[idx]
+    }
+
     /// Push a ctx
     pub fn push(&mut self, c: HirMakerContext) {
         self.vec.push(c);
@@ -201,6 +206,7 @@ impl CtxStack {
             name: name.to_string(),
             ty,
             readonly,
+            captured: false,
         };
         lvars.insert(k, v);
     }
@@ -257,7 +263,7 @@ impl CtxStack {
     }
 
     /// Iterates over lvar scopes starting from the current scope
-    pub fn lvar_scopes(&self) -> LVarIter {
+    pub fn lvar_scopes<'hir_maker>(&'hir_maker self) -> LVarIter<'hir_maker> {
         LVarIter::new(self)
     }
 
@@ -311,13 +317,15 @@ impl<'hir_maker> LVarIter<'hir_maker> {
     }
 }
 
-impl<'a> Iterator for LVarIter<'a> {
-    /// Yields `(lvars, params, depth)`
-    type Item = (
-        &'a HashMap<String, CtxLVar>,
-        &'a [MethodParam],
-        Option<usize>,
-    );
+pub struct LVarScope<'hir_maker> {
+    pub ctx_idx: usize,
+    pub lvars: &'hir_maker HashMap<String, CtxLVar>,
+    pub params: &'hir_maker [MethodParam],
+    pub is_lambda_scope: bool,
+}
+
+impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
+    type Item = LVarScope<'hir_maker>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -327,26 +335,52 @@ impl<'a> Iterator for LVarIter<'a> {
             // Toplevel -> end.
             HirMakerContext::Toplevel(toplevel_ctx) => {
                 self.finished = true;
-                Some((&toplevel_ctx.lvars, &[], None))
+                Some(LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &toplevel_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                })
             }
             // Classes -> end.
             HirMakerContext::Class(class_ctx) => {
                 self.finished = true;
-                Some((&class_ctx.lvars, &[], None))
+                Some(LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &class_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                })
             }
             // Method -> end.
             HirMakerContext::Method(method_ctx) => {
                 self.finished = true;
-                Some((&method_ctx.lvars, &method_ctx.signature.params, None))
+                Some(LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &method_ctx.lvars,
+                    params: &method_ctx.signature.params,
+                    is_lambda_scope: false,
+                })
             }
             HirMakerContext::Lambda(lambda_ctx) => {
-                let idx = self.cur;
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &lambda_ctx.lvars,
+                    params: &lambda_ctx.params,
+                    is_lambda_scope: true,
+                };
                 self.cur -= 1;
-                Some((&lambda_ctx.lvars, &lambda_ctx.params, Some(idx)))
+                Some(scope)
             }
             HirMakerContext::MatchClause(match_clause_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &match_clause_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                };
                 self.cur -= 1;
-                Some((&match_clause_ctx.lvars, &[], None))
+                Some(scope)
             }
             // ::new() never sets `While` to .cur
             HirMakerContext::While(_) => panic!("must not happen"),

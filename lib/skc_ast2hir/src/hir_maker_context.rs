@@ -26,6 +26,10 @@ impl HirMakerContext {
         }
     }
 
+    pub fn set_lvar_captured(&mut self, name: &str, captured: bool) {
+        self.opt_lvars().unwrap().get_mut(name).unwrap().captured = captured;
+    }
+
     pub fn toplevel() -> HirMakerContext {
         HirMakerContext::Toplevel(ToplevelCtx {
             lvars: Default::default(),
@@ -151,15 +155,17 @@ pub struct CtxLVar {
     pub name: String,
     pub ty: TermTy,
     pub readonly: bool,
+    pub captured: bool,
 }
 
 pub type CtxLVars = HashMap<String, CtxLVar>;
 
 #[derive(Debug)]
 pub struct LambdaCapture {
-    /// The index of ctx stack where this lvar is captured.
-    /// None if the lvar does not belong to a lambda (method argument, etc.)
-    pub ctx_depth: Option<usize>,
+    /// The index of ctx stack where this lvar is captured
+    pub ctx_idx: usize,
+    /// True if the captured variable is also in (another) lambda scope
+    pub is_lambda_scope: bool,
     pub ty: TermTy,
     pub upcast_needed: bool,
     pub detail: LambdaCaptureDetail,
@@ -173,9 +179,10 @@ pub enum LambdaCaptureDetail {
 
 impl LambdaCapture {
     fn equals(&self, other: &LambdaCapture) -> bool {
-        if self.ctx_depth != other.ctx_depth {
+        if self.ctx_idx != other.ctx_idx {
             return false;
         }
+        debug_assert!(self.is_lambda_scope == other.is_lambda_scope);
         let equals = match (&self.detail, &other.detail) {
             (
                 LambdaCaptureDetail::CapLVar { name },

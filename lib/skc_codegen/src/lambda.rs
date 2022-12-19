@@ -238,7 +238,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         params: &'hir [MethodParam],
         exprs: &'hir HirExpressions,
         ret_ty: &TermTy,
-        lvars: &[(String, TermTy)],
+        lvars: &HirLVars,
     ) -> Result<()> {
         let func_name = LlvmFuncName(name.to_string());
         self.gen_llvm_func_body(
