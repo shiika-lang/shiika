@@ -34,13 +34,13 @@ jobs:
       - name: Set up the Linux env
         run: |
           set -eux
-          sudo apt install -y llvm-12 clang-12 libgc-dev
+          sudo apt install -y libgc-dev
         if: matrix.os == 'ubuntu-latest'
 
       - name: Set up the MacOs env
         run: |
           set -eux
-          brew install libgc
+          brew install libgc autoconf
         if: matrix.os == 'macos-latest'
 
       - name: Output versions
