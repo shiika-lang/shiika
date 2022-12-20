@@ -35,7 +35,7 @@ jobs:
       - name: Set up the MacOs env
         run: |
           set -eux
-          brew install --with-toolchain llvm@12 libgc autoconf automake libtool openlibm
+          brew install llvm@12 libgc autoconf automake libtool openlibm
         if: matrix.os == 'macos-latest'
 
       - name: Output versions
