@@ -32,10 +32,16 @@ jobs:
           sudo apt install -y llvm-12 clang-12 libgc-dev
         if: matrix.os == 'ubuntu-latest'
 
+      - name: LLVM/Clang for MacOs
+        run: |
+          set -eux
+          brew install --with-toolchain llvm
+        if: matrix.os == 'macos-latest'
+
       - name: Set up the MacOs env
         run: |
           set -eux
-          brew install llvm@12 libgc autoconf automake libtool openlibm
+          brew install libgc autoconf automake libtool openlibm
         if: matrix.os == 'macos-latest'
 
       - name: Output versions
