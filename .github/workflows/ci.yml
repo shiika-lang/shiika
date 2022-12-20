@@ -40,7 +40,7 @@ jobs:
       - name: Set up the MacOs env
         run: |
           set -eux
-          brew install libgc autoconf automake libtool
+          brew install libgc autoconf automake libtool openlibm
         if: matrix.os == 'macos-latest'
 
       - name: Output versions
