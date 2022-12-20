@@ -26,21 +26,16 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "12.0"
-
       - name: Set up the Linux env
         run: |
           set -eux
-          sudo apt install -y libgc-dev
+          sudo apt install -y llvm-12 clang-12 libgc-dev
         if: matrix.os == 'ubuntu-latest'
 
       - name: Set up the MacOs env
         run: |
           set -eux
-          brew install libgc autoconf automake libtool openlibm
+          brew install --with-toolchain llvm@12 libgc autoconf automake libtool openlibm
         if: matrix.os == 'macos-latest'
 
       - name: Output versions
