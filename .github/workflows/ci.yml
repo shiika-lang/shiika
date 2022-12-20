@@ -35,7 +35,7 @@ jobs:
       - name: LLVM/Clang for MacOs
         run: |
           set -eux
-          brew install --with-toolchain llvm
+          brew install --with-clang llvm
         if: matrix.os == 'macos-latest'
 
       - name: Set up the MacOs env
