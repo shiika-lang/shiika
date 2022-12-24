@@ -317,7 +317,7 @@ impl<'a> Parser<'a> {
                 self,
                 "setter accepts one argument but {:?} were given",
                 sig.params.len()
-            ))
+            ));
         }
 
         self.skip_ws()?;
