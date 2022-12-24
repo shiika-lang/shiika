@@ -196,6 +196,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
+        self.ctx_stack.push(HirMakerContext::if_clause());
         let mut then_hirs = self.convert_exprs(then_exprs)?;
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
@@ -225,6 +226,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
             ty
         };
+
+        self.ctx_stack.pop_if_ctx();
 
         Ok(Hir::if_expression(
             if_ty,

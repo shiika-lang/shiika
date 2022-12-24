@@ -11,6 +11,7 @@ pub enum HirMakerContext {
     Lambda(LambdaCtx),
     While(WhileCtx),
     MatchClause(MatchClauseCtx),
+    If(IfCtx),
 }
 
 impl HirMakerContext {
@@ -23,6 +24,7 @@ impl HirMakerContext {
             HirMakerContext::Lambda(c) => Some(&mut c.lvars),
             HirMakerContext::MatchClause(c) => Some(&mut c.lvars),
             HirMakerContext::While(_) => None,
+            HirMakerContext::If(c) => Some(&mut c.lvars),
         }
     }
 
@@ -70,6 +72,12 @@ impl HirMakerContext {
 
     pub fn match_clause() -> HirMakerContext {
         HirMakerContext::MatchClause(MatchClauseCtx {
+            lvars: Default::default(),
+        })
+    }
+
+    pub fn if_clause() -> HirMakerContext {
+        HirMakerContext::If(IfCtx {
             lvars: Default::default(),
         })
     }
@@ -146,6 +154,11 @@ pub struct WhileCtx;
 #[derive(Debug)]
 pub struct MatchClauseCtx {
     /// Local variables introduced when matched
+    pub lvars: HashMap<String, CtxLVar>,
+}
+
+#[derive(Debug)]
+pub struct IfCtx {
     pub lvars: HashMap<String, CtxLVar>,
 }
 

@@ -87,6 +87,15 @@ impl CtxStack {
         }
     }
 
+    /// Pop the IfCtx on the stack top
+    pub fn pop_if_ctx(&mut self) -> IfCtx {
+        if let HirMakerContext::If(ctx) = self.pop() {
+            ctx
+        } else {
+            panic!("[BUG] top is not IfCtx")
+        }
+    }
+
     /// Pop the MatchClauseCtx on the stack top
     pub fn pop_match_clause_ctx(&mut self) -> MatchClauseCtx {
         if let HirMakerContext::MatchClause(ctx) = self.pop() {
@@ -175,6 +184,7 @@ impl CtxStack {
                 HirMakerContext::Lambda(_) => "lambda".to_string(),
                 HirMakerContext::While(_) => "while".to_string(),
                 HirMakerContext::MatchClause(_) => "match".to_string(),
+                HirMakerContext::If(_) => "if".to_string(),
             }
         }
     }
@@ -304,7 +314,8 @@ impl<'hir_maker> LVarIter<'hir_maker> {
                 | HirMakerContext::Class(_)
                 | HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
-                | HirMakerContext::MatchClause(_) => break,
+                | HirMakerContext::MatchClause(_)
+                | HirMakerContext::If(_) => break,
                 // Does not make lvar scope
                 HirMakerContext::While(_) => (),
             }
@@ -384,6 +395,16 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
             }
             // ::new() never sets `While` to .cur
             HirMakerContext::While(_) => panic!("must not happen"),
+            HirMakerContext::If(if_clause_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &if_clause_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                };
+                self.cur -= 1;
+                Some(scope)
+            }
         }
     }
 }
@@ -411,7 +432,8 @@ impl<'hir_maker> NamespaceIter<'hir_maker> {
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
                 | HirMakerContext::MatchClause(_)
-                | HirMakerContext::While(_) => (),
+                | HirMakerContext::While(_)
+                | HirMakerContext::If(_) => (),
             }
         }
         NamespaceIter {
@@ -444,7 +466,8 @@ impl<'a> Iterator for NamespaceIter<'a> {
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
                 | HirMakerContext::MatchClause(_)
-                | HirMakerContext::While(_) => (),
+                | HirMakerContext::While(_)
+                | HirMakerContext::If(_) => (),
             }
         }
         panic!("[BUG] no more namespace");
