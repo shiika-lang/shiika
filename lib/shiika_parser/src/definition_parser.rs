@@ -312,6 +312,17 @@ impl<'a> Parser<'a> {
 
         // `foo(bar) -> Baz`
         let (sig, is_class_method) = self.parse_method_signature()?;
+        if sig.name.0 != "[]="
+            && (sig.name.0.chars().last().unwrap() == '=')
+            && sig.params.len() != 1
+        {
+            return Err(parse_error!(
+                self,
+                "setter accepts one argument but {:?} were given",
+                sig.params.len()
+            ));
+        }
+
         self.skip_ws()?;
         self.expect_sep()?;
 
