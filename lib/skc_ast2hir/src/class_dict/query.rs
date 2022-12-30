@@ -69,6 +69,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            if method_tyargs.len() > 0 && method_tyargs.len() != found.sig.typarams.len() {
+                return Err(error::type_error(format!(
+                    "wrong number of type arguments, expected: {:?} got: {:?}",
+                    &found.sig.typarams.len(),
+                    method_tyargs.len(),
+                )));
+            }
+
             found.specialize(class_tyargs, method_tyargs);
             return Ok(found);
         }
