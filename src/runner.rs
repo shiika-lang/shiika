@@ -144,10 +144,33 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     cmd.arg(out_path.clone());
     cmd.arg("builtin/builtin.bc");
     let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
-    cmd.arg(format!("{}/debug/libskc_rustlib.a", cargo_target));
+    if cfg!(target_os = "windows") {
+        cmd.arg(format!("{}/debug/skc_rustlib.lib", cargo_target));
+    } else {
+        cmd.arg(format!("{}/debug/libskc_rustlib.a", cargo_target));
+    }
     cmd.arg(bc_path.clone());
-    cmd.arg("-ldl");
-    cmd.arg("-lpthread");
+
+    if cfg!(target_os = "windows") {
+        cmd.arg("-luser32");
+        cmd.arg("-lkernel32");
+        cmd.arg("-lws2_32");
+
+        cmd.arg("-Xlinker");
+        cmd.arg("/NODEFAULTLIB");
+        cmd.arg("-lmsvcrt");
+        cmd.arg("-lucrt");
+        cmd.arg("-lvcruntime");
+        //cmd.arg("-lucrt");
+
+        cmd.arg("-lbcrypt");
+        cmd.arg("-ladvapi32");
+        cmd.arg("-luserenv");
+    } else {
+        cmd.arg("-ldl");
+        cmd.arg("-lpthread");
+    }
+
     if !cmd.status()?.success() {
         return Err(anyhow!("clang failed"));
     }

@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 shiika_ffi_macro = { path = "../shiika_ffi_macro" }
-bdwgc-alloc = "0.6.0"
+bdwgc-alloc = { version = "0.6.0", default-features=false, features = ["cmake"] }
 plain = "0.2.3"
 # For String#chars
 unicode-segmentation = "1.7.1"

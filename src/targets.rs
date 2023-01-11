@@ -1,4 +1,5 @@
 /// Returns default `TargetTriple`
+#[cfg(feature = "mac")]
 pub fn default_triple() -> inkwell::targets::TargetTriple {
     if let Ok(info) = mac_sys_info::get_mac_sys_info() {
         // #281: get_default_triple returns `darwin` but clang shows warning for it
@@ -12,4 +13,9 @@ pub fn default_triple() -> inkwell::targets::TargetTriple {
     } else {
         inkwell::targets::TargetMachine::get_default_triple()
     }
+}
+
+#[cfg(not(feature = "mac"))]
+pub fn default_triple() -> inkwell::targets::TargetTriple {
+    inkwell::targets::TargetMachine::get_default_triple()
 }
