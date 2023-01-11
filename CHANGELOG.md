@@ -1,3 +1,19 @@
+## v0.7.1 (2022-11-04)
+
+- Syntax
+  - feat: Method type parameter inference (#415)
+  - feat: Block parameter type inference (#389)
+  - feat: Class-level initialize (#392)
+  - feat: Allow bool/float/string literal in pattern match (#383)
+- Library
+  - feat: `Time` class (#413)
+  - feat: String#chars supports emojis (#375, #377)
+- Other
+  - feat: Show backtrace on panic if `RUST_BACKTRACE=1` is set (#386)
+  - feat: Support stable Rust (#370)
+  - feat: Show source location on some errors (#367, etc.)
+  - bug fixes
+
 ## v0.7.0 (2022-07-12)
 
 - feat: Modules (#346)

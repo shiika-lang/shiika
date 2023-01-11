@@ -165,16 +165,17 @@ impl AstBuilder {
         &self,
         name: String,
         rhs: AstExpression,
+        readonly: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::LVarAssign {
+            AstExpressionBody::LVarDecl {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
+                readonly,
             },
         )
     }
@@ -183,34 +184,17 @@ impl AstBuilder {
         &self,
         name: String,
         rhs: AstExpression,
+        readonly: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
         self.non_primary_expression(
             begin,
             end,
-            AstExpressionBody::IVarAssign {
+            AstExpressionBody::IVarDecl {
                 name,
                 rhs: Box::new(rhs),
-                is_var: true,
-            },
-        )
-    }
-
-    pub fn ivar_assign(
-        &self,
-        name: String,
-        rhs: AstExpression,
-        begin: Location,
-        end: Location,
-    ) -> AstExpression {
-        self.non_primary_expression(
-            begin,
-            end,
-            AstExpressionBody::IVarAssign {
-                name,
-                rhs: Box::new(rhs),
-                is_var: false,
+                readonly,
             },
         )
     }
@@ -248,6 +232,25 @@ impl AstBuilder {
                 has_block: false,
                 may_have_paren_wo_args: false,
             }),
+        )
+    }
+
+    pub fn lambda_invocation(
+        &self,
+        fn_expr: AstExpression,
+        arg_exprs: Vec<AstExpression>,
+        has_block: bool,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.primary_expression(
+            begin,
+            end,
+            AstExpressionBody::LambdaInvocation {
+                fn_expr: Box::new(fn_expr),
+                arg_exprs,
+                has_block,
+            },
         )
     }
 
@@ -414,12 +417,10 @@ impl AstBuilder {
             AstExpressionBody::BareName(s) => AstExpressionBody::LVarAssign {
                 name: s,
                 rhs: Box::new(rhs),
-                is_var: false,
             },
             AstExpressionBody::IVarRef(name) => AstExpressionBody::IVarAssign {
                 name,
                 rhs: Box::new(rhs),
-                is_var: false,
             },
             AstExpressionBody::CapitalizedName(names) => AstExpressionBody::ConstAssign {
                 names: names.0,

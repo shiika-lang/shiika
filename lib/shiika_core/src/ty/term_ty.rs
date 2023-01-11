@@ -105,7 +105,7 @@ impl TermTy {
     // Returns true when this is the Void type
     pub fn is_void_type(&self) -> bool {
         match self.body {
-            TyRaw(_) => (self.fullname.0 == "Void"),
+            TyRaw(_) => self.fullname.0 == "Void",
             _ => false,
         }
     }
@@ -113,7 +113,7 @@ impl TermTy {
     // Returns true when this is the Never type
     pub fn is_never_type(&self) -> bool {
         match self.body {
-            TyRaw(_) => (self.fullname.0 == "Never"),
+            TyRaw(_) => self.fullname.0 == "Never",
             _ => false,
         }
     }
@@ -167,7 +167,7 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
-            _ => panic!("instance_ty is undefined for {:?}", self),
+            TyPara(_) => self.clone(),
         }
     }
 
@@ -271,17 +271,7 @@ impl TermTy {
                     }
                 }
             },
-            TyRaw(LitTy {
-                base_name,
-                type_args,
-                is_meta,
-            }) => {
-                let args = type_args
-                    .iter()
-                    .map(|t| t.substitute(class_tyargs, method_tyargs))
-                    .collect();
-                ty::new(base_name, args, *is_meta)
-            }
+            TyRaw(lit_ty) => lit_ty.substitute(class_tyargs, method_tyargs).into(),
         }
     }
 

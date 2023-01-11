@@ -6,7 +6,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   class Table<KK, VV>
     def initialize
-      @pairs = Array<Pair<KK, VV>>.new
+      let @pairs = Array<Pair<KK, VV>>.new
     end
 
     # Set the value of specified key.
@@ -47,7 +47,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
     # Return list of the keys
     def keys -> Array<KK>
-      ret = Array<KK>.new
+      let ret = Array<KK>.new
       @pairs.each do |pair|
         ret.push(pair.fst)
       end
@@ -56,7 +56,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
     # Return list of the values
     def values -> Array<VV>
-      ret = Array<VV>.new
+      let ret = Array<VV>.new
       @pairs.each do |pair|
         ret.push(pair.snd)
       end
@@ -69,7 +69,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
   end
 
   def initialize
-    @tables = Array<Dict::Table<K, V>>.new
+    let @tables = Array<Dict::Table<K, V>>.new
     N_TABLES.times{|_| @tables.push(Dict::Table<K, V>.new) }
   end
 
@@ -102,7 +102,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   # Return list of the keys
   def keys -> Array<K>
-    ret = Array<K>.new
+    let ret = Array<K>.new
     @tables.each do |table|
       ret.append(table.keys)
     end
@@ -111,7 +111,7 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
 
   # Return list of the values
   def values -> Array<V>
-    ret = Array<V>.new
+    let ret = Array<V>.new
     @tables.each do |table|
       ret.append(table.values)
     end

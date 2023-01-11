@@ -4,7 +4,7 @@ require "./maybe.sk"
 class Array<T> : Enumerable<T>
   # Build an array of length `len` by passing index to `f`
   def self.build<U>(len: Int, f: Fn1<Int, U>) -> Array<U>
-    ret = Array<U>.new
+    let ret = Array<U>.new
     ret.reserve(len)
     var i=0; while i<len
       ret.push(f(i))
@@ -15,7 +15,7 @@ class Array<T> : Enumerable<T>
 
   # Creates an empty array and preallocate memory for `capa` elements.
   def self.repeat<U>(item: U, len: Int) -> Array<U>
-    ret = Array<U>.new
+    let ret = Array<U>.new
     ret.reserve(len)
     var i=0; while i<len
       ret.push(item)
@@ -30,7 +30,7 @@ class Array<T> : Enumerable<T>
 
   # Makes an array by concatenating `self` and `other`.
   def +(other: Array<T>) -> Array<T>
-    a = Array<T>.new
+    let a = Array<T>.new
     a.append(self)
     a.append(other)
     a
@@ -66,7 +66,7 @@ class Array<T> : Enumerable<T>
 
   # Create shallow clone of `self`
   def clone -> Array<T>
-    ret = Array<T>.new
+    let ret = Array<T>.new
     each do |item|
       ret.push(item)
     end
@@ -75,7 +75,7 @@ class Array<T> : Enumerable<T>
 
   # Create an array which contains elements of `self` without first `n` elements.
   def drop(n: Int) -> Array<T>
-    ret = Array<T>.new
+    let ret = Array<T>.new
     n.upto(length - 1) do |i|
       ret.push(self[i])
     end
@@ -101,7 +101,7 @@ class Array<T> : Enumerable<T>
 
   # Returns a shallow copy of `self` which has first `n` elements (at most).
   def first_n(n: Int) -> Array<T>
-    a = Array<T>.new
+    let a = Array<T>.new
     0.upto(n-1) do |i|
       break if i >= length
       a.push(self[i])
@@ -112,7 +112,7 @@ class Array<T> : Enumerable<T>
   # Return string representation of `self` (for debugging)
   def inspect -> String
     var first = true
-    ret = MutableString.new
+    let ret = MutableString.new
     ret.append("[")
     each do |item|
       if first
@@ -151,7 +151,7 @@ class Array<T> : Enumerable<T>
 
   # Create an array which contains items of `self` for which `f` does not return true
   def reject(f: Fn1<T, Bool>) -> Array<T>
-    ret = Array<T>.new
+    let ret = Array<T>.new
     each do |item|
       ret.push(item) unless f(item)
     end
@@ -164,7 +164,7 @@ class Array<T> : Enumerable<T>
 
   # Create a new array which has reversed elements of `self`
   def reverse -> Array<T>
-    ret = Array<T>.new
+    let ret = Array<T>.new
     reverse_each do |item|
       ret.push(item)
     end
@@ -186,7 +186,7 @@ class Array<T> : Enumerable<T>
   # Create sorted version of `self`
   # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
   def sort -> Array<T>
-    ret = self.clone
+    let ret = self.clone
     ret.sort_inplace
     ret
   end
@@ -204,7 +204,7 @@ class Array<T> : Enumerable<T>
     if i == j
       # done
     else
-      k = _partition(i, j, self[_choose_pivot(i, j)])
+      let k = _partition(i, j, self[_choose_pivot(i, j)])
       _quicksort(i, k-1)
       _quicksort(k, j)
     end
@@ -235,7 +235,7 @@ class Array<T> : Enumerable<T>
       if l > r
         #break  # #215
       else
-        tmp = self[l]
+        let tmp = self[l]
         self[l] = self[r]
         self[r] = tmp
         l += 1
@@ -248,8 +248,8 @@ class Array<T> : Enumerable<T>
   # Returns shallow copies of `self`, split at `idx`. The element at `idx` belongs to the latter.
   # The latter will be empty if `idx` equals to or greater than `self.length`.
   def split_at(idx: Int) -> Pair<Array<T>, Array<T>>
-    a = Array<T>.new
-    b = Array<T>.new
+    let a = Array<T>.new
+    let b = Array<T>.new
     0.upto(length-1) do |i|
       if i >= idx
         b.push(self[i])

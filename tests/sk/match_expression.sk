@@ -8,7 +8,7 @@ class A
   end
 end
 
-a = match A.foo
+let a = match A.foo
 when Some(n)
   n
 when None then 0  # KwThen is allowed here
@@ -16,7 +16,7 @@ end
 unless a == 99; puts "failed"; end
 
 # Type inference of bindings
-f = fn(){
+let f = fn(){
   Pair<Int, Bool>.new(11, false)
 }
 match f()

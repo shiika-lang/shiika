@@ -22,6 +22,12 @@ pub enum TyParamKind {
     Method,
 }
 
+impl From<TyParamRef> for TermTy {
+    fn from(x: TyParamRef) -> Self {
+        x.into_term_ty()
+    }
+}
+
 impl TyParamRef {
     pub fn dbg_str(&self) -> String {
         let k = match &self.kind {

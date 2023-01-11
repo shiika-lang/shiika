@@ -1,5 +1,5 @@
-a = [123]
-fst = a.first
+let a = [123]
+let fst = a.first
 match a.first
 when Some(v)
   puts "ng #first (#{v})" unless v == 123
@@ -7,12 +7,15 @@ else
   puts "ng #first"
 end
 
-b = Array<Int>.new
+let b = Array<Int>.new
 b.push(123)
 unless b[0] == 123; puts "ng Array<Int>.new"; end
 
 # flat_map
-fa = [1, 2].flat_map<Float>{|i: Int| [i.to_f, i.to_f / 2.0]}
+let fa = [1, 2].flat_map<Float>{|i: Int| [i.to_f, i.to_f / 2.0]}
 unless fa == [1.0, 0.5, 2.0, 1.0]; puts "ng flat_map"; end
+
+let some_array = [1,2,3]
+unless some_array[ 0 ] == 1; puts "ng array index"; end
 
 puts "ok"

@@ -1,7 +1,7 @@
 use crate::values::*;
 use crate::CodeGen;
 use inkwell::types::*;
-use inkwell::values::*;
+use inkwell::values::BasicValue;
 use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
@@ -34,7 +34,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Load value of an instance variable
     pub fn build_ivar_load(&self, object: SkObj<'run>, idx: usize, name: &str) -> SkObj<'run> {
-        SkObj(self.build_llvm_struct_ref(object, OBJ_HEADER_SIZE + idx, name))
+        SkObj(self.build_object_struct_ref(object, OBJ_HEADER_SIZE + idx, name))
     }
 
     /// Store value into an instance variable
@@ -56,28 +56,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         value: inkwell::values::BasicValueEnum<'a>,
         name: &str,
     ) {
-        self.build_llvm_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
+        self.build_object_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
     }
 
     /// Get the vtable of an object as i8ptr
     pub fn get_vtable_of_obj(&self, object: SkObj<'run>) -> VTableRef<'run> {
-        VTableRef(self.build_llvm_struct_ref(object, OBJ_VTABLE_IDX, "vtable"))
+        VTableRef(self.build_object_struct_ref(object, OBJ_VTABLE_IDX, "vtable"))
     }
 
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
-        SkClassObj(self.build_llvm_struct_ref(object, OBJ_CLASS_IDX, "class"))
+        SkClassObj(self.build_object_struct_ref(object, OBJ_CLASS_IDX, "class"))
     }
 
     /// Set `class_obj` to the class object field of `object`
     pub fn set_class_of_obj(&self, object: &SkObj<'run>, class_obj: SkClassObj<'run>) {
         let cast = self.bitcast(SkObj(class_obj.0), &ty::raw("Class"), "class");
-        self.build_llvm_struct_set(object, OBJ_CLASS_IDX, cast.0, "my_class");
+        self.build_object_struct_set(object, OBJ_CLASS_IDX, cast.0, "my_class");
     }
 
     /// Set `vtable` to `object`
     pub fn set_vtable_of_obj(&self, object: &SkObj<'run>, vtable: VTableRef<'run>) {
-        self.build_llvm_struct_set(object, OBJ_VTABLE_IDX, vtable.0, "vtable");
+        self.build_object_struct_set(object, OBJ_VTABLE_IDX, vtable.0, "vtable");
     }
 
     /// Get vtable of the class of the given name
@@ -119,36 +119,52 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap()
     }
 
-    /// Load value of nth element of llvm struct
-    fn build_llvm_struct_ref(
+    /// Load value of the nth element of the llvm struct of a Shiika object
+    fn build_object_struct_ref(
         &self,
         object: SkObj<'run>,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let obj_ptr = object.0.into_pointer_value();
-        let obj_ptr_ty = obj_ptr.get_type();
+        let ptr = object.0.into_pointer_value();
+        self.build_llvm_struct_ref(ptr, idx, name)
+    }
+
+    /// Load value of the nth element of a llvm struct
+    pub fn build_llvm_struct_ref(
+        &self,
+        struct_ptr: inkwell::values::PointerValue<'run>,
+        idx: usize,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = self
             .builder
-            .build_struct_gep(
-                obj_ptr,
-                idx as u32,
-                &format!("addr_{}", name),
-            )
+            .build_struct_gep(struct_ptr, idx as u32, &format!("addr_{}", name))
             .unwrap_or_else(|_| {
-                let pointee_ty = obj_ptr_ty.get_element_type();
                 panic!(
-                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, pointee_ty: {:?}, object: {:?})",
-                    &idx, &name, &pointee_ty, &object
+                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, struct_ptr: {:?})",
+                    &idx, &name, &struct_ptr
                 )
             });
         self.builder.build_load(ptr, name)
     }
 
-    /// Set value to nth element of llvm struct
-    fn build_llvm_struct_set<'a>(
+    /// Set the value the nth element of llvm struct of a Shiika object
+    fn build_object_struct_set<'a>(
         &'a self,
         object: &'a SkObj<'a>,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'a>,
+        name: &str,
+    ) {
+        let ptr = object.0.into_pointer_value();
+        self.build_llvm_struct_set(ptr, idx, value, name);
+    }
+
+    /// Set the value the nth element of llvm struct
+    pub fn build_llvm_struct_set<'a>(
+        &'a self,
+        struct_ptr: inkwell::values::PointerValue<'a>,
         idx: usize,
         value: inkwell::values::BasicValueEnum<'a>,
         name: &str,
@@ -156,14 +172,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = self
             .builder
             .build_struct_gep(
-                object.0.into_pointer_value(),
+                struct_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
             )
             .unwrap_or_else(|_| {
                 panic!(
-                    "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, object: {:?})",
-                    &idx, &name, &object
+                    "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
+                    &idx, &name, &struct_ptr
                 )
             });
         self.builder.build_store(ptr, value);
@@ -193,29 +209,42 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
         let object_type = self.llvm_struct_type(&class_fullname.to_type_fullname());
-        let obj_ptr_type = object_type.ptr_type(AddressSpace::Generic);
-        let size = object_type
-            .size_of()
-            .expect("[BUG] object_type has no size");
-
-        // %mem = call i8* @shiika_malloc(i64 %size)",
-        let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
-        let raw_addr = self
-            .builder
-            .build_call(func, &[size.as_basic_value_enum().into()], "mem")
-            .try_as_basic_value()
-            .left()
-            .unwrap();
-
-        // %foo = bitcast i8* %mem to %#{t}*",
-        let obj = SkObj(self.builder.build_bitcast(raw_addr, obj_ptr_type, reg_name));
-
-        // Store reference to vtable
+        let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum(), reg_name);
+        let obj = SkObj(ptr.as_basic_value_enum());
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
-        // Store reference to class obj
         self.set_class_of_obj(&obj, class_obj);
 
         obj
+    }
+
+    /// Allocate some memory for a value of LLVM type `t`. Returns pointer.
+    pub fn allocate_llvm_obj(
+        &self,
+        t: &inkwell::types::BasicTypeEnum<'run>,
+        reg_name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let mem = self.allocate_mem(t);
+        let ptr_type = t.ptr_type(AddressSpace::Generic);
+        self.builder.build_bitcast(mem.0, ptr_type, reg_name)
+    }
+
+    /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.
+    pub fn allocate_mem(&self, t: &inkwell::types::BasicTypeEnum<'run>) -> I8Ptr<'run> {
+        let size = t.size_of().expect("[BUG] type has no size");
+        self.shiika_malloc(size)
+    }
+
+    /// Call `shiika_malloc`
+    pub fn shiika_malloc(&self, size: inkwell::values::IntValue<'run>) -> I8Ptr<'run> {
+        let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
+        I8Ptr(
+            self.builder
+                .build_call(func, &[size.as_basic_value_enum().into()], "mem")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
+                .into_pointer_value(),
+        )
     }
 
     /// Call llvm function which corresponds to a Shiika method
@@ -327,6 +356,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_function(&name.0)
             .unwrap_or_else(|| panic!("[BUG] get_llvm_func: `{:?}' not found", name))
     }
+}
+
+/// Name of llvm struct of lambda captures
+pub(super) fn lambda_capture_struct_name(name: &str) -> String {
+    format!("shiika_captures_{}", name)
 }
 
 /// Name of llvm constant of a vtable

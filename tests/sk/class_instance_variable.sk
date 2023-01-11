@@ -1,7 +1,7 @@
 # Basic example
 class A
   def self.initialize
-    @a = 0
+    let @a = 0
   end
 end
 if A.a != 0; puts "A.a returned \{A.a}"; end

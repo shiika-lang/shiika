@@ -108,6 +108,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.define_class_class();
         self.gen_imports(imports);
         self.gen_type_structs(&hir.sk_types);
+        self.gen_lambda_capture_structs(hir)?;
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
@@ -162,27 +163,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         );
         self.module
             .add_function("shiika_insert_wtable", fn_type, None);
-
-        let str_type = self.i8_type.array_type(4);
-        let global = self.module.add_global(str_type, None, "putd_tmpl");
-        global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[
-            self.i8_type.const_int(37, false),  // %
-            self.i8_type.const_int(108, false), // l
-            self.i8_type.const_int(100, false), // d
-            self.i8_type.const_int(0, false),
-        ]));
-        global.set_constant(true);
-
-        let str_type = self.i8_type.array_type(3);
-        let global = self.module.add_global(str_type, None, "putf_tmpl");
-        global.set_linkage(inkwell::module::Linkage::Internal);
-        global.set_initializer(&self.i8_type.const_array(&[
-            self.i8_type.const_int(37, false),  // %
-            self.i8_type.const_int(102, false), // f
-            self.i8_type.const_int(0, false),
-        ]));
-        global.set_constant(true);
     }
 
     /// Define llvm struct type for `Class` in advance
@@ -255,8 +235,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .map(|name| {
                     let func = self
                         .get_llvm_func(&method_func_name(name))
-                        .as_any_value_enum()
-                        .into_pointer_value();
+                        .as_global_value()
+                        .as_pointer_value();
                     self.builder
                         .build_bitcast(func, self.i8ptr_type, "")
                         .into_pointer_value()
@@ -572,7 +552,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(&method.body),
             &method.lvars,
             &method.signature.ret_ty,
-            false,
+            None,
         )
     }
 
@@ -583,10 +563,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
-        lvars: &[(String, TermTy)],
+        lvars: &HirLVars,
         ret_ty: &TermTy,
-        is_lambda: bool,
+        lambda_name: Option<String>,
     ) -> Result<()> {
+        let is_lambda = lambda_name.is_some();
         // LLVM function
         // (Function for lambdas are created in gen_lambda_expr)
         let function = self.get_llvm_func(func_name);
@@ -653,7 +634,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_shiika_function_body(
                     function,
                     Some(params),
-                    FunctionOrigin::Lambda,
+                    FunctionOrigin::Lambda {
+                        name: lambda_name.unwrap(),
+                    },
                     ret_ty,
                     exprs,
                     lvar_ptrs,
@@ -667,7 +650,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_alloca_lvars(
         &self,
         function: inkwell::values::FunctionValue,
-        lvars: &[(String, TermTy)],
+        lvars: &[HirLVar],
     ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
         if lvars.is_empty() {
             return HashMap::new();
@@ -676,9 +659,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let alloca_start = self.context.append_basic_block(function, "alloca");
         self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
-        for (name, ty) in lvars {
-            let ptr = self.builder.build_alloca(self.llvm_type(ty), name);
-            lvar_ptrs.insert(name.to_string(), ptr);
+        for HirLVar { name, ty, captured } in lvars {
+            let obj_ty = self.llvm_type(ty);
+            if *captured {
+                // Allocate memory on heap in case it lives longer than the method call.
+                let ptrptr = self
+                    .allocate_llvm_obj(&obj_ty, "ptrptr")
+                    .into_pointer_value();
+                lvar_ptrs.insert(name.to_string(), ptrptr);
+            } else {
+                let ptr = self.builder.build_alloca(obj_ty, name);
+                lvar_ptrs.insert(name.to_string(), ptr);
+            }
         }
         let alloca_end = self.context.append_basic_block(function, "alloca_End");
         self.builder.build_unconditional_branch(alloca_end);

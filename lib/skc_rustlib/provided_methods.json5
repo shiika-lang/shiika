@@ -66,6 +66,7 @@
   ["Shiika::Internal::Ptr", "read -> Int"],
   ["Shiika::Internal::Ptr", "store(value: Object)"],
   ["Shiika::Internal::Ptr", "write(byte: Int)"],
+  ["Meta:Shiika::Internal::Ptr", "p(value: Object, len: Int)"],
   ["Meta:Time::Instant", "now -> Time::Instant"],
   ["Time", "to_plain -> Time::PlainDateTime"],
 ]

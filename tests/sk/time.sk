@@ -1,7 +1,7 @@
-l = Time.local
+let l = Time.local
 unless l.zone == Time::Zone::Local; puts "failed l.zone"; end
 
-u = Time.utc
+let u = Time.utc
 unless u.zone == Time::Zone::Utc; puts "failed u.zone"; end
 
 unless u.inspect.class == String; puts "failed inspect"; end

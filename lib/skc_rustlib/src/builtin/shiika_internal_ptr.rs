@@ -2,7 +2,7 @@
 //!
 //! Should be removed once `Array`, etc. is re-implemented in skc_rustlib.
 use crate::builtin::object::ShiikaObject;
-use crate::builtin::{SkInt, SkStr};
+use crate::builtin::{SkClass, SkInt, SkStr};
 use shiika_ffi_macro::shiika_method;
 use std::convert::TryInto;
 use std::os::raw::c_void;
@@ -88,5 +88,16 @@ pub extern "C" fn shiika_internal_ptr_write(receiver: SkPtr, byte: SkInt) {
     unsafe {
         let p = receiver.unbox_mut();
         *p = byte.val().try_into().unwrap();
+    }
+}
+
+#[shiika_method("Meta:Shiika::Internal::Ptr#p")]
+pub extern "C" fn meta_shiika_internal_ptr_p(_receiver: SkClass, value: *const u64, len: SkInt) {
+    unsafe {
+        let n = len.val() as usize;
+        for i in 0..n {
+            let v = value.add(i);
+            println!("0x{:x}: {:x} ", v as u64, *v);
+        }
     }
 }

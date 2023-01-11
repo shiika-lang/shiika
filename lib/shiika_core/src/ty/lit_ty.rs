@@ -13,6 +13,12 @@ pub struct LitTy {
     pub is_meta: bool,
 }
 
+impl From<LitTy> for TermTy {
+    fn from(x: LitTy) -> Self {
+        x.into_term_ty()
+    }
+}
+
 impl LitTy {
     pub fn new(base_name: String, type_args: Vec<TermTy>, is_meta_: bool) -> LitTy {
         let is_meta = if base_name == "Metaclass" {
@@ -47,5 +53,14 @@ impl LitTy {
 
     pub fn erasure(&self) -> Erasure {
         Erasure::new(self.base_name.clone(), self.is_meta)
+    }
+
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> LitTy {
+        let args = self
+            .type_args
+            .iter()
+            .map(|t| t.substitute(class_tyargs, method_tyargs))
+            .collect();
+        LitTy::new(self.base_name.clone(), args, self.is_meta)
     }
 }

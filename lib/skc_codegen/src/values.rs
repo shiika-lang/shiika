@@ -43,6 +43,36 @@ impl<'run> VTableRef<'run> {
     }
 }
 
-/// i8*
+/// i8* (REFACTOR: rename to VoidPtr)
 #[derive(Debug)]
 pub struct I8Ptr<'run>(pub inkwell::values::PointerValue<'run>);
+
+impl<'run> I8Ptr<'run> {
+    /// Create a void pointer with bitcast
+    pub fn cast(
+        gen: &CodeGen<'_, 'run, '_>,
+        p: inkwell::values::PointerValue<'run>,
+    ) -> I8Ptr<'run> {
+        I8Ptr(
+            gen.builder
+                .build_bitcast(p, gen.i8ptr_type, "cast")
+                .into_pointer_value(),
+        )
+    }
+
+    /// Box `self` with `Shiika::Internal::Ptr`
+    pub fn boxed(self, gen: &CodeGen<'_, 'run, '_>) -> SkObj<'run> {
+        gen.box_i8ptr(self.0.into())
+    }
+
+    /// Returns `PointerValue` cast to `t`
+    pub fn cast_to(
+        self,
+        gen: &CodeGen<'_, 'run, '_>,
+        t: inkwell::types::PointerType<'run>,
+    ) -> inkwell::values::PointerValue<'run> {
+        gen.builder
+            .build_bitcast(self.0, t, "cast_to")
+            .into_pointer_value()
+    }
+}

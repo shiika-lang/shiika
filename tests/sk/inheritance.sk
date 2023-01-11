@@ -8,13 +8,13 @@ end
 class Sub1 : Base1
 end
 
-sub1 = Sub1.new
+let sub1 = Sub1.new
 unless sub1.foo == 1 then puts "ng 1" end
 
 # Inherit initializer
 class Base2
   def initialize
-    @a = 9
+    let @a = 9
   end
 end
 
@@ -24,24 +24,24 @@ end
 class Sub2 : Mid2
 end
 
-sub2 = Sub2.new
+let sub2 = Sub2.new
 unless sub2.a == 9 then puts "ng 2" end
 
 # Inherit ivars
 class Base3
   def initialize(i: Int)
-    @a = i
+    let @a = i
   end
 end
 
 class Sub3 : Base3
   def initialize
-    @a = 2
-    @b = 2.0
+    let @a = 2
+    let @b = 2.0
   end
 end
 
-sub3 = Sub3.new
+let sub3 = Sub3.new
 unless sub3.a == 2 then puts "ng 3" end
 unless sub3.b == 2.0 then puts "ng 4" end
 

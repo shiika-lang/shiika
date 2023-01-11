@@ -3,13 +3,13 @@ var f0 = fn{ false };
 if f0(); puts "ng 0"; end
 var f1 = fn(x: Int){ x + 1 }
 if f1(1) != 2; puts "ng 1"; end
-f2 = fn(x: Int, y: Int){ x + y }
+let f2 = fn(x: Int, y: Int){ x + y }
 if f2(1, 2) != 3; puts "ng 1-1"; end
 
 # Lambda in a method
 class A
   def self.foo(i: Int) -> Int
-    f = fn(x: Int){ x + i }
+    let f = fn(x: Int){ x + i }
     f(1)
   end
 end
@@ -17,9 +17,9 @@ if A.foo(1) != 2; puts "ng 2"; end
 
 # Capturing free vars
 var a = 1
-g = fn(x: Int){
-  b = 2
-  h = fn(y: Int, z: Int) {
+let g = fn(x: Int){
+  let b = 2
+  let h = fn(y: Int, z: Int) {
     a + b + x + y + z
   }
   h(3, 4)
@@ -27,8 +27,8 @@ g = fn(x: Int){
 unless g(5) == 15; puts "ng 3"; end
 
 # Capturing bool
-t = true
-f1b = fn(x: Int) { t }
+let t = true
+let f1b = fn(x: Int) { t }
 unless f1b(0); puts "ng 4"; end
 
 # Updating value

@@ -25,7 +25,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
 #[derive(Debug, PartialEq)]
 pub enum FunctionOrigin {
     Method,
-    Lambda,
+    Lambda { name: String },
     Other,
 }
 
@@ -62,5 +62,12 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
             .collect();
         std::mem::swap(&mut new_lvars, &mut self.lvars);
         new_lvars
+    }
+
+    pub fn lambda_name(&self) -> Option<&str> {
+        match &self.function_origin {
+            FunctionOrigin::Lambda { name } => Some(name),
+            _ => None,
+        }
     }
 }

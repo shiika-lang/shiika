@@ -89,21 +89,24 @@ See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 - [x] v0.4.0 - Anonymous function (lambda)
 - [x] v0.5.0 - Virtual methods
 - [x] v0.6.0 - Generic methods
-- [x] v0.6.0 - Enums
+- [x] v0.6.0 - Enums, basic pattern matching
 - [x] v0.7.0 - Modules (like Ruby's `module`)
-- [ ] - Something like Ruby's `require`
+- [ ] v0.8.0 - More stdlib (File, etc)
 - After v1.0.0
   - Language enhancement
     - Default arguments
     - Keyword arguments passing
-    - Pattern matching
-    - Exceptions?
   - Built-in library
     - Bignum, etc
   - Standard library?
     - Http, etc?
   - Package system
   - Some meta-programming feature (but not AST macro, sorry lisp fans)
+
+## Supported platform
+
+- Tested on Mac and Linux
+- May not work on 32bit environment
 
 ## Hacking
 

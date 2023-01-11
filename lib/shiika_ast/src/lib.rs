@@ -148,6 +148,7 @@ pub struct UnresolvedTypeName {
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,
+    /// Can invoke method with `.foo`
     pub primary: bool,
     pub locs: LocationSpan,
 }
@@ -182,23 +183,34 @@ pub enum AstExpressionBody {
     Return {
         arg: Option<Box<AstExpression>>,
     },
+    LVarDecl {
+        name: String,
+        rhs: Box<AstExpression>,
+        readonly: bool,
+    },
     LVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var` (TODO: rename to `readonly`?)
-        is_var: bool,
+    },
+    IVarDecl {
+        name: String,
+        rhs: Box<AstExpression>,
+        readonly: bool,
     },
     IVarAssign {
         name: String,
         rhs: Box<AstExpression>,
-        /// Whether declared with `var`
-        is_var: bool,
     },
     ConstAssign {
         names: Vec<String>,
         rhs: Box<AstExpression>,
     },
     MethodCall(AstMethodCall),
+    LambdaInvocation {
+        fn_expr: Box<AstExpression>,
+        arg_exprs: Vec<AstExpression>,
+        has_block: bool,
+    },
     LambdaExpr {
         params: Vec<BlockParam>,
         exprs: Vec<AstExpression>,

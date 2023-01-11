@@ -312,6 +312,17 @@ impl<'a> Parser<'a> {
 
         // `foo(bar) -> Baz`
         let (sig, is_class_method) = self.parse_method_signature()?;
+        if sig.name.0 != "[]="
+            && (sig.name.0.chars().last().unwrap() == '=')
+            && sig.params.len() != 1
+        {
+            return Err(parse_error!(
+                self,
+                "setter accepts one argument but {:?} were given",
+                sig.params.len()
+            ));
+        }
+
         self.skip_ws()?;
         self.expect_sep()?;
 
@@ -358,6 +369,7 @@ impl<'a> Parser<'a> {
     /// `def initialize(a: Int); @a = a`.
     /// Returns expressions like `@a = a`
     fn iparam_exprs(&self, params: &[Param]) -> Vec<shiika_ast::AstExpression> {
+        let readonly = true; // TODO: Allow `(var @a: Int)`?
         params
             .iter()
             .filter(|param| param.is_iparam)
@@ -367,9 +379,10 @@ impl<'a> Parser<'a> {
                     col: 0,
                     line: 0,
                 };
-                self.ast.ivar_assign(
+                self.ast.ivar_decl(
                     param.name.clone(),
                     self.ast.bare_name(&param.name, loc.clone(), loc.clone()),
+                    readonly,
                     loc.clone(),
                     loc.clone(),
                 )

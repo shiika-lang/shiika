@@ -132,7 +132,9 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     //cmd.arg("-no-pie");
     cmd.arg("-target");
     cmd.arg(triple.as_str().to_str().unwrap());
-    //cmd.arg("-lm");
+    if cfg!(target_os = "linux") {
+        cmd.arg("-lm");
+    }
     if cfg!(target_os = "macos") {
         // Link CoreFoundation for timezones for `Time`
         cmd.arg("-framework");

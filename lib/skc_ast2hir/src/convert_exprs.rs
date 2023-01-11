@@ -1,4 +1,5 @@
 pub mod block;
+mod lvar;
 mod method_call;
 pub mod params;
 use crate::class_expr;
@@ -9,54 +10,11 @@ use crate::hir_maker_context::*;
 use crate::pattern_match;
 use crate::type_system::type_checking;
 use anyhow::Result;
+use lvar::{LVarDetail, LVarInfo};
 use shiika_ast::Token;
 use shiika_ast::*;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
-
-/// Result of looking up a lvar
-#[derive(Debug)]
-struct LVarInfo {
-    ty: TermTy,
-    detail: LVarDetail,
-    /// The position of this lvar in the source text
-    locs: LocationSpan,
-}
-#[derive(Debug)]
-enum LVarDetail {
-    /// Found in the current scope
-    CurrentScope { name: String },
-    /// Found in the current method/lambda argument
-    Argument { idx: usize },
-    /// Found in outer scope
-    OuterScope {
-        /// Index of the lvar in `captures`
-        cidx: usize,
-        readonly: bool,
-    },
-}
-
-impl LVarInfo {
-    /// Returns HirExpression to refer this lvar
-    fn ref_expr(self) -> HirExpression {
-        match self.detail {
-            LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, self.locs),
-            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, self.locs),
-            LVarDetail::OuterScope { cidx, readonly } => {
-                Hir::lambda_capture_ref(self.ty, cidx, readonly, self.locs)
-            }
-        }
-    }
-
-    /// Returns HirExpression to update this lvar
-    fn assign_expr(self, expr: HirExpression) -> HirExpression {
-        match self.detail {
-            LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr, self.locs),
-            LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
-            LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(cidx, expr, self.locs),
-        }
-    }
-}
 
 impl<'hir_maker> HirMaker<'hir_maker> {
     pub(super) fn convert_exprs(&mut self, exprs: &[AstExpression]) -> Result<HirExpressions> {
@@ -98,12 +56,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::Return { arg } => self.convert_return_expr(arg, &expr.locs),
 
-            AstExpressionBody::LVarAssign { name, rhs, is_var } => {
-                self.convert_lvar_assign(name, &*rhs, is_var, &expr.locs)
+            AstExpressionBody::LVarDecl {
+                name,
+                rhs,
+                readonly,
+            } => self.convert_lvar_decl(name, &*rhs, readonly, &expr.locs),
+
+            AstExpressionBody::LVarAssign { name, rhs } => {
+                self.convert_lvar_assign(name, &*rhs, &expr.locs)
             }
 
-            AstExpressionBody::IVarAssign { name, rhs, is_var } => {
-                self.convert_ivar_assign(name, &*rhs, is_var, &expr.locs)
+            AstExpressionBody::IVarDecl {
+                name,
+                rhs,
+                readonly,
+            } => self.convert_ivar_decl(name, &*rhs, readonly, &expr.locs),
+
+            AstExpressionBody::IVarAssign { name, rhs } => {
+                self.convert_ivar_assign(name, &*rhs, &expr.locs)
             }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
@@ -117,7 +87,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 type_args,
                 has_block,
                 ..
-            }) => self.convert_method_call(
+            }) => method_call::convert_method_call(
+                self,
                 receiver_expr,
                 method_name,
                 arg_exprs,
@@ -125,6 +96,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 type_args,
                 &expr.locs,
             ),
+
+            AstExpressionBody::LambdaInvocation {
+                fn_expr,
+                arg_exprs,
+                has_block,
+            } => {
+                let hir_fn_expr = self.convert_expr(fn_expr)?;
+                method_call::convert_lambda_invocation(
+                    self,
+                    hir_fn_expr,
+                    arg_exprs,
+                    has_block,
+                    &expr.locs,
+                )
+            }
 
             AstExpressionBody::LambdaExpr {
                 params,
@@ -256,9 +242,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         _locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
-        for (name, ty) in lvars {
+        for lvar in lvars {
             let readonly = true;
-            self.ctx_stack.declare_lvar(&name, ty, readonly);
+            self.ctx_stack.declare_lvar(&lvar.name, lvar.ty, readonly);
         }
         Ok(match_expr)
     }
@@ -351,30 +337,46 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(())
     }
 
+    /// Local variable declaration
+    /// `let a = ...` or `var a = ...`
+    fn convert_lvar_decl(
+        &mut self,
+        name: &str,
+        rhs: &AstExpression,
+        readonly: &bool,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        if self._lookup_var(name, locs.clone())?.is_some() {
+            return Err(error::lvar_redeclaration(name, locs));
+        }
+        let expr = self.convert_expr(rhs)?;
+        self.ctx_stack
+            .declare_lvar(name, expr.ty.clone(), *readonly);
+        Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
+    }
+
+    /// Local variable reassignment (`a = ...`)
     fn convert_lvar_assign(
         &mut self,
         name: &str,
         rhs: &AstExpression,
-        is_var: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
-        // For `var x`, `x` should not be exist
-        if *is_var && self._lookup_var(name, locs.clone()).is_some() {
-            return Err(error::program_error(&format!(
-                "variable `{}' already exists",
-                name
-            )));
-        }
-        if let Some(mut lvar_info) = self._find_var(name, locs.clone(), true)? {
-            // Reassigning
+        if let (Some(mut lvar_info), opt_cidx) = self._find_var(name, locs.clone(), true)? {
             if lvar_info.ty != expr.ty {
                 if let Some(t) = self
                     .class_dict
                     .nearest_common_ancestor(&lvar_info.ty, &expr.ty)
                 {
                     // Upgrade lvar type (eg. from `None` to `Maybe<Int>`)
-                    lvar_info.ty = t;
+                    lvar_info.ty = t.clone();
+                    if let Some(cidx) = opt_cidx {
+                        self.ctx_stack
+                            .lambda_ctx_mut()
+                            .unwrap()
+                            .update_capture_ty(cidx, t);
+                    }
                 } else {
                     return Err(type_checking::invalid_reassign_error(
                         &lvar_info.ty,
@@ -385,33 +387,43 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
             Ok(lvar_info.assign_expr(expr))
         } else {
-            // Create new lvar
-            self.ctx_stack.declare_lvar(name, expr.ty.clone(), !is_var);
-            Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
+            Err(error::assign_to_undeclared_lvar(name, locs))
         }
     }
 
+    /// Instance variable declaration
+    fn convert_ivar_decl(
+        &mut self,
+        name: &str,
+        rhs: &AstExpression,
+        readonly: &bool,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
+        if !self.ctx_stack.in_initializer() {
+            return Err(error::ivar_decl_outside_initializer(name, locs));
+        }
+        let expr = self.convert_expr(rhs)?;
+        let base_ty = self.ctx_stack.self_ty().erasure_ty();
+        let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
+        return Ok(Hir::ivar_assign(
+            name,
+            idx,
+            expr,
+            !*readonly,
+            base_ty,
+            locs.clone(),
+        ));
+    }
+
+    /// Instance variable reassignment (`@a = ...`)
     fn convert_ivar_assign(
         &mut self,
         name: &str,
         rhs: &AstExpression,
-        is_var: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
-
-        if self.ctx_stack.in_initializer() {
-            let idx = self.declare_ivar(name, &expr.ty, !is_var)?;
-            return Ok(Hir::ivar_assign(
-                name,
-                idx,
-                expr,
-                *is_var,
-                base_ty,
-                locs.clone(),
-            ));
-        }
 
         if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
             if ivar.readonly {
@@ -436,10 +448,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 locs.clone(),
             ))
         } else {
-            Err(error::program_error(&format!(
-                "instance variable `{}' not found",
-                name
-            )))
+            Err(error::assign_to_undeclared_ivar(name, locs))
         }
     }
 
@@ -492,75 +501,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Ok(Hir::const_assign(fullname, hir_expr, locs.clone()))
     }
 
-    fn convert_method_call(
-        &mut self,
-        receiver_expr: &Option<Box<AstExpression>>,
-        method_name: &MethodFirstname,
-        arg_exprs: &[AstExpression],
-        has_block: &bool,
-        type_args: &[AstExpression],
-        locs: &LocationSpan,
-    ) -> Result<HirExpression> {
-        // Check if this is a lambda invocation
-        if receiver_expr.is_none() {
-            if let Some(lvar) = self._lookup_var(&method_name.0, locs.clone()) {
-                if let Some(tys) = lvar.ty.fn_x_info() {
-                    let arg_hirs = method_call::convert_method_args(
-                        self,
-                        &block::BlockTaker::Function {
-                            fn_ty: &lvar.ty,
-                            locs,
-                        },
-                        arg_exprs,
-                        has_block, // true if `f(){ ... }`, for example.
-                    )?;
-                    let ret_ty = tys.last().unwrap();
-                    return Ok(Hir::lambda_invocation(
-                        ret_ty.clone(),
-                        lvar.ref_expr(),
-                        arg_hirs,
-                        locs.clone(),
-                    ));
-                }
-            }
-        }
-
-        let receiver_hir = match receiver_expr {
-            Some(expr) => self.convert_expr(expr)?,
-            // Implicit self
-            _ => self.convert_self_expr(&LocationSpan::todo()),
-        };
-        let mut method_tyargs = vec![];
-        for tyarg in type_args {
-            method_tyargs.push(self._resolve_method_tyarg(tyarg)?);
-        }
-        let found = self
-            .class_dict
-            .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
-            .clone();
-        let arg_hirs = method_call::convert_method_args(
-            self,
-            &block::BlockTaker::Method {
-                sig: found.sig.clone(),
-                locs,
-            },
-            arg_exprs,
-            has_block,
-        )?;
-        method_call::build(self, found, receiver_hir, arg_hirs)
-    }
-
-    /// Resolve a method tyarg (a ConstName) into a TermTy
-    /// eg.
-    ///     ary.map<Array<T>>(f)
-    ///             ~~~~~~~~
-    ///             => TermTy(Array<TyParamRef(T)>)
-    fn _resolve_method_tyarg(&mut self, arg: &AstExpression) -> Result<TermTy> {
-        let e = self.convert_expr(arg)?;
-        self.assert_class_expr(&e)?;
-        Ok(e.ty.instance_ty())
-    }
-
     pub(super) fn convert_lambda_expr(
         &mut self,
         params: &[shiika_ast::BlockParam],
@@ -568,10 +508,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         is_fn: &bool,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        // This method only handles `fn(){}` because blocks are handled in
-        // convert_method_call.
-        debug_assert!(is_fn);
-
         let namespace = self.ctx_stack.const_scopes().next().unwrap();
         let hir_params = params::convert_block_params(
             &self.class_dict,
@@ -619,25 +555,42 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut ret = vec![];
         for cap in lambda_captures {
             let captured_here = if let HirMakerContext::Lambda(_) = self.ctx_stack.top() {
-                matches!(cap.ctx_depth, Some(idx) if idx == self.ctx_stack.len() - 1)
+                cap.is_lambda_scope && cap.ctx_idx == self.ctx_stack.len() - 1
             } else {
-                cap.ctx_depth.is_none()
+                !cap.is_lambda_scope
             };
             if captured_here {
                 // The variable is in this scope
                 match cap.detail {
                     LambdaCaptureDetail::CapLVar { name } => {
-                        ret.push(HirLambdaCapture::CaptureLVar { name });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureLVar { name },
+                        });
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture::CaptureArg { idx });
+                        ret.push(HirLambdaCapture {
+                            ty: cap.ty,
+                            upcast_needed: cap.upcast_needed,
+                            detail: HirLambdaCaptureDetail::CaptureArg { idx },
+                        });
                     }
                 }
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
-                let cidx = self.ctx_stack.push_lambda_capture(cap);
-                ret.push(HirLambdaCapture::CaptureFwd { cidx, ty });
+                let upcast_needed = cap.upcast_needed;
+                let cidx = self
+                    .ctx_stack
+                    .lambda_ctx_mut()
+                    .expect("[BUG] no lambda_ctx found")
+                    .push_lambda_capture(cap);
+                ret.push(HirLambdaCapture {
+                    ty,
+                    upcast_needed,
+                    detail: HirLambdaCaptureDetail::CaptureFwd { cidx },
+                });
             }
         }
         ret
@@ -646,7 +599,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Generate local variable reference or method call with implicit receiver(self)
     fn convert_bare_name(&mut self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         // Found a local variable
-        if let Some(lvar_info) = self._find_var(name, locs.clone(), false)? {
+        if let (Some(lvar_info), _) = self._find_var(name, locs.clone(), false)? {
             return Ok(lvar_info.ref_expr());
         }
 
@@ -656,7 +609,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
         if let Ok(found) = result {
-            method_call::build(self, found, self_expr, Default::default())
+            method_call::build_simple(self, found, self_expr)
         } else {
             Err(error::program_error(&format!(
                 "variable or method `{}' was not found",
@@ -666,8 +619,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Return the variable of the given name, if any
-    fn _lookup_var(&mut self, name: &str, locs: LocationSpan) -> Option<LVarInfo> {
-        self._find_var(name, locs, false).unwrap()
+    fn _lookup_var(&mut self, name: &str, locs: LocationSpan) -> Result<Option<LVarInfo>> {
+        let (lvar, _) = self._find_var(name, locs, false)?;
+        Ok(lvar)
     }
 
     /// Find the variable of the given name.
@@ -677,31 +631,43 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         name: &str,
         locs: LocationSpan,
         updating: bool,
-    ) -> Result<Option<LVarInfo>> {
-        let (in_lambda, cidx) = if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
-            (true, lambda_ctx.captures.len())
+    ) -> Result<(Option<LVarInfo>, Option<usize>)> {
+        if self.ctx_stack.lambda_ctx().is_some() {
+            let (mut found, opt_cap) = self.__find_var(true, name, locs, updating)?;
+            let opt_cidx = if let Some(cap) = opt_cap {
+                let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
+                if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
+                    found.as_mut().map(|x| x.set_cidx(existing));
+                    Some(existing)
+                } else {
+                    let cidx = lambda_ctx.captures.len();
+                    lambda_ctx.push_lambda_capture(cap);
+                    found.as_mut().map(|x| x.set_cidx(cidx));
+                    Some(cidx)
+                }
+            } else {
+                None
+            };
+            Ok((found, opt_cidx))
         } else {
-            (false, 0)
-        };
-        let (found, opt_cap) = self.__find_var(in_lambda, cidx, name, locs, updating)?;
-        if let Some(cap) = opt_cap {
-            self.ctx_stack.push_lambda_capture(cap);
+            let (found, _) = self.__find_var(false, name, locs, updating)?;
+            Ok((found, None))
         }
-        Ok(found)
     }
 
     fn __find_var(
         &mut self,
         in_lambda: bool,
-        cidx: usize,
         name: &str,
         locs: LocationSpan,
         updating: bool,
     ) -> Result<(Option<LVarInfo>, Option<LambdaCapture>)> {
         let mut lambda_seen = false;
-        for (lvars, params, opt_depth) in self.ctx_stack.lvar_scopes() {
+        let mut result = (None, None);
+        let mut captured = None;
+        for scope in self.ctx_stack.lvar_scopes() {
             let is_lambda_capture = in_lambda && lambda_seen;
-            if let Some(lvar) = lvars.get(name) {
+            if let Some(lvar) = scope.lvars.get(name) {
                 if updating && lvar.readonly {
                     return Err(error::program_error(&format!(
                         "cannot reassign to `{}' (Hint: declare it with `var')",
@@ -709,22 +675,23 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     )));
                 }
                 if is_lambda_capture {
+                    captured = Some((scope.ctx_idx, name));
                     let cap = LambdaCapture {
-                        ctx_depth: opt_depth,
+                        ctx_idx: scope.ctx_idx,
+                        is_lambda_scope: scope.is_lambda_scope,
                         ty: lvar.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapLVar {
                             name: name.to_string(),
                         },
                     };
                     let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
-                        detail: LVarDetail::OuterScope {
-                            cidx,
-                            readonly: false,
-                        },
+                        detail: LVarDetail::OuterScope_ { readonly: false },
                         locs,
                     };
-                    return Ok((Some(lvar_info), Some(cap)));
+                    result = (Some(lvar_info), Some(cap));
+                    break;
                 } else {
                     let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
@@ -736,7 +703,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            if let Some((idx, param)) = signature::find_param(params, name) {
+            if let Some((idx, param)) = signature::find_param(&scope.params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
                         "you cannot reassign to argument `{}'",
@@ -745,16 +712,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
                 if is_lambda_capture {
                     let cap = LambdaCapture {
-                        ctx_depth: opt_depth,
+                        ctx_idx: scope.ctx_idx,
+                        is_lambda_scope: scope.is_lambda_scope,
                         ty: param.ty.clone(),
+                        upcast_needed: false,
                         detail: LambdaCaptureDetail::CapFnArg { idx },
                     };
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
-                        detail: LVarDetail::OuterScope {
-                            cidx,
-                            readonly: true,
-                        },
+                        detail: LVarDetail::OuterScope_ { readonly: true },
                         locs,
                     };
                     return Ok((Some(lvar_info), Some(cap)));
@@ -767,12 +733,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            let is_lambda_scope = opt_depth.is_some();
-            if is_lambda_scope {
+            if scope.is_lambda_scope {
                 lambda_seen = true;
             }
         }
-        Ok((None, None))
+        if let Some((ctx_idx, name)) = captured {
+            // Set `captured` to `true` so that this lvar is allocated on heap, not stack.
+            // (PERF: technically, it can be on the stack if the lambda does not live
+            // after returning the method.)
+            let ctx = self.ctx_stack.get_mut(ctx_idx);
+            ctx.set_lvar_captured(name, true);
+            Ok(result)
+        } else {
+            Ok((None, None))
+        }
     }
 
     fn convert_ivar_ref(&self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
@@ -865,6 +839,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             type_args.push(cls_expr.ty.as_type_argument());
             arg_exprs.push(cls_expr);
         }
+
+        let sk_type = self
+            .class_dict
+            .get_type(&base_expr.ty.instance_ty().fullname.to_type_fullname());
+        type_checking::check_class_specialization(&sk_type, &arg_exprs, &locs)?;
+
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
         Ok(Hir::method_call(
             meta_spe_ty,

@@ -1,6 +1,6 @@
 use crate::ClassItem;
 use shiika_core::ty;
-use skc_hir::{SkIVar, Superclass};
+use skc_hir::{SkIVar, Supertype};
 use std::collections::HashMap;
 
 macro_rules! fn_item {
@@ -10,7 +10,7 @@ macro_rules! fn_item {
 
         (
             format!("Fn{}", $i),
-            Some(Superclass::simple("Fn")),
+            Some(Supertype::simple("Fn")),
             ivars(),
             typarams,
         )
@@ -42,7 +42,7 @@ fn ivars() -> HashMap<String, SkIVar> {
         SkIVar {
             name: "@captures".to_string(),
             idx: 2,
-            ty: ty::ary(ty::raw("Shiika::Internal::Ptr")),
+            ty: ty::raw("Shiika::Internal::Ptr"),
             readonly: true,
         },
     );

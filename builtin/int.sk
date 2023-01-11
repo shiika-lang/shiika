@@ -53,7 +53,7 @@ class Int
       n = -self
     end
 
-    a = Array<Int>.new
+    let a = Array<Int>.new
     while true
       a.push((n % 10) + 48)  # 48 = "0"
       n = (n / 10).to_i
@@ -62,7 +62,7 @@ class Int
       end
     end
 
-    ret = MutableString.new
+    let ret = MutableString.new
     var i = 0
     if minus
       ret.append("-") 

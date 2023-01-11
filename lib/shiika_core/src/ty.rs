@@ -70,6 +70,14 @@ pub fn typarams_to_tyargs(typarams: &[TyParam]) -> Vec<TermTy> {
         .collect()
 }
 
+pub fn typarams_to_typaram_refs(typarams: &[TyParam], kind: TyParamKind) -> Vec<TyParamRef> {
+    typarams
+        .iter()
+        .enumerate()
+        .map(|(i, t)| typaram_ref(&t.name, kind.clone(), i))
+        .collect()
+}
+
 /// Shortcut for Array<T>
 pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
@@ -99,4 +107,11 @@ fn tyargs_str(type_args: &[TermTy]) -> String {
             .join(",");
         format!("<{}>", &s)
     }
+}
+
+pub fn fn_ty(arg_tys: Vec<TermTy>, ret_ty: TermTy) -> TermTy {
+    let name = format!("Fn{}", arg_tys.len());
+    let mut type_args = arg_tys;
+    type_args.push(ret_ty);
+    ty::spe(name, type_args)
 }
