@@ -2,12 +2,24 @@ use crate::builtin::class::SkClass;
 use crate::builtin::{SkBool, SkInt, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
+use std::fmt;
 use std::io::{stdout, Write};
 use std::mem;
 
 #[repr(C)]
-#[derive(Debug)]
 pub struct SkObj(*const ShiikaObject);
+
+impl fmt::Debug for SkObj {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_null() {
+            f.write_str("SkObj { !null! }")
+        } else {
+            f.debug_struct("SkObj")
+                .field("class_obj", &self.class())
+                .finish()
+        }
+    }
+}
 
 unsafe impl Plain for SkObj {}
 
@@ -20,9 +32,9 @@ pub struct ShiikaObject {
 }
 
 impl SkObj {
-    //    pub fn new(p: *const ShiikaObject) -> SkObj {
-    //        SkObj(p)
-    //    }
+    pub fn new(p: *const ShiikaObject) -> SkObj {
+        SkObj(p)
+    }
 
     /// Shallow clone
     pub fn dup(&self) -> SkObj {

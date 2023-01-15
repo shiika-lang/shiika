@@ -1,5 +1,6 @@
 //! Instance of `::String`
-use crate::builtin::{SkAry, SkInt, SkPtr};
+use crate::builtin::object::ShiikaObject;
+use crate::builtin::{SkAry, SkInt, SkObj, SkPtr};
 use shiika_ffi_macro::shiika_method;
 use std::ffi::CString;
 use unicode_segmentation::UnicodeSegmentation;
@@ -25,22 +26,24 @@ pub struct ShiikaString {
 impl From<String> for SkStr {
     /// Make a Shiika `String` from Rust `String`. `s` must not contain a null byte in it.
     fn from(s: String) -> Self {
+        SkStr::new(s)
+    }
+}
+
+impl From<SkStr> for SkObj {
+    fn from(s: SkStr) -> SkObj {
+        SkObj::new(s.0 as *const ShiikaObject)
+    }
+}
+
+impl SkStr {
+    pub fn new(s_: impl Into<String>) -> SkStr {
+        let s = s_.into();
         let bytesize = s.as_bytes().len() as i64;
         let cstring = CString::new(s).unwrap();
         let leaked = Box::leak(Box::new(cstring));
         unsafe { gen_literal_string(leaked.as_ptr() as *const u8, bytesize) }
     }
-}
-
-impl SkStr {
-    //    /// Shallow clone
-    //    pub fn dup(&self) -> SkStr {
-    //        SkStr(self.0)
-    //    }
-
-    //    pub fn new(p: *const ShiikaString) -> SkStr {
-    //        SkStr(p)
-    //    }
 
     fn u8ptr(&self) -> *const u8 {
         unsafe { (*self.0).ptr.unbox() }

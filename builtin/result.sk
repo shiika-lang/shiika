@@ -20,6 +20,13 @@ enum Result<V>
     end
   end
 
+  def unwrap -> V
+    match self
+    when Ok(v) then v
+    when Fail(e) then panic(e.msg)
+    end
+  end
+
   def inspect -> String
     match self
     when Ok(v) then "#<Ok(\{v})>"
