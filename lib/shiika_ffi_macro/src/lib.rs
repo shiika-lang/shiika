@@ -1,6 +1,8 @@
+mod shiika_const_ref;
 mod shiika_method_ref;
 use proc_macro::TokenStream;
 use quote::quote;
+use shiika_const_ref::ShiikaConstRef;
 use shiika_ffi::mangle_method;
 use shiika_method_ref::ShiikaMethodRef;
 use syn::parse_macro_input;
@@ -52,6 +54,44 @@ pub fn shiika_method_ref(input: TokenStream) -> TokenStream {
         }
         pub fn #wrapper_name(#parameters) -> #return_type {
             unsafe { #mangled_name(#args) }
+        }
+    };
+    gen.into()
+}
+
+/// Define a reference to a Shiika constant.
+///
+/// ## Example
+/// ```rust
+/// shiika_const_ref!(
+///     "::Time::Zone", // Shiika const name
+///     SkClass,        // Type of the constant
+///     "sk_Time_Zone", // Wrapper name
+/// );
+/// ...
+/// dbg!(&sk_Time_Zone());
+/// ```
+#[proc_macro]
+pub fn shiika_const_ref(input: TokenStream) -> TokenStream {
+    let spec = parse_macro_input!(input as ShiikaConstRef);
+    let mangled_name = spec.mangled_name();
+    let const_type = &spec.const_ty;
+    let wrapper_name = spec.wrapper_name();
+    // Example:
+    //   extern "C" {
+    //       #[allow(improper_ctypes)]
+    //       static shiika_const_xx: SkClass;
+    //   }
+    //   pub fn sk_Time_Zone() -> SkClass {
+    //       unsafe { SkClass( shiika_const_xx.dup() ) }
+    //   }
+    let gen = quote! {
+        extern "C" {
+            #[allow(improper_ctypes)]
+            static #mangled_name: #const_type;
+        }
+        pub fn #wrapper_name() -> #const_type {
+            unsafe { #mangled_name.dup() }
         }
     };
     gen.into()

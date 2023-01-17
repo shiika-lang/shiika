@@ -1,0 +1,17 @@
+# File.write
+match File.write("tests/data/hello.txt", "hello")
+when Ok(x)
+  unless x == Void; puts "File.write returned \{x}"; end
+when Fail(e)
+  puts "File.write failed: #{e}"
+end
+
+# File.read
+match File.read("tests/data/hello.txt")
+when Ok(s)
+  unless s == "hello"; puts "File.read failed: #{s}"; end
+when Fail(e)
+  puts "File.read failed: #{e}"
+end
+
+puts "ok"

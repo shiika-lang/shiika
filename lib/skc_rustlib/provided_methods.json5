@@ -26,6 +26,8 @@
   ["Int", ">=(other: Int) -> Bool"],
   ["Int", "==(other: Int) -> Bool"],
   ["Int", "to_f -> Float"],
+  ["Meta:File", "read(path: String) -> Result<String>"],
+  ["Meta:File", "write(path: String, data: String) -> Result<Void>"],
   ["Float", "-@ -> Float"],
   ["Float", "+(other: Float) -> Float"],
   ["Float", "-(other: Float) -> Float"],
