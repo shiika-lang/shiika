@@ -4,7 +4,7 @@ class Object
 
   # TODO: These will be removed when `Comparable` is implemented
   def <(other: Object) -> Bool
-    panic "[`<` is not implemented for this class]"
+    panic "[`<` is not implemented for class #{self.class}]"
     false
   end
   def >(other: Object) -> Bool
