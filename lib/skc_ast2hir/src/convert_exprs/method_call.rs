@@ -169,7 +169,7 @@ pub fn build(
     mut arg_hirs: Vec<HirExpression>,
     inf: Option<method_call_inf::MethodCallInf3>,
 ) -> Result<HirExpression> {
-    check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs, inf)?;
+    check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs, &inf)?;
     let specialized = receiver_hir.ty.is_specialized();
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
 
@@ -184,11 +184,11 @@ pub fn build(
         arg_hirs
     };
 
-    let hir = build_hir(&found, &owner, receiver, args);
+    let hir = build_hir(&found, &owner, receiver, args, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
     } else if specialized {
-        Ok(Hir::bit_cast(found.sig.ret_ty, hir))
+        Ok(hir) //Hir::bit_cast(found.sig.ret_ty.erasure().to_term_ty(), hir))
     } else {
         Ok(hir)
     }
@@ -199,7 +199,7 @@ fn check_argument_types(
     sig: &MethodSignature,
     receiver_hir: &HirExpression,
     arg_hirs: &mut [HirExpression],
-    inf: Option<method_call_inf::MethodCallInf3>,
+    inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
     type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs, inf)?;
     if let Some(last_arg) = arg_hirs.last_mut() {
@@ -236,8 +236,12 @@ fn build_hir(
     owner: &SkType,
     receiver_hir: HirExpression,
     arg_hirs: Vec<HirExpression>,
+    inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> HirExpression {
-    let ret_ty = found.sig.ret_ty.clone(); //substitute(class_tyargs, method_tyargs);
+    let ret_ty = match inf {
+        Some(inf_) => inf_.solved_method_ret_ty.clone(),
+        None => found.sig.ret_ty.clone(), //.substitute(class_tyargs, method_tyargs);
+    };
     match owner {
         SkType::Class(_) => {
             Hir::method_call(ret_ty, receiver_hir, found.sig.fullname.clone(), arg_hirs)

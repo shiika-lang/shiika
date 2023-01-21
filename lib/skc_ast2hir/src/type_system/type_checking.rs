@@ -17,8 +17,9 @@ macro_rules! type_error {
 pub fn check_return_value(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    ty: &TermTy,
+    body_exprs: &HirExpressions,
 ) -> Result<()> {
+    let ty = &body_exprs.ty;
     if sig.ret_ty.is_void_type() {
         return Ok(());
     }
@@ -35,15 +36,19 @@ pub fn check_return_value(
         _ => sig.ret_ty.clone(),
     };
     if class_dict.conforms(ty, &want) {
-        Ok(())
-    } else {
-        Err(type_error!(
-            "{} should return {} but returns {}",
-            sig.fullname,
-            sig.ret_ty,
-            ty
-        ))
+        return Ok(());
     }
+
+    let main_msg = format!(
+        "{} should return {} but returns {}",
+        sig.fullname, sig.ret_ty, ty
+    );
+    let sub_msg = format!("This evaluates to {} but should be {}", ty, sig.ret_ty);
+    let locs = &body_exprs.last_expr().locs;
+    let report = skc_error::build_report(main_msg, locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(sub_msg))
+    });
+    Err(type_error(report))
 }
 
 pub fn check_logical_operator_ty(ty: &TermTy, on: &str) -> Result<()> {
@@ -106,7 +111,7 @@ pub fn check_method_args(
     sig: &MethodSignature,
     _receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
-    inf: Option<method_call_inf::MethodCallInf3>,
+    inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
     let mut result = check_method_arity(sig, arg_hirs);
     if result.is_ok() {
@@ -140,7 +145,7 @@ fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_hirs: &[HirExpression],
-    inf: Option<method_call_inf::MethodCallInf3>,
+    inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> Result<()> {
     for i in 0..sig.params.len() {
         let param = &sig.params[i];
@@ -243,7 +248,7 @@ pub fn check_class_specialization(
         expected,
         given_tyargs.len()
     );
-    let sub_msg = format!("should take {} type arg(s)", expected,);
+    let sub_msg = format!("should take {} type arg(s)", expected);
     let report = skc_error::build_report(main_msg, locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(sub_msg))
     });

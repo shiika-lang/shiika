@@ -42,4 +42,13 @@ class B
   def bar(f: Fn0<Maybe<Int>>); end
 end
 
+# Should pass type check (#452)
+class C
+  def self.foo -> Array<C>
+    "aaa".lines.map{|l|
+      C.new
+    }
+  end
+end
+
 puts "ok"

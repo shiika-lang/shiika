@@ -468,7 +468,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
-        type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs.ty)?;
+        type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs)?;
 
         let method = SkMethod {
             signature,
