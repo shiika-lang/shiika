@@ -79,6 +79,7 @@ pub struct HirLVar {
 pub struct HirExpressions {
     pub ty: TermTy,
     pub exprs: Vec<HirExpression>,
+    pub locs: LocationSpan,
 }
 
 impl HirExpressions {
@@ -89,8 +90,9 @@ impl HirExpressions {
         }
         let last_expr = exprs.last().unwrap();
         let ty = last_expr.ty.clone();
+        let locs = LocationSpan::merge(&exprs.first().unwrap().locs, &last_expr.locs);
 
-        HirExpressions { ty, exprs }
+        HirExpressions { ty, exprs, locs }
     }
 
     /// Change the type of `self` to `Void`
@@ -105,6 +107,10 @@ impl HirExpressions {
         self.exprs.push(Hir::bit_cast(ty.clone(), last_expr));
         self.ty = ty;
         self
+    }
+
+    pub fn last_expr(&self) -> &HirExpression {
+        self.exprs.last().unwrap()
     }
 }
 

@@ -111,21 +111,28 @@ impl MethodCallInf2 {
 #[derive(Debug)]
 pub struct MethodCallInf3 {
     pub solved_method_arg_tys: Vec<TermTy>,
-    // Not used in current implementation
-    //solved_method_ret_ty: TermTy,
+    pub solved_method_ret_ty: TermTy,
 }
 
 impl MethodCallInf3 {
-    fn with_block(inf: MethodCallInf2, solved_block_ret_ty: TermTy) -> MethodCallInf3 {
+    // Now that block return type is solved, we've got the types of all the
+    // method arguments.
+    fn with_block(
+        inf: MethodCallInf2,
+        solved_block_ret_ty: TermTy,
+        solved_method_ret_ty: TermTy,
+    ) -> MethodCallInf3 {
         let solved_block_ty = ty::fn_ty(inf.solved_block_param_tys, solved_block_ret_ty);
         let mut solved_method_arg_tys = inf.solved_pre_block_arg_tys;
         solved_method_arg_tys.push(solved_block_ty);
         MethodCallInf3 {
             solved_method_arg_tys,
+            solved_method_ret_ty,
         }
     }
 }
 
+/// Infer types of block parameters.
 pub fn infer_block_param(
     mut inf: MethodCallInf1,
     pre_block_arg_tys: &[&TermTy],
@@ -146,6 +153,7 @@ pub fn infer_block_param(
     ))
 }
 
+/// When a block is given to the method,
 pub fn infer_result_ty_with_block(
     mut inf: MethodCallInf2,
     block_ty: &TermTy,
@@ -156,5 +164,10 @@ pub fn infer_result_ty_with_block(
     )];
     unify(equations, &mut inf.answer)?;
     let solved_block_ret_ty = inf.answer.apply_to(&inf.block_ret_ty)?;
-    Ok(MethodCallInf3::with_block(inf, solved_block_ret_ty))
+    let solved_method_ret_ty = inf.answer.apply_to(&inf.method_ret_ty)?;
+    Ok(MethodCallInf3::with_block(
+        inf,
+        solved_block_ret_ty,
+        solved_method_ret_ty,
+    ))
 }
