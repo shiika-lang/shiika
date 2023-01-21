@@ -1,5 +1,6 @@
 use super::type_name::*;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
@@ -21,7 +22,7 @@ impl MethodFirstname {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct MethodFullname {
     // class/module part
     pub type_name: TypeFullname,
@@ -34,6 +35,12 @@ pub struct MethodFullname {
 impl Hash for MethodFullname {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.full_name.hash(state);
+    }
+}
+
+impl fmt::Debug for MethodFullname {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MethodFullname(`{}`)", &self.full_name)
     }
 }
 

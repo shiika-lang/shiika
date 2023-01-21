@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -15,7 +16,7 @@ impl Location {
 }
 
 /// Range in a source file (end-exclusive)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum LocationSpan {
     Empty,
     Just {
@@ -23,6 +24,27 @@ pub enum LocationSpan {
         begin: Location,
         end: Location,
     },
+}
+
+impl fmt::Debug for LocationSpan {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LocationSpan::Empty => write!(f, "LocationSpan(Empty)"),
+            LocationSpan::Just {
+                filepath,
+                begin,
+                end,
+            } => write!(
+                f,
+                "LocationSpan(`{}`{}:{}~{}:{})",
+                filepath.to_string_lossy(),
+                begin.line,
+                begin.col,
+                end.line,
+                end.col,
+            ),
+        }
+    }
 }
 
 impl LocationSpan {
