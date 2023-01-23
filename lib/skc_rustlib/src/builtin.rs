@@ -4,6 +4,7 @@ pub mod class;
 mod error;
 mod file;
 pub mod float;
+mod random;
 mod result;
 mod time;
 //mod fn_x;

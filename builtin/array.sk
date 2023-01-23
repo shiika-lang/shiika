@@ -179,6 +179,11 @@ class Array<T> : Enumerable<T>
     end
   end
 
+  # Returns a random element of `self`.
+  def sample -> T
+    self[Random.int(0, self.length)]
+  end
+
   # Removes the first element and returns it.
   # Panics if `self` is empty
   #def shift -> Maybe<T>
