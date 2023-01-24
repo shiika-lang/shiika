@@ -49,6 +49,7 @@
   ["Object", "==(other: Object) -> Bool"],
   ["Object", "class -> Class"],
   ["Object", "exit(code: Int) -> Never"],
+  ["Object", "gets -> Result<String>"],
   ["Object", "object_id -> Int"],
   ["Object", "panic(msg: String) -> Never"],
   ["Object", "print(str: String)"],
