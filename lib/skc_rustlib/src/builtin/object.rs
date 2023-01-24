@@ -1,9 +1,9 @@
 use crate::builtin::class::SkClass;
-use crate::builtin::{SkBool, SkInt, SkStr};
+use crate::builtin::{SkBool, SkInt, SkResult, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
 use std::fmt;
-use std::io::{stdout, Write};
+use std::io::{stdin, stdout, Write};
 use std::mem;
 
 #[repr(C)]
@@ -64,6 +64,15 @@ pub extern "C" fn object_class(receiver: SkObj) -> SkClass {
 #[shiika_method("Object#exit")]
 pub extern "C" fn object_exit(_receiver: SkObj, code: SkInt) {
     std::process::exit(code.val() as i32);
+}
+
+#[shiika_method("Object#gets")]
+pub extern "C" fn object_gets(_receiver: *const u8) -> SkResult {
+    let mut buffer = String::new();
+    stdin()
+        .read_line(&mut buffer)
+        .map(|_| SkStr::new(buffer))
+        .into()
 }
 
 #[shiika_method("Object#object_id")]
