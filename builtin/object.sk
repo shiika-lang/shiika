@@ -17,6 +17,16 @@ class Object
     self > other or self == other
   end
 
+  # Returns the class which this object belongs to.
+  # def class -> Class
+
+  # Terminates the process.
+  # Note: this may be moved to `Process.exit` or somewhere in the future
+  # def exit -> Never
+
+  # Reads a line form stdin.
+  # def gets -> Result<String>
+
   def hash -> Int
     0 # TODO: Use the pointer address
   end
@@ -24,6 +34,9 @@ class Object
   def inspect -> String
     self.to_s
   end
+
+  # Returns the unique id of this object.
+  # def object_id -> Int
 
   def loop(f: Fn0<Void>)
     while true
@@ -34,6 +47,15 @@ class Object
   def p(obj: Object)
     puts obj.inspect
   end
+
+  # Forcefully terminates the process with given error message.
+  # panic(msg: String) -> Never
+
+  # Prints message to stdout.
+  # print(s: String)
+
+  # Prints message and a newline to stdout.
+  # puts(s: String)
 
   def to_s -> String
     "#<#{self.class.name}:#{self.object_id}>"
