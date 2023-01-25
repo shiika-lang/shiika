@@ -1,4 +1,4 @@
-use crate::builtin::{SkClass, SkError, SkObj, SkStr};
+use crate::builtin::{SkClass, SkError, SkObj, SkStr, SkVoid};
 use shiika_ffi_macro::{shiika_const_ref, shiika_method_ref};
 use std::mem::ManuallyDrop;
 
@@ -11,24 +11,24 @@ shiika_method_ref!(
 );
 shiika_method_ref!(
     "Meta:Result::Ok#new",
-    fn(receiver: SkClass, value: SkObj) -> SkOk,
+    fn(receiver: SkClass, value: SkObj) -> SkOk<SkObj>,
     "meta_result_ok_new"
 );
 
 #[repr(C)]
-pub union SkResult {
-    pub ok: ManuallyDrop<SkOk>,
+pub union SkResult<T> {
+    pub ok: ManuallyDrop<SkOk<T>>,
     pub fail: ManuallyDrop<SkFail>,
 }
 #[repr(C)]
 #[derive(Debug)]
-pub struct SkOk(*const ShiikaOk);
+pub struct SkOk<T>(*const ShiikaOk<T>);
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkFail(*const ShiikaFail);
 
-impl<A: Into<SkObj>, B: std::fmt::Display> From<Result<A, B>> for SkResult {
-    fn from(x: Result<A, B>) -> Self {
+impl<T: Into<SkObj>, E: std::fmt::Display> From<Result<T, E>> for SkResult<T> {
+    fn from(x: Result<T, E>) -> Self {
         match x {
             Ok(value) => SkResult::ok(value),
             Err(e) => SkResult::fail(format!("{}", e)),
@@ -36,14 +36,23 @@ impl<A: Into<SkObj>, B: std::fmt::Display> From<Result<A, B>> for SkResult {
     }
 }
 
-impl SkResult {
-    pub fn ok(value: impl Into<SkObj>) -> SkResult {
+impl<E: std::fmt::Display> From<Result<(), E>> for SkResult<SkVoid> {
+    fn from(x: Result<(), E>) -> Self {
+        match x {
+            Ok(_) => SkResult::ok(().into()),
+            Err(e) => SkResult::fail(format!("{}", e)),
+        }
+    }
+}
+
+impl<T: Into<SkObj>> SkResult<T> {
+    pub fn ok(value: T) -> SkResult<T> {
         SkResult {
             ok: ManuallyDrop::new(SkOk::new(value)),
         }
     }
 
-    pub fn fail(msg: impl Into<SkStr>) -> SkResult {
+    pub fn fail(msg: impl Into<SkStr>) -> SkResult<T> {
         SkResult {
             fail: ManuallyDrop::new(SkFail::new(msg)),
         }
@@ -52,15 +61,16 @@ impl SkResult {
 
 #[repr(C)]
 #[derive(Debug)]
-struct ShiikaOk {
+struct ShiikaOk<T> {
     vtable: *const u8,
     class_obj: *const u8,
-    value: SkObj,
+    value: T,
 }
 
-impl SkOk {
-    pub fn new(value: impl Into<SkObj>) -> SkOk {
-        meta_result_ok_new(sk_Ok(), value.into())
+impl<T: Into<SkObj>> SkOk<T> {
+    pub fn new(value: T) -> SkOk<T> {
+        let ok_obj = meta_result_ok_new(sk_Ok(), value.into());
+        SkOk(ok_obj.0 as *const ShiikaOk<T>)
     }
 }
 
