@@ -8,9 +8,9 @@ shiika_const_ref!("::Void", SkVoid, "sk_Void");
 #[derive(Debug)]
 pub struct SkVoid(*const ShiikaVoid);
 
-impl From<()> for SkObj {
+impl From<()> for SkVoid {
     fn from(_: ()) -> Self {
-        sk_Void().into()
+        sk_Void()
     }
 }
 

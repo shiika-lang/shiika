@@ -67,7 +67,7 @@ pub extern "C" fn object_exit(_receiver: SkObj, code: SkInt) {
 }
 
 #[shiika_method("Object#gets")]
-pub extern "C" fn object_gets(_receiver: *const u8) -> SkResult {
+pub extern "C" fn object_gets(_receiver: *const u8) -> SkResult<SkStr> {
     let mut buffer = String::new();
     stdin()
         .read_line(&mut buffer)
