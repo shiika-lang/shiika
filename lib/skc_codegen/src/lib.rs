@@ -53,6 +53,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
 pub fn run<P: AsRef<Path>>(
     mir: &Mir,
     bc_path: P,
+    // Generate .ll if given
     opt_ll_path: Option<P>,
     generate_main: bool,
     opt_target_triple: Option<&inkwell::targets::TargetTriple>,

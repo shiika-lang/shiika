@@ -14,12 +14,8 @@ use std::process::Command;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
-    let path = filepath
-        .as_ref()
-        .to_str()
-        .expect("failed to unwrap filepath")
-        .to_string();
-    let src = loader::load(filepath.as_ref())?;
+    let path = filepath.as_ref();
+    let src = loader::load(path)?;
     let ast = Parser::parse_files(&src)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
@@ -27,8 +23,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     log::debug!("created hir");
     let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
-    let bc_path = path.clone() + ".bc";
-    let ll_path = path + ".ll";
+    let bc_path = path.with_extension("bc");
+    let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
     skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
     log::debug!("created .bc");
@@ -93,11 +89,15 @@ pub fn run_and_capture<P: AsRef<Path>>(sk_path: P) -> Result<(String, String)> {
     run_(sk_path, true)
 }
 
-fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String)> {
+fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, String)> {
     let triple = targets::default_triple();
-    let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let bc_path = s.to_string() + ".bc";
-    let out_path = s.to_string() + ".out";
+    let sk_path = sk_path_.as_ref();
+    let bc_path = sk_path.with_extension("bc");
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
@@ -114,7 +114,7 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
         cmd.arg("Foundation");
     }
     cmd.arg("-o");
-    cmd.arg(out_path.clone());
+    cmd.arg(exe_path.clone());
     cmd.arg(from_shiika_root("builtin/builtin.bc"));
     let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
     if cfg!(target_os = "windows") {
@@ -150,11 +150,6 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
 
     fs::remove_file(bc_path)?;
 
-    let exe_path = if out_path.starts_with('/') {
-        out_path
-    } else {
-        format!("./{}", out_path)
-    };
     let mut cmd = Command::new(exe_path);
     if capture_out {
         let output = cmd.output().context("failed to execute process")?;
@@ -167,13 +162,17 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     }
 }
 
-/// Remove .bc and .out
-pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<()> {
-    let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let bc_path = s.to_string() + ".bc";
-    let out_path = s.to_string() + ".out";
+/// Remove .bc and .out (used by unit tests)
+pub fn cleanup<P: AsRef<Path>>(sk_path_: P) -> Result<()> {
+    let sk_path = sk_path_.as_ref();
+    let bc_path = sk_path.with_extension("bc");
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
     let _ = fs::remove_file(bc_path);
-    let _ = fs::remove_file(out_path);
+    let _ = fs::remove_file(exe_path);
     Ok(())
 }
 
