@@ -9,17 +9,13 @@ use skc_mir::LibraryExports;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Generate .ll from .sk
 pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
-    let path = filepath
-        .as_ref()
-        .to_str()
-        .expect("failed to unwrap filepath")
-        .to_string();
-    let src = loader::load(filepath.as_ref())?;
+    let path = filepath.as_ref();
+    let src = loader::load(path)?;
     let ast = Parser::parse_files(&src)?;
     log::debug!("created ast");
     let imports = load_builtin_exports()?;
@@ -27,8 +23,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     log::debug!("created hir");
     let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
-    let bc_path = path.clone() + ".bc";
-    let ll_path = path + ".ll";
+    let bc_path = path.with_extension("bc");
+    let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
     skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
     log::debug!("created .bc");
@@ -37,7 +33,8 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
 
 /// Load builtin/exports.json
 fn load_builtin_exports() -> Result<LibraryExports, Error> {
-    let mut f = fs::File::open("builtin/exports.json").context("builtin exports not found")?;
+    let json_path = from_shiika_root("builtin/exports.json");
+    let mut f = fs::File::open(&json_path).context(format!("{} not found", json_path.display()))?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .context("failed to read builtin exports")?;
@@ -62,15 +59,15 @@ pub fn build_corelib() -> Result<(), Error> {
     let triple = targets::default_triple();
     skc_codegen::run(
         &mir,
-        "builtin/builtin.bc",
-        Some("builtin/builtin.ll"),
+        &from_shiika_root("builtin/builtin.bc"),
+        Some(&from_shiika_root("builtin/builtin.ll")),
         false,
         Some(&triple),
     )?;
     log::debug!("created .bc");
 
     let json = serde_json::to_string_pretty(&exports).unwrap();
-    let mut f = fs::File::create("builtin/exports.json").unwrap();
+    let mut f = fs::File::create(from_shiika_root("builtin/exports.json")).unwrap();
     f.write_all(json.as_bytes()).unwrap();
     log::debug!("created .json");
     Ok(())
@@ -78,7 +75,7 @@ pub fn build_corelib() -> Result<(), Error> {
 
 /// Load ./builtin/*.sk
 fn load_builtin() -> Result<Vec<SourceFile>> {
-    loader::load(Path::new("./builtin/index.sk"))
+    loader::load(&from_shiika_root("builtin/index.sk"))
 }
 
 /// Execute compiled .ll
@@ -92,44 +89,20 @@ pub fn run_and_capture<P: AsRef<Path>>(sk_path: P) -> Result<(String, String)> {
     run_(sk_path, true)
 }
 
-fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String)> {
+fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, String)> {
     let triple = targets::default_triple();
-    let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    //let ll_path = s.to_string() + ".ll";
-    //let opt_ll_path = s.to_string() + ".opt.ll";
-    let bc_path = s.to_string() + ".bc";
-    //let asm_path = s.to_string() + ".s";
-    let out_path = s.to_string() + ".out";
-
-    //    let mut cmd = Command::new("opt");
-    //    cmd.arg("-O3");
-    //    cmd.arg(ll_path);
-    //    cmd.arg("-o");
-    //    cmd.arg(bc_path.clone());
-    //    let output = cmd.output()?;
-    //    if !output.stderr.is_empty() {
-    //        println!("{}", String::from_utf8(output.stderr)?);
-    //    }
-    //
-    //    let mut cmd = Command::new("llvm-dis");
-    //    cmd.arg(bc_path.clone());
-    //    cmd.arg("-o");
-    //    cmd.arg(opt_ll_path);
-    //    cmd.output()?;
-
-    // let mut cmd = Command::new(env::var("LLC").unwrap_or_else(|_| "llc".to_string()));
-    // cmd.arg(ll_path);
-    // cmd.output()
-    //     .map_err(|e| runner_error("failed to run llc", Box::new(e)))?;
-    // if !cmd.status()?.success() {
-    //     return Err(Box::new(plain_runner_error("llc failed")));
-    // }
+    let sk_path = sk_path_.as_ref();
+    let bc_path = sk_path.with_extension("bc");
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
     add_args_from_env(&mut cmd, "LDFLAGS");
     add_args_from_env(&mut cmd, "LDLIBS");
-    //cmd.arg("-no-pie");
     cmd.arg("-target");
     cmd.arg(triple.as_str().to_str().unwrap());
     if cfg!(target_os = "linux") {
@@ -141,8 +114,8 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
         cmd.arg("Foundation");
     }
     cmd.arg("-o");
-    cmd.arg(out_path.clone());
-    cmd.arg("builtin/builtin.bc");
+    cmd.arg(exe_path.clone());
+    cmd.arg(from_shiika_root("builtin/builtin.bc"));
     let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
     if cfg!(target_os = "windows") {
         cmd.arg(format!("{}/debug/skc_rustlib.lib", cargo_target));
@@ -177,11 +150,6 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
 
     fs::remove_file(bc_path)?;
 
-    let exe_path = if out_path.starts_with('/') {
-        out_path
-    } else {
-        format!("./{}", out_path)
-    };
     let mut cmd = Command::new(exe_path);
     if capture_out {
         let output = cmd.output().context("failed to execute process")?;
@@ -194,13 +162,17 @@ fn run_<P: AsRef<Path>>(sk_path: P, capture_out: bool) -> Result<(String, String
     }
 }
 
-/// Remove .bc and .out
-pub fn cleanup<P: AsRef<Path>>(sk_path: P) -> Result<()> {
-    let s = sk_path.as_ref().to_str().expect("failed to unwrap sk_path");
-    let bc_path = s.to_string() + ".bc";
-    let out_path = s.to_string() + ".out";
+/// Remove .bc and .out (used by unit tests)
+pub fn cleanup<P: AsRef<Path>>(sk_path_: P) -> Result<()> {
+    let sk_path = sk_path_.as_ref();
+    let bc_path = sk_path.with_extension("bc");
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
     let _ = fs::remove_file(bc_path);
-    let _ = fs::remove_file(out_path);
+    let _ = fs::remove_file(exe_path);
     Ok(())
 }
 
@@ -211,4 +183,12 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
     {
         cmd.arg(arg);
     }
+}
+
+fn from_shiika_root(s: &str) -> PathBuf {
+    shiika_root().join(s)
+}
+
+fn shiika_root() -> PathBuf {
+    PathBuf::from(env::var("SHIIKA_ROOT").unwrap_or_else(|_| ".".to_string()))
 }

@@ -1,5 +1,6 @@
-# Shiika Language Guide
+# Shiika Programming Guide
 
+- [Install](./install.md)
 - Overview
 - What's New
 - Releases and Roadmap
