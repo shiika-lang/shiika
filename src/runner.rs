@@ -63,9 +63,8 @@ pub fn build_corelib() -> Result<(), Error> {
     let triple = targets::default_triple();
     skc_codegen::run(
         &mir,
-        // TODO: pass by Path
-        &from_shiika_root("builtin/builtin.bc").to_string_lossy(),
-        Some(&from_shiika_root("builtin/builtin.ll").to_string_lossy()),
+        &from_shiika_root("builtin/builtin.bc"),
+        Some(&from_shiika_root("builtin/builtin.ll")),
         false,
         Some(&triple),
     )?;

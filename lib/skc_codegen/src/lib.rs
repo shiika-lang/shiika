@@ -50,10 +50,10 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
 }
 
 /// Compile hir and dump it to `outpath`
-pub fn run(
+pub fn run<P: AsRef<Path>>(
     mir: &Mir,
-    bc_path: &str,
-    opt_ll_path: Option<&str>,
+    bc_path: P,
+    opt_ll_path: Option<P>,
     generate_main: bool,
     opt_target_triple: Option<&inkwell::targets::TargetTriple>,
 ) -> Result<()> {
@@ -65,7 +65,7 @@ pub fn run(
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(mir, &context, &module, &builder, &generate_main);
     code_gen.gen_program(&mir.hir, &mir.imports)?;
-    code_gen.module.write_bitcode_to_path(Path::new(bc_path));
+    code_gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
         code_gen
             .module
