@@ -43,6 +43,10 @@ p A.new.fib(34)
 
 See `examples/*.sk` for more.
 
+## Install
+
+→ [install.md](./doc/guide/src/install.md)
+
 ## Documents
 
 - [Language Guide](./doc/guide/src/SUMMARY.md)
@@ -105,42 +109,12 @@ See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 
 ## Supported platform
 
-- Tested on Mac and Linux
+- Tested on Mac, Linux(Ubuntu) and Windows
 - May not work on 32bit environment
 
 ## Hacking
 
-### Prerequisites
-
-- Tested on Mac and Linux
-- Rust
-- LLVM (eg. `brew install llvm@12`)
-
-```sh
-export PATH="$(brew --prefix)/opt/llvm@12/bin":$PATH
-export LDFLAGS="-L$(brew --prefix)/opt/llvm@12/lib"
-export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
-```
-
-### Compile
-
-```
-$ cargo build
-$ cd lib/skc_rustlib; cargo build; cd ../../
-$ cargo run -- build-corelib
-```
-
-The `build-corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
-
-### Specify cargo target folder
-
-`shiika` expects Rust to generate artifacts into `./target` by default. You can change this by `SHIIKA_CARGO_TARGET` envvar.
-
-### Run a program
-
-```
-$ cargo run -- run examples/hello.sk
-```
+See [install.md](./doc/guide/src/install.md)
 
 ### Run tests
 
@@ -182,4 +156,3 @@ MIT
 ## Contact
 
 https://github.com/shiika-lang/shiika/issues
-
