@@ -341,31 +341,45 @@ impl<'a> Lexer<'a> {
         Token::UpperWord(self.src[begin..next_cur.pos].to_string())
     }
 
+    // Read either of
+    // - an identifier starting with a small letter
+    //   - May be suffixed by a `?`
+    //   - May be suffixed by a `=` when lexer state is LexerState::MethodName.
+    // - a keyword (`if`, `class`, etc.)
+    // - a KeyName (`foo:`, etc.).
     fn read_lower_word(
         &mut self,
         next_cur: &mut Cursor,
         cur: Option<&Cursor>,
     ) -> (Token, Option<LexerState>) {
-        loop {
-            let c = next_cur.peek(self.src);
-            match self.char_type(c) {
-                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
-                    next_cur.proceed(self.src);
-                }
-                CharType::Symbol
-                    if c == Some('?')
-                        || (c == Some('=') && self.state == LexerState::MethodName) =>
-                {
-                    next_cur.proceed(self.src);
-                    break;
-                }
-                _ => break,
-            }
-        }
         let begin = match cur {
             Some(c) => c.pos,
             None => self.cur.pos,
         };
+        loop {
+            let c = next_cur.peek(self.src);
+            match self.char_type(c) {
+                CharType::UpperWord | CharType::LowerWord | CharType::Number => {
+                    // These are allowed in an identifier.
+                    next_cur.proceed(self.src);
+                }
+                CharType::Symbol => {
+                    if c == Some(':') {
+                        let s = &self.src[begin..next_cur.pos];
+                        next_cur.proceed(self.src);
+                        return (Token::KeyName(s.to_string()), Some(LexerState::ExprBegin));
+                    } else if c == Some('?')
+                        || (c == Some('=') && self.state == LexerState::MethodName)
+                    {
+                        next_cur.proceed(self.src);
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
         let s = &self.src[begin..next_cur.pos];
         let (token, state) = match s {
             "require" => (Token::KwRequire, LexerState::ExprBegin),

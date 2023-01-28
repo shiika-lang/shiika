@@ -208,7 +208,7 @@ pub enum AstExpressionBody {
     MethodCall(AstMethodCall),
     LambdaInvocation {
         fn_expr: Box<AstExpression>,
-        arg_exprs: Vec<AstExpression>,
+        args: Vec<AstCallArg>,
         has_block: bool,
     },
     LambdaExpr {
@@ -243,7 +243,7 @@ pub enum AstExpressionBody {
 pub struct AstMethodCall {
     pub receiver_expr: Option<Box<AstExpression>>, // Box is needed for E0072 "has infinite size" error
     pub method_name: MethodFirstname,
-    pub arg_exprs: Vec<AstExpression>,
+    pub args: Vec<AstCallArg>,
     pub type_args: Vec<AstExpression>,
     pub has_block: bool,
     pub may_have_paren_wo_args: bool,
@@ -251,7 +251,30 @@ pub struct AstMethodCall {
 
 impl AstMethodCall {
     pub fn first_arg_cloned(&self) -> AstExpression {
-        self.arg_exprs[0].clone()
+        self.args[0].expr.clone()
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AstCallArg {
+    pub name: Option<String>,
+    pub expr: AstExpression,
+}
+
+impl AstCallArg {
+    pub fn new(name: String, expr: AstExpression) -> AstCallArg {
+        AstCallArg {
+            name: Some(name),
+            expr,
+        }
+    }
+
+    pub fn noname(expr: AstExpression) -> AstCallArg {
+        AstCallArg { name: None, expr }
+    }
+
+    pub fn has_name(&self) -> bool {
+        self.name.is_some()
     }
 }
 
