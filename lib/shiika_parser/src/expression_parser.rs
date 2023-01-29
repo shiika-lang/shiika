@@ -1384,7 +1384,7 @@ impl<'a> Parser<'a> {
                         comma_seen = true;
                     }
                 }
-                Token::LowerWord(_) => {
+                Token::KeyName(_) | Token::LowerWord(_) => {
                     params.push(self.parse_block_param(type_required)?);
                     comma_seen = false;
                 }
@@ -1412,10 +1412,16 @@ impl<'a> Parser<'a> {
     fn parse_block_param(&mut self, type_required: bool) -> Result<BlockParam, Error> {
         // Name
         let name;
-        match self.current_token() {
+        let colon_seen = match self.current_token() {
+            Token::KeyName(s) => {
+                name = s.to_string();
+                self.consume_token()?;
+                true
+            }
             Token::LowerWord(s) => {
                 name = s.to_string();
                 self.consume_token()?;
+                false
             }
             token => {
                 return Err(parse_error!(
@@ -1424,13 +1430,11 @@ impl<'a> Parser<'a> {
                     token
                 ))
             }
-        }
+        };
         self.skip_ws()?;
 
-        // `:' Type
-        let opt_typ = if self.current_token_is(Token::Colon) {
-            self.consume_token()?;
-            self.skip_ws()?;
+        // Type(optional)
+        let opt_typ = if colon_seen {
             Some(self.parse_typ()?)
         } else {
             if type_required {

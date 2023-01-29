@@ -591,7 +591,7 @@ impl<'a> Parser<'a> {
                             return Err(parse_error!(self, "@ is only used in `initialize'"));
                         }
                     }
-                    Token::LowerWord(_) => params.push(self.parse_param()?),
+                    Token::KeyName(_) => params.push(self.parse_param()?),
                     token => {
                         return Err(parse_error!(
                             self,
@@ -630,7 +630,7 @@ impl<'a> Parser<'a> {
 
         // Name
         match self.current_token() {
-            Token::LowerWord(s) => {
+            Token::KeyName(s) => {
                 name = s.to_string();
                 self.consume_token()?;
                 is_iparam = false;
@@ -648,10 +648,10 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
-        self.skip_ws()?;
-
         // `:'
-        self.expect(Token::Colon)?;
+        if is_iparam {
+            self.expect(Token::Colon)?;
+        }
         self.skip_ws()?;
 
         // Type
