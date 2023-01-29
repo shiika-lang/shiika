@@ -611,10 +611,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if let Ok(found) = result {
             method_call::build_simple(self, found, self_expr)
         } else {
-            Err(error::program_error(&format!(
-                "variable or method `{}' was not found",
-                name
-            )))
+            Err(error::unknown_barename(name, locs))
         }
     }
 
