@@ -5,7 +5,7 @@ use crate::hir_maker::HirMaker;
 use crate::type_inference::method_call_inf;
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
-use shiika_ast::{AstExpression, LocationSpan};
+use shiika_ast::{AstCallArg, AstExpression, LocationSpan};
 use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
 use skc_hir::*;
 
@@ -13,7 +13,7 @@ pub fn convert_method_call(
     mk: &mut HirMaker,
     receiver_expr: &Option<Box<AstExpression>>,
     method_name: &MethodFirstname,
-    arg_exprs: &[AstExpression],
+    args: &[AstCallArg],
     has_block: &bool,
     type_args: &[AstExpression],
     locs: &LocationSpan,
@@ -22,7 +22,7 @@ pub fn convert_method_call(
     if receiver_expr.is_none() {
         if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone())? {
             if lvar.ty.fn_x_info().is_some() {
-                return convert_lambda_invocation(mk, lvar.ref_expr(), arg_exprs, has_block, locs);
+                return convert_lambda_invocation(mk, lvar.ref_expr(), args, has_block, locs);
             }
         }
     }
@@ -67,7 +67,7 @@ pub fn convert_method_call(
             sig: found.sig.clone(),
             locs,
         },
-        arg_exprs,
+        args,
         has_block,
     )
     .context(msg)?;
@@ -78,7 +78,7 @@ pub fn convert_method_call(
 pub fn convert_lambda_invocation(
     mk: &mut HirMaker,
     fn_expr: HirExpression,
-    arg_exprs: &[AstExpression],
+    args: &[AstCallArg],
     has_block: &bool,
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
@@ -89,7 +89,7 @@ pub fn convert_lambda_invocation(
             fn_ty: &fn_expr.ty,
             locs,
         },
-        arg_exprs,
+        args,
         has_block, // true if `f(){ ... }`, for example.
     )?;
     let ret_ty = fn_expr.ty.fn_x_info().unwrap().last().unwrap().clone();
@@ -118,18 +118,18 @@ fn convert_method_args(
     mk: &mut HirMaker,
     inf: Option<method_call_inf::MethodCallInf1>,
     block_taker: &BlockTaker,
-    arg_exprs: &[AstExpression],
+    args: &[AstCallArg],
     has_block: &bool,
 ) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
-    let n = arg_exprs.len();
+    let n = args.len();
     let mut arg_hirs = vec![];
     if *has_block && inf.is_some() {
         if n > 1 {
             for i in 0..n - 1 {
-                arg_hirs.push(mk.convert_expr(&arg_exprs[i])?);
+                arg_hirs.push(mk.convert_expr(&args[i].expr)?);
             }
         }
-        let last_arg = &arg_exprs.last().unwrap();
+        let last_arg = &args.last().unwrap().expr;
 
         let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
         let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys)?;
@@ -139,8 +139,8 @@ fn convert_method_args(
         arg_hirs.push(block_hir);
         Ok((arg_hirs, Some(inf3)))
     } else {
-        for expr in arg_exprs {
-            arg_hirs.push(mk.convert_expr(&expr)?);
+        for arg in args {
+            arg_hirs.push(mk.convert_expr(&arg.expr)?);
         }
         Ok((arg_hirs, None))
     }

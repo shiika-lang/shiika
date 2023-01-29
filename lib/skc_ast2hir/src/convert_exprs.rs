@@ -83,7 +83,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr,
                 method_name,
-                arg_exprs,
+                args,
                 type_args,
                 has_block,
                 ..
@@ -91,7 +91,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 self,
                 receiver_expr,
                 method_name,
-                arg_exprs,
+                args,
                 has_block,
                 type_args,
                 &expr.locs,
@@ -99,14 +99,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
             AstExpressionBody::LambdaInvocation {
                 fn_expr,
-                arg_exprs,
+                args,
                 has_block,
             } => {
                 let hir_fn_expr = self.convert_expr(fn_expr)?;
                 method_call::convert_lambda_invocation(
                     self,
                     hir_fn_expr,
-                    arg_exprs,
+                    args,
                     has_block,
                     &expr.locs,
                 )
