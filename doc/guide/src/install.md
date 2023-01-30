@@ -10,7 +10,8 @@ Only 64bit environments are supported.
 1. Install LLVM 12
   - eg. `brew install llvm@12` on Mac
   - eg. `sudo apt install llvm-12 clang-12` on Ubuntu
-1. (TODO) `apt install libgc-dev` needed on Ubuntu?
+- You may need `sudo apt install cmake` on Ubuntu
+- (TODO) `apt install libgc-dev` needed on Ubuntu?
 
 You may need to setup some environment variables. For example, on Mac:
 
