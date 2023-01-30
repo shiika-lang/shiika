@@ -5,7 +5,7 @@ use crate::hir_maker::HirMaker;
 use crate::type_inference::method_call_inf;
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
-use shiika_ast::{AstCallArg, AstExpression, LocationSpan};
+use shiika_ast::{AstCallArgs, AstExpression, LocationSpan};
 use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
 use skc_hir::*;
 
@@ -13,7 +13,7 @@ pub fn convert_method_call(
     mk: &mut HirMaker,
     receiver_expr: &Option<Box<AstExpression>>,
     method_name: &MethodFirstname,
-    args: &[AstCallArg],
+    args: &AstCallArgs,
     has_block: &bool,
     type_args: &[AstExpression],
     locs: &LocationSpan,
@@ -78,7 +78,7 @@ pub fn convert_method_call(
 pub fn convert_lambda_invocation(
     mk: &mut HirMaker,
     fn_expr: HirExpression,
-    args: &[AstCallArg],
+    args: &AstCallArgs,
     has_block: &bool,
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
@@ -118,7 +118,7 @@ fn convert_method_args(
     mk: &mut HirMaker,
     inf: Option<method_call_inf::MethodCallInf1>,
     block_taker: &BlockTaker,
-    args: &[AstCallArg],
+    args: &AstCallArgs,
     has_block: &bool,
 ) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
     let n = args.len();

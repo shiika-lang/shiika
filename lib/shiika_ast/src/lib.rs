@@ -208,7 +208,7 @@ pub enum AstExpressionBody {
     MethodCall(AstMethodCall),
     LambdaInvocation {
         fn_expr: Box<AstExpression>,
-        args: Vec<AstCallArg>,
+        args: AstCallArgs,
         has_block: bool,
     },
     LambdaExpr {
@@ -243,7 +243,7 @@ pub enum AstExpressionBody {
 pub struct AstMethodCall {
     pub receiver_expr: Option<Box<AstExpression>>, // Box is needed for E0072 "has infinite size" error
     pub method_name: MethodFirstname,
-    pub args: Vec<AstCallArg>,
+    pub args: AstCallArgs,
     pub type_args: Vec<AstExpression>,
     pub has_block: bool,
     pub may_have_paren_wo_args: bool,
@@ -251,30 +251,74 @@ pub struct AstMethodCall {
 
 impl AstMethodCall {
     pub fn first_arg_cloned(&self) -> AstExpression {
-        self.args[0].expr.clone()
+        debug_assert!(!self.args.unnamed.is_empty());
+        self.args.unnamed[0].clone()
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct AstCallArg {
-    pub name: Option<String>,
-    pub expr: AstExpression,
+pub struct AstCallArgs {
+    // Zero or more positional arguments
+    pub unnamed: Vec<AstExpression>,
+    // Zero or more named arguments
+    pub named: Vec<(String, AstExpression)>,
+    // An optional block
+    pub block: Option<Box<AstExpression>>,
 }
 
-impl AstCallArg {
-    pub fn new(name: String, expr: AstExpression) -> AstCallArg {
-        AstCallArg {
-            name: Some(name),
-            expr,
+impl AstCallArgs {
+    pub fn new() -> AstCallArgs {
+        AstCallArgs {
+            unnamed: Default::default(),
+            named: Default::default(),
+            block: Default::default(),
         }
     }
 
-    pub fn noname(expr: AstExpression) -> AstCallArg {
-        AstCallArg { name: None, expr }
+    pub fn single_unnamed(expr: AstExpression) -> AstCallArgs {
+        let mut args = AstCallArgs::new();
+        args.add_unnamed(expr);
+        args
     }
 
-    pub fn has_name(&self) -> bool {
-        self.name.is_some()
+    pub fn add_unnamed(&mut self, expr: AstExpression) {
+        debug_assert!(self.named.is_empty());
+        self.unnamed.push(expr);
+    }
+
+    pub fn add_named(&mut self, name: String, expr: AstExpression) {
+        self.named.push((name, expr));
+    }
+
+    pub fn set_block(&mut self, block_expr: AstExpression) {
+        debug_assert!(self.block.is_none());
+        self.block = Some(Box::new(block_expr))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.unnamed.is_empty() && self.named.is_empty() && self.block.is_none()
+    }
+
+    pub fn locs(&self) -> Option<LocationSpan> {
+        let begin = if let Some(e) = self.unnamed.first() {
+            &e.locs
+        } else if let Some((_, e)) = self.named.last() {
+            &e.locs
+        } else if let Some(b) = &self.block {
+            &b.locs
+        } else {
+            return None;
+        };
+        let end = if let Some(b) = &self.block {
+            &b.locs
+        } else if let Some((_, e)) = self.named.last() {
+            &e.locs
+        } else if let Some(e) = self.unnamed.last() {
+            &e.locs
+        } else {
+            unreachable!();
+        };
+        Some(LocationSpan::merge(begin, end))
     }
 }
 

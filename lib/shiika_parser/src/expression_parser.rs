@@ -130,7 +130,7 @@ impl<'a> Parser<'a> {
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
-                    args.push(AstCallArg::noname(lambda));
+                    args.set_block(lambda);
                     has_block = true;
                 }
                 expr = self.ast.set_method_call_args(expr, args, has_block);
@@ -138,11 +138,9 @@ impl<'a> Parser<'a> {
                 has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
-                expr = self.ast.set_method_call_args(
-                    expr,
-                    vec![AstCallArg::noname(lambda)],
-                    has_block,
-                );
+                let mut args = AstCallArgs::new();
+                args.set_block(lambda);
+                expr = self.ast.set_method_call_args(expr, args, has_block);
             }
         }
 
@@ -167,7 +165,7 @@ impl<'a> Parser<'a> {
         if !args.is_empty() {
             self.skip_ws()?;
             let has_block = if let Some(lambda) = self.parse_opt_do_block()? {
-                args.push(AstCallArg::noname(lambda));
+                args.set_block(lambda);
                 true
             } else {
                 false
@@ -190,17 +188,8 @@ impl<'a> Parser<'a> {
                     )));
                 }
                 Token::KwReturn => {
-                    if args.len() >= 2 {
-                        return Err(parse_error!(
-                            self,
-                            "`return' cannot take more than one args"
-                        ));
-                    }
-                    return Ok(Some(self.ast.return_expr(
-                        Some(args.pop().unwrap().expr),
-                        begin,
-                        end,
-                    )));
+                    let arg = self.validate_arg_for_return(args)?;
+                    return Ok(Some(self.ast.return_expr(Some(arg), begin, end)));
                 }
                 _ => panic!("must not happen: {:?}", self.current_token()),
             }
@@ -209,6 +198,22 @@ impl<'a> Parser<'a> {
         self.rewind_to(cur)?;
         self.set_lexer_state(LexerState::ExprArg);
         Ok(None)
+    }
+
+    fn validate_arg_for_return(&self, mut args: AstCallArgs) -> Result<AstExpression, Error> {
+        if args.block.is_some() {
+            return Err(parse_error!(self, "`return' cannot take a block"));
+        }
+        if !args.named.is_empty() {
+            return Err(parse_error!(self, "`return' cannot have named arguments"));
+        }
+        if args.unnamed.len() >= 2 {
+            return Err(parse_error!(
+                self,
+                "`return' cannot have more than one arguments"
+            ));
+        }
+        Ok(args.unnamed.pop().unwrap())
     }
 
     // operatorExpression:
@@ -711,7 +716,7 @@ impl<'a> Parser<'a> {
                     AstMethodCall {
                         receiver_expr: Some(Box::new(expr)),
                         method_name: method_firstname("[]"),
-                        args: vec![AstCallArg::noname(arg)],
+                        args: AstCallArgs::single_unnamed(arg),
                         type_args: Default::default(),
                         has_block: false,
                         may_have_paren_wo_args: false,
@@ -761,12 +766,12 @@ impl<'a> Parser<'a> {
             // .foo(args)
             Token::LParen => (self.parse_paren_and_args()?, false),
             // .foo
-            _ => (vec![], true),
+            _ => (AstCallArgs::new(), true),
         };
 
         // Block
         let has_block = if let Some(lambda) = self.parse_opt_block()? {
-            args.push(AstCallArg::noname(lambda));
+            args.set_block(lambda);
             true
         } else {
             false
@@ -827,14 +832,14 @@ impl<'a> Parser<'a> {
         Ok(type_args)
     }
 
-    fn parse_paren_and_args(&mut self) -> Result<Vec<AstCallArg>, Error> {
+    fn parse_paren_and_args(&mut self) -> Result<AstCallArgs, Error> {
         self.lv += 1;
         self.debug_log("parse_paren_and_args");
         assert!(self.consume(Token::LParen)?);
         self.skip_wsn()?;
         let args;
         if self.consume(Token::RParen)? {
-            args = vec![]
+            args = AstCallArgs::new();
         } else {
             args = self.parse_method_call_args()?;
             self.skip_wsn()?;
@@ -845,25 +850,30 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse method call arguments (an expr or `foo: bar`)
-    fn parse_method_call_args(&mut self) -> Result<Vec<AstCallArg>, Error> {
+    fn parse_method_call_args(&mut self) -> Result<AstCallArgs, Error> {
         self.lv += 1;
         self.debug_log("parse_method_call_args");
-        let mut v = vec![];
+        let mut args = AstCallArgs::new();
         let mut name_seen = false;
         loop {
             let next_token = self.next_nonspace_token()?;
             match self.parse_method_call_arg(next_token)? {
-                Some(arg) => {
-                    if name_seen && !arg.has_name() {
-                        return Err(parse_error!(
-                            self,
-                            "positional argument must not follow an keyword argument"
-                        ));
+                Some((n, e)) => {
+                    match n {
+                        Some(name) => {
+                            args.add_named(name, e);
+                            name_seen = true;
+                        }
+                        None => {
+                            if name_seen {
+                                return Err(parse_error!(
+                                    self,
+                                    "positional argument must not follow an keyword argument"
+                                ));
+                            }
+                            args.add_unnamed(e);
+                        }
                     }
-                    if arg.has_name() {
-                        name_seen = true;
-                    }
-                    v.push(arg);
                     self.skip_ws()?;
                     if !self.consume(Token::Comma)? {
                         break;
@@ -874,14 +884,14 @@ impl<'a> Parser<'a> {
             }
         }
         self.lv -= 1;
-        Ok(v)
+        Ok(args)
     }
 
     /// Parse an expression or `foo: bar`
     fn parse_method_call_arg(
         &mut self,
         next_nonspace_token: Token,
-    ) -> Result<Option<AstCallArg>, Error> {
+    ) -> Result<Option<(Option<String>, AstExpression)>, Error> {
         self.lv += 1;
         self.debug_log("parse_method_call_arg");
         let arg = match next_nonspace_token {
@@ -889,12 +899,12 @@ impl<'a> Parser<'a> {
                 self.consume_token()?;
                 self.skip_ws()?;
                 let e = self.parse_operator_expr()?;
-                Some(AstCallArg::new(s, e))
+                Some((Some(s), e))
             }
             _ => {
                 if next_nonspace_token.value_starts() {
                     self.skip_ws()?;
-                    Some(AstCallArg::noname(self.parse_operator_expr()?))
+                    Some((None, self.parse_operator_expr()?))
                 } else {
                     None
                 }
@@ -958,7 +968,7 @@ impl<'a> Parser<'a> {
             Token::LParen => {
                 let mut args = self.parse_paren_and_args()?;
                 let has_block = if let Some(lambda) = self.parse_opt_block()? {
-                    args.push(AstCallArg::noname(lambda));
+                    args.set_block(lambda);
                     true
                 } else {
                     false
@@ -1103,7 +1113,7 @@ impl<'a> Parser<'a> {
         if self.current_token_is(Token::LParen) {
             let mut args = self.parse_paren_and_args()?;
             let has_block = if let Some(lambda) = self.parse_opt_block()? {
-                args.push(AstCallArg::noname(lambda));
+                args.add_unnamed(lambda);
                 true
             } else {
                 false
