@@ -94,7 +94,7 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     let sk_path = sk_path_.as_ref();
     let bc_path = sk_path.with_extension("bc");
     let exe_path = if cfg!(target_os = "windows") {
-        sk_path.with_extension("exe")
+        sk_path.canonicalize()?.with_extension("exe")
     } else {
         sk_path.with_extension("out")
     };
