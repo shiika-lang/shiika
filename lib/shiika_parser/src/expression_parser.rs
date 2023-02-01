@@ -126,21 +126,18 @@ impl<'a> Parser<'a> {
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
             let mut args = self.parse_method_call_args()?;
-            let mut has_block = false;
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
                     args.set_block(lambda);
-                    has_block = true;
                 }
-                expr = self.ast.set_method_call_args(expr, args, has_block);
+                expr = self.ast.set_method_call_args(expr, args);
             } else if self.next_nonspace_token()? == Token::KwDo {
-                has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
                 let mut args = AstCallArgs::new();
                 args.set_block(lambda);
-                expr = self.ast.set_method_call_args(expr, args, has_block);
+                expr = self.ast.set_method_call_args(expr, args);
             }
         }
 
@@ -164,12 +161,9 @@ impl<'a> Parser<'a> {
         self.debug_log(&format!("tried/args: {:?}", args));
         if !args.is_empty() {
             self.skip_ws()?;
-            let has_block = if let Some(lambda) = self.parse_opt_do_block()? {
+            if let Some(lambda) = self.parse_opt_do_block()? {
                 args.set_block(lambda);
-                true
-            } else {
-                false
-            };
+            }
             let end = self.lexer.location();
             match &first_token {
                 Token::LowerWord(s) => {
@@ -180,7 +174,6 @@ impl<'a> Parser<'a> {
                             method_name: method_firstname(s),
                             args,
                             type_args: Default::default(),
-                            has_block,
                             may_have_paren_wo_args: false,
                         },
                         begin,
@@ -718,7 +711,6 @@ impl<'a> Parser<'a> {
                         method_name: method_firstname("[]"),
                         args: AstCallArgs::single_unnamed(arg),
                         type_args: Default::default(),
-                        has_block: false,
                         may_have_paren_wo_args: false,
                     },
                     begin.clone(),
@@ -770,12 +762,9 @@ impl<'a> Parser<'a> {
         };
 
         // Block
-        let has_block = if let Some(lambda) = self.parse_opt_block()? {
+        if let Some(lambda) = self.parse_opt_block()? {
             args.set_block(lambda);
-            true
-        } else {
-            false
-        };
+        }
 
         self.lv -= 1;
         let end = self.lexer.location();
@@ -786,7 +775,6 @@ impl<'a> Parser<'a> {
                 method_name: method_firstname(&method_name),
                 args,
                 type_args,
-                has_block,
                 may_have_paren_wo_args,
             },
             begin,
@@ -967,12 +955,9 @@ impl<'a> Parser<'a> {
         let expr = match self.current_token() {
             Token::LParen => {
                 let mut args = self.parse_paren_and_args()?;
-                let has_block = if let Some(lambda) = self.parse_opt_block()? {
+                if let Some(lambda) = self.parse_opt_block()? {
                     args.set_block(lambda);
-                    true
-                } else {
-                    false
-                };
+                }
                 let end = self.lexer.location();
                 self.ast.method_call(
                     true,
@@ -981,7 +966,6 @@ impl<'a> Parser<'a> {
                         method_name: method_firstname(bare_name_str),
                         args,
                         type_args: Default::default(),
-                        has_block,
                         may_have_paren_wo_args: false,
                     },
                     begin,
@@ -1112,16 +1096,11 @@ impl<'a> Parser<'a> {
         let mut expr = self.parse_parenthesized_expr()?;
         if self.current_token_is(Token::LParen) {
             let mut args = self.parse_paren_and_args()?;
-            let has_block = if let Some(lambda) = self.parse_opt_block()? {
+            if let Some(lambda) = self.parse_opt_block()? {
                 args.add_unnamed(lambda);
-                true
-            } else {
-                false
-            };
+            }
             let end = self.lexer.location();
-            expr = self
-                .ast
-                .lambda_invocation(expr, args, has_block, begin, end);
+            expr = self.ast.lambda_invocation(expr, args, begin, end);
         }
         self.lv -= 1;
         Ok(expr)

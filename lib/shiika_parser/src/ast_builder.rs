@@ -233,7 +233,6 @@ impl AstBuilder {
                 method_name: method_firstname(method_name),
                 args,
                 type_args: Default::default(),
-                has_block: false,
                 may_have_paren_wo_args: false,
             }),
         )
@@ -243,7 +242,6 @@ impl AstBuilder {
         &self,
         fn_expr: AstExpression,
         args: AstCallArgs,
-        has_block: bool,
         begin: Location,
         end: Location,
     ) -> AstExpression {
@@ -253,7 +251,6 @@ impl AstBuilder {
             AstExpressionBody::LambdaInvocation {
                 fn_expr: Box::new(fn_expr),
                 args,
-                has_block,
             },
         )
     }
@@ -407,7 +404,6 @@ impl AstBuilder {
                 method_name: method_firstname(op),
                 args: AstCallArgs::single_unnamed(right),
                 type_args: vec![],
-                has_block: false,
                 may_have_paren_wo_args: false,
             }),
         )
@@ -437,7 +433,6 @@ impl AstBuilder {
                     method_name: x.method_name.append("="),
                     args: x.args,
                     type_args: Default::default(),
-                    has_block: false,
                     may_have_paren_wo_args: false,
                 })
             }
@@ -449,12 +444,7 @@ impl AstBuilder {
     /// Extend `foo.bar` to `foo.bar args`, or
     ///        `foo`     to `foo args`.
     /// (expr must be a MethodCall or a BareName and args must not be empty)
-    pub fn set_method_call_args(
-        &self,
-        expr: AstExpression,
-        args: AstCallArgs,
-        has_block: bool,
-    ) -> AstExpression {
+    pub fn set_method_call_args(&self, expr: AstExpression, args: AstCallArgs) -> AstExpression {
         let begin = &expr.locs;
         let end = &args.locs().unwrap();
         match expr.body {
@@ -475,7 +465,6 @@ impl AstBuilder {
                     method_name: method_firstname(s),
                     args,
                     type_args: vec![],
-                    has_block,
                     may_have_paren_wo_args: false,
                 }),
             ),

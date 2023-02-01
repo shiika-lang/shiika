@@ -209,7 +209,6 @@ pub enum AstExpressionBody {
     LambdaInvocation {
         fn_expr: Box<AstExpression>,
         args: AstCallArgs,
-        has_block: bool,
     },
     LambdaExpr {
         params: Vec<BlockParam>,
@@ -245,7 +244,6 @@ pub struct AstMethodCall {
     pub method_name: MethodFirstname,
     pub args: AstCallArgs,
     pub type_args: Vec<AstExpression>,
-    pub has_block: bool,
     pub may_have_paren_wo_args: bool,
 }
 
@@ -293,6 +291,10 @@ impl AstCallArgs {
     pub fn set_block(&mut self, block_expr: AstExpression) {
         debug_assert!(self.block.is_none());
         self.block = Some(Box::new(block_expr))
+    }
+
+    pub fn has_block(&self) -> bool {
+        self.block.is_some()
     }
 
     pub fn is_empty(&self) -> bool {

@@ -14,7 +14,6 @@ pub fn convert_method_call(
     receiver_expr: &Option<Box<AstExpression>>,
     method_name: &MethodFirstname,
     args: &AstCallArgs,
-    has_block: &bool,
     type_args: &[AstExpression],
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
@@ -22,7 +21,7 @@ pub fn convert_method_call(
     if receiver_expr.is_none() {
         if let Some(lvar) = mk._lookup_var(&method_name.0, locs.clone())? {
             if lvar.ty.fn_x_info().is_some() {
-                return convert_lambda_invocation(mk, lvar.ref_expr(), args, has_block, locs);
+                return convert_lambda_invocation(mk, lvar.ref_expr(), args, locs);
             }
         }
     }
