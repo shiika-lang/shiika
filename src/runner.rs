@@ -94,7 +94,7 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     let sk_path = sk_path_.as_ref();
     let bc_path = sk_path.with_extension("bc");
     let exe_path = if cfg!(target_os = "windows") {
-        sk_path.with_extension("exe")
+        sk_path.canonicalize()?.with_extension("exe")
     } else {
         sk_path.with_extension("out")
     };
@@ -116,12 +116,12 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     cmd.arg("-o");
     cmd.arg(exe_path.clone());
     cmd.arg(from_shiika_root("builtin/builtin.bc"));
-    let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
-    if cfg!(target_os = "windows") {
-        cmd.arg(format!("{}/debug/skc_rustlib.lib", cargo_target));
+    let skc_rustlib = if cfg!(target_os = "windows") {
+        "skc_rustlib.lib"
     } else {
-        cmd.arg(format!("{}/debug/libskc_rustlib.a", cargo_target));
-    }
+        "libskc_rustlib.a"
+    };
+    cmd.arg(cargo_target_path().join("debug").join(skc_rustlib));
     cmd.arg(bc_path.clone());
 
     if cfg!(target_os = "windows") {
@@ -150,14 +150,15 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
 
     fs::remove_file(bc_path)?;
 
-    let mut cmd = Command::new(exe_path);
+    let mut cmd = Command::new(&exe_path);
     if capture_out {
         let output = cmd.output().context("failed to execute process")?;
         let stdout = String::from_utf8(output.stdout).expect("invalid utf8 in stdout");
         let stderr = String::from_utf8(output.stderr).expect("invalid utf8 in stderr");
         Ok((stdout, stderr))
     } else {
-        cmd.status()?;
+        cmd.status()
+            .context(format!("failed to run {}", exe_path.display()))?;
         Ok(("".to_string(), "".to_string()))
     }
 }
@@ -182,6 +183,14 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
         .split_ascii_whitespace()
     {
         cmd.arg(arg);
+    }
+}
+
+fn cargo_target_path() -> PathBuf {
+    if let Ok(s) = env::var("SHIIKA_CARGO_TARGET") {
+        PathBuf::from(s)
+    } else {
+        from_shiika_root("target")
     }
 }
 
