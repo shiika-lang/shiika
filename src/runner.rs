@@ -116,12 +116,12 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     cmd.arg("-o");
     cmd.arg(exe_path.clone());
     cmd.arg(from_shiika_root("builtin/builtin.bc"));
-    let cargo_target = env::var("SHIIKA_CARGO_TARGET").unwrap_or_else(|_| "target".to_string());
-    if cfg!(target_os = "windows") {
-        cmd.arg(format!("{}/debug/skc_rustlib.lib", cargo_target));
+    let skc_rustlib = if cfg!(target_os = "windows") {
+        "skc_rustlib.lib"
     } else {
-        cmd.arg(format!("{}/debug/libskc_rustlib.a", cargo_target));
-    }
+        "libskc_rustlib.a"
+    };
+    cmd.arg(cargo_target_path().join("debug").join(skc_rustlib));
     cmd.arg(bc_path.clone());
 
     if cfg!(target_os = "windows") {
@@ -182,6 +182,14 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
         .split_ascii_whitespace()
     {
         cmd.arg(arg);
+    }
+}
+
+fn cargo_target_path() -> PathBuf {
+    if let Ok(s) = env::var("SHIIKA_CARGO_TARGET") {
+        PathBuf::from(s)
+    } else {
+        from_shiika_root("target")
     }
 }
 
