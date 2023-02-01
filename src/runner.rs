@@ -157,7 +157,8 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
         let stderr = String::from_utf8(output.stderr).expect("invalid utf8 in stderr");
         Ok((stdout, stderr))
     } else {
-        cmd.status().context(format!("failed to run {}", exe_path.display()))?;
+        cmd.status()
+            .context(format!("failed to run {}", exe_path.display()))?;
         Ok(("".to_string(), "".to_string()))
     }
 }
