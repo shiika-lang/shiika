@@ -41,18 +41,13 @@ pub fn convert_method_call(
         .class_dict
         .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
         .clone();
-    if type_args.len() > 0 && type_args.len() != found.sig.typarams.len() {
-        return Err(error::type_error(format!(
-            "wrong number of method-wise type arguments ({} for {:?}",
-            type_args.len(),
-            &found.sig,
-        )));
-    }
+    let arranged = arrange_named_args(&found.sig, args)?;
+    validate_method_tyargs(&found, type_args)?;
 
     let inf1 = if found.sig.typarams.len() > 0 && type_args.is_empty() {
         let sig = &found.sig; //.specialize(class_tyargs, method_tyargs);
-        Some(method_call_inf::MethodCallInf1::new(sig, *has_block))
-    } else if *has_block {
+        Some(method_call_inf::MethodCallInf1::new(sig, args.has_block()))
+    } else if args.has_block() {
         type_checking::check_takes_block(&found.sig, locs)?;
         Some(method_call_inf::MethodCallInf1::infer_block(&found.sig))
     } else {
@@ -66,11 +61,61 @@ pub fn convert_method_call(
             sig: found.sig.clone(),
             locs,
         },
-        args,
-        has_block,
+        &arranged,
+        args.has_block(),
     )
     .context(msg)?;
     build(mk, found, receiver_hir, arg_hirs, inf3)
+}
+
+/// Arrange named and unnamed arguments into a Vec which corresponds to `sig.params`.
+pub fn arrange_named_args<'a>(
+    sig: &MethodSignature,
+    args: &'a AstCallArgs,
+) -> Result<Vec<&'a AstExpression>> {
+    let n_params = sig.params.len();
+    let n_unnamed = args.unnamed.len();
+    let mut named = args.named.iter().collect::<Vec<_>>();
+    let mut v = vec![];
+    for (i, param) in sig.params.iter().enumerate() {
+        if i < n_unnamed {
+            v.push(args.unnamed.get(i).unwrap());
+            continue;
+        }
+        if let Some(j) = named.iter().position(|(name, _)| name == &param.name) {
+            let (_, expr) = named.remove(j);
+            v.push(expr);
+            continue;
+        }
+        if let Some(expr) = &args.block {
+            if i == n_params - 1 {
+                v.push(expr);
+                continue;
+            }
+        }
+        return Err(error::unspecified_arg(
+            &param.name,
+            sig,
+            &args.locs().unwrap(),
+        ));
+    }
+    if let Some((name, _)) = named.first() {
+        return Err(error::extranous_arg(name, sig, &args.locs().unwrap()));
+    }
+    Ok(v)
+}
+
+/// Check if number of type arguments matches to the typarams.
+/// If no tyargs are given, check is skipped (it will be inferred instead.)
+pub fn validate_method_tyargs(found: &FoundMethod, type_args: &[AstExpression]) -> Result<()> {
+    if type_args.len() > 0 && type_args.len() != found.sig.typarams.len() {
+        return Err(error::type_error(format!(
+            "wrong number of method-wise type arguments ({} for {:?}",
+            type_args.len(),
+            &found.sig,
+        )));
+    }
+    Ok(())
 }
 
 /// Returns `Some` if the method call is a lambda invocation.
@@ -78,9 +123,16 @@ pub fn convert_lambda_invocation(
     mk: &mut HirMaker,
     fn_expr: HirExpression,
     args: &AstCallArgs,
-    has_block: &bool,
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
+    if let Some((name, _)) = args.named.first() {
+        return Err(error::named_arg_for_lambda(name, locs));
+    }
+    let mut arg_exprs = args.unnamed.iter().collect::<Vec<_>>();
+    if let Some(e) = &args.block {
+        arg_exprs.push(e);
+    }
+
     let (arg_hirs, _) = convert_method_args(
         mk,
         None,
@@ -88,8 +140,8 @@ pub fn convert_lambda_invocation(
             fn_ty: &fn_expr.ty,
             locs,
         },
-        args,
-        has_block, // true if `f(){ ... }`, for example.
+        &arg_exprs,
+        args.has_block(),
     )?;
     let ret_ty = fn_expr.ty.fn_x_info().unwrap().last().unwrap().clone();
     Ok(Hir::lambda_invocation(
@@ -117,29 +169,28 @@ fn convert_method_args(
     mk: &mut HirMaker,
     inf: Option<method_call_inf::MethodCallInf1>,
     block_taker: &BlockTaker,
-    args: &AstCallArgs,
-    has_block: &bool,
+    arg_exprs: &[&AstExpression],
+    has_block: bool,
 ) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
-    let n = args.len();
     let mut arg_hirs = vec![];
-    if *has_block && inf.is_some() {
+    if has_block && inf.is_some() {
+        let n = arg_exprs.len();
         if n > 1 {
             for i in 0..n - 1 {
-                arg_hirs.push(mk.convert_expr(&args[i].expr)?);
+                arg_hirs.push(mk.convert_expr(&arg_exprs[i])?);
             }
         }
-        let last_arg = &args.last().unwrap().expr;
 
         let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
         let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys)?;
-        let block_hir = block::convert_block(mk, block_taker, &inf2, &last_arg)?;
+        let block_hir = block::convert_block(mk, block_taker, &inf2, &arg_exprs.last().unwrap())?;
         let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)?;
 
         arg_hirs.push(block_hir);
         Ok((arg_hirs, Some(inf3)))
     } else {
-        for arg in args {
-            arg_hirs.push(mk.convert_expr(&arg.expr)?);
+        for arg in arg_exprs {
+            arg_hirs.push(mk.convert_expr(arg)?);
         }
         Ok((arg_hirs, None))
     }
