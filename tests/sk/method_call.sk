@@ -1,5 +1,5 @@
 class KwArgTest
-  def foo(a: Int, b: String, c: Fn0<Void>) -> String
+  def foo(a: Int, b: String, c: Fn0<String>) -> String
     "#{a}#{b}#{c()}"
   end
 
