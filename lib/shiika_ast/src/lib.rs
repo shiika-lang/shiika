@@ -128,6 +128,7 @@ pub struct Param {
     pub name: String,
     pub typ: UnresolvedTypeName,
     pub is_iparam: bool, // eg. `def initialize(@a: Int)`
+    pub default_expr: Option<AstExpression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

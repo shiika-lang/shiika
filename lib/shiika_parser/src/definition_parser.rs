@@ -656,11 +656,21 @@ impl<'a> Parser<'a> {
 
         // Type
         let typ = self.parse_typ()?;
+        self.skip_ws()?;
+
+        // Default expr (optional)
+        let default_expr = if self.consume(Token::Equal)? {
+            self.skip_ws()?;
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
 
         Ok(shiika_ast::Param {
             name,
             typ,
             is_iparam,
+            default_expr,
         })
     }
 
