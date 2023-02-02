@@ -83,33 +83,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr,
                 method_name,
-                arg_exprs,
+                args,
                 type_args,
-                has_block,
                 ..
             }) => method_call::convert_method_call(
                 self,
                 receiver_expr,
                 method_name,
-                arg_exprs,
-                has_block,
+                args,
                 type_args,
                 &expr.locs,
             ),
 
-            AstExpressionBody::LambdaInvocation {
-                fn_expr,
-                arg_exprs,
-                has_block,
-            } => {
+            AstExpressionBody::LambdaInvocation { fn_expr, args } => {
                 let hir_fn_expr = self.convert_expr(fn_expr)?;
-                method_call::convert_lambda_invocation(
-                    self,
-                    hir_fn_expr,
-                    arg_exprs,
-                    has_block,
-                    &expr.locs,
-                )
+                method_call::convert_lambda_invocation(self, hir_fn_expr, args, &expr.locs)
             }
 
             AstExpressionBody::LambdaExpr {
@@ -611,10 +599,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if let Ok(found) = result {
             method_call::build_simple(self, found, self_expr)
         } else {
-            Err(error::program_error(&format!(
-                "variable or method `{}' was not found",
-                name
-            )))
+            Err(error::unknown_barename(name, locs))
         }
     }
 

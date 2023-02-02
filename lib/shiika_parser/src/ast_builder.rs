@@ -1,6 +1,6 @@
 use shiika_ast::{
-    AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, BlockParam, Location,
-    LocationSpan, Token, UnresolvedTypeName,
+    AstCallArgs, AstExpression, AstExpressionBody, AstMatchClause, AstMethodCall, BlockParam,
+    Location, LocationSpan, Token, UnresolvedTypeName,
 };
 use shiika_core::names::{method_firstname, UnresolvedConstName};
 use std::path::{Path, PathBuf};
@@ -221,15 +221,18 @@ impl AstBuilder {
         begin: Location,
         end: Location,
     ) -> AstExpression {
+        let mut args = AstCallArgs::new();
+        for e in arg_exprs {
+            args.add_unnamed(e);
+        }
         self.non_primary_expression(
             begin,
             end,
             AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr: receiver_expr.map(Box::new),
                 method_name: method_firstname(method_name),
-                arg_exprs,
+                args,
                 type_args: Default::default(),
-                has_block: false,
                 may_have_paren_wo_args: false,
             }),
         )
@@ -238,8 +241,7 @@ impl AstBuilder {
     pub fn lambda_invocation(
         &self,
         fn_expr: AstExpression,
-        arg_exprs: Vec<AstExpression>,
-        has_block: bool,
+        args: AstCallArgs,
         begin: Location,
         end: Location,
     ) -> AstExpression {
@@ -248,8 +250,7 @@ impl AstBuilder {
             end,
             AstExpressionBody::LambdaInvocation {
                 fn_expr: Box::new(fn_expr),
-                arg_exprs,
-                has_block,
+                args,
             },
         )
     }
@@ -401,9 +402,8 @@ impl AstBuilder {
             AstExpressionBody::MethodCall(AstMethodCall {
                 receiver_expr: Some(Box::new(left)),
                 method_name: method_firstname(op),
-                arg_exprs: vec![right],
+                args: AstCallArgs::single_unnamed(right),
                 type_args: vec![],
-                has_block: false,
                 may_have_paren_wo_args: false,
             }),
         )
@@ -427,13 +427,12 @@ impl AstBuilder {
                 rhs: Box::new(rhs),
             },
             AstExpressionBody::MethodCall(mut x) => {
-                x.arg_exprs.push(rhs);
+                x.args.add_unnamed(rhs);
                 AstExpressionBody::MethodCall(AstMethodCall {
                     receiver_expr: x.receiver_expr,
                     method_name: x.method_name.append("="),
-                    arg_exprs: x.arg_exprs,
+                    args: x.args,
                     type_args: Default::default(),
-                    has_block: false,
                     may_have_paren_wo_args: false,
                 })
             }
@@ -445,41 +444,27 @@ impl AstBuilder {
     /// Extend `foo.bar` to `foo.bar args`, or
     ///        `foo`     to `foo args`.
     /// (expr must be a MethodCall or a BareName and args must not be empty)
-    pub fn set_method_call_args(
-        &self,
-        expr: AstExpression,
-        args: Vec<AstExpression>,
-        has_block: bool,
-    ) -> AstExpression {
+    pub fn set_method_call_args(&self, expr: AstExpression, args: AstCallArgs) -> AstExpression {
         let begin = &expr.locs;
-        let end = &args.last().unwrap().locs.clone();
+        let end = &args.locs().unwrap();
         match expr.body {
-            AstExpressionBody::MethodCall(x) => {
-                if !x.arg_exprs.is_empty() {
-                    panic!(
-                        "[BUG] cannot extend because arg_exprs is not empty: {:?}",
-                        x.arg_exprs
-                    );
-                }
-                self.non_primary_expression_(
-                    begin,
-                    end,
-                    AstExpressionBody::MethodCall(AstMethodCall {
-                        arg_exprs: args,
-                        may_have_paren_wo_args: false,
-                        ..x
-                    }),
-                )
-            }
+            AstExpressionBody::MethodCall(x) => self.non_primary_expression_(
+                begin,
+                end,
+                AstExpressionBody::MethodCall(AstMethodCall {
+                    args,
+                    may_have_paren_wo_args: false,
+                    ..x
+                }),
+            ),
             AstExpressionBody::BareName(s) => self.non_primary_expression_(
                 begin,
                 end,
                 AstExpressionBody::MethodCall(AstMethodCall {
                     receiver_expr: None,
                     method_name: method_firstname(s),
-                    arg_exprs: args,
+                    args,
                     type_args: vec![],
-                    has_block,
                     may_have_paren_wo_args: false,
                 }),
             ),

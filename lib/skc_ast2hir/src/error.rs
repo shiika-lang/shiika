@@ -1,5 +1,6 @@
 use shiika_ast::LocationSpan;
 use skc_error::Label;
+use skc_hir::MethodSignature;
 
 #[derive(thiserror::Error, Debug)]
 #[allow(clippy::enum_variant_names)]
@@ -76,6 +77,45 @@ pub fn assign_to_undeclared_ivar(name: &str, locs: &LocationSpan) -> anyhow::Err
     let msg = format!(
         "variable `{}' not declared (hint: `let {} = ...`)",
         name, name
+    );
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
+pub fn unknown_barename(name: &str, locs: &LocationSpan) -> anyhow::Error {
+    let msg = format!("variable or method `{}' was not found", name);
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
+pub fn unspecified_arg(
+    param_name: &str,
+    sig: &MethodSignature,
+    locs: &LocationSpan,
+) -> anyhow::Error {
+    let msg = format!("missing argument `{}' of method `{}'", param_name, sig);
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
+pub fn extranous_arg(name: &str, sig: &MethodSignature, locs: &LocationSpan) -> anyhow::Error {
+    let msg = format!("extranous argument `{}' of method `{}'", name, sig);
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
+pub fn named_arg_for_lambda(name: &str, locs: &LocationSpan) -> anyhow::Error {
+    let msg = format!(
+        "you cannot pass named argument (`{}') to a lambda (may be fixed in the future though.)",
+        name
     );
     let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(msg))

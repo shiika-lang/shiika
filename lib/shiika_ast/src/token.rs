@@ -9,6 +9,7 @@ pub enum Token {
     IVar(String),
     Number(String),
     Str(String),
+    KeyName(String), // Such as `foo:`
     StrWithInterpolation {
         head: String,  // Contents before `#{'
         inspect: bool, // true if `\{}', which calls .inspect instead of .to_s
@@ -138,6 +139,7 @@ impl Token {
             Token::IVar(_) => true,
             Token::Number(_) => true,
             Token::Str(_) => true,
+            Token::KeyName(_) => false,
             Token::StrWithInterpolation { .. } => true,
             // Symbols
             Token::LParen => true,       //  (

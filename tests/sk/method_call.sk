@@ -1,0 +1,18 @@
+class KwArgTest
+  def foo(a: Int, b: String, c: Fn0<String>) -> String
+    "#{a}#{b}#{c()}"
+  end
+
+  def test
+    unless foo(0,    " "){ "~" } == "0 ~";             puts "fail 0 ~"; end
+    unless foo(1,    " ", fn(){ "~" }) == "1 ~";       puts "fail 1 ~"; end
+    unless foo(2,    b: " "){ "~" } == "2 ~";          puts "fail 2 ~"; end
+    unless foo(a: 3, b: " "){ "~" } == "3 ~";          puts "fail 3 ~"; end
+    unless foo(b: " ", a: 4){ "~" } == "4 ~";          puts "fail 4 ~"; end
+    unless foo(a: 5, b: " ", c: fn(){ "~" }) == "5 ~"; puts "fail 5 ~"; end
+    unless (foo 6, " " do "~" end) == "6 ~";           puts "fail 6 ~"; end
+  end
+end
+KwArgTest.new.test
+
+puts "ok"

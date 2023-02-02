@@ -125,20 +125,19 @@ impl<'a> Parser<'a> {
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
-            let mut args = self.parse_operator_exprs()?;
-            let mut has_block = false;
+            let mut args = self.parse_method_call_args()?;
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
-                    args.push(lambda);
-                    has_block = true;
+                    args.set_block(lambda);
                 }
-                expr = self.ast.set_method_call_args(expr, args, has_block);
+                expr = self.ast.set_method_call_args(expr, args);
             } else if self.next_nonspace_token()? == Token::KwDo {
-                has_block = true;
                 self.skip_ws()?;
                 let lambda = self.parse_do_block()?;
-                expr = self.ast.set_method_call_args(expr, vec![lambda], has_block);
+                let mut args = AstCallArgs::new();
+                args.set_block(lambda);
+                expr = self.ast.set_method_call_args(expr, args);
             }
         }
 
@@ -148,6 +147,7 @@ impl<'a> Parser<'a> {
 
     // Returns `Some` if there is one of the following.
     // - `foo 1, 2, 3`
+    // - `foo a: 1, b: 2, c: 3`
     // - `return 1`
     // Otherwise, returns `None` and rewind the lexer position.
     fn _try_parse_call_wo_paren(&mut self) -> Result<Option<AstExpression>, Error> {
@@ -157,16 +157,13 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.set_lexer_state(LexerState::ExprArg);
         assert!(self.consume(Token::Space)?);
-        let mut args = self.parse_operator_exprs()?;
+        let mut args = self.parse_method_call_args()?;
         self.debug_log(&format!("tried/args: {:?}", args));
         if !args.is_empty() {
             self.skip_ws()?;
-            let has_block = if let Some(lambda) = self.parse_opt_do_block()? {
-                args.push(lambda);
-                true
-            } else {
-                false
-            };
+            if let Some(lambda) = self.parse_opt_do_block()? {
+                args.set_block(lambda);
+            }
             let end = self.lexer.location();
             match &first_token {
                 Token::LowerWord(s) => {
@@ -175,9 +172,8 @@ impl<'a> Parser<'a> {
                         AstMethodCall {
                             receiver_expr: None,
                             method_name: method_firstname(s),
-                            arg_exprs: args,
+                            args,
                             type_args: Default::default(),
-                            has_block,
                             may_have_paren_wo_args: false,
                         },
                         begin,
@@ -185,17 +181,8 @@ impl<'a> Parser<'a> {
                     )));
                 }
                 Token::KwReturn => {
-                    if args.len() >= 2 {
-                        return Err(parse_error!(
-                            self,
-                            "`return' cannot take more than one args"
-                        ));
-                    }
-                    return Ok(Some(self.ast.return_expr(
-                        Some(args.pop().unwrap()),
-                        begin,
-                        end,
-                    )));
+                    let arg = self.validate_arg_for_return(args)?;
+                    return Ok(Some(self.ast.return_expr(Some(arg), begin, end)));
                 }
                 _ => panic!("must not happen: {:?}", self.current_token()),
             }
@@ -206,26 +193,20 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    /// Parse successive operator_exprs delimited by `,`
-    ///
-    /// May return empty Vec if there are no values
-    fn parse_operator_exprs(&mut self) -> Result<Vec<AstExpression>, Error> {
-        self.lv += 1;
-        self.debug_log("parse_operator_exprs");
-        let mut v = vec![];
-        if self.next_nonspace_token()?.value_starts() {
-            v.push(self.parse_operator_expr()?);
-            loop {
-                self.skip_ws()?;
-                if !self.consume(Token::Comma)? {
-                    break;
-                }
-                self.skip_wsn()?;
-                v.push(self.parse_operator_expr()?);
-            }
+    fn validate_arg_for_return(&self, mut args: AstCallArgs) -> Result<AstExpression, Error> {
+        if args.block.is_some() {
+            return Err(parse_error!(self, "`return' cannot take a block"));
         }
-        self.lv -= 1;
-        Ok(v)
+        if !args.named.is_empty() {
+            return Err(parse_error!(self, "`return' cannot have named arguments"));
+        }
+        if args.unnamed.len() >= 2 {
+            return Err(parse_error!(
+                self,
+                "`return' cannot have more than one arguments"
+            ));
+        }
+        Ok(args.unnamed.pop().unwrap())
     }
 
     // operatorExpression:
@@ -728,9 +709,8 @@ impl<'a> Parser<'a> {
                     AstMethodCall {
                         receiver_expr: Some(Box::new(expr)),
                         method_name: method_firstname("[]"),
-                        arg_exprs: vec![arg],
+                        args: AstCallArgs::single_unnamed(arg),
                         type_args: Default::default(),
-                        has_block: false,
                         may_have_paren_wo_args: false,
                     },
                     begin.clone(),
@@ -778,16 +758,13 @@ impl<'a> Parser<'a> {
             // .foo(args)
             Token::LParen => (self.parse_paren_and_args()?, false),
             // .foo
-            _ => (vec![], true),
+            _ => (AstCallArgs::new(), true),
         };
 
         // Block
-        let has_block = if let Some(lambda) = self.parse_opt_block()? {
-            args.push(lambda);
-            true
-        } else {
-            false
-        };
+        if let Some(lambda) = self.parse_opt_block()? {
+            args.set_block(lambda);
+        }
 
         self.lv -= 1;
         let end = self.lexer.location();
@@ -796,9 +773,8 @@ impl<'a> Parser<'a> {
             AstMethodCall {
                 receiver_expr: Some(Box::new(expr)),
                 method_name: method_firstname(&method_name),
-                arg_exprs: args,
+                args,
                 type_args,
-                has_block,
                 may_have_paren_wo_args,
             },
             begin,
@@ -844,21 +820,86 @@ impl<'a> Parser<'a> {
         Ok(type_args)
     }
 
-    fn parse_paren_and_args(&mut self) -> Result<Vec<AstExpression>, Error> {
+    fn parse_paren_and_args(&mut self) -> Result<AstCallArgs, Error> {
         self.lv += 1;
         self.debug_log("parse_paren_and_args");
         assert!(self.consume(Token::LParen)?);
         self.skip_wsn()?;
         let args;
         if self.consume(Token::RParen)? {
-            args = vec![]
+            args = AstCallArgs::new();
         } else {
-            args = self.parse_operator_exprs()?;
+            args = self.parse_method_call_args()?;
             self.skip_wsn()?;
             self.expect(Token::RParen)?;
         }
         self.lv -= 1;
         Ok(args)
+    }
+
+    /// Parse method call arguments (an expr or `foo: bar`)
+    fn parse_method_call_args(&mut self) -> Result<AstCallArgs, Error> {
+        self.lv += 1;
+        self.debug_log("parse_method_call_args");
+        let mut args = AstCallArgs::new();
+        let mut name_seen = false;
+        loop {
+            let next_token = self.next_nonspace_token()?;
+            match self.parse_method_call_arg(next_token)? {
+                Some((n, e)) => {
+                    match n {
+                        Some(name) => {
+                            args.add_named(name, e);
+                            name_seen = true;
+                        }
+                        None => {
+                            if name_seen {
+                                return Err(parse_error!(
+                                    self,
+                                    "positional argument must not follow an keyword argument"
+                                ));
+                            }
+                            args.add_unnamed(e);
+                        }
+                    }
+                    self.skip_ws()?;
+                    if !self.consume(Token::Comma)? {
+                        break;
+                    }
+                    self.skip_wsn()?;
+                }
+                None => break,
+            }
+        }
+        self.lv -= 1;
+        Ok(args)
+    }
+
+    /// Parse an expression or `foo: bar`
+    fn parse_method_call_arg(
+        &mut self,
+        next_nonspace_token: Token,
+    ) -> Result<Option<(Option<String>, AstExpression)>, Error> {
+        self.lv += 1;
+        self.debug_log("parse_method_call_arg");
+        let arg = match next_nonspace_token {
+            Token::KeyName(s) => {
+                self.consume_token()?;
+                self.skip_ws()?;
+                let e = self.parse_operator_expr()?;
+                Some((Some(s), e))
+            }
+            _ => {
+                if next_nonspace_token.value_starts() {
+                    self.skip_ws()?;
+                    Some((None, self.parse_operator_expr()?))
+                } else {
+                    None
+                }
+            }
+        };
+        self.lv -= 1;
+        Ok(arg)
     }
 
     /// Smallest parts of Shiika program, such as number literals
@@ -914,21 +955,17 @@ impl<'a> Parser<'a> {
         let expr = match self.current_token() {
             Token::LParen => {
                 let mut args = self.parse_paren_and_args()?;
-                let has_block = if let Some(lambda) = self.parse_opt_block()? {
-                    args.push(lambda);
-                    true
-                } else {
-                    false
-                };
+                if let Some(lambda) = self.parse_opt_block()? {
+                    args.set_block(lambda);
+                }
                 let end = self.lexer.location();
                 self.ast.method_call(
                     true,
                     AstMethodCall {
                         receiver_expr: None,
                         method_name: method_firstname(bare_name_str),
-                        arg_exprs: args,
+                        args,
                         type_args: Default::default(),
-                        has_block,
                         may_have_paren_wo_args: false,
                     },
                     begin,
@@ -1059,16 +1096,11 @@ impl<'a> Parser<'a> {
         let mut expr = self.parse_parenthesized_expr()?;
         if self.current_token_is(Token::LParen) {
             let mut args = self.parse_paren_and_args()?;
-            let has_block = if let Some(lambda) = self.parse_opt_block()? {
-                args.push(lambda);
-                true
-            } else {
-                false
-            };
+            if let Some(lambda) = self.parse_opt_block()? {
+                args.add_unnamed(lambda);
+            }
             let end = self.lexer.location();
-            expr = self
-                .ast
-                .lambda_invocation(expr, args, has_block, begin, end);
+            expr = self.ast.lambda_invocation(expr, args, begin, end);
         }
         self.lv -= 1;
         Ok(expr)
@@ -1341,7 +1373,7 @@ impl<'a> Parser<'a> {
                         comma_seen = true;
                     }
                 }
-                Token::LowerWord(_) => {
+                Token::KeyName(_) | Token::LowerWord(_) => {
                     params.push(self.parse_block_param(type_required)?);
                     comma_seen = false;
                 }
@@ -1369,10 +1401,16 @@ impl<'a> Parser<'a> {
     fn parse_block_param(&mut self, type_required: bool) -> Result<BlockParam, Error> {
         // Name
         let name;
-        match self.current_token() {
+        let colon_seen = match self.current_token() {
+            Token::KeyName(s) => {
+                name = s.to_string();
+                self.consume_token()?;
+                true
+            }
             Token::LowerWord(s) => {
                 name = s.to_string();
                 self.consume_token()?;
+                false
             }
             token => {
                 return Err(parse_error!(
@@ -1381,13 +1419,11 @@ impl<'a> Parser<'a> {
                     token
                 ))
             }
-        }
+        };
         self.skip_ws()?;
 
-        // `:' Type
-        let opt_typ = if self.current_token_is(Token::Colon) {
-            self.consume_token()?;
-            self.skip_ws()?;
+        // Type(optional)
+        let opt_typ = if colon_seen {
             Some(self.parse_typ()?)
         } else {
             if type_required {
