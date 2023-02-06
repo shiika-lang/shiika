@@ -1,5 +1,5 @@
 use super::type_name::*;
-use serde::{Deserialize, Serialize};
+use serde::{de, ser, Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
@@ -22,7 +22,7 @@ impl MethodFirstname {
     }
 }
 
-#[derive(PartialEq, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Eq)]
 pub struct MethodFullname {
     // class/module part
     pub type_name: TypeFullname,
@@ -70,5 +70,50 @@ impl MethodFullname {
     /// Returns true if this method isn't an instance method
     pub fn is_class_method(&self) -> bool {
         self.full_name.starts_with("Meta:")
+    }
+}
+
+//
+// serde - simplify JSON representation
+//
+impl ser::Serialize for MethodFullname {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.full_name)
+    }
+}
+
+struct MethodFullnameVisitor;
+impl<'de> de::Visitor<'de> for MethodFullnameVisitor {
+    type Value = MethodFullname;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        formatter.write_str("a MethodFullname")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let parts = v.split("#").collect::<Vec<_>>();
+        if parts.len() == 2 {
+            Ok(method_fullname_raw(parts[0], parts[1]))
+        } else {
+            Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(v),
+                &"something like `Foo#bar'",
+            ))
+        }
+    }
+}
+
+impl<'de> de::Deserialize<'de> for MethodFullname {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as de::Deserializer<'de>>::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(MethodFullnameVisitor)
     }
 }
