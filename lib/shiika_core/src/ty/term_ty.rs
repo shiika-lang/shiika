@@ -1,18 +1,20 @@
 use crate::names::*;
 use crate::ty;
 use crate::ty::erasure::Erasure;
-use crate::ty::lit_ty::LitTy;
-use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
-use serde::{Deserialize, Serialize};
+use crate::ty::lit_ty::{parse_lit_ty, LitTy};
+use crate::ty::typaram_ref::{parse_typaram_ref, TyParamKind, TyParamRef};
+use nom::IResult;
+use serde::{de, ser};
+use std::fmt;
 
 /// Types for a term (types of Shiika values)
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct TermTy {
     pub fullname: ClassFullname, // TODO: should be TypeFullname
     pub body: TyBody,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TyBody {
     /// Types of classes
     /// eg. "Int", "Meta:String", "Array<Int>", "Meta:Pair<Bool, Object>", etc.
@@ -297,5 +299,66 @@ impl TermTy {
             TyPara(_) => true,
             TyRaw(LitTy { type_args, .. }) => type_args.iter().any(|t| t.contains_typaram_ref()),
         }
+    }
+
+    /// Returns a serialized string which can be parsed by `parse_term_ty`
+    pub fn serialize(&self) -> String {
+        match &self.body {
+            TyRaw(x) => x.serialize(),
+            TyPara(x) => x.serialize(),
+        }
+    }
+}
+
+/// nom parser for TermTy
+pub fn parse_term_ty(s: &str) -> IResult<&str, TermTy> {
+    if let Ok((s, t)) = parse_typaram_ref(s) {
+        Ok((s, t.to_term_ty()))
+    } else {
+        let (s, t) = parse_lit_ty(s)?;
+        Ok((s, t.to_term_ty()))
+    }
+}
+
+//
+// serde - simplify JSON representation
+//
+impl ser::Serialize for TermTy {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.serialize())
+    }
+}
+
+struct TermTyVisitor;
+impl<'de> de::Visitor<'de> for TermTyVisitor {
+    type Value = TermTy;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        formatter.write_str("a TermTy")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match parse_term_ty(v) {
+            Ok((_, ty)) => Ok(ty),
+            Err(_) => Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(v),
+                &self,
+            )),
+        }
+    }
+}
+
+impl<'de> de::Deserialize<'de> for TermTy {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as de::Deserializer<'de>>::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(TermTyVisitor)
     }
 }

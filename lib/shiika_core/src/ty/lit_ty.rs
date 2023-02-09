@@ -1,6 +1,7 @@
 use super::erasure::Erasure;
-use super::term_ty::TermTy;
+use super::term_ty::{parse_term_ty, TermTy};
 use crate::ty;
+use nom::{bytes::complete::tag, IResult};
 use serde::{Deserialize, Serialize};
 
 /// "Literal" type i.e. types that are not type parameter reference.
@@ -63,4 +64,42 @@ impl LitTy {
             .collect();
         LitTy::new(self.base_name.clone(), args, self.is_meta)
     }
+
+    /// Returns a serialized string which can be parsed by `parse_lit_ty`
+    pub fn serialize(&self) -> String {
+        let meta = if self.is_meta && self.base_name != "Metaclass" {
+            "Meta:"
+        } else {
+            ""
+        };
+        let args = if self.type_args.is_empty() {
+            "".to_string()
+        } else {
+            let s = self
+                .type_args
+                .iter()
+                .map(|x| x.serialize())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("<{}>", &s)
+        };
+        format!("{}{}{}", meta, self.base_name, args)
+    }
+}
+
+pub fn parse_lit_ty(s: &str) -> IResult<&str, LitTy> {
+    // `Meta:` (optional)
+    let (s, meta) = nom::multi::many_m_n(0, 1, tag("Meta:"))(s)?;
+    let is_meta = !meta.is_empty();
+
+    // `Pair`
+    let (s, base_name) = nom::character::complete::alphanumeric1(s)?;
+
+    // `<Int,String>`
+    let parse_tys = nom::multi::separated_list0(tag(","), parse_term_ty);
+    let (s, tyargs) =
+        nom::combinator::opt(nom::sequence::delimited(tag("<"), parse_tys, tag(">")))(s)?;
+    let type_args = tyargs.unwrap_or_default();
+
+    Ok((s, LitTy::new(base_name.to_string(), type_args, is_meta)))
 }
