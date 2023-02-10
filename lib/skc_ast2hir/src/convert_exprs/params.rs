@@ -31,6 +31,7 @@ pub fn convert_params(
         hir_params.push(MethodParam {
             name: param.name.to_string(),
             ty: ty.clone(),
+            has_default: param.default_expr.is_some(),
         });
     }
     Ok(hir_params)
@@ -59,6 +60,7 @@ pub fn convert_block_params(
             MethodParam {
                 name: param.name.to_string(),
                 ty: ty.clone(),
+                has_default: false,
             }
         } else {
             // Infer from hint
@@ -70,6 +72,7 @@ pub fn convert_block_params(
             MethodParam {
                 name: param.name.to_string(),
                 ty: ty.clone(),
+                has_default: false,
             }
         };
         hir_params.push(hir_param);

@@ -15,4 +15,21 @@ class KwArgTest
 end
 KwArgTest.new.test
 
+class DefaultArgTest
+  def self.x -> Int
+    99
+  end
+
+  def foo(a: Int, b: Int = 1, c: Int = DefaultArgTest.x) -> String
+    "#{a}#{b}#{c}"
+  end
+
+  def test
+    unless foo(1, 2, 3) == "123"; puts "fail 123"; end
+    unless foo(1, 2) == "1299"; puts "fail 1299"; end
+    unless foo(1) == "1199"; puts "fail 1199"; end
+  end
+end
+DefaultArgTest.new.test
+
 puts "ok"

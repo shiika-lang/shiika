@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use shiika_core::{names::*, ty, ty::*};
 use std::fmt;
 
+/// Information of a method except its body exprs.
+/// Note that `params` may contain some HIR when it has default expr.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MethodSignature {
     pub fullname: MethodFullname,
@@ -17,6 +19,10 @@ impl fmt::Display for MethodSignature {
 }
 
 impl MethodSignature {
+    pub fn has_default_expr(&self) -> bool {
+        self.params.iter().any(|p| p.has_default)
+    }
+
     pub fn is_class_method(&self) -> bool {
         self.fullname.type_name.is_meta()
     }
@@ -97,6 +103,7 @@ impl MethodSignature {
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,
+    pub has_default: bool,
 }
 
 impl MethodParam {
@@ -104,6 +111,7 @@ impl MethodParam {
         MethodParam {
             name: self.name.clone(),
             ty: self.ty.substitute(class_tyargs, method_tyargs),
+            has_default: self.has_default,
         }
     }
 }

@@ -175,6 +175,7 @@ pub struct LambdaCapture {
 pub enum LambdaCaptureDetail {
     CapLVar { name: String },
     CapFnArg { idx: usize },
+    CapOmittableArg { name: String },
 }
 
 impl LambdaCapture {
@@ -192,6 +193,10 @@ impl LambdaCapture {
                 LambdaCaptureDetail::CapFnArg { idx },
                 LambdaCaptureDetail::CapFnArg { idx: idx2 },
             ) => idx == idx2,
+            (
+                LambdaCaptureDetail::CapOmittableArg { name },
+                LambdaCaptureDetail::CapOmittableArg { name: name2 },
+            ) => name == name2,
             _ => false,
         };
         if equals {

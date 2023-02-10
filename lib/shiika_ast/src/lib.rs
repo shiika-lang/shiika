@@ -128,6 +128,7 @@ pub struct Param {
     pub name: String,
     pub typ: UnresolvedTypeName,
     pub is_iparam: bool, // eg. `def initialize(@a: Int)`
+    pub default_expr: Option<AstExpression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -291,6 +292,18 @@ impl AstCallArgs {
     pub fn set_block(&mut self, block_expr: AstExpression) {
         debug_assert!(self.block.is_none());
         self.block = Some(Box::new(block_expr))
+    }
+
+    pub fn all_exprs(&self) -> Vec<&AstExpression> {
+        let mut v = self
+            .unnamed
+            .iter()
+            .chain(self.named.iter().map(|(_, e)| e))
+            .collect::<Vec<_>>();
+        if let Some(e) = &self.block {
+            v.push(&e);
+        }
+        v
     }
 
     pub fn has_block(&self) -> bool {

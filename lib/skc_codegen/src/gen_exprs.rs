@@ -151,6 +151,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 init_cls_name,
             ))),
             HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
+            HirDefaultExpr => Ok(Some(self.gen_default_expr(&expr.ty))),
+            HirIsOmittedValue { expr } => self.gen_is_omitted_value(ctx, expr),
         }
     }
 
@@ -1165,5 +1167,23 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj
+    }
+
+    /// Returns a special value (currently a nullptr) that denotes using the default argument value.
+    fn gen_default_expr(&self, ty: &TermTy) -> SkObj<'run> {
+        self.null_ptr(ty)
+    }
+
+    /// Returns true if `expr` evaluates to a special value (currently a nullptr) that denotes using the default argument value.
+    fn gen_is_omitted_value(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        expr: &'hir HirExpression,
+    ) -> Result<Option<SkObj<'run>>> {
+        let v = self.gen_expr(ctx, expr)?.unwrap();
+        let i1 = self
+            .builder
+            .build_is_null(v.0.into_pointer_value(), "omitted");
+        Ok(Some(self.box_bool(i1)))
     }
 }

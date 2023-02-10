@@ -9,6 +9,11 @@ use shiika_ast::{AstCallArgs, AstExpression, LocationSpan};
 use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
 use skc_hir::*;
 
+pub enum ArrangedArg<'ast> {
+    Expr(&'ast AstExpression),
+    Default(&'ast TermTy),
+}
+
 pub fn convert_method_call(
     mk: &mut HirMaker,
     receiver_expr: &Option<Box<AstExpression>>,
@@ -69,29 +74,34 @@ pub fn convert_method_call(
 }
 
 /// Arrange named and unnamed arguments into a Vec which corresponds to `sig.params`.
+/// Also, put the default expression if necessary.
 pub fn arrange_named_args<'a>(
-    sig: &MethodSignature,
+    sig: &'a MethodSignature,
     args: &'a AstCallArgs,
-) -> Result<Vec<&'a AstExpression>> {
+) -> Result<Vec<ArrangedArg<'a>>> {
     let n_params = sig.params.len();
     let n_unnamed = args.unnamed.len();
     let mut named = args.named.iter().collect::<Vec<_>>();
     let mut v = vec![];
     for (i, param) in sig.params.iter().enumerate() {
         if i < n_unnamed {
-            v.push(args.unnamed.get(i).unwrap());
+            v.push(ArrangedArg::Expr(args.unnamed.get(i).unwrap()));
             continue;
         }
         if let Some(j) = named.iter().position(|(name, _)| name == &param.name) {
             let (_, expr) = named.remove(j);
-            v.push(expr);
+            v.push(ArrangedArg::Expr(expr));
             continue;
         }
         if let Some(expr) = &args.block {
             if i == n_params - 1 {
-                v.push(expr);
+                v.push(ArrangedArg::Expr(expr));
                 continue;
             }
+        }
+        if param.has_default {
+            v.push(ArrangedArg::Default(&param.ty));
+            continue;
         }
         return Err(error::unspecified_arg(
             &param.name,
@@ -128,10 +138,11 @@ pub fn convert_lambda_invocation(
     if let Some((name, _)) = args.named.first() {
         return Err(error::named_arg_for_lambda(name, locs));
     }
-    let mut arg_exprs = args.unnamed.iter().collect::<Vec<_>>();
-    if let Some(e) = &args.block {
-        arg_exprs.push(e);
-    }
+    let arg_exprs = args
+        .all_exprs()
+        .iter()
+        .map(|e| ArrangedArg::Expr(e))
+        .collect::<Vec<_>>();
 
     let (arg_hirs, _) = convert_method_args(
         mk,
@@ -169,18 +180,22 @@ fn convert_method_args(
     mk: &mut HirMaker,
     inf: Option<method_call_inf::MethodCallInf1>,
     block_taker: &BlockTaker,
-    arg_exprs: &[&AstExpression],
+    arg_exprs: &[ArrangedArg],
     has_block: bool,
 ) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
-    let mut arg_hirs = vec![];
-    if has_block && inf.is_some() {
-        let n = arg_exprs.len();
-        if n > 1 {
-            for i in 0..n - 1 {
-                arg_hirs.push(mk.convert_expr(&arg_exprs[i])?);
-            }
-        }
+    let infer_block = has_block && inf.is_some();
+    let mut n = arg_exprs.len();
+    if infer_block {
+        n -= 1;
+    }
+    let mut arg_hirs = (0..n)
+        .map(|i| match &arg_exprs[i] {
+            ArrangedArg::Expr(e) => mk.convert_expr(e),
+            ArrangedArg::Default(ty) => Ok(Hir::default_expression((*ty).clone())),
+        })
+        .collect::<Result<Vec<_>>>()?;
 
+    if infer_block {
         let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
         let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys)?;
         let block_hir = block::convert_block(mk, block_taker, &inf2, &arg_exprs.last().unwrap())?;
@@ -189,9 +204,6 @@ fn convert_method_args(
         arg_hirs.push(block_hir);
         Ok((arg_hirs, Some(inf3)))
     } else {
-        for arg in arg_exprs {
-            arg_hirs.push(mk.convert_expr(arg)?);
-        }
         Ok((arg_hirs, None))
     }
 }

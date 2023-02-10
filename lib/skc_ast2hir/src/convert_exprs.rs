@@ -187,7 +187,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut then_hirs = self.convert_exprs(then_exprs)?;
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
-            None => HirExpressions::new(vec![]),
+            None => HirExpressions::void(),
         };
 
         let if_ty = if then_hirs.ty.is_never_type() {
@@ -550,7 +550,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             if captured_here {
                 // The variable is in this scope
                 match cap.detail {
-                    LambdaCaptureDetail::CapLVar { name } => {
+                    LambdaCaptureDetail::CapLVar { name }
+                    | LambdaCaptureDetail::CapOmittableArg { name } => {
                         ret.push(HirLambdaCapture {
                             ty: cap.ty,
                             upcast_needed: cap.upcast_needed,
@@ -696,12 +697,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     )));
                 }
                 if is_lambda_capture {
+                    let detail = if param.has_default {
+                        LambdaCaptureDetail::CapOmittableArg {
+                            name: param.name.clone(),
+                        }
+                    } else {
+                        LambdaCaptureDetail::CapFnArg { idx }
+                    };
                     let cap = LambdaCapture {
                         ctx_idx: scope.ctx_idx,
                         is_lambda_scope: scope.is_lambda_scope,
                         ty: param.ty.clone(),
                         upcast_needed: false,
-                        detail: LambdaCaptureDetail::CapFnArg { idx },
+                        detail,
                     };
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
@@ -710,9 +718,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     };
                     return Ok((Some(lvar_info), Some(cap)));
                 } else {
+                    let detail = if param.has_default {
+                        LVarDetail::OmittableArgument {
+                            name: param.name.clone(),
+                        }
+                    } else {
+                        LVarDetail::Argument { idx }
+                    };
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
-                        detail: LVarDetail::Argument { idx },
+                        detail,
                         locs,
                     };
                     return Ok((Some(lvar_info), None));

@@ -49,14 +49,13 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         params: vec![],
         typarams: vec![],
     };
-    SkMethod {
-        signature: sig,
-        body: SkMethodBody::Getter {
+    SkMethod::simple(
+        sig,
+        SkMethodBody::Getter {
             idx: ivar.idx,
             name: ivar.name.clone(),
         },
-        lvars: vec![],
-    }
+    )
 }
 
 fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
@@ -68,15 +67,15 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         params: vec![MethodParam {
             name: ivar.accessor_name(),
             ty: ivar.ty.clone(),
+            has_default: false,
         }],
         typarams: vec![],
     };
-    SkMethod {
-        signature: sig,
-        body: SkMethodBody::Setter {
+    SkMethod::simple(
+        sig,
+        SkMethodBody::Setter {
             idx: ivar.idx,
             name: ivar.name.clone(),
         },
-        lvars: vec![],
-    }
+    )
 }

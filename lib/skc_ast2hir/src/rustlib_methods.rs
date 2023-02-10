@@ -11,11 +11,7 @@ pub fn make_sk_methods(sigs: Vec<MethodSignature>) -> SkMethods {
     let mut sk_methods = HashMap::new();
     for signature in sigs {
         let typename = signature.fullname.type_name.clone();
-        let method = SkMethod {
-            signature,
-            body: SkMethodBody::RustLib,
-            lvars: Default::default(),
-        };
+        let method = SkMethod::simple(signature, SkMethodBody::RustLib);
         let v: &mut Vec<SkMethod> = sk_methods.entry(typename).or_default();
         v.push(method);
     }
@@ -78,6 +74,7 @@ fn convert_param(param: &shiika_ast::Param, class_typarams: &[&String]) -> Metho
     MethodParam {
         name: param.name.to_string(),
         ty: convert_typ(&param.typ, class_typarams),
+        has_default: param.default_expr.is_some(),
     }
 }
 
