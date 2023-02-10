@@ -729,6 +729,7 @@ fn enum_case_new_sig(
         .map(|ivar| MethodParam {
             name: ivar.name.to_string(),
             ty: ivar.ty.clone(),
+            has_default: false,
         })
         .collect::<Vec<_>>();
     let ret_ty = if ivar_list.is_empty() {

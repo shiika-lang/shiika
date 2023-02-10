@@ -74,6 +74,7 @@ fn convert_param(param: &shiika_ast::Param, class_typarams: &[&String]) -> Metho
     MethodParam {
         name: param.name.to_string(),
         ty: convert_typ(&param.typ, class_typarams),
+        has_default: param.default_expr.is_some(),
     }
 }
 

@@ -97,6 +97,7 @@ impl MethodSignature {
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,
+    pub has_default: bool,
 }
 
 impl MethodParam {
@@ -104,6 +105,7 @@ impl MethodParam {
         MethodParam {
             name: self.name.clone(),
             ty: self.ty.substitute(class_tyargs, method_tyargs),
+            has_default: self.has_default,
         }
     }
 }

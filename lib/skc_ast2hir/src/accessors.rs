@@ -67,6 +67,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         params: vec![MethodParam {
             name: ivar.accessor_name(),
             ty: ivar.ty.clone(),
+            has_default: false,
         }],
         typarams: vec![],
     };
