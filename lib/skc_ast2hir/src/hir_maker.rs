@@ -388,11 +388,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             arity: found.sig.params.len(),
             const_is_obj,
         };
-        Ok(SkMethod {
-            signature: found.sig,
-            body: new_body,
-            lvars: vec![],
-        })
+        if found.sig.has_default_expr() {
+            return Err(error::program_error(
+                "sorry, #initialize cannot have default expr (yet.)",
+            ));
+        }
+        Ok(SkMethod::simple(found.sig, new_body))
     }
 
     /// Find actual `initialize` func to call from `.new`
