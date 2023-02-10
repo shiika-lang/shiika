@@ -180,11 +180,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(
-                            &fullname.to_type_fullname(),
-                            &sig.name,
-                            body_exprs,
-                        )?;
+                        let method =
+                            self.convert_method_def(&fullname.to_type_fullname(), sig, body_exprs)?;
                         self.method_dict
                             .add_method(fullname.to_type_fullname(), method);
                     } else {
@@ -204,7 +201,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         log::trace!("method {}.{}", &fullname, &sig.name);
                         let method = self.convert_method_def(
                             &meta_name.to_type_fullname(),
-                            &sig.name,
+                            &sig,
                             body_exprs,
                         )?;
                         self.method_dict
@@ -335,7 +332,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if let Some(d) = initializer {
             log::trace!("method {}#initialize", &fullname);
             let (sk_method, found_ivars) =
-                self.create_initialize(fullname, &d.sig.name, &d.body_exprs)?;
+                self.create_initialize(fullname, &d.sig, &d.body_exprs)?;
             self.method_dict
                 .add_method(fullname.to_type_fullname(), sk_method);
             own_ivars = found_ivars;
@@ -364,13 +361,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn create_initialize(
         &mut self,
         class_fullname: &ClassFullname,
-        name: &MethodFirstname,
+        sig: &AstMethodSignature,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
         let super_ivars = self.class_dict.superclass_ivars(class_fullname);
         self.convert_method_def_(
             &class_fullname.to_type_fullname(),
-            name,
+            sig,
             body_exprs,
             super_ivars,
         )
@@ -437,11 +434,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn convert_method_def(
         &mut self,
         type_fullname: &TypeFullname,
-        name: &MethodFirstname,
+        sig: &AstMethodSignature,
         body_exprs: &[AstExpression],
     ) -> Result<SkMethod> {
-        let (sk_method, _ivars) =
-            self.convert_method_def_(type_fullname, name, body_exprs, None)?;
+        let (sk_method, _ivars) = self.convert_method_def_(type_fullname, sig, body_exprs, None)?;
         Ok(sk_method)
     }
 
@@ -449,19 +445,34 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn convert_method_def_(
         &mut self,
         type_fullname: &TypeFullname,
-        name: &MethodFirstname,
+        ast_sig: &AstMethodSignature,
         body_exprs: &[AstExpression],
         super_ivars: Option<SkIVars>,
     ) -> Result<(SkMethod, HashMap<String, SkIVar>)> {
         // MethodSignature is built beforehand by class_dict::new
         let signature = self
             .class_dict
-            .find_method_sig(type_fullname, name)
-            .unwrap_or_else(|| panic!("[BUG] signature not found ({}/{})", type_fullname, name));
+            .find_method_sig(type_fullname, &ast_sig.name)
+            .unwrap_or_else(|| {
+                panic!(
+                    "[BUG] signature not found ({}/{})",
+                    type_fullname, &ast_sig.name
+                )
+            });
 
         self.ctx_stack
             .push(HirMakerContext::method(signature.clone(), super_ivars));
+        for param in &signature.params {
+            if param.has_default {
+                let readonly = true;
+                self.ctx_stack
+                    .declare_lvar(&param.name, param.ty.clone(), readonly);
+            }
+        }
         let mut hir_exprs = self.convert_exprs(body_exprs)?;
+        if signature.has_default_expr() {
+            hir_exprs.prepend(_set_defaults(self, ast_sig)?);
+        }
         // Insert ::Void so that last expr always matches to ret_ty
         if signature.ret_ty.is_void_type() {
             hir_exprs.voidify();
@@ -529,17 +540,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 )
             })
             .collect();
-        let initialize = SkMethod {
+        if signature.has_default_expr() {
+            return Err(error::program_error(
+                "sorry, enums cannot have default expression (yet).",
+            ));
+        }
+        let initialize = SkMethod::simple(
             signature,
-            body: SkMethodBody::Normal {
+            SkMethodBody::Normal {
                 exprs: HirExpressions::new(exprs),
             },
-            lvars: Default::default(),
-        };
+        );
         self.method_dict
             .add_method(fullname.to_type_fullname(), initialize);
-
-        // Register accessors
         let ivars = self.class_dict.get_class(&fullname).ivars.clone();
         self.define_accessors(&fullname, ivars, Default::default());
 
@@ -575,4 +588,47 @@ pub fn extract_lvars(lvars: &mut HashMap<String, CtxLVar>) -> HirLVars {
             captured: ctx_lvar.captured,
         })
         .collect::<Vec<_>>()
+}
+
+/// Create expressions that sets default value for omitted args
+fn _set_defaults(mk: &mut HirMaker, ast_sig: &AstMethodSignature) -> Result<Vec<HirExpression>> {
+    let target = ast_sig
+        .params
+        .iter()
+        .enumerate()
+        .filter_map(|(i, p)| p.default_expr.as_ref().map(|e| (i, &p.name, e)));
+    target
+        .map(|(i, name, e)| _set_default(mk, i, name, e))
+        .collect()
+}
+
+// Build a HIR which initializes the lvar for omittable arg
+fn _set_default(
+    mk: &mut HirMaker,
+    idx: usize,
+    name: &str,
+    expr: &AstExpression,
+) -> Result<HirExpression> {
+    let value_expr = mk.convert_expr(&expr)?;
+    let locs = LocationSpan::internal();
+    let arg = Hir::arg_ref(value_expr.ty.clone(), idx, locs.clone());
+    let cond_expr = Hir::is_omitted_value(arg.clone());
+
+    let mut then_exprs = HirExpressions::void();
+    then_exprs.prepend(vec![Hir::lvar_assign(
+        name.to_string(),
+        value_expr,
+        locs.clone(),
+    )]);
+    let mut else_exprs = HirExpressions::void();
+    else_exprs.prepend(vec![Hir::lvar_assign(name.to_string(), arg, locs.clone())]);
+
+    let if_expr = Hir::if_expression(
+        ty::raw("Void"),
+        cond_expr,
+        then_exprs,
+        else_exprs,
+        LocationSpan::internal(),
+    );
+    Ok(if_expr)
 }

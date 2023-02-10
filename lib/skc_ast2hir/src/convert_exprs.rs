@@ -187,7 +187,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let mut then_hirs = self.convert_exprs(then_exprs)?;
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
-            None => HirExpressions::new(vec![]),
+            None => HirExpressions::void(),
         };
 
         let if_ty = if then_hirs.ty.is_never_type() {

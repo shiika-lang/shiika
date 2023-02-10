@@ -83,6 +83,11 @@ pub struct HirExpressions {
 }
 
 impl HirExpressions {
+    /// Create a `HirExpressions` just returns Void
+    pub fn void() -> HirExpressions {
+        HirExpressions::new(vec![void_const_ref()])
+    }
+
     /// Destructively convert Vec<HirExpression> into HirExpressions
     pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
         if exprs.is_empty() {
@@ -93,6 +98,15 @@ impl HirExpressions {
         let locs = LocationSpan::merge(&exprs.first().unwrap().locs, &last_expr.locs);
 
         HirExpressions { ty, exprs, locs }
+    }
+
+    /// Prepend `exprs` to self
+    pub fn prepend(&mut self, exprs: Vec<HirExpression>) {
+        if exprs.is_empty() {
+            return;
+        }
+        let mut v = std::mem::replace(&mut self.exprs, exprs);
+        self.exprs.append(&mut v);
     }
 
     /// Change the type of `self` to `Void`
