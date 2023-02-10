@@ -16,6 +16,9 @@ pub(super) enum LVarDetail {
     CurrentScope { name: String },
     /// Found in the current method/lambda argument
     Argument { idx: usize },
+    /// Found in the current method/lambda argument but has default expr
+    /// Therefore allocated on the stack and referred by name
+    OmittableArgument { name: String },
     /// Found in outer scope
     OuterScope {
         /// Index of the lvar in `captures`
@@ -32,6 +35,7 @@ impl LVarInfo {
         match self.detail {
             LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, self.locs),
             LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, self.locs),
+            LVarDetail::OmittableArgument { name } => Hir::lvar_ref(self.ty, name, self.locs),
             LVarDetail::OuterScope { cidx, readonly } => {
                 Hir::lambda_capture_ref(self.ty, cidx, readonly, self.locs)
             }
@@ -43,7 +47,9 @@ impl LVarInfo {
     pub fn assign_expr(self, expr: HirExpression) -> HirExpression {
         match self.detail {
             LVarDetail::CurrentScope { name, .. } => Hir::lvar_assign(name, expr, self.locs),
-            LVarDetail::Argument { .. } => panic!("[BUG] Cannot reassign argument"),
+            LVarDetail::Argument { .. } | LVarDetail::OmittableArgument { .. } => {
+                panic!("[BUG] Cannot reassign argument")
+            }
             LVarDetail::OuterScope { cidx, .. } => Hir::lambda_capture_write(cidx, expr, self.locs),
             LVarDetail::OuterScope_ { .. } => panic!("[BUG] OuterScope_ leak"),
         }
