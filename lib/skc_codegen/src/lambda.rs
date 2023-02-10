@@ -228,6 +228,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
             HirParenthesizedExpr { exprs } => self.gen_lambda_funcs_in_exprs(&exprs.exprs)?,
+            HirDefaultExpr { .. } => (),
+            HirIsOmittedValue { expr, .. } => self.gen_lambda_funcs_in_expr(&expr)?,
         }
         Ok(())
     }
@@ -373,6 +375,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirParenthesizedExpr { exprs } => {
                 self.gen_lambda_capture_structs_in_exprs(&exprs.exprs)?
             }
+            HirDefaultExpr { .. } => (),
+            HirIsOmittedValue { expr, .. } => self.gen_lambda_capture_structs_in_expr(&expr)?,
         }
         Ok(())
     }

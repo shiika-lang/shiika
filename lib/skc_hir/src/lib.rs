@@ -271,6 +271,13 @@ pub enum HirExpressionBase {
     HirParenthesizedExpr {
         exprs: HirExpressions,
     },
+    /// Only appears as an method call argument. Denotes using the default value.
+    HirDefaultExpr,
+    /// Only appears at the beginning of a method body. Evaluates to `true` if
+    /// `expr` is a special value (currently a nullptr) which denotes the argument is omitted.
+    HirIsOmittedValue {
+        expr: Box<HirExpression>,
+    },
 }
 
 /// Denotes which variable to include in the `captures`
@@ -699,6 +706,24 @@ impl Hir {
             ty: exprs.ty.clone(),
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
             locs,
+        }
+    }
+
+    pub fn default_expression(ty: TermTy) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirDefaultExpr,
+            locs: LocationSpan::internal(),
+        }
+    }
+
+    pub fn is_omitted_value(expr: HirExpression) -> HirExpression {
+        HirExpression {
+            ty: ty::raw("Bool"),
+            node: HirExpressionBase::HirIsOmittedValue {
+                expr: Box::new(expr),
+            },
+            locs: LocationSpan::internal(),
         }
     }
 
