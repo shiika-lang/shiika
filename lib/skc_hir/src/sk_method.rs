@@ -33,6 +33,14 @@ pub enum SkMethodBody {
 }
 
 impl SkMethod {
+    pub fn simple(signature: MethodSignature, body: SkMethodBody) -> SkMethod {
+        SkMethod {
+            signature,
+            body,
+            lvars: Default::default(),
+        }
+    }
+
     /// Returns if this method is defined by skc_rustlib
     pub fn is_rustlib(&self) -> bool {
         matches!(&self.body, SkMethodBody::RustLib)
