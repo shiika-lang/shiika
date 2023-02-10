@@ -1,3 +1,4 @@
+use crate::convert_exprs::method_call::ArrangedArg;
 use crate::convert_exprs::params;
 use crate::hir_maker::{extract_lvars, HirMaker};
 use crate::hir_maker_context::HirMakerContext;
@@ -47,18 +48,21 @@ pub fn convert_block(
     mk: &mut HirMaker,
     block_taker: &BlockTaker,
     inf: &method_call_inf::MethodCallInf2,
-    arg_expr: &AstExpression,
+    arg: &ArrangedArg,
 ) -> Result<HirExpression> {
-    match &arg_expr.body {
-        AstExpressionBody::LambdaExpr {
-            params,
-            exprs,
-            is_fn,
-        } => {
-            debug_assert!(!is_fn);
-            _convert_block(mk, block_taker, inf, params, exprs, arg_expr.locs.clone())
-        }
-        _ => panic!("expected LambdaExpr but got {:?}", arg_expr),
+    match arg {
+        ArrangedArg::Expr(e) => match &e.body {
+            AstExpressionBody::LambdaExpr {
+                params,
+                exprs,
+                is_fn,
+            } => {
+                debug_assert!(!is_fn);
+                _convert_block(mk, block_taker, inf, params, exprs, e.locs.clone())
+            }
+            _ => panic!("expected LambdaExpr but got {:?}", e),
+        },
+        ArrangedArg::Default(ty) => Ok(Hir::default_expression((*ty).clone())),
     }
 }
 
