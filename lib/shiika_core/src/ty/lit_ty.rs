@@ -96,7 +96,7 @@ pub fn parse_lit_ty(s: &str) -> IResult<&str, LitTy> {
     let (s, base_name) = nom::character::complete::alphanumeric1(s)?;
 
     // `<Int,String>`
-    let parse_tys = nom::multi::separated_list0(tag(","), parse_term_ty);
+    let parse_tys = nom::multi::separated_list1(tag(","), parse_term_ty);
     let (s, tyargs) =
         nom::combinator::opt(nom::sequence::delimited(tag("<"), parse_tys, tag(">")))(s)?;
     let type_args = tyargs.unwrap_or_default();
