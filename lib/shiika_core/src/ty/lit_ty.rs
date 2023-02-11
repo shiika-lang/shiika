@@ -92,8 +92,10 @@ pub fn parse_lit_ty(s: &str) -> IResult<&str, LitTy> {
     let (s, meta) = nom::multi::many_m_n(0, 1, tag("Meta:"))(s)?;
     let is_meta = !meta.is_empty();
 
-    // `Pair`
-    let (s, base_name) = nom::character::complete::alphanumeric1(s)?;
+    // `Foo::Bar`
+    let (s, names) =
+        nom::multi::separated_list1(tag("::"), nom::character::complete::alphanumeric1)(s)?;
+    let base_name = names.join("::");
 
     // `<Int,String>`
     let parse_tys = nom::multi::separated_list1(tag(","), parse_term_ty);
