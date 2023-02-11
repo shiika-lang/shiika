@@ -80,7 +80,7 @@ impl LitTy {
                 .iter()
                 .map(|x| x.serialize())
                 .collect::<Vec<_>>()
-                .join(", ");
+                .join(",");
             format!("<{}>", &s)
         };
         format!("{}{}{}", meta, self.base_name, args)
