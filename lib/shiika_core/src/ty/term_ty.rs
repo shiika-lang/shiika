@@ -345,7 +345,14 @@ impl<'de> de::Visitor<'de> for TermTyVisitor {
         E: serde::de::Error,
     {
         match parse_term_ty(v) {
-            Ok((_, ty)) => Ok(ty),
+            Ok((s, ty)) => {
+                if s.is_empty() {
+                    Ok(ty)
+                } else {
+                    Err(serde::de::Error::custom(
+                            format!("tried to parse `{}' as TermTy but `{}' is left after parsing", v, s)))
+                }
+            }
             Err(_) => Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(v),
                 &self,
