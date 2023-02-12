@@ -966,6 +966,7 @@ dependencies = [
  "anyhow",
  "either",
  "log",
+ "nom",
  "serde",
  "serde_json",
  "shiika_ast",

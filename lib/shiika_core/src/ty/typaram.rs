@@ -1,3 +1,4 @@
+use nom::IResult;
 use serde::{Deserialize, Serialize};
 
 /// A type parameter
@@ -20,5 +21,34 @@ impl TyParam {
             name: name.into(),
             variance: Variance::Invariant,
         }
+    }
+
+    /// Returns a serialized string which can be parsed by `deserialize`
+    pub fn serialize(&self) -> String {
+        let flag = match &self.variance {
+            Variance::Invariant => "",
+            Variance::Covariant => "+",
+            Variance::Contravariant => "-",
+        };
+        format!("{}{}", flag, &self.name)
+    }
+
+    /// nom parser for TyParam
+    pub fn deserialize(s: &str) -> IResult<&str, TyParam> {
+        let (s, c) = nom::combinator::opt(nom::character::complete::one_of("+-"))(s)?;
+        let variance = match c {
+            Some('+') => Variance::Covariant,
+            Some('-') => Variance::Contravariant,
+            _ => Variance::Invariant,
+        };
+
+        let (s, name) = nom::character::complete::alphanumeric1(s)?;
+        Ok((
+            s,
+            TyParam {
+                name: name.to_string(),
+                variance,
+            },
+        ))
     }
 }
