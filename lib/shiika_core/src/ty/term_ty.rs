@@ -301,22 +301,22 @@ impl TermTy {
         }
     }
 
-    /// Returns a serialized string which can be parsed by `parse_term_ty`
+    /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
         match &self.body {
             TyRaw(x) => x.serialize(),
             TyPara(x) => x.serialize(),
         }
     }
-}
 
-/// nom parser for TermTy
-pub fn parse_term_ty(s: &str) -> IResult<&str, TermTy> {
-    if let Ok((s, t)) = parse_typaram_ref(s) {
-        Ok((s, t.to_term_ty()))
-    } else {
-        let (s, t) = parse_lit_ty(s)?;
-        Ok((s, t.to_term_ty()))
+    /// nom parser for TermTy
+    pub fn deserialize(s: &str) -> IResult<&str, TermTy> {
+        if let Ok((s, t)) = parse_typaram_ref(s) {
+            Ok((s, t.to_term_ty()))
+        } else {
+            let (s, t) = parse_lit_ty(s)?;
+            Ok((s, t.to_term_ty()))
+        }
     }
 }
 
@@ -344,7 +344,7 @@ impl<'de> de::Visitor<'de> for TermTyVisitor {
     where
         E: serde::de::Error,
     {
-        match parse_term_ty(v) {
+        match TermTy::deserialize(v) {
             Ok((s, ty)) => {
                 if s.is_empty() {
                     Ok(ty)
