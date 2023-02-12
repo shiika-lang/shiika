@@ -1,5 +1,5 @@
 use super::erasure::Erasure;
-use super::term_ty::{parse_term_ty, TermTy};
+use super::term_ty::TermTy;
 use crate::ty;
 use nom::{bytes::complete::tag, IResult};
 use serde::{Deserialize, Serialize};
@@ -85,23 +85,24 @@ impl LitTy {
         };
         format!("{}{}{}", meta, self.base_name, args)
     }
-}
 
-pub fn parse_lit_ty(s: &str) -> IResult<&str, LitTy> {
-    // `Meta:` (optional)
-    let (s, meta) = nom::multi::many_m_n(0, 1, tag("Meta:"))(s)?;
-    let is_meta = !meta.is_empty();
+    /// nom parser for LiTTy
+    pub fn deserialize(s: &str) -> IResult<&str, LitTy> {
+        // `Meta:` (optional)
+        let (s, meta) = nom::multi::many_m_n(0, 1, tag("Meta:"))(s)?;
+        let is_meta = !meta.is_empty();
 
-    // `Foo::Bar`
-    let (s, names) =
-        nom::multi::separated_list1(tag("::"), nom::character::complete::alphanumeric1)(s)?;
-    let base_name = names.join("::");
+        // `Foo::Bar`
+        let (s, names) =
+            nom::multi::separated_list1(tag("::"), nom::character::complete::alphanumeric1)(s)?;
+        let base_name = names.join("::");
 
-    // `<Int,String>`
-    let parse_tys = nom::multi::separated_list1(tag(","), parse_term_ty);
-    let (s, tyargs) =
-        nom::combinator::opt(nom::sequence::delimited(tag("<"), parse_tys, tag(">")))(s)?;
-    let type_args = tyargs.unwrap_or_default();
+        // `<Int,String>`
+        let parse_tys = nom::multi::separated_list1(tag(","), TermTy::deserialize);
+        let (s, tyargs) =
+            nom::combinator::opt(nom::sequence::delimited(tag("<"), parse_tys, tag(">")))(s)?;
+        let type_args = tyargs.unwrap_or_default();
 
-    Ok((s, LitTy::new(base_name.to_string(), type_args, is_meta)))
+        Ok((s, LitTy::new(base_name.to_string(), type_args, is_meta)))
+    }
 }

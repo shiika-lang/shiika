@@ -1,5 +1,5 @@
 use crate::names::class_fullname;
-use crate::ty::lit_ty::{parse_lit_ty, LitTy};
+use crate::ty::lit_ty::LitTy;
 use crate::ty::term_ty::{TermTy, TyBody};
 use nom::{bytes::complete::tag, IResult};
 use serde::{Deserialize, Serialize};
@@ -86,47 +86,48 @@ impl TyParamRef {
             };
         format!("^{}{}{}{}{}", &self.name, c, &self.idx, k, bound)
     }
-}
 
-/// nom parser for TyParamRef
-pub fn parse_typaram_ref(s: &str) -> IResult<&str, TyParamRef> {
-    let (s, _) = tag("^")(s)?;
+    /// nom parser for TyParamRef
+    pub fn deserialize(s: &str) -> IResult<&str, TyParamRef> {
+        let (s, _) = tag("^")(s)?;
 
-    let (s, name) = nom::character::complete::alphanumeric1(s)?;
+        let (s, name) = nom::character::complete::alphanumeric1(s)?;
 
-    let (s, c) = nom::character::complete::one_of("!:")(s)?;
-    let as_class = c == '!';
+        let (s, c) = nom::character::complete::one_of("!:")(s)?;
+        let as_class = c == '!';
 
-    let get_nums = nom::character::complete::digit1;
-    let (s, idx) = nom::combinator::map_res(nom::combinator::recognize(get_nums), str::parse)(s)?;
+        let get_nums = nom::character::complete::digit1;
+        let (s, idx) =
+            nom::combinator::map_res(nom::combinator::recognize(get_nums), str::parse)(s)?;
 
-    let (s, c) = nom::branch::alt((tag("C"), tag("M")))(s)?;
-    let kind = if c == "C" {
-        TyParamKind::Class
-    } else {
-        TyParamKind::Method
-    };
+        let (s, c) = nom::branch::alt((tag("C"), tag("M")))(s)?;
+        let kind = if c == "C" {
+            TyParamKind::Class
+        } else {
+            TyParamKind::Method
+        };
 
-    let (s, opt_bounds) = nom::combinator::opt(parse_bounds)(s)?;
-    let (upper_bound, lower_bound) =
-        opt_bounds.unwrap_or_else(|| (LitTy::raw("Object"), LitTy::raw("Never")));
+        let (s, opt_bounds) = nom::combinator::opt(parse_bounds)(s)?;
+        let (upper_bound, lower_bound) =
+            opt_bounds.unwrap_or_else(|| (LitTy::raw("Object"), LitTy::raw("Never")));
 
-    let tpref = TyParamRef {
-        kind,
-        name: name.to_string(),
-        idx,
-        upper_bound,
-        lower_bound,
-        as_class,
-    };
-    Ok((s, tpref))
+        let tpref = TyParamRef {
+            kind,
+            name: name.to_string(),
+            idx,
+            upper_bound,
+            lower_bound,
+            as_class,
+        };
+        Ok((s, tpref))
+    }
 }
 
 pub fn parse_bounds(s: &str) -> IResult<&str, (LitTy, LitTy)> {
     let (s, _) = tag(":")(s)?;
-    let (s, upper_bound) = parse_lit_ty(s)?;
+    let (s, upper_bound) = LitTy::deserialize(s)?;
     let (s, _) = tag("~")(s)?;
-    let (s, lower_bound) = parse_lit_ty(s)?;
+    let (s, lower_bound) = LitTy::deserialize(s)?;
     Ok((s, (upper_bound, lower_bound)))
 }
 
