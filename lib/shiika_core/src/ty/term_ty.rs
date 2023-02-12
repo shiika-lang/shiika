@@ -1,8 +1,8 @@
 use crate::names::*;
 use crate::ty;
 use crate::ty::erasure::Erasure;
-use crate::ty::lit_ty::{parse_lit_ty, LitTy};
-use crate::ty::typaram_ref::{parse_typaram_ref, TyParamKind, TyParamRef};
+use crate::ty::lit_ty::LitTy;
+use crate::ty::typaram_ref::{TyParamKind, TyParamRef};
 use nom::IResult;
 use serde::{de, ser};
 use std::fmt;
@@ -301,22 +301,22 @@ impl TermTy {
         }
     }
 
-    /// Returns a serialized string which can be parsed by `parse_term_ty`
+    /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
         match &self.body {
             TyRaw(x) => x.serialize(),
             TyPara(x) => x.serialize(),
         }
     }
-}
 
-/// nom parser for TermTy
-pub fn parse_term_ty(s: &str) -> IResult<&str, TermTy> {
-    if let Ok((s, t)) = parse_typaram_ref(s) {
-        Ok((s, t.to_term_ty()))
-    } else {
-        let (s, t) = parse_lit_ty(s)?;
-        Ok((s, t.to_term_ty()))
+    /// nom parser for TermTy
+    pub fn deserialize(s: &str) -> IResult<&str, TermTy> {
+        if let Ok((s, t)) = TyParamRef::deserialize(s) {
+            Ok((s, t.to_term_ty()))
+        } else {
+            let (s, t) = LitTy::deserialize(s)?;
+            Ok((s, t.to_term_ty()))
+        }
     }
 }
 
@@ -344,7 +344,7 @@ impl<'de> de::Visitor<'de> for TermTyVisitor {
     where
         E: serde::de::Error,
     {
-        match parse_term_ty(v) {
+        match TermTy::deserialize(v) {
             Ok((s, ty)) => {
                 if s.is_empty() {
                     Ok(ty)

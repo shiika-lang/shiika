@@ -1,10 +1,11 @@
-use serde::{Deserialize, Serialize};
+use nom::{bytes::complete::tag, IResult};
+use serde::{de, ser};
 use shiika_core::{names::*, ty, ty::*};
 use std::fmt;
 
 /// Information of a method except its body exprs.
 /// Note that `params` may contain some HIR when it has default expr.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
@@ -97,9 +98,54 @@ impl MethodSignature {
             &self.fullname, typarams, params, &self.ret_ty
         )
     }
+
+    /// Returns a serialized string which can be parsed by `deserialize`
+    pub fn serialize(&self) -> String {
+        let typarams = self
+            .typarams
+            .iter()
+            .map(TyParam::serialize)
+            .collect::<Vec<_>>()
+            .join(",");
+        let params = self
+            .params
+            .iter()
+            .map(MethodParam::serialize)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "<{}>{}({}){}",
+            typarams,
+            &self.fullname,
+            params,
+            &self.ret_ty.serialize()
+        )
+    }
+
+    /// nom parser for MethodSignature
+    pub fn deserialize(s: &str) -> IResult<&str, MethodSignature> {
+        let parse_typarams = nom::multi::separated_list0(tag(","), TyParam::deserialize);
+        let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
+
+        let get_method = nom::bytes::complete::take_until("(");
+        let (s, fullname) = nom::combinator::map_opt(get_method, MethodFullname::from_str)(s)?;
+
+        let parse_params = nom::multi::separated_list0(tag(","), MethodParam::deserialize);
+        let (s, params) = nom::sequence::delimited(tag("("), parse_params, tag(")"))(s)?;
+        let (s, ret_ty) = TermTy::deserialize(s)?;
+        Ok((
+            s,
+            MethodSignature {
+                fullname,
+                ret_ty,
+                params,
+                typarams,
+            },
+        ))
+    }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,
@@ -113,6 +159,36 @@ impl MethodParam {
             ty: self.ty.substitute(class_tyargs, method_tyargs),
             has_default: self.has_default,
         }
+    }
+
+    /// Returns a serialized string which can be parsed by `deserialize`
+    pub fn serialize(&self) -> String {
+        let d = if self.has_default { "=" } else { "" };
+        format!("{}:{}{}", &self.name, &self.ty.serialize(), d)
+    }
+
+    /// nom parser for MethodParam
+    pub fn deserialize(s: &str) -> IResult<&str, MethodParam> {
+        let get_param_name_part = nom::multi::many1(nom::branch::alt((
+            tag("_"),
+            nom::character::complete::alphanumeric1,
+        )));
+        let (s, name) = nom::combinator::recognize(nom::sequence::preceded(
+            nom::combinator::opt(tag("@")),
+            get_param_name_part,
+        ))(s)?;
+        let (s, _) = tag(":")(s)?;
+        let (s, ty) = TermTy::deserialize(s)?;
+        let (s, e) = nom::combinator::opt(tag("="))(s)?;
+        let has_default = e.is_some();
+        Ok((
+            s,
+            MethodParam {
+                name: name.to_string(),
+                ty,
+                has_default,
+            },
+        ))
     }
 }
 
@@ -148,5 +224,57 @@ pub fn signature_of_initialize(
         ret_ty: ty::raw("Void"),
         params,
         typarams: vec![],
+    }
+}
+
+//
+// serde - simplify JSON representation
+//
+impl ser::Serialize for MethodSignature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.serialize())
+    }
+}
+
+struct MethodSignatureVisitor;
+impl<'de> de::Visitor<'de> for MethodSignatureVisitor {
+    type Value = MethodSignature;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        formatter.write_str("a MethodSignature")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match MethodSignature::deserialize(v) {
+            Ok((s, n)) => {
+                if s.is_empty() {
+                    Ok(n)
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "tried to parse `{}' as MethodSignature but `{}' is left after parsing",
+                        v, s
+                    )))
+                }
+            }
+            Err(e) => Err(serde::de::Error::custom(format!(
+                "failed to parse MethodSignature ({}): {}",
+                v, e
+            ))),
+        }
+    }
+}
+
+impl<'de> de::Deserialize<'de> for MethodSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as de::Deserializer<'de>>::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(MethodSignatureVisitor)
     }
 }

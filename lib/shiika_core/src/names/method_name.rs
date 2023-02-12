@@ -67,6 +67,15 @@ impl std::fmt::Display for MethodFullname {
 }
 
 impl MethodFullname {
+    pub fn from_str(v: &str) -> Option<MethodFullname> {
+        let parts = v.split("#").collect::<Vec<_>>();
+        if parts.len() == 2 {
+            Some(method_fullname_raw(parts[0], parts[1]))
+        } else {
+            None
+        }
+    }
+
     /// Returns true if this method isn't an instance method
     pub fn is_class_method(&self) -> bool {
         self.full_name.starts_with("Meta:")
@@ -97,14 +106,12 @@ impl<'de> de::Visitor<'de> for MethodFullnameVisitor {
     where
         E: serde::de::Error,
     {
-        let parts = v.split("#").collect::<Vec<_>>();
-        if parts.len() == 2 {
-            Ok(method_fullname_raw(parts[0], parts[1]))
-        } else {
-            Err(serde::de::Error::invalid_value(
+        match MethodFullname::from_str(v) {
+            Some(n) => Ok(n),
+            None => Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(v),
                 &"something like `Foo#bar'",
-            ))
+            )),
         }
     }
 }

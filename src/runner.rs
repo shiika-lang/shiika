@@ -70,6 +70,7 @@ pub fn build_corelib() -> Result<(), Error> {
     let mut f = fs::File::create(from_shiika_root("builtin/exports.json")).unwrap();
     f.write_all(json.as_bytes()).unwrap();
     log::debug!("created .json");
+    debug_assert!(exports == load_builtin_exports()?);
     Ok(())
 }
 

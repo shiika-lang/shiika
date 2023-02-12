@@ -6,7 +6,7 @@ use skc_hir::SkTypes;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct VTables {
     // REFACTOR: how about just use `type`
     vtables: HashMap<ClassFullname, VTable>,
