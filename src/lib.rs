@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod compiler;
-mod config;
+pub mod config;
 mod loader;
+mod package;
 pub mod runner;
 mod targets;

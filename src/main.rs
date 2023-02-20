@@ -1,6 +1,7 @@
 use anyhow::Result;
 use shiika::cli;
 use shiika::compiler;
+use shiika::config;
 use shiika::runner;
 
 fn main() -> Result<()> {
@@ -8,15 +9,21 @@ fn main() -> Result<()> {
     let args = cli::parse_command_line_args();
 
     match &args.command {
+        cli::Command::BuildCorelib => {
+            compiler::build_corelib()?;
+        }
         cli::Command::Compile { filepath } => {
             compiler::compile(filepath)?;
+        }
+        cli::Command::CompileLib { path } => {
+            compiler::compile_library(path)?;
+        }
+        cli::Command::Env => {
+            config::print();
         }
         cli::Command::Run { filepath } => {
             compiler::compile(filepath)?;
             runner::run(filepath)?;
-        }
-        cli::Command::BuildCorelib => {
-            compiler::build_corelib()?;
         }
     }
 

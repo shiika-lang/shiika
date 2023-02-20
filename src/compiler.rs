@@ -1,5 +1,6 @@
 use crate::config::from_shiika_root;
 use crate::loader;
+use crate::package::SkPackage;
 use crate::targets;
 use anyhow::{Context, Error, Result};
 use shiika_parser::{Parser, SourceFile};
@@ -8,7 +9,7 @@ use skc_codegen;
 use skc_corelib;
 use skc_mir::LibraryExports;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::Path;
 
 /// Generate .ll from .sk
@@ -27,6 +28,29 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     let triple = targets::default_triple();
     skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
     log::debug!("created .bc");
+    Ok(())
+}
+
+pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
+    let dir = dir_.as_ref();
+    let _package_info = SkPackage::load(dir.join("package.json5"))?;
+    let path = dir.join("index.sk");
+    let src = loader::load(&path)?;
+    let ast = Parser::parse_files(&src)?;
+    log::debug!("created ast");
+    let imports = load_builtin_exports()?;
+    let hir = skc_ast2hir::make_hir(ast, &imports)?;
+    log::debug!("created hir");
+    let mir = skc_mir::build(hir, imports);
+    log::debug!("created mir");
+    let exports = LibraryExports::new(&mir);
+    let bc_path = path.with_extension("bc");
+    let ll_path = path.with_extension("ll");
+    let triple = targets::default_triple();
+    skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
+    log::debug!("created .bc");
+    exports.save(dir.join("exports.json"))?;
+    log::debug!("created .json");
     Ok(())
 }
 
@@ -65,9 +89,7 @@ pub fn build_corelib() -> Result<(), Error> {
     )?;
     log::debug!("created .bc");
 
-    let json = serde_json::to_string_pretty(&exports).unwrap();
-    let mut f = fs::File::create(from_shiika_root("builtin/exports.json")).unwrap();
-    f.write_all(json.as_bytes()).unwrap();
+    exports.save(from_shiika_root("builtin/exports.json"))?;
     log::debug!("created .json");
     debug_assert!(exports == load_builtin_exports()?);
     Ok(())

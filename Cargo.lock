@@ -846,6 +846,7 @@ dependencies = [
  "either",
  "env_logger",
  "inkwell",
+ "json5",
  "log",
  "mac-sys-info",
  "serde",
@@ -977,7 +978,9 @@ dependencies = [
 name = "skc_mir"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "serde",
+ "serde_json",
  "shiika_core",
  "skc_hir",
 ]

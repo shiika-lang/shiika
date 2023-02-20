@@ -9,12 +9,16 @@ pub struct Arguments {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Compile shiika program
-    Compile { filepath: String },
-    /// Compile and execute shiika program
-    Run { filepath: String },
     /// Build corelib
     BuildCorelib,
+    /// Compile shiika program
+    Compile { filepath: String },
+    /// Compile shiika library
+    CompileLib { path: String },
+    /// Print configured env
+    Env,
+    /// Compile and execute shiika program
+    Run { filepath: String },
 }
 
 pub fn parse_command_line_args() -> Arguments {
