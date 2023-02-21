@@ -30,7 +30,6 @@ use std::rc::Rc;
 ///
 /// Basically inkwell types has 'ictx and inkwell values has 'run.
 pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
-    pub generate_main: bool,
     pub context: &'ictx inkwell::context::Context,
     pub module: &'run inkwell::module::Module<'ictx>,
     pub builder: &'run inkwell::builder::Builder<'ictx>,
@@ -64,8 +63,8 @@ pub fn run<P: AsRef<Path>>(
         module.set_triple(triple);
     }
     let builder = context.create_builder();
-    let mut code_gen = CodeGen::new(mir, &context, &module, &builder, &generate_main);
-    code_gen.gen_program(&mir.hir, &mir.imports)?;
+    let mut code_gen = CodeGen::new(mir, &context, &module, &builder);
+    code_gen.gen_program(&mir.hir, &mir.imports, generate_main)?;
     code_gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
         code_gen
@@ -82,10 +81,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         context: &'ictx inkwell::context::Context,
         module: &'run inkwell::module::Module<'ictx>,
         builder: &'run inkwell::builder::Builder<'ictx>,
-        generate_main: &bool,
     ) -> CodeGen<'hir, 'run, 'ictx> {
         CodeGen {
-            generate_main: *generate_main,
             context,
             module,
             builder,
@@ -104,7 +101,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    pub fn gen_program(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<()> {
+    pub fn gen_program(
+        &mut self,
+        hir: &'hir Hir,
+        imports: &LibraryExports,
+        generate_main: bool,
+    ) -> Result<()> {
         self.gen_declares();
         self.define_class_class();
         self.gen_imports(imports);
@@ -119,7 +121,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_insert_wtables(&hir.sk_types);
         self.gen_methods(&hir.sk_methods)?;
         self.gen_const_inits(&hir.const_inits)?;
-        if self.generate_main {
+        if generate_main {
             self.gen_init_constants(&hir.const_inits, true);
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
             self.gen_main();
