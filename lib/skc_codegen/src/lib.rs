@@ -20,6 +20,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
+pub enum PackageName {
+    Main,
+    Builtin,
+    Library(String),
+}
+
 /// CodeGen
 ///
 /// 'hir > 'ictx > 'run
@@ -54,7 +60,7 @@ pub fn run<P: AsRef<Path>>(
     bc_path: P,
     // Generate .ll if given
     opt_ll_path: Option<P>,
-    generate_main: bool,
+    package_name: &PackageName,
     opt_target_triple: Option<&inkwell::targets::TargetTriple>,
 ) -> Result<()> {
     let context = inkwell::context::Context::create();
@@ -64,10 +70,10 @@ pub fn run<P: AsRef<Path>>(
     }
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(mir, &context, &module, &builder);
-    if generate_main {
-        code_gen.gen_executable(&mir.hir, &mir.imports)?;
-    } else {
-        code_gen.gen_builtin(&mir.hir, &mir.imports)?;
+    match package_name {
+        PackageName::Main => code_gen.gen_executable(&mir.hir, &mir.imports)?,
+        PackageName::Builtin => code_gen.gen_builtin(&mir.hir, &mir.imports)?,
+        PackageName::Library(s) => code_gen.gen_library(&mir.hir, &mir.imports, s)?,
     }
     code_gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
@@ -107,18 +113,32 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate LLVM IR for an executable
     pub fn gen_executable(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<()> {
+        let depending_libraries = vec!["builtin"];
         self.gen_program(hir, imports)?;
-        self.gen_init_constants(&hir.const_inits, true);
+        self.gen_init_constants(&hir.const_inits, "main", &depending_libraries);
         self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
         self.gen_main();
         self.gen_lambda_funcs(hir)?;
         Ok(())
     }
 
-    /// Generate LLVM IR of ./buitlin
+    /// Generate LLVM IR for a library
+    pub fn gen_library(
+        &mut self,
+        hir: &'hir Hir,
+        imports: &LibraryExports,
+        package_name: &str,
+    ) -> Result<()> {
+        self.gen_program(hir, imports)?;
+        self.gen_init_constants(&hir.const_inits, package_name, Default::default());
+        self.gen_lambda_funcs(hir)?;
+        Ok(())
+    }
+
+    /// Generate LLVM IR of ./builtin
     pub fn gen_builtin(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<()> {
         self.gen_program(hir, imports)?;
-        self.gen_init_constants(&hir.const_inits, false);
+        self.gen_init_constants(&hir.const_inits, "builtin", Default::default());
         self.impl_boxing_funcs();
         self.gen_lambda_funcs(hir)?;
         Ok(())
@@ -275,8 +295,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate `init_constants()`
     // TODO: imported_constants should be Vec (order matters)
-    fn gen_init_constants(&self, const_inits: &'hir [HirExpression], is_main: bool) {
-        let package_name = if is_main { "main" } else { "builtin" };
+    fn gen_init_constants(
+        &self,
+        const_inits: &'hir [HirExpression],
+        package_name: &str,
+        imported_libraries: &[&str],
+    ) {
         // define void @xxx_init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
         let function =
@@ -286,15 +310,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         // Initialize imported constants
-        if is_main {
-            let imports = vec!["builtin"];
-            for s in imports {
-                let fn_type = self.void_type.fn_type(&[], false);
-                self.module
-                    .add_function(&format!("{}_init_constants", s), fn_type, None);
-                let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
-                self.builder.build_call(func, &[], "");
-            }
+        for s in imported_libraries {
+            let fn_type = self.void_type.fn_type(&[], false);
+            self.module
+                .add_function(&format!("{}_init_constants", s), fn_type, None);
+            let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
+            self.builder.build_call(func, &[], "");
         }
 
         // Initialize own constants
@@ -302,7 +323,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             .into_iter()
             .map(const_fullname)
             .collect::<Vec<_>>();
-        if !is_main {
+        if package_name == "builtin" {
             // These builtin classes must be created first
             for name in &basic_classes {
                 let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));

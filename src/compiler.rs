@@ -6,6 +6,7 @@ use anyhow::{Context, Error, Result};
 use shiika_parser::{Parser, SourceFile};
 use skc_ast2hir;
 use skc_codegen;
+use skc_codegen::PackageName;
 use skc_corelib;
 use skc_mir::LibraryExports;
 use std::fs;
@@ -26,14 +27,20 @@ pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
-    skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
+    skc_codegen::run(
+        &mir,
+        &bc_path,
+        Some(&ll_path),
+        &PackageName::Main,
+        Some(&triple),
+    )?;
     log::debug!("created .bc");
     Ok(())
 }
 
 pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
     let dir = dir_.as_ref();
-    let _package_info = SkPackage::load(dir.join("package.json5"))?;
+    let package_info = SkPackage::load(dir.join("package.json5"))?;
     let path = dir.join("index.sk");
     let src = loader::load(&path)?;
     let ast = Parser::parse_files(&src)?;
@@ -47,7 +54,13 @@ pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
-    skc_codegen::run(&mir, &bc_path, Some(&ll_path), true, Some(&triple))?;
+    skc_codegen::run(
+        &mir,
+        &bc_path,
+        Some(&ll_path),
+        &PackageName::Library(package_info.export.clone()),
+        Some(&triple),
+    )?;
     log::debug!("created .bc");
     exports.save(dir.join("exports.json"))?;
     log::debug!("created .json");
@@ -84,7 +97,7 @@ pub fn build_corelib() -> Result<(), Error> {
         &mir,
         &from_shiika_root("builtin/builtin.bc"),
         Some(&from_shiika_root("builtin/builtin.ll")),
-        false,
+        &PackageName::Builtin,
         Some(&triple),
     )?;
     log::debug!("created .bc");
