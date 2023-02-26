@@ -9,12 +9,59 @@ use skc_codegen;
 use skc_codegen::PackageName;
 use skc_corelib;
 use skc_mir::LibraryExports;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 
+#[derive(PartialEq, Debug, Default)]
+pub struct ExeDependencies {
+    top_consts: HashSet<String>,
+}
+
+impl ExeDependencies {
+    pub fn new() -> ExeDependencies {
+        ExeDependencies {
+            top_consts: Default::default(),
+        }
+    }
+}
+
+pub fn build<P: AsRef<Path>>(dir_: P) -> Result<()> {
+    let dir = dir_.as_ref();
+    let package_info = SkPackage::load(dir.join("package.json5"))?;
+    let mut exe_deps = ExeDependencies::new();
+    _build(dir_, &mut exe_deps)?;
+    for main_file in package_info.apps.as_ref().unwrap_or(&vec![]) {
+        compile_executable(main_file, &exe_deps)?;
+    }
+    Ok(())
+}
+
+pub fn _build<P: AsRef<Path>>(dir_: P, exe_deps: &mut ExeDependencies) -> Result<()> {
+    let dir = dir_.as_ref();
+    let package_info = SkPackage::load(dir.join("package.json5"))?;
+
+    for dep in package_info.dependencies {
+        _build(&dep.source.path, exe_deps)?;
+        if let Some(c) = &package_info.export {
+            exe_deps.top_consts.insert(c.clone());
+        }
+    }
+
+    if package_info.export.is_some() {
+        compile_library(dir)?;
+    }
+    Ok(())
+}
+
+/// Generate .ll from a .sk (without any dependendency)
+pub fn compile_single<P: AsRef<Path>>(filepath: P) -> Result<()> {
+    compile_executable(filepath, &Default::default())
+}
+
 /// Generate .ll from .sk
-pub fn compile<P: AsRef<Path>>(filepath: P) -> Result<()> {
+fn compile_executable<P: AsRef<Path>>(filepath: P, exe_deps: &ExeDependencies) -> Result<()> {
     let path = filepath.as_ref();
     let src = loader::load(path)?;
     let ast = Parser::parse_files(&src)?;
@@ -58,7 +105,7 @@ pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
         &mir,
         &bc_path,
         Some(&ll_path),
-        &PackageName::Library(package_info.export.clone()),
+        &PackageName::Library(package_info.export.unwrap().clone()),
         Some(&triple),
     )?;
     log::debug!("created .bc");

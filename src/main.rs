@@ -9,11 +9,14 @@ fn main() -> Result<()> {
     let args = cli::parse_command_line_args();
 
     match &args.command {
+        cli::Command::Build => {
+            compiler::build(std::env::current_dir()?)?;
+        }
         cli::Command::BuildCorelib => {
             compiler::build_corelib()?;
         }
         cli::Command::Compile { filepath } => {
-            compiler::compile(filepath)?;
+            compiler::compile_single(filepath)?;
         }
         cli::Command::CompileLib { path } => {
             compiler::compile_library(path)?;
@@ -22,7 +25,7 @@ fn main() -> Result<()> {
             config::print();
         }
         cli::Command::Run { filepath } => {
-            compiler::compile(filepath)?;
+            compiler::compile_single(filepath)?;
             runner::run(filepath)?;
         }
     }

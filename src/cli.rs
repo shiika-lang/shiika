@@ -9,6 +9,8 @@ pub struct Arguments {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Build a binary or library
+    Build,
     /// Build corelib
     BuildCorelib,
     /// Compile shiika program
