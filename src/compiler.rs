@@ -61,16 +61,9 @@ pub fn compile_single<P: AsRef<Path>>(filepath: P) -> Result<()> {
 }
 
 /// Generate .ll from .sk
-fn compile_executable<P: AsRef<Path>>(filepath: P, exe_deps: &ExeDependencies) -> Result<()> {
-    let path = filepath.as_ref();
-    let src = loader::load(path)?;
-    let ast = Parser::parse_files(&src)?;
-    log::debug!("created ast");
-    let imports = load_builtin_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, &imports)?;
-    log::debug!("created hir");
-    let mir = skc_mir::build(hir, imports);
-    log::debug!("created mir");
+fn compile_executable<P: AsRef<Path>>(path_: P, exe_deps: &ExeDependencies) -> Result<()> {
+    let path = path_.as_ref();
+    let mir = create_mir(path)?;
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
@@ -89,14 +82,7 @@ pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
     let dir = dir_.as_ref();
     let package_info = SkPackage::load(dir.join("package.json5"))?;
     let path = dir.join("index.sk");
-    let src = loader::load(&path)?;
-    let ast = Parser::parse_files(&src)?;
-    log::debug!("created ast");
-    let imports = load_builtin_exports()?;
-    let hir = skc_ast2hir::make_hir(ast, &imports)?;
-    log::debug!("created hir");
-    let mir = skc_mir::build(hir, imports);
-    log::debug!("created mir");
+    let mir = create_mir(&path)?;
     let exports = LibraryExports::new(&mir);
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
@@ -158,4 +144,17 @@ pub fn build_corelib() -> Result<(), Error> {
 /// Load ./builtin/*.sk
 fn load_builtin() -> Result<Vec<SourceFile>> {
     loader::load(&from_shiika_root("builtin/index.sk"))
+}
+
+fn create_mir<P: AsRef<Path>>(filepath: P) -> Result<skc_mir::Mir> {
+    let path = filepath.as_ref();
+    let src = loader::load(path)?;
+    let ast = Parser::parse_files(&src)?;
+    log::debug!("created ast");
+    let imports = load_builtin_exports()?;
+    let hir = skc_ast2hir::make_hir(ast, &imports)?;
+    log::debug!("created hir");
+    let mir = skc_mir::build(hir, imports);
+    log::debug!("created mir");
+    Ok(mir)
 }
