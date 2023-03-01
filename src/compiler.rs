@@ -2,7 +2,7 @@ use crate::config::from_shiika_root;
 use crate::loader;
 use crate::package::SkPackage;
 use crate::targets;
-use anyhow::{Context, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::{Parser, SourceFile};
 use skc_ast2hir;
 use skc_codegen;
@@ -10,9 +10,11 @@ use skc_codegen::PackageName;
 use skc_corelib;
 use skc_mir::LibraryExports;
 use std::collections::HashSet;
+use std::env;
 use std::fs;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[derive(PartialEq, Debug, Default)]
 pub struct ExeDependencies {
@@ -146,6 +148,7 @@ fn load_builtin() -> Result<Vec<SourceFile>> {
     loader::load(&from_shiika_root("builtin/index.sk"))
 }
 
+/// Create MIR from an entry point .sk
 fn create_mir<P: AsRef<Path>>(filepath: P) -> Result<skc_mir::Mir> {
     let path = filepath.as_ref();
     let src = loader::load(path)?;
@@ -157,4 +160,85 @@ fn create_mir<P: AsRef<Path>>(filepath: P) -> Result<skc_mir::Mir> {
     let mir = skc_mir::build(hir, imports);
     log::debug!("created mir");
     Ok(mir)
+}
+
+/// Create an executable by linkng *.bc, *.a, etc.
+pub fn create_executable<P: AsRef<Path>>(sk_path_: P) -> Result<PathBuf> {
+    let triple = targets::default_triple();
+    let sk_path = sk_path_.as_ref();
+    let bc_path = sk_path.with_extension("bc");
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.canonicalize()?.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
+
+    let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
+    add_args_from_env(&mut cmd, "CFLAGS");
+    add_args_from_env(&mut cmd, "LDFLAGS");
+    add_args_from_env(&mut cmd, "LDLIBS");
+    cmd.arg("-target");
+    cmd.arg(triple.as_str().to_str().unwrap());
+    if cfg!(target_os = "linux") {
+        cmd.arg("-lm");
+    }
+    if cfg!(target_os = "macos") {
+        // Link CoreFoundation for timezones for `Time`
+        cmd.arg("-framework");
+        cmd.arg("Foundation");
+    }
+    cmd.arg("-o");
+    cmd.arg(exe_path.clone());
+    cmd.arg(from_shiika_root("builtin/builtin.bc"));
+    let skc_rustlib = if cfg!(target_os = "windows") {
+        "skc_rustlib.lib"
+    } else {
+        "libskc_rustlib.a"
+    };
+    cmd.arg(cargo_target_path().join("debug").join(skc_rustlib));
+    cmd.arg(bc_path.clone());
+
+    if cfg!(target_os = "windows") {
+        cmd.arg("-luser32");
+        cmd.arg("-lkernel32");
+        cmd.arg("-lws2_32");
+
+        cmd.arg("-Xlinker");
+        cmd.arg("/NODEFAULTLIB");
+        cmd.arg("-lmsvcrt");
+        cmd.arg("-lucrt");
+        cmd.arg("-lvcruntime");
+        //cmd.arg("-lucrt");
+
+        cmd.arg("-lbcrypt");
+        cmd.arg("-ladvapi32");
+        cmd.arg("-luserenv");
+    } else {
+        cmd.arg("-ldl");
+        cmd.arg("-lpthread");
+    }
+
+    if !cmd.status()?.success() {
+        return Err(anyhow!("clang failed"));
+    }
+
+    fs::remove_file(bc_path)?;
+    Ok(exe_path)
+}
+
+fn add_args_from_env(cmd: &mut Command, key: &str) {
+    for arg in env::var(key)
+        .unwrap_or_else(|_| "".to_string())
+        .split_ascii_whitespace()
+    {
+        cmd.arg(arg);
+    }
+}
+
+fn cargo_target_path() -> PathBuf {
+    if let Ok(s) = env::var("SHIIKA_CARGO_TARGET") {
+        PathBuf::from(s)
+    } else {
+        from_shiika_root("target")
+    }
 }
