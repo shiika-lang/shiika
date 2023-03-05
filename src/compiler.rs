@@ -16,56 +16,64 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[derive(PartialEq, Debug, Default)]
+#[derive(PartialEq, Debug, Default, Clone)]
 pub struct ExeDependencies {
     top_consts: HashSet<String>,
+    exports: LibraryExports,
+    link_files: Vec<PathBuf>,
 }
 
 impl ExeDependencies {
     pub fn new() -> ExeDependencies {
         ExeDependencies {
             top_consts: Default::default(),
+            exports: LibraryExports::empty(),
+            link_files: vec![PathBuf::from(from_shiika_root("builtin/builtin.bc"))],
         }
     }
 }
 
 pub fn build<P: AsRef<Path>>(dir_: P) -> Result<()> {
     let dir = dir_.as_ref();
-    let package_info = SkPackage::load(dir.join("package.json5"))?;
+    let package_info = SkPackage::load(dir)?;
     let mut exe_deps = ExeDependencies::new();
-    _build(dir_, &mut exe_deps)?;
-    for main_file in package_info.apps.as_ref().unwrap_or(&vec![]) {
-        compile_executable(main_file, &exe_deps)?;
+    _build(&package_info, &mut exe_deps)?;
+    for main_file in package_info.spec.apps.as_ref().unwrap_or(&vec![]) {
+        // PERF: avoid this clone
+        compile_executable(main_file, exe_deps.exports.clone())?;
+        create_executable(main_file, &exe_deps.link_files)?;
     }
     Ok(())
 }
 
-pub fn _build<P: AsRef<Path>>(dir_: P, exe_deps: &mut ExeDependencies) -> Result<()> {
-    let dir = dir_.as_ref();
-    let package_info = SkPackage::load(dir.join("package.json5"))?;
-
-    for dep in package_info.dependencies {
-        _build(&dep.source.path, exe_deps)?;
-        if let Some(c) = &package_info.export {
+pub fn _build(package_info: &SkPackage, exe_deps: &mut ExeDependencies) -> Result<()> {
+    // Build dependencies
+    for dep in &package_info.spec.dependencies {
+        let dep_package = dep.resolve()?;
+        _build(&dep_package, exe_deps)?;
+        if let Some(c) = &package_info.spec.export {
             exe_deps.top_consts.insert(c.clone());
         }
+        exe_deps.link_files.extend(dep_package.link_files());
     }
 
-    if package_info.export.is_some() {
-        compile_library(dir)?;
+    if package_info.spec.export.is_some() {
+        let exports = compile_library(&package_info)?;
+        exe_deps.exports.merge(exports);
     }
     Ok(())
 }
 
 /// Generate .ll from a .sk (without any dependendency)
 pub fn compile_single<P: AsRef<Path>>(filepath: P) -> Result<()> {
-    compile_executable(filepath, &Default::default())
+    compile_executable(filepath, Default::default())
 }
 
 /// Generate .ll from .sk
-fn compile_executable<P: AsRef<Path>>(path_: P, exe_deps: &ExeDependencies) -> Result<()> {
+fn compile_executable<P: AsRef<Path>>(path_: P, mut imports: LibraryExports) -> Result<()> {
     let path = path_.as_ref();
-    let mir = create_mir(path)?;
+    imports.merge(load_builtin_exports()?);
+    let mir = create_mir(path, imports)?;
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
     let triple = targets::default_triple();
@@ -80,11 +88,11 @@ fn compile_executable<P: AsRef<Path>>(path_: P, exe_deps: &ExeDependencies) -> R
     Ok(())
 }
 
-pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
-    let dir = dir_.as_ref();
-    let package_info = SkPackage::load(dir.join("package.json5"))?;
-    let path = dir.join("index.sk");
-    let mir = create_mir(&path)?;
+pub fn compile_library(package_info: &SkPackage) -> Result<LibraryExports> {
+    let path = package_info.dir().join("index.sk");
+    // TODO: Load dependencies of this library
+    let imports = load_builtin_exports()?;
+    let mir = create_mir(&path, imports)?;
     let exports = LibraryExports::new(&mir);
     let bc_path = path.with_extension("bc");
     let ll_path = path.with_extension("ll");
@@ -93,13 +101,13 @@ pub fn compile_library<P: AsRef<Path>>(dir_: P) -> Result<()> {
         &mir,
         &bc_path,
         Some(&ll_path),
-        &PackageName::Library(package_info.export.unwrap().clone()),
+        &PackageName::Library(package_info.spec.export.as_ref().unwrap().clone()),
         Some(&triple),
     )?;
     log::debug!("created .bc");
-    exports.save(dir.join("exports.json"))?;
+    exports.save(package_info.dir().join("exports.json"))?;
     log::debug!("created .json");
-    Ok(())
+    Ok(exports)
 }
 
 /// Load builtin/exports.json
@@ -149,12 +157,11 @@ fn load_builtin() -> Result<Vec<SourceFile>> {
 }
 
 /// Create MIR from an entry point .sk
-fn create_mir<P: AsRef<Path>>(filepath: P) -> Result<skc_mir::Mir> {
-    let path = filepath.as_ref();
+fn create_mir<P: AsRef<Path>>(path_: P, imports: LibraryExports) -> Result<skc_mir::Mir> {
+    let path = path_.as_ref();
     let src = loader::load(path)?;
     let ast = Parser::parse_files(&src)?;
     log::debug!("created ast");
-    let imports = load_builtin_exports()?;
     let hir = skc_ast2hir::make_hir(ast, &imports)?;
     log::debug!("created hir");
     let mir = skc_mir::build(hir, imports);
@@ -163,7 +170,7 @@ fn create_mir<P: AsRef<Path>>(filepath: P) -> Result<skc_mir::Mir> {
 }
 
 /// Create an executable by linkng *.bc, *.a, etc.
-pub fn create_executable<P: AsRef<Path>>(sk_path_: P) -> Result<PathBuf> {
+pub fn create_executable<P: AsRef<Path>>(sk_path_: P, link_files: &[PathBuf]) -> Result<PathBuf> {
     let triple = targets::default_triple();
     let sk_path = sk_path_.as_ref();
     let bc_path = sk_path.with_extension("bc");
@@ -189,7 +196,9 @@ pub fn create_executable<P: AsRef<Path>>(sk_path_: P) -> Result<PathBuf> {
     }
     cmd.arg("-o");
     cmd.arg(exe_path.clone());
-    cmd.arg(from_shiika_root("builtin/builtin.bc"));
+    for p in link_files {
+        cmd.arg(p);
+    }
     let skc_rustlib = if cfg!(target_os = "windows") {
         "skc_rustlib.lib"
     } else {
@@ -217,6 +226,8 @@ pub fn create_executable<P: AsRef<Path>>(sk_path_: P) -> Result<PathBuf> {
         cmd.arg("-ldl");
         cmd.arg("-lpthread");
     }
+
+    log::debug!("{:?}", cmd);
 
     if !cmd.status()?.success() {
         return Err(anyhow!("clang failed"));

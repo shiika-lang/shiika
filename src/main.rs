@@ -18,9 +18,6 @@ fn main() -> Result<()> {
         cli::Command::Compile { filepath } => {
             compiler::compile_single(filepath)?;
         }
-        cli::Command::CompileLib { path } => {
-            compiler::compile_library(path)?;
-        }
         cli::Command::Env => {
             config::print();
         }

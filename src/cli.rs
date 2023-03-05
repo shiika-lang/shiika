@@ -15,8 +15,6 @@ pub enum Command {
     BuildCorelib,
     /// Compile shiika program
     Compile { filepath: String },
-    /// Compile shiika library
-    CompileLib { path: String },
     /// Print configured env
     Env,
     /// Compile and execute shiika program

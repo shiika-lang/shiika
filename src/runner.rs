@@ -1,4 +1,5 @@
 use crate::compiler;
+use crate::config::from_shiika_root;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -16,7 +17,8 @@ pub fn run_and_capture<P: AsRef<Path>>(sk_path: P) -> Result<(String, String)> {
 }
 
 fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, String)> {
-    let exe_path = compiler::create_executable(sk_path_)?;
+    let link_files = vec![from_shiika_root("builtin/builtin.bc")];
+    let exe_path = compiler::create_executable(sk_path_, &link_files)?;
     let mut cmd = Command::new(&exe_path);
     if capture_out {
         let output = cmd.output().context("failed to execute process")?;

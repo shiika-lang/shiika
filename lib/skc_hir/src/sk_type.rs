@@ -41,6 +41,10 @@ impl SkTypes {
             panic!("{} is module, not a class", name)
         }
     }
+
+    pub fn merge(&mut self, other: SkTypes) {
+        self.0.extend(other.0);
+    }
 }
 
 #[allow(clippy::large_enum_variant)]

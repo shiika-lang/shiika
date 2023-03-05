@@ -8,7 +8,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default, Clone)]
 pub struct LibraryExports {
     pub sk_types: SkTypes,
     pub vtables: VTables,
@@ -16,6 +16,14 @@ pub struct LibraryExports {
 }
 
 impl LibraryExports {
+    pub fn empty() -> LibraryExports {
+        LibraryExports {
+            sk_types: Default::default(),
+            vtables: Default::default(),
+            constants: Default::default(),
+        }
+    }
+
     pub fn new(mir: &Mir) -> LibraryExports {
         LibraryExports {
             // PERF: how to generate json without cloning?
@@ -23,6 +31,12 @@ impl LibraryExports {
             vtables: mir.vtables.clone(),
             constants: mir.hir.constants.clone(),
         }
+    }
+
+    pub fn merge(&mut self, other: LibraryExports) {
+        self.sk_types.merge(other.sk_types);
+        self.vtables.merge(other.vtables);
+        self.constants.extend(other.constants);
     }
 
     pub fn save<P: AsRef<Path>>(&self, path_: P) -> Result<()> {
