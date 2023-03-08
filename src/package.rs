@@ -14,9 +14,12 @@ pub struct SkPackage {
 #[derive(Deserialize, PartialEq, Debug)]
 pub struct PackageSpec {
     pub apps: Option<Vec<String>>,
-    pub export: Option<String>,
+    pub export: Option<LibraryName>,
     pub dependencies: Vec<Dependency>,
 }
+
+#[derive(Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
+pub struct LibraryName(String);
 
 #[derive(Deserialize, PartialEq, Debug)]
 pub struct Dependency {
@@ -49,6 +52,20 @@ impl SkPackage {
 
     pub fn link_files(&self) -> Vec<PathBuf> {
         vec![self.dir.join("index.bc")]
+    }
+
+    pub fn export(&self) -> Option<&str> {
+        self.spec.export.as_ref().map(|n| &*n.0)
+    }
+}
+
+impl LibraryName {
+    pub fn builtin() -> LibraryName {
+        LibraryName("builtin".to_string())
+    }
+
+    pub fn to_strs(names: &[LibraryName]) -> Vec<String> {
+        names.iter().map(|n| n.0.clone()).collect()
     }
 }
 

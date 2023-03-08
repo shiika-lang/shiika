@@ -61,6 +61,7 @@ pub fn run<P: AsRef<Path>>(
     // Generate .ll if given
     opt_ll_path: Option<P>,
     package_name: &PackageName,
+    deps: &[String],
     opt_target_triple: Option<&inkwell::targets::TargetTriple>,
 ) -> Result<()> {
     let context = inkwell::context::Context::create();
@@ -71,7 +72,7 @@ pub fn run<P: AsRef<Path>>(
     let builder = context.create_builder();
     let mut code_gen = CodeGen::new(mir, &context, &module, &builder);
     match package_name {
-        PackageName::Main => code_gen.gen_executable(&mir.hir, &mir.imports)?,
+        PackageName::Main => code_gen.gen_executable(&mir.hir, &mir.imports, deps)?,
         PackageName::Builtin => code_gen.gen_builtin(&mir.hir, &mir.imports)?,
         PackageName::Library(s) => code_gen.gen_library(&mir.hir, &mir.imports, s)?,
     }
@@ -112,10 +113,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate LLVM IR for an executable
-    pub fn gen_executable(&mut self, hir: &'hir Hir, imports: &LibraryExports) -> Result<()> {
-        let depending_libraries = vec!["builtin"];
+    pub fn gen_executable(
+        &mut self,
+        hir: &'hir Hir,
+        imports: &LibraryExports,
+        depending_libraries: &[String],
+    ) -> Result<()> {
         self.gen_program(hir, imports)?;
-        self.gen_init_constants(&hir.const_inits, "main", &depending_libraries);
+        self.gen_init_constants(&hir.const_inits, "main", depending_libraries);
         self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
         self.gen_main();
         self.gen_lambda_funcs(hir)?;
@@ -299,7 +304,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         const_inits: &'hir [HirExpression],
         package_name: &str,
-        imported_libraries: &[&str],
+        imported_libraries: &[String],
     ) {
         // define void @xxx_init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
@@ -313,8 +318,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for s in imported_libraries {
             let fn_type = self.void_type.fn_type(&[], false);
             self.module
-                .add_function(&format!("{}_init_constants", s), fn_type, None);
-            let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
+                .add_function(&format!("{}_init_constants", &s), fn_type, None);
+            let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", &s)));
             self.builder.build_call(func, &[], "");
         }
 

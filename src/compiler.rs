@@ -1,6 +1,6 @@
 use crate::config::from_shiika_root;
 use crate::loader;
-use crate::package::SkPackage;
+use crate::package::{LibraryName, SkPackage};
 use crate::targets;
 use anyhow::{anyhow, Context, Error, Result};
 use shiika_parser::{Parser, SourceFile};
@@ -18,15 +18,17 @@ use std::process::Command;
 
 #[derive(PartialEq, Debug, Default, Clone)]
 pub struct ExeDependencies {
-    top_consts: HashSet<String>,
+    deps: HashSet<LibraryName>,
     exports: LibraryExports,
     link_files: Vec<PathBuf>,
 }
 
 impl ExeDependencies {
     pub fn new() -> ExeDependencies {
+        let mut deps = HashSet::new();
+        deps.insert(LibraryName::builtin());
         ExeDependencies {
-            top_consts: Default::default(),
+            deps,
             exports: LibraryExports::empty(),
             link_files: vec![PathBuf::from(from_shiika_root("builtin/builtin.bc"))],
         }
@@ -40,19 +42,24 @@ pub fn build<P: AsRef<Path>>(dir_: P) -> Result<()> {
     _build(&package_info, &mut exe_deps)?;
     for main_file in package_info.spec.apps.as_ref().unwrap_or(&vec![]) {
         // PERF: avoid this clone
-        compile_executable(main_file, exe_deps.exports.clone())?;
+        compile_executable(
+            main_file,
+            exe_deps.exports.clone(),
+            &Vec::from_iter(exe_deps.deps.clone()),
+        )?;
         create_executable(main_file, &exe_deps.link_files)?;
     }
     Ok(())
 }
 
 pub fn _build(package_info: &SkPackage, exe_deps: &mut ExeDependencies) -> Result<()> {
+    log::debug!("Build {}", package_info.dir().display());
     // Build dependencies
     for dep in &package_info.spec.dependencies {
         let dep_package = dep.resolve()?;
         _build(&dep_package, exe_deps)?;
-        if let Some(c) = &package_info.spec.export {
-            exe_deps.top_consts.insert(c.clone());
+        if let Some(c) = &dep_package.spec.export {
+            exe_deps.deps.insert(c.clone());
         }
         exe_deps.link_files.extend(dep_package.link_files());
     }
@@ -66,11 +73,15 @@ pub fn _build(package_info: &SkPackage, exe_deps: &mut ExeDependencies) -> Resul
 
 /// Generate .ll from a .sk (without any dependendency)
 pub fn compile_single<P: AsRef<Path>>(filepath: P) -> Result<()> {
-    compile_executable(filepath, Default::default())
+    compile_executable(filepath, Default::default(), Default::default())
 }
 
 /// Generate .ll from .sk
-fn compile_executable<P: AsRef<Path>>(path_: P, mut imports: LibraryExports) -> Result<()> {
+fn compile_executable<P: AsRef<Path>>(
+    path_: P,
+    mut imports: LibraryExports,
+    deps: &[LibraryName],
+) -> Result<()> {
     let path = path_.as_ref();
     imports.merge(load_builtin_exports()?);
     let mir = create_mir(path, imports)?;
@@ -82,6 +93,7 @@ fn compile_executable<P: AsRef<Path>>(path_: P, mut imports: LibraryExports) -> 
         &bc_path,
         Some(&ll_path),
         &PackageName::Main,
+        &LibraryName::to_strs(deps),
         Some(&triple),
     )?;
     log::debug!("created .bc");
@@ -101,7 +113,8 @@ pub fn compile_library(package_info: &SkPackage) -> Result<LibraryExports> {
         &mir,
         &bc_path,
         Some(&ll_path),
-        &PackageName::Library(package_info.spec.export.as_ref().unwrap().clone()),
+        &PackageName::Library(package_info.export().unwrap().to_string()),
+        Default::default(), // TODO: dependencies of this library
         Some(&triple),
     )?;
     log::debug!("created .bc");
@@ -141,6 +154,7 @@ pub fn build_corelib() -> Result<(), Error> {
         &from_shiika_root("builtin/builtin.bc"),
         Some(&from_shiika_root("builtin/builtin.ll")),
         &PackageName::Builtin,
+        Default::default(),
         Some(&triple),
     )?;
     log::debug!("created .bc");
