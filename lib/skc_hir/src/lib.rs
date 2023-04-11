@@ -299,6 +299,8 @@ pub enum HirExpressionBase {
 pub struct HirLambdaCapture {
     pub ty: TermTy,
     pub upcast_needed: bool,
+    /// True if the captured variable is readonly
+    pub readonly: bool,
     pub detail: HirLambdaCaptureDetail,
 }
 
@@ -309,7 +311,6 @@ pub enum HirLambdaCaptureDetail {
     /// Method/Function argument
     CaptureArg { idx: usize },
     /// Variable in the current `captures`
-    /// `ty` is needed for bitcast
     CaptureFwd { cidx: usize },
 }
 

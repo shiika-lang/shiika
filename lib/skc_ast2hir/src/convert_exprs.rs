@@ -555,6 +555,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ret.push(HirLambdaCapture {
                             ty: cap.ty,
                             upcast_needed: cap.upcast_needed,
+                            readonly: cap.readonly,
                             detail: HirLambdaCaptureDetail::CaptureLVar { name },
                         });
                     }
@@ -562,6 +563,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         ret.push(HirLambdaCapture {
                             ty: cap.ty,
                             upcast_needed: cap.upcast_needed,
+                            readonly: cap.readonly,
                             detail: HirLambdaCaptureDetail::CaptureArg { idx },
                         });
                     }
@@ -570,6 +572,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
                 let upcast_needed = cap.upcast_needed;
+                let readonly = cap.readonly;
                 let cidx = self
                     .ctx_stack
                     .lambda_ctx_mut()
@@ -578,6 +581,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 ret.push(HirLambdaCapture {
                     ty,
                     upcast_needed,
+                    readonly,
                     detail: HirLambdaCaptureDetail::CaptureFwd { cidx },
                 });
             }
@@ -667,13 +671,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         is_lambda_scope: scope.is_lambda_scope,
                         ty: lvar.ty.clone(),
                         upcast_needed: false,
+                        readonly: lvar.readonly,
                         detail: LambdaCaptureDetail::CapLVar {
                             name: name.to_string(),
                         },
                     };
                     let lvar_info = LVarInfo {
                         ty: lvar.ty.clone(),
-                        detail: LVarDetail::OuterScope_ { readonly: false },
+                        detail: LVarDetail::OuterScope_ {
+                            readonly: lvar.readonly,
+                        },
                         locs,
                     };
                     result = (Some(lvar_info), Some(cap));
@@ -709,6 +716,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         is_lambda_scope: scope.is_lambda_scope,
                         ty: param.ty.clone(),
                         upcast_needed: false,
+                        readonly: true,
                         detail,
                     };
                     let lvar_info = LVarInfo {

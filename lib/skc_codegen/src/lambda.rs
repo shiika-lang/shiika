@@ -3,6 +3,7 @@ use crate::values::{I8Ptr, SkObj};
 use crate::CodeGen;
 use anyhow::Result;
 use either::Either::*;
+use inkwell::types::AnyType;
 use inkwell::types::BasicType;
 use shiika_core::ty::*;
 use skc_hir::HirExpressionBase::*;
@@ -69,14 +70,43 @@ impl<'run> LambdaCapture<'run> {
         self.raw
     }
 
+    fn struct_type<'ictx>(&self, gen: &CodeGen) -> inkwell::types::StructType<'ictx> {
+        Self::get_struct_type(gen, &self.lambda_name)
+    }
+
     /// Store `value` at the given index
     pub fn store(&self, gen: &CodeGen, idx: usize, value: inkwell::values::BasicValueEnum<'run>) {
+        debug_assert!(self.store_type_matches(gen, idx, value));
+
         gen.build_llvm_struct_set(
             self.to_struct_ptr(),
             idx,
             value,
             &format!("capture_{}th", idx),
         );
+    }
+
+    /// Asserts that the value is right type
+    fn store_type_matches(
+        &self,
+        gen: &CodeGen,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'run>,
+    ) -> bool {
+        let value_ty = value.get_type().as_any_type_enum();
+        let ptr_ty = self
+            .struct_type(gen)
+            .get_field_type_at_index(idx as u32)
+            .unwrap()
+            .into_pointer_type();
+
+        if value_ty == ptr_ty.as_any_type_enum() {
+            true
+        } else {
+            dbg!(&value_ty);
+            dbg!(&ptr_ty);
+            false
+        }
     }
 
     /// Load the value at the given index
@@ -90,11 +120,13 @@ impl<'run> LambdaCapture<'run> {
 
     /// Given there is a pointer stored at `idx`, update its value.
     pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
-        let struct_type = Self::get_struct_type(gen, &self.lambda_name);
-        let ptr_ty = struct_type
+        // eg. `%Int**`
+        let ptr_ty = self
+            .struct_type(gen)
             .get_field_type_at_index(idx as u32)
             .unwrap()
             .into_pointer_type();
+        // eg. `%Int*`
         let ty = ptr_ty.get_element_type().into_pointer_type();
         let upcast = gen.builder.build_bitcast(value.0, ty, "upcast");
 
@@ -393,15 +425,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn capture_ty(&self, cap: &HirLambdaCapture) -> inkwell::types::BasicTypeEnum {
-        match &cap.detail {
-            // Local vars are captured by reference
-            HirLambdaCaptureDetail::CaptureLVar { .. } => self
-                .llvm_type(&cap.ty)
+        if cap.readonly {
+            self.llvm_type(&cap.ty)
+        } else {
+            // The (local) variable is captured by reference.
+            // PERF: not needed to be by-ref when the variable is declared with
+            // `var` but not reassigned from closure.
+            self.llvm_type(&cap.ty)
                 .ptr_type(inkwell::AddressSpace::Generic)
-                .as_basic_type_enum(),
-            // Method args are captured by value (because they are not writable)
-            HirLambdaCaptureDetail::CaptureArg { .. } => self.llvm_type(&cap.ty),
-            HirLambdaCaptureDetail::CaptureFwd { .. } => self.llvm_type(&cap.ty),
+                .as_basic_type_enum()
         }
     }
 }

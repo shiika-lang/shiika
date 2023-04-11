@@ -37,4 +37,17 @@ f1 = fn(x: Int) { a = 1 }
 f1(0)
 unless a == 1; puts "ng 5"; end
 
+class UpdateFromNestedClosure
+  def self.run
+    var a = 0
+    [1].each do |i|
+      [1].each do |j|
+        a = 1
+      end
+    end
+    unless a == 1; puts "ng UpdateFromNestedClosure"; end
+  end
+end
+UpdateFromNestedClosure.run
+
 puts "ok"
