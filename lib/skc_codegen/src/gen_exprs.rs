@@ -131,9 +131,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
             HirBooleanLiteral { value } => Ok(Some(self.gen_boolean_literal(*value))),
 
-            HirLambdaCaptureRef { idx, readonly } => Ok(Some(
-                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
-            )),
+            HirLambdaCaptureRef { idx, readonly } => {
+                Ok(Some(self.gen_lambda_capture_ref(ctx, idx, !readonly)))
+            }
             HirLambdaCaptureWrite { cidx, rhs } => self.gen_lambda_capture_write(ctx, cidx, rhs),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
@@ -889,16 +889,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         for (i, cap) in captures.iter().enumerate() {
             let mut item = match &cap.detail {
                 HirLambdaCaptureDetail::CaptureLVar { name } => {
-                    // Local vars are captured by pointer
-                    SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())
+                    if cap.readonly {
+                        self.gen_lvar_ref(ctx, name)
+                    } else {
+                        // Captured by pointer to be reassigned
+                        SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())
+                    }
                 }
                 HirLambdaCaptureDetail::CaptureArg { idx } => {
                     // Args are captured by value
                     self.gen_arg_ref(ctx, idx)
                 }
-                HirLambdaCaptureDetail::CaptureFwd { cidx } => {
-                    let deref = false; // When forwarding, pass the item as is
-                    self.gen_lambda_capture_ref(ctx, cidx, deref, &cap.ty)
+                HirLambdaCaptureDetail::CaptureFwd { cidx, .. } => {
+                    let deref = false;
+                    self.gen_lambda_capture_ref(ctx, cidx, deref)
                 }
             };
             if cap.upcast_needed {
@@ -985,7 +989,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
         deref: bool,
-        ty: &TermTy,
     ) -> SkObj<'run> {
         let block = self
             .context
@@ -997,15 +1000,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let item = captures.load(self, *idx_in_captures);
         let ret = if deref {
             // `item` is a pointer
-            let ptr_ty = self.llvm_type(ty).ptr_type(AddressSpace::Generic);
-            let ptr = self
-                .builder
-                .build_bitcast(item, ptr_ty, "ptr")
-                .into_pointer_value();
+            let ptr = item.into_pointer_value();
             SkObj(self.builder.build_load(ptr, "ret"))
         } else {
             // `item` is a value
-            self.bitcast(SkObj(item), ty, "ret")
+            SkObj(item)
         };
 
         let block = self.context.append_basic_block(

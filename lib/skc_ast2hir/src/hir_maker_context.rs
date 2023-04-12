@@ -168,6 +168,8 @@ pub struct LambdaCapture {
     pub is_lambda_scope: bool,
     pub ty: TermTy,
     pub upcast_needed: bool,
+    /// True if the captured variable is readonly
+    pub readonly: bool,
     pub detail: LambdaCaptureDetail,
 }
 

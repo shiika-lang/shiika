@@ -303,10 +303,32 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Cast an object to different Shiika type
     pub fn bitcast(&self, obj: SkObj<'run>, ty: &TermTy, reg_name: &str) -> SkObj<'run> {
+        debug_assert!(!self.obviously_wrong_bitcast(&obj.0, &self.llvm_type(ty)));
         SkObj(
             self.builder
                 .build_bitcast(obj.0, self.llvm_type(ty), reg_name),
         )
+    }
+
+    fn obviously_wrong_bitcast<T, V>(&self, val: &V, t1: &T) -> bool
+    where
+        T: BasicType<'run>,
+        V: BasicValue<'run>,
+    {
+        // eg. `%Int*`
+        let t2 = val.as_basic_value_enum().get_type();
+        // eg. `%Int**`
+        let t1ptr = t1.ptr_type(AddressSpace::Generic).as_any_type_enum();
+        let t2ptr = t2.ptr_type(AddressSpace::Generic).as_any_type_enum();
+        if t1.as_any_type_enum() == t2ptr {
+            dbg!(&t1);
+            true
+        } else if t2.as_any_type_enum() == t1ptr {
+            dbg!(&t2);
+            true
+        } else {
+            false
+        }
     }
 
     /// Create `%Foo* null`
