@@ -46,7 +46,7 @@ jobs:
           cd lib/skc_rustlib; cargo build; cd ../../
           env -- LLC=llc-12 CLANG=clang-12 cargo run -- build-corelib
           env -- LLC=llc-12 CLANG=clang-12 cargo test
-          ./release_test.sh
+          env -- LLC=llc-12 CLANG=clang-12 ./release_test.sh
 
   # Run cargo fmt --all -- --check
   format:
