@@ -47,9 +47,9 @@ class Vec
   end
  
   def normalize -> Vec
-    len = self.length()
+    let len = self.length()
     if len > 0.00000000000000001
-      r_len = 1.0 / len
+      let r_len = 1.0 / len
       @x = @x * r_len
       @y = @y * r_len
       @z = @z * r_len
@@ -65,9 +65,7 @@ end
 LIGHT = Vec.new(0.577, 0.577, 0.577)
 
 class Ray
-  def initialize(origin: Vec, dir: Vec)
-    @origin = origin
-    @dir = dir
+  def initialize(@origin: Vec, @dir: Vec)
   end
 end
 
@@ -84,18 +82,15 @@ class Isect
 end
 
 class Sphere
-  def initialize(radius: Float, position: Vec, color: Vec)
-    @radius = radius
-    @position = position
-    @color = color
+  def initialize(@radius: Float, @position: Vec, @color: Vec)
   end
 
-  def intersect(ray: Ray, isect: Isect) -> Void
-    rs = ray.origin.sub(@position)
-    b = rs.dot(ray.dir)
-    c = rs.dot(rs) - @radius * @radius
-    d = b * b - c
-    t = -b - Math.sqrt(d)
+  def intersect(ray: Ray, isect: Isect)
+    let rs = ray.origin.sub(@position)
+    let b = rs.dot(ray.dir)
+    let c = rs.dot(rs) - @radius * @radius
+    let d = b * b - c
+    let t = -b - Math.sqrt(d)
     if d > 0.0 and t > EPS and t < isect.distance
       isect.hit_point = ray.origin.add(ray.dir.mul(t))
       isect.normal = isect.hit_point.sub(@position).normalize
@@ -108,29 +103,26 @@ class Sphere
 end
 
 class Plane
-  def initialize(position: Vec, normal: Vec, color: Vec)
-    @position = position
-    @normal = normal
-    @color = color
+  def initialize(@position: Vec, @normal: Vec, @color: Vec)
   end
 
-  def intersect(ray: Ray, isect: Isect) -> Void
-    d = -(@position.dot(@normal))
-    v = ray.dir.dot(@normal)
-    t = -(ray.origin.dot(@normal) + d) / v
+  def intersect(ray: Ray, isect: Isect)
+    let d = -(@position.dot(@normal))
+    let v = ray.dir.dot(@normal)
+    let t = -(ray.origin.dot(@normal) + d) / v
     if t > EPS and t < isect.distance
       isect.hit_point = ray.origin.add(ray.dir.mul(t))
       isect.normal = @normal
-      d2 = Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0)
-      m = isect.hit_point.x % 2
-      n = isect.hit_point.z % 2
-      d3 = if (m > 1.0 and n > 1.0) or (m < 1.0 and n < 1.0)
-             d2*0.5
-           else
-             d2
-           end
-      abs = isect.hit_point.z.abs
-      f = 1.0 - (if abs < 25.0; abs; else 25.0; end) * 0.04
+      let d2 = Util.clamp(LIGHT.dot(isect.normal), 0.1, 1.0)
+      let m = isect.hit_point.x % 2
+      let n = isect.hit_point.z % 2
+      let d3 = if (m > 1.0 and n > 1.0) or (m < 1.0 and n < 1.0)
+                 d2*0.5
+               else
+                 d2
+               end
+      let abs = isect.hit_point.z.abs
+      let f = 1.0 - (if abs < 25.0; abs; else 25.0; end) * 0.04
       isect.color = @color.mul(d3 * f)
       isect.distance = t
       isect.hit += 1
@@ -149,26 +141,24 @@ class Util
   def self.clamp(t: Float, min: Float, max: Float) -> Float
     if t < min
       min
+    elsif t > max
+      max
     else
-      if t > max
-        max
-      else
-        t
-      end
+      t
     end
   end
 
   ## t: 0 ~ 1
   def self.color(t: Float) -> Int
-    ret = (IMAGE_DEPTH.to_f * Util.clamp(t, 0.0, 1.0)).to_i
+    let ret = (IMAGE_DEPTH.to_f * Util.clamp(t, 0.0, 1.0)).to_i
     if ret == IMAGE_DEPTH then (IMAGE_DEPTH-1) else ret end
   end
 
-  def self.print_col(c: Vec) -> Void
+  def self.print_col(c: Vec)
     puts "#{Util.color(c.x)} #{Util.color(c.y)} #{Util.color(c.z)}"
   end
 
-  def self.intersect(ray: Ray, i: Isect) -> Void
+  def self.intersect(ray: Ray, i: Isect)
     SPHERE1.intersect(ray, i) 
     SPHERE2.intersect(ray, i) 
     SPHERE3.intersect(ray, i) 
@@ -185,20 +175,20 @@ puts "255"
 
 var row = 0; while row < IMAGE_HEIGHT
   var col = 0; while col < IMAGE_WIDTH 
-    x = col.to_f / (IMAGE_WIDTH.to_f / 2.0) - 1.0
-    y = (IMAGE_HEIGHT-row).to_f / (IMAGE_HEIGHT.to_f / 2.0) - 1.0
+    let x = col.to_f / (IMAGE_WIDTH.to_f / 2.0) - 1.0
+    let y = (IMAGE_HEIGHT-row).to_f / (IMAGE_HEIGHT.to_f / 2.0) - 1.0
 
-    ray = Ray.new(Vec.new(0.0, 2.0, 6.0),
-                  Vec.new(x, y, -1.0).normalize)
-    i = Isect.new(0, Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0),
+    let ray = Ray.new(Vec.new(0.0, 2.0, 6.0),
+                      Vec.new(x, y, -1.0).normalize)
+    let i = Isect.new(0, Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0), Vec.new(0.0, 0.0, 0.0),
                   1000000000000000000000000000000.0, Vec.new(0.0, 0.0, 0.0))
     Util.intersect(ray, i)
     if i.hit > 0
       var dest_col = i.color
       var temp_col = Vec.new(1.0, 1.0, 1.0).multi(i.color)
       var j = 1; while j < MAX_REF
-        q = Ray.new(i.hit_point.add(i.normal.mul(EPS)),
-                    i.ray_dir.reflect(i.normal))
+        let q = Ray.new(i.hit_point.add(i.normal.mul(EPS)),
+                        i.ray_dir.reflect(i.normal))
         Util.intersect(q, i)
         if i.hit > j
           dest_col = dest_col.add(temp_col.multi(i.color))

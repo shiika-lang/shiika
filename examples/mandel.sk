@@ -7,7 +7,7 @@
 # CPU-intensive tasks. However this was good when I just started Shiika 
 # because this program requires little language constructs and yet produces
 # a fun result.
-size = 600
+let size = 600
 puts "P4"
 puts "#{size} #{size}"
 
@@ -16,9 +16,9 @@ LIMIT_SQUARED = 4.0
 
 var byte_acc = 0
 var bit_num = 0
-buf = MutableString.new
+let buf = MutableString.new
 
-count_size = size - 1
+let count_size = size - 1
 
 var a = 0;
 var b = 0;
@@ -26,13 +26,13 @@ var y=0; while y <= count_size
   var x=0; while x <= count_size
     var zr = 0.0
     var zi = 0.0
-    cr = (2.0*x.to_f/size.to_f)-1.5
-    ci = (2.0*y.to_f/size.to_f)-1.0
+    let cr = (2.0*x.to_f/size.to_f)-1.5
+    let ci = (2.0*y.to_f/size.to_f)-1.0
     var escape = false
 
     var dummy = 0; while dummy <= ITER
-      tr = zr*zr - zi*zi + cr
-      ti = 2.0*zr*zi + ci
+      let tr = zr*zr - zi*zi + cr
+      let ti = 2.0*zr*zi + ci
       zr = tr
       zi = ti
 
@@ -40,11 +40,11 @@ var y=0; while y <= count_size
         escape = true
         break
       end
-      dummy = dummy + 1
+      dummy += 1
     end
 
     byte_acc = byte_acc.lshift(1).or(if escape then 0 else 1 end)
-    bit_num = bit_num + 1
+    bit_num += 1
 
     if bit_num == 8
       buf.append_byte(byte_acc)

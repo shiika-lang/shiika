@@ -27,12 +27,12 @@ class LifeGame
     end
 
     def simulate -> Array<Array<Bool>>
-      new_board = Array.build<Array<Bool>>(H) do |y: Int|
+      let new_board = Array.build<Array<Bool>>(H) do |y: Int|
         Array.repeat<Bool>(false, W)
       end
       0.upto(H-1) do |y: Int|
         0.upto(W-1) do |x: Int|
-          n_alive = _count_around(x, y, true)
+          let n_alive = _count_around(x, y, true)
           if @cells[y][x]
             new_board[y][x] = n_alive == 2 or n_alive == 3
           else
@@ -63,7 +63,7 @@ class LifeGame
   end
 
   def initialize
-    @board = Board.new
+    let @board = Board.new
   end
 
   def run
