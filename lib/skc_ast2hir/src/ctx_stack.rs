@@ -88,7 +88,7 @@ impl CtxStack {
     }
 
     pub fn pop_if_ctx(&mut self) -> IfCtx {
-        if let HirMakerContext::If(ctx) = self.pop()  {
+        if let HirMakerContext::If(ctx) = self.pop() {
             ctx
         } else {
             panic!("[BUG] top is not IfCtx")
@@ -354,10 +354,13 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
             }
             HirMakerContext::If(if_ctx) => {
                 self.finished = true;
-                Some(LVarScope { 
-                    ctx_idx: self.cur, lvars: &if_ctx.lvars, params: &[], is_lambda_scope: false 
+                Some(LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &if_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
                 })
-            },
+            }
             // Classes -> end.
             HirMakerContext::Class(class_ctx) => {
                 self.finished = true;

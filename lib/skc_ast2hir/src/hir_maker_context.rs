@@ -71,7 +71,9 @@ impl HirMakerContext {
     }
 
     pub fn if_ctx() -> HirMakerContext {
-        HirMakerContext::If( IfCtx { lvars: Default::default() } )
+        HirMakerContext::If(IfCtx {
+            lvars: Default::default(),
+        })
     }
 
     pub fn match_clause() -> HirMakerContext {
@@ -151,7 +153,7 @@ pub struct WhileCtx;
 /// Indicates we're in a if expr
 #[derive(Debug)]
 pub struct IfCtx {
-    pub lvars: HashMap<String, CtxLVar>
+    pub lvars: HashMap<String, CtxLVar>,
 }
 
 /// Each clause of match expression has its own lvars
