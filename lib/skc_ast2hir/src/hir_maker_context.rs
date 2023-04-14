@@ -10,6 +10,7 @@ pub enum HirMakerContext {
     Method(MethodCtx),
     Lambda(LambdaCtx),
     While(WhileCtx),
+    If(IfCtx),
     MatchClause(MatchClauseCtx),
 }
 
@@ -22,6 +23,7 @@ impl HirMakerContext {
             HirMakerContext::Method(c) => Some(&mut c.lvars),
             HirMakerContext::Lambda(c) => Some(&mut c.lvars),
             HirMakerContext::MatchClause(c) => Some(&mut c.lvars),
+            HirMakerContext::If(c) => Some(&mut c.lvars),
             HirMakerContext::While(_) => None,
         }
     }
@@ -141,6 +143,12 @@ impl LambdaCtx {
 /// Indicates we're in a while expr
 #[derive(Debug)]
 pub struct WhileCtx;
+
+/// Indicates we're in a if expr
+#[derive(Debug)]
+pub struct IfCtx {
+    pub lvars: HashMap<String, CtxLVar>
+}
 
 /// Each clause of match expression has its own lvars
 #[derive(Debug)]
