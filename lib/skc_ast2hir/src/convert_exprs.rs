@@ -184,11 +184,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
+        self.ctx_stack.push(HirMakerContext::if_ctx());
         let mut then_hirs = self.convert_exprs(then_exprs)?;
+        let _ = self.ctx_stack.pop_if_ctx();
+        self.ctx_stack.push(HirMakerContext::if_ctx());
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
             None => HirExpressions::void(),
         };
+        let _ = self.ctx_stack.pop_if_ctx();
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()

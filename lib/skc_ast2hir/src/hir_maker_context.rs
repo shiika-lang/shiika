@@ -70,6 +70,10 @@ impl HirMakerContext {
         HirMakerContext::While(WhileCtx {})
     }
 
+    pub fn if_ctx() -> HirMakerContext {
+        HirMakerContext::If( IfCtx { lvars: Default::default() } )
+    }
+
     pub fn match_clause() -> HirMakerContext {
         HirMakerContext::MatchClause(MatchClauseCtx {
             lvars: Default::default(),
