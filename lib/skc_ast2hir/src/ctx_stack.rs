@@ -352,15 +352,6 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                     is_lambda_scope: false,
                 })
             }
-            HirMakerContext::If(if_ctx) => {
-                self.finished = true;
-                Some(LVarScope {
-                    ctx_idx: self.cur,
-                    lvars: &if_ctx.lvars,
-                    params: &[],
-                    is_lambda_scope: false,
-                })
-            }
             // Classes -> end.
             HirMakerContext::Class(class_ctx) => {
                 self.finished = true;
@@ -387,6 +378,16 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                     lvars: &lambda_ctx.lvars,
                     params: &lambda_ctx.params,
                     is_lambda_scope: true,
+                };
+                self.cur -= 1;
+                Some(scope)
+            }
+            HirMakerContext::If(if_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &if_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
                 };
                 self.cur -= 1;
                 Some(scope)
