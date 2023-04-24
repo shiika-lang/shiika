@@ -184,15 +184,32 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
+        let mut if_ctxs = vec![];
+
+        // Push Pop ctx for thenS
+        // let mut then_hirs = self.convert_exprs(then_exprs)?;
+
+        let then_hirs = then_exprs.iter().map(|then_expr: &AstExpression| {
+            self.ctx_stack.push(HirMakerContext::if_ctx());
+            let then_hir =  self.convert_expr(then_expr);
+            let if_ctx = self.ctx_stack.pop_if_ctx();
+            if_ctxs.push(if_ctx);
+            then_hir
+        }).collect::<Result<Vec<_>, _>>()?;
+
+        let mut then_hirs = HirExpressions::new(then_hirs);
+
+        
         self.ctx_stack.push(HirMakerContext::if_ctx());
-        let mut then_hirs = self.convert_exprs(then_exprs)?;
-        let _ = self.ctx_stack.pop_if_ctx();
-        self.ctx_stack.push(HirMakerContext::if_ctx());
+
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
             None => HirExpressions::void(),
         };
-        let _ = self.ctx_stack.pop_if_ctx();
+        let else_ctx = self.ctx_stack.pop_if_ctx();
+        if_ctxs.push(else_ctx);
+
+
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
@@ -342,6 +359,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             return Err(error::lvar_redeclaration(name, locs));
         }
         let expr = self.convert_expr(rhs)?;
+        let _ = match self.ctx_stack.get_first() {
+            HirMakerContext::Toplevel(_) => println!("TopLevel"),
+            HirMakerContext::Class(_) => println!("Class"),
+            HirMakerContext::Method(_) => println!("Mehhode"),
+            HirMakerContext::Lambda(_) => println!("Lambda"),
+            HirMakerContext::While(_) => println!("While"),
+            HirMakerContext::If(_) => println!("If"),
+            HirMakerContext::MatchClause(_) => println!("Match"),
+        };
+        let () = println!("debug {}", name);
         self.ctx_stack
             .declare_lvar(name, expr.ty.clone(), *readonly);
         Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))

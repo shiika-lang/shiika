@@ -37,7 +37,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>> {
         debug_assert!(!exprs.exprs.is_empty());
         let mut last_value = None;
+        let () = println!("first ctx : {:?}", &ctx.lvars);
         for expr in &exprs.exprs {
+           //  dbg!(expr);
             let value = self.gen_expr(ctx, expr)?;
             if value.is_none() {
                 //log::warn!("detected unreachable code");
@@ -54,6 +56,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
+        // let () = println!("{:?}", expr.node);
         match &expr.node {
             HirLogicalNot { expr } => self.gen_logical_not(ctx, expr),
             HirLogicalAnd { left, right } => self.gen_logical_and(ctx, left, right),
@@ -244,6 +247,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         then_exprs: &'hir HirExpressions,
         else_exprs: &'hir HirExpressions,
     ) -> Result<Option<SkObj<'run>>> {
+        let () = println!("If gen if");
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
@@ -262,7 +266,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
+        let () = println!("{:?}", ctx.lvars);
+        let () = println!("else expr = {:?}", else_exprs);
         let else_value = self.gen_exprs(ctx, else_exprs)?;
+        let () = println!("If gen if");
         if else_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }
@@ -459,6 +466,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         rhs: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let value = self.gen_expr(ctx, rhs)?.unwrap();
+        // let () = println!("let {} = {:?}", name, value);
+        // let () = ctx.lvars.iter().for_each(|(key, _)| { println!("key = {}", key)});
         let ptr = ctx
             .lvars
             .get(name)

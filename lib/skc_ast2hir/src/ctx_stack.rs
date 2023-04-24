@@ -26,6 +26,10 @@ impl CtxStack {
         &self.vec[idx]
     }
 
+    pub fn get_first(&self) -> &HirMakerContext {
+        &self.vec.last().unwrap()
+    }
+
     /// Returns nth item
     pub fn get_mut(&mut self, idx: usize) -> &mut HirMakerContext {
         &mut self.vec[idx]
@@ -403,7 +407,16 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                 Some(scope)
             }
             // ::new() never sets `While` to .cur
-            HirMakerContext::While(_) => panic!("must not happen"),
+            HirMakerContext::While(while_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &while_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false
+                };
+                self.cur -= 1;
+                Some(scope)
+            },
         }
     }
 }

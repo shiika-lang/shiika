@@ -158,6 +158,7 @@ pub enum HirExpressionBase {
         right: Box<HirExpression>,
     },
     HirIfExpression {
+        // lvars: HirLVars,
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
         else_exprs: Box<HirExpressions>, // may be a dummy expression

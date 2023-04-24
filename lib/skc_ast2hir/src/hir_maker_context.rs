@@ -67,7 +67,9 @@ impl HirMakerContext {
 
     // `while' is Rust's keyword
     pub fn while_ctx() -> HirMakerContext {
-        HirMakerContext::While(WhileCtx {})
+        HirMakerContext::While(WhileCtx {
+            lvars: Default::default(),
+        })
     }
 
     pub fn if_ctx() -> HirMakerContext {
@@ -148,7 +150,9 @@ impl LambdaCtx {
 
 /// Indicates we're in a while expr
 #[derive(Debug)]
-pub struct WhileCtx;
+pub struct WhileCtx {
+    pub lvars: HashMap<String, CtxLVar>,
+}
 
 /// Indicates we're in a if expr
 #[derive(Debug)]
