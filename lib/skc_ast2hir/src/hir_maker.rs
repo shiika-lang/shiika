@@ -624,8 +624,10 @@ fn _set_default(
     let mut else_exprs = HirExpressions::void();
     else_exprs.prepend(vec![Hir::lvar_assign(name.to_string(), arg, locs.clone())]);
 
+    // TODO: Proper handle later / 
     let if_expr = Hir::if_expression(
         ty::raw("Void"),
+        vec![],
         cond_expr,
         then_exprs,
         else_exprs,

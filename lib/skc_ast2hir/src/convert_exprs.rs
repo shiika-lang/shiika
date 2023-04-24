@@ -235,8 +235,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ty
         };
 
+        let lvars = if_ctxs.iter().map(|if_ctx| {
+            if_ctx.lvars.iter().fold(vec![], |mut init, (key, value)| {
+                let hirlvar = HirLVar {
+                    name: key.clone(),
+                    ty: value.ty.clone(),
+                    captured: value.captured
+                };
+                init.push(hirlvar);
+                init
+            })
+        }).flatten().collect::<Vec<_>>();
+
         Ok(Hir::if_expression(
             if_ty,
+            lvars,
             cond_hir,
             then_hirs,
             else_hirs,
