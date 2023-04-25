@@ -543,6 +543,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_method(&self, method: &'hir SkMethod) -> Result<()> {
+        log::trace!("method {}", &method.signature);
         if method.is_rustlib() {
             return Ok(());
         }
