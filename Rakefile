@@ -68,7 +68,8 @@ RUSTLIB_FILES = [
   RUSTLIB_SIG,
   "lib/skc_rustlib/Cargo.toml",
 ]
-RUSTLIB_A = File.expand_path "~/tmp/cargo_target/debug/libskc_rustlib.a"
+CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "~/tmp/cargo_target"
+RUSTLIB_A = File.expand_path "#{CARGO_TARGET}/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
   cd "lib/skc_rustlib" do
     sh "cargo build"
@@ -123,6 +124,19 @@ file DEBUG_OUT => [A_BC, BUILTIN_BC, RUSTLIB_A, DEBUG_LL] do
     BUILTIN_BC,
     RUSTLIB_A,
     DEBUG_LL
+end
+
+task "clang" do
+  sh "clang",
+    "-lm",
+    "-ldl",
+    "-lpthread",
+    "-o", "a.sk.out",
+    "-framework", "Foundation",
+    "-O0",
+    BUILTIN_BC,
+    RUSTLIB_A,
+    "a.sk.ll"
 end
 
 task :debugify => DEBUG_OUT

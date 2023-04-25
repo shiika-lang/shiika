@@ -76,15 +76,6 @@ See [tests/sk/](https://github.com/shiika-lang/shiika/tree/master/tests/sk) and
 
 See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 
-### Help wanted!
-
-- Syntax support for editors, especially Vim (yes I use Vim)
-- Fix parser to trace location information
-  - i.e. add location to AST
-  - and HIR
-  - Then we can improve error message greatly
-  - and it can be used for [LLVM debug info](https://releases.llvm.org/12.0.0/docs/LangRef.html#dilocalvariable)
-
 ### Roadmap (tentative)
 
 - [x] v0.1.0 - Type system POC
@@ -95,11 +86,8 @@ See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 - [x] v0.6.0 - Generic methods
 - [x] v0.6.0 - Enums, basic pattern matching
 - [x] v0.7.0 - Modules (like Ruby's `module`)
-- [ ] v0.8.0 - More stdlib (File, etc)
+- [x] v0.8.0 - Default arguments, keyword arguments
 - After v1.0.0
-  - Language enhancement
-    - Default arguments
-    - Keyword arguments passing
   - Built-in library
     - Bignum, etc
   - Standard library?

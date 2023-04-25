@@ -1,3 +1,18 @@
+## v0.8.0 (2023-04-25)
+
+- Breaking changes
+  - Require `let` for variable declaration (#418)
+- Syntax
+  - feat: Method call with keyword arguments (#464)
+  - feat: Default value for method arguments (#469)
+  - feat: Add syntax to call a function stored in ivar (#420)
+- Library
+  - new: `Object#gets` (#457), `Random` (#456), `File.read`, `File.write` (#450)
+- Other
+  - feat: Windows support (#449)
+  - feat: `SHIIKA_ROOT` to specify builtin path (#461)
+  - bug fixes
+
 ## v0.7.1 (2022-11-04)
 
 - Syntax
