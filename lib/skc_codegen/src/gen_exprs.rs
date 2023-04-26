@@ -254,6 +254,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
         let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
+
+        for HirLVar { name, ty, captured } in lvars {
+            let obj_ty = self.llvm_type(ty);
+            if *captured {
+                // Allocate memory on heap in case it lives longer than the method call.
+                let ptrptr = self
+                    .allocate_llvm_obj(&obj_ty, "ptrptr")
+                    .into_pointer_value();
+                ctx.lvars.insert(name.to_string(), ptrptr);
+            } else {
+                let ptr = self.builder.build_alloca(obj_ty, name);
+                ctx.lvars.insert(name.to_string(), ptr);
+            }
+        }
         // IfBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);
