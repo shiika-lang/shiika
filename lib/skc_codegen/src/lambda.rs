@@ -178,7 +178,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 then_exprs,
                 else_exprs,
-                lvars: _,
+                ..
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
