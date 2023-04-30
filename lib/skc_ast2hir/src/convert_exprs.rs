@@ -186,22 +186,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let mut if_ctxs = vec![];
 
-        // Push Pop ctx for thenS
-        // let mut then_hirs = self.convert_exprs(then_exprs)?;
-
-        let then_hirs = then_exprs
-            .iter()
-            .map(|then_expr: &AstExpression| {
-                self.ctx_stack.push(HirMakerContext::if_ctx());
-                let then_hir = self.convert_expr(then_expr);
-                let if_ctx = self.ctx_stack.pop_if_ctx();
-                if_ctxs.push(if_ctx);
-                then_hir
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let mut then_hirs = HirExpressions::new(then_hirs);
-
+        let () = self.ctx_stack.push(HirMakerContext::if_ctx());
+        let mut then_hirs = self.convert_exprs(then_exprs)?;
+        if_ctxs.push(self.ctx_stack.pop_if_ctx());
         self.ctx_stack.push(HirMakerContext::if_ctx());
 
         let mut else_hirs = match else_exprs {
