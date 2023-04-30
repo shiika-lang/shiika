@@ -38,7 +38,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         debug_assert!(!exprs.exprs.is_empty());
         let mut last_value = None;
         for expr in &exprs.exprs {
-            //  dbg!(expr);
             let value = self.gen_expr(ctx, expr)?;
             if value.is_none() {
                 //log::warn!("detected unreachable code");
