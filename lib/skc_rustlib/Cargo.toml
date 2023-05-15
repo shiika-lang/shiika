@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 shiika_ffi_macro = { path = "../shiika_ffi_macro" }
-bdwgc-alloc = { version = "0.6.0", default-features=false, features = ["cmake"] }
+bdwgc-alloc = { git = "https://github.com/yhara/bdwgc-alloc.git", branch = "finalizer", default-features=false, features = ["cmake"] }
 plain = "0.2.3"
 # For Random
 rand = "0.8.5"
@@ -18,3 +18,5 @@ unicode-segmentation = "1.7.1"
 # For Time
 chrono = "0.4"
 chrono-tz = "0.6"
+# For File
+libc = "0.2"
