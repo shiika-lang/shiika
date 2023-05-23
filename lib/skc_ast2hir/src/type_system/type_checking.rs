@@ -82,18 +82,24 @@ pub fn check_if_body_ty(opt_ty: Option<TermTy>) -> Result<TermTy> {
 pub fn check_return_arg_type(
     class_dict: &ClassDict,
     return_arg_ty: &TermTy,
-    method_sig: &MethodSignature,
+    sig: &MethodSignature,
+    locs: &LocationSpan,
 ) -> Result<()> {
-    if class_dict.conforms(return_arg_ty, &method_sig.ret_ty) {
-        Ok(())
-    } else {
-        Err(type_error!(
-            "method {} should return {} but returns {}",
-            &method_sig.fullname,
-            &method_sig.ret_ty,
-            &return_arg_ty
-        ))
+    if class_dict.conforms(return_arg_ty, &sig.ret_ty) {
+        return Ok(());
     }
+    let main_msg = format!(
+        "method {} should return {} but returns {}",
+        sig.fullname, sig.ret_ty, return_arg_ty
+    );
+    let sub_msg = format!(
+        "This returns {} but should be {}",
+        return_arg_ty, sig.ret_ty
+    );
+    let report = skc_error::build_report(main_msg, locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(sub_msg))
+    });
+    Err(type_error(report))
 }
 
 pub fn invalid_reassign_error(orig_ty: &TermTy, new_ty: &TermTy, name: &str) -> anyhow::Error {
