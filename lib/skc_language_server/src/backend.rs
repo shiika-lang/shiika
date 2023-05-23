@@ -1,10 +1,10 @@
 use crate::server::{MsgFromServer, MsgToServer, Server};
 use async_channel::{unbounded, Receiver, Sender};
+use std::fs::OpenOptions;
+use std::io::Write;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
-use std::io::Write;
-use std::fs::OpenOptions;
 
 const COMPLETION_TRIGGER: &[&str] = &["<", ">", "=", "!"];
 
@@ -47,10 +47,10 @@ impl Backend {
 
     /// Write debug log
     fn log(s: &str) {
-//        let mut file = OpenOptions::new().append(true).open("/Users/yhara/tmp/skc_language_server.log").unwrap();
-//        file.write_all(s.as_bytes()).unwrap();
-//        file.write_all(b"\n").unwrap();
-//        file.flush().unwrap();
+        //        let mut file = OpenOptions::new().append(true).open("/Users/yhara/tmp/skc_language_server.log").unwrap();
+        //        file.write_all(s.as_bytes()).unwrap();
+        //        file.write_all(b"\n").unwrap();
+        //        file.flush().unwrap();
     }
 }
 
@@ -61,49 +61,49 @@ impl LanguageServer for Backend {
         Backend::log("- Backend::initialize");
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-//                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-//                    TextDocumentSyncKind::FULL,
-//                )),
-//                workspace: Some(WorkspaceServerCapabilities {
-//                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-//                        supported: Some(true),
-//                        change_notifications: Some(OneOf::Left(true)),
-//                    }),
-//                    file_operations: None,
-//                }),
+                //                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                //                    TextDocumentSyncKind::FULL,
+                //                )),
+                //                workspace: Some(WorkspaceServerCapabilities {
+                //                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                //                        supported: Some(true),
+                //                        change_notifications: Some(OneOf::Left(true)),
+                //                    }),
+                //                    file_operations: None,
+                //                }),
                 definition_provider: Some(OneOf::Left(true)),
-//                document_formatting_provider: Some(OneOf::Left(true)),
-//                workspace_symbol_provider: Some(OneOf::Left(true)),
+                //                document_formatting_provider: Some(OneOf::Left(true)),
+                //                workspace_symbol_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 references_provider: Some(OneOf::Left(true)),
-//                semantic_tokens_provider: Some(
-//                    SemanticTokensServerCapabilities::SemanticTokensOptions(
-//                        SemanticTokensOptions {
-//                            work_done_progress_options: WorkDoneProgressOptions {
-//                                work_done_progress: Some(false),
-//                            },
-//                            legend: SemanticTokensLegend {
-//                                token_types: semantic_legend::get_token_types(),
-//                                token_modifiers: semantic_legend::get_token_modifiers(),
-//                            },
-//                            range: Some(false),
-//                            full: Some(SemanticTokensFullOptions::Delta { delta: Some(false) }),
-//                        },
-//                    ),
-//                ),
-//                completion_provider: Some(CompletionOptions {
-//                    resolve_provider: Some(false),
-//                    trigger_characters: Some(
-//                        COMPLETION_TRIGGER.iter().map(|x| x.to_string()).collect(),
-//                    ),
-//                    all_commit_characters: None,
-//                    work_done_progress_options: WorkDoneProgressOptions::default(),
-//                    completion_item: None,
-//                }),
+                //                semantic_tokens_provider: Some(
+                //                    SemanticTokensServerCapabilities::SemanticTokensOptions(
+                //                        SemanticTokensOptions {
+                //                            work_done_progress_options: WorkDoneProgressOptions {
+                //                                work_done_progress: Some(false),
+                //                            },
+                //                            legend: SemanticTokensLegend {
+                //                                token_types: semantic_legend::get_token_types(),
+                //                                token_modifiers: semantic_legend::get_token_modifiers(),
+                //                            },
+                //                            range: Some(false),
+                //                            full: Some(SemanticTokensFullOptions::Delta { delta: Some(false) }),
+                //                        },
+                //                    ),
+                //                ),
+                //                completion_provider: Some(CompletionOptions {
+                //                    resolve_provider: Some(false),
+                //                    trigger_characters: Some(
+                //                        COMPLETION_TRIGGER.iter().map(|x| x.to_string()).collect(),
+                //                    ),
+                //                    all_commit_characters: None,
+                //                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                //                    completion_item: None,
+                //                }),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
-                name: "skc_language_server".to_string()),
+                name: "skc_language_server".to_string(),
                 version: Some(String::from(env!("CARGO_PKG_VERSION"))),
             }),
         })
@@ -122,8 +122,10 @@ impl LanguageServer for Backend {
         let url = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        Backend::log(&format!("- Backend::did_open(url: {}, text: {}, version: {})",
-                             url, text, version));
+        Backend::log(&format!(
+            "- Backend::did_open(url: {}, text: {}, version: {})",
+            url, text, version
+        ));
 
         self.send(MsgToServer::DidOpen { url, text, version }).await;
     }
@@ -136,8 +138,10 @@ impl LanguageServer for Backend {
         let url = params.text_document.uri;
         let text = std::mem::take(&mut params.content_changes[0].text);
         let version = params.text_document.version;
-        Backend::log(&format!("- Backend::did_change(url: {}, text: {}, version: {}",
-                             url, text, version));
+        Backend::log(&format!(
+            "- Backend::did_change(url: {}, text: {}, version: {}",
+            url, text, version
+        ));
 
         self.send(MsgToServer::DidChange { url, text, version })
             .await;
@@ -212,8 +216,10 @@ impl LanguageServer for Backend {
         let url = params.text_document_position_params.text_document.uri;
         let line = params.text_document_position_params.position.line as usize + 1;
         let column = params.text_document_position_params.position.character as usize + 1;
-        Backend::log(&format!("- Backend::hover(url: {}, line: {}, column: {})",
-                             url, line, column));
+        Backend::log(&format!(
+            "- Backend::hover(url: {}, line: {}, column: {})",
+            url, line, column
+        ));
 
         self.send(MsgToServer::Hover { url, line, column }).await;
 
@@ -228,8 +234,10 @@ impl LanguageServer for Backend {
         let url = params.text_document_position.text_document.uri;
         let line = params.text_document_position.position.line as usize + 1;
         let column = params.text_document_position.position.character as usize + 1;
-        Backend::log(&format!("- Backend::references(url: {}, line: {}, column: {}",
-                             url, line, column));
+        Backend::log(&format!(
+            "- Backend::references(url: {}, line: {}, column: {}",
+            url, line, column
+        ));
 
         self.send(MsgToServer::References { url, line, column })
             .await;

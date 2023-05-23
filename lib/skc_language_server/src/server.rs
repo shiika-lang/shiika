@@ -59,12 +59,12 @@ pub struct Server {
     client: Client,
     rcv: Receiver<MsgToServer>,
     snd: Sender<MsgFromServer>,
-//    document_map: DashMap<String, Rope>,
-//    parser_map: DashMap<String, Parser>,
-//    metadata_map: DashMap<String, Metadata>,
-//    cache_dir: String,
-//    lsp_token: i32,
-//    background_tasks: VecDeque<BackgroundTask>,
+    //    document_map: DashMap<String, Rope>,
+    //    parser_map: DashMap<String, Parser>,
+    //    metadata_map: DashMap<String, Metadata>,
+    //    cache_dir: String,
+    //    lsp_token: i32,
+    //    background_tasks: VecDeque<BackgroundTask>,
 }
 
 impl Server {
@@ -73,12 +73,12 @@ impl Server {
             client,
             rcv,
             snd,
-//            document_map: DashMap::new(),
-//            parser_map: DashMap::new(),
-//            metadata_map: DashMap::new(),
-//            cache_dir: Metadata::cache_dir().to_string_lossy().to_string(),
-//            lsp_token: 0,
-//            background_tasks: VecDeque::new(),
+            //            document_map: DashMap::new(),
+            //            parser_map: DashMap::new(),
+            //            metadata_map: DashMap::new(),
+            //            cache_dir: Metadata::cache_dir().to_string_lossy().to_string(),
+            //            lsp_token: 0,
+            //            background_tasks: VecDeque::new(),
         }
     }
 
@@ -111,35 +111,33 @@ impl Server {
                 }
             }
 
-//            while self.rcv.is_empty() && !self.background_tasks.is_empty() {
-//                if let Some(mut task) = self.background_tasks.pop_front() {
-//                    if !task.progress {
-//                        self.progress_start("background analyze");
-//                        task.progress = true;
-//                    }
-//                    if let Some(path) = task.paths.pop() {
-//                        self.background_analyze(&path, &task.metadata);
-//                        let pcnt = (task.total - task.paths.len()) * 100 / task.total;
-//                        self.progress_report(
-//                            &format!("{}", path.src.file_name().unwrap().to_string_lossy()),
-//                            pcnt as u32,
-//                        );
-//                    }
-//                    if task.paths.is_empty() {
-//                        self.progress_done("background analyze done");
-//                    } else {
-//                        self.background_tasks.push_front(task);
-//                    }
-//                }
-//            }
+            //            while self.rcv.is_empty() && !self.background_tasks.is_empty() {
+            //                if let Some(mut task) = self.background_tasks.pop_front() {
+            //                    if !task.progress {
+            //                        self.progress_start("background analyze");
+            //                        task.progress = true;
+            //                    }
+            //                    if let Some(path) = task.paths.pop() {
+            //                        self.background_analyze(&path, &task.metadata);
+            //                        let pcnt = (task.total - task.paths.len()) * 100 / task.total;
+            //                        self.progress_report(
+            //                            &format!("{}", path.src.file_name().unwrap().to_string_lossy()),
+            //                            pcnt as u32,
+            //                        );
+            //                    }
+            //                    if task.paths.is_empty() {
+            //                        self.progress_done("background analyze done");
+            //                    } else {
+            //                        self.background_tasks.push_front(task);
+            //                    }
+            //                }
+            //            }
         }
     }
 
-    fn did_open(&mut self, url: &Url, text: &str, version: i32) {
-    }
+    fn did_open(&mut self, url: &Url, text: &str, version: i32) {}
 
-    fn did_change(&mut self, url: &Url, text: &str, version: i32) {
-    }
+    fn did_change(&mut self, url: &Url, text: &str, version: i32) {}
 
     fn completion(
         &mut self,
@@ -150,11 +148,9 @@ impl Server {
     ) {
     }
 
-    fn goto_definition(&mut self, url: &Url, line: usize, column: usize) {
-    }
+    fn goto_definition(&mut self, url: &Url, line: usize, column: usize) {}
 
-    fn symbol(&mut self, query: &str) {
-    }
+    fn symbol(&mut self, query: &str) {}
 
     fn hover(&mut self, url: &Url, line: usize, column: usize) {
         let msg = format!("{}:{}", &line, &column);
@@ -167,13 +163,9 @@ impl Server {
             .unwrap();
     }
 
-    fn references(&mut self, url: &Url, line: usize, column: usize) {
-    }
+    fn references(&mut self, url: &Url, line: usize, column: usize) {}
 
-    fn semantic_tokens(&mut self, url: &Url) {
-    }
+    fn semantic_tokens(&mut self, url: &Url) {}
 
-    fn formatting(&mut self, url: &Url) {
-    }
+    fn formatting(&mut self, url: &Url) {}
 }
-

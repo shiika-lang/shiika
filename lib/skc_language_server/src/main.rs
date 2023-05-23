@@ -1,7 +1,7 @@
 use tower_lsp::{LspService, Server};
 
-mod server;
 mod backend;
+mod server;
 use backend::Backend;
 
 #[tokio::main]
