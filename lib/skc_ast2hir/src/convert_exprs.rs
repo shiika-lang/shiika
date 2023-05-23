@@ -291,7 +291,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 LocationSpan::todo(),
             )
         };
-        self._validate_return_type(&arg_expr.ty)?;
+        self._validate_return_type(&arg_expr.ty, locs)?;
         Ok(Hir::return_expression(from, arg_expr, locs.clone()))
     }
 
@@ -316,11 +316,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Check if the argument of `return' is valid
-    fn _validate_return_type(&self, arg_ty: &TermTy) -> Result<()> {
+    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<()> {
         if self.ctx_stack.lambda_ctx().is_some() {
             // TODO: check arg_ty matches to fn's return type
         } else if let Some(method_ctx) = &self.ctx_stack.method_ctx() {
-            type_checking::check_return_arg_type(&self.class_dict, arg_ty, &method_ctx.signature)?;
+            type_checking::check_return_arg_type(
+                &self.class_dict,
+                arg_ty,
+                &method_ctx.signature,
+                locs,
+            )?;
         }
         Ok(())
     }
