@@ -329,7 +329,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         // alloca
-        let lvar_ptrs = self.gen_alloca_lvars(function, main_lvars);
+        let mut main_lvars = main_lvars.clone();
+        let () = Self::collect_lvars_hir_expressions(main_exprs, &mut main_lvars);
+
+        let lvar_ptrs = self.gen_alloca_lvars(function, &main_lvars);
 
         // CreateMain:
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
