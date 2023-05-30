@@ -314,9 +314,8 @@ impl<'hir_maker> LVarIter<'hir_maker> {
                 | HirMakerContext::Class(_)
                 | HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
-                | HirMakerContext::MatchClause(_) => break,
-                // Does not make lvar scope
-                HirMakerContext::While(_) => (),
+                | HirMakerContext::MatchClause(_)
+                | HirMakerContext::While(_) => break,
             }
         }
         LVarIter {
