@@ -62,8 +62,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 then_exprs,
                 else_exprs,
-                lvars,
-            } => self.gen_if_expr(ctx, &expr.ty, lvars, cond_expr, then_exprs, else_exprs),
+                ..
+            } => self.gen_if_expr(ctx, &expr.ty, cond_expr, then_exprs, else_exprs),
             HirMatchExpression {
                 cond_assign_expr,
                 clauses,
@@ -71,6 +71,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
+                ..
             } => self.gen_while_expr(ctx, cond_expr, body_exprs),
             HirBreakExpression { from } => self.gen_break_expr(ctx, from),
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
@@ -241,7 +242,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
-        lvars: &'hir HirLVars,
         cond_expr: &'hir HirExpression,
         then_exprs: &'hir HirExpressions,
         else_exprs: &'hir HirExpressions,

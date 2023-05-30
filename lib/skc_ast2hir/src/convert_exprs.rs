@@ -240,10 +240,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         Ok(Hir::if_expression(
             if_ty,
-            lvars,
             cond_hir,
             then_hirs,
             else_hirs,
+            lvars,
             locs.clone(),
         ))
     }
@@ -273,9 +273,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         self.ctx_stack.push(HirMakerContext::while_ctx());
         let body_hirs = self.convert_exprs(body_exprs)?;
-        self.ctx_stack.pop_while_ctx();
 
-        Ok(Hir::while_expression(cond_hir, body_hirs, locs.clone()))
+        let lvars = Vec::from_iter(self.ctx_stack.pop_while_ctx().lvars.iter().map(
+            |(key, value)| HirLVar {
+                name: key.clone(),
+                ty: value.ty.clone(),
+                captured: value.captured,
+            },
+        ));
+
+        Ok(Hir::while_expression(
+            cond_hir,
+            body_hirs,
+            lvars,
+            locs.clone(),
+        ))
     }
 
     fn convert_break_expr(&mut self, locs: &LocationSpan) -> Result<HirExpression> {

@@ -626,10 +626,10 @@ fn _set_default(
 
     let if_expr = Hir::if_expression(
         ty::raw("Void"),
-        vec![],
         cond_expr,
         then_exprs,
         else_exprs,
+        vec![],
         LocationSpan::internal(),
     );
     Ok(if_expr)

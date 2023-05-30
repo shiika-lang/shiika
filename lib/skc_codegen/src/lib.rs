@@ -617,8 +617,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirExpressionBase::HirWhileExpression {
                 cond_expr,
                 body_exprs,
+                lvars: while_lvars,
             } => {
-                // Latter collected future lvars in while like in the if
+                let mut while_lvars = while_lvars.clone();
+                lvars.append(&mut while_lvars);
                 let () = Self::collect_lvars_hir_expression(cond_expr, lvars);
                 let () = Self::collect_lvars_hir_expressions(body_exprs, lvars);
             }
@@ -642,22 +644,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let () = Self::collect_lvars_hir_expression(lambda_expr, lvars);
                 let () = Self::collect_lvars_hir_vexpressions(arg_exprs, lvars);
             }
-
-            HirExpressionBase::HirLambdaExpr {
-                name,
-                params,
-                exprs,
-                captures,
-                lvars,
-                ret_ty,
-                has_break,
-            } => {
-                // To think about it
-            }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 let () = Self::collect_lvars_hir_expressions(exprs, lvars);
             }
             HirExpressionBase::HirArgRef { .. }
+            | HirExpressionBase::HirLambdaExpr { .. }
             | HirExpressionBase::HirLVarRef { .. }
             | HirExpressionBase::HirIVarRef { .. }
             | HirExpressionBase::HirTVarRef { .. }
