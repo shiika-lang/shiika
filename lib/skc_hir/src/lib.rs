@@ -158,6 +158,7 @@ pub enum HirExpressionBase {
         right: Box<HirExpression>,
     },
     HirIfExpression {
+        lvars: HirLVars,
         cond_expr: Box<HirExpression>,
         then_exprs: Box<HirExpressions>,
         else_exprs: Box<HirExpressions>, // may be a dummy expression
@@ -167,6 +168,7 @@ pub enum HirExpressionBase {
         clauses: Vec<pattern_match::MatchClause>,
     },
     HirWhileExpression {
+        lvars: HirLVars,
         cond_expr: Box<HirExpression>,
         body_exprs: Box<HirExpressions>,
     },
@@ -379,11 +381,13 @@ impl Hir {
         cond_hir: HirExpression,
         then_hir: HirExpressions,
         else_hir: HirExpressions,
+        lvars: HirLVars,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty,
             node: HirExpressionBase::HirIfExpression {
+                lvars,
                 cond_expr: Box::new(cond_hir),
                 then_exprs: Box::new(then_hir),
                 else_exprs: Box::new(else_hir),
@@ -411,6 +415,7 @@ impl Hir {
     pub fn while_expression(
         cond_hir: HirExpression,
         body_hirs: HirExpressions,
+        lvars: HirLVars,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
@@ -418,6 +423,7 @@ impl Hir {
             node: HirExpressionBase::HirWhileExpression {
                 cond_expr: Box::new(cond_hir),
                 body_exprs: Box::new(body_hirs),
+                lvars,
             },
             locs,
         }

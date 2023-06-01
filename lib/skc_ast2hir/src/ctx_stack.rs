@@ -87,6 +87,14 @@ impl CtxStack {
         }
     }
 
+    pub fn pop_if_ctx(&mut self) -> IfCtx {
+        if let HirMakerContext::If(ctx) = self.pop() {
+            ctx
+        } else {
+            panic!("[BUG] top is not IfCtx")
+        }
+    }
+
     /// Pop the MatchClauseCtx on the stack top
     pub fn pop_match_clause_ctx(&mut self) -> MatchClauseCtx {
         if let HirMakerContext::MatchClause(ctx) = self.pop() {
@@ -174,6 +182,7 @@ impl CtxStack {
                 HirMakerContext::Method(method_ctx) => method_ctx.signature.fullname.to_string(),
                 HirMakerContext::Lambda(_) => "lambda".to_string(),
                 HirMakerContext::While(_) => "while".to_string(),
+                HirMakerContext::If(_) => "if".to_string(),
                 HirMakerContext::MatchClause(_) => "match".to_string(),
             }
         }
@@ -301,12 +310,12 @@ impl<'hir_maker> LVarIter<'hir_maker> {
             cur -= 1;
             match ctx_stack.get(cur) {
                 HirMakerContext::Toplevel(_)
+                | HirMakerContext::If(_)
                 | HirMakerContext::Class(_)
                 | HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
-                | HirMakerContext::MatchClause(_) => break,
-                // Does not make lvar scope
-                HirMakerContext::While(_) => (),
+                | HirMakerContext::MatchClause(_)
+                | HirMakerContext::While(_) => break,
             }
         }
         LVarIter {
@@ -372,6 +381,16 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                 self.cur -= 1;
                 Some(scope)
             }
+            HirMakerContext::If(if_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &if_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                };
+                self.cur -= 1;
+                Some(scope)
+            }
             HirMakerContext::MatchClause(match_clause_ctx) => {
                 let scope = LVarScope {
                     ctx_idx: self.cur,
@@ -383,7 +402,16 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                 Some(scope)
             }
             // ::new() never sets `While` to .cur
-            HirMakerContext::While(_) => panic!("must not happen"),
+            HirMakerContext::While(while_ctx) => {
+                let scope = LVarScope {
+                    ctx_idx: self.cur,
+                    lvars: &while_ctx.lvars,
+                    params: &[],
+                    is_lambda_scope: false,
+                };
+                self.cur -= 1;
+                Some(scope)
+            }
         }
     }
 }
@@ -411,6 +439,7 @@ impl<'hir_maker> NamespaceIter<'hir_maker> {
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
                 | HirMakerContext::MatchClause(_)
+                | HirMakerContext::If(_)
                 | HirMakerContext::While(_) => (),
             }
         }
@@ -444,6 +473,7 @@ impl<'a> Iterator for NamespaceIter<'a> {
                 HirMakerContext::Method(_)
                 | HirMakerContext::Lambda(_)
                 | HirMakerContext::MatchClause(_)
+                | HirMakerContext::If(_)
                 | HirMakerContext::While(_) => (),
             }
         }

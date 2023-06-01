@@ -62,6 +62,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 then_exprs,
                 else_exprs,
+                ..
             } => self.gen_if_expr(ctx, &expr.ty, cond_expr, then_exprs, else_exprs),
             HirMatchExpression {
                 cond_assign_expr,
@@ -70,6 +71,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
+                ..
             } => self.gen_while_expr(ctx, cond_expr, body_exprs),
             HirBreakExpression { from } => self.gen_break_expr(ctx, from),
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
@@ -248,6 +250,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
         let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
+
         // IfBegin:
         self.builder.build_unconditional_branch(begin_block);
         self.builder.position_at_end(begin_block);

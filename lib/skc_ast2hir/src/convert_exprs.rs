@@ -184,11 +184,19 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let cond_hir = self.convert_expr(cond_expr)?;
         type_checking::check_condition_ty(&cond_hir.ty, "if")?;
 
+        let mut if_ctxs = vec![];
+
+        let () = self.ctx_stack.push(HirMakerContext::if_ctx());
         let mut then_hirs = self.convert_exprs(then_exprs)?;
+        if_ctxs.push(self.ctx_stack.pop_if_ctx());
+        self.ctx_stack.push(HirMakerContext::if_ctx());
+
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
             None => HirExpressions::void(),
         };
+        let else_ctx = self.ctx_stack.pop_if_ctx();
+        if_ctxs.push(else_ctx);
 
         let if_ty = if then_hirs.ty.is_never_type() {
             else_hirs.ty.clone()
@@ -214,11 +222,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ty
         };
 
+        let lvars = if_ctxs
+            .iter()
+            .map(|if_ctx| {
+                if_ctx.lvars.iter().fold(vec![], |mut init, (key, value)| {
+                    let hirlvar = HirLVar {
+                        name: key.clone(),
+                        ty: value.ty.clone(),
+                        captured: value.captured,
+                    };
+                    init.push(hirlvar);
+                    init
+                })
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
         Ok(Hir::if_expression(
             if_ty,
             cond_hir,
             then_hirs,
             else_hirs,
+            lvars,
             locs.clone(),
         ))
     }
@@ -248,9 +273,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         self.ctx_stack.push(HirMakerContext::while_ctx());
         let body_hirs = self.convert_exprs(body_exprs)?;
-        self.ctx_stack.pop_while_ctx();
 
-        Ok(Hir::while_expression(cond_hir, body_hirs, locs.clone()))
+        let lvars = Vec::from_iter(self.ctx_stack.pop_while_ctx().lvars.iter().map(
+            |(key, value)| HirLVar {
+                name: key.clone(),
+                ty: value.ty.clone(),
+                captured: value.captured,
+            },
+        ));
+
+        Ok(Hir::while_expression(
+            cond_hir,
+            body_hirs,
+            lvars,
+            locs.clone(),
+        ))
     }
 
     fn convert_break_expr(&mut self, locs: &LocationSpan) -> Result<HirExpression> {

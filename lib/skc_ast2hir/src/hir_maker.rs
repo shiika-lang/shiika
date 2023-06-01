@@ -629,6 +629,7 @@ fn _set_default(
         cond_expr,
         then_exprs,
         else_exprs,
+        vec![],
         LocationSpan::internal(),
     );
     Ok(if_expr)

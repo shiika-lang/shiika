@@ -178,6 +178,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 then_exprs,
                 else_exprs,
+                ..
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
@@ -195,6 +196,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
+                ..
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
                 self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
@@ -325,6 +327,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 cond_expr,
                 then_exprs,
                 else_exprs,
+                ..
             } => {
                 self.gen_lambda_capture_structs_in_expr(cond_expr)?;
                 self.gen_lambda_capture_structs_in_exprs(&then_exprs.exprs)?;
@@ -342,6 +345,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirWhileExpression {
                 cond_expr,
                 body_exprs,
+                ..
             } => {
                 self.gen_lambda_capture_structs_in_expr(cond_expr)?;
                 self.gen_lambda_capture_structs_in_exprs(&body_exprs.exprs)?;
