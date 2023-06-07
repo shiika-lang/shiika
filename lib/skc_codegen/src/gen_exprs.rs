@@ -713,6 +713,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Check `break` in block
         if ret_ty.is_void_type() {
+            let broke_block = self.context.append_basic_block(ctx.function, "Broke");
             let exit_status =
                 self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
             let eq = self.gen_method_func_call(
@@ -720,8 +721,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
             );
-            self.gen_conditional_branch(eq, *ctx.current_func_end, end_block);
+            self.gen_conditional_branch(eq, broke_block, end_block);
+
+            // If `break` happened...
+            self.builder.position_at_end(broke_block);
+            if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
+                // Set @exit_status
+                let fn_x = self.get_nth_param(&ctx.function, 0);
+                let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
+                self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
+            }
+            self.builder
+                .build_unconditional_branch(*ctx.current_func_end);
         } else {
+            // No check is needed because `break` is not allowed if the lambda has a return type.
             self.builder.build_unconditional_branch(end_block);
         }
         self.builder.position_at_end(end_block);

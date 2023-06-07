@@ -98,4 +98,17 @@ unless A.w_arg_end == 1; puts "ng w_arg_end" end
 #unless A.return_from_block == 99; puts "ng return_from_block" end
 unless A.return_from_fn == 1; puts "ng return_from_fn" end
 
+# #484 break from lambda in lambda
+class Issue484
+  def self.run
+    let a = Array<String>.new
+    "he\nllo".each_char do |b|
+      break if b == "\n"
+      a.push(b)
+    end
+    unless a == ["h", "e"]; puts "ng Issue484"; end
+  end
+end
+Issue484.run
+
 puts "ok"
