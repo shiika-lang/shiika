@@ -45,6 +45,20 @@ impl SkStr {
         unsafe { gen_literal_string(leaked.as_ptr() as *const u8, bytesize) }
     }
 
+    pub fn from_u8(u8slice: Vec<u8>) -> SkStr {
+        let bytesize = u8slice.len() as i64;
+        let cstring = CString::new(u8slice).unwrap();
+        let leaked = Box::leak(Box::new(cstring));
+        unsafe { gen_literal_string(leaked.as_ptr() as *const u8, bytesize) }
+    }
+}
+
+impl SkStr {
+    /// Shallow clone
+    pub fn dup(&self) -> SkStr {
+        SkStr(self.0)
+    }
+
     fn u8ptr(&self) -> *const u8 {
         unsafe { (*self.0).ptr.unbox() }
     }

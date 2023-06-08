@@ -36,6 +36,11 @@ class MutableString
     write_byte(@bytesize - 1, b)
   end
 
+  # Return true if `self` contains nothing
+  def empty? -> Bool
+    @bytesize == 0
+  end
+
   # Create a immutable clone of self. The contents of the returned string will not change
   # even if this object is dectructively modified.
   def to_s -> String

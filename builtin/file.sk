@@ -1,5 +1,26 @@
-class File
+require "./readable.sk"
+
+class File : Readable
   # def self.read(path: String) -> Result<String>
 
   # def self.write(path: String, content: String) -> Result<Void>
+
+  def self.open<V>(path: String, f: Fn1<File,V>) -> V
+    let file = File._open(path)
+    let v = f(file)
+    #file.close
+    v
+  end
+
+  # def read -> String
+  
+  # def close
+
+  def fill_buf -> Result<String>
+    _fill_buf
+  end
+
+  def consume(n_bytes: Int)
+    _consume(n_bytes)
+  end
 end

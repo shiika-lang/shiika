@@ -1,0 +1,14 @@
+HELLO_TXT_PATH = "tests/data/hello.txt"
+
+# Readable#lines, #read_line
+File.write(HELLO_TXT_PATH, "hello\nworld")
+File.open(HELLO_TXT_PATH) do |f|
+  match f.lines
+  when Ok(ls)
+    unless ls == ["hello", "world"]; puts "#lines failed: \{ls}"; end
+  when Fail(e)
+    puts "#lines failed: #{e}"
+  end
+end
+
+puts "ok"
