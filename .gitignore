@@ -13,4 +13,5 @@
 /rusty-tags.vi
 /target
 /tests/tmp.*
+/tests/data/hello.txt
 .DS_Store
