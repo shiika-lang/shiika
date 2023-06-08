@@ -81,6 +81,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &metaclass_fullname,
                 self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
                 &ty::return_type_of_new(&fullname.clone().into(), &typarams),
+                typarams.clone(),
             ))
         };
 
@@ -751,7 +752,12 @@ fn enum_case_new_sig(
         ty::spe(&fullname.0, tyargs)
     };
     (
-        signature::signature_of_new(&fullname.meta_name(), params.clone(), &ret_ty),
+        signature::signature_of_new(
+            &fullname.meta_name(),
+            params.clone(),
+            &ret_ty,
+            typarams.to_vec(),
+        ),
         signature::signature_of_initialize(fullname, params),
     )
 }
