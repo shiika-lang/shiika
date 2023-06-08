@@ -11,8 +11,6 @@ class File : Readable
     #file.close
     v
   end
-
-  # def read -> String
   
   # def close
 

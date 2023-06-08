@@ -26,7 +26,6 @@
   ["Int", ">=(other: Int) -> Bool"],
   ["Int", "==(other: Int) -> Bool"],
   ["Int", "to_f -> Float"],
-  ["File", "read -> String"],
   ["File", "_fill_buf -> Result<String>"],
   ["File", "_consume(n_bytes: Int)"],
   ["Meta:File", "read(path: String) -> Result<String>"],

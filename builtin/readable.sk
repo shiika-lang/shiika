@@ -49,4 +49,22 @@ module Readable
     end
     Ok<Array<String>>.new(a)
   end
+
+  def read -> Result<String>
+    let acc = MutableString.new
+    while true
+      match fill_buf
+      when Ok(s)
+        if s.bytesize == 0
+          break
+        else
+          acc.append(s)
+          consume(s.bytesize)
+        end
+      when Fail(e)
+        return Fail<String>.new(e)
+      end
+    end
+    Ok<String>.new(acc._unsafe_to_s)
+  end
 end

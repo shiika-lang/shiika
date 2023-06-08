@@ -73,14 +73,6 @@ pub extern "C" fn meta_file__open(the_file: SkClass, path: SkStr) -> SkFile {
     }
 }
 
-#[shiika_method("File#read")]
-pub extern "C" fn file_read(mut sk_file: SkFile) -> SkStr {
-    let buf_reader = sk_file.buf_reader_mut();
-    let mut contents = String::new();
-    buf_reader.read_to_string(&mut contents).unwrap(); // TODO: use SkResult
-    contents.into()
-}
-
 //#[shiika_method("File#close")]
 //pub extern "C" fn file_close(sk_file: SkFile) {
 //    unsafe { (*sk_file.0).file = None }
