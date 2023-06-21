@@ -220,7 +220,10 @@ fn get_base_ty(mk: &mut HirMaker, names: &[String]) -> Result<Erasure> {
     if expr.ty.is_metaclass() || expr.ty.is_typaram_ref() {
         return Ok(expr.ty.instance_ty().erasure());
     }
-    if let Some(cls) = mk.class_dict.lookup_class(&expr.ty.fullname) {
+    if let Some(cls) = mk
+        .class_dict
+        .lookup_class(&expr.ty.fullname.to_class_fullname())
+    {
         if cls.const_is_obj {
             return Ok(expr.ty.erasure()); // eg. Void, None, etc.
         }

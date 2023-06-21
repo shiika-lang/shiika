@@ -17,7 +17,7 @@ pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool)
     debug_assert!(!base_name.is_empty());
     debug_assert!(!base_name.starts_with("Meta:"));
     debug_assert!(!base_name.contains('<'));
-    let fullname = ClassFullname::new(
+    let fullname = TypeFullname::new(
         format!("{}{}", &base_name, &tyargs_str(&type_args)),
         is_meta,
     );

@@ -455,7 +455,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
-        if let Some(ivar) = self.class_dict.find_ivar(&base_ty.fullname, name) {
+        if let Some(ivar) = self
+            .class_dict
+            .find_ivar(&base_ty.fullname.to_class_fullname(), name)
+        {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -803,7 +806,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
             .class_dict
-            .find_ivar(&base_ty.fullname, name)
+            .find_ivar(&base_ty.fullname.to_class_fullname(), name)
             .or_else(|| {
                 self.ctx_stack
                     .method_ctx()
@@ -892,7 +895,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let sk_type = self
             .class_dict
-            .get_type(&base_expr.ty.instance_ty().fullname.to_type_fullname());
+            .get_type(&base_expr.ty.instance_ty().fullname);
         type_checking::check_class_specialization(&sk_type, &arg_exprs, &locs)?;
 
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
