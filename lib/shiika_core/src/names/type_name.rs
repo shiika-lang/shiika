@@ -28,7 +28,11 @@ impl TypeFullname {
 
     /// Returns a ClassFullname of the same name. Should only be called when
     /// `self` is a class (i.e. is not a module.)
-    pub fn to_class_fullname(self) -> ClassFullname {
+    pub fn to_class_fullname(&self) -> ClassFullname {
+        class_fullname(&self.0)
+    }
+
+    pub fn as_class_fullname(self) -> ClassFullname {
         class_fullname(self.0)
     }
 

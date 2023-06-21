@@ -382,7 +382,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Default::default(),
         )?;
         let new_body = SkMethodBody::New {
-            classname: class_name.fullname.clone(),
+            classname: class_name.fullname.to_class_fullname(),
             initialize_name,
             init_cls_name,
             arity: found.sig.params.len(),

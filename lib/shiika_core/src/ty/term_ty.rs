@@ -283,7 +283,7 @@ impl TermTy {
             TyRaw(LitTy {
                 base_name, is_meta, ..
             }) => ClassFullname::new(base_name, *is_meta),
-            _ => self.fullname.clone().to_class_fullname(),
+            _ => self.fullname.to_class_fullname(),
         }
     }
 
