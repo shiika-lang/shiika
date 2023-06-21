@@ -1,4 +1,4 @@
-use super::class_name::{class_firstname, metaclass_fullname, ClassFirstname, ClassFullname};
+use super::class_name::{metaclass_fullname, ClassFullname};
 use super::const_name::{const_fullname, ConstFullname};
 use super::type_name::{type_fullname, TypeFullname};
 use serde::{Deserialize, Serialize};
@@ -19,11 +19,6 @@ impl ModuleFirstname {
         } else {
             module_fullname(namespace.to_string() + "::" + &self.0)
         }
-    }
-
-    // TODO: Remove this
-    pub fn to_class_first_name(&self) -> ClassFirstname {
-        class_firstname(self.0.clone())
     }
 }
 
