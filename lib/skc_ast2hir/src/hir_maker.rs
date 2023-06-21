@@ -168,11 +168,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ))
     }
 
-    // Process definitions in a class or the toplevel.
+    // Process definitions in a class/module or the toplevel.
     fn process_defs(
         &mut self,
         namespace: &Namespace,
-        opt_fullname: Option<&ClassFullname>,
+        opt_fullname: Option<&TypeFullname>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         for def in defs {
@@ -180,10 +180,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method =
-                            self.convert_method_def(&fullname.to_type_fullname(), sig, body_exprs)?;
-                        self.method_dict
-                            .add_method(fullname.to_type_fullname(), method);
+                        let method = self.convert_method_def(fullname, sig, body_exprs)?;
+                        self.method_dict.add_method(fullname.clone(), method);
                     } else {
                         return Err(error::program_error(
                             "you cannot define methods at toplevel",
@@ -295,7 +293,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
 
         // Process inner defs
-        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
+        self.process_defs(&inner_namespace, Some(&fullname.to_type_fullname()), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
     }
@@ -308,7 +306,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         typarams: Vec<TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(&firstname.to_class_first_name());
+        let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         self.ctx_stack
             .push(HirMakerContext::class(inner_namespace.clone(), typarams));
@@ -317,7 +315,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self._process_const_defs_in_class(&inner_namespace, defs)?;
 
         // Process inner defs
-        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
+        self.process_defs(&inner_namespace, Some(&fullname.to_type_fullname()), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
     }
@@ -507,7 +505,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.ctx_stack
             .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
-        self.process_defs(&inner_namespace, Some(&fullname), defs)?;
+        self.process_defs(&inner_namespace, Some(&fullname.to_type_fullname()), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
     }
