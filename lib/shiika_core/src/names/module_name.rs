@@ -1,4 +1,4 @@
-use super::class_name::{class_firstname, ClassFirstname};
+use super::class_name::{class_firstname, metaclass_fullname, ClassFirstname, ClassFullname};
 use super::const_name::{const_fullname, ConstFullname};
 use super::type_name::{type_fullname, TypeFullname};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,10 @@ impl ModuleFullname {
 
     pub fn to_const_fullname(&self) -> ConstFullname {
         const_fullname(&self.0)
+    }
+
+    pub fn meta_name(&self) -> ClassFullname {
+        metaclass_fullname(&self.0)
     }
 }
 
