@@ -14,6 +14,7 @@ pub enum ArrangedArg<'ast> {
     Default(&'ast TermTy),
 }
 
+/// Entry point of Converting `AstMethodCall` into `HirMethodCall`.
 pub fn convert_method_call(
     mk: &mut HirMaker,
     receiver_expr: &Option<Box<AstExpression>>,
@@ -179,6 +180,8 @@ fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy
 fn convert_method_args(
     mk: &mut HirMaker,
     inf: Option<method_call_inf::MethodCallInf1>,
+    // The method or lambda to be called.
+    // (TODO: this name is odd when has_block=false...)
     block_taker: &BlockTaker,
     arg_exprs: &[ArrangedArg],
     has_block: bool,
