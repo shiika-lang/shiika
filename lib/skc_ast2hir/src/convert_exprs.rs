@@ -647,7 +647,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .class_dict
             .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
         if let Ok(found) = result {
-            method_call::build_simple(self, found, self_expr)
+            method_call::build_simple(self, found, self_expr, locs)
         } else {
             Err(error::unknown_barename(name, locs))
         }
@@ -978,7 +978,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Expand `[123]` into `tmp=Array<X>.new; tmp.push(123)`
-    fn create_array_instance_(
+    pub fn create_array_instance_(
         &mut self,
         item_exprs: Vec<HirExpression>,
         item_ty: TermTy,

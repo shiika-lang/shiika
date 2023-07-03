@@ -50,4 +50,12 @@ impl FoundMethod {
             ..self.clone()
         }
     }
+
+    /// Returns if this is of the form `Foo.new<Bar>`
+    pub fn is_generic_new(&self, receiver_ty: &TermTy) -> bool {
+        self.sig.fullname.first_name.0 == "new"
+            && receiver_ty.is_metaclass()
+            && !receiver_ty.has_type_args()
+            && !self.sig.typarams.is_empty()
+    }
 }

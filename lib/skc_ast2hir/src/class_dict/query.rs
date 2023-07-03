@@ -6,7 +6,7 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
-    /// Find a method in a class or module. Does not lookup into superclass.
+    /// Find a method in a class or module. Unlike `lookup_method`, does not lookup into superclass.
     pub fn find_method(
         &self,
         fullname: &TypeFullname,
