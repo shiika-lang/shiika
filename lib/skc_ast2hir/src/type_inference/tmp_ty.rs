@@ -9,6 +9,8 @@ pub enum TmpTy {
     /// This type is unknown and should be inferred from other parts of the program.
     Unknown(Id),
     /// Mostly the same as `ty::LitTy` but may contain `Unknown` as a type argument.
+    /// (In other words, a `ty::LitTy` or `ty::TermTy` is guaranteed to
+    /// be Unknown-free.)
     Literal {
         base_name: String,
         type_args: Vec<TmpTy>,

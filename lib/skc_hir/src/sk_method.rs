@@ -33,6 +33,7 @@ pub enum SkMethodBody {
 }
 
 impl SkMethod {
+    /// Create a SkMethod which does not use lvar at all.
     pub fn simple(signature: MethodSignature, body: SkMethodBody) -> SkMethod {
         SkMethod {
             signature,

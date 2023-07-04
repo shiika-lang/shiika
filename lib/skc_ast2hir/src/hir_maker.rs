@@ -575,6 +575,27 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         //   %"expr@0_3" = load %Maybe*, %Maybe** %"expr@0"
         format!("{}@{}_", prefix, n)
     }
+
+    /// Returns a HIR that evaluates to a (possibly specialized) class object.
+    pub fn get_class_object(&mut self, ty: &TermTy, locs: &LocationSpan) -> HirExpression {
+        debug_assert!(!ty.is_typaram_ref());
+        debug_assert!(ty.is_metaclass());
+        let base = Hir::const_ref(ty.clone(), ty.erasure().to_const_fullname(), locs.clone());
+        let tyargs = ty.tyargs();
+        if tyargs.is_empty() {
+            return base;
+        }
+        let tyarg_classes = tyargs
+            .iter()
+            .map(|t| self.get_class_object(&t.meta_ty(), locs))
+            .collect::<Vec<_>>();
+        Hir::method_call(
+            ty.clone(),
+            base,
+            method_fullname_raw("Class", "<>"),
+            vec![self.create_array_instance_(tyarg_classes, ty::raw("Class"), locs.clone())],
+        )
+    }
 }
 
 /// Destructively extract list of local variables

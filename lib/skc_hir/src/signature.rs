@@ -205,12 +205,13 @@ pub fn signature_of_new(
     metaclass_fullname: &ClassFullname,
     initialize_params: Vec<MethodParam>,
     instance_ty: &TermTy,
+    typarams: Vec<ty::TyParam>,
 ) -> MethodSignature {
     MethodSignature {
         fullname: method_fullname(metaclass_fullname.clone().into(), "new"),
         ret_ty: instance_ty.clone(),
         params: initialize_params,
-        typarams: vec![],
+        typarams,
     }
 }
 
