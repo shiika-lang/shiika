@@ -8,7 +8,7 @@ module Enumerable<E>
     match [a.length, b.length].min
     when Maybe::Some(n)
       0.upto(n-1) do |i|
-        ret.push(Pair<A, B>.new(a[i], b[i]))
+        ret.push(Pair.new(a[i], b[i]))
       end
     end
     ret
