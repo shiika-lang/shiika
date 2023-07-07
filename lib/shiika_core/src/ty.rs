@@ -27,8 +27,8 @@ pub fn new(base_name_: impl Into<String>, type_args: Vec<TermTy>, is_meta: bool)
     }
 }
 
-pub fn nonmeta(names: &[String], args: Vec<TermTy>) -> TermTy {
-    ty::new(&names.join("::"), args, false)
+pub fn nonmeta(name: impl Into<String>, args: Vec<TermTy>) -> TermTy {
+    ty::new(name, args, false)
 }
 
 /// Returns the type of instances of the class
@@ -50,16 +50,6 @@ pub fn spe(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
 
 pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy {
     new(base_name_, type_args, true)
-}
-
-/// Create the type of return value of `.new` method of the class
-pub fn return_type_of_new(classname: &TypeFullname, typarams: &[TyParam]) -> TermTy {
-    if typarams.is_empty() {
-        ty::raw(&classname.0)
-    } else {
-        let args = typarams_to_tyargs(typarams);
-        ty::spe(&classname.0, args)
-    }
 }
 
 pub fn typarams_to_tyargs(typarams: &[TyParam]) -> Vec<TermTy> {

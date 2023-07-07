@@ -201,16 +201,36 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
 }
 
 /// Create a signature of a `new` method
+/// eg. Given this Pair#initialize,
+///     def initialize(@fst: A, @snd: B)
+///   returns
+///   Meta:Pair.new<A, B>(@fst: A, @snd: B) -> Pair<A, B>
 pub fn signature_of_new(
+    // eg. `Meta:Pair`
     metaclass_fullname: &ClassFullname,
     initialize_params: Vec<MethodParam>,
-    instance_ty: &TermTy,
+    _instance_ty: &TermTy,
+    typarams: Vec<ty::TyParam>,
 ) -> MethodSignature {
+    let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method)
+        .into_iter()
+        .map(|x| x.into_term_ty())
+        .collect::<Vec<_>>();
+
+    // Replace references of class typarams with method typarams
+    let params = initialize_params
+        .iter()
+        .map(|param| param.substitute(&method_typaram_refs, Default::default()))
+        .collect::<Vec<_>>();
+
+    let instance_ty_base = metaclass_fullname.to_ty().instance_ty();
+    let ret_ty = instance_ty_base.specialized_ty(method_typaram_refs);
+
     MethodSignature {
         fullname: method_fullname(metaclass_fullname.clone().into(), "new"),
-        ret_ty: instance_ty.clone(),
-        params: initialize_params,
-        typarams: vec![],
+        ret_ty,
+        params,
+        typarams,
     }
 }
 

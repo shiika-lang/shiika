@@ -196,7 +196,8 @@ impl CtxStack {
                     ty::meta(&class_ctx.namespace.string())
                 } else {
                     let classname = &method_ctx.signature.fullname.type_name;
-                    ty::return_type_of_new(classname, &class_ctx.typarams)
+                    let args = ty::typarams_to_tyargs(&class_ctx.typarams);
+                    ty::nonmeta(&classname.0, args)
                 }
             } else {
                 ty::meta(&class_ctx.namespace.string())
