@@ -68,7 +68,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
-        if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+        if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
             if method_tyargs.len() > 0 && method_tyargs.len() != found.sig.typarams.len() {
                 return Err(error::type_error(format!(
                     "wrong number of type arguments, expected: {:?} got: {:?}",
@@ -77,8 +77,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 )));
             }
 
-            found.specialize(class_tyargs, method_tyargs);
-            return Ok(found);
+            return Ok(specialized_version(
+                found,
+                receiver_type,
+                class_tyargs,
+                method_tyargs,
+            ));
         }
         match sk_type {
             SkType::Class(sk_class) => {
@@ -241,6 +245,33 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 .map(|(name, ivar)| (name.clone(), ivar.substitute(&ty.type_args)))
                 .collect()
         })
+    }
+}
+
+fn specialized_version(
+    mut found: FoundMethod,
+    receiver_ty: &TermTy,
+    class_tyargs: &[TermTy],
+    method_tyargs: &[TermTy],
+) -> FoundMethod {
+    if found.sig.fullname.first_name.0 == "new"
+        && receiver_ty.is_metaclass()
+        && receiver_ty.has_type_args()
+    {
+        // Special handling for `.new`.
+        // self:    `#new<A0M,B1M>(a: A0M, b: B1M) -> Pair<A0M,B1M>`
+        // returns: `#new(a: A0C, b: B1C) -> Pair<A0C,B1C>`
+        let sig2 = found.sig.specialize(Default::default(), class_tyargs);
+        FoundMethod {
+            sig: MethodSignature {
+                typarams: Default::default(),
+                ..sig2
+            },
+            ..found
+        }
+    } else {
+        found.specialize(class_tyargs, method_tyargs);
+        found
     }
 }
 
