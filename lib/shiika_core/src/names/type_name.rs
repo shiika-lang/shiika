@@ -40,6 +40,9 @@ impl TypeFullname {
         toplevel_const(&self.0)
     }
 
+    /// Convert this name to TermTy
+    /// Note that this does not consider type parameters (you may need to give them with
+    /// .specialize)
     pub fn to_ty(&self) -> TermTy {
         if self.is_meta() {
             ty::meta(&self.0.clone().split_off(5))

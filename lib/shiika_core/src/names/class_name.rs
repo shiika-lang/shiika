@@ -1,5 +1,6 @@
 use super::const_name::*;
 use super::type_name::*;
+use crate::ty::TermTy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -81,5 +82,9 @@ impl ClassFullname {
 
     pub fn meta_name(&self) -> ClassFullname {
         metaclass_fullname(&self.0)
+    }
+
+    pub fn to_ty(&self) -> TermTy {
+        self.to_type_fullname().to_ty()
     }
 }

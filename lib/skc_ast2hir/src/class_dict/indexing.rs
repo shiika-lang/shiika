@@ -80,7 +80,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(signature::signature_of_new(
                 &metaclass_fullname,
                 self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
-                &ty::return_type_of_new(&fullname.clone().into(), &typarams),
                 typarams.clone(),
             ))
         };
@@ -662,7 +661,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 name
             )));
         }
-        Ok(ty::nonmeta(&resolved_base, tyargs))
+        Ok(ty::nonmeta(&resolved_base.join("::"), tyargs))
     }
 
     /// Resolve the given type name (without type arguments) to fullname
@@ -741,23 +740,8 @@ fn enum_case_new_sig(
             has_default: false,
         })
         .collect::<Vec<_>>();
-    let ret_ty = if ivar_list.is_empty() {
-        ty::raw(&fullname.0)
-    } else {
-        let tyargs = typarams
-            .iter()
-            .enumerate()
-            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
-            .collect::<Vec<_>>();
-        ty::spe(&fullname.0, tyargs)
-    };
     (
-        signature::signature_of_new(
-            &fullname.meta_name(),
-            params.clone(),
-            &ret_ty,
-            typarams.to_vec(),
-        ),
+        signature::signature_of_new(&fullname.meta_name(), params.clone(), typarams.to_vec()),
         signature::signature_of_initialize(fullname, params),
     )
 }

@@ -36,6 +36,10 @@ impl Default for TmpTy {
 }
 
 impl TmpTy {
+    pub fn unknown(id: Id) -> TmpTy {
+        TmpTy::Unknown(id)
+    }
+
     /// Make a TmpTy from a TermTy by replacing TyParamRef's with `Unknown`s.
     pub fn make(t: &TermTy, vars: &[(Id, TyParamRef)]) -> TmpTy {
         match &t.body {
