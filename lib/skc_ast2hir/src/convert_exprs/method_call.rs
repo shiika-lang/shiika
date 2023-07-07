@@ -252,8 +252,6 @@ pub fn build(
     let hir = build_hir(&found, &owner, receiver, args, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
-    } else if specialized {
-        Ok(hir) //Hir::bit_cast(found.sig.ret_ty.erasure().to_term_ty(), hir))
     } else {
         Ok(hir)
     }
