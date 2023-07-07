@@ -1,3 +1,4 @@
+pub mod generic_new;
 pub mod method_call_inf;
 mod tmp_ty;
 use crate::error::type_error;
@@ -13,6 +14,18 @@ type Id = usize;
 struct Equation(TmpTy, TmpTy);
 
 impl Equation {
+    pub fn display_equations(equations: &[Equation]) -> String {
+        equations
+            .iter()
+            .map(|e| e.display())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    pub fn display(&self) -> String {
+        format!("{} = {}", &self.0, &self.1)
+    }
+
     /// Returns swapped version of self
     fn swap(self) -> Equation {
         Equation(self.1, self.0)
@@ -40,6 +53,10 @@ impl fmt::Display for Answer {
 }
 
 impl Answer {
+    fn new() -> Answer {
+        Answer(Default::default())
+    }
+
     /// Introduce new knowledge (Unknown(id) = t) to `self`.
     fn merge(&mut self, id: Id, t: TmpTy) {
         let mut h = self
@@ -53,7 +70,16 @@ impl Answer {
 
     /// Apply `self` to TmpTy's
     fn apply_to_vec(&self, tmp_tys: &[TmpTy]) -> Result<Vec<TermTy>> {
-        tmp_tys.iter().map(|tt| self.apply_to(tt)).collect()
+        let dump = tmp_tys
+            .iter()
+            .map(|t| format!("{}", t))
+            .collect::<Vec<_>>()
+            .join(", ");
+        tmp_tys
+            .iter()
+            .map(|tt| self.apply_to(tt))
+            .collect::<Result<Vec<_>>>()
+            .context(format!("On solving {}", dump))
     }
 
     /// Creates a `TermTy` by applying `self` to the `Unknown`s in `t`.

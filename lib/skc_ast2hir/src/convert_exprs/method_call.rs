@@ -2,11 +2,12 @@ use crate::class_dict::FoundMethod;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
-use crate::type_inference::method_call_inf;
+use crate::type_inference::{self, method_call_inf};
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
 use shiika_ast::{AstCallArgs, AstExpression, LocationSpan};
-use shiika_core::{names::MethodFirstname, ty, ty::TermTy};
+use shiika_core::names::{method_fullname, MethodFirstname};
+use shiika_core::{ty, ty::TermTy};
 use skc_hir::*;
 
 pub enum ArrangedArg<'ast> {
@@ -59,7 +60,6 @@ pub fn convert_method_call(
     } else {
         None
     };
-    let msg = format!("Type inferrence failed: {:?}", inf1);
     let (arg_hirs, inf3) = convert_method_args(
         mk,
         inf1,
@@ -69,9 +69,9 @@ pub fn convert_method_call(
         },
         &arranged,
         args.has_block(),
-    )
-    .context(msg)?;
-    build(mk, found, receiver_hir, arg_hirs, inf3)
+    )?;
+
+    build(mk, found, receiver_hir, arg_hirs, inf3, method_tyargs, locs)
 }
 
 /// Arrange named and unnamed arguments into a Vec which corresponds to `sig.params`.
@@ -200,9 +200,13 @@ fn convert_method_args(
 
     if infer_block {
         let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
-        let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys)?;
+        let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys).context(format!(
+            "failed to infer block parameter of {}",
+            block_taker
+        ))?;
         let block_hir = block::convert_block(mk, block_taker, &inf2, &arg_exprs.last().unwrap())?;
-        let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)?;
+        let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)
+            .context(format!("failed to infer result type of {}", block_taker))?;
 
         arg_hirs.push(block_hir);
         Ok((arg_hirs, Some(inf3)))
@@ -213,9 +217,10 @@ fn convert_method_args(
 
 /// For method calls without any arguments.
 pub fn build_simple(
-    mk: &HirMaker,
+    mk: &mut HirMaker,
     found: FoundMethod,
     receiver_hir: HirExpression,
+    locs: &LocationSpan,
 ) -> Result<HirExpression> {
     build(
         mk,
@@ -223,20 +228,26 @@ pub fn build_simple(
         receiver_hir,
         Default::default(),
         Default::default(),
+        Default::default(),
+        locs,
     )
 }
 
 /// Check the arguments and create HirMethodCall or HirModuleMethodCall
 pub fn build(
-    mk: &HirMaker,
+    mk: &mut HirMaker,
     found: FoundMethod,
     receiver_hir: HirExpression,
     mut arg_hirs: Vec<HirExpression>,
     inf: Option<method_call_inf::MethodCallInf3>,
+    method_tyargs: Vec<TermTy>,
+    locs: &LocationSpan,
 ) -> Result<HirExpression> {
     check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs, &inf)?;
+    let receiver_ty = receiver_hir.ty.clone();
     let specialized = receiver_hir.ty.is_specialized();
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
+    let arg_types = arg_hirs.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
 
     let owner = mk.class_dict.get_type(&found.owner);
     let receiver = Hir::bit_cast(owner.erasure().to_term_ty(), receiver_hir);
@@ -248,6 +259,21 @@ pub fn build(
     } else {
         arg_hirs
     };
+
+    // Special handling for `Foo<X>.new`, or
+    // `Foo.new(x)`, in which case `X` is inferred from the type of `x`.
+    if found.is_generic_new(&receiver_ty) {
+        let tyargs = if method_tyargs.is_empty() {
+            let err = error::method_tyarg_inference_failed(
+                format!("Could not infer type arg(s) of {}", found.sig),
+                locs,
+            );
+            type_inference::generic_new::infer_tyargs(&found.sig, &arg_types).context(err)?
+        } else {
+            method_tyargs
+        };
+        return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
+    }
 
     let hir = build_hir(&found, &owner, receiver, args, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
