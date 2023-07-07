@@ -5,8 +5,10 @@ use shiika_core::ty::{TermTy, TyParamKind};
 use skc_hir::MethodSignature;
 
 /// Phase 1
+/// Initial state.
 #[derive(Debug)]
 pub struct MethodCallInf1 {
+    /// True if the last method argument is a block.
     has_block: bool,
     pub method_arg_tys: Vec<TmpTy>,
     pub method_ret_ty: TmpTy,
@@ -134,6 +136,7 @@ impl MethodCallInf3 {
 
 /// Infer types of block parameters.
 pub fn infer_block_param(
+    // Destructively extracts information from inf.
     mut inf: MethodCallInf1,
     pre_block_arg_tys: &[&TermTy],
 ) -> Result<MethodCallInf2> {
