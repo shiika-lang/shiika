@@ -978,7 +978,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Expand `[123]` into `tmp=Array<X>.new; tmp.push(123)`
-    fn create_array_instance_(
+    pub fn create_array_instance_(
         &mut self,
         item_exprs: Vec<HirExpression>,
         item_ty: TermTy,

@@ -319,3 +319,23 @@ fn build_hir(
         ),
     }
 }
+
+/// Build HIR for `Foo<Bar>.new(x)`
+fn call_specialized_new(
+    mk: &mut HirMaker,
+    // `TermTy(Meta:Foo)`
+    receiver_ty: &TermTy,
+    // Args for .new
+    arg_hirs: Vec<HirExpression>,
+    tyargs: Vec<TermTy>,
+    locs: &LocationSpan,
+) -> HirExpression {
+    let meta_spe_ty = receiver_ty.specialized_ty(tyargs);
+    let spe_cls = mk.get_class_object(&meta_spe_ty, locs);
+    Hir::method_call(
+        meta_spe_ty.instance_ty(),
+        spe_cls,
+        method_fullname(receiver_ty.erasure().to_type_fullname(), "new"),
+        arg_hirs,
+    )
+}
