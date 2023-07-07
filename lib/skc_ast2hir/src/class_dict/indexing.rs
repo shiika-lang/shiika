@@ -77,11 +77,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let new_sig = if fullname.0 == "Never" {
             None
         } else {
-            let instance_ty = ty::nonmeta(&fullname.0, ty::typarams_to_tyargs(&typarams));
             Some(signature::signature_of_new(
                 &metaclass_fullname,
                 self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
-                &instance_ty,
                 typarams.clone(),
             ))
         };
@@ -742,23 +740,8 @@ fn enum_case_new_sig(
             has_default: false,
         })
         .collect::<Vec<_>>();
-    let ret_ty = if ivar_list.is_empty() {
-        ty::raw(&fullname.0)
-    } else {
-        let tyargs = typarams
-            .iter()
-            .enumerate()
-            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
-            .collect::<Vec<_>>();
-        ty::spe(&fullname.0, tyargs)
-    };
     (
-        signature::signature_of_new(
-            &fullname.meta_name(),
-            params.clone(),
-            &ret_ty,
-            typarams.to_vec(),
-        ),
+        signature::signature_of_new(&fullname.meta_name(), params.clone(), typarams.to_vec()),
         signature::signature_of_initialize(fullname, params),
     )
 }

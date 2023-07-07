@@ -209,7 +209,6 @@ pub fn signature_of_new(
     // eg. `Meta:Pair`
     metaclass_fullname: &ClassFullname,
     initialize_params: Vec<MethodParam>,
-    _instance_ty: &TermTy,
     typarams: Vec<ty::TyParam>,
 ) -> MethodSignature {
     let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method)
