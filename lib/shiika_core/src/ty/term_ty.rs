@@ -7,10 +7,10 @@ use nom::IResult;
 use serde::{de, ser};
 use std::fmt;
 
-/// Types for a term (types of Shiika values)
+/// Types for a term (a Shiika value).
 #[derive(PartialEq, Eq, Clone)]
 pub struct TermTy {
-    pub fullname: ClassFullname, // TODO: should be TypeFullname
+    pub fullname: TypeFullname,
     pub body: TyBody,
 }
 
@@ -283,7 +283,7 @@ impl TermTy {
             TyRaw(LitTy {
                 base_name, is_meta, ..
             }) => ClassFullname::new(base_name, *is_meta),
-            _ => self.fullname.clone(),
+            _ => self.fullname.to_class_fullname(),
         }
     }
 

@@ -1,0 +1,5 @@
+unless Array<Int>.new.class == Array<Int>; puts "fail 1"; end
+unless Array.new<Int>.class == Array<Int>; puts "fail 2"; end
+unless Pair.new(1, true).class == Pair<Int, Bool>; puts "fail 3"; end
+
+puts "ok"

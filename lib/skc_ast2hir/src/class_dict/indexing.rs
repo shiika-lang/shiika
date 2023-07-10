@@ -80,7 +80,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(signature::signature_of_new(
                 &metaclass_fullname,
                 self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
-                &ty::return_type_of_new(&fullname.clone().into(), &typarams),
+                typarams.clone(),
             ))
         };
 
@@ -221,7 +221,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: Vec<ty::TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.class_fullname(&firstname.to_class_first_name());
+        let fullname = namespace.module_fullname(&firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
@@ -361,25 +361,30 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
-        let (instance_methods, class_methods, _) =
-            self._index_inner_defs(namespace, fullname, typarams, defs, false)?;
+        let (instance_methods, class_methods, _) = self._index_inner_defs(
+            namespace,
+            fullname.to_type_fullname(),
+            typarams,
+            defs,
+            false,
+        )?;
         Ok((instance_methods, class_methods))
     }
 
     fn index_defs_in_module(
         &mut self,
         namespace: &Namespace,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
-        self._index_inner_defs(namespace, fullname, typarams, defs, true)
+        self._index_inner_defs(namespace, fullname.to_type_fullname(), typarams, defs, true)
     }
 
     fn _index_inner_defs(
         &mut self,
         namespace: &Namespace,
-        fullname: &ClassFullname,
+        fullname: TypeFullname,
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
         is_module: bool,
@@ -390,20 +395,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                    let hir_sig =
+                        self.create_signature(namespace, fullname.clone(), sig, typarams)?;
                     instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
-                    let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                    let hir_sig =
+                        self.create_signature(namespace, fullname.clone(), sig, typarams)?;
                     self._index_accessors(&mut instance_methods, sig, &hir_sig);
                     instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
                     let hir_sig = self.create_signature(
                         namespace,
-                        &fullname.meta_name(),
+                        fullname.meta_name().to_type_fullname(),
                         sig,
                         Default::default(),
                     )?;
@@ -420,7 +427,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     }
                     let hir_sig = self.create_signature(
                         namespace,
-                        &fullname.meta_name(),
+                        fullname.meta_name().to_type_fullname(),
                         sig,
                         Default::default(),
                     )?;
@@ -444,7 +451,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
                 shiika_ast::Definition::MethodRequirementDefinition { sig } => {
                     if is_module {
-                        let hir_sig = self.create_signature(namespace, fullname, sig, typarams)?;
+                        let hir_sig =
+                            self.create_signature(namespace, fullname.clone(), sig, typarams)?;
                         requirements.push(hir_sig);
                     } else {
                         return Err(error::syntax_error(&format!(
@@ -552,10 +560,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(())
     }
 
-    /// Register a class and its metaclass to self
+    /// Register a module and its metaclass(metamodule?) to self
     fn add_new_module(
         &mut self,
-        fullname: &ClassFullname,
+        fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
@@ -598,12 +606,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn create_signature(
         &self,
         namespace: &Namespace,
-        class_fullname: &ClassFullname,
+        type_fullname: TypeFullname,
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
-        let fullname = method_fullname(class_fullname.to_type_fullname_(), &sig.name.0);
+        let fullname = method_fullname(type_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
             self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
@@ -653,7 +661,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 name
             )));
         }
-        Ok(ty::nonmeta(&resolved_base, tyargs))
+        Ok(ty::nonmeta(&resolved_base.join("::"), tyargs))
     }
 
     /// Resolve the given type name (without type arguments) to fullname
@@ -732,18 +740,8 @@ fn enum_case_new_sig(
             has_default: false,
         })
         .collect::<Vec<_>>();
-    let ret_ty = if ivar_list.is_empty() {
-        ty::raw(&fullname.0)
-    } else {
-        let tyargs = typarams
-            .iter()
-            .enumerate()
-            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
-            .collect::<Vec<_>>();
-        ty::spe(&fullname.0, tyargs)
-    };
     (
-        signature::signature_of_new(&fullname.meta_name(), params.clone(), &ret_ty),
+        signature::signature_of_new(&fullname.meta_name(), params.clone(), typarams.to_vec()),
         signature::signature_of_initialize(fullname, params),
     )
 }

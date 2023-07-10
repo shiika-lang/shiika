@@ -122,3 +122,11 @@ pub fn named_arg_for_lambda(name: &str, locs: &LocationSpan) -> anyhow::Error {
     });
     program_error(report)
 }
+
+pub fn method_tyarg_inference_failed(detail: String, locs: &LocationSpan) -> anyhow::Error {
+    let report =
+        skc_error::build_report("Type inference failed".to_string(), locs, |r, locs_span| {
+            r.with_label(Label::new(locs_span).with_message(detail))
+        });
+    program_error(report)
+}

@@ -1,5 +1,6 @@
 use super::const_name::*;
 use super::type_name::*;
+use crate::ty::TermTy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -75,17 +76,15 @@ impl ClassFullname {
         type_fullname(&self.0)
     }
 
-    // Same as `to_type_fullname` but indicates need of refactoring (eg. `self`
-    // should be replaced with a TypeFullname)
-    pub fn to_type_fullname_(&self) -> TypeFullname {
-        type_fullname(&self.0)
-    }
-
     pub fn to_const_fullname(&self) -> ConstFullname {
         toplevel_const(&self.0)
     }
 
     pub fn meta_name(&self) -> ClassFullname {
         metaclass_fullname(&self.0)
+    }
+
+    pub fn to_ty(&self) -> TermTy {
+        self.to_type_fullname().to_ty()
     }
 }
