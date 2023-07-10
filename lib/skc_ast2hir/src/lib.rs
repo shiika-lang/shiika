@@ -73,10 +73,7 @@ fn parse_typarams(typarams: &[shiika_ast::AstTyParam]) -> Vec<ty::TyParam> {
                 shiika_ast::AstVariance::Covariant => ty::Variance::Covariant,
                 shiika_ast::AstVariance::Contravariant => ty::Variance::Contravariant,
             };
-            ty::TyParam {
-                name: param.name.clone(),
-                variance: v,
-            }
+            ty::TyParam::new(param.name.clone(), v)
         })
         .collect::<Vec<_>>()
 }

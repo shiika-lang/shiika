@@ -1,3 +1,4 @@
+use crate::ty::{self, TermTy};
 use nom::IResult;
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct TyParam {
     pub name: String,
     pub variance: Variance,
+    pub upper_bound: TermTy,
+    pub lower_bound: TermTy,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -16,10 +19,12 @@ pub enum Variance {
 }
 
 impl TyParam {
-    pub fn new(name: impl Into<String>) -> TyParam {
+    pub fn new(name: impl Into<String>, variance: Variance) -> TyParam {
         TyParam {
             name: name.into(),
-            variance: Variance::Invariant,
+            variance,
+            upper_bound: ty::raw("Object"),
+            lower_bound: ty::raw("Never"),
         }
     }
 
@@ -43,12 +48,6 @@ impl TyParam {
         };
 
         let (s, name) = nom::character::complete::alphanumeric1(s)?;
-        Ok((
-            s,
-            TyParam {
-                name: name.to_string(),
-                variance,
-            },
-        ))
+        Ok((s, TyParam::new(name.to_string(), variance)))
     }
 }
