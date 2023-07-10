@@ -30,7 +30,7 @@
   ["File", "_consume(n_bytes: Int)"],
   ["Meta:File", "read(path: String) -> Result<String>"],
   ["Meta:File", "write(path: String, data: String) -> Result<Void>"],
-  ["Meta:File", "_open(path: String) -> File"],
+  ["Meta:File", "_open(path: String) -> Result<File>"],
   ["Float", "-@ -> Float"],
   ["Float", "+(other: Float) -> Float"],
   ["Float", "-(other: Float) -> Float"],

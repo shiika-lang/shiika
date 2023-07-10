@@ -5,11 +5,15 @@ class File : Readable
 
   # def self.write(path: String, content: String) -> Result<Void>
 
-  def self.open<V>(path: String, f: Fn1<File,V>) -> V
-    let file = File._open(path)
-    let v = f(file)
-    #file.close
-    v
+  def self.open<V>(path: String, f: Fn1<File,V>) -> Result<V>
+    match File._open(path)
+    when Ok(file)
+      let v = f(file)
+      #file.close
+      Ok<V>.new(v)
+    when Fail(e)
+      Fail<V>.new(e)
+    end
   end
   
   # def close

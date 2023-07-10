@@ -1,18 +1,20 @@
-use crate::builtin::{SkClass, SkInt, SkResult, SkStr, SkVoid};
+use crate::builtin::object::ShiikaObject;
+use crate::builtin::{SkClass, SkInt, SkObj, SkResult, SkStr, SkVoid};
 use libc::c_void;
 use shiika_ffi_macro::{shiika_method, shiika_method_ref};
 use std::fs;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::ptr;
 
 #[shiika_method("Meta:File#read")]
 pub extern "C" fn meta_file_read(_receiver: SkClass, path: SkStr) -> SkResult<SkStr> {
     // TODO: Support reading binary (i.e. non-utf8) files by using [u8]
-    match fs::read_to_string(path.as_str()) {
-        Ok(content) => SkResult::ok(SkStr::new(content)),
-        Err(e) => SkResult::fail(format!("{}", e)),
-    }
+    _meta_file_read(path).into()
+}
+
+fn _meta_file_read(path: SkStr) -> Result<SkStr, std::io::Error> {
+    Ok(SkStr::new(fs::read_to_string(path.as_str())?))
 }
 
 #[shiika_method("Meta:File#write")]
@@ -42,6 +44,12 @@ struct ShiikaFile {
     buf_reader: BufReader<File>,
 }
 
+impl From<SkFile> for SkObj {
+    fn from(s: SkFile) -> SkObj {
+        SkObj::new(s.0 as *const ShiikaObject)
+    }
+}
+
 impl SkFile {
     fn buf_reader_mut(&mut self) -> &mut BufReader<File> {
         unsafe { &mut (*self.0).buf_reader }
@@ -59,17 +67,21 @@ extern "C" fn file_finalizer(obj: *mut c_void, _data: *mut c_void) {
 
 #[allow(non_snake_case)]
 #[shiika_method("Meta:File#_open")]
-pub extern "C" fn meta_file__open(the_file: SkClass, path: SkStr) -> SkFile {
-    let file = File::open(&path.as_str()).unwrap(); // TODO: use SkResult
+pub extern "C" fn meta_file__open(cls_file: SkClass, path: SkStr) -> SkResult<SkFile> {
+    _meta_file_open(cls_file, path).into()
+}
+
+fn _meta_file_open(cls_file: SkClass, path: SkStr) -> Result<SkFile, std::io::Error> {
+    let file = File::open(&path.as_str())?;
     unsafe {
-        let f = meta_file_new(the_file, path.dup(), ptr::null());
+        let f = meta_file_new(cls_file, path.dup(), ptr::null());
         bdwgc_alloc::Allocator::register_finalizer(
             f.0 as *const c_void,
             file_finalizer,
             ptr::null(),
         );
         (*f.0).buf_reader = BufReader::new(file);
-        f
+        Ok(f)
     }
 }
 
