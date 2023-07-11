@@ -80,6 +80,8 @@ fn parse_typarams(typarams: &[shiika_ast::AstTyParam]) -> Vec<ty::TyParam> {
 
 /// Build a HirExpression which evaluates to `ty`
 /// eg. `Foo.<>([Bool, Int])` if `ty` is `TermTy(Foo<Bool, Int>)`
+///
+/// REFACTOR: duplicated with mk.get_class_object
 pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
     match &ty.body {
         TyBody::TyRaw(LitTy {
@@ -131,6 +133,7 @@ fn call_class_specialize(
             base,
             method_fullname_raw("Class", "_specialize1"),
             vec![tyargs.remove(0)],
+            Default::default(),
         )
     } else {
         Hir::method_call(
@@ -138,6 +141,7 @@ fn call_class_specialize(
             base,
             method_fullname_raw("Class", "<>"),
             vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
+            Default::default(),
         )
     }
 }

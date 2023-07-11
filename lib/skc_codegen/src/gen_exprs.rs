@@ -88,7 +88,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 receiver_expr,
                 method_fullname,
                 arg_exprs,
-            } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
+                tyarg_exprs,
+            } => self.gen_method_call(
+                ctx,
+                method_fullname,
+                receiver_expr,
+                arg_exprs,
+                tyarg_exprs,
+                &expr.ty,
+            ),
             HirModuleMethodCall {
                 receiver_expr,
                 module_fullname,
@@ -508,13 +516,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_fullname: &MethodFullname,
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        tyarg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
         let mut arg_values = vec![];
-        for arg_expr in arg_exprs {
-            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        for expr in arg_exprs {
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
+        }
+        for expr in tyarg_exprs {
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
 
         // Create basic block

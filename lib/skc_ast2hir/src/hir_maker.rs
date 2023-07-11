@@ -109,6 +109,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     cls_obj,
                     method_fullname(metaclass_fullname(&name.0).into(), "new"),
                     vec![],
+                    Default::default(),
                 )
             } else {
                 self.create_class_literal(&name, includes_modules)?
@@ -594,6 +595,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             base,
             method_fullname_raw("Class", "<>"),
             vec![self.create_array_instance_(tyarg_classes, ty::raw("Class"), locs.clone())],
+            Default::default(),
         )
     }
 }

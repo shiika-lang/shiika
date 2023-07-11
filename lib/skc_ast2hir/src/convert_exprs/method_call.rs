@@ -1,4 +1,5 @@
 use crate::class_dict::FoundMethod;
+use crate::class_expr;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
@@ -249,8 +250,7 @@ pub fn build(
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
     let arg_types = arg_hirs.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
 
-    let owner = mk.class_dict.get_type(&found.owner);
-    let receiver = Hir::bit_cast(owner.erasure().to_term_ty(), receiver_hir);
+    let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
     let args = if specialized {
         arg_hirs
             .into_iter()
@@ -275,7 +275,7 @@ pub fn build(
         return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
     }
 
-    let hir = build_hir(&found, &owner, receiver, args, &inf);
+    let hir = build_hir(mk, &found, receiver, args, method_tyargs, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
     } else {
@@ -319,22 +319,27 @@ fn check_break_in_block(sig: &MethodSignature, last_arg: &mut HirExpression) -> 
 }
 
 fn build_hir(
+    mk: &mut HirMaker,
     // The method
     found: &FoundMethod,
-    // The class/module which has the method
-    owner: &SkType,
     receiver_hir: HirExpression,
     arg_hirs: Vec<HirExpression>,
+    tyargs: Vec<TermTy>,
     inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> HirExpression {
+    let tyarg_hirs = tyargs.iter().map(|t| class_expr(mk, t)).collect();
     let ret_ty = match inf {
         Some(inf_) => inf_.solved_method_ret_ty.clone(),
         None => found.sig.ret_ty.clone(), //.substitute(class_tyargs, method_tyargs);
     };
-    match owner {
-        SkType::Class(_) => {
-            Hir::method_call(ret_ty, receiver_hir, found.sig.fullname.clone(), arg_hirs)
-        }
+    match mk.class_dict.get_type(&found.owner.to_type_fullname()) {
+        SkType::Class(_) => Hir::method_call(
+            ret_ty,
+            receiver_hir,
+            found.sig.fullname.clone(),
+            arg_hirs,
+            tyarg_hirs,
+        ),
         SkType::Module(sk_module) => Hir::module_method_call(
             ret_ty,
             receiver_hir,
@@ -356,6 +361,7 @@ fn call_specialized_new(
     tyargs: Vec<TermTy>,
     locs: &LocationSpan,
 ) -> HirExpression {
+    let tyarg_hirs = tyargs.iter().map(|t| class_expr(mk, t)).collect();
     let meta_spe_ty = receiver_ty.specialized_ty(tyargs);
     let spe_cls = mk.get_class_object(&meta_spe_ty, locs);
     Hir::method_call(
@@ -363,5 +369,6 @@ fn call_specialized_new(
         spe_cls,
         method_fullname(receiver_ty.erasure().to_type_fullname(), "new"),
         arg_hirs,
+        tyarg_hirs,
     )
 }

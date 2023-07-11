@@ -34,6 +34,7 @@ pub fn convert_match_expr(
             Hir::decimal_literal(0, LocationSpan::todo()), // whatever.
             method_fullname_raw("Object", "panic"),
             vec![panic_msg],
+            Default::default(),
         )]),
         lvars: Default::default(),
     });
@@ -186,6 +187,7 @@ fn make_eq_test(value: &HirExpression, name: &str, rhs: HirExpression) -> Compon
         value.clone(),
         method_fullname_raw(name, "=="),
         vec![rhs],
+        Default::default(),
     );
     Component::Test(test)
 }
@@ -283,6 +285,7 @@ fn extract_props(
             value.clone(),
             method_fullname(pat_ty.base_class_name().into(), name),
             vec![],
+            Default::default(),
         );
         components.append(&mut convert_match(mk, &ivar_ref, &patterns[i])?);
     }
@@ -306,6 +309,7 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
             const_ref,
             method_fullname_raw("Object", "=="),
             vec![value.clone()],
+            Default::default(),
         )
     } else {
         let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
@@ -319,12 +323,15 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
                     value.clone(),
                     method_fullname_raw("Object", "class"),
                     vec![],
+                    Default::default(),
                 ),
                 method_fullname_raw("Class", "erasure_class"),
                 vec![],
+                Default::default(),
             ),
             method_fullname_raw("Class", "=="),
             vec![cls_ref],
+            Default::default(),
         )
     }
 }

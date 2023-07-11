@@ -198,6 +198,7 @@ pub enum HirExpressionBase {
         receiver_expr: Box<HirExpression>,
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     },
     HirModuleMethodCall {
         receiver_expr: Box<HirExpression>,
@@ -503,11 +504,12 @@ impl Hir {
         result_ty: TermTy,
         receiver_hir: HirExpression,
         method_fullname: MethodFullname,
-        arg_hirs: Vec<HirExpression>,
+        arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
-            if let Some(e) = arg_hirs.last() {
+            if let Some(e) = arg_exprs.last() {
                 &e.locs
             } else {
                 &receiver_hir.locs
@@ -518,7 +520,8 @@ impl Hir {
             node: HirExpressionBase::HirMethodCall {
                 receiver_expr: Box::new(receiver_hir),
                 method_fullname,
-                arg_exprs: arg_hirs,
+                arg_exprs,
+                tyarg_exprs,
             },
             locs,
         }
@@ -530,11 +533,11 @@ impl Hir {
         module_fullname: ModuleFullname,
         method_name: MethodFirstname,
         method_idx: usize,
-        arg_hirs: Vec<HirExpression>,
+        arg_exprs: Vec<HirExpression>,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
-            if let Some(e) = arg_hirs.last() {
+            if let Some(e) = arg_exprs.last() {
                 &e.locs
             } else {
                 &receiver_hir.locs
@@ -547,7 +550,8 @@ impl Hir {
                 module_fullname,
                 method_name,
                 method_idx,
-                arg_exprs: arg_hirs,
+                arg_exprs,
+                //                tyarg_exprs,
             },
             locs,
         }
