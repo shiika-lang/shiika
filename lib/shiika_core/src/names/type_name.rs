@@ -22,6 +22,8 @@ impl TypeFullname {
         }
     }
 
+    /// Returns if instances of this type is a class.
+    /// REFACTOR: this should be removed; prefer using TermTy.is_meta
     pub fn is_meta(&self) -> bool {
         self.0.starts_with("Meta:")
     }
