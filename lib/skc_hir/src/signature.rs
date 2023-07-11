@@ -28,6 +28,11 @@ impl MethodSignature {
         self.fullname.type_name.is_meta()
     }
 
+    /// Returns if this is `Class#new` or a method which overrides it.
+    pub fn is_the_new(&self) -> bool {
+        self.fullname.type_name.is_meta() && self.fullname.first_name.0 == "new"
+    }
+
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
     }

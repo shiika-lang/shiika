@@ -510,13 +510,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let typaram_tys = signature.typarams.iter().map(|tp| &tp.upper_bound);
-        let param_tys = signature
-            .params
-            .iter()
-            .map(|p| &p.ty)
-            .chain(typaram_tys)
-            .collect::<Vec<_>>();
+        let mut param_tys = signature.params.iter().map(|p| &p.ty).collect::<Vec<_>>();
+        if signature.is_the_new() {
+            // HACK: Generic .new (eg. Pair.new) has type parameters but they will never be called because calls of
+            // them are replaced by corresponding specialized one (eg. Pair<Int,Int>.new). Since
+            // specialized .new's does not need type arguments, skip adding extranous arguments for
+            // tyargs.
+        } else {
+            for tp in &signature.typarams {
+                param_tys.push(&tp.upper_bound);
+            }
+        }
 
         self.llvm_func_type(Some(self_ty), &param_tys, &signature.ret_ty)
     }
