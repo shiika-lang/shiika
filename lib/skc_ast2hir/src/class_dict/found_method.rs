@@ -1,11 +1,10 @@
-use shiika_core::names::TypeFullname;
-use shiika_core::ty::TermTy;
+use shiika_core::ty::{Erasure, TermTy};
 use skc_hir::{MethodSignature, SkType};
 
 #[derive(Debug, Clone)]
 pub struct FoundMethod {
     /// A Shiika class or Shiika module
-    pub owner: TypeFullname,
+    pub owner: Erasure,
     /// The signature of the method
     pub sig: MethodSignature,
     /// Index in the method list of `owner` (used for module method call via wtable)
@@ -16,7 +15,7 @@ impl FoundMethod {
     pub fn class(owner: &SkType, sig: MethodSignature) -> FoundMethod {
         debug_assert!(owner.is_class());
         FoundMethod {
-            owner: owner.fullname(),
+            owner: owner.erasure().clone(),
             sig,
             method_idx: None,
         }
@@ -25,7 +24,7 @@ impl FoundMethod {
     pub fn module(owner: &SkType, sig: MethodSignature, idx: usize) -> FoundMethod {
         debug_assert!(!owner.is_class());
         FoundMethod {
-            owner: owner.fullname(),
+            owner: owner.erasure().clone(),
             sig,
             method_idx: Some(idx),
         }
@@ -38,7 +37,7 @@ impl FoundMethod {
     pub fn set_class(&self, owner: &SkType) -> FoundMethod {
         debug_assert!(owner.is_class());
         FoundMethod {
-            owner: owner.fullname(),
+            owner: owner.erasure().clone(),
             ..self.clone()
         }
     }
@@ -46,7 +45,7 @@ impl FoundMethod {
     pub fn set_module(&self, owner: &SkType) -> FoundMethod {
         debug_assert!(!owner.is_class());
         FoundMethod {
-            owner: owner.fullname(),
+            owner: owner.erasure().clone(),
             ..self.clone()
         }
     }
