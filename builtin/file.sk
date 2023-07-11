@@ -16,6 +16,7 @@ class File : Readable
     end
   end
   
+  # TODO: will we need this?
   # def close
 
   def fill_buf -> Result<String>

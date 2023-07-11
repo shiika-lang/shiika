@@ -1,4 +1,4 @@
-HELLO_TXT_PATH = "tests/data/hello.txt"
+HELLO_TXT_PATH = "tests/tmp/hello.txt"
 
 # Readable#lines, #read_line
 File.write(HELLO_TXT_PATH, "hello\nworld")

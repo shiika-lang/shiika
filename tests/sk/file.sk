@@ -1,5 +1,5 @@
 # File.write
-match File.write("tests/data/hello.txt", "hello")
+match File.write("tests/tmp/hello.txt", "hello")
 when Ok(x)
   unless x == Void; puts "File.write returned \{x}"; end
 when Fail(e)
@@ -7,11 +7,25 @@ when Fail(e)
 end
 
 # File.read
-match File.read("tests/data/hello.txt")
+match File.read("tests/tmp/hello.txt")
 when Ok(s)
   unless s == "hello"; puts "File.read failed: #{s}"; end
 when Fail(e)
   puts "File.read failed: #{e}"
 end
+
+class FileOpen
+  def self.run
+    File.open("tests/tmp/hello.txt"){|f|
+      match f.read
+      when Ok(s)
+        unless s == "hello"; puts "FileOpen failed: #{s}"; end
+      when Fail(e)
+        puts "FileOpen failed: #{e}"
+      end
+    }
+  end
+end
+FileOpen.run
 
 puts "ok"
