@@ -402,7 +402,6 @@ impl<'hir_maker> Iterator for LVarIter<'hir_maker> {
                 self.cur -= 1;
                 Some(scope)
             }
-            // ::new() never sets `While` to .cur
             HirMakerContext::While(while_ctx) => {
                 let scope = LVarScope {
                     ctx_idx: self.cur,
