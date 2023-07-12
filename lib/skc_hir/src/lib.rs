@@ -222,11 +222,15 @@ pub enum HirExpressionBase {
         idx: usize,
         self_ty: TermTy,
     },
-    /// Type variable reference. eg. in an instance method definition of the class `Array<T>`,
-    /// `T` is a HirTVarRef whose type is `Meta:Object`.
-    HirTVarRef {
+    /// Reference of class-wise type variable
+    HirClassTVarRef {
         typaram_ref: TyParamRef,
         self_ty: TermTy,
+    },
+    /// Reference of method-wise type variable
+    HirMethodTVarRef {
+        typaram_ref: TyParamRef,
+        n_params: usize,
     },
     HirConstRef {
         fullname: ConstFullname,
@@ -603,17 +607,35 @@ impl Hir {
         }
     }
 
-    pub fn tvar_ref(
+    pub fn class_tvar_ref(
         ty: TermTy,
         typaram_ref: TyParamRef,
         self_ty: TermTy,
         locs: LocationSpan,
     ) -> HirExpression {
+        debug_assert!(typaram_ref.kind == TyParamKind::Class);
         HirExpression {
             ty,
-            node: HirExpressionBase::HirTVarRef {
+            node: HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
                 self_ty,
+            },
+            locs,
+        }
+    }
+
+    pub fn method_tvar_ref(
+        ty: TermTy,
+        typaram_ref: TyParamRef,
+        n_params: usize,
+        locs: LocationSpan,
+    ) -> HirExpression {
+        debug_assert!(typaram_ref.kind == TyParamKind::Method);
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirMethodTVarRef {
+                typaram_ref,
+                n_params,
             },
             locs,
         }

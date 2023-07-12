@@ -841,9 +841,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
-                let base_ty = self.ctx_stack.self_ty().erasure_ty();
-                let cls_ty = typaram_ref.clone().into_term_ty();
-                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone()));
+                return Ok(self._tvar_ref(typaram_ref, locs));
             }
         }
 
@@ -858,6 +856,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             "constant `{:?}' was not found",
             name.0.join("::")
         )))
+    }
+
+    fn _tvar_ref(&self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
+        match typaram_ref.kind {
+            TyParamKind::Class => {
+                let base_ty = self.ctx_stack.self_ty().erasure_ty();
+                let cls_ty = typaram_ref.clone().into_term_ty();
+                Hir::class_tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone())
+            }
+            TyParamKind::Method => {
+                let cls_ty = typaram_ref.clone().into_term_ty();
+                let n_args = self.ctx_stack.method_ctx().unwrap().signature.params.len();
+                Hir::method_tvar_ref(cls_ty, typaram_ref, n_args, locs.clone())
+            }
+        }
     }
 
     /// Check if a constant is registered

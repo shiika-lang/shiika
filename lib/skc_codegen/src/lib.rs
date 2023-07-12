@@ -664,7 +664,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             | HirExpressionBase::HirLambdaExpr { .. }
             | HirExpressionBase::HirLVarRef { .. }
             | HirExpressionBase::HirIVarRef { .. }
-            | HirExpressionBase::HirTVarRef { .. }
+            | HirExpressionBase::HirClassTVarRef { .. }
+            | HirExpressionBase::HirMethodTVarRef { .. }
             | HirExpressionBase::HirConstRef { .. }
             | HirExpressionBase::HirSelfExpression
             | HirExpressionBase::HirFloatLiteral { .. }

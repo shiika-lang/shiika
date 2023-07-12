@@ -107,12 +107,20 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
         }
         TyBody::TyPara(typaram_ref) => {
             let ref2 = typaram_ref.as_class();
-            Hir::tvar_ref(
-                ref2.to_term_ty(),
-                ref2,
-                mk.ctx_stack.self_ty(),
-                LocationSpan::todo(),
-            )
+            match &typaram_ref.kind {
+                TyParamKind::Class => Hir::class_tvar_ref(
+                    ref2.to_term_ty(),
+                    ref2,
+                    mk.ctx_stack.self_ty(),
+                    LocationSpan::todo(),
+                ),
+                TyParamKind::Method => Hir::method_tvar_ref(
+                    ref2.to_term_ty(),
+                    ref2,
+                    mk.ctx_stack.method_ctx().unwrap().signature.params.len(),
+                    LocationSpan::todo(),
+                ),
+            }
         }
     }
 }
