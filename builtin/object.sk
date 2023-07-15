@@ -57,6 +57,9 @@ class Object
   # Prints message and a newline to stdout.
   # puts(s: String)
 
+  # Stop execution for a while.
+  # sleep(sec: Float)
+
   def to_s -> String
     "#<#{self.class.name}:#{self.object_id}>"
   end

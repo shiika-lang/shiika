@@ -57,6 +57,7 @@
   ["Object", "panic(msg: String) -> Never"],
   ["Object", "print(str: String)"],
   ["Object", "puts(str: String)"],
+  ["Object", "sleep(sec: Float)"],
   ["Random", "_initialize_rustlib(seed: Int)"],
   ["Random", "int(from: Int, to: Int) -> Int"],
   ["Random", "float() -> Float"],

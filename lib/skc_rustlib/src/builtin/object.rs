@@ -1,10 +1,12 @@
 use crate::builtin::class::SkClass;
-use crate::builtin::{SkBool, SkInt, SkResult, SkStr};
+use crate::builtin::{SkBool, SkFloat, SkInt, SkResult, SkStr};
 use plain::Plain;
 use shiika_ffi_macro::shiika_method;
 use std::fmt;
 use std::io::{stdin, stdout, Write};
 use std::mem;
+use std::thread;
+use std::time;
 
 #[repr(C)]
 pub struct SkObj(*const ShiikaObject);
@@ -100,4 +102,10 @@ pub extern "C" fn object_puts(_receiver: *const u8, s: SkStr) {
     //TODO: Return SkVoid
     let _ = stdout().write_all(s.as_byteslice());
     println!("");
+}
+
+#[shiika_method("Object#sleep")]
+pub extern "C" fn object_sleep(_receiver: *const u8, sec: SkFloat) {
+    //TODO: Return SkVoid
+    thread::sleep(time::Duration::from_secs_f64(sec.into()));
 }
