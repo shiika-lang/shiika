@@ -1,6 +1,14 @@
 module Shiika
   module Internal
     class Memory
+      # Run GC manually.
+      # def self.force_gc
+
+      # def self.memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void
+
+      # def self.gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr
+
+      # def self.gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr
     end
 
     class Ptr

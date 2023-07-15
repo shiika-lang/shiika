@@ -10,6 +10,11 @@ use std::convert::TryInto;
 use std::os::raw::c_void;
 use std::ptr;
 
+#[shiika_method("Meta:Shiika::Internal::Memory#force_gc")]
+pub extern "C" fn memory_force_gc() {
+    bdwgc_alloc::Allocator::force_collect();
+}
+
 #[shiika_method("Meta:Shiika::Internal::Memory#memcpy")]
 pub extern "C" fn memory_memcpy(_receiver: SkObj, dst: SkPtr, src: SkPtr, n_bytes: SkInt) {
     let n: usize = n_bytes.val().try_into().unwrap();

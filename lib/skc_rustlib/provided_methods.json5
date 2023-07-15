@@ -69,6 +69,7 @@
   ["Meta:Math", "cos(x: Float) -> Float"],
   ["Meta:Math", "sqrt(x: Float) -> Float"],
   ["Meta:Shiika::Internal::Memory", "memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void"],
+  ["Meta:Shiika::Internal::Memory", "force_gc"],
   ["Meta:Shiika::Internal::Memory", "gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr"],
   ["Meta:Shiika::Internal::Memory", "gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr"],
   ["Shiika::Internal::Ptr", "+(n_bytes: Int) -> Shiika::Internal::Ptr"],
