@@ -927,19 +927,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let e = self.convert_capitalized_name(name, locs)?;
-        self.assert_class_expr(&e)?;
+        self.assert_class_expr(&e, locs)?;
         Ok(e)
     }
 
     /// Check if `e` evaluates to a class object.
-    fn assert_class_expr(&self, e: &HirExpression) -> Result<()> {
+    fn assert_class_expr(&self, e: &HirExpression, locs: &LocationSpan) -> Result<()> {
         if e.ty.is_metaclass() || e.ty.is_typaram_ref() {
             Ok(())
         } else {
-            Err(error::type_error(&format!(
-                "a class expected but got {:?}",
-                &e.ty
-            )))
+            Err(error::not_a_class_expression(&e.ty, locs))
         }
     }
 

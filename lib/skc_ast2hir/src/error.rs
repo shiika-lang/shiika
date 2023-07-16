@@ -1,4 +1,5 @@
 use shiika_ast::LocationSpan;
+use shiika_core::ty::TermTy;
 use skc_error::Label;
 use skc_hir::MethodSignature;
 
@@ -128,5 +129,15 @@ pub fn method_tyarg_inference_failed(detail: String, locs: &LocationSpan) -> any
         skc_error::build_report("Type inference failed".to_string(), locs, |r, locs_span| {
             r.with_label(Label::new(locs_span).with_message(detail))
         });
+    program_error(report)
+}
+
+pub fn not_a_class_expression(ty: &TermTy, locs: &LocationSpan) -> anyhow::Error {
+    let detail = format!("{}", ty);
+    let report = skc_error::build_report(
+        format!("Expected a class but this is {}", ty),
+        locs,
+        |r, locs_span| r.with_label(Label::new(locs_span).with_message(detail)),
+    );
     program_error(report)
 }

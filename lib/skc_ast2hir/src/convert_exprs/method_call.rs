@@ -172,7 +172,7 @@ pub fn convert_lambda_invocation(
 ///             => TermTy(Array<TyParamRef(T)>)
 fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy> {
     let e = mk.convert_expr(arg)?;
-    mk.assert_class_expr(&e)?;
+    mk.assert_class_expr(&e, &arg.locs)?;
     Ok(e.ty.instance_ty())
 }
 
