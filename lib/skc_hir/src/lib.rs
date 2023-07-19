@@ -317,6 +317,8 @@ pub enum HirLambdaCaptureDetail {
     CaptureLVar { name: String },
     /// Method/Function argument
     CaptureArg { idx: usize },
+    /// Method-wise type argument
+    CaptureMethodTyArg { idx: usize, n_params: usize },
     /// Variable in the current `captures`
     CaptureFwd { cidx: usize },
 }

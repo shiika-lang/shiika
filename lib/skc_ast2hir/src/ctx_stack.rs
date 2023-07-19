@@ -140,6 +140,29 @@ impl CtxStack {
         None
     }
 
+    /// Returns the method ctx (must be exist), its index
+    /// and nearest enclosing lambda ctx (if any).
+    pub fn method_and_lambda_ctx(&mut self) -> (&MethodCtx, usize, Option<&mut LambdaCtx>) {
+        let mut mi = None;
+        let mut m = None;
+        let mut l = None;
+        for (i, x) in self.vec.iter_mut().enumerate().rev() {
+            match x {
+                HirMakerContext::Method(c) => {
+                    m = Some(c);
+                    mi = Some(i);
+                }
+                HirMakerContext::Lambda(c) => {
+                    if l.is_none() {
+                        l = Some(c)
+                    }
+                }
+                _ => (),
+            }
+        }
+        (m.unwrap(), mi.unwrap(), l)
+    }
+
     /// Return ctx of nearest enclosing lambda, if any
     pub fn lambda_ctx(&self) -> Option<&LambdaCtx> {
         for x in self.vec.iter().rev() {

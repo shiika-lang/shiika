@@ -951,6 +951,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     let deref = false;
                     self.gen_lambda_capture_ref(ctx, cidx, deref)
                 }
+                HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
+                    // Method-wise type arguments are passed as llvm function parameter.
+                    self.gen_arg_ref(ctx, &(n_params + idx))
+                }
             };
             if cap.upcast_needed {
                 let ty = struct_type.get_field_type_at_index(i as u32).unwrap();

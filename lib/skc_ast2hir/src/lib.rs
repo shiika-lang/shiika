@@ -105,23 +105,7 @@ pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
                 call_class_specialize(mk, tyargs, base_name, base)
             }
         }
-        TyBody::TyPara(typaram_ref) => {
-            let ref2 = typaram_ref.as_class();
-            match &typaram_ref.kind {
-                TyParamKind::Class => Hir::class_tvar_ref(
-                    ref2.to_term_ty(),
-                    ref2,
-                    mk.ctx_stack.self_ty(),
-                    LocationSpan::todo(),
-                ),
-                TyParamKind::Method => Hir::method_tvar_ref(
-                    ref2.to_term_ty(),
-                    ref2,
-                    mk.ctx_stack.method_ctx().unwrap().signature.params.len(),
-                    LocationSpan::todo(),
-                ),
-            }
-        }
+        TyBody::TyPara(typaram_ref) => mk._tvar_ref(typaram_ref.clone(), &LocationSpan::todo()),
     }
 }
 

@@ -27,6 +27,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression> {
+        // Debug helper: print the expr under processing
+        //println!(
+        //    "{}",
+        //    skc_error::build_report("-".to_string(), &expr.locs, |r, locs_span| {
+        //        r.with_label(skc_error::Label::new(locs_span).with_message(""))
+        //    })
+        //);
         match &expr.body {
             AstExpressionBody::LogicalNot { expr: arg_expr } => {
                 self.convert_logical_not(arg_expr, &expr.locs)
@@ -106,6 +113,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 is_fn,
             } => self.convert_lambda_expr(params, exprs, is_fn, &expr.locs),
 
+            // Note: there is no `AstExpressionBody::LVarRef` because it is included in this.
             AstExpressionBody::BareName(name) => self.convert_bare_name(name, &expr.locs),
 
             AstExpressionBody::IVarRef(name) => self.convert_ivar_ref(name, &expr.locs),
@@ -556,13 +564,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .push(HirMakerContext::lambda(*is_fn, hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
+        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
         Ok(Hir::lambda_expr(
             block::lambda_ty(&hir_params, &hir_exprs.ty),
             self.create_lambda_name(),
             hir_params,
             hir_exprs,
-            self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
-            extract_lvars(&mut lambda_ctx.lvars),               // lvars
+            captures,
+            extract_lvars(&mut lambda_ctx.lvars),
             lambda_ctx.has_break,
             locs.clone(),
         ))
@@ -580,7 +589,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve LambdaCapture into HirExpression
-    /// Also, concat lambda_captures to outer_captures
+    /// Also handles forwarding captured variables among nested lambdas
     fn _resolve_lambda_captures(
         &mut self,
         lambda_captures: Vec<LambdaCapture>,
@@ -594,25 +603,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             };
             if captured_here {
                 // The variable is in this scope
-                match cap.detail {
+                let detail = match cap.detail {
                     LambdaCaptureDetail::CapLVar { name }
                     | LambdaCaptureDetail::CapOmittableArg { name } => {
-                        ret.push(HirLambdaCapture {
-                            ty: cap.ty,
-                            upcast_needed: cap.upcast_needed,
-                            readonly: cap.readonly,
-                            detail: HirLambdaCaptureDetail::CaptureLVar { name },
-                        });
+                        HirLambdaCaptureDetail::CaptureLVar { name }
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture {
-                            ty: cap.ty,
-                            upcast_needed: cap.upcast_needed,
-                            readonly: cap.readonly,
-                            detail: HirLambdaCaptureDetail::CaptureArg { idx },
-                        });
+                        HirLambdaCaptureDetail::CaptureArg { idx }
                     }
-                }
+                    LambdaCaptureDetail::CapMethodTyArg { idx, n_params } => {
+                        HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params }
+                    }
+                };
+                ret.push(HirLambdaCapture {
+                    ty: cap.ty,
+                    upcast_needed: cap.upcast_needed,
+                    readonly: cap.readonly,
+                    detail,
+                });
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
@@ -675,8 +683,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     found.as_mut().map(|x| x.set_cidx(existing));
                     Some(existing)
                 } else {
-                    let cidx = lambda_ctx.captures.len();
-                    lambda_ctx.push_lambda_capture(cap);
+                    let cidx = lambda_ctx.push_lambda_capture(cap);
                     found.as_mut().map(|x| x.set_cidx(cidx));
                     Some(cidx)
                 }
@@ -833,7 +840,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Resolve a capitalized identifier, which is either a constant name or
     /// a type parameter reference
     pub fn convert_capitalized_name(
-        &self,
+        &mut self,
         name: &UnresolvedConstName,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
@@ -858,17 +865,41 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         )))
     }
 
-    fn _tvar_ref(&self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
+    // TODO: this can be private once `class_expr` is removed
+    pub fn _tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
+        let cls_ty = typaram_ref.to_term_ty();
         match typaram_ref.kind {
             TyParamKind::Class => {
                 let base_ty = self.ctx_stack.self_ty().erasure_ty();
-                let cls_ty = typaram_ref.clone().into_term_ty();
                 Hir::class_tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone())
             }
             TyParamKind::Method => {
-                let cls_ty = typaram_ref.clone().into_term_ty();
-                let n_args = self.ctx_stack.method_ctx().unwrap().signature.params.len();
-                Hir::method_tvar_ref(cls_ty, typaram_ref, n_args, locs.clone())
+                let (method_ctx, method_ctx_idx, opt_lambda_ctx) =
+                    self.ctx_stack.method_and_lambda_ctx();
+                let n_params = method_ctx.signature.params.len();
+                if let Some(lambda_ctx) = opt_lambda_ctx {
+                    // We're in a lambda so the tyarg should be captured in it
+                    let cap = LambdaCapture {
+                        ctx_idx: method_ctx_idx,
+                        is_lambda_scope: false,
+                        ty: cls_ty.clone(),
+                        upcast_needed: false,
+                        readonly: true,
+                        detail: LambdaCaptureDetail::CapMethodTyArg {
+                            idx: typaram_ref.idx,
+                            n_params,
+                        },
+                    };
+                    let cidx = if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
+                        existing
+                    } else {
+                        lambda_ctx.push_lambda_capture(cap)
+                    };
+                    Hir::lambda_capture_ref(cls_ty, cidx, false, locs.clone())
+                } else {
+                    // Not in a lambda so we can just get the tyarg
+                    Hir::method_tvar_ref(cls_ty, typaram_ref, n_params, locs.clone())
+                }
             }
         }
     }
@@ -922,7 +953,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     pub fn resolve_class_expr(
-        &self,
+        &mut self,
         name: &UnresolvedConstName,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {

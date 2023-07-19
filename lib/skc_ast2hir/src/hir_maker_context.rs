@@ -193,9 +193,15 @@ pub struct LambdaCapture {
 
 #[derive(Debug)]
 pub enum LambdaCaptureDetail {
+    // Capturing a local variable
     CapLVar { name: String },
+    // Capturing a method parameter
     CapFnArg { idx: usize },
+    // Capturing a omittable method parameter
+    // (Currently implemented as a local variable.)
     CapOmittableArg { name: String },
+    // Capturing a method-wise type parameter
+    CapMethodTyArg { idx: usize, n_params: usize },
 }
 
 impl LambdaCapture {
@@ -212,6 +218,10 @@ impl LambdaCapture {
             (
                 LambdaCaptureDetail::CapFnArg { idx },
                 LambdaCaptureDetail::CapFnArg { idx: idx2 },
+            ) => idx == idx2,
+            (
+                LambdaCaptureDetail::CapMethodTyArg { idx, .. },
+                LambdaCaptureDetail::CapMethodTyArg { idx: idx2, .. },
             ) => idx == idx2,
             (
                 LambdaCaptureDetail::CapOmittableArg { name },
