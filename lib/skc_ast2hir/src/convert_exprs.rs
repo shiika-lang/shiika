@@ -895,7 +895,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     } else {
                         lambda_ctx.push_lambda_capture(cap)
                     };
-                    Hir::lambda_capture_ref(cls_ty, cidx, false, locs.clone())
+                    Hir::lambda_capture_ref(cls_ty, cidx, true, locs.clone())
                 } else {
                     // Not in a lambda so we can just get the tyarg
                     Hir::method_tvar_ref(cls_ty, typaram_ref, n_params, locs.clone())
