@@ -1,0 +1,27 @@
+class GenericMethodTest
+  def self.run<X>
+    unless X == Int; puts "failed GenericMethodTest"; end
+  end
+end
+GenericMethodTest.run<Int>
+
+class CaptureMethodTyargTest
+  def self.run<X>
+    let f = fn(){
+      unless X == Int; puts "failed CaptureMethodTyargTest"; end
+    }
+    f()
+  end
+end
+CaptureMethodTyargTest.run<Int>
+
+module ModuleWithGenericMethod
+  def run<X>
+    unless X == Int; puts "failed GenericModuleMethodTest"; end
+  end
+end
+class GenericModuleMethodTest : ModuleWithGenericMethod
+end
+GenericModuleMethodTest.new.run<Int>
+
+puts "ok"
