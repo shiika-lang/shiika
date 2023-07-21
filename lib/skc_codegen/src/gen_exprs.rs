@@ -533,11 +533,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_tys = vec![];
         let mut arg_values = vec![];
         for expr in arg_exprs {
+            arg_tys.push(&expr.ty);
             arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
         for expr in tyarg_exprs {
+            arg_tys.push(&expr.ty);
             arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
 
@@ -549,11 +552,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(start_block);
 
         // Get the llvm function from vtable of the class of the object
-        let func_type = self.llvm_func_type(
-            Some(&receiver_expr.ty),
-            &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-            ret_ty,
-        );
+        let func_type = self.llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty);
         let func = self._get_method_func(
             &method_fullname.first_name,
             &receiver_expr.ty,
