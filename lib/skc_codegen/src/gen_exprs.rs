@@ -54,6 +54,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
+        // Debug helper: print the expr under processing
+        //let msg = format!("{:?}", expr);
+        //println!(
+        //    "{}",
+        //    skc_error::build_report("-".to_string(), &expr.locs, |r, locs_span| {
+        //        r.with_label(skc_error::Label::new(locs_span).with_message(msg))
+        //    })
+        //);
         match &expr.node {
             HirLogicalNot { expr } => self.gen_logical_not(ctx, expr),
             HirLogicalAnd { left, right } => self.gen_logical_and(ctx, left, right),

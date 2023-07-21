@@ -1222,6 +1222,7 @@ dependencies = [
  "shiika_core",
  "shiika_ffi",
  "skc_corelib",
+ "skc_error",
  "skc_hir",
  "skc_mir",
 ]
