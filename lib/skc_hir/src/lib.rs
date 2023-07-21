@@ -206,6 +206,7 @@ pub enum HirExpressionBase {
         method_name: MethodFirstname,
         method_idx: usize,
         arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     },
     HirLambdaInvocation {
         lambda_expr: Box<HirExpression>,
@@ -540,6 +541,7 @@ impl Hir {
         method_name: MethodFirstname,
         method_idx: usize,
         arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
@@ -557,7 +559,7 @@ impl Hir {
                 method_name,
                 method_idx,
                 arg_exprs,
-                //                tyarg_exprs,
+                tyarg_exprs,
             },
             locs,
         }

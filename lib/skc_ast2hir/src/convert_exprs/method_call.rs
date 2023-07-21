@@ -347,6 +347,7 @@ fn build_hir(
             found.sig.fullname.first_name.clone(),
             found.method_idx.unwrap(),
             arg_hirs,
+            tyarg_hirs,
         ),
     }
 }

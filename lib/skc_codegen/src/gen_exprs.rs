@@ -111,6 +111,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_name,
                 method_idx,
                 arg_exprs,
+                tyarg_exprs,
             } => self.gen_module_method_call(
                 ctx,
                 module_fullname,
@@ -118,6 +119,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_idx,
                 receiver_expr,
                 arg_exprs,
+                tyarg_exprs,
                 &expr.ty,
             ),
             HirLambdaInvocation {
@@ -614,13 +616,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_idx: &usize,
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        tyarg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_tys = vec![];
         let mut arg_values = vec![];
-        for arg_expr in arg_exprs {
-            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        for expr in arg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
+        }
+        for expr in tyarg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
 
         // Create basic block
@@ -642,11 +651,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
             .into_pointer_value();
         let func_type = self
-            .llvm_func_type(
-                Some(&receiver_expr.ty),
-                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-                ret_ty,
-            )
+            .llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty)
             .ptr_type(AddressSpace::Generic);
         let func = self
             .builder
