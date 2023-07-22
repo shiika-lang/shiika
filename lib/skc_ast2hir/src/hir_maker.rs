@@ -579,24 +579,26 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Returns a HIR that evaluates to a (possibly specialized) class object.
     pub fn get_class_object(&mut self, ty: &TermTy, locs: &LocationSpan) -> HirExpression {
-        debug_assert!(!ty.is_typaram_ref());
-        debug_assert!(ty.is_metaclass());
-        let base = Hir::const_ref(ty.clone(), ty.erasure().to_const_fullname(), locs.clone());
-        let tyargs = ty.tyargs();
-        if tyargs.is_empty() {
-            return base;
+        match &ty.body {
+            TyBody::TyRaw(LitTy {
+                base_name,
+                type_args,
+                is_meta,
+            }) => {
+                debug_assert!(is_meta);
+                let base =
+                    Hir::const_ref(ty.clone(), ty.erasure().to_const_fullname(), locs.clone());
+                if type_args.is_empty() {
+                    return base;
+                }
+                let tyarg_classes = type_args
+                    .iter()
+                    .map(|t| self.get_class_object(&t.meta_ty(), locs))
+                    .collect::<Vec<_>>();
+                call_class_specialize(self, tyarg_classes, base_name, base)
+            }
+            TyBody::TyPara(typaram_ref) => self.tvar_ref(typaram_ref.clone(), locs),
         }
-        let tyarg_classes = tyargs
-            .iter()
-            .map(|t| self.get_class_object(&t.meta_ty(), locs))
-            .collect::<Vec<_>>();
-        Hir::method_call(
-            ty.clone(),
-            base,
-            method_fullname_raw("Class", "<>"),
-            vec![self.create_array_instance_(tyarg_classes, ty::raw("Class"), locs.clone())],
-            Default::default(),
-        )
     }
 }
 
@@ -654,4 +656,33 @@ fn _set_default(
         LocationSpan::internal(),
     );
     Ok(if_expr)
+}
+
+/// Generate call to `Class#<>`
+fn call_class_specialize(
+    mk: &mut HirMaker,
+    mut tyargs: Vec<HirExpression>,
+    base_name: &str,
+    base: HirExpression,
+) -> HirExpression {
+    if tyargs.len() == 1 {
+        // Workaround for bootstrap problem of arrays.
+        // `_specialize1` is the same as `<>` except it accepts only one
+        // type argument and therefore does not need to create an array.
+        Hir::method_call(
+            ty::meta(base_name),
+            base,
+            method_fullname_raw("Class", "_specialize1"),
+            vec![tyargs.remove(0)],
+            Default::default(),
+        )
+    } else {
+        Hir::method_call(
+            ty::meta(base_name),
+            base,
+            method_fullname_raw("Class", "<>"),
+            vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
+            Default::default(),
+        )
+    }
 }

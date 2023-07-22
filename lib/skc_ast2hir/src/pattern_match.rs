@@ -1,4 +1,3 @@
-use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -312,7 +311,8 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
             Default::default(),
         )
     } else {
-        let cls_ref = class_expr(mk, &pat_erasure.to_term_ty());
+        let cls_ref =
+            mk.get_class_object(&pat_erasure.to_term_ty().meta_ty(), &LocationSpan::todo());
         // value.class.erasure_class == Foo
         Hir::method_call(
             ty::raw("Bool"),

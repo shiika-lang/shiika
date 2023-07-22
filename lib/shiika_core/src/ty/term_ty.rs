@@ -155,7 +155,10 @@ impl TermTy {
                     ty::spe_meta(base_name, type_args.clone())
                 }
             }
-            _ => panic!("unexpected"),
+            TyPara(typaram_ref) => {
+                debug_assert!(!typaram_ref.as_class);
+                typaram_ref.as_class().into()
+            }
         }
     }
 

@@ -1,5 +1,4 @@
 use crate::class_dict::FoundMethod;
-use crate::class_expr;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
@@ -327,7 +326,11 @@ fn build_hir(
     tyargs: Vec<TermTy>,
     inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> HirExpression {
-    let tyarg_hirs = tyargs.iter().map(|t| class_expr(mk, t)).collect();
+    let tyarg_hirs = tyargs
+        .iter()
+        .map(|t| mk.get_class_object(&t.meta_ty(), &receiver_hir.locs))
+        .collect();
+
     let ret_ty = match inf {
         Some(inf_) => inf_.solved_method_ret_ty.clone(),
         None => found.sig.ret_ty.clone(), //.substitute(class_tyargs, method_tyargs);
@@ -362,7 +365,10 @@ fn call_specialized_new(
     tyargs: Vec<TermTy>,
     locs: &LocationSpan,
 ) -> HirExpression {
-    let tyarg_hirs = tyargs.iter().map(|t| class_expr(mk, t)).collect();
+    let tyarg_hirs = tyargs
+        .iter()
+        .map(|t| mk.get_class_object(&t.meta_ty(), locs))
+        .collect();
     let meta_spe_ty = receiver_ty.specialized_ty(tyargs);
     let spe_cls = mk.get_class_object(&meta_spe_ty, locs);
     Hir::method_call(

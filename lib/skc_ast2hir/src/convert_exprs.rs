@@ -2,7 +2,6 @@ pub mod block;
 mod lvar;
 mod method_call;
 pub mod params;
-use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -848,7 +847,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
-                return Ok(self._tvar_ref(typaram_ref, locs));
+                return Ok(self.tvar_ref(typaram_ref, locs));
             }
         }
 
@@ -865,8 +864,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         )))
     }
 
-    // TODO: this can be private once `class_expr` is removed
-    pub fn _tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
+    /// Get the value of a class-wise or method-wise type argument.
+    pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
         let cls_ty = typaram_ref.to_term_ty();
         match typaram_ref.kind {
             TyParamKind::Class => {
@@ -1037,7 +1036,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // `Array<X>.new`
         let call_new = Hir::method_call(
             ary_ty.clone(),
-            class_expr(self, &ary_ty),
+            self.get_class_object(&ary_ty.meta_ty(), &locs),
             method_fullname_raw("Array", "new"),
             vec![],
             Default::default(),
