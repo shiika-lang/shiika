@@ -279,9 +279,8 @@ pub enum HirExpressionBase {
     HirBitCast {
         expr: Box<HirExpression>,
     },
-    /// A special expression that evaluates to a class
-    /// (eg. `class A; end; A = 1` shadows A, but this special expr
-    /// is never be shadowed)
+    /// A special expression that evaluates to a class object; used for
+    /// initializing class constants.
     HirClassLiteral {
         fullname: TypeFullname,
         str_literal_idx: usize,

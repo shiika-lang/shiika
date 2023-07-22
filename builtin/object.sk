@@ -67,6 +67,8 @@ class Object
   # Force the compiler to treat this object is an instance of `cls`.
   # Usually you should not use this method unless to avoid compiler's bug, etc.
   def unsafe_cast(cls: Class) -> Object
+    # The type checker has special handling rule for this method 
+    # (grep with "unsafe_cast".)
     self
   end
 end
