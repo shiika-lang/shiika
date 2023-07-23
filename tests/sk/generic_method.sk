@@ -5,6 +5,28 @@ class GenericMethodTest
 end
 GenericMethodTest.run<Int>
 
+class InferredMethodTyArgTest
+  def self.run<X>(x: X)
+    unless X == Int; puts "failed InferredMethodTyArgTest"; end
+  end
+end
+InferredMethodTyArgTest.run(99)
+
+class ConstIsObjTyArgTest
+  # `Void` is a special class that the constant holds the only instance rather
+  # than the class object (which can be accessed as `Void.class`).
+  def self.run1<X>(x: X)
+    unless X == Void.class; puts "failed ConstIsObjTyArgTest 1"; end
+  end
+  # Other than `Void`, enum cases with no arguments (eg. Maybe::None) are set
+  # the `const_is_obj` flag set to true.
+  def self.run2<X>(x: X)
+    unless X == None.class; puts "failed ConstIsObjTyArgTest 2"; end
+  end
+end
+ConstIsObjTyArgTest.run1(Void)
+ConstIsObjTyArgTest.run2(None)
+
 class CaptureMethodTyargTest
   def self.run<X>
     let f = fn(){
