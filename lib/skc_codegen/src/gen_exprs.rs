@@ -134,7 +134,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirClassTVarRef {
                 typaram_ref,
                 self_ty,
-            } => Ok(Some(self.gen_class_tvar_ref(ctx, typaram_ref, self_ty))),
+            } => Ok(Some(self.gen_class_tvar_ref(
+                ctx,
+                typaram_ref,
+                self_ty,
+                &expr.ty,
+            ))),
             HirMethodTVarRef {
                 typaram_ref,
                 n_params,
@@ -854,10 +859,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         typaram_ref: &TyParamRef,
         self_ty: &TermTy,
+        expr_ty: &TermTy,
     ) -> SkObj<'run> {
         debug_assert!(typaram_ref.kind == TyParamKind::Class);
         let self_obj = self.gen_self_expression(ctx, self_ty);
-        self._get_nth_tyarg_of_self(self_obj, typaram_ref.idx)
+        self.bitcast(
+            self._get_nth_tyarg_of_self(self_obj, typaram_ref.idx),
+            expr_ty,
+            "as",
+        )
     }
 
     fn _get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
