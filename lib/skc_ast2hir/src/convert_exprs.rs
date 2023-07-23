@@ -335,8 +335,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 LocationSpan::todo(),
             )
         };
-        self._validate_return_type(&arg_expr.ty, locs)?;
-        Ok(Hir::return_expression(from, arg_expr, locs.clone()))
+        let merge_ty = self._validate_return_type(&arg_expr.ty, locs)?;
+        Ok(Hir::bit_cast(
+            merge_ty,
+            Hir::return_expression(from, arg_expr, locs.clone()),
+        ))
     }
 
     /// Check if `return' is valid in the current context
@@ -360,9 +363,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Check if the argument of `return' is valid
-    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<()> {
+    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<TermTy> {
         if self.ctx_stack.lambda_ctx().is_some() {
             // TODO: check arg_ty matches to fn's return type
+            Ok(arg_ty.clone())
         } else if let Some(method_ctx) = &self.ctx_stack.method_ctx() {
             type_checking::check_return_arg_type(
                 &self.class_dict,
@@ -370,8 +374,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 &method_ctx.signature,
                 locs,
             )?;
+            Ok(method_ctx.signature.ret_ty.clone())
+        } else {
+            Err(error::program_error("`return' outside a method"))
         }
-        Ok(())
     }
 
     /// Local variable declaration
