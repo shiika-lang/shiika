@@ -1,4 +1,3 @@
-pub mod generic_new;
 pub mod method_call_inf;
 mod tmp_ty;
 use crate::error::type_error;

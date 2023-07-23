@@ -2,7 +2,7 @@ use crate::class_dict::FoundMethod;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
-use crate::type_inference::{self, method_call_inf};
+use crate::type_inference::method_call_inf;
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
 use shiika_ast::{AstCallArgs, AstExpression, LocationSpan};
@@ -258,23 +258,23 @@ pub fn build(
     } else {
         arg_hirs
     };
+    let tyargs = if method_tyargs.is_empty() {
+        let err = error::method_tyarg_inference_failed(
+            format!("Could not infer type arg(s) of {}", found.sig),
+            locs,
+        );
+        method_call_inf::infer_method_tyargs(&found.sig, &arg_types).context(err)?
+    } else {
+        method_tyargs
+    };
 
-    // Special handling for `Foo<X>.new`, or
-    // `Foo.new(x)`, in which case `X` is inferred from the type of `x`.
+    // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
+    // `T` is inferred from `x`.
     if found.is_generic_new(&receiver_ty) {
-        let tyargs = if method_tyargs.is_empty() {
-            let err = error::method_tyarg_inference_failed(
-                format!("Could not infer type arg(s) of {}", found.sig),
-                locs,
-            );
-            type_inference::generic_new::infer_tyargs(&found.sig, &arg_types).context(err)?
-        } else {
-            method_tyargs
-        };
         return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
     }
 
-    let hir = build_hir(mk, &found, receiver, args, method_tyargs, &inf);
+    let hir = build_hir(mk, &found, receiver, args, tyargs, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
     } else {
@@ -326,6 +326,7 @@ fn build_hir(
     tyargs: Vec<TermTy>,
     inf: &Option<method_call_inf::MethodCallInf3>,
 ) -> HirExpression {
+    debug_assert!(tyargs.len() == found.sig.typarams.len());
     let tyarg_hirs = tyargs
         .iter()
         .map(|t| mk.get_class_object(&t.meta_ty(), &receiver_hir.locs))
