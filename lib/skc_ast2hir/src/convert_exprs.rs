@@ -887,7 +887,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     let cap = LambdaCapture {
                         ctx_idx: method_ctx_idx,
                         is_lambda_scope: false,
-                        ty: cls_ty.clone(),
+                        ty: typaram_ref.upper_bound.to_term_ty().meta_ty(),
                         upcast_needed: false,
                         readonly: true,
                         detail: LambdaCaptureDetail::CapMethodTyArg {
