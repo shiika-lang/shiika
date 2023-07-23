@@ -1,4 +1,4 @@
-use crate::ty::{self, TermTy};
+use crate::ty::LitTy;
 use nom::IResult;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct TyParam {
     pub name: String,
     pub variance: Variance,
-    pub upper_bound: TermTy,
-    pub lower_bound: TermTy,
+    pub upper_bound: LitTy,
+    pub lower_bound: LitTy,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -23,8 +23,8 @@ impl TyParam {
         TyParam {
             name: name.into(),
             variance,
-            upper_bound: ty::raw("Object"),
-            lower_bound: ty::raw("Never"),
+            upper_bound: LitTy::raw("Object"),
+            lower_bound: LitTy::raw("Never"),
         }
     }
 
