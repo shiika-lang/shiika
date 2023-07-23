@@ -510,15 +510,19 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let mut param_tys = signature.params.iter().map(|p| &p.ty).collect::<Vec<_>>();
+        let mut param_tys = signature
+            .params
+            .iter()
+            .map(|p| p.ty.clone())
+            .collect::<Vec<_>>();
         if signature.is_the_new() {
             // HACK: Generic .new (eg. Pair.new) has type parameters but they will never be called because calls of
             // them are replaced by corresponding specialized one (eg. Pair<Int,Int>.new). Since
             // specialized .new's does not need type arguments, skip adding extranous arguments for
             // tyargs.
         } else {
-            for tp in &signature.typarams {
-                param_tys.push(&tp.upper_bound);
+            for tp in ty::typarams_to_typaram_refs(&signature.typarams, TyParamKind::Method, true) {
+                param_tys.push(tp.to_term_ty());
             }
         }
 
@@ -526,15 +530,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Return llvm funcion type
-    fn llvm_func_type(
+    fn llvm_func_type<T: AsRef<TermTy>>(
         &self,
         self_ty: Option<&TermTy>,
-        param_tys: &[&TermTy],
+        param_tys: &[T],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
         let mut arg_types = param_tys
             .iter()
-            .map(|ty| self.llvm_type(ty).into())
+            .map(|ty| self.llvm_type(ty.as_ref()).into())
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {

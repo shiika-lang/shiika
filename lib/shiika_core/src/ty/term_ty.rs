@@ -14,6 +14,12 @@ pub struct TermTy {
     pub body: TyBody,
 }
 
+impl AsRef<TermTy> for TermTy {
+    fn as_ref(&self) -> &TermTy {
+        self
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TyBody {
     /// Types of classes

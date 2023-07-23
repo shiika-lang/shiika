@@ -53,13 +53,17 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 pub fn typarams_to_tyargs(typarams: &[TyParam]) -> Vec<TermTy> {
-    typarams_to_typaram_refs(typarams, TyParamKind::Class)
+    typarams_to_typaram_refs(typarams, TyParamKind::Class, false)
         .into_iter()
         .map(|tpref| tpref.into_term_ty())
         .collect()
 }
 
-pub fn typarams_to_typaram_refs(typarams: &[TyParam], kind: TyParamKind) -> Vec<TyParamRef> {
+pub fn typarams_to_typaram_refs(
+    typarams: &[TyParam],
+    kind: TyParamKind,
+    as_class: bool,
+) -> Vec<TyParamRef> {
     typarams
         .iter()
         .enumerate()
@@ -69,7 +73,7 @@ pub fn typarams_to_typaram_refs(typarams: &[TyParam], kind: TyParamKind) -> Vec<
             idx: i,
             upper_bound: t.upper_bound.clone(),
             lower_bound: t.lower_bound.clone(),
-            as_class: false,
+            as_class,
         })
         .collect()
 }

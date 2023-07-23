@@ -18,7 +18,7 @@ pub struct MethodCallInf1 {
 
 impl MethodCallInf1 {
     pub fn new(sig: &MethodSignature, has_block: bool) -> MethodCallInf1 {
-        let tprefs = ty::typarams_to_typaram_refs(&sig.typarams, TyParamKind::Method);
+        let tprefs = ty::typarams_to_typaram_refs(&sig.typarams, TyParamKind::Method, false);
         let vars = tprefs.into_iter().enumerate().collect::<Vec<_>>();
         let method_arg_tys = sig
             .params
@@ -178,7 +178,7 @@ pub fn infer_result_ty_with_block(
 
 /// Infer method-wise type arguments from the method call arguments.
 pub fn infer_method_tyargs(sig: &MethodSignature, arg_types: &[TermTy]) -> Result<Vec<TermTy>> {
-    let tprefs = ty::typarams_to_typaram_refs(&sig.typarams, TyParamKind::Method);
+    let tprefs = ty::typarams_to_typaram_refs(&sig.typarams, TyParamKind::Method, false);
     let vars = tprefs.into_iter().enumerate().collect::<Vec<_>>();
     let mut ans = Answer::new();
     let param_types = sig.params.iter().map(|param| &param.ty);

@@ -216,7 +216,7 @@ pub fn signature_of_new(
     initialize_params: Vec<MethodParam>,
     typarams: Vec<ty::TyParam>,
 ) -> MethodSignature {
-    let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method)
+    let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method, false)
         .into_iter()
         .map(|x| x.into_term_ty())
         .collect::<Vec<_>>();
