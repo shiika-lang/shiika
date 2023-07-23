@@ -18,7 +18,8 @@ pub struct SkClass {
     /// None if not applicable (eg. metaclasses cannot be a explicit superclass because there is no
     /// such syntax)
     pub is_final: Option<bool>,
-    /// eg. `Void` is an instance, not the class
+    /// True if the constant of the class name holds the only instance instead
+    /// of the class object. (eg. `Void`, `None`)
     pub const_is_obj: bool,
     /// Witness table
     pub wtable: WTable,

@@ -578,24 +578,34 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Returns a HIR that evaluates to a (possibly specialized) class object.
-    pub fn get_class_object(&mut self, ty: &TermTy, locs: &LocationSpan) -> HirExpression {
-        match &ty.body {
+    pub fn get_class_object(&mut self, cls_ty: &TermTy, locs: &LocationSpan) -> HirExpression {
+        match &cls_ty.body {
             TyBody::TyRaw(LitTy {
                 base_name,
                 type_args,
                 is_meta,
             }) => {
                 debug_assert!(is_meta);
-                let base =
-                    Hir::const_ref(ty.clone(), ty.erasure().to_const_fullname(), locs.clone());
-                if type_args.is_empty() {
-                    return base;
+                let const_name = cls_ty.erasure().to_const_fullname();
+                let instance_ty = cls_ty.instance_ty();
+                let sk_type = self
+                    .class_dict
+                    .get_type(&instance_ty.erasure().to_type_fullname());
+                if sk_type.const_is_obj() {
+                    let base = Hir::const_ref(instance_ty, const_name, locs.clone());
+                    get_class_of_obj_const(cls_ty.clone(), base)
+                } else {
+                    let base = Hir::const_ref(cls_ty.clone(), const_name, locs.clone());
+                    if type_args.is_empty() {
+                        base
+                    } else {
+                        let tyarg_classes = type_args
+                            .iter()
+                            .map(|t| self.get_class_object(&t.meta_ty(), locs))
+                            .collect::<Vec<_>>();
+                        call_class_specialize(self, tyarg_classes, base_name, base)
+                    }
                 }
-                let tyarg_classes = type_args
-                    .iter()
-                    .map(|t| self.get_class_object(&t.meta_ty(), locs))
-                    .collect::<Vec<_>>();
-                call_class_specialize(self, tyarg_classes, base_name, base)
             }
             TyBody::TyPara(typaram_ref) => self.tvar_ref(typaram_ref.clone(), locs),
         }
@@ -658,6 +668,17 @@ fn _set_default(
     Ok(if_expr)
 }
 
+/// Generate call to `.class`
+fn get_class_of_obj_const(cls_ty: TermTy, base: HirExpression) -> HirExpression {
+    Hir::method_call(
+        cls_ty,
+        base,
+        method_fullname_raw("Object", "class"),
+        vec![],
+        Default::default(),
+    )
+}
+
 /// Generate call to `Class#<>`
 fn call_class_specialize(
     mk: &mut HirMaker,
@@ -669,6 +690,7 @@ fn call_class_specialize(
         // Workaround for bootstrap problem of arrays.
         // `_specialize1` is the same as `<>` except it accepts only one
         // type argument and therefore does not need to create an array.
+        // REFACTOR: do we really need to use Shiika Array here?
         Hir::method_call(
             ty::meta(base_name),
             base,

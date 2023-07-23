@@ -105,4 +105,11 @@ impl SkType {
         let type_args = ty::typarams_to_tyargs(&self.base().typarams);
         ty::spe(self.fullname().0, type_args)
     }
+
+    pub fn const_is_obj(&self) -> bool {
+        match self {
+            SkType::Class(x) => x.const_is_obj,
+            SkType::Module(_) => false,
+        }
+    }
 }
