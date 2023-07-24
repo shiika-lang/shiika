@@ -13,7 +13,7 @@ use type_index::TypeIndex;
 
 type RustMethods = HashMap<TypeFullname, Vec<MethodSignature>>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
     type_index: type_index::TypeIndex,
@@ -37,7 +37,7 @@ pub fn create<'hir_maker>(
         imported_classes,
         rust_methods: Default::default(),
     };
-    dict.index_program(&defs)?;
+    dict.index_program(defs)?;
     Ok(dict)
 }
 
@@ -54,7 +54,7 @@ pub fn create_for_corelib<'hir_maker>(
         imported_classes,
         rust_methods: index_rust_method_sigs(rust_method_sigs),
     };
-    dict.index_program(&defs)?;
+    dict.index_program(defs)?;
     Ok(dict)
 }
 

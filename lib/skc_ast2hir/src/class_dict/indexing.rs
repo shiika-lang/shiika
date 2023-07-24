@@ -221,7 +221,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: Vec<ty::TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
-        let fullname = namespace.module_fullname(&firstname);
+        let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
@@ -419,7 +419,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ClassInitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
-                    if sig.params.len() != 0 {
+                    if !sig.params.is_empty() {
                         return Err(error::program_error(&format!(
                             "{}.{} should take no parameters",
                             namespace, &sig.name

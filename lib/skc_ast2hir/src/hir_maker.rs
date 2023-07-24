@@ -200,7 +200,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         log::trace!("method {}.{}", &fullname, &sig.name);
                         let method = self.convert_method_def(
                             &meta_name.to_type_fullname(),
-                            &sig,
+                            sig,
                             body_exprs,
                         )?;
                         self.method_dict
@@ -643,7 +643,7 @@ fn _set_default(
     name: &str,
     expr: &AstExpression,
 ) -> Result<HirExpression> {
-    let value_expr = mk.convert_expr(&expr)?;
+    let value_expr = mk.convert_expr(expr)?;
     let locs = LocationSpan::internal();
     let arg = Hir::arg_ref(value_expr.ty.clone(), idx, locs.clone());
     let cond_expr = Hir::is_omitted_value(arg.clone());
@@ -655,7 +655,7 @@ fn _set_default(
         locs.clone(),
     )]);
     let mut else_exprs = HirExpressions::void();
-    else_exprs.prepend(vec![Hir::lvar_assign(name.to_string(), arg, locs.clone())]);
+    else_exprs.prepend(vec![Hir::lvar_assign(name.to_string(), arg, locs)]);
 
     let if_expr = Hir::if_expression(
         ty::raw("Void"),

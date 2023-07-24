@@ -148,8 +148,8 @@ pub fn infer_block_param(
         .map(|(l, r)| Equation(l.clone(), TmpTy::from(r)))
         .collect::<Vec<_>>();
     unify(equations, &mut inf.answer)?;
-    let solved_pre_block_arg_tys = inf.answer.apply_to_vec(&inf.pre_block_arg_tys())?;
-    let solved_block_param_tys = inf.answer.apply_to_vec(&inf.block_param_tys())?;
+    let solved_pre_block_arg_tys = inf.answer.apply_to_vec(inf.pre_block_arg_tys())?;
+    let solved_block_param_tys = inf.answer.apply_to_vec(inf.block_param_tys())?;
     Ok(MethodCallInf2::new(
         inf,
         solved_pre_block_arg_tys,
@@ -164,7 +164,7 @@ pub fn infer_result_ty_with_block(
 ) -> Result<MethodCallInf3> {
     let equations = vec![Equation(
         inf.block_ret_ty.clone(),
-        TmpTy::from(&block_ty.tyargs().last().unwrap()),
+        TmpTy::from(block_ty.tyargs().last().unwrap()),
     )];
     unify(equations, &mut inf.answer)?;
     let solved_block_ret_ty = inf.answer.apply_to(&inf.block_ret_ty)?;
