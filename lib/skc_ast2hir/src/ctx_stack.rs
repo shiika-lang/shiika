@@ -325,21 +325,10 @@ impl<'hir_maker> LVarIter<'hir_maker> {
     fn new(ctx_stack: &CtxStack) -> LVarIter {
         let mut finished = false;
         let mut cur = ctx_stack.len();
-        loop {
-            if cur == 0 {
-                finished = true;
-                break;
-            }
+        if cur == 0 {
+            finished = true;
+        } else {
             cur -= 1;
-            match ctx_stack.get(cur) {
-                HirMakerContext::Toplevel(_)
-                | HirMakerContext::If(_)
-                | HirMakerContext::Class(_)
-                | HirMakerContext::Method(_)
-                | HirMakerContext::Lambda(_)
-                | HirMakerContext::MatchClause(_)
-                | HirMakerContext::While(_) => break,
-            }
         }
         LVarIter {
             ctx_stack,
