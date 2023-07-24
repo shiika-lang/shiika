@@ -133,7 +133,7 @@ impl MethodSignature {
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
 
         let get_method = nom::bytes::complete::take_until("(");
-        let (s, fullname) = nom::combinator::map_opt(get_method, MethodFullname::from_str)(s)?;
+        let (s, fullname) = nom::combinator::map_opt(get_method, MethodFullname::parse)(s)?;
 
         let parse_params = nom::multi::separated_list0(tag(","), MethodParam::deserialize);
         let (s, params) = nom::sequence::delimited(tag("("), parse_params, tag(")"))(s)?;

@@ -74,7 +74,7 @@ impl std::fmt::Display for MethodFullname {
 }
 
 impl MethodFullname {
-    pub fn from_str(v: &str) -> Option<MethodFullname> {
+    pub fn parse(v: &str) -> Option<MethodFullname> {
         let parts = v.split('#').collect::<Vec<_>>();
         if parts.len() == 2 {
             Some(method_fullname_raw(parts[0], parts[1]))
@@ -113,7 +113,7 @@ impl<'de> de::Visitor<'de> for MethodFullnameVisitor {
     where
         E: serde::de::Error,
     {
-        match MethodFullname::from_str(v) {
+        match MethodFullname::parse(v) {
             Some(n) => Ok(n),
             None => Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(v),
