@@ -4,7 +4,7 @@ use shiika_core::names::MethodFirstname;
 use std::collections::HashMap;
 
 /// A method list like an ordered map.
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct MethodSignatures(HashMap<MethodFirstname, (MethodSignature, usize)>);
 
 impl MethodSignatures {

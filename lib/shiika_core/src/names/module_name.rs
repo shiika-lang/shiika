@@ -3,7 +3,7 @@ use super::const_name::{const_fullname, ConstFullname};
 use super::type_name::{type_fullname, TypeFullname};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ModuleFirstname(pub String);
 
 impl std::fmt::Display for ModuleFirstname {

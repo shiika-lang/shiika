@@ -613,6 +613,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate method call via wtable
+    #[allow(clippy::too_many_arguments)]
     fn gen_module_method_call(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,

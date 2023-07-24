@@ -249,7 +249,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 lvars,
                 ..
             } => {
-                self.gen_lambda_func(&name, params, exprs, ret_ty, lvars)?;
+                self.gen_lambda_func(name, params, exprs, ret_ty, lvars)?;
                 self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
             }
             HirSelfExpression => (),
@@ -264,7 +264,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirClassLiteral { .. } => (),
             HirParenthesizedExpr { exprs } => self.gen_lambda_funcs_in_exprs(&exprs.exprs)?,
             HirDefaultExpr { .. } => (),
-            HirIsOmittedValue { expr, .. } => self.gen_lambda_funcs_in_expr(&expr)?,
+            HirIsOmittedValue { expr, .. } => self.gen_lambda_funcs_in_expr(expr)?,
         }
         Ok(())
     }
@@ -415,7 +415,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_capture_structs_in_exprs(&exprs.exprs)?
             }
             HirDefaultExpr { .. } => (),
-            HirIsOmittedValue { expr, .. } => self.gen_lambda_capture_structs_in_expr(&expr)?,
+            HirIsOmittedValue { expr, .. } => self.gen_lambda_capture_structs_in_expr(expr)?,
         }
         Ok(())
     }

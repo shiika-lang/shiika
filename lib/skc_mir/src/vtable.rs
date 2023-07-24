@@ -3,7 +3,7 @@ use shiika_core::names::*;
 use skc_hir::SkClass;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct VTable {
     /// List of methods, ordered by index
     fullnames: Vec<MethodFullname>,

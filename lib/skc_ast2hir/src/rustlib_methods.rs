@@ -22,7 +22,7 @@ pub fn create_method_sigs(type_index: &TypeIndex) -> Vec<MethodSignature> {
     let ast_sigs = skc_corelib::rustlib_methods::provided_methods();
     ast_sigs
         .iter()
-        .map(|(classname, ast_sig)| make_rustlib_method_sig(&classname, &ast_sig, type_index))
+        .map(|(classname, ast_sig)| make_rustlib_method_sig(classname, ast_sig, type_index))
         .collect()
 }
 

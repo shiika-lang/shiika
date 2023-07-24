@@ -110,13 +110,13 @@ pub struct AstMethodSignature {
 }
 
 /// A type parameter
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AstTyParam {
     pub name: String,
     pub variance: AstVariance,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum AstVariance {
     Invariant,
     Covariant,     // eg. `in T`
@@ -131,7 +131,7 @@ pub struct Param {
     pub default_expr: Option<AstExpression>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockParam {
     pub name: String,
     pub opt_typ: Option<UnresolvedTypeName>,
@@ -139,7 +139,7 @@ pub struct BlockParam {
 
 /// A type name not yet resolved.
 /// eg. for `A::B<C>`, `names` is `A, B` and `args` is `C`.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UnresolvedTypeName {
     pub names: Vec<String>,
     pub args: Vec<UnresolvedTypeName>,
@@ -265,6 +265,12 @@ pub struct AstCallArgs {
     pub block: Option<Box<AstExpression>>,
 }
 
+impl Default for AstCallArgs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AstCallArgs {
     pub fn new() -> AstCallArgs {
         AstCallArgs {
@@ -301,7 +307,7 @@ impl AstCallArgs {
             .chain(self.named.iter().map(|(_, e)| e))
             .collect::<Vec<_>>();
         if let Some(e) = &self.block {
-            v.push(&e);
+            v.push(e);
         }
         v
     }

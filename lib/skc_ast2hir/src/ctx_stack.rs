@@ -38,8 +38,7 @@ impl CtxStack {
 
     /// Pop a ctx
     fn pop(&mut self) -> HirMakerContext {
-        let c = self.vec.pop().expect("[BUG] no ctx to pop");
-        c
+        self.vec.pop().expect("[BUG] no ctx to pop")
     }
 
     /// Pop the ToplevelCtx on the stack top
@@ -296,7 +295,7 @@ impl CtxStack {
     }
 
     /// Iterates over lvar scopes starting from the current scope
-    pub fn lvar_scopes<'hir_maker>(&'hir_maker self) -> LVarIter<'hir_maker> {
+    pub fn lvar_scopes(&self) -> LVarIter {
         LVarIter::new(self)
     }
 
@@ -326,21 +325,10 @@ impl<'hir_maker> LVarIter<'hir_maker> {
     fn new(ctx_stack: &CtxStack) -> LVarIter {
         let mut finished = false;
         let mut cur = ctx_stack.len();
-        loop {
-            if cur == 0 {
-                finished = true;
-                break;
-            }
+        if cur == 0 {
+            finished = true;
+        } else {
             cur -= 1;
-            match ctx_stack.get(cur) {
-                HirMakerContext::Toplevel(_)
-                | HirMakerContext::If(_)
-                | HirMakerContext::Class(_)
-                | HirMakerContext::Method(_)
-                | HirMakerContext::Lambda(_)
-                | HirMakerContext::MatchClause(_)
-                | HirMakerContext::While(_) => break,
-            }
         }
         LVarIter {
             ctx_stack,

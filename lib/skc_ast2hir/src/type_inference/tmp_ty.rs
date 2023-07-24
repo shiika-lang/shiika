@@ -23,7 +23,7 @@ pub enum TmpTy {
 
 impl fmt::Display for TmpTy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self.stringify())
     }
 }
 
@@ -104,7 +104,7 @@ impl TmpTy {
     }
 
     /// Returns human-readable representation
-    pub fn to_string(&self) -> String {
+    fn stringify(&self) -> String {
         match self {
             TmpTy::Unknown(id) => format!("'{}", id),
             TmpTy::Literal {

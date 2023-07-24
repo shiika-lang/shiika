@@ -44,14 +44,13 @@ pub fn convert_method_call(
         method_tyargs.push(resolve_method_tyarg(mk, tyarg)?);
     }
 
-    let found = mk
-        .class_dict
-        .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?
-        .clone();
+    let found =
+        mk.class_dict
+            .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?;
     let arranged = arrange_named_args(&found.sig, args)?;
     validate_method_tyargs(&found, type_args)?;
 
-    let inf1 = if found.sig.typarams.len() > 0 && type_args.is_empty() {
+    let inf1 = if !found.sig.typarams.is_empty() && type_args.is_empty() {
         let sig = &found.sig; //.specialize(class_tyargs, method_tyargs);
         Some(method_call_inf::MethodCallInf1::new(sig, args.has_block()))
     } else if args.has_block() {
@@ -119,7 +118,7 @@ pub fn arrange_named_args<'a>(
 /// Check if number of type arguments matches to the typarams.
 /// If no tyargs are given, check is skipped (it will be inferred instead.)
 pub fn validate_method_tyargs(found: &FoundMethod, type_args: &[AstExpression]) -> Result<()> {
-    if type_args.len() > 0 && type_args.len() != found.sig.typarams.len() {
+    if !type_args.is_empty() && type_args.len() != found.sig.typarams.len() {
         return Err(error::type_error(format!(
             "wrong number of method-wise type arguments ({} for {:?}",
             type_args.len(),
@@ -204,7 +203,7 @@ fn convert_method_args(
             "failed to infer block parameter of {}",
             block_taker
         ))?;
-        let block_hir = block::convert_block(mk, block_taker, &inf2, &arg_exprs.last().unwrap())?;
+        let block_hir = block::convert_block(mk, block_taker, &inf2, arg_exprs.last().unwrap())?;
         let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)
             .context(format!("failed to infer result type of {}", block_taker))?;
 

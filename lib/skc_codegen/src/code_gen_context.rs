@@ -22,7 +22,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     pub returns: Vec<(SkObj<'run>, inkwell::basic_block::BasicBlock<'run>)>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum FunctionOrigin {
     Method,
     Lambda { name: String },

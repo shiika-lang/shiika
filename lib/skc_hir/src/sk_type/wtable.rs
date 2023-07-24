@@ -9,7 +9,7 @@ use std::collections::HashMap;
 /// eg. for the class `Array` which includes `Enumerable`, WTable will
 /// look like this.
 ///   {"Enumerable" => ["Enumerable#all?", "Array#each", ...]}
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct WTable(pub HashMap<ModuleFullname, Vec<MethodFullname>>);
 
 impl WTable {

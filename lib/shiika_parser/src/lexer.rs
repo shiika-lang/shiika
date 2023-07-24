@@ -30,7 +30,7 @@ pub struct Lexer<'a> {
 /// - `p - x`  # binary minus            ExprArg
 /// - `p -x`   # unary minus             ExprArg
 /// - `1 -2`   # binary minus (unusual)  ExprArg  
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexerState {
     /// A new expression begins here
     /// `+`/`-` is always unary
@@ -50,7 +50,7 @@ pub enum LexerState {
     StrLiteral,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Cursor {
     line: usize,
     col: usize,

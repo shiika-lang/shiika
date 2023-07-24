@@ -147,6 +147,7 @@ fn check_method_arity(sig: &MethodSignature, arg_hirs: &[HirExpression]) -> Resu
 }
 
 /// Check types of method call args
+#[allow(clippy::needless_range_loop)]
 fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,

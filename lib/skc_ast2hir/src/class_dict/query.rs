@@ -69,7 +69,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
-            if method_tyargs.len() > 0 && method_tyargs.len() != found.sig.typarams.len() {
+            if !method_tyargs.is_empty() && method_tyargs.len() != found.sig.typarams.len() {
                 return Err(error::type_error(format!(
                     "wrong number of type arguments, expected: {:?} got: {:?}",
                     &found.sig.typarams.len(),
@@ -91,13 +91,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     if let Some(mut found) =
                         self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
                     {
-                        let mod_tyargs = sk_class.specialize_module(modinfo, &class_tyargs);
+                        let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
                         found.specialize(&mod_tyargs, method_tyargs);
                         return Ok(found);
                     }
                 }
                 // Look up in superclass
-                if let Some(super_ty) = &sk_class.specialized_superclass(&class_tyargs) {
+                if let Some(super_ty) = &sk_class.specialized_superclass(class_tyargs) {
                     return self.lookup_method_(
                         receiver_type,
                         &super_ty.to_term_ty(),

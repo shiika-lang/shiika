@@ -12,6 +12,7 @@ use std::fmt;
 
 /// Type information of the method or fn which takes the block.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum BlockTaker<'hir_maker> {
     Method {
         locs: &'hir_maker LocationSpan,

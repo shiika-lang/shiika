@@ -192,6 +192,7 @@ pub struct LambdaCapture {
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum LambdaCaptureDetail {
     // Capturing a local variable
     CapLVar { name: String },

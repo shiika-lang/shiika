@@ -4,7 +4,7 @@ use shiika_core::{names::ConstFullname, ty::TermTy};
 use skc_hir::SkTypes;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default)]
 pub struct LibraryExports {
     pub sk_types: SkTypes,
     pub vtables: VTables,

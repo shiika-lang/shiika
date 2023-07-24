@@ -3,7 +3,7 @@ use nom::IResult;
 use serde::{Deserialize, Serialize};
 
 /// A type parameter
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct TyParam {
     pub name: String,
     pub variance: Variance,
@@ -11,7 +11,7 @@ pub struct TyParam {
     pub lower_bound: LitTy,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Variance {
     Invariant,
     Covariant,     // eg. `in T`

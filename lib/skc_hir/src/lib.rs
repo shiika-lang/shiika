@@ -41,7 +41,7 @@ impl Hir {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct SkIVar {
     pub idx: usize,
     pub name: String, // Includes `@`
@@ -145,6 +145,7 @@ pub struct HirExpression {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum HirExpressionBase {
     HirLogicalNot {
         expr: Box<HirExpression>,
@@ -652,6 +653,8 @@ impl Hir {
         }
     }
 
+    // REFACTOR: `ty` can be omittable?
+    #[allow(clippy::too_many_arguments)]
     pub fn lambda_expr(
         ty: TermTy,
         name: String,

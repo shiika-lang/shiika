@@ -66,24 +66,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 name,
                 rhs,
                 readonly,
-            } => self.convert_lvar_decl(name, &*rhs, readonly, &expr.locs),
+            } => self.convert_lvar_decl(name, rhs, readonly, &expr.locs),
 
             AstExpressionBody::LVarAssign { name, rhs } => {
-                self.convert_lvar_assign(name, &*rhs, &expr.locs)
+                self.convert_lvar_assign(name, rhs, &expr.locs)
             }
 
             AstExpressionBody::IVarDecl {
                 name,
                 rhs,
                 readonly,
-            } => self.convert_ivar_decl(name, &*rhs, readonly, &expr.locs),
+            } => self.convert_ivar_decl(name, rhs, readonly, &expr.locs),
 
             AstExpressionBody::IVarAssign { name, rhs } => {
-                self.convert_ivar_assign(name, &*rhs, &expr.locs)
+                self.convert_ivar_assign(name, rhs, &expr.locs)
             }
 
             AstExpressionBody::ConstAssign { names, rhs } => {
-                self.convert_const_assign(names, &*rhs, &expr.locs)
+                self.convert_const_assign(names, rhs, &expr.locs)
             }
 
             AstExpressionBody::MethodCall(AstMethodCall {
@@ -193,7 +193,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let mut if_ctxs = vec![];
 
-        let () = self.ctx_stack.push(HirMakerContext::if_ctx());
+        self.ctx_stack.push(HirMakerContext::if_ctx());
         let mut then_hirs = self.convert_exprs(then_exprs)?;
         if_ctxs.push(self.ctx_stack.pop_if_ctx());
         self.ctx_stack.push(HirMakerContext::if_ctx());
@@ -231,7 +231,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let lvars = if_ctxs
             .iter()
-            .map(|if_ctx| {
+            .flat_map(|if_ctx| {
                 if_ctx.lvars.iter().fold(vec![], |mut init, (key, value)| {
                     let hirlvar = HirLVar {
                         name: key.clone(),
@@ -242,7 +242,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     init
                 })
             })
-            .flatten()
             .collect::<Vec<_>>();
 
         Ok(Hir::if_expression(
@@ -448,14 +447,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
-        return Ok(Hir::ivar_assign(
+        Ok(Hir::ivar_assign(
             name,
             idx,
             expr,
             !*readonly,
             base_ty,
             locs.clone(),
-        ));
+        ))
     }
 
     /// Instance variable reassignment (`@a = ...`)
@@ -685,11 +684,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let opt_cidx = if let Some(cap) = opt_cap {
                 let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
                 if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
-                    found.as_mut().map(|x| x.set_cidx(existing));
+                    if let Some(x) = found.as_mut() {
+                        x.set_cidx(existing)
+                    }
                     Some(existing)
                 } else {
                     let cidx = lambda_ctx.push_lambda_capture(cap);
-                    found.as_mut().map(|x| x.set_cidx(cidx));
+                    if let Some(x) = found.as_mut() {
+                        x.set_cidx(cidx)
+                    }
                     Some(cidx)
                 }
             } else {
@@ -753,7 +756,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            if let Some((idx, param)) = signature::find_param(&scope.params, name) {
+            if let Some((idx, param)) = signature::find_param(scope.params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
                         "you cannot reassign to argument `{}'",
@@ -945,7 +948,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let sk_type = self
             .class_dict
             .get_type(&base_expr.ty.instance_ty().fullname);
-        type_checking::check_class_specialization(&sk_type, &arg_exprs, &locs)?;
+        type_checking::check_class_specialization(sk_type, &arg_exprs, locs)?;
 
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
         Ok(Hir::method_call(

@@ -141,10 +141,9 @@ end
 
 task :debugify => DEBUG_OUT
 
-task :a => [:fmt, A_OUT]
+task :a => [:fmt, A_OUT] do
 #task :a => [:fmt] do
-#  sh "cargo run -- run a.sk"
- #sh "cargo run -- run ~/proj/BidirectionalTypechecking/bidi.sk"
- #sh "cargo run -- run /Users/yhara/proj/BidirectionalTypechecking/sexp.sk"
-#end
+  # sh "cargo clippy"
+  # sh "cargo run -- run a.sk"
+end
 

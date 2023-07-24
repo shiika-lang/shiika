@@ -5,7 +5,7 @@ use std::fmt;
 
 /// Information of a method except its body exprs.
 /// Note that `params` may contain some HIR when it has default expr.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
@@ -87,7 +87,7 @@ impl MethodSignature {
                 + &self
                     .typarams
                     .iter()
-                    .map(|x| format!("{}", &x.name))
+                    .map(|x| x.name.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
                 + ">"
@@ -133,7 +133,7 @@ impl MethodSignature {
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
 
         let get_method = nom::bytes::complete::take_until("(");
-        let (s, fullname) = nom::combinator::map_opt(get_method, MethodFullname::from_str)(s)?;
+        let (s, fullname) = nom::combinator::map_opt(get_method, MethodFullname::parse)(s)?;
 
         let parse_params = nom::multi::separated_list0(tag(","), MethodParam::deserialize);
         let (s, params) = nom::sequence::delimited(tag("("), parse_params, tag(")"))(s)?;
@@ -150,7 +150,7 @@ impl MethodSignature {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,
