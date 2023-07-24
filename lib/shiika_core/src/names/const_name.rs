@@ -23,11 +23,11 @@ pub fn toplevel_const(first_name: &str) -> ConstFullname {
 }
 
 /// A const name not resolved yet
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UnresolvedConstName(pub Vec<String>);
 
 /// Fully qualified const name.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ResolvedConstName {
     pub names: Vec<String>,
 }
