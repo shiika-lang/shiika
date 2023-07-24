@@ -684,11 +684,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             let opt_cidx = if let Some(cap) = opt_cap {
                 let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
                 if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
-                    found.as_mut().map(|x| x.set_cidx(existing));
+                    if let Some(x) = found.as_mut() {
+                        x.set_cidx(existing)
+                    }
                     Some(existing)
                 } else {
                     let cidx = lambda_ctx.push_lambda_capture(cap);
-                    found.as_mut().map(|x| x.set_cidx(cidx));
+                    if let Some(x) = found.as_mut() {
+                        x.set_cidx(cidx)
+                    }
                     Some(cidx)
                 }
             } else {
