@@ -103,6 +103,6 @@ impl LitTy {
             nom::combinator::opt(nom::sequence::delimited(tag("<"), parse_tys, tag(">")))(s)?;
         let type_args = tyargs.unwrap_or_default();
 
-        Ok((s, LitTy::new(base_name, type_args, is_meta)))
+        Ok((s, LitTy::new(base_name.to_string(), type_args, is_meta)))
     }
 }

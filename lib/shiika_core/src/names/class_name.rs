@@ -3,7 +3,7 @@ use super::type_name::*;
 use crate::ty::TermTy;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct ClassFirstname(pub String);
 
 impl std::fmt::Display for ClassFirstname {

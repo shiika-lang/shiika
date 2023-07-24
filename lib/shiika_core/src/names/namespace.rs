@@ -3,7 +3,7 @@ use super::const_name::*;
 use super::module_name::*;
 use super::type_name::{type_fullname, TypeFullname};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Namespace(pub Vec<String>);
 
 impl std::fmt::Display for Namespace {

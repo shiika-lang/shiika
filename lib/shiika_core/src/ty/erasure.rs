@@ -4,7 +4,7 @@ use crate::names::{
 use crate::ty::{self, TermTy};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Erasure {
     pub base_name: String,
     /// `true` if values of this type are classes

@@ -3,7 +3,7 @@ use serde::{de, ser, Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct MethodFirstname(pub String);
 
 impl std::fmt::Display for MethodFirstname {
@@ -68,7 +68,7 @@ impl std::fmt::Display for MethodFullname {
 
 impl MethodFullname {
     pub fn from_str(v: &str) -> Option<MethodFullname> {
-        let parts = v.split('#').collect::<Vec<_>>();
+        let parts = v.split("#").collect::<Vec<_>>();
         if parts.len() == 2 {
             Some(method_fullname_raw(parts[0], parts[1]))
         } else {
