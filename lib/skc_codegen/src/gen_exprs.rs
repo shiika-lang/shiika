@@ -7,7 +7,6 @@ use crate::CodeGen;
 use anyhow::Result;
 use inkwell::types::*;
 use inkwell::values::*;
-use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match;
 use skc_hir::HirExpressionBase::*;
@@ -597,7 +596,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
         let func_raw = self.build_vtable_ref(vtable, *idx, size);
         self.builder
-            .build_bitcast(func_raw, func_type.ptr_type(AddressSpace::Generic), "func")
+            .build_bitcast(func_raw, func_type.ptr_type(Default::default()), "func")
             .into_pointer_value()
     }
 
@@ -658,7 +657,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
         let func_type = self
             .llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty)
-            .ptr_type(AddressSpace::Generic);
+            .ptr_type(Default::default());
         let func = self
             .builder
             .build_bitcast(func_ptr, func_type, "as")
@@ -727,7 +726,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             arg_types.push(self.llvm_type(&e.ty).into());
         }
         let fntype = self.llvm_type(ret_ty).fn_type(&arg_types, false);
-        let fnptype = fntype.ptr_type(AddressSpace::Generic);
+        let fnptype = fntype.ptr_type(Default::default());
 
         // Cast `fnptr` to that type
         let fnptr =
@@ -1212,7 +1211,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .llvm_struct_types
             .get(&init_cls_name.to_type_fullname())
             .expect("ances_type not found")
-            .ptr_type(inkwell::AddressSpace::Generic);
+            .ptr_type(Default::default());
         let addr = SkObj(self.builder.build_bitcast(
             receiver.clone().0,
             ances_type,

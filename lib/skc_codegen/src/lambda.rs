@@ -26,7 +26,7 @@ impl<'run> LambdaCapture<'run> {
     }
 
     pub fn struct_ptr_type<'ictx>(gen: &CodeGen, name: &str) -> inkwell::types::PointerType<'ictx> {
-        Self::get_struct_type(gen, name).ptr_type(inkwell::AddressSpace::Generic)
+        Self::get_struct_type(gen, name).ptr_type(Default::default())
     }
 
     fn new(
@@ -439,7 +439,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // PERF: not needed to be by-ref when the variable is declared with
             // `var` but not reassigned from closure.
             self.llvm_type(&cap.ty)
-                .ptr_type(inkwell::AddressSpace::Generic)
+                .ptr_type(Default::default())
                 .as_basic_type_enum()
         }
     }

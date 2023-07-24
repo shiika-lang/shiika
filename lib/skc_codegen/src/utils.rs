@@ -2,7 +2,6 @@ use crate::values::*;
 use crate::CodeGen;
 use inkwell::types::*;
 use inkwell::values::BasicValue;
-use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
 
@@ -106,7 +105,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .builder
             .build_bitcast(
                 vtable_ref.0,
-                ary_type.ptr_type(AddressSpace::Generic),
+                ary_type.ptr_type(Default::default()),
                 "vtable_ptr",
             )
             .into_pointer_value();
@@ -224,7 +223,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let mem = self.allocate_mem(t);
-        let ptr_type = t.ptr_type(AddressSpace::Generic);
+        let ptr_type = t.ptr_type(Default::default());
         self.builder.build_bitcast(mem.0, ptr_type, reg_name)
     }
 
@@ -318,8 +317,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // eg. `%Int*`
         let t2 = val.as_basic_value_enum().get_type();
         // eg. `%Int**`
-        let t1ptr = t1.ptr_type(AddressSpace::Generic).as_any_type_enum();
-        let t2ptr = t2.ptr_type(AddressSpace::Generic).as_any_type_enum();
+        let t1ptr = t1.ptr_type(Default::default()).as_any_type_enum();
+        let t2ptr = t2.ptr_type(Default::default()).as_any_type_enum();
         if t1.as_any_type_enum() == t2ptr || t2.as_any_type_enum() == t1ptr {
             println!("[BUG] Found wrong bitcast from t2 to t1, where");
             dbg!(&t2);
@@ -356,7 +355,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
         self.llvm_struct_type(&lit_ty.erasure().into())
-            .ptr_type(AddressSpace::Generic)
+            .ptr_type(Default::default())
             .as_basic_type_enum()
     }
 

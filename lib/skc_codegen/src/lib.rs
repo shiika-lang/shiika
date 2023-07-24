@@ -12,7 +12,6 @@ use anyhow::{anyhow, Result};
 use either::*;
 use inkwell::types::*;
 use inkwell::values::*;
-use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match::MatchClause;
 use skc_hir::*;
@@ -92,7 +91,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             builder,
             i1_type: context.bool_type(),
             i8_type: context.i8_type(),
-            i8ptr_type: context.i8_type().ptr_type(AddressSpace::Generic),
+            i8ptr_type: context.i8_type().ptr_type(Default::default()),
             i32_type: context.i32_type(),
             i64_type: context.i64_type(),
             f64_type: context.f64_type(),
@@ -903,7 +902,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .llvm_struct_types
                 .get(&init_cls_name.to_type_fullname())
                 .expect("ances_type not found")
-                .ptr_type(inkwell::AddressSpace::Generic);
+                .ptr_type(Default::default());
             SkObj(
                 self.builder
                     .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
