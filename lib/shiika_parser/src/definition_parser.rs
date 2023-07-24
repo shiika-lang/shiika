@@ -312,10 +312,7 @@ impl<'a> Parser<'a> {
 
         // `foo(bar) -> Baz`
         let (sig, is_class_method) = self.parse_method_signature()?;
-        if sig.name.0 != "[]="
-            && (sig.name.0.chars().last().unwrap() == '=')
-            && sig.params.len() != 1
-        {
+        if sig.name.0 != "[]=" && (sig.name.0.ends_with('=')) && sig.params.len() != 1 {
             return Err(parse_error!(
                 self,
                 "setter accepts one argument but {:?} were given",
@@ -348,6 +345,7 @@ impl<'a> Parser<'a> {
 
         self.lv -= 1;
         let is_initializer = sig.name.0 == "initialize";
+        #[allow(clippy::collapsible_else_if)]
         if is_class_method {
             if is_initializer {
                 let d = shiika_ast::InitializerDefinition { sig, body_exprs };
@@ -384,7 +382,7 @@ impl<'a> Parser<'a> {
                     self.ast.bare_name(&param.name, loc.clone(), loc.clone()),
                     readonly,
                     loc.clone(),
-                    loc.clone(),
+                    loc,
                 )
             })
             .collect()

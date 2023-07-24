@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Location {
     pub line: usize,
     pub col: usize,
@@ -16,7 +16,7 @@ impl Location {
 }
 
 /// Range in a source file (end-exclusive)
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum LocationSpan {
     Empty,
     Just {
@@ -77,7 +77,7 @@ impl LocationSpan {
                     end,
                     ..
                 },
-            ) if filepath == filepath2 => Self::new(&filepath, begin.clone(), end.clone()),
+            ) if filepath == filepath2 => Self::new(filepath, begin.clone(), end.clone()),
             _ => {
                 println!(
                     "[BUG] invalid LocationSpan (begin: {:?}, end: {:?})",
