@@ -5,7 +5,7 @@ use shiika_core::{names::*, ty::*};
 /// a class.
 /// Note that superclass can have type parameters eg.
 /// `class Foo<S, T> : Pair<S, Array<T>>`
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Supertype(LitTy);
 
 impl Supertype {

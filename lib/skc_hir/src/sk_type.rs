@@ -11,7 +11,7 @@ pub use sk_type_base::SkTypeBase;
 use std::collections::HashMap;
 pub use wtable::WTable;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct SkTypes(pub HashMap<TypeFullname, SkType>);
 
 impl SkTypes {
@@ -44,7 +44,7 @@ impl SkTypes {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum SkType {
     Class(SkClass),
     Module(SkModule),

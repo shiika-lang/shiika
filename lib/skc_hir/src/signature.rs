@@ -5,7 +5,7 @@ use std::fmt;
 
 /// Information of a method except its body exprs.
 /// Note that `params` may contain some HIR when it has default expr.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MethodSignature {
     pub fullname: MethodFullname,
     pub ret_ty: TermTy,
@@ -87,7 +87,7 @@ impl MethodSignature {
                 + &self
                     .typarams
                     .iter()
-                    .map(|x| format!("{}", &x.name))
+                    .map(|x| x.name.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
                 + ">"
@@ -150,7 +150,7 @@ impl MethodSignature {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MethodParam {
     pub name: String,
     pub ty: TermTy,

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::*;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct SkTypeBase {
     pub erasure: Erasure,
     pub typarams: Vec<TyParam>,

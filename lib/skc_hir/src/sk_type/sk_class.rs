@@ -7,7 +7,7 @@ use shiika_core::names::ClassFullname;
 use shiika_core::ty::{LitTy, TermTy, TyBody};
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct SkClass {
     pub base: SkTypeBase,
     pub superclass: Option<Supertype>,
