@@ -22,7 +22,7 @@ impl MethodFirstname {
     }
 }
 
-#[derive(PartialEq, Clone, Eq)]
+#[derive(Clone)]
 pub struct MethodFullname {
     // class/module part
     pub type_name: TypeFullname,
@@ -37,6 +37,13 @@ impl Hash for MethodFullname {
         self.full_name.hash(state);
     }
 }
+
+impl PartialEq for MethodFullname {
+    fn eq(&self, other: &Self) -> bool {
+        self.full_name == other.full_name
+    }
+}
+impl Eq for MethodFullname {}
 
 impl fmt::Debug for MethodFullname {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -68,7 +75,7 @@ impl std::fmt::Display for MethodFullname {
 
 impl MethodFullname {
     pub fn from_str(v: &str) -> Option<MethodFullname> {
-        let parts = v.split("#").collect::<Vec<_>>();
+        let parts = v.split('#').collect::<Vec<_>>();
         if parts.len() == 2 {
             Some(method_fullname_raw(parts[0], parts[1]))
         } else {
