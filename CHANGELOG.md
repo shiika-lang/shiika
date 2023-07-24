@@ -1,3 +1,12 @@
+## HEAD
+
+- Syntax
+  - feat: Allow omitting type arguments on .new and method-wise type arguments (#491, #492, #493)
+  - fix: `if` and `while` now makes a local variable scope (#388 - Thank you @EruEri!)
+- Library
+  - new: `Object#sleep`, `Shiika::Internal::Memory.force_gc` (#498)
+  - new: `File.open`, `Readable` (#496)
+
 ## v0.8.0 (2023-04-25)
 
 - Breaking changes
