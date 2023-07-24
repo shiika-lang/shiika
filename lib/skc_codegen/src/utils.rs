@@ -320,11 +320,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // eg. `%Int**`
         let t1ptr = t1.ptr_type(AddressSpace::Generic).as_any_type_enum();
         let t2ptr = t2.ptr_type(AddressSpace::Generic).as_any_type_enum();
-        if t1.as_any_type_enum() == t2ptr {
-            dbg!(&t1);
-            true
-        } else if t2.as_any_type_enum() == t1ptr {
+        if t1.as_any_type_enum() == t2ptr || t2.as_any_type_enum() == t1ptr {
+            println!("[BUG] Found wrong bitcast from t2 to t1, where");
             dbg!(&t2);
+            dbg!(&t1);
             true
         } else {
             false

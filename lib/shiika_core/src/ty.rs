@@ -53,18 +53,28 @@ pub fn spe_meta(base_name_: impl Into<String>, type_args: Vec<TermTy>) -> TermTy
 }
 
 pub fn typarams_to_tyargs(typarams: &[TyParam]) -> Vec<TermTy> {
-    typarams
-        .iter()
-        .enumerate()
-        .map(|(i, t)| typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
+    typarams_to_typaram_refs(typarams, TyParamKind::Class, false)
+        .into_iter()
+        .map(|tpref| tpref.into_term_ty())
         .collect()
 }
 
-pub fn typarams_to_typaram_refs(typarams: &[TyParam], kind: TyParamKind) -> Vec<TyParamRef> {
+pub fn typarams_to_typaram_refs(
+    typarams: &[TyParam],
+    kind: TyParamKind,
+    as_class: bool,
+) -> Vec<TyParamRef> {
     typarams
         .iter()
         .enumerate()
-        .map(|(i, t)| typaram_ref(&t.name, kind.clone(), i))
+        .map(|(i, t)| TyParamRef {
+            kind: kind.clone(),
+            name: t.name.clone(),
+            idx: i,
+            upper_bound: t.upper_bound.clone(),
+            lower_bound: t.lower_bound.clone(),
+            as_class,
+        })
         .collect()
 }
 
@@ -73,6 +83,7 @@ pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
 }
 
+// Note: this should eventually removed when upper/lower bound is fully implemented
 pub fn typaram_ref(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TyParamRef {
     TyParamRef {
         kind,

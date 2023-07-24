@@ -28,6 +28,11 @@ impl MethodSignature {
         self.fullname.type_name.is_meta()
     }
 
+    /// Returns if this is `Class#new` or a method which overrides it.
+    pub fn is_the_new(&self) -> bool {
+        self.fullname.type_name.is_meta() && self.fullname.first_name.0 == "new"
+    }
+
     pub fn first_name(&self) -> &MethodFirstname {
         &self.fullname.first_name
     }
@@ -211,7 +216,7 @@ pub fn signature_of_new(
     initialize_params: Vec<MethodParam>,
     typarams: Vec<ty::TyParam>,
 ) -> MethodSignature {
-    let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method)
+    let method_typaram_refs = ty::typarams_to_typaram_refs(&typarams, TyParamKind::Method, false)
         .into_iter()
         .map(|x| x.into_term_ty())
         .collect::<Vec<_>>();

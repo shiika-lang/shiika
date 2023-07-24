@@ -238,7 +238,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirArgRef { .. } => (),
             HirLVarRef { .. } => (),
             HirIVarRef { .. } => (),
-            HirTVarRef { .. } => (),
+            HirClassTVarRef { .. } => (),
+            HirMethodTVarRef { .. } => (),
             HirConstRef { .. } => (),
             HirLambdaExpr {
                 name,
@@ -280,6 +281,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_llvm_func_body(
             &func_name,
             params,
+            Default::default(),
             Right(exprs),
             lvars,
             ret_ty,
@@ -387,7 +389,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirArgRef { .. } => (),
             HirLVarRef { .. } => (),
             HirIVarRef { .. } => (),
-            HirTVarRef { .. } => (),
+            HirClassTVarRef { .. } => (),
+            HirMethodTVarRef { .. } => (),
             HirConstRef { .. } => (),
             HirLambdaExpr {
                 name,

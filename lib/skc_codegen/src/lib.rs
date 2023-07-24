@@ -510,20 +510,35 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self_ty: &TermTy,
         signature: &MethodSignature,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let param_tys = signature.params.iter().map(|p| &p.ty).collect::<Vec<_>>();
+        let mut param_tys = signature
+            .params
+            .iter()
+            .map(|p| p.ty.clone())
+            .collect::<Vec<_>>();
+        if signature.is_the_new() {
+            // HACK: Generic .new (eg. Pair.new) has type parameters but they will never be called because calls of
+            // them are replaced by corresponding specialized one (eg. Pair<Int,Int>.new). Since
+            // specialized .new's does not need type arguments, skip adding extranous arguments for
+            // tyargs.
+        } else {
+            for tp in ty::typarams_to_typaram_refs(&signature.typarams, TyParamKind::Method, true) {
+                param_tys.push(tp.to_term_ty());
+            }
+        }
+
         self.llvm_func_type(Some(self_ty), &param_tys, &signature.ret_ty)
     }
 
     /// Return llvm funcion type
-    fn llvm_func_type(
+    fn llvm_func_type<T: AsRef<TermTy>>(
         &self,
         self_ty: Option<&TermTy>,
-        param_tys: &[&TermTy],
+        param_tys: &[T],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
         let mut arg_types = param_tys
             .iter()
-            .map(|ty| self.llvm_type(ty).into())
+            .map(|ty| self.llvm_type(ty.as_ref()).into())
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {
@@ -555,6 +570,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_llvm_func_body(
             &func_name,
             &method.signature.params,
+            &method.signature.typarams,
             Left(&method.body),
             &method.lvars,
             &method.signature.ret_ty,
@@ -652,7 +668,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             | HirExpressionBase::HirLambdaExpr { .. }
             | HirExpressionBase::HirLVarRef { .. }
             | HirExpressionBase::HirIVarRef { .. }
-            | HirExpressionBase::HirTVarRef { .. }
+            | HirExpressionBase::HirClassTVarRef { .. }
+            | HirExpressionBase::HirMethodTVarRef { .. }
             | HirExpressionBase::HirConstRef { .. }
             | HirExpressionBase::HirSelfExpression
             | HirExpressionBase::HirFloatLiteral { .. }
@@ -683,6 +700,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
+        typarams: &'hir [TyParam],
         body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
         lvars: &HirLVars,
         ret_ty: &TermTy,
@@ -697,15 +715,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Set param names
         for (i, param) in function.get_param_iter().enumerate() {
-            let name = if i == 0 {
-                if is_lambda {
-                    "fn_x"
-                } else {
-                    "self"
-                }
-            } else {
-                &params[i - 1].name
-            };
+            let name = llvm_func_param_name(is_lambda, params, typarams, i);
             inkwell_set_name(param, name);
         }
 
@@ -929,6 +939,23 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let ref_end_block2 = Rc::clone(&ref_end_block1);
         let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
         (ref_end_block2, ctx)
+    }
+}
+
+fn llvm_func_param_name<'hir>(
+    is_lambda: bool,
+    params: &'hir [MethodParam],
+    typarams: &'hir [TyParam],
+    i: usize,
+) -> &'hir str {
+    if i == 0 {
+        return if is_lambda { "fn_x" } else { "self" };
+    }
+    let n_params = params.len();
+    if i <= n_params {
+        &params[i - 1].name
+    } else {
+        &typarams[i - (n_params + 1)].name
     }
 }
 

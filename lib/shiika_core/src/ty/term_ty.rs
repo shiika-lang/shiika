@@ -14,6 +14,12 @@ pub struct TermTy {
     pub body: TyBody,
 }
 
+impl AsRef<TermTy> for TermTy {
+    fn as_ref(&self) -> &TermTy {
+        self
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TyBody {
     /// Types of classes
@@ -155,7 +161,10 @@ impl TermTy {
                     ty::spe_meta(base_name, type_args.clone())
                 }
             }
-            _ => panic!("unexpected"),
+            TyPara(typaram_ref) => {
+                debug_assert!(!typaram_ref.as_class);
+                typaram_ref.as_class().into()
+            }
         }
     }
 

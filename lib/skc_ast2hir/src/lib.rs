@@ -12,10 +12,9 @@ mod type_system;
 use crate::class_dict::type_index;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
-use shiika_ast::LocationSpan;
-use shiika_core::{names::*, ty, ty::*};
+use shiika_core::ty;
 use skc_corelib::Corelib;
-use skc_hir::{Hir, HirExpression};
+use skc_hir::Hir;
 use skc_mir::LibraryExports;
 mod rustlib_methods;
 
@@ -73,74 +72,7 @@ fn parse_typarams(typarams: &[shiika_ast::AstTyParam]) -> Vec<ty::TyParam> {
                 shiika_ast::AstVariance::Covariant => ty::Variance::Covariant,
                 shiika_ast::AstVariance::Contravariant => ty::Variance::Contravariant,
             };
-            ty::TyParam {
-                name: param.name.clone(),
-                variance: v,
-            }
+            ty::TyParam::new(param.name.clone(), v)
         })
         .collect::<Vec<_>>()
-}
-
-/// Build a HirExpression which evaluates to `ty`
-/// eg. `Foo.<>([Bool, Int])` if `ty` is `TermTy(Foo<Bool, Int>)`
-pub fn class_expr(mk: &mut HirMaker, ty: &TermTy) -> HirExpression {
-    match &ty.body {
-        TyBody::TyRaw(LitTy {
-            base_name,
-            type_args,
-            is_meta,
-        }) => {
-            debug_assert!(!is_meta);
-            let base = Hir::const_ref(
-                ty::meta(base_name),
-                toplevel_const(base_name),
-                LocationSpan::todo(),
-            );
-            if type_args.is_empty() {
-                base
-            } else {
-                let tyargs = type_args
-                    .iter()
-                    .map(|t| Hir::bit_cast(ty::raw("Class"), class_expr(mk, t)))
-                    .collect();
-                call_class_specialize(mk, tyargs, base_name, base)
-            }
-        }
-        TyBody::TyPara(typaram_ref) => {
-            let ref2 = typaram_ref.as_class();
-            Hir::tvar_ref(
-                ref2.to_term_ty(),
-                ref2,
-                mk.ctx_stack.self_ty(),
-                LocationSpan::todo(),
-            )
-        }
-    }
-}
-
-/// Generate call to `Class#<>`
-fn call_class_specialize(
-    mk: &mut HirMaker,
-    mut tyargs: Vec<HirExpression>,
-    base_name: &str,
-    base: HirExpression,
-) -> HirExpression {
-    if tyargs.len() == 1 {
-        // Workaround for bootstrap problem of arrays.
-        // `_specialize1` is the same as `<>` except it accepts only one
-        // type argument and therefore does not need to create an array.
-        Hir::method_call(
-            ty::meta(base_name),
-            base,
-            method_fullname_raw("Class", "_specialize1"),
-            vec![tyargs.remove(0)],
-        )
-    } else {
-        Hir::method_call(
-            ty::meta(base_name),
-            base,
-            method_fullname_raw("Class", "<>"),
-            vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
-        )
-    }
 }

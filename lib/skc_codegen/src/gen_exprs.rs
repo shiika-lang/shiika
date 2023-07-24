@@ -54,6 +54,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
+        // Debug helper: print the expr under processing
+        //let msg = format!("{:?}", expr);
+        //println!(
+        //    "{}",
+        //    skc_error::build_report("-".to_string(), &expr.locs, |r, locs_span| {
+        //        r.with_label(skc_error::Label::new(locs_span).with_message(msg))
+        //    })
+        //);
         match &expr.node {
             HirLogicalNot { expr } => self.gen_logical_not(ctx, expr),
             HirLogicalAnd { left, right } => self.gen_logical_and(ctx, left, right),
@@ -88,13 +96,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 receiver_expr,
                 method_fullname,
                 arg_exprs,
-            } => self.gen_method_call(ctx, method_fullname, receiver_expr, arg_exprs, &expr.ty),
+                tyarg_exprs,
+            } => self.gen_method_call(
+                ctx,
+                method_fullname,
+                receiver_expr,
+                arg_exprs,
+                tyarg_exprs,
+                &expr.ty,
+            ),
             HirModuleMethodCall {
                 receiver_expr,
                 module_fullname,
                 method_name,
                 method_idx,
                 arg_exprs,
+                tyarg_exprs,
             } => self.gen_module_method_call(
                 ctx,
                 module_fullname,
@@ -102,6 +119,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_idx,
                 receiver_expr,
                 arg_exprs,
+                tyarg_exprs,
                 &expr.ty,
             ),
             HirLambdaInvocation {
@@ -113,10 +131,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirIVarRef { name, idx, self_ty } => {
                 Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
             }
-            HirTVarRef {
+            HirClassTVarRef {
                 typaram_ref,
                 self_ty,
-            } => Ok(Some(self.gen_tvar_ref(ctx, typaram_ref, self_ty))),
+            } => Ok(Some(self.gen_class_tvar_ref(
+                ctx,
+                typaram_ref,
+                self_ty,
+                &expr.ty,
+            ))),
+            HirMethodTVarRef {
+                typaram_ref,
+                n_params,
+            } => Ok(Some(self.gen_method_tvar_ref(ctx, typaram_ref, n_params))),
             HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
             HirLambdaExpr {
                 name,
@@ -508,13 +535,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_fullname: &MethodFullname,
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        tyarg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_tys = vec![];
         let mut arg_values = vec![];
-        for arg_expr in arg_exprs {
-            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        for expr in arg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
+        }
+        for expr in tyarg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
 
         // Create basic block
@@ -525,11 +559,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(start_block);
 
         // Get the llvm function from vtable of the class of the object
-        let func_type = self.llvm_func_type(
-            Some(&receiver_expr.ty),
-            &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-            ret_ty,
-        );
+        let func_type = self.llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty);
         let func = self._get_method_func(
             &method_fullname.first_name,
             &receiver_expr.ty,
@@ -591,13 +621,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_idx: &usize,
         receiver_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
+        tyarg_exprs: &'hir [HirExpression],
         ret_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         // Prepare arguments
         let receiver_value = self.gen_expr(ctx, receiver_expr)?.unwrap();
+        let mut arg_tys = vec![];
         let mut arg_values = vec![];
-        for arg_expr in arg_exprs {
-            arg_values.push(self.gen_expr(ctx, arg_expr)?.unwrap());
+        for expr in arg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
+        }
+        for expr in tyarg_exprs {
+            arg_tys.push(&expr.ty);
+            arg_values.push(self.gen_expr(ctx, expr)?.unwrap());
         }
 
         // Create basic block
@@ -619,11 +656,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
             .into_pointer_value();
         let func_type = self
-            .llvm_func_type(
-                Some(&receiver_expr.ty),
-                &arg_exprs.iter().map(|x| &x.ty).collect::<Vec<_>>(),
-                ret_ty,
-            )
+            .llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty)
             .ptr_type(AddressSpace::Generic);
         let func = self
             .builder
@@ -821,31 +854,51 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_ivar_load(object, *idx, name)
     }
 
-    fn gen_tvar_ref(
+    fn gen_class_tvar_ref(
         &self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         typaram_ref: &TyParamRef,
         self_ty: &TermTy,
+        expr_ty: &TermTy,
     ) -> SkObj<'run> {
-        match &typaram_ref.kind {
-            TyParamKind::Class => {
-                let self_obj = self.gen_self_expression(ctx, self_ty);
-                self.get_nth_tyarg_of_self(self_obj, typaram_ref.idx)
-            }
-            TyParamKind::Method => {
-                // TODO: How to pass method typaram?
-                self.gen_const_ref(&const_fullname("Object"))
-            }
-        }
+        debug_assert!(typaram_ref.kind == TyParamKind::Class);
+        let self_obj = self.gen_self_expression(ctx, self_ty);
+        self.bitcast(
+            self._get_nth_tyarg_of_self(self_obj, typaram_ref.idx),
+            expr_ty,
+            "as",
+        )
     }
 
-    fn get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
+    fn _get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
         let cls_obj = self.get_class_of_obj(self_obj);
         self.gen_method_func_call(
             &method_fullname_raw("Class", "_type_argument"),
             self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
             vec![self.gen_decimal_literal(idx as i64)],
         )
+    }
+
+    fn gen_method_tvar_ref(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        typaram_ref: &TyParamRef,
+        n_params: &usize,
+    ) -> SkObj<'run> {
+        debug_assert!(typaram_ref.kind == TyParamKind::Method);
+        self._get_nth_method_tyarg(ctx, n_params, typaram_ref.idx)
+    }
+
+    fn _get_nth_method_tyarg(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        n_params: &usize,
+        n: usize,
+    ) -> SkObj<'run> {
+        let idx = 1 + // %self
+            *n_params +
+            n;
+        SkObj(ctx.function.get_nth_param(idx as u32).unwrap())
     }
 
     pub fn gen_const_ref(&self, fullname: &ConstFullname) -> SkObj<'run> {
@@ -919,6 +972,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 HirLambdaCaptureDetail::CaptureFwd { cidx, .. } => {
                     let deref = false;
                     self.gen_lambda_capture_ref(ctx, cidx, deref)
+                }
+                HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
+                    // Method-wise type arguments are passed as llvm function parameter.
+                    self.gen_arg_ref(ctx, &(n_params + idx))
                 }
             };
             if cap.upcast_needed {

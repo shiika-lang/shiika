@@ -107,7 +107,10 @@ fn make_classes(items: Vec<ClassItem>) -> SkTypes {
     for (name, superclass, ivars, typarams) in items {
         let base = SkTypeBase {
             erasure: Erasure::nonmeta(&name),
-            typarams: typarams.iter().map(ty::TyParam::new).collect(),
+            typarams: typarams
+                .iter()
+                .map(|x| ty::TyParam::new(x, ty::Variance::Invariant))
+                .collect(),
             method_sigs: Default::default(),
             foreign: false,
         };
@@ -121,7 +124,10 @@ fn make_classes(items: Vec<ClassItem>) -> SkTypes {
         } else {
             let base = SkTypeBase {
                 erasure: Erasure::meta(&name),
-                typarams: typarams.into_iter().map(ty::TyParam::new).collect(),
+                typarams: typarams
+                    .into_iter()
+                    .map(|x| ty::TyParam::new(x, ty::Variance::Invariant))
+                    .collect(),
                 method_sigs: Default::default(),
                 foreign: false,
             };

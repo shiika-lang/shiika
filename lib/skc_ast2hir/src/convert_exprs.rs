@@ -2,7 +2,6 @@ pub mod block;
 mod lvar;
 mod method_call;
 pub mod params;
-use crate::class_expr;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -27,6 +26,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression> {
+        // Debug helper: print the expr under processing
+        //println!(
+        //    "{}",
+        //    skc_error::build_report("-".to_string(), &expr.locs, |r, locs_span| {
+        //        r.with_label(skc_error::Label::new(locs_span).with_message(""))
+        //    })
+        //);
         match &expr.body {
             AstExpressionBody::LogicalNot { expr: arg_expr } => {
                 self.convert_logical_not(arg_expr, &expr.locs)
@@ -106,6 +112,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 is_fn,
             } => self.convert_lambda_expr(params, exprs, is_fn, &expr.locs),
 
+            // Note: there is no `AstExpressionBody::LVarRef` because it is included in this.
             AstExpressionBody::BareName(name) => self.convert_bare_name(name, &expr.locs),
 
             AstExpressionBody::IVarRef(name) => self.convert_ivar_ref(name, &expr.locs),
@@ -328,8 +335,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 LocationSpan::todo(),
             )
         };
-        self._validate_return_type(&arg_expr.ty, locs)?;
-        Ok(Hir::return_expression(from, arg_expr, locs.clone()))
+        let merge_ty = self._validate_return_type(&arg_expr.ty, locs)?;
+        Ok(Hir::bit_cast(
+            merge_ty,
+            Hir::return_expression(from, arg_expr, locs.clone()),
+        ))
     }
 
     /// Check if `return' is valid in the current context
@@ -353,9 +363,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Check if the argument of `return' is valid
-    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<()> {
+    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<TermTy> {
         if self.ctx_stack.lambda_ctx().is_some() {
             // TODO: check arg_ty matches to fn's return type
+            Ok(arg_ty.clone())
         } else if let Some(method_ctx) = &self.ctx_stack.method_ctx() {
             type_checking::check_return_arg_type(
                 &self.class_dict,
@@ -363,8 +374,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 &method_ctx.signature,
                 locs,
             )?;
+            Ok(method_ctx.signature.ret_ty.clone())
+        } else {
+            Err(error::program_error("`return' outside a method"))
         }
-        Ok(())
     }
 
     /// Local variable declaration
@@ -556,13 +569,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .push(HirMakerContext::lambda(*is_fn, hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
+        let captures = self._resolve_lambda_captures(lambda_ctx.captures);
         Ok(Hir::lambda_expr(
             block::lambda_ty(&hir_params, &hir_exprs.ty),
             self.create_lambda_name(),
             hir_params,
             hir_exprs,
-            self._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
-            extract_lvars(&mut lambda_ctx.lvars),               // lvars
+            captures,
+            extract_lvars(&mut lambda_ctx.lvars),
             lambda_ctx.has_break,
             locs.clone(),
         ))
@@ -580,7 +594,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Resolve LambdaCapture into HirExpression
-    /// Also, concat lambda_captures to outer_captures
+    /// Also handles forwarding captured variables among nested lambdas
     fn _resolve_lambda_captures(
         &mut self,
         lambda_captures: Vec<LambdaCapture>,
@@ -594,25 +608,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             };
             if captured_here {
                 // The variable is in this scope
-                match cap.detail {
+                let detail = match cap.detail {
                     LambdaCaptureDetail::CapLVar { name }
                     | LambdaCaptureDetail::CapOmittableArg { name } => {
-                        ret.push(HirLambdaCapture {
-                            ty: cap.ty,
-                            upcast_needed: cap.upcast_needed,
-                            readonly: cap.readonly,
-                            detail: HirLambdaCaptureDetail::CaptureLVar { name },
-                        });
+                        HirLambdaCaptureDetail::CaptureLVar { name }
                     }
                     LambdaCaptureDetail::CapFnArg { idx } => {
-                        ret.push(HirLambdaCapture {
-                            ty: cap.ty,
-                            upcast_needed: cap.upcast_needed,
-                            readonly: cap.readonly,
-                            detail: HirLambdaCaptureDetail::CaptureArg { idx },
-                        });
+                        HirLambdaCaptureDetail::CaptureArg { idx }
                     }
-                }
+                    LambdaCaptureDetail::CapMethodTyArg { idx, n_params } => {
+                        HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params }
+                    }
+                };
+                ret.push(HirLambdaCapture {
+                    ty: cap.ty,
+                    upcast_needed: cap.upcast_needed,
+                    readonly: cap.readonly,
+                    detail,
+                });
             } else {
                 // The variable is in outer scope
                 let ty = cap.ty.clone();
@@ -675,8 +688,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     found.as_mut().map(|x| x.set_cidx(existing));
                     Some(existing)
                 } else {
-                    let cidx = lambda_ctx.captures.len();
-                    lambda_ctx.push_lambda_capture(cap);
+                    let cidx = lambda_ctx.push_lambda_capture(cap);
                     found.as_mut().map(|x| x.set_cidx(cidx));
                     Some(cidx)
                 }
@@ -833,7 +845,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Resolve a capitalized identifier, which is either a constant name or
     /// a type parameter reference
     pub fn convert_capitalized_name(
-        &self,
+        &mut self,
         name: &UnresolvedConstName,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
@@ -841,9 +853,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         if name.0.len() == 1 {
             let s = name.0.first().unwrap();
             if let Some(typaram_ref) = self.ctx_stack.lookup_typaram(s) {
-                let base_ty = self.ctx_stack.self_ty().erasure_ty();
-                let cls_ty = typaram_ref.clone().into_term_ty();
-                return Ok(Hir::tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone()));
+                return Ok(self.tvar_ref(typaram_ref, locs));
             }
         }
 
@@ -858,6 +868,45 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             "constant `{:?}' was not found",
             name.0.join("::")
         )))
+    }
+
+    /// Get the value of a class-wise or method-wise type argument.
+    pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
+        let cls_ty = typaram_ref.to_term_ty();
+        match typaram_ref.kind {
+            TyParamKind::Class => {
+                let base_ty = self.ctx_stack.self_ty().erasure_ty();
+                Hir::class_tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone())
+            }
+            TyParamKind::Method => {
+                let (method_ctx, method_ctx_idx, opt_lambda_ctx) =
+                    self.ctx_stack.method_and_lambda_ctx();
+                let n_params = method_ctx.signature.params.len();
+                if let Some(lambda_ctx) = opt_lambda_ctx {
+                    // We're in a lambda so the tyarg should be captured in it
+                    let cap = LambdaCapture {
+                        ctx_idx: method_ctx_idx,
+                        is_lambda_scope: false,
+                        ty: typaram_ref.upper_bound.to_term_ty().meta_ty(),
+                        upcast_needed: false,
+                        readonly: true,
+                        detail: LambdaCaptureDetail::CapMethodTyArg {
+                            idx: typaram_ref.idx,
+                            n_params,
+                        },
+                    };
+                    let cidx = if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
+                        existing
+                    } else {
+                        lambda_ctx.push_lambda_capture(cap)
+                    };
+                    Hir::lambda_capture_ref(cls_ty, cidx, true, locs.clone())
+                } else {
+                    // Not in a lambda so we can just get the tyarg
+                    Hir::method_tvar_ref(cls_ty, typaram_ref, n_params, locs.clone())
+                }
+            }
+        }
     }
 
     /// Check if a constant is registered
@@ -904,28 +953,26 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             base_expr,
             method_fullname_raw("Class", "<>"),
             vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
+            Default::default(),
         ))
     }
 
     pub fn resolve_class_expr(
-        &self,
+        &mut self,
         name: &UnresolvedConstName,
         locs: &LocationSpan,
     ) -> Result<HirExpression> {
         let e = self.convert_capitalized_name(name, locs)?;
-        self.assert_class_expr(&e)?;
+        self.assert_class_expr(&e, locs)?;
         Ok(e)
     }
 
     /// Check if `e` evaluates to a class object.
-    fn assert_class_expr(&self, e: &HirExpression) -> Result<()> {
+    fn assert_class_expr(&self, e: &HirExpression, locs: &LocationSpan) -> Result<()> {
         if e.ty.is_metaclass() || e.ty.is_typaram_ref() {
             Ok(())
         } else {
-            Err(error::type_error(&format!(
-                "a class expected but got {:?}",
-                &e.ty
-            )))
+            Err(error::not_a_class_expression(&e.ty, locs))
         }
     }
 
@@ -995,9 +1042,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // `Array<X>.new`
         let call_new = Hir::method_call(
             ary_ty.clone(),
-            class_expr(self, &ary_ty),
+            self.get_class_object(&ary_ty.meta_ty(), &locs),
             method_fullname_raw("Array", "new"),
             vec![],
+            Default::default(),
         );
         exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
 
@@ -1008,6 +1056,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 Hir::lvar_ref(ary_ty.clone(), tmp_name.clone(), locs.clone()),
                 method_fullname_raw("Array", "push"),
                 vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
+                Default::default(),
             ));
         }
 

@@ -198,6 +198,7 @@ pub enum HirExpressionBase {
         receiver_expr: Box<HirExpression>,
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     },
     HirModuleMethodCall {
         receiver_expr: Box<HirExpression>,
@@ -205,6 +206,7 @@ pub enum HirExpressionBase {
         method_name: MethodFirstname,
         method_idx: usize,
         arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     },
     HirLambdaInvocation {
         lambda_expr: Box<HirExpression>,
@@ -221,11 +223,15 @@ pub enum HirExpressionBase {
         idx: usize,
         self_ty: TermTy,
     },
-    /// Type variable reference. eg. in an instance method definition of the class `Array<T>`,
-    /// `T` is a HirTVarRef whose type is `Meta:Object`.
-    HirTVarRef {
+    /// Reference of class-wise type variable
+    HirClassTVarRef {
         typaram_ref: TyParamRef,
         self_ty: TermTy,
+    },
+    /// Reference of method-wise type variable
+    HirMethodTVarRef {
+        typaram_ref: TyParamRef,
+        n_params: usize,
     },
     HirConstRef {
         fullname: ConstFullname,
@@ -273,9 +279,8 @@ pub enum HirExpressionBase {
     HirBitCast {
         expr: Box<HirExpression>,
     },
-    /// A special expression that evaluates to a class
-    /// (eg. `class A; end; A = 1` shadows A, but this special expr
-    /// is never be shadowed)
+    /// A special expression that evaluates to a class object; used for
+    /// initializing class constants.
     HirClassLiteral {
         fullname: TypeFullname,
         str_literal_idx: usize,
@@ -312,6 +317,8 @@ pub enum HirLambdaCaptureDetail {
     CaptureLVar { name: String },
     /// Method/Function argument
     CaptureArg { idx: usize },
+    /// Method-wise type argument
+    CaptureMethodTyArg { idx: usize, n_params: usize },
     /// Variable in the current `captures`
     CaptureFwd { cidx: usize },
 }
@@ -503,11 +510,12 @@ impl Hir {
         result_ty: TermTy,
         receiver_hir: HirExpression,
         method_fullname: MethodFullname,
-        arg_hirs: Vec<HirExpression>,
+        arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
-            if let Some(e) = arg_hirs.last() {
+            if let Some(e) = arg_exprs.last() {
                 &e.locs
             } else {
                 &receiver_hir.locs
@@ -518,7 +526,8 @@ impl Hir {
             node: HirExpressionBase::HirMethodCall {
                 receiver_expr: Box::new(receiver_hir),
                 method_fullname,
-                arg_exprs: arg_hirs,
+                arg_exprs,
+                tyarg_exprs,
             },
             locs,
         }
@@ -530,11 +539,12 @@ impl Hir {
         module_fullname: ModuleFullname,
         method_name: MethodFirstname,
         method_idx: usize,
-        arg_hirs: Vec<HirExpression>,
+        arg_exprs: Vec<HirExpression>,
+        tyarg_exprs: Vec<HirExpression>,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
-            if let Some(e) = arg_hirs.last() {
+            if let Some(e) = arg_exprs.last() {
                 &e.locs
             } else {
                 &receiver_hir.locs
@@ -547,7 +557,8 @@ impl Hir {
                 module_fullname,
                 method_name,
                 method_idx,
-                arg_exprs: arg_hirs,
+                arg_exprs,
+                tyarg_exprs,
             },
             locs,
         }
@@ -599,17 +610,35 @@ impl Hir {
         }
     }
 
-    pub fn tvar_ref(
+    pub fn class_tvar_ref(
         ty: TermTy,
         typaram_ref: TyParamRef,
         self_ty: TermTy,
         locs: LocationSpan,
     ) -> HirExpression {
+        debug_assert!(typaram_ref.kind == TyParamKind::Class);
         HirExpression {
             ty,
-            node: HirExpressionBase::HirTVarRef {
+            node: HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
                 self_ty,
+            },
+            locs,
+        }
+    }
+
+    pub fn method_tvar_ref(
+        ty: TermTy,
+        typaram_ref: TyParamRef,
+        n_params: usize,
+        locs: LocationSpan,
+    ) -> HirExpression {
+        debug_assert!(typaram_ref.kind == TyParamKind::Method);
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirMethodTVarRef {
+                typaram_ref,
+                n_params,
             },
             locs,
         }
