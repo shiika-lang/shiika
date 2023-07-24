@@ -34,12 +34,13 @@ fn load_file(
 }
 
 /// Read require'd files into `files`
+#[allow(clippy::if_same_then_else)]
 fn resolve_requires(path: &Path, content: &str) -> Vec<PathBuf> {
     let mut paths = vec![];
     for line in content.lines() {
         if line.trim_start().starts_with("require") {
             paths.push(parse_require(line, path));
-        } else if line.trim_start().starts_with("#") {
+        } else if line.trim_start().starts_with('#') {
             // skip comment line.
         } else if line.trim_start().is_empty() {
             // skip empty line.
