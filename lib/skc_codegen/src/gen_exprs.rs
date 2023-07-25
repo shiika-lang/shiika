@@ -749,10 +749,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let broke_block = self.context.append_basic_block(ctx.function, "Broke");
             let exit_status =
                 self.build_ivar_load(lambda_obj, FN_X_EXIT_STATUS_IDX, "@exit_status");
-            let eq = self.gen_method_func_call(
+            let eq = self.call_method_func(
                 &method_fullname_raw("Int", "=="),
                 exit_status,
                 vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
+                "eq",
             );
             self.gen_conditional_branch(eq, broke_block, end_block);
 
@@ -772,32 +773,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
         self.builder.position_at_end(end_block);
         Ok(Some(SkObj(result)))
-    }
-
-    /// Generate llvm function call
-    fn gen_method_func_call(
-        &self,
-        method_fullname: &MethodFullname,
-        receiver_value: SkObj<'run>,
-        arg_values: Vec<SkObj<'run>>,
-    ) -> SkObj<'run> {
-        self.gen_llvm_func_call(
-            &method_func_name(method_fullname),
-            receiver_value,
-            arg_values,
-        )
-    }
-
-    /// Generate llvm function call
-    // REFACTOR: make this public and make `receiver_value` optional
-    fn gen_llvm_func_call(
-        &self,
-        func_name: &LlvmFuncName,
-        receiver_value: SkObj<'run>,
-        arg_values: Vec<SkObj<'run>>,
-    ) -> SkObj<'run> {
-        let function = self.get_llvm_func(func_name);
-        self.gen_llvm_function_call(function.into(), receiver_value, arg_values)
     }
 
     pub(super) fn gen_llvm_function_call(
@@ -872,10 +847,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     fn _get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
         let cls_obj = self.get_class_of_obj(self_obj);
-        self.gen_method_func_call(
+        self.call_method_func(
             &method_fullname_raw("Class", "_type_argument"),
             self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
             vec![self.gen_decimal_literal(idx as i64)],
+            "tyarg",
         )
     }
 
@@ -938,10 +914,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let captured = self._gen_lambda_captures(ctx, name, captures);
         let arg_values = vec![sk_ptr, the_self, captured.boxed(self)];
-        self.gen_method_func_call(
+        self.call_method_func(
             &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
             arg_values,
+            "lambda",
         )
     }
 
@@ -1164,7 +1141,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 .get_vtable_of_class(&class_fullname("Metaclass"))
                 .as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
-            let metacls_obj = self.gen_method_func_call(
+            let metacls_obj = self.call_method_func(
                 &method_fullname_raw("Metaclass", "_new"),
                 receiver,
                 vec![
@@ -1174,13 +1151,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
                     self.null_ptr(&ty::raw("Class")),
                 ],
+                "meta",
             );
 
             // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
             let receiver = self.null_ptr(&ty::meta("Class"));
             let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
             let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
-            let cls = self.gen_method_func_call(
+            let cls = self.call_method_func(
                 &method_fullname(metaclass_fullname("Class").into(), "_new"),
                 receiver,
                 vec![
@@ -1190,6 +1168,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
                     self.null_ptr(&ty::raw("Class")),
                 ],
+                "cls",
             );
             if *includes_modules {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().to_class_fullname());
