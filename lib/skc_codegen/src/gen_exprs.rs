@@ -1219,7 +1219,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ));
         let args = vec![addr.0.into()];
         let initialize = self.get_llvm_func(&method_func_name(initialize_name));
-        self.builder.build_call(initialize, &args, "");
+        self.builder.build_direct_call(initialize, &args, "");
     }
 
     /// Create the metaclass object `Metaclass`

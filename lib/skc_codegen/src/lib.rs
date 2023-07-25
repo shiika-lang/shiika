@@ -283,7 +283,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.module
                     .add_function(&format!("{}_init_constants", s), fn_type, None);
                 let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
-                self.builder.build_call(func, &[], "");
+                self.builder.build_direct_call(func, &[], "");
             }
         }
 
@@ -296,7 +296,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // These builtin classes must be created first
             for name in &basic_classes {
                 let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));
-                self.builder.build_call(func, &[], "");
+                self.builder.build_direct_call(func, &[], "");
             }
         }
         for expr in const_inits {
@@ -305,7 +305,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     if !basic_classes.iter().any(|s| s.0 == fullname.0) {
                         let func = self
                             .get_llvm_func(&llvm_func_name(const_initialize_func_name(fullname)));
-                        self.builder.build_call(func, &[], "");
+                        self.builder.build_direct_call(func, &[], "");
                     }
                 }
                 _ => panic!("gen_init_constants: Not a HirConstAssign"),
@@ -362,13 +362,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Call GC_init
         let func = self.get_llvm_func(&llvm_func_name("GC_init"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
 
         // Call init_constants, user_main
         let func = self.get_llvm_func(&llvm_func_name("main_init_constants"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
         let func = self.get_llvm_func(&llvm_func_name("user_main"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
 
         // ret i32 0
         self.builder
@@ -918,7 +918,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             })
             .collect::<Vec<_>>();
         let initialize = self.get_llvm_func(&method_func_name(initialize_name));
-        self.builder.build_call(initialize, &args, "");
+        self.builder.build_direct_call(initialize, &args, "");
 
         self.build_return(&obj);
     }

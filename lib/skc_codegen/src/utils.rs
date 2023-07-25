@@ -238,7 +238,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
         I8Ptr(
             self.builder
-                .build_call(func, &[size.as_basic_value_enum().into()], "mem")
+                .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
                 .try_as_basic_value()
                 .left()
                 .unwrap()
@@ -271,7 +271,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_function(&func_name.0)
             .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
         self.builder
-            .build_call(f, args, reg_name)
+            .build_direct_call(f, args, reg_name)
             .try_as_basic_value()
             .left()
             .unwrap()
@@ -288,7 +288,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .module
             .get_function(&func_name.0)
             .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
-        self.builder.build_call(f, args, reg_name);
+        self.builder.build_direct_call(f, args, reg_name);
     }
 
     /// Get nth parameter of llvm func as SkObj
