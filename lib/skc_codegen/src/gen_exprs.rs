@@ -11,7 +11,6 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match;
 use skc_hir::HirExpressionBase::*;
 use skc_hir::*;
-use std::convert::TryFrom;
 use std::rc::Rc;
 
 /// Index of @func of FnX
@@ -566,11 +565,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             func_type,
         );
 
-        let result = self.gen_llvm_function_call(
-            CallableValue::try_from(func).unwrap(),
-            receiver_value,
-            arg_values,
-        );
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -663,11 +658,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .build_bitcast(func_ptr, func_type, "as")
             .into_pointer_value();
 
-        let result = self.gen_llvm_function_call(
-            CallableValue::try_from(func).unwrap(),
-            receiver_value,
-            arg_values,
-        );
+        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
