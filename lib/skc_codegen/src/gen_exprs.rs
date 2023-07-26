@@ -841,7 +841,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.call_method_func(
             &method_fullname_raw("Class", "_type_argument"),
             self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
-            vec![self.gen_decimal_literal(idx as i64)],
+            &vec![self.gen_decimal_literal(idx as i64)],
             "tyarg",
         )
     }
@@ -908,7 +908,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.call_method_func(
             &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
-            arg_values,
+            &arg_values,
             "lambda",
         )
     }
@@ -1135,7 +1135,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let metacls_obj = self.call_method_func(
                 &method_fullname_raw("Metaclass", "_new"),
                 receiver,
-                vec![
+                &vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(wtable, &ty::raw("Object"), "as"),
@@ -1152,7 +1152,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let cls = self.call_method_func(
                 &method_fullname(metaclass_fullname("Class").into(), "_new"),
                 receiver,
-                vec![
+                &vec![
                     self.gen_string_literal(str_literal_idx),
                     self.bitcast(vtable, &ty::raw("Object"), "as"),
                     self.bitcast(wtable, &ty::raw("Object"), "as"),
