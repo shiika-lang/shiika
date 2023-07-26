@@ -565,7 +565,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             func_type,
         );
 
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        let result =
+            self.indirect_method_function_call(func, func_type, receiver_value, &arg_values);
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -650,15 +651,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func_ptr = self
             .call_llvm_func(&llvm_func_name("shiika_lookup_wtable"), args, "method")
             .into_pointer_value();
-        let func_type = self
-            .llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty)
-            .ptr_type(Default::default());
+        let func_type = self.llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty);
         let func = self
             .builder
-            .build_bitcast(func_ptr, func_type, "as")
+            .build_bitcast(func_ptr, func_type.ptr_type(Default::default()), "as")
             .into_pointer_value();
 
-        let result = self.gen_llvm_function_call(func, receiver_value, arg_values);
+        let result =
+            self.indirect_method_function_call(func, func_type, receiver_value, &arg_values);
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -695,9 +695,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj.0.into()];
+        let mut args = vec![lambda_obj];
         for e in arg_exprs {
-            args.push(self.gen_expr(ctx, e)?.unwrap().0.into());
+            args.push(self.gen_expr(ctx, e)?.unwrap());
         }
 
         // Create basic block
@@ -728,12 +728,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .into_pointer_value();
 
         // Generate function call
-        let result = self
-            .builder
-            .build_call(CallableValue::try_from(func).unwrap(), &args, "result")
-            .try_as_basic_value()
-            .left()
-            .unwrap();
+        let result = self.indirect_function_call(func, fntype, args);
 
         // Check `break` in block
         if ret_ty.is_void_type() {
@@ -743,7 +738,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let eq = self.call_method_func(
                 &method_fullname_raw("Int", "=="),
                 exit_status,
-                vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
+                &vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
                 "eq",
             );
             self.gen_conditional_branch(eq, broke_block, end_block);
@@ -763,20 +758,33 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_unconditional_branch(end_block);
         }
         self.builder.position_at_end(end_block);
-        Ok(Some(SkObj(result)))
+        Ok(Some(result))
     }
 
-    pub(super) fn gen_llvm_function_call(
+    // Call a method llvm function via function pointer.
+    fn indirect_method_function_call(
         &self,
-        function: CallableValue<'run>,
+        function: PointerValue<'run>,
+        func_type: FunctionType,
         receiver_value: SkObj<'run>,
+        arg_values: &[SkObj<'run>],
+    ) -> SkObj<'run> {
+        let args = arg_values.to_vec();
+        args.insert(0, receiver_value);
+        self.indirect_function_call(function, func_type, args)
+    }
+
+    // Call a llvm function via function pointer.
+    fn indirect_function_call(
+        &self,
+        function: PointerValue<'run>,
+        func_type: FunctionType,
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
-        let mut llvm_args = vec![receiver_value.0.into()];
-        llvm_args.append(&mut arg_values.iter().map(|x| x.0.into()).collect());
+        let llvm_args = arg_values.iter().map(|x| x.0.into()).collect::<Vec<_>>();
         match self
             .builder
-            .build_call(function, &llvm_args, "result")
+            .build_indirect_call(func_type, function, &llvm_args, "result")
             .try_as_basic_value()
             .left()
         {
