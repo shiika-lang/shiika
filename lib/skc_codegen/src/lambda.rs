@@ -140,18 +140,8 @@ impl<'run> LambdaCapture<'run> {
 
     /// Given there is a pointer stored at `idx`, update its value.
     pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
-        // eg. `%Int**`
-        let ptr_ty = self
-            .struct_type(gen)
-            .get_field_type_at_index(idx as u32)
-            .unwrap()
-            .into_pointer_type();
-        // eg. `%Int*`
-        let ty = ptr_ty.get_element_type().into_pointer_type();
-        let upcast = gen.builder.build_bitcast(value.0, ty, "upcast");
-
         let ptr = self.load(gen, idx).into_pointer_value();
-        gen.builder.build_store(ptr, upcast);
+        gen.builder.build_store(ptr, value.0);
     }
 }
 
