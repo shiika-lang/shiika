@@ -125,7 +125,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 arg_exprs,
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
-            HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, name))),
+            HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, &expr.ty, name))),
             HirIVarRef { name, idx, self_ty } => {
                 Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty)))
             }
@@ -811,12 +811,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_lvar_ref(&self, ctx: &mut CodeGenContext<'hir, 'run>, name: &str) -> SkObj<'run> {
+    fn gen_lvar_ref(
+        &self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        ty: &TermTy,
+        name: &str,
+    ) -> SkObj<'run> {
+        let llvm_ty = self.llvm_struct_type(ty);
         let ptr = ctx
             .lvars
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
-        SkObj(self.builder.build_load(*ptr, name))
+        SkObj(self.builder.build_load(llvm_ty, *ptr, name))
     }
 
     fn gen_ivar_ref(
@@ -941,7 +947,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let mut item = match &cap.detail {
                 HirLambdaCaptureDetail::CaptureLVar { name } => {
                     if cap.readonly {
-                        self.gen_lvar_ref(ctx, name)
+                        self.gen_lvar_ref(ctx, &cap.ty, name)
                     } else {
                         // Captured by pointer to be reassigned
                         SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())

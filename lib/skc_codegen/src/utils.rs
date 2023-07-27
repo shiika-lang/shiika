@@ -207,7 +207,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         reg_name: &str,
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
-        let object_type = self.llvm_struct_type(&class_fullname.to_type_fullname());
+        let object_type = self.get_llvm_struct_type(&class_fullname.to_type_fullname());
         let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum(), reg_name);
         let obj = SkObj(ptr.as_basic_value_enum());
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
@@ -337,30 +337,31 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// LLVM type of a Shiika object
     pub fn llvm_type(&self, ty: &TermTy) -> inkwell::types::BasicTypeEnum<'ictx> {
+        self.llvm_struct_type(ty)
+            .ptr_type(Default::default())
+            .as_basic_type_enum()
+    }
+
+    /// LLVM struct type of a Shiika object
+    pub fn llvm_struct_type(&self, ty: &TermTy) -> &inkwell::types::StructType<'ictx> {
         match &ty.body {
-            TyBody::TyRaw(t) => self.llvm_type_of_lit_ty(t),
+            TyBody::TyRaw(t) => self.get_llvm_struct_type(&t.erasure().to_type_fullname()),
             TyBody::TyPara(TyParamRef {
                 upper_bound,
                 as_class,
                 ..
             }) => {
                 if *as_class {
-                    self.llvm_type_of_lit_ty(&upper_bound.meta_ty())
+                    self.get_llvm_struct_type(&upper_bound.meta_ty().erasure().to_type_fullname())
                 } else {
-                    self.llvm_type_of_lit_ty(upper_bound)
+                    self.get_llvm_struct_type(&upper_bound.erasure().to_type_fullname())
                 }
             }
         }
     }
 
-    fn llvm_type_of_lit_ty(&self, lit_ty: &LitTy) -> inkwell::types::BasicTypeEnum<'ictx> {
-        self.llvm_struct_type(&lit_ty.erasure().into())
-            .ptr_type(Default::default())
-            .as_basic_type_enum()
-    }
-
     /// Get the llvm struct type for a class/module
-    fn llvm_struct_type(&self, name: &TypeFullname) -> &inkwell::types::StructType<'ictx> {
+    fn get_llvm_struct_type(&self, name: &TypeFullname) -> &inkwell::types::StructType<'ictx> {
         self.llvm_struct_types
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] struct_type not found: {:?}", name))
