@@ -592,7 +592,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::values::PointerValue<'run> {
         let vtable = self.get_vtable_of_obj(receiver_value);
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
-        let func_raw = self.build_vtable_ref(vtable, *idx, size);
+        let func_raw = vtable.get_func(self, *idx, size);
         self.builder
             .build_bitcast(func_raw, func_type.ptr_type(Default::default()), "func")
             .into_pointer_value()

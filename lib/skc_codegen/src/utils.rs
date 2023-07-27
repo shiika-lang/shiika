@@ -93,31 +93,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         )
     }
 
-    /// Lookup llvm func from vtable of an object
-    pub fn build_vtable_ref(
-        &self,
-        vtable_ref: VTableRef<'run>,
-        idx: usize,
-        size: usize,
-    ) -> inkwell::values::BasicValueEnum<'run> {
-        let ary_type = self.i8ptr_type.array_type(size as u32);
-        let vtable_ptr = self
-            .builder
-            .build_bitcast(
-                vtable_ref.0,
-                ary_type.ptr_type(Default::default()),
-                "vtable_ptr",
-            )
-            .into_pointer_value();
-        let vtable = self
-            .builder
-            .build_load(vtable_ptr, "vtable")
-            .into_array_value();
-        self.builder
-            .build_extract_value(vtable, idx as u32, "func_raw")
-            .unwrap()
-    }
-
     /// Load value of the nth element of the llvm struct of a Shiika object
     fn build_object_struct_ref(
         &self,

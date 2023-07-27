@@ -41,6 +41,23 @@ impl<'run> VTableRef<'run> {
     pub fn as_sk_obj(self) -> SkObj<'run> {
         SkObj(self.0)
     }
+
+    pub fn get_func(
+        &self,
+        gen: &CodeGen<'_, 'run, '_>,
+        idx: usize,
+        size: usize,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let ary_type = gen.i8ptr_type.array_type(size as u32);
+        let vtable_type = ary_type.ptr_type(Default::default());
+        let vtable = gen
+            .builder
+            .build_load(vtable_type, &self.0, "vtable")
+            .into_array_value();
+        gen.builder
+            .build_extract_value(vtable, idx as u32, "func_raw")
+            .unwrap()
+    }
 }
 
 /// i8* (REFACTOR: rename to VoidPtr)
