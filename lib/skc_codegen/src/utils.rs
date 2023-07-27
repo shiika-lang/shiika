@@ -27,7 +27,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Build IR to return ::Void
     pub fn build_return_void(&self) {
-        let v = self.gen_const_ref(&toplevel_const("Void"));
+        let v = self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void"));
         self.build_return(&v);
     }
 

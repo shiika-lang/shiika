@@ -135,7 +135,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let receiver = self.gen_const_ref(&toplevel_const("String"));
+        let receiver = self.gen_const_ref(&toplevel_const("String"), &ty::meta("String"));
         let str_i8ptr = function.get_nth_param(0).unwrap();
         let bytesize = function.get_nth_param(1).unwrap().into_int_value();
         let args = vec![self.box_i8ptr(str_i8ptr), self.box_int(&bytesize)];

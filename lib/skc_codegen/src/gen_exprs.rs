@@ -142,7 +142,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 typaram_ref,
                 n_params,
             } => Ok(Some(self.gen_method_tvar_ref(ctx, typaram_ref, n_params))),
-            HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname))),
+            HirConstRef { fullname } => Ok(Some(self.gen_const_ref(fullname, &expr.ty))),
             HirLambdaExpr {
                 name,
                 params,
@@ -435,7 +435,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // WhileEnd:
         self.builder.position_at_end(*rc2);
-        Ok(Some(self.gen_const_ref(&toplevel_const("Void"))))
+        Ok(Some(
+            self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void")),
+        ))
     }
 
     fn gen_break_expr(
@@ -789,7 +791,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .left()
         {
             Some(result_value) => SkObj(result_value),
-            None => self.gen_const_ref(&toplevel_const("Void")),
+            None => self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void")),
         }
     }
 
@@ -876,13 +878,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkObj(ctx.function.get_nth_param(idx as u32).unwrap())
     }
 
-    pub fn gen_const_ref(&self, fullname: &ConstFullname) -> SkObj<'run> {
+    pub fn gen_const_ref(&self, fullname: &ConstFullname, ty: &TermTy) -> SkObj<'run> {
         let name = llvm_const_name(fullname);
+        let llvm_type = self.llvm_struct_type(ty);
         let ptr = self
             .module
             .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname));
-        SkObj(self.builder.build_load(ptr.as_pointer_value(), &name))
+        SkObj(
+            self.builder
+                .build_load(llvm_type, ptr.as_pointer_value(), &name),
+        )
     }
 
     fn gen_lambda_expr(
@@ -903,7 +909,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
-        let meta = self.gen_const_ref(&toplevel_const(&cls_name));
+        let meta = self.gen_const_ref(&toplevel_const(&cls_name), &ty::meta(cls_name));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
@@ -1134,7 +1140,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.gen_the_metaclass(str_literal_idx)
         } else {
             // Create metaclass object (eg. `#<metaclass Int>`) with `Metaclass.new`
-            let the_metaclass = self.gen_const_ref(&toplevel_const("Metaclass"));
+            let the_metaclass =
+                self.gen_const_ref(&toplevel_const("Metaclass"), &ty::raw("Metaclass"));
             let receiver = self.null_ptr(&ty::meta("Metaclass"));
             let vtable = self
                 .get_vtable_of_class(&class_fullname("Metaclass"))
