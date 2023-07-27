@@ -1,4 +1,5 @@
 use crate::CodeGen;
+use inkwell::values::BasicValue;
 
 /// Shiika object (eg. `Int*`, `String*`)
 #[derive(Clone, Debug)]
@@ -34,29 +35,58 @@ impl<'run> SkClassObj<'run> {
 
 /// Reference to vtable (eg. `shiika_vtable_Int`)
 #[derive(Debug)]
-pub struct VTableRef<'run>(pub inkwell::values::BasicValueEnum<'run>);
+pub struct VTableRef<'run> {
+    pub ptr: inkwell::values::PointerValue<'run>,
+    len: usize,
+}
 
 impl<'run> VTableRef<'run> {
-    /// Normally vtables are not Shiika object. This is used internally
-    pub fn as_sk_obj(self) -> SkObj<'run> {
-        SkObj(self.0)
+    pub fn new(ptr: inkwell::values::PointerValue<'run>, len: usize) -> VTableRef<'run> {
+        VTableRef { ptr, len }
     }
 
     pub fn get_func(
         &self,
         gen: &CodeGen<'_, 'run, '_>,
         idx: usize,
-        size: usize,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let ary_type = gen.i8ptr_type.array_type(size as u32);
-        let vtable_type = ary_type.ptr_type(Default::default());
-        let vtable = gen
-            .builder
-            .build_load(vtable_type, &self.0, "vtable")
-            .into_array_value();
         gen.builder
-            .build_extract_value(vtable, idx as u32, "func_raw")
+            .build_extract_value(self.get_vtable(gen), idx as u32, "func_raw")
             .unwrap()
+    }
+
+    fn get_vtable(&self, gen: &CodeGen<'_, 'run, '_>) -> inkwell::values::ArrayValue<'run> {
+        gen.builder
+            .build_load(self.llvm_type(gen), self.ptr.clone(), "vtable")
+            .into_array_value()
+    }
+
+    fn llvm_type(&self, gen: &CodeGen<'_, 'run, '_>) -> inkwell::types::PointerType<'run> {
+        let ary_type = gen.i8ptr_type.array_type(self.len as u32);
+        ary_type.ptr_type(Default::default())
+    }
+}
+
+/// Reference to vtable where its length is unknown.
+#[derive(Debug)]
+pub struct OpaqueVTableRef<'run> {
+    pub ptr: inkwell::values::PointerValue<'run>,
+}
+
+impl<'run> OpaqueVTableRef<'run> {
+    pub fn new(ptr: inkwell::values::PointerValue<'run>) -> OpaqueVTableRef<'run> {
+        OpaqueVTableRef { ptr }
+    }
+
+    /// Normally vtables are not Shiika object. This is used internally
+    pub fn as_sk_obj(self) -> SkObj<'run> {
+        SkObj(self.ptr.as_basic_value_enum())
+    }
+}
+
+impl<'run> From<VTableRef<'run>> for OpaqueVTableRef<'run> {
+    fn from(x: VTableRef) -> Self {
+        OpaqueVTableRef::new(x.ptr)
     }
 }
 

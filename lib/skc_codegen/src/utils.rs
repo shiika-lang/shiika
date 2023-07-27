@@ -59,8 +59,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Get the vtable of an object as i8ptr
-    pub fn get_vtable_of_obj(&self, object: SkObj<'run>) -> VTableRef<'run> {
-        VTableRef(self.build_object_struct_ref(object, OBJ_VTABLE_IDX, "vtable"))
+    pub fn get_vtable_of_obj(&self, object: SkObj<'run>, len: usize) -> VTableRef<'run> {
+        let ptr = self
+            .build_object_struct_ref(object, OBJ_VTABLE_IDX, "vtable")
+            .into_pointer_value();
+        VTableRef::new(ptr, len)
     }
 
     /// Get the class object of an object as `*Class`
@@ -75,22 +78,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Set `vtable` to `object`
-    pub fn set_vtable_of_obj(&self, object: &SkObj<'run>, vtable: VTableRef<'run>) {
-        self.build_object_struct_set(object, OBJ_VTABLE_IDX, vtable.0, "vtable");
+    pub fn set_vtable_of_obj(&self, object: &SkObj<'run>, vtable: OpaqueVTableRef<'run>) {
+        let v = vtable.ptr.as_basic_value_enum();
+        self.build_object_struct_set(object, OBJ_VTABLE_IDX, v, "vtable");
     }
 
     /// Get vtable of the class of the given name
-    pub fn get_vtable_of_class(&self, classname: &ClassFullname) -> VTableRef<'run> {
+    pub fn get_vtable_of_class(&self, classname: &ClassFullname) -> OpaqueVTableRef<'run> {
         let vtable_const_name = llvm_vtable_const_name(classname);
         let llvm_ary_ptr = self
             .module
             .get_global(&vtable_const_name)
             .unwrap_or_else(|| panic!("[BUG] global `{}' not found", &vtable_const_name))
             .as_pointer_value();
-        VTableRef(
-            self.builder
-                .build_bitcast(llvm_ary_ptr, self.i8ptr_type, "i8ptr"),
-        )
+        OpaqueVTableRef::new(llvm_ary_ptr)
     }
 
     /// Load value of the nth element of the llvm struct of a Shiika object
