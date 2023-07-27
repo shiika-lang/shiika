@@ -158,9 +158,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),
             HirBooleanLiteral { value } => Ok(Some(self.gen_boolean_literal(*value))),
 
-            HirLambdaCaptureRef { idx, readonly } => {
-                Ok(Some(self.gen_lambda_capture_ref(ctx, idx, !readonly)))
-            }
+            HirLambdaCaptureRef { idx, readonly } => Ok(Some(
+                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
+            )),
             HirLambdaCaptureWrite { cidx, rhs } => self.gen_lambda_capture_write(ctx, cidx, rhs),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
             HirClassLiteral {
@@ -959,7 +959,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
                 HirLambdaCaptureDetail::CaptureFwd { cidx, .. } => {
                     let deref = false;
-                    self.gen_lambda_capture_ref(ctx, cidx, deref)
+                    self.gen_lambda_capture_ref(ctx, cidx, deref, &cap.ty)
                 }
                 HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
                     // Method-wise type arguments are passed as llvm function parameter.
@@ -1050,6 +1050,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
         deref: bool,
+        ty: &TermTy,
     ) -> SkObj<'run> {
         let block = self
             .context
@@ -1058,16 +1059,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
-        let item = captures.load(self, *idx_in_captures);
-        let ret = if deref {
-            // `item` is a pointer
-            let ptr = item.into_pointer_value();
-            SkObj(self.builder.build_load(ptr, "ret"))
-        } else {
-            // `item` is a value
-            SkObj(item)
-        };
-
+        let ret = captures.get_value(self, *idx_in_captures, ty, deref);
         let block = self.context.append_basic_block(
             ctx.function,
             &format!("CaptureRef_{}th_end", idx_in_captures),

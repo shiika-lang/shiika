@@ -109,6 +109,26 @@ impl<'run> LambdaCapture<'run> {
         }
     }
 
+    /// Get the (possibly indirectly) stored value.
+    pub fn get_value(
+        &self,
+        gen: &CodeGen<'_, 'run, '_>,
+        idx: usize,
+        ty: &TermTy,
+        deref: bool,
+    ) -> SkObj<'run> {
+        let x = self.load(gen, idx);
+        if deref {
+            let pointee_ty = gen.llvm_struct_type(ty).as_basic_type_enum();
+            SkObj(
+                gen.builder
+                    .build_load(pointee_ty, x.into_pointer_value(), "deref"),
+            )
+        } else {
+            SkObj(x)
+        }
+    }
+
     /// Load the value at the given index
     pub fn load(
         &self,
