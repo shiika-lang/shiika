@@ -1,4 +1,6 @@
+use crate::utils::OBJ_VTABLE_IDX;
 use crate::CodeGen;
+use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 
 /// Shiika object (eg. `Int*`, `String*`)
@@ -45,6 +47,19 @@ impl<'run> VTableRef<'run> {
         VTableRef { ptr, len }
     }
 
+    /// Returns the vtable of a Shiika object.
+    pub fn from_sk_obj(
+        gen: &CodeGen<'_, 'run, '_>,
+        object: SkObj<'run>,
+        len: usize,
+    ) -> VTableRef<'run> {
+        let t = Self::llvm_type(gen, len).as_basic_type_enum();
+        let ptr = gen
+            .build_object_struct_ref(t, object, OBJ_VTABLE_IDX, "vtable")
+            .into_pointer_value();
+        VTableRef::new(ptr, len)
+    }
+
     pub fn get_func(
         &self,
         gen: &CodeGen<'_, 'run, '_>,
@@ -57,12 +72,12 @@ impl<'run> VTableRef<'run> {
 
     fn get_vtable(&self, gen: &CodeGen<'_, 'run, '_>) -> inkwell::values::ArrayValue<'run> {
         gen.builder
-            .build_load(self.llvm_type(gen), self.ptr.clone(), "vtable")
+            .build_load(Self::llvm_type(gen, self.len), self.ptr.clone(), "vtable")
             .into_array_value()
     }
 
-    fn llvm_type(&self, gen: &CodeGen<'_, 'run, '_>) -> inkwell::types::PointerType<'run> {
-        let ary_type = gen.i8ptr_type.array_type(self.len as u32);
+    fn llvm_type(gen: &CodeGen<'_, 'run, '_>, len: usize) -> inkwell::types::PointerType<'run> {
+        let ary_type = gen.i8ptr_type.array_type(len as u32);
         ary_type.ptr_type(Default::default())
     }
 }

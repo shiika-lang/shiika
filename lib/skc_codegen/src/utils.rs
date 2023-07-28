@@ -8,7 +8,7 @@ use shiika_ffi::{mangle_const, mangle_method};
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
-const OBJ_VTABLE_IDX: usize = 0;
+pub const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
 const OBJ_CLASS_IDX: usize = 1;
 
@@ -32,8 +32,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load value of an instance variable
-    pub fn build_ivar_load(&self, object: SkObj<'run>, idx: usize, name: &str) -> SkObj<'run> {
-        SkObj(self.build_object_struct_ref(object, OBJ_HEADER_SIZE + idx, name))
+    pub fn build_ivar_load(
+        &self,
+        ty: &TermTy,
+        object: SkObj<'run>,
+        idx: usize,
+        name: &str,
+    ) -> SkObj<'run> {
+        SkObj(self.build_object_struct_ref(self.llvm_type(ty), object, OBJ_HEADER_SIZE + idx, name))
     }
 
     /// Store value into an instance variable
@@ -58,17 +64,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_object_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
     }
 
-    /// Get the vtable of an object as i8ptr
-    pub fn get_vtable_of_obj(&self, object: SkObj<'run>, len: usize) -> VTableRef<'run> {
-        let ptr = self
-            .build_object_struct_ref(object, OBJ_VTABLE_IDX, "vtable")
-            .into_pointer_value();
-        VTableRef::new(ptr, len)
-    }
-
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
-        SkClassObj(self.build_object_struct_ref(object, OBJ_CLASS_IDX, "class"))
+        let t = self.llvm_type(&ty::raw("Class"));
+        SkClassObj(self.build_object_struct_ref(t, object, OBJ_CLASS_IDX, "class"))
     }
 
     /// Set `class_obj` to the class object field of `object`
@@ -95,33 +94,40 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load value of the nth element of the llvm struct of a Shiika object
-    fn build_object_struct_ref(
+    pub fn build_object_struct_ref(
         &self,
+        llvm_type: inkwell::types::BasicTypeEnum<'run>,
         object: SkObj<'run>,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = object.0.into_pointer_value();
-        self.build_llvm_struct_ref(ptr, idx, name)
+        self.build_llvm_struct_ref(llvm_type, ptr, idx, name)
     }
 
     /// Load value of the nth element of a llvm struct
     pub fn build_llvm_struct_ref(
         &self,
+        llvm_type: inkwell::types::BasicTypeEnum<'run>,
         struct_ptr: inkwell::values::PointerValue<'run>,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = self
             .builder
-            .build_struct_gep(struct_ptr, idx as u32, &format!("addr_{}", name))
+            .build_struct_gep(
+                llvm_type.clone(),
+                struct_ptr,
+                idx as u32,
+                &format!("addr_{}", name),
+            )
             .unwrap_or_else(|_| {
                 panic!(
                     "build_llvm_struct_ref: elem not found (idx: {}, name: {}, struct_ptr: {:?})",
                     &idx, &name, &struct_ptr
                 )
             });
-        self.builder.build_load(ptr, name)
+        self.builder.build_load(llvm_type, ptr, name)
     }
 
     /// Set the value the nth element of llvm struct of a Shiika object

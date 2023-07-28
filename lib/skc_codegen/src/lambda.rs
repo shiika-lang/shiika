@@ -117,7 +117,7 @@ impl<'run> LambdaCapture<'run> {
         ty: &TermTy,
         deref: bool,
     ) -> SkObj<'run> {
-        let x = self.load(gen, idx);
+        let x = self.load(gen, idx, ty, deref);
         if deref {
             let pointee_ty = gen.llvm_struct_type(ty).as_basic_type_enum();
             SkObj(
@@ -129,18 +129,26 @@ impl<'run> LambdaCapture<'run> {
         }
     }
 
-    /// Load the value at the given index
-    pub fn load(
+    /// Load the llvm value at the given index
+    fn load(
         &self,
         gen: &CodeGen<'_, 'run, '_>,
         idx: usize,
+        ty: &TermTy,
+        deref: bool,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        gen.build_llvm_struct_ref(self.to_struct_ptr(), idx, "load")
+        let value_ty = gen.llvm_type(ty);
+        let t = if deref {
+            value_ty.ptr_type(Default::default()).as_basic_type_enum()
+        } else {
+            value_ty
+        };
+        gen.build_llvm_struct_ref(t, self.to_struct_ptr(), idx, "load")
     }
 
     /// Given there is a pointer stored at `idx`, update its value.
-    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
-        let ptr = self.load(gen, idx).into_pointer_value();
+    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj, ty: &TermTy) {
+        let ptr = self.load(gen, idx, ty, true).into_pointer_value();
         gen.builder.build_store(ptr, value.0);
     }
 }

@@ -66,7 +66,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let sk_bool = SkObj(function.get_params()[0]);
-        let i1_val = self.build_ivar_load(sk_bool, 0, "@llvm_bool");
+        let i1_val = self.build_ivar_load(&ty::raw("Bool"), sk_bool, 0, "@llvm_bool");
         self.build_return(&i1_val);
 
         // box_int
@@ -85,7 +85,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let sk_int = SkObj(function.get_params()[0]);
-        let i64_val = self.build_ivar_load(sk_int, 0, "@llvm_int");
+        let i64_val = self.build_ivar_load(&ty::raw("Bool"), sk_int, 0, "@llvm_int");
         self.build_return(&i64_val);
 
         // box_float
@@ -104,7 +104,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let sk_float = SkObj(function.get_params()[0]);
-        let f64_val = self.build_ivar_load(sk_float, 0, "@llvm_float");
+        let f64_val = self.build_ivar_load(&ty::raw("Float"), sk_float, 0, "@llvm_float");
         self.build_return(&f64_val);
 
         // box_i8ptr
@@ -123,7 +123,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(basic_block);
 
         let sk_ptr = SkObj(function.get_params()[0]);
-        let i8ptr = self.build_ivar_load(sk_ptr, 0, "@llvm_i8ptr");
+        let i8ptr =
+            self.build_ivar_load(&ty::raw("Shiika::Internal::Ptr"), sk_ptr, 0, "@llvm_i8ptr");
         self.build_return(&i8ptr);
 
         // gen_literal_string
