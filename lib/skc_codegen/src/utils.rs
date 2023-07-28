@@ -173,14 +173,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Load a class object
-    pub fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
+    /// NOTE: this does not work with `const_is_obj` classes (i.e. Void, None, etc.)
+    fn load_class_object(&self, class_fullname: &ClassFullname) -> SkClassObj<'run> {
         let class_const_name = llvm_const_name(&class_fullname.to_const_fullname());
         let class_obj_addr = self
             .module
             .get_global(&class_const_name)
             .unwrap_or_else(|| panic!("global `{}' not found", class_const_name))
             .as_pointer_value();
-        SkClassObj(self.builder.build_load(class_obj_addr, "class_obj"))
+        let t = self.llvm_type(&ty::raw("Class"));
+        SkClassObj(self.builder.build_load(t, class_obj_addr, "class_obj"))
     }
 
     pub fn _allocate_sk_obj(
