@@ -1,6 +1,7 @@
 use crate::signature::MethodSignature;
 use crate::{HirExpressions, HirLVars};
 use shiika_core::names::*;
+use shiika_core::ty::TermTy;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -27,7 +28,11 @@ pub enum SkMethodBody {
         const_is_obj: bool,
     },
     /// A method that just return the value of `idx`th ivar
-    Getter { idx: usize, name: String },
+    Getter {
+        idx: usize,
+        name: String,
+        ty: TermTy,
+    },
     /// A method that just update the value of `idx`th ivar
     Setter { idx: usize, name: String },
 }

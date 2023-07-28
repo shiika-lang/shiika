@@ -54,6 +54,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         SkMethodBody::Getter {
             idx: ivar.idx,
             name: ivar.name.clone(),
+            ty: ivar.ty.clone(),
         },
     )
 }
