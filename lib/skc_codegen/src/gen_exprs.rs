@@ -458,7 +458,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // Set @exit_status
                 let fn_x = self.get_nth_param(&ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
+                self.build_ivar_store(
+                    &ty::raw("Fn"),
+                    &fn_x,
+                    FN_X_EXIT_STATUS_IDX,
+                    i,
+                    "@exit_status",
+                );
 
                 // Jump to the end of the llvm func
                 self.builder
@@ -507,7 +513,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>> {
         let object = self.gen_self_expression(ctx, self_ty);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        self.build_ivar_store(&object, *idx, value.clone(), name);
+        self.build_ivar_store(self_ty, &object, *idx, value.clone(), name);
         Ok(Some(value))
     }
 
@@ -697,7 +703,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let n_args = arg_exprs.len();
 
         // Prepare arguments
-        let mut args = vec![lambda_obj];
+        let mut args = vec![lambda_obj.clone()];
         for e in arg_exprs {
             args.push(self.gen_expr(ctx, e)?.unwrap());
         }
@@ -760,7 +766,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // Set @exit_status
                 let fn_x = self.get_nth_param(&ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                self.build_ivar_store(&fn_x, FN_X_EXIT_STATUS_IDX, i, "@exit_status");
+                self.build_ivar_store(
+                    &ty::raw("Fn"),
+                    &fn_x,
+                    FN_X_EXIT_STATUS_IDX,
+                    i,
+                    "@exit_status",
+                );
             }
             self.builder
                 .build_unconditional_branch(*ctx.current_func_end);
@@ -1230,6 +1242,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             SkClassObj(null),
         );
         self.build_ivar_store(
+            &ty::raw("Class"),
             &cls_obj,
             skc_corelib::class::IVAR_NAME_IDX,
             self.gen_string_literal(str_literal_idx),

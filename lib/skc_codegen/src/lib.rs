@@ -756,10 +756,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let val = self.build_ivar_load(ty, this, *idx, name);
                     self.build_return(&val);
                 }
-                SkMethodBody::Setter { idx, name } => {
+                SkMethodBody::Setter { idx, name, ty } => {
                     let this = self.get_nth_param(&function, 0);
                     let val = self.get_nth_param(&function, 1);
-                    self.build_ivar_store(&this, *idx, val, name);
+                    self.build_ivar_store(ty, &this, *idx, val, name);
                     let val = self.get_nth_param(&function, 1);
                     self.build_return(&val);
                 }

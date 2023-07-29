@@ -79,6 +79,7 @@ impl<'run> LambdaCapture<'run> {
         debug_assert!(self.store_type_matches(gen, idx, value));
 
         gen.build_llvm_struct_set(
+            self.struct_type(gen).as_basic_type_enum(),
             self.to_struct_ptr(),
             idx,
             value,

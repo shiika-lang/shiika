@@ -34,7 +34,11 @@ pub enum SkMethodBody {
         ty: TermTy,
     },
     /// A method that just update the value of `idx`th ivar
-    Setter { idx: usize, name: String },
+    Setter {
+        idx: usize,
+        name: String,
+        ty: TermTy,
+    },
 }
 
 impl SkMethod {

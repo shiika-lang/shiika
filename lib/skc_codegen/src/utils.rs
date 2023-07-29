@@ -45,23 +45,25 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Store value into an instance variable
     pub fn build_ivar_store<'a>(
         &'a self,
+        obj_ty: &TermTy,
         object: &'a SkObj<'a>,
         idx: usize,
         value: SkObj<'a>,
         name: &str,
     ) {
-        self.build_ivar_store_raw(object, idx, value.0, name)
+        self.build_ivar_store_raw(obj_ty, object, idx, value.0, name)
     }
 
     /// Store llvm value into an instance variable
     pub fn build_ivar_store_raw<'a>(
         &'a self,
+        obj_ty: &TermTy,
         object: &'a SkObj<'a>,
         idx: usize,
         value: inkwell::values::BasicValueEnum<'a>,
         name: &str,
     ) {
-        self.build_object_struct_set(object, OBJ_HEADER_SIZE + idx, value, name)
+        self.build_object_struct_set(obj_ty, object, OBJ_HEADER_SIZE + idx, value, name)
     }
 
     /// Get the class object of an object as `*Class`
@@ -73,13 +75,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Set `class_obj` to the class object field of `object`
     pub fn set_class_of_obj(&self, object: &SkObj<'run>, class_obj: SkClassObj<'run>) {
         let cast = self.bitcast(SkObj(class_obj.0), &ty::raw("Class"), "class");
-        self.build_object_struct_set(object, OBJ_CLASS_IDX, cast.0, "my_class");
+        self.build_object_struct_set(
+            &ty::raw("Object"),
+            object,
+            OBJ_CLASS_IDX,
+            cast.0,
+            "my_class",
+        );
     }
 
     /// Set `vtable` to `object`
     pub fn set_vtable_of_obj(&self, object: &SkObj<'run>, vtable: OpaqueVTableRef<'run>) {
         let v = vtable.ptr.as_basic_value_enum();
-        self.build_object_struct_set(object, OBJ_VTABLE_IDX, v, "vtable");
+        self.build_object_struct_set(&ty::raw("Object"), object, OBJ_VTABLE_IDX, v, "vtable");
     }
 
     /// Get vtable of the class of the given name
@@ -133,18 +141,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Set the value the nth element of llvm struct of a Shiika object
     fn build_object_struct_set<'a>(
         &'a self,
+        obj_ty: &TermTy,
         object: &'a SkObj<'a>,
         idx: usize,
         value: inkwell::values::BasicValueEnum<'a>,
         name: &str,
     ) {
+        let t = self.llvm_struct_type(obj_ty).as_basic_type_enum();
         let ptr = object.0.into_pointer_value();
-        self.build_llvm_struct_set(ptr, idx, value, name);
+        self.build_llvm_struct_set(t, ptr, idx, value, name);
     }
 
     /// Set the value the nth element of llvm struct
     pub fn build_llvm_struct_set<'a>(
         &'a self,
+        struct_type: inkwell::types::BasicTypeEnum<'run>,
         struct_ptr: inkwell::values::PointerValue<'a>,
         idx: usize,
         value: inkwell::values::BasicValueEnum<'a>,
@@ -153,6 +164,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = self
             .builder
             .build_struct_gep(
+                struct_type,
                 struct_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
