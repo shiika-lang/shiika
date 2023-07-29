@@ -6,7 +6,7 @@ enum Maybe<V>
   def map<U>(f: Fn1<V, U>) -> Maybe<U>
     match self
     when Some(v)
-      Some<U>.new(f(v))
+      Some.new(f(v))
     else
       None
     end

@@ -47,7 +47,7 @@ module Readable
         return Fail<Array<String>>.new(e)
       end
     end
-    Ok<Array<String>>.new(a)
+    Ok.new(a)
   end
 
   def read -> Result<String>
@@ -65,6 +65,6 @@ module Readable
         return Fail<String>.new(e)
       end
     end
-    Ok<String>.new(acc._unsafe_to_s)
+    Ok.new(acc._unsafe_to_s)
   end
 end

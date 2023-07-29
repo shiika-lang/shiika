@@ -10,7 +10,7 @@ class File : Readable
     when Ok(file)
       let v = f(file)
       #file.close
-      Ok<V>.new(v)
+      Ok.new(v)
     when Fail(e)
       Fail<V>.new(e)
     end
