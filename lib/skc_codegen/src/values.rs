@@ -100,7 +100,7 @@ impl<'run> OpaqueVTableRef<'run> {
 }
 
 impl<'run> From<VTableRef<'run>> for OpaqueVTableRef<'run> {
-    fn from(x: VTableRef) -> Self {
+    fn from(x: VTableRef<'run>) -> Self {
         OpaqueVTableRef::new(x.ptr)
     }
 }

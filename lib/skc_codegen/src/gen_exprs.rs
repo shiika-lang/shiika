@@ -788,11 +788,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn indirect_method_function_call(
         &self,
         function: PointerValue<'run>,
-        func_type: FunctionType,
+        func_type: FunctionType<'ictx>,
         receiver_value: SkObj<'run>,
         arg_values: &[SkObj<'run>],
     ) -> SkObj<'run> {
-        let args = arg_values.to_vec();
+        let mut args = arg_values.to_vec();
         args.insert(0, receiver_value);
         self.indirect_function_call(function, func_type, args)
     }
@@ -801,7 +801,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn indirect_function_call(
         &self,
         function: PointerValue<'run>,
-        func_type: FunctionType,
+        func_type: FunctionType<'ictx>,
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
         let llvm_args = arg_values.iter().map(|x| x.0.into()).collect::<Vec<_>>();
@@ -937,7 +937,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // eg. Fn1.new(fnptr, the_self, captures)
         let cls_name = format!("Fn{}", params.len());
-        let meta = self.gen_const_ref(&toplevel_const(&cls_name), &ty::meta(cls_name));
+        let meta = self.gen_const_ref(&toplevel_const(&cls_name), &ty::meta(&cls_name));
         let fnptr = self
             .get_llvm_func(&func_name)
             .as_global_value()
