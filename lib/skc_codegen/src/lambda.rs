@@ -138,13 +138,16 @@ impl<'run> LambdaCapture<'run> {
         ty: &TermTy,
         deref: bool,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let value_ty = gen.llvm_type(ty);
-        let t = if deref {
-            value_ty.ptr_type(Default::default()).as_basic_type_enum()
+        if deref {
+            gen.build_llvm_struct_ref_raw(
+                gen.i8ptr_type.as_basic_type_enum(),
+                self.to_struct_ptr(),
+                idx,
+                "load",
+            )
         } else {
-            value_ty
-        };
-        gen.build_llvm_struct_ref(t, self.to_struct_ptr(), idx, "load")
+            gen.build_llvm_struct_ref(*gen.llvm_struct_type(ty), self.to_struct_ptr(), idx, "load")
+        }
     }
 
     /// Given there is a pointer stored at `idx`, update its value.

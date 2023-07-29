@@ -908,7 +908,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn gen_const_ref(&self, fullname: &ConstFullname, ty: &TermTy) -> SkObj<'run> {
         let name = llvm_const_name(fullname);
-        let llvm_type = self.llvm_struct_type(ty).as_basic_type_enum();
+        let llvm_type = self.llvm_type(ty);
         let ptr = self
             .module
             .get_global(&name)

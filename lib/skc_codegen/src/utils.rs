@@ -39,7 +39,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: usize,
         name: &str,
     ) -> SkObj<'run> {
-        SkObj(self.build_object_struct_ref(self.llvm_type(ty), object, OBJ_HEADER_SIZE + idx, name))
+        let pointee_ty = self.llvm_struct_type(ty);
+        SkObj(self.build_object_struct_ref(*pointee_ty, object, OBJ_HEADER_SIZE + idx, name))
     }
 
     /// Store value into an instance variable
@@ -68,8 +69,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
-        let t = self.llvm_type(&ty::raw("Class"));
-        SkClassObj(self.build_object_struct_ref(t, object, OBJ_CLASS_IDX, "class"))
+        let t = self.llvm_struct_type(&ty::raw("Class"));
+        SkClassObj(self.build_object_struct_ref(*t, object, OBJ_CLASS_IDX, "class"))
     }
 
     /// Set `class_obj` to the class object field of `object`
@@ -104,27 +105,39 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Load value of the nth element of the llvm struct of a Shiika object
     pub fn build_object_struct_ref(
         &self,
-        llvm_type: inkwell::types::BasicTypeEnum<'run>,
+        object_ty: &TermTy,
         object: SkObj<'run>,
+        item_ty: inkwell::types::StructType<'run>,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = object.0.into_pointer_value();
-        self.build_llvm_struct_ref(llvm_type, ptr, idx, name)
+        self.build_llvm_struct_ref(pointee_ty, ptr, idx, name)
     }
 
     /// Load value of the nth element of a llvm struct
     pub fn build_llvm_struct_ref(
         &self,
-        llvm_type: inkwell::types::BasicTypeEnum<'run>,
+        pointee_ty: inkwell::types::StructType<'run>,
         struct_ptr: inkwell::values::PointerValue<'run>,
+        idx: usize,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        self.build_llvm_struct_ref_raw(pointee_ty.as_basic_type_enum(), struct_ptr, idx, name)
+    }
+
+    pub fn build_llvm_struct_ref_raw(
+        &self,
+        struct_ty: inkwell::types::BasicTypeEnum<'run>,
+        struct_ptr: inkwell::values::PointerValue<'run>,
+        item_ty: inkwell::types::BasicTypeEnum<'run>,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let ptr = self
             .builder
             .build_struct_gep(
-                llvm_type.clone(),
+                struct_ty,
                 struct_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
@@ -135,7 +148,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     &idx, &name, &struct_ptr
                 )
             });
-        self.builder.build_load(llvm_type, ptr, name)
+        self.builder.build_load(item_ty, ptr, name)
     }
 
     /// Set the value the nth element of llvm struct of a Shiika object
@@ -298,31 +311,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Cast an object to different Shiika type
     pub fn bitcast(&self, obj: SkObj<'run>, ty: &TermTy, reg_name: &str) -> SkObj<'run> {
-        debug_assert!(!self.obviously_wrong_bitcast(&obj.0, &self.llvm_type(ty)));
+        //debug_assert!(!self.obviously_wrong_bitcast(&obj.0, &self.llvm_type(ty)));
         SkObj(
             self.builder
                 .build_bitcast(obj.0, self.llvm_type(ty), reg_name),
         )
-    }
-
-    fn obviously_wrong_bitcast<T, V>(&self, val: &V, t1: &T) -> bool
-    where
-        T: BasicType<'run>,
-        V: BasicValue<'run>,
-    {
-        // eg. `%Int*`
-        let t2 = val.as_basic_value_enum().get_type();
-        // eg. `%Int**`
-        let t1ptr = t1.ptr_type(Default::default()).as_any_type_enum();
-        let t2ptr = t2.ptr_type(Default::default()).as_any_type_enum();
-        if t1.as_any_type_enum() == t2ptr || t2.as_any_type_enum() == t1ptr {
-            println!("[BUG] Found wrong bitcast from t2 to t1, where");
-            dbg!(&t2);
-            dbg!(&t1);
-            true
-        } else {
-            false
-        }
     }
 
     /// Create `%Foo* null`
