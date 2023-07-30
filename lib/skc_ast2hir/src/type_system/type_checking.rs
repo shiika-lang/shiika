@@ -181,17 +181,10 @@ fn check_arg_type(
         return Ok(());
     }
 
-    let msg = if inferred.is_some() {
-        format!(
-            "the argument `{}' of `{}' is inferred to {} but got {}",
-            param.name, sig.fullname, expected, arg_ty.fullname
-        )
-    } else {
-        format!(
-            "the argument `{}' of `{}' should be {} but got {}",
-            param.name, sig.fullname, param.ty, arg_ty
-        )
-    };
+    let msg = format!(
+        "the argument `{}' of `{}' should be {} but got {}",
+        param.name, sig.fullname, param.ty, arg_ty
+    );
     let locs = &arg_hir.locs;
     let report = skc_error::build_report(msg, locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
