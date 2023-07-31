@@ -95,7 +95,7 @@ class Array<T> : Enumerable<T>
     if self.empty?
       None
     else
-      Some<T>.new(self[0])
+      Some.new(self[0])
     end
   end
 
@@ -136,7 +136,7 @@ class Array<T> : Enumerable<T>
     if empty?
       None
     else
-      Some<T>.new(self[length - 1])
+      Some.new(self[length - 1])
     end
   end
 
@@ -262,6 +262,6 @@ class Array<T> : Enumerable<T>
         a.push(self[i])
       end
     end
-    Pair<Array<T>, Array<T>>.new(a, b)
+    Pair.new(a, b)
   end
 end
