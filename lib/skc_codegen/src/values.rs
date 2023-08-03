@@ -112,9 +112,14 @@ impl<'run> VTableRef<'run> {
     }
 
     fn llvm_type(gen: &CodeGen<'_, 'run, '_>, len: usize) -> inkwell::types::PointerType<'run> {
-        gen.i8ptr_type
-            .array_type(len as u32)
-            .ptr_type(Default::default())
+        Self::llvm_pointee_type(gen, len).ptr_type(Default::default())
+    }
+
+    fn llvm_pointee_type(
+        gen: &CodeGen<'_, 'run, '_>,
+        len: usize,
+    ) -> inkwell::types::ArrayType<'run> {
+        gen.i8ptr_type.array_type(len as u32)
     }
 
     /// Returns the vtable of a Shiika object.
@@ -142,7 +147,11 @@ impl<'run> VTableRef<'run> {
 
     fn get_vtable(&self, gen: &CodeGen<'_, 'run, '_>) -> inkwell::values::ArrayValue<'run> {
         gen.builder
-            .build_load(Self::llvm_type(gen, self.len), self.ptr.clone(), "vtable")
+            .build_load(
+                Self::llvm_pointee_type(gen, self.len),
+                self.ptr.clone(),
+                "vtable",
+            )
             .into_array_value()
     }
 }
