@@ -823,12 +823,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ty: &TermTy,
         name: &str,
     ) -> SkObj<'run> {
-        let llvm_ty = self.llvm_struct_type(ty).as_basic_type_enum();
         let ptr = ctx
             .lvars
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
-        SkObj::new(ty.clone(), self.builder.build_load(llvm_ty, *ptr, name))
+        SkObj::new(
+            ty.clone(),
+            self.builder.build_load(self.llvm_type(ty), *ptr, name),
+        )
     }
 
     fn gen_ivar_ref(

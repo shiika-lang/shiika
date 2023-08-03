@@ -121,13 +121,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        self.build_llvm_struct_ref_raw(
-            struct_ty,
-            struct_ptr,
-            self.llvm_struct_type(item_ty).as_basic_type_enum(),
-            idx,
-            name,
-        )
+        self.build_llvm_struct_ref_raw(struct_ty, struct_ptr, self.llvm_type(item_ty), idx, name)
     }
 
     /// Get a value in an llvm struct
