@@ -346,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
 
-        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, None, lvar_ptrs);
+        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, lvar_ptrs);
         self.gen_exprs(&mut ctx, main_exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
@@ -480,7 +480,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     let (end_block, mut ctx) =
-                        self.new_ctx(FunctionOrigin::Other, function, None, HashMap::new());
+                        self.new_ctx(FunctionOrigin::Other, function, HashMap::new());
                     self.gen_expr(&mut ctx, expr)?;
                     self.builder.build_unconditional_branch(*end_block);
                     self.builder.position_at_end(*end_block);
@@ -732,8 +732,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::Normal { exprs } => self.gen_shiika_function_body(
                     function,
-                    None,
-                    FunctionOrigin::Method,
+                    FunctionOrigin::Method { params },
                     ret_ty,
                     exprs,
                     lvar_ptrs,
@@ -770,9 +769,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Right(exprs) => {
                 self.gen_shiika_function_body(
                     function,
-                    Some(params),
                     FunctionOrigin::Lambda {
                         name: lambda_name.unwrap(),
+                        params,
                     },
                     ret_ty,
                     exprs,
@@ -819,13 +818,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_shiika_function_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
-        function_origin: FunctionOrigin,
+        function_origin: FunctionOrigin<'hir>,
         ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<()> {
-        let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
+        let (end_block, mut ctx) = self.new_ctx(function_origin, function, lvars);
         let (last_value, last_value_block) = if let Some(v) = self.gen_exprs(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");
             self.builder.build_unconditional_branch(b);
@@ -930,9 +928,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Create a CodeGenContext
     fn new_ctx(
         &self,
-        origin: FunctionOrigin,
+        origin: FunctionOrigin<'hir>,
         function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> (
         Rc<inkwell::basic_block::BasicBlock<'run>>,
@@ -941,7 +938,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let end_block = self.context.append_basic_block(function, "End");
         let ref_end_block1 = Rc::new(end_block);
         let ref_end_block2 = Rc::clone(&ref_end_block1);
-        let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
+        let ctx = CodeGenContext::new(function, ref_end_block1, origin, lvars);
         (ref_end_block2, ctx)
     }
 }

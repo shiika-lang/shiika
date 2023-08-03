@@ -799,15 +799,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate IR for HirArgRef.
     fn gen_arg_ref(&'run self, ctx: &mut CodeGenContext<'hir, 'run>, idx: &usize) -> SkObj<'run> {
-        let ty = &ctx.function_params.unwrap()[*idx].ty;
         match ctx.function_origin {
-            FunctionOrigin::Method => {
+            FunctionOrigin::Method { params } => {
                 SkObj::new(
-                    ty.clone(),
+                    params[*idx].ty.clone(),
                     ctx.function.get_nth_param((*idx as u32) + 1).unwrap(),
                 ) // +1 for the first %self
             }
-            FunctionOrigin::Lambda { .. } => {
+            FunctionOrigin::Lambda { params, .. } => {
+                let ty = &params[*idx].ty;
                 // +1 for the first %self
                 let obj = self.get_nth_param(ty.clone(), &ctx.function, *idx + 1);
                 // Bitcast is needed because lambda params are always `%Object*`
