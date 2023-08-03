@@ -5,8 +5,6 @@ use inkwell::values::BasicValue;
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
 
-/// Number of elements before ivars
-const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
 pub const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
@@ -31,56 +29,43 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_return(&v);
     }
 
-    /// Load value of an instance variable
-    pub fn build_ivar_load(
-        &self,
-        ty: &TermTy,
-        object: SkObj<'run>,
-        idx: usize,
-        name: &str,
-    ) -> SkObj<'run> {
-        let pointee_ty = self.llvm_struct_type(ty);
-        SkObj(self.build_object_struct_ref(*pointee_ty, object, OBJ_HEADER_SIZE + idx, name))
+    pub fn build_ivar_load(&'run self, obj: SkObj<'run>, name: &str) -> SkObj<'run> {
+        let sk_class = self.sk_types.get_class(&obj.classname());
+        let sk_ivar = sk_class.ivars.get(name).unwrap();
+        SkObj::new(sk_ivar.ty.clone(), self.build_ivar_load_raw(obj, name))
     }
 
-    /// Store value into an instance variable
-    pub fn build_ivar_store<'a>(
-        &'a self,
-        obj_ty: &TermTy,
-        object: &'a SkObj<'a>,
-        idx: usize,
-        value: SkObj<'a>,
+    pub fn build_ivar_load_raw(
+        &'run self,
+        obj: SkObj<'run>,
         name: &str,
-    ) {
-        self.build_ivar_store_raw(obj_ty, object, idx, value.0, name)
-    }
-
-    /// Store llvm value into an instance variable
-    pub fn build_ivar_store_raw<'a>(
-        &'a self,
-        obj_ty: &TermTy,
-        object: &'a SkObj<'a>,
-        idx: usize,
-        value: inkwell::values::BasicValueEnum<'a>,
-        name: &str,
-    ) {
-        self.build_object_struct_set(obj_ty, object, OBJ_HEADER_SIZE + idx, value, name)
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let sk_class = self.sk_types.get_class(&obj.classname());
+        let sk_ivar = sk_class.ivars.get(name).unwrap();
+        self.build_llvm_struct_ref(
+            &self.llvm_struct_type(&obj.ty()),
+            obj.0.clone(),
+            &sk_ivar.ty,
+            sk_ivar.idx,
+            name,
+        )
     }
 
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
-        let t = self.llvm_struct_type(&ty::raw("Class"));
-        SkClassObj(self.build_object_struct_ref(*t, object, OBJ_CLASS_IDX, "class"))
+        SkClassObj(
+            self.build_object_struct_ref(object, &ty::raw("Class"), OBJ_CLASS_IDX, "class")
+                .into_pointer_value(),
+        )
     }
 
     /// Set `class_obj` to the class object field of `object`
     pub fn set_class_of_obj(&self, object: &SkObj<'run>, class_obj: SkClassObj<'run>) {
-        let cast = self.bitcast(SkObj(class_obj.0), &ty::raw("Class"), "class");
         self.build_object_struct_set(
             &ty::raw("Object"),
             object,
             OBJ_CLASS_IDX,
-            cast.0,
+            class_obj.0.as_basic_value_enum(),
             "my_class",
         );
     }
@@ -105,30 +90,50 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Load value of the nth element of the llvm struct of a Shiika object
     pub fn build_object_struct_ref(
         &self,
-        object_ty: &TermTy,
         object: SkObj<'run>,
-        item_ty: inkwell::types::StructType<'run>,
+        item_ty: &TermTy,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let ptr = object.0.into_pointer_value();
-        self.build_llvm_struct_ref(pointee_ty, ptr, idx, name)
+        let struct_ty = self.llvm_struct_type(object.ty());
+        self.build_llvm_struct_ref(&struct_ty, object.0, item_ty, idx, name)
+    }
+
+    /// Load a raw llvm value in a Shiika object
+    pub fn build_object_struct_ref_raw(
+        &self,
+        object: SkObj<'run>,
+        item_ty: inkwell::types::BasicTypeEnum<'run>,
+        idx: usize,
+        name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let struct_ty = self.llvm_struct_type(object.ty());
+        let ptr = object.0;
+        self.build_llvm_struct_ref_raw(&struct_ty, ptr, item_ty, idx, name)
     }
 
     /// Load value of the nth element of a llvm struct
     pub fn build_llvm_struct_ref(
         &self,
-        pointee_ty: inkwell::types::StructType<'run>,
+        struct_ty: &inkwell::types::StructType<'run>,
         struct_ptr: inkwell::values::PointerValue<'run>,
+        item_ty: &TermTy,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        self.build_llvm_struct_ref_raw(pointee_ty.as_basic_type_enum(), struct_ptr, idx, name)
+        self.build_llvm_struct_ref_raw(
+            struct_ty,
+            struct_ptr,
+            self.llvm_struct_type(item_ty).as_basic_type_enum(),
+            idx,
+            name,
+        )
     }
 
+    /// Get a value in an llvm struct
     pub fn build_llvm_struct_ref_raw(
         &self,
-        struct_ty: inkwell::types::BasicTypeEnum<'run>,
+        struct_ty: &inkwell::types::StructType<'run>,
         struct_ptr: inkwell::values::PointerValue<'run>,
         item_ty: inkwell::types::BasicTypeEnum<'run>,
         idx: usize,
@@ -137,7 +142,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = self
             .builder
             .build_struct_gep(
-                struct_ty,
+                struct_ty.as_basic_type_enum(),
                 struct_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
@@ -160,15 +165,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         value: inkwell::values::BasicValueEnum<'a>,
         name: &str,
     ) {
-        let t = self.llvm_struct_type(obj_ty).as_basic_type_enum();
-        let ptr = object.0.into_pointer_value();
-        self.build_llvm_struct_set(t, ptr, idx, value, name);
+        let t = self.llvm_struct_type(obj_ty);
+        self.build_llvm_struct_set(t, object.0, idx, value, name);
     }
 
     /// Set the value the nth element of llvm struct
     pub fn build_llvm_struct_set<'a>(
         &'a self,
-        struct_type: inkwell::types::BasicTypeEnum<'run>,
+        struct_type: &inkwell::types::StructType<'run>,
         struct_ptr: inkwell::values::PointerValue<'a>,
         idx: usize,
         value: inkwell::values::BasicValueEnum<'a>,
@@ -177,7 +181,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let ptr = self
             .builder
             .build_struct_gep(
-                struct_type,
+                struct_type.as_basic_type_enum(),
                 struct_ptr,
                 idx as u32,
                 &format!("addr_{}", name),
@@ -207,7 +211,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap_or_else(|| panic!("global `{}' not found", class_const_name))
             .as_pointer_value();
         let t = self.llvm_type(&ty::raw("Class"));
-        SkClassObj(self.builder.build_load(t, class_obj_addr, "class_obj"))
+        SkClassObj(
+            self.builder
+                .build_load(t, class_obj_addr, "class_obj")
+                .into_pointer_value(),
+        )
     }
 
     pub fn _allocate_sk_obj(
@@ -218,10 +226,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> SkObj<'run> {
         let object_type = self.get_llvm_struct_type(&class_fullname.to_type_fullname());
         let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum(), reg_name);
-        let obj = SkObj(ptr.as_basic_value_enum());
+        let obj = SkObj::new(class_fullname.to_ty(), ptr.into_pointer_value());
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
         self.set_class_of_obj(&obj, class_obj);
-
         obj
     }
 
@@ -261,11 +268,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_name: &MethodFullname,
         receiver: SkObj<'run>,
         args: &[SkObj<'run>],
+        result_ty: TermTy,
         reg_name: &str,
     ) -> SkObj<'run> {
         let mut llvm_args = vec![receiver.0.into()];
         llvm_args.append(&mut args.iter().map(|x| x.0.into()).collect());
-        SkObj(self.call_llvm_func(&method_func_name(method_name), &llvm_args, reg_name))
+        SkObj::new(
+            result_ty,
+            self.call_llvm_func(&method_func_name(method_name), &llvm_args, reg_name),
+        )
     }
 
     /// Call llvm function (whose return type is not `void`)
@@ -303,16 +314,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Get nth parameter of llvm func as SkObj
     pub fn get_nth_param(
         &self,
+        ty: TermTy,
         function: &inkwell::values::FunctionValue<'run>,
         n: usize,
     ) -> SkObj<'run> {
-        SkObj(function.get_nth_param(n as u32).unwrap())
+        SkObj::new(ty, function.get_nth_param(n as u32).unwrap())
     }
 
     /// Cast an object to different Shiika type
     pub fn bitcast(&self, obj: SkObj<'run>, ty: &TermTy, reg_name: &str) -> SkObj<'run> {
         //debug_assert!(!self.obviously_wrong_bitcast(&obj.0, &self.llvm_type(ty)));
-        SkObj(
+        SkObj::new(
+            ty.clone(),
             self.builder
                 .build_bitcast(obj.0, self.llvm_type(ty), reg_name),
         )
@@ -321,7 +334,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Create `%Foo* null`
     pub fn null_ptr(&self, ty: &TermTy) -> SkObj<'run> {
         let ptr = self.llvm_type(ty).into_pointer_type().const_null();
-        SkObj(ptr.into())
+        SkObj::new(ty.clone(), ptr)
     }
 
     /// LLVM type of a Shiika object

@@ -32,12 +32,14 @@ pub enum SkMethodBody {
         idx: usize,
         name: String,
         ty: TermTy,
+        self_ty: TermTy,
     },
     /// A method that just update the value of `idx`th ivar
     Setter {
         idx: usize,
         name: String,
         ty: TermTy,
+        self_ty: TermTy,
     },
 }
 

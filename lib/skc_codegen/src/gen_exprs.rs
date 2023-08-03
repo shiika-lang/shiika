@@ -13,14 +13,6 @@ use skc_hir::HirExpressionBase::*;
 use skc_hir::*;
 use std::rc::Rc;
 
-/// Index of @func of FnX
-const FN_X_FUNC_IDX: usize = 0;
-/// Index of @the_self of FnX
-const FN_X_THE_SELF_IDX: usize = 1;
-/// Index of @captures of FnX
-const FN_X_CAPTURES_IDX: usize = 2;
-/// Index of @exit_status of FnX
-const FN_X_EXIT_STATUS_IDX: usize = 3;
 /// Fn::EXIT_BREAK
 const EXIT_BREAK: u64 = 1;
 
@@ -29,7 +21,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// May return `None` when, for example, it ends with a `return`
     /// expression.
     pub fn gen_exprs(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         exprs: &'hir HirExpressions,
     ) -> Result<Option<SkObj<'run>>> {
@@ -48,7 +40,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     pub fn gen_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
@@ -83,12 +75,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
             HirIVarAssign {
-                name,
-                idx,
-                rhs,
-                self_ty,
-                ..
-            } => self.gen_ivar_assign(ctx, name, idx, rhs, self_ty),
+                name, rhs, self_ty, ..
+            } => self.gen_ivar_assign(ctx, name, rhs, self_ty),
             HirConstAssign { fullname, rhs } => self.gen_const_assign(ctx, fullname, rhs),
             HirMethodCall {
                 receiver_expr,
@@ -126,8 +114,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
             HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, &expr.ty, name))),
-            HirIVarRef { name, idx, self_ty } => {
-                Ok(Some(self.gen_ivar_ref(ctx, name, idx, self_ty, &expr.ty)))
+            HirIVarRef { name, self_ty, .. } => {
+                Ok(Some(self.gen_ivar_ref(ctx, name, self_ty, &expr.ty)))
             }
             HirClassTVarRef {
                 typaram_ref,
@@ -184,7 +172,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_logical_not(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
@@ -198,7 +186,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_logical_and(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
@@ -227,11 +215,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (&left_value.0, begin_block_end),
             (&right_value.0, more_block_end),
         ]);
-        Ok(Some(SkObj(phi_node.as_basic_value())))
+        Ok(Some(SkObj::new(ty::raw("Bool"), phi_node.as_basic_value())))
     }
 
     fn gen_logical_or(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         left: &'hir HirExpression,
         right: &'hir HirExpression,
@@ -260,11 +248,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (&left_value.0, begin_block_end),
             (&right_value.0, else_block_end),
         ]);
-        Ok(Some(SkObj(phi_node.as_basic_value())))
+        Ok(Some(SkObj::new(ty::raw("Bool"), phi_node.as_basic_value())))
     }
 
     fn gen_if_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
         cond_expr: &'hir HirExpression,
@@ -309,13 +297,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
                 phi_node
                     .add_incoming(&[(&then_val.0, then_block_end), (&else_val.0, else_block_end)]);
-                Ok(Some(SkObj(phi_node.as_basic_value())))
+                Ok(Some(SkObj::new(ty.clone(), phi_node.as_basic_value())))
             }
         }
     }
 
     fn gen_match_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         result_ty: &TermTy,
         cond_assign_expr: &'hir HirExpression,
@@ -375,12 +363,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     .collect::<Vec<_>>()
                     .as_slice(),
             );
-            Ok(Some(SkObj(phi_node.as_basic_value())))
+            Ok(Some(SkObj::new(
+                result_ty.clone(),
+                phi_node.as_basic_value(),
+            )))
         }
     }
 
     fn gen_match_clause(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         clause: &'hir pattern_match::MatchClause,
         skip_block: inkwell::basic_block::BasicBlock,
@@ -410,7 +401,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_while_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         cond_expr: &'hir HirExpression,
         body_exprs: &'hir HirExpressions,
@@ -441,7 +432,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_break_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         from: &HirBreakFrom,
     ) -> Result<Option<SkObj<'run>>> {
@@ -456,15 +447,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirBreakFrom::Block => {
                 debug_assert!(matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }));
                 // Set @exit_status
-                let fn_x = self.get_nth_param(&ctx.function, 0);
+                let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                self.build_ivar_store(
-                    &ty::raw("Fn"),
-                    &fn_x,
-                    FN_X_EXIT_STATUS_IDX,
-                    i,
-                    "@exit_status",
-                );
+                fn_x.ivar_store(self, "@exit_status", i);
 
                 // Jump to the end of the llvm func
                 self.builder
@@ -475,7 +460,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_return_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         arg: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
@@ -489,7 +474,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_lvar_assign(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         rhs: &'hir HirExpression,
@@ -504,21 +489,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_ivar_assign(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
-        idx: &usize,
         rhs: &'hir HirExpression,
         self_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         let object = self.gen_self_expression(ctx, self_ty);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        self.build_ivar_store(self_ty, &object, *idx, value.clone(), name);
+        object.ivar_store(self, name, value.clone());
         Ok(Some(value))
     }
 
     fn gen_const_assign(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         fullname: &ConstFullname,
         rhs: &'hir HirExpression,
@@ -536,7 +520,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate method call
     fn gen_method_call(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         method_fullname: &MethodFullname,
         receiver_expr: &'hir HirExpression,
@@ -573,8 +557,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             func_type,
         );
 
-        let result =
-            self.indirect_method_function_call(func, func_type, receiver_value, &arg_values);
+        let result = self.indirect_method_function_call(
+            ret_ty.clone(),
+            func,
+            func_type,
+            receiver_value,
+            &arg_values,
+        );
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -590,7 +579,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Retrieve the llvm func
     fn _get_method_func(
-        &self,
+        &'run self,
         method_name: &MethodFirstname,
         receiver_ty: &TermTy,
         receiver_value: SkObj<'run>,
@@ -618,7 +607,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Generate method call via wtable
     #[allow(clippy::too_many_arguments)]
     fn gen_module_method_call(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         module_fullname: &ModuleFullname,
         method_name: &MethodFirstname,
@@ -665,8 +654,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .build_bitcast(func_ptr, func_type.ptr_type(Default::default()), "as")
             .into_pointer_value();
 
-        let result =
-            self.indirect_method_function_call(func, func_type, receiver_value, &arg_values);
+        let result = self.indirect_method_function_call(
+            ret_ty.clone(),
+            func,
+            func_type,
+            receiver_value,
+            &arg_values,
+        );
         if ret_ty.is_never_type() {
             self.builder.build_unreachable();
             Ok(None)
@@ -693,7 +687,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate invocation of a lambda
     fn gen_lambda_invocation(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         lambda_expr: &'hir HirExpression,
         arg_exprs: &'hir [HirExpression],
@@ -729,33 +723,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptype = fntype.ptr_type(Default::default());
 
         // Cast `fnptr` to that type
-        let fnptr = self.unbox_i8ptr(self.build_ivar_load(
-            &fn_x_ty,
-            lambda_obj.clone(),
-            FN_X_FUNC_IDX,
-            "@func",
-        ));
+        let fnptr = self.unbox_i8ptr(self.build_ivar_load(lambda_obj.clone(), "@func"));
         let func = self
             .builder
             .build_bitcast(fnptr.0, fnptype, "")
             .into_pointer_value();
 
         // Generate function call
-        let result = self.indirect_function_call(func, fntype, args);
+        let result = self.indirect_function_call(ret_ty.clone(), func, fntype, args);
 
         // Check `break` in block
         if ret_ty.is_void_type() {
             let broke_block = self.context.append_basic_block(ctx.function, "Broke");
-            let exit_status = self.build_ivar_load(
-                &ty::raw("Int"),
-                lambda_obj,
-                FN_X_EXIT_STATUS_IDX,
-                "@exit_status",
-            );
+            let exit_status = self.build_ivar_load(lambda_obj, "@exit_status");
             let eq = self.call_method_func(
                 &method_fullname_raw("Int", "=="),
                 exit_status,
                 &vec![self.box_int(&self.i64_type.const_int(EXIT_BREAK, false))],
+                ty::raw("Bool"),
                 "eq",
             );
             self.gen_conditional_branch(eq, broke_block, end_block);
@@ -764,15 +749,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.builder.position_at_end(broke_block);
             if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
                 // Set @exit_status
-                let fn_x = self.get_nth_param(&ctx.function, 0);
+                let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                self.build_ivar_store(
-                    &ty::raw("Fn"),
-                    &fn_x,
-                    FN_X_EXIT_STATUS_IDX,
-                    i,
-                    "@exit_status",
-                );
+                fn_x.ivar_store(self, "@exit_status", i);
             }
             self.builder
                 .build_unconditional_branch(*ctx.current_func_end);
@@ -786,7 +765,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     // Call a method llvm function via function pointer.
     fn indirect_method_function_call(
-        &self,
+        &'run self,
+        result_ty: TermTy,
         function: PointerValue<'run>,
         func_type: FunctionType<'ictx>,
         receiver_value: SkObj<'run>,
@@ -794,12 +774,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> SkObj<'run> {
         let mut args = arg_values.to_vec();
         args.insert(0, receiver_value);
-        self.indirect_function_call(function, func_type, args)
+        self.indirect_function_call(result_ty, function, func_type, args)
     }
 
     // Call a llvm function via function pointer.
     fn indirect_function_call(
-        &self,
+        &'run self,
+        result_ty: TermTy,
         function: PointerValue<'run>,
         func_type: FunctionType<'ictx>,
         arg_values: Vec<SkObj<'run>>,
@@ -811,29 +792,33 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .try_as_basic_value()
             .left()
         {
-            Some(result_value) => SkObj(result_value),
+            Some(result_value) => SkObj::new(result_ty, result_value),
             None => self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void")),
         }
     }
 
     /// Generate IR for HirArgRef.
-    fn gen_arg_ref(&self, ctx: &mut CodeGenContext<'hir, 'run>, idx: &usize) -> SkObj<'run> {
+    fn gen_arg_ref(&'run self, ctx: &mut CodeGenContext<'hir, 'run>, idx: &usize) -> SkObj<'run> {
+        let ty = &ctx.function_params.unwrap()[*idx].ty;
         match ctx.function_origin {
             FunctionOrigin::Method => {
-                SkObj(ctx.function.get_nth_param((*idx as u32) + 1).unwrap()) // +1 for the first %self
+                SkObj::new(
+                    ty.clone(),
+                    ctx.function.get_nth_param((*idx as u32) + 1).unwrap(),
+                ) // +1 for the first %self
             }
             FunctionOrigin::Lambda { .. } => {
                 // +1 for the first %self
-                let obj = self.get_nth_param(&ctx.function, *idx + 1);
+                let obj = self.get_nth_param(ty.clone(), &ctx.function, *idx + 1);
                 // Bitcast is needed because lambda params are always `%Object*`
-                self.bitcast(obj, &ctx.function_params.unwrap()[*idx].ty, "value")
+                self.bitcast(obj, &ty, "value")
             }
             _ => panic!("[BUG] arg ref in invalid place"),
         }
     }
 
     fn gen_lvar_ref(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
         name: &str,
@@ -843,23 +828,24 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .lvars
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
-        SkObj(self.builder.build_load(llvm_ty, *ptr, name))
+        SkObj::new(ty.clone(), self.builder.build_load(llvm_ty, *ptr, name))
     }
 
     fn gen_ivar_ref(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
-        idx: &usize,
         self_ty: &TermTy,
         ty: &TermTy,
     ) -> SkObj<'run> {
         let object = self.gen_self_expression(ctx, self_ty);
-        self.build_ivar_load(ty, object, *idx, name)
+        let value = self.build_ivar_load(object, name);
+        debug_assert!(value.ty() == ty);
+        value
     }
 
     fn gen_class_tvar_ref(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         typaram_ref: &TyParamRef,
         self_ty: &TermTy,
@@ -874,53 +860,49 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         )
     }
 
-    fn _get_nth_tyarg_of_self(&self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
+    fn _get_nth_tyarg_of_self(&'run self, self_obj: SkObj<'run>, idx: usize) -> SkObj<'run> {
         let cls_obj = self.get_class_of_obj(self_obj);
         self.call_method_func(
             &method_fullname_raw("Class", "_type_argument"),
             self.bitcast(cls_obj.as_sk_obj(), &ty::raw("Class"), "as"),
             &vec![self.gen_decimal_literal(idx as i64)],
+            ty::raw("Class"),
             "tyarg",
         )
     }
 
     fn gen_method_tvar_ref(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         typaram_ref: &TyParamRef,
         n_params: &usize,
     ) -> SkObj<'run> {
         debug_assert!(typaram_ref.kind == TyParamKind::Method);
-        self._get_nth_method_tyarg(ctx, n_params, typaram_ref.idx)
-    }
-
-    fn _get_nth_method_tyarg(
-        &self,
-        ctx: &mut CodeGenContext<'hir, 'run>,
-        n_params: &usize,
-        n: usize,
-    ) -> SkObj<'run> {
         let idx = 1 + // %self
             *n_params +
-            n;
-        SkObj(ctx.function.get_nth_param(idx as u32).unwrap())
+            typaram_ref.idx;
+        SkObj::new(
+            typaram_ref.to_term_ty(),
+            ctx.function.get_nth_param(idx as u32).unwrap(),
+        )
     }
 
-    pub fn gen_const_ref(&self, fullname: &ConstFullname, ty: &TermTy) -> SkObj<'run> {
+    pub fn gen_const_ref(&'run self, fullname: &ConstFullname, ty: &TermTy) -> SkObj<'run> {
         let name = llvm_const_name(fullname);
         let llvm_type = self.llvm_type(ty);
         let ptr = self
             .module
             .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname));
-        SkObj(
+        SkObj::new(
+            ty.clone(),
             self.builder
                 .build_load(llvm_type, ptr.as_pointer_value(), &name),
         )
     }
 
     fn gen_lambda_expr(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         params: &[MethodParam],
@@ -951,12 +933,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
             &arg_values,
+            fn_x_type.clone(),
             "lambda",
         )
     }
 
     fn _gen_lambda_captures(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         captures: &'hir [HirLambdaCapture],
@@ -972,7 +955,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                         self.gen_lvar_ref(ctx, &cap.ty, name)
                     } else {
                         // Captured by pointer to be reassigned
-                        SkObj(ctx.lvars.get(name).unwrap().as_basic_value_enum())
+                        SkObj::new(cap.ty.clone(), *ctx.lvars.get(name).unwrap())
                     }
                 }
                 HirLambdaCaptureDetail::CaptureArg { idx } => {
@@ -989,10 +972,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
             };
             if cap.upcast_needed {
-                let ty = struct_type.get_field_type_at_index(i as u32).unwrap();
-                item = SkObj(self.builder.build_bitcast(item.0, ty, "upcast_needed"));
+                item = self.bitcast(item, &cap.ty, "upcast_needed");
             }
-            lambda_capture.store(self, i, item.0);
+            lambda_capture.store(self, i, item);
         }
         lambda_capture
     }
@@ -1001,17 +983,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// `ty` is needed for bitcast (because the type information is lost
     /// in a lambda)
     fn gen_self_expression(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
     ) -> SkObj<'run> {
         let the_self = if ctx.function.get_name().to_str().unwrap() == "user_main" {
             self.the_main.clone().unwrap()
         } else if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
-            let fn_x = self.get_nth_param(&ctx.function, 0);
-            self.build_ivar_load(ty, fn_x, FN_X_THE_SELF_IDX, "@obj")
+            let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
+            self.build_ivar_load(fn_x, "@obj")
         } else {
-            self.get_nth_param(&ctx.function, 0)
+            self.get_nth_param(ty.clone(), &ctx.function, 0)
         };
         self.bitcast(the_self, ty, "the_main")
     }
@@ -1025,7 +1007,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create a string object
-    fn gen_string_literal(&self, idx: &usize) -> SkObj<'run> {
+    fn gen_string_literal(&'run self, idx: &usize) -> SkObj<'run> {
         let byte_ary = self
             .module
             .get_global(&format!("str_{}", idx))
@@ -1037,14 +1019,17 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
-        SkObj(self.call_llvm_func(
-            &llvm_func_name("gen_literal_string"),
-            &[i8ptr.into(), bytesize.into()],
-            "sk_str",
-        ))
+        SkObj::new(
+            ty::raw("String"),
+            self.call_llvm_func(
+                &llvm_func_name("gen_literal_string"),
+                &[i8ptr.into(), bytesize.into()],
+                "sk_str",
+            ),
+        )
     }
 
-    fn gen_boolean_literal(&self, value: bool) -> SkObj<'run> {
+    fn gen_boolean_literal(&'run self, value: bool) -> SkObj<'run> {
         let n = if value { 1 } else { 0 };
         let i = self.i1_type.const_int(n, false);
         self.box_bool(i)
@@ -1052,7 +1037,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate conditional branch by Shiika Bool
     fn gen_conditional_branch(
-        &self,
+        &'run self,
         cond: SkObj,
         then_block: inkwell::basic_block::BasicBlock,
         else_block: inkwell::basic_block::BasicBlock,
@@ -1068,7 +1053,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Get an object from `captures`
     fn gen_lambda_capture_ref(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
         deref: bool,
@@ -1092,7 +1077,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn gen_lambda_capture_write(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         idx_in_captures: &usize,
         rhs: &'hir HirExpression,
@@ -1117,21 +1102,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     fn _gen_get_lambda_captures(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
     ) -> LambdaCapture<'run> {
-        let fn_x = self.get_nth_param(&ctx.function, 0);
-        let boxed = self.build_ivar_load(
-            &ty::raw("Shiika::Internal::Ptr"),
-            fn_x,
-            FN_X_CAPTURES_IDX,
-            "@captures",
-        );
+        let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
+        let boxed = self.build_ivar_load(fn_x, "@captures");
         LambdaCapture::from_boxed(self, boxed, ctx.lambda_name().unwrap())
     }
 
     fn gen_bitcast(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
         ty: &TermTy,
@@ -1152,7 +1132,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// ("class literal" is a special Hir that does not appear directly
     /// on a source text.)
     fn gen_class_literal(
-        &self,
+        &'run self,
         fullname: &TypeFullname,
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
@@ -1170,103 +1150,86 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let receiver = self.null_ptr(&ty::meta("Metaclass"));
             let vtable = self
                 .get_vtable_of_class(&class_fullname("Metaclass"))
-                .as_sk_obj();
-            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
+                .as_object_ptr(self);
+            let wtable = SkObj::nullptr(self);
             let metacls_obj = self.call_method_func(
                 &method_fullname_raw("Metaclass", "_new"),
                 receiver,
                 &vec![
                     self.gen_string_literal(str_literal_idx),
-                    self.bitcast(vtable, &ty::raw("Object"), "as"),
-                    self.bitcast(wtable, &ty::raw("Object"), "as"),
+                    vtable,
+                    wtable,
                     self.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
                     self.null_ptr(&ty::raw("Class")),
                 ],
+                ty::raw("Metaclass"),
                 "meta",
             );
 
             // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
             let receiver = self.null_ptr(&ty::meta("Class"));
-            let vtable = self.get_vtable_of_class(&fullname.meta_name()).as_sk_obj();
-            let wtable = SkObj(self.i8ptr_type.const_null().as_basic_value_enum());
+            let vtable = self
+                .get_vtable_of_class(&fullname.meta_name())
+                .as_object_ptr(self);
+            let wtable = SkObj::nullptr(self);
             let cls = self.call_method_func(
                 &method_fullname(metaclass_fullname("Class").into(), "_new"),
                 receiver,
                 &vec![
                     self.gen_string_literal(str_literal_idx),
-                    self.bitcast(vtable, &ty::raw("Object"), "as"),
-                    self.bitcast(wtable, &ty::raw("Object"), "as"),
+                    vtable,
+                    wtable,
                     self.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
                     self.null_ptr(&ty::raw("Class")),
                 ],
+                ty::raw("Class"),
                 "cls",
             );
             if *includes_modules {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().to_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
             }
-            self.call_class_level_initialize(&cls, initialize_name, init_cls_name);
+            self.call_class_level_initialize(cls.clone(), initialize_name, init_cls_name);
 
             self.bitcast(cls, clsobj_ty, "as")
         }
     }
 
     fn call_class_level_initialize(
-        &self,
-        receiver: &SkObj,
+        &'run self,
+        receiver: SkObj,
         initialize_name: &MethodFullname,
         init_cls_name: &ClassFullname,
     ) {
-        let ances_type = self
-            .llvm_struct_types
-            .get(&init_cls_name.to_type_fullname())
-            .expect("ances_type not found")
-            .ptr_type(Default::default());
-        let addr = SkObj(self.builder.build_bitcast(
-            receiver.clone().0,
-            ances_type,
-            "obj_as_super",
-        ));
+        let addr = self.bitcast(receiver, &init_cls_name.to_ty(), "obj_as_super");
         let args = vec![addr.0.into()];
         let initialize = self.get_llvm_func(&method_func_name(initialize_name));
         self.builder.build_direct_call(initialize, &args, "");
     }
 
     /// Create the metaclass object `Metaclass`
-    fn gen_the_metaclass(&self, str_literal_idx: &usize) -> SkObj<'run> {
+    fn gen_the_metaclass(&'run self, str_literal_idx: &usize) -> SkObj<'run> {
         // We need a trick here to achieve `Metaclass.class == Metaclass`.
-        let null = self.i8ptr_type.const_null().as_basic_value_enum();
-        let cls_obj = self._allocate_sk_obj(
-            &class_fullname("Metaclass"),
-            "the_metaclass",
-            SkClassObj(null),
-        );
-        self.build_ivar_store(
-            &ty::raw("Class"),
-            &cls_obj,
-            skc_corelib::class::IVAR_NAME_IDX,
-            self.gen_string_literal(str_literal_idx),
-            "@name",
-        );
+        let null = SkClassObj::nullptr(self);
+        let cls_obj = self._allocate_sk_obj(&class_fullname("Metaclass"), "the_metaclass", null);
+        cls_obj.ivar_store(self, "@name", self.gen_string_literal(str_literal_idx));
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj
     }
 
     /// Returns a special value (currently a nullptr) that denotes using the default argument value.
-    fn gen_default_expr(&self, ty: &TermTy) -> SkObj<'run> {
+    fn gen_default_expr(&'run self, ty: &TermTy) -> SkObj<'run> {
         self.null_ptr(ty)
     }
 
     /// Returns true if `expr` evaluates to a special value (currently a nullptr) that denotes using the default argument value.
     fn gen_is_omitted_value(
-        &self,
+        &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let v = self.gen_expr(ctx, expr)?.unwrap();
-        let i1 = self
-            .builder
-            .build_is_null(v.0.into_pointer_value(), "omitted");
+        let i1 = self.builder.build_is_null(v.0, "omitted");
         Ok(Some(self.box_bool(i1)))
     }
 }

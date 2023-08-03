@@ -43,7 +43,7 @@ pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
             code_gen,
             &llvm_wtable_const_name(&sk_class.fullname(), mod_name),
         );
-        let cls = code_gen.get_nth_param(&function, 0);
+        let cls = code_gen.get_nth_param(ty::raw("Class"), &function, 0);
         let len = sk_class.wtable.get_len(mod_name);
         let args = &[
             cls.into_i8ptr(code_gen).into(),

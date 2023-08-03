@@ -55,6 +55,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
             idx: ivar.idx,
             name: ivar.name.clone(),
             ty: ivar.ty.clone(),
+            self_ty: clsname.to_ty(),
         },
     )
 }
@@ -78,6 +79,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
             idx: ivar.idx,
             name: ivar.name.clone(),
             ty: clsname.to_ty(),
+            self_ty: clsname.to_ty(),
         },
     )
 }

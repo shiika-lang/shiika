@@ -5,6 +5,7 @@ use anyhow::Result;
 use either::Either::*;
 use inkwell::types::AnyType;
 use inkwell::types::BasicType;
+use inkwell::values::BasicValue;
 use shiika_core::ty::*;
 use skc_hir::HirExpressionBase::*;
 use skc_hir::*;
@@ -75,11 +76,16 @@ impl<'run> LambdaCapture<'run> {
     }
 
     /// Store `value` at the given index
-    pub fn store(&self, gen: &CodeGen, idx: usize, value: inkwell::values::BasicValueEnum<'run>) {
+    pub fn store(&self, gen: &CodeGen, idx: usize, value: SkObj<'run>) {
+        self.store_raw(gen, idx, value.0.as_basic_value_enum());
+    }
+
+    /// Store `value` at the given index
+    fn store_raw(&self, gen: &CodeGen, idx: usize, value: inkwell::values::BasicValueEnum<'run>) {
         debug_assert!(self.store_type_matches(gen, idx, value));
 
         gen.build_llvm_struct_set(
-            self.struct_type(gen).as_basic_type_enum(),
+            &self.struct_type(gen),
             self.to_struct_ptr(),
             idx,
             value,
@@ -118,41 +124,41 @@ impl<'run> LambdaCapture<'run> {
         ty: &TermTy,
         deref: bool,
     ) -> SkObj<'run> {
-        let x = self.load(gen, idx, ty, deref);
-        if deref {
+        let v = if deref {
+            let addr = gen
+                .build_llvm_struct_ref_raw(
+                    &self.struct_type(gen),
+                    self.to_struct_ptr(),
+                    gen.i8ptr_type.clone().as_basic_type_enum(),
+                    idx,
+                    "load",
+                )
+                .into_pointer_value();
             let pointee_ty = gen.llvm_struct_type(ty).as_basic_type_enum();
-            SkObj(
-                gen.builder
-                    .build_load(pointee_ty, x.into_pointer_value(), "deref"),
-            )
+            gen.builder.build_load(pointee_ty, addr, "deref")
         } else {
-            SkObj(x)
-        }
-    }
-
-    /// Load the llvm value at the given index
-    fn load(
-        &self,
-        gen: &CodeGen<'_, 'run, '_>,
-        idx: usize,
-        ty: &TermTy,
-        deref: bool,
-    ) -> inkwell::values::BasicValueEnum<'run> {
-        if deref {
-            gen.build_llvm_struct_ref_raw(
-                gen.i8ptr_type.as_basic_type_enum(),
+            gen.build_llvm_struct_ref(
+                &self.struct_type(gen),
                 self.to_struct_ptr(),
+                ty,
                 idx,
                 "load",
             )
-        } else {
-            gen.build_llvm_struct_ref(*gen.llvm_struct_type(ty), self.to_struct_ptr(), idx, "load")
-        }
+        };
+        SkObj::new(ty.clone(), v)
     }
 
     /// Given there is a pointer stored at `idx`, update its value.
     pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj, ty: &TermTy) {
-        let ptr = self.load(gen, idx, ty, true).into_pointer_value();
+        let ptr = gen
+            .build_llvm_struct_ref(
+                &self.struct_type(gen),
+                self.to_struct_ptr(),
+                ty,
+                idx,
+                "load",
+            )
+            .into_pointer_value();
         gen.builder.build_store(ptr, value.0);
     }
 }

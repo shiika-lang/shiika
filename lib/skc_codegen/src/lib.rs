@@ -45,6 +45,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     str_literals: &'hir Vec<String>,
     vtables: &'hir VTables,
     imported_vtables: &'hir VTables,
+    sk_types: &'hir SkTypes,
     /// Toplevel `self`
     the_main: Option<SkObj<'run>>,
 }
@@ -100,6 +101,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             str_literals: &mir.hir.str_literals,
             vtables: &mir.vtables,
             imported_vtables: &mir.imports.vtables,
+            sk_types: &mir.hir.sk_types,
             the_main: None,
         }
     }
@@ -751,16 +753,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     *arity,
                     *const_is_obj,
                 ),
-                SkMethodBody::Getter { idx, name, ty } => {
-                    let this = self.get_nth_param(&function, 0);
-                    let val = self.build_ivar_load(ty, this, *idx, name);
+                SkMethodBody::Getter { name, self_ty, .. } => {
+                    let this = self.get_nth_param(self_ty.clone(), &function, 0);
+                    let val = self.build_ivar_load(this, name);
                     self.build_return(&val);
                 }
-                SkMethodBody::Setter { idx, name, ty } => {
-                    let this = self.get_nth_param(&function, 0);
-                    let val = self.get_nth_param(&function, 1);
-                    self.build_ivar_store(ty, &this, *idx, val, name);
-                    let val = self.get_nth_param(&function, 1);
+                SkMethodBody::Setter {
+                    name, ty, self_ty, ..
+                } => {
+                    let this = self.get_nth_param(self_ty.clone(), &function, 0);
+                    let val = self.get_nth_param(ty.clone(), &function, 1);
+                    this.ivar_store(self, name, val.clone());
                     self.build_return(&val);
                 }
             },
@@ -889,7 +892,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         _const_is_obj: bool,
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
-        let class_obj = SkClassObj(llvm_func_args[0]);
+        let class_obj = SkClassObj(llvm_func_args[0].into_pointer_value());
         let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
 
         // Call initialize
@@ -903,7 +906,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .get(&init_cls_name.to_type_fullname())
                 .expect("ances_type not found")
                 .ptr_type(Default::default());
-            SkObj(
+            SkObj::new(
+                init_cls_name.to_ty(),
                 self.builder
                     .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
             )
