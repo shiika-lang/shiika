@@ -799,15 +799,40 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate IR for HirArgRef.
     fn gen_arg_ref(&'run self, ctx: &mut CodeGenContext<'hir, 'run>, idx: &usize) -> SkObj<'run> {
+        self._llvm_function_arg_ref(ctx, idx, false)
+    }
+
+    fn gen_tyarg_ref(
+        &'run self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        n_params: &usize,
+        idx: &usize,
+    ) -> SkObj<'run> {
+        self._llvm_function_arg_ref(ctx, &(n_params + idx), true)
+    }
+
+    fn _llvm_function_arg_ref(
+        &'run self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        idx: &usize,
+        is_tyarg: bool,
+    ) -> SkObj<'run> {
         match ctx.function_origin {
             FunctionOrigin::Method { params } => {
-                SkObj::new(
-                    params[*idx].ty.clone(),
-                    ctx.function.get_nth_param((*idx as u32) + 1).unwrap(),
-                ) // +1 for the first %self
+                let ty = if is_tyarg {
+                    ty::raw("Class")
+                } else {
+                    params[*idx].ty.clone()
+                };
+                SkObj::new(ty, ctx.function.get_nth_param((*idx as u32) + 1).unwrap())
+                // +1 for the first %self
             }
             FunctionOrigin::Lambda { params, .. } => {
-                let ty = &params[*idx].ty;
+                let ty = if is_tyarg {
+                    ty::raw("Class")
+                } else {
+                    params[*idx].ty.clone()
+                };
                 // +1 for the first %self
                 let obj = self.get_nth_param(ty.clone(), &ctx.function, *idx + 1);
                 // Bitcast is needed because lambda params are always `%Object*`
@@ -970,7 +995,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
                 HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
                     // Method-wise type arguments are passed as llvm function parameter.
-                    self.gen_arg_ref(ctx, &(n_params + idx))
+                    self.gen_tyarg_ref(ctx, n_params, idx)
                 }
             };
             if cap.upcast_needed {
