@@ -24,6 +24,10 @@ impl MethodSignature {
         self.params.iter().any(|p| p.has_default)
     }
 
+    pub fn has_typarams(&self) -> bool {
+        !self.typarams.is_empty()
+    }
+
     pub fn is_class_method(&self) -> bool {
         self.fullname.type_name.is_meta()
     }

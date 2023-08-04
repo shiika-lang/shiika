@@ -37,7 +37,7 @@ module Enumerable<E>
 
   # Like `map` but `f` should return an array and the result is flattened.
   def flat_map<R>(f: Fn1<E, Array<R>>) -> Array<R>
-    self.map<Array<R>>(f).fold(Array<R>.new){|sum: Array<R>, item: Array<R>|
+    self.map(f).fold(Array<R>.new){|sum: Array<R>, item: Array<R>|
       sum.append(item)
       sum
     }
