@@ -31,7 +31,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn build_ivar_load(&'run self, obj: SkObj<'run>, name: &str) -> SkObj<'run> {
         let sk_class = self.sk_types.get_class(&obj.classname());
-        let sk_ivar = sk_class.ivars.get(name).unwrap();
+        let sk_ivar = sk_class.ivars.get(name).unwrap_or_else(|| {
+            panic!("[BUG] ivar `{}' not found in class {}", name, &obj.ty());
+        });
         let value = self.build_ivar_load_raw(obj, self.llvm_type(&sk_ivar.ty), sk_ivar.idx, name);
         SkObj::new(sk_ivar.ty.clone(), value)
     }

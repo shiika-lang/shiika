@@ -1018,7 +1018,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.the_main.clone().unwrap()
         } else if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
             let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
-            self.build_ivar_load(fn_x, "@obj")
+            self.build_ivar_load(fn_x, "@the_self")
         } else {
             self.get_nth_param(ty.clone(), &ctx.function, 0)
         };
