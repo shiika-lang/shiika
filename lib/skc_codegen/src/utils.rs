@@ -32,21 +32,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn build_ivar_load(&'run self, obj: SkObj<'run>, name: &str) -> SkObj<'run> {
         let sk_class = self.sk_types.get_class(&obj.classname());
         let sk_ivar = sk_class.ivars.get(name).unwrap();
-        SkObj::new(sk_ivar.ty.clone(), self.build_ivar_load_raw(obj, name))
+        let value = self.build_ivar_load_raw(obj, self.llvm_type(&sk_ivar.ty), sk_ivar.idx, name);
+        SkObj::new(sk_ivar.ty.clone(), value)
     }
 
     pub fn build_ivar_load_raw(
         &'run self,
         obj: SkObj<'run>,
+        item_ty: inkwell::types::BasicTypeEnum<'run>,
+        idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let sk_class = self.sk_types.get_class(&obj.classname());
-        let sk_ivar = sk_class.ivars.get(name).unwrap();
-        self.build_llvm_struct_ref(
+        self.build_llvm_struct_ref_raw(
             &self.llvm_struct_type(&obj.ty()),
             obj.0.clone(),
-            &sk_ivar.ty,
-            sk_ivar.idx,
+            item_ty,
+            idx,
             name,
         )
     }
