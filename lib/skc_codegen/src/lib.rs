@@ -4,6 +4,7 @@ mod gen_exprs;
 mod lambda;
 mod utils;
 pub mod values;
+mod vtable;
 mod wtable;
 use crate::code_gen_context::*;
 use crate::utils::*;

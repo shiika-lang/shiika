@@ -1,4 +1,5 @@
 use crate::values::*;
+use crate::vtable::OpaqueVTableRef;
 use crate::CodeGen;
 use inkwell::types::*;
 use inkwell::values::BasicValue;

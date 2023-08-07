@@ -2,6 +2,7 @@ use crate::code_gen_context::*;
 use crate::lambda::LambdaCapture;
 use crate::utils::*;
 use crate::values::*;
+use crate::vtable::VTableRef;
 use crate::wtable;
 use crate::CodeGen;
 use anyhow::Result;
