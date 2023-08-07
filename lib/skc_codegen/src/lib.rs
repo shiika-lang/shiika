@@ -45,7 +45,6 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     str_literals: &'hir Vec<String>,
     vtables: &'hir VTables,
     imported_vtables: &'hir VTables,
-    sk_types: &'hir SkTypes,
     /// Toplevel `self`
     the_main: Option<SkObj<'run>>,
 }
@@ -101,7 +100,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             str_literals: &mir.hir.str_literals,
             vtables: &mir.vtables,
             imported_vtables: &mir.imports.vtables,
-            sk_types: &mir.hir.sk_types,
             the_main: None,
         }
     }
@@ -752,17 +750,25 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     *arity,
                     *const_is_obj,
                 ),
-                SkMethodBody::Getter { name, self_ty, .. } => {
+                SkMethodBody::Getter {
+                    name,
+                    self_ty,
+                    idx,
+                    ty,
+                } => {
                     let this = self.get_nth_param(self_ty.clone(), &function, 0);
-                    let val = self.build_ivar_load(this, name);
+                    let val = self.build_ivar_load(this, ty.clone(), *idx, name);
                     self.build_return(&val);
                 }
                 SkMethodBody::Setter {
-                    name, ty, self_ty, ..
+                    name,
+                    ty,
+                    self_ty,
+                    idx,
                 } => {
                     let this = self.get_nth_param(self_ty.clone(), &function, 0);
                     let val = self.get_nth_param(ty.clone(), &function, 1);
-                    this.ivar_store(self, name, val.clone());
+                    self.build_ivar_store(this, *idx, name, val.clone());
                     self.build_return(&val);
                 }
             },

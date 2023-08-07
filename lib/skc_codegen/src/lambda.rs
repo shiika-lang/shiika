@@ -134,7 +134,7 @@ impl<'run> LambdaCapture<'run> {
                     "load",
                 )
                 .into_pointer_value();
-            let pointee_ty = gen.llvm_struct_type(ty).as_basic_type_enum();
+            let pointee_ty = gen.llvm_type(ty).as_basic_type_enum();
             gen.builder.build_load(pointee_ty, addr, "deref")
         } else {
             gen.build_llvm_struct_ref(

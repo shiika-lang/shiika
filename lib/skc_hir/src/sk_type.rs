@@ -34,7 +34,10 @@ impl SkTypes {
     }
 
     pub fn get_class<'hir>(&'hir self, name: &ClassFullname) -> &'hir SkClass {
-        let sk_type = self.0.get(&name.to_type_fullname()).unwrap();
+        let sk_type = self
+            .0
+            .get(&name.to_type_fullname())
+            .unwrap_or_else(|| panic!("[BUG] class {} not found", name));
         if let SkType::Class(class) = sk_type {
             class
         } else {

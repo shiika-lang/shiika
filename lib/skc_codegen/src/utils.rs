@@ -29,13 +29,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.build_return(&v);
     }
 
-    pub fn build_ivar_load(&'run self, obj: SkObj<'run>, name: &str) -> SkObj<'run> {
-        let sk_class = self.sk_types.get_class(&obj.classname());
-        let sk_ivar = sk_class.ivars.get(name).unwrap_or_else(|| {
-            panic!("[BUG] ivar `{}' not found in class {}", name, &obj.ty());
-        });
-        let value = self.build_ivar_load_raw(obj, self.llvm_type(&sk_ivar.ty), sk_ivar.idx, name);
-        SkObj::new(sk_ivar.ty.clone(), value)
+    pub fn build_ivar_load(
+        &'run self,
+        obj: SkObj<'run>,
+        item_ty: TermTy,
+        idx: usize,
+        name: &str,
+    ) -> SkObj<'run> {
+        let value = self.build_ivar_load_raw(obj, self.llvm_type(&item_ty), idx, name);
+        SkObj::new(item_ty, value)
     }
 
     pub fn build_ivar_load_raw(
@@ -52,6 +54,26 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             idx,
             name,
         )
+    }
+
+    pub fn build_ivar_store(
+        &'run self,
+        obj: SkObj<'run>,
+        idx: usize,
+        name: &str,
+        value: SkObj<'run>,
+    ) {
+        self.build_ivar_store_raw(obj, name, idx, value.0.as_basic_value_enum());
+    }
+
+    pub fn build_ivar_store_raw(
+        &'run self,
+        obj: SkObj<'run>,
+        name: &str,
+        idx: usize,
+        value: inkwell::values::BasicValueEnum<'run>,
+    ) {
+        self.build_llvm_struct_set(&obj.struct_ty(self), obj.0.clone(), idx, value, name);
     }
 
     /// Get the class object of an object as `*Class`

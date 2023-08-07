@@ -49,26 +49,6 @@ impl<'run> SkObj<'run> {
             .build_bitcast(self.0, code_gen.i8ptr_type, "ptr")
     }
 
-    pub fn ivar_store(&self, gen: &CodeGen<'_, 'run, '_>, name: &str, value: SkObj<'run>) {
-        let sk_class = gen
-            .sk_types
-            .get_class(&self.1.erasure().to_class_fullname());
-        let sk_ivar = sk_class.ivars.get(name).unwrap_or_else(|| {
-            panic!("[BUG] ivar `{}' not found in class {}", name, &self.1);
-        });
-        self.ivar_store_raw(gen, name, sk_ivar.idx, value.0.as_basic_value_enum());
-    }
-
-    pub fn ivar_store_raw(
-        &self,
-        gen: &CodeGen<'_, 'run, '_>,
-        name: &str,
-        idx: usize,
-        value: inkwell::values::BasicValueEnum<'run>,
-    ) {
-        gen.build_llvm_struct_set(&self.struct_ty(gen), self.0.clone(), idx, value, name);
-    }
-
     pub fn struct_ty(&self, gen: &'run CodeGen<'_, 'run, '_>) -> inkwell::types::StructType<'run> {
         gen.llvm_struct_type(&self.1).clone()
     }

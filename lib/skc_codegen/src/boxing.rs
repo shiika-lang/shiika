@@ -57,7 +57,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let i1_val = function.get_params()[0];
         let sk_bool = self.allocate_sk_obj(&class_fullname("Bool"), "sk_bool");
-        sk_bool.ivar_store_raw(self, "@llvm_bool", 0, i1_val);
+        self.build_ivar_store_raw(sk_bool.clone(), "@llvm_bool", 0, i1_val);
         self.build_return(&sk_bool);
 
         // unbox_bool
@@ -76,7 +76,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let i64_val = function.get_params()[0];
         let sk_int = self.allocate_sk_obj(&class_fullname("Int"), "sk_int");
-        sk_int.ivar_store_raw(self, "@llvm_int", 0, i64_val);
+        self.build_ivar_store_raw(sk_int.clone(), "@llvm_int", 0, i64_val);
         self.build_return(&sk_int);
 
         // unbox_int
@@ -98,7 +98,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let f64_val = function.get_params()[0];
         let sk_float = self.allocate_sk_obj(&class_fullname("Float"), "sk_float");
-        sk_float.ivar_store_raw(self, "@llvm_float", 0, f64_val);
+        self.build_ivar_store_raw(sk_float.clone(), "@llvm_float", 0, f64_val);
         self.build_return(&sk_float);
 
         // unbox_float
@@ -120,7 +120,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let i8ptr = function.get_params()[0];
         let sk_ptr = self.allocate_sk_obj(&class_fullname("Shiika::Internal::Ptr"), "sk_ptr");
-        sk_ptr.ivar_store_raw(self, "@llvm_i8ptr", 0, i8ptr);
+        self.build_ivar_store_raw(sk_ptr.clone(), "@llvm_i8ptr", 0, i8ptr);
         self.build_return(&sk_ptr);
 
         // unbox_i8ptr

@@ -8,6 +8,7 @@ use anyhow::Result;
 use inkwell::types::*;
 use inkwell::values::*;
 use shiika_core::{names::*, ty, ty::*};
+use skc_corelib::fn_x;
 use skc_hir::pattern_match;
 use skc_hir::HirExpressionBase::*;
 use skc_hir::*;
@@ -75,8 +76,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
             HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
             HirIVarAssign {
-                name, rhs, self_ty, ..
-            } => self.gen_ivar_assign(ctx, name, rhs, self_ty),
+                name,
+                rhs,
+                self_ty,
+                idx,
+                ..
+            } => self.gen_ivar_assign(ctx, idx, name, rhs, self_ty),
             HirConstAssign { fullname, rhs } => self.gen_const_assign(ctx, fullname, rhs),
             HirMethodCall {
                 receiver_expr,
@@ -114,9 +119,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
             HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
             HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, &expr.ty, name))),
-            HirIVarRef { name, self_ty, .. } => {
-                Ok(Some(self.gen_ivar_ref(ctx, name, self_ty, &expr.ty)))
-            }
+            HirIVarRef {
+                name, self_ty, idx, ..
+            } => Ok(Some(self.gen_ivar_ref(ctx, idx, name, self_ty, &expr.ty))),
             HirClassTVarRef {
                 typaram_ref,
                 self_ty,
@@ -449,7 +454,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // Set @exit_status
                 let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                fn_x.ivar_store(self, "@exit_status", i);
+                self.build_ivar_store(fn_x, fn_x::IVAR_EXIT_STATUS_IDX, "@exit_status", i);
 
                 // Jump to the end of the llvm func
                 self.builder
@@ -491,13 +496,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_ivar_assign(
         &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        idx: &usize,
         name: &str,
         rhs: &'hir HirExpression,
         self_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         let object = self.gen_self_expression(ctx, self_ty);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        object.ivar_store(self, name, value.clone());
+        self.build_ivar_store(object, *idx, name, value.clone());
         Ok(Some(value))
     }
 
@@ -723,7 +729,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let fnptype = fntype.ptr_type(Default::default());
 
         // Cast `fnptr` to that type
-        let fnptr = self.unbox_i8ptr(self.build_ivar_load(lambda_obj.clone(), "@func"));
+        let fnptr = self.unbox_i8ptr(self.build_ivar_load(
+            lambda_obj.clone(),
+            ty::raw("Shiika::Internal::Ptr"),
+            skc_corelib::fn_x::IVAR_FUNC_IDX,
+            "@func",
+        ));
         let func = self
             .builder
             .build_bitcast(fnptr.0, fnptype, "")
@@ -735,7 +746,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // Check `break` in block
         if ret_ty.is_void_type() {
             let broke_block = self.context.append_basic_block(ctx.function, "Broke");
-            let exit_status = self.build_ivar_load(lambda_obj, "@exit_status");
+            let exit_status = self.build_ivar_load(
+                lambda_obj,
+                ty::raw("Int"),
+                skc_corelib::fn_x::IVAR_EXIT_STATUS_IDX,
+                "@exit_status",
+            );
             let eq = self.call_method_func(
                 &method_fullname_raw("Int", "=="),
                 exit_status,
@@ -751,7 +767,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 // Set @exit_status
                 let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
-                fn_x.ivar_store(self, "@exit_status", i);
+                self.build_ivar_store(fn_x, fn_x::IVAR_EXIT_STATUS_IDX, "@exit_status", i);
             }
             self.builder
                 .build_unconditional_branch(*ctx.current_func_end);
@@ -861,14 +877,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_ivar_ref(
         &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
+        idx: &usize,
         name: &str,
         self_ty: &TermTy,
         ty: &TermTy,
     ) -> SkObj<'run> {
         let object = self.gen_self_expression(ctx, self_ty);
-        let value = self.build_ivar_load(object, name);
-        debug_assert!(value.ty() == ty);
-        value
+        self.build_ivar_load(object, ty.clone(), *idx, name)
     }
 
     fn gen_class_tvar_ref(
@@ -1018,7 +1033,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             self.the_main.clone().unwrap()
         } else if matches!(ctx.function_origin, FunctionOrigin::Lambda { .. }) {
             let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
-            self.build_ivar_load(fn_x, "@the_self")
+            self.build_ivar_load(
+                fn_x,
+                ty::raw("Object"),
+                fn_x::IVAR_THE_SELF_IDX,
+                "@the_self",
+            )
         } else {
             self.get_nth_param(ty.clone(), &ctx.function, 0)
         };
@@ -1133,7 +1153,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
     ) -> LambdaCapture<'run> {
         let fn_x = self.get_nth_param(ty::raw("Fn"), &ctx.function, 0);
-        let boxed = self.build_ivar_load(fn_x, "@captures");
+        let boxed = self.build_ivar_load(
+            fn_x,
+            ty::raw("Shiika::Internal::Ptr"),
+            fn_x::IVAR_CAPTURES_IDX,
+            "@captures",
+        );
         LambdaCapture::from_boxed(self, boxed, ctx.lambda_name().unwrap())
     }
 
@@ -1239,7 +1264,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // We need a trick here to achieve `Metaclass.class == Metaclass`.
         let null = SkClassObj::nullptr(self);
         let cls_obj = self._allocate_sk_obj(&class_fullname("Metaclass"), "the_metaclass", null);
-        cls_obj.ivar_store(self, "@name", self.gen_string_literal(str_literal_idx));
+        self.build_ivar_store(
+            cls_obj.clone(),
+            skc_corelib::class::IVAR_NAME_IDX,
+            "@name",
+            self.gen_string_literal(str_literal_idx),
+        );
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj
     }
