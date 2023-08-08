@@ -97,7 +97,7 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     let exe_path = if cfg!(target_os = "windows") {
         sk_path.canonicalize()?.with_extension("exe")
     } else {
-        sk_path.with_extension("out")
+        sk_path.canonicalize()?.with_extension("out")
     };
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
