@@ -357,7 +357,7 @@ fn build_hir(
 
     let ret_ty = match inf {
         Some(inf_) => inf_.solved_method_ret_ty.clone(),
-        None => found.sig.ret_ty.clone(), //.substitute(class_tyargs, method_tyargs);
+        None => found.sig.ret_ty.substitute(Default::default(), &tyargs),
     };
     match mk.class_dict.get_type(&found.owner.to_type_fullname()) {
         SkType::Class(_) => Hir::method_call(

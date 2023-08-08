@@ -46,4 +46,17 @@ class GenericModuleMethodTest : ModuleWithGenericMethod
 end
 GenericModuleMethodTest.new.run<Int>
 
+class TestRetTyUsesMethodTyArg<X>
+  def run(item: X) -> X
+    A.new.foo(item)
+  end
+
+  class A
+    def foo<Y>(item: Y) -> Y
+      item
+    end
+  end
+end
+TestRetTyUsesMethodTyArg<Int>.new.run(123)
+
 puts "ok"
