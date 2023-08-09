@@ -593,7 +593,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         func_type: inkwell::types::FunctionType<'ictx>,
     ) -> inkwell::values::PointerValue<'run> {
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
-        let vtable = VTableRef::from_sk_obj(self, receiver_value, size);
+        let vtable = VTableRef::of_sk_obj(self, receiver_value, size);
         let func_raw = vtable.get_func(self, *idx);
         self.builder
             .build_bitcast(func_raw, func_type.ptr_type(Default::default()), "func")

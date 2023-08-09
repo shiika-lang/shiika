@@ -29,7 +29,7 @@ impl<'run> VTableRef<'run> {
     }
 
     /// Returns the vtable of a Shiika object.
-    pub fn from_sk_obj(
+    pub fn of_sk_obj(
         gen: &CodeGen<'_, 'run, '_>,
         object: SkObj<'run>,
         len: usize,
