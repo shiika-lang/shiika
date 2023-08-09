@@ -224,9 +224,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate call of malloc and returns a ptr to Shiika object
-    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname, reg_name: &str) -> SkObj<'run> {
+    pub fn allocate_sk_obj(&self, class_fullname: &ClassFullname) -> SkObj<'run> {
         let class_obj = self.load_class_object(class_fullname);
-        self._allocate_sk_obj(class_fullname, reg_name, class_obj)
+        self._allocate_sk_obj(class_fullname, class_obj)
     }
 
     /// Load a class object
@@ -249,11 +249,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn _allocate_sk_obj(
         &self,
         class_fullname: &ClassFullname,
-        reg_name: &str,
         class_obj: SkClassObj,
     ) -> SkObj<'run> {
         let object_type = self.get_llvm_struct_type(&class_fullname.to_type_fullname());
-        let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum(), reg_name);
+        let ptr = self.allocate_llvm_obj(&object_type.as_basic_type_enum());
         let obj = SkObj::new(class_fullname.to_ty(), ptr.into_pointer_value());
         self.set_vtable_of_obj(&obj, self.get_vtable_of_class(class_fullname));
         self.set_class_of_obj(&obj, class_obj);
@@ -264,11 +263,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn allocate_llvm_obj(
         &self,
         t: &inkwell::types::BasicTypeEnum<'run>,
-        reg_name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        let mem = self.allocate_mem(t);
-        let ptr_type = t.ptr_type(Default::default());
-        self.builder.build_bitcast(mem.0, ptr_type, reg_name)
+        self.allocate_mem(t).0.as_basic_value_enum()
     }
 
     /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.

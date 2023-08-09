@@ -1255,7 +1255,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn gen_the_metaclass(&'run self, str_literal_idx: &usize) -> SkObj<'run> {
         // We need a trick here to achieve `Metaclass.class == Metaclass`.
         let null = SkClassObj::nullptr(self);
-        let cls_obj = self._allocate_sk_obj(&class_fullname("Metaclass"), "the_metaclass", null);
+        let cls_obj = self._allocate_sk_obj(&class_fullname("Metaclass"), null);
         self.build_ivar_store(
             cls_obj.clone(),
             skc_corelib::class::IVAR_NAME_IDX,
