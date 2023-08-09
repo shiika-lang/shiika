@@ -156,7 +156,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
             )),
             HirLambdaCaptureWrite { cidx, rhs } => self.gen_lambda_capture_write(ctx, cidx, rhs),
-            HirBitCast { expr: target } => self.gen_bitcast(ctx, target, &expr.ty),
+            HirBitCast { expr: target } => self.gen_bitcast(ctx, target),
             HirClassLiteral {
                 fullname,
                 str_literal_idx,
@@ -1167,18 +1167,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         expr: &'hir HirExpression,
-        ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
-        if let Some(obj) = self.gen_expr(ctx, expr)? {
-            if expr.ty.equals_to(ty) {
-                // No bitcast needed
-                Ok(Some(obj))
-            } else {
-                Ok(Some(self.bitcast(obj, ty, "as")))
-            }
-        } else {
-            Ok(None)
-        }
+        // Just compile the expr (nothing to do more in the runtime)
+        self.gen_expr(ctx, expr)
     }
 
     /// Create a class object
