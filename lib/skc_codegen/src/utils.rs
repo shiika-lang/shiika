@@ -6,6 +6,8 @@ use inkwell::values::BasicValue;
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
 
+/// Number of elements before ivars
+const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
 pub const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
@@ -52,7 +54,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             &self.llvm_struct_type(&obj.ty()),
             obj.0.clone(),
             item_ty,
-            idx,
+            OBJ_HEADER_SIZE + idx,
             name,
         )
     }
@@ -74,7 +76,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx: usize,
         value: inkwell::values::BasicValueEnum<'run>,
     ) {
-        self.build_llvm_struct_set(&obj.struct_ty(self), obj.0.clone(), idx, value, name);
+        self.build_llvm_struct_set(
+            &obj.struct_ty(self),
+            obj.0.clone(),
+            OBJ_HEADER_SIZE + idx,
+            value,
+            name,
+        );
     }
 
     /// Get the class object of an object as `*Class`
