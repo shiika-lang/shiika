@@ -77,6 +77,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 )));
             }
 
+            // HACK: It feels ad-hoc to apply only class_tyargs here; but we do
+            // not know actual method_tyargs if it is omitted and inferred.
             return Ok(specialized_version(
                 found,
                 receiver_type,

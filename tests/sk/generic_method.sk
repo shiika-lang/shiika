@@ -59,4 +59,17 @@ class TestRetTyUsesMethodTyArg<X>
 end
 TestRetTyUsesMethodTyArg<Int>.new.run(123)
 
+class TestRetTyUsesClassTyArg<X>
+  def run(item: X) -> X
+    A<X>.new.foo(item)
+  end
+
+  class A<Y>
+    def foo(item: Y) -> Y
+      item
+    end
+  end
+end
+TestRetTyUsesClassTyArg<Int>.new.run(123)
+
 puts "ok"
