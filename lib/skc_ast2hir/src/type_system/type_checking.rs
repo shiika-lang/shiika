@@ -117,11 +117,11 @@ pub fn check_method_args(
     sig: &MethodSignature,
     _receiver_hir: &HirExpression,
     arg_hirs: &[HirExpression],
-    inf: &Option<method_call_inf::MethodCallInf3>,
+    param_types: &[TermTy],
 ) -> Result<()> {
     let mut result = check_method_arity(sig, arg_hirs);
     if result.is_ok() {
-        result = check_arg_types(class_dict, sig, arg_hirs, inf);
+        result = check_arg_types(class_dict, sig, arg_hirs, param_types);
     }
 
     if result.is_err() {
@@ -152,13 +152,13 @@ fn check_arg_types(
     class_dict: &ClassDict,
     sig: &MethodSignature,
     arg_hirs: &[HirExpression],
-    inf: &Option<method_call_inf::MethodCallInf3>,
+    param_types: &[TermTy],
 ) -> Result<()> {
     for i in 0..sig.params.len() {
         let param = &sig.params[i];
         let arg_hir = &arg_hirs[i];
-        let inferred = inf.as_ref().map(|x| &x.solved_method_arg_tys[i]);
-        check_arg_type(class_dict, sig, arg_hir, param, &inferred)?;
+        let param_ty = &param_types[i];
+        check_arg_type(class_dict, sig, arg_hir, param, param_ty)?;
     }
     Ok(())
 }
@@ -169,32 +169,20 @@ fn check_arg_type(
     sig: &MethodSignature,
     arg_hir: &HirExpression,
     param: &MethodParam,
-    inferred: &Option<&TermTy>,
+    param_ty: &TermTy,
 ) -> Result<()> {
-    if inferred.is_some() {
-        // Type inferrence succeed == no type error found
-        return Ok(());
-    }
-    let expected = &param.ty;
     let arg_ty = &arg_hir.ty;
-    if class_dict.conforms(arg_ty, expected) {
+    if class_dict.conforms(arg_ty, param_ty) {
         return Ok(());
     }
 
-    let msg = if inferred.is_some() {
-        format!(
-            "the argument `{}' of `{}' is inferred to {} but got {}",
-            param.name, sig.fullname, expected, arg_ty.fullname
-        )
-    } else {
-        format!(
-            "the argument `{}' of `{}' should be {} but got {}",
-            param.name, sig.fullname, param.ty, arg_ty
-        )
-    };
+    let msg = format!(
+        "the argument `{}' of `{}' should be {} but got {}",
+        param.name, sig.fullname, param_ty, arg_ty
+    );
     let locs = &arg_hir.locs;
     let report = skc_error::build_report(msg, locs, |r, locs_span| {
-        r.with_label(Label::new(locs_span).with_message(&arg_hir.ty))
+        r.with_label(Label::new(locs_span).with_message(&arg_ty))
     });
     Err(type_error(report))
 }

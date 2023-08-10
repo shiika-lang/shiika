@@ -8,7 +8,7 @@ module Enumerable<E>
     match [a.length, b.length].min
     when Maybe::Some(n)
       0.upto(n-1) do |i|
-        ret.push(Pair<A, B>.new(a[i], b[i]))
+        ret.push(Pair.new(a[i], b[i]))
       end
     end
     ret
@@ -37,7 +37,7 @@ module Enumerable<E>
 
   # Like `map` but `f` should return an array and the result is flattened.
   def flat_map<R>(f: Fn1<E, Array<R>>) -> Array<R>
-    self.map<Array<R>>(f).fold<Array<R>>(Array<R>.new){|sum: Array<R>, item: Array<R>|
+    self.map(f).fold(Array<R>.new){|sum: Array<R>, item: Array<R>|
       sum.append(item)
       sum
     }

@@ -242,22 +242,13 @@ pub fn build(
     method_tyargs: Vec<TermTy>,
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
-    check_argument_types(mk, &found.sig, &receiver_hir, &mut arg_hirs, &inf)?;
     let receiver_ty = receiver_hir.ty.clone();
     let specialized = receiver_hir.ty.is_specialized();
     let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
     let arg_types = arg_hirs.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
+    let infer_tyargs = found.sig.has_typarams() && method_tyargs.is_empty();
 
-    let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
-    let args = if specialized {
-        arg_hirs
-            .into_iter()
-            .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
-            .collect::<Vec<_>>()
-    } else {
-        arg_hirs
-    };
-    let tyargs = if method_tyargs.is_empty() {
+    let tyargs = if infer_tyargs {
         let err = error::method_tyarg_inference_failed(
             format!("Could not infer type arg(s) of {}", found.sig),
             locs,
@@ -267,12 +258,45 @@ pub fn build(
         method_tyargs
     };
 
+    let updated_param_types = if infer_tyargs {
+        found
+            .sig
+            .params
+            .iter()
+            .map(|param| param.ty.substitute(Default::default(), &tyargs))
+            .collect::<Vec<_>>()
+    } else {
+        found
+            .sig
+            .params
+            .iter()
+            .map(|param| param.ty.clone())
+            .collect::<Vec<_>>()
+    };
+    check_argument_types(
+        mk,
+        &found.sig,
+        &receiver_hir,
+        &mut arg_hirs,
+        &updated_param_types,
+    )?;
+
+    let args = if specialized {
+        arg_hirs
+            .into_iter()
+            .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
+            .collect::<Vec<_>>()
+    } else {
+        arg_hirs
+    };
+
     // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
     // `T` is inferred from `x`.
     if found.is_generic_new(&receiver_ty) {
         return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
     }
 
+    let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
     let hir = build_hir(mk, &found, receiver, args, tyargs, &inf);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
@@ -286,9 +310,9 @@ fn check_argument_types(
     sig: &MethodSignature,
     receiver_hir: &HirExpression,
     arg_hirs: &mut [HirExpression],
-    inf: &Option<method_call_inf::MethodCallInf3>,
+    arg_types: &[TermTy],
 ) -> Result<()> {
-    type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs, inf)?;
+    type_checking::check_method_args(&mk.class_dict, sig, receiver_hir, arg_hirs, arg_types)?;
     if let Some(last_arg) = arg_hirs.last_mut() {
         check_break_in_block(sig, last_arg)?;
     }

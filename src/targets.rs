@@ -1,21 +1,16 @@
-/// Returns default `TargetTriple`
-#[cfg(feature = "mac")]
-pub fn default_triple() -> inkwell::targets::TargetTriple {
-    if let Ok(info) = mac_sys_info::get_mac_sys_info() {
-        // #281: get_default_triple returns `darwin` but clang shows warning for it
-        let arch = info.cpu_info().architecture();
-        let ver = info.os_info().os_version();
-        // #281: Add .0
-        let n_dots = ver.chars().filter(|c| *c == '.').count();
-        let zero = if n_dots >= 2 { "" } else { ".0" };
-        let s = format!("{}-apple-macosx{}{}", arch, ver, zero);
-        inkwell::targets::TargetTriple::create(&s)
-    } else {
-        inkwell::targets::TargetMachine::get_default_triple()
-    }
-}
+use os_info::{Type, Version};
 
-#[cfg(not(feature = "mac"))]
+/// Returns default `TargetTriple`
 pub fn default_triple() -> inkwell::targets::TargetTriple {
+    let info = os_info::get();
+    if info.os_type() == Type::Macos {
+        // #281: calculate target triple to avoid clang's warning
+        if let Some(arch) = info.architecture() {
+            if let Version::Semantic(major, minor, patch) = info.version() {
+                let s = format!("{}-apple-macosx{}.{}.{}", arch, major, minor, patch);
+                return inkwell::targets::TargetTriple::create(&s);
+            }
+        }
+    }
     inkwell::targets::TargetMachine::get_default_triple()
 }
