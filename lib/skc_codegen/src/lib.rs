@@ -4,6 +4,7 @@ mod gen_exprs;
 mod lambda;
 mod utils;
 pub mod values;
+mod vtable;
 mod wtable;
 use crate::code_gen_context::*;
 use crate::utils::*;
@@ -12,7 +13,6 @@ use anyhow::{anyhow, Result};
 use either::*;
 use inkwell::types::*;
 use inkwell::values::*;
-use inkwell::AddressSpace;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match::MatchClause;
 use skc_hir::*;
@@ -92,7 +92,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             builder,
             i1_type: context.bool_type(),
             i8_type: context.i8_type(),
-            i8ptr_type: context.i8_type().ptr_type(AddressSpace::Generic),
+            i8ptr_type: context.i8_type().ptr_type(Default::default()),
             i32_type: context.i32_type(),
             i64_type: context.i64_type(),
             f64_type: context.f64_type(),
@@ -284,7 +284,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.module
                     .add_function(&format!("{}_init_constants", s), fn_type, None);
                 let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
-                self.builder.build_call(func, &[], "");
+                self.builder.build_direct_call(func, &[], "");
             }
         }
 
@@ -297,7 +297,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // These builtin classes must be created first
             for name in &basic_classes {
                 let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));
-                self.builder.build_call(func, &[], "");
+                self.builder.build_direct_call(func, &[], "");
             }
         }
         for expr in const_inits {
@@ -306,7 +306,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     if !basic_classes.iter().any(|s| s.0 == fullname.0) {
                         let func = self
                             .get_llvm_func(&llvm_func_name(const_initialize_func_name(fullname)));
-                        self.builder.build_call(func, &[], "");
+                        self.builder.build_direct_call(func, &[], "");
                     }
                 }
                 _ => panic!("gen_init_constants: Not a HirConstAssign"),
@@ -345,7 +345,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(user_main_block);
         self.builder.position_at_end(user_main_block);
 
-        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, None, lvar_ptrs);
+        let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, lvar_ptrs);
         self.gen_exprs(&mut ctx, main_exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
@@ -363,13 +363,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Call GC_init
         let func = self.get_llvm_func(&llvm_func_name("GC_init"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
 
         // Call init_constants, user_main
         let func = self.get_llvm_func(&llvm_func_name("main_init_constants"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
         let func = self.get_llvm_func(&llvm_func_name("user_main"));
-        self.builder.build_call(func, &[], "");
+        self.builder.build_direct_call(func, &[], "");
 
         // ret i32 0
         self.builder
@@ -479,7 +479,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let basic_block = self.context.append_basic_block(function, "");
                     self.builder.position_at_end(basic_block);
                     let (end_block, mut ctx) =
-                        self.new_ctx(FunctionOrigin::Other, function, None, HashMap::new());
+                        self.new_ctx(FunctionOrigin::Other, function, HashMap::new());
                     self.gen_expr(&mut ctx, expr)?;
                     self.builder.build_unconditional_branch(*end_block);
                     self.builder.position_at_end(*end_block);
@@ -731,8 +731,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             Left(method_body) => match method_body {
                 SkMethodBody::Normal { exprs } => self.gen_shiika_function_body(
                     function,
-                    None,
-                    FunctionOrigin::Method,
+                    FunctionOrigin::Method { params },
                     ret_ty,
                     exprs,
                     lvar_ptrs,
@@ -752,25 +751,34 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     *arity,
                     *const_is_obj,
                 ),
-                SkMethodBody::Getter { idx, name } => {
-                    let this = self.get_nth_param(&function, 0);
-                    let val = self.build_ivar_load(this, *idx, name);
+                SkMethodBody::Getter {
+                    name,
+                    self_ty,
+                    idx,
+                    ty,
+                } => {
+                    let this = self.get_nth_param(self_ty.clone(), &function, 0);
+                    let val = self.build_ivar_load(this, ty.clone(), *idx, name);
                     self.build_return(&val);
                 }
-                SkMethodBody::Setter { idx, name } => {
-                    let this = self.get_nth_param(&function, 0);
-                    let val = self.get_nth_param(&function, 1);
-                    self.build_ivar_store(&this, *idx, val, name);
-                    let val = self.get_nth_param(&function, 1);
+                SkMethodBody::Setter {
+                    name,
+                    ty,
+                    self_ty,
+                    idx,
+                } => {
+                    let this = self.get_nth_param(self_ty.clone(), &function, 0);
+                    let val = self.get_nth_param(ty.clone(), &function, 1);
+                    self.build_ivar_store(this, *idx, name, val.clone());
                     self.build_return(&val);
                 }
             },
             Right(exprs) => {
                 self.gen_shiika_function_body(
                     function,
-                    Some(params),
                     FunctionOrigin::Lambda {
                         name: lambda_name.unwrap(),
+                        params,
                     },
                     ret_ty,
                     exprs,
@@ -817,13 +825,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_shiika_function_body(
         &self,
         function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
-        function_origin: FunctionOrigin,
+        function_origin: FunctionOrigin<'hir>,
         ret_ty: &TermTy,
         exprs: &'hir HirExpressions,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<()> {
-        let (end_block, mut ctx) = self.new_ctx(function_origin, function, function_params, lvars);
+        let (end_block, mut ctx) = self.new_ctx(function_origin, function, lvars);
         let (last_value, last_value_block) = if let Some(v) = self.gen_exprs(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");
             self.builder.build_unconditional_branch(b);
@@ -890,7 +897,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         _const_is_obj: bool,
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
-        let class_obj = SkClassObj(llvm_func_args[0]);
+        let class_obj = SkClassObj(llvm_func_args[0].into_pointer_value());
         let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
 
         // Call initialize
@@ -903,8 +910,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 .llvm_struct_types
                 .get(&init_cls_name.to_type_fullname())
                 .expect("ances_type not found")
-                .ptr_type(inkwell::AddressSpace::Generic);
-            SkObj(
+                .ptr_type(Default::default());
+            SkObj::new(
+                init_cls_name.to_ty(),
                 self.builder
                     .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
             )
@@ -919,7 +927,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             })
             .collect::<Vec<_>>();
         let initialize = self.get_llvm_func(&method_func_name(initialize_name));
-        self.builder.build_call(initialize, &args, "");
+        self.builder.build_direct_call(initialize, &args, "");
 
         self.build_return(&obj);
     }
@@ -927,9 +935,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Create a CodeGenContext
     fn new_ctx(
         &self,
-        origin: FunctionOrigin,
+        origin: FunctionOrigin<'hir>,
         function: inkwell::values::FunctionValue<'run>,
-        function_params: Option<&'hir [MethodParam]>,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> (
         Rc<inkwell::basic_block::BasicBlock<'run>>,
@@ -938,7 +945,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let end_block = self.context.append_basic_block(function, "End");
         let ref_end_block1 = Rc::new(end_block);
         let ref_end_block2 = Rc::clone(&ref_end_block1);
-        let ctx = CodeGenContext::new(function, ref_end_block1, origin, function_params, lvars);
+        let ctx = CodeGenContext::new(function, ref_end_block1, origin, lvars);
         (ref_end_block2, ctx)
     }
 }

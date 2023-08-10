@@ -3,6 +3,11 @@ use shiika_core::ty;
 use skc_hir::{SkIVar, Supertype};
 use std::collections::HashMap;
 
+pub const IVAR_FUNC_IDX: usize = 0;
+pub const IVAR_THE_SELF_IDX: usize = 1;
+pub const IVAR_CAPTURES_IDX: usize = 2;
+pub const IVAR_EXIT_STATUS_IDX: usize = 3;
+
 macro_rules! fn_item {
     ($i:expr) => {{
         let mut typarams = (1..=$i).map(|i| format!("S{}", i)).collect::<Vec<_>>();

@@ -1,5 +1,5 @@
 pub mod class;
-mod fn_x;
+pub mod fn_x;
 pub mod rustlib_methods;
 use shiika_core::names::*;
 use shiika_core::ty::{self, Erasure};
