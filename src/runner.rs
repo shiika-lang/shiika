@@ -94,7 +94,11 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     let triple = targets::default_triple();
     let sk_path = sk_path_.as_ref();
     let bc_path = sk_path.with_extension("bc");
-    let exe_path = make_exe_path(sk_path)?;
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.canonicalize()?.with_extension("exe")
+    } else {
+        sk_path.canonicalize()?.with_extension("out")
+    };
 
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
@@ -141,8 +145,7 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
         cmd.arg("-lpthread");
     }
 
-    let result = cmd.status().context(format!("failed to run {:?}", cmd))?;
-    if !result.success() {
+    if !cmd.status()?.success() {
         return Err(anyhow!("clang failed"));
     }
 
@@ -161,24 +164,18 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
     }
 }
 
-/// Remove .bc and the executable (used by unit tests)
+/// Remove .bc and .out (used by unit tests)
 pub fn cleanup<P: AsRef<Path>>(sk_path_: P) -> Result<()> {
     let sk_path = sk_path_.as_ref();
     let bc_path = sk_path.with_extension("bc");
-    let exe_path = make_exe_path(sk_path)?;
+    let exe_path = if cfg!(target_os = "windows") {
+        sk_path.with_extension("exe")
+    } else {
+        sk_path.with_extension("out")
+    };
     let _ = fs::remove_file(bc_path);
     let _ = fs::remove_file(exe_path);
     Ok(())
-}
-
-fn make_exe_path<P: AsRef<Path>>(sk_path_: P) -> Result<PathBuf> {
-    let sk_path = sk_path_.as_ref();
-    let ext = if cfg!(target_os = "windows") {
-        "exe"
-    } else {
-        ""
-    };
-    Ok(sk_path.canonicalize()?.with_extension(ext))
 }
 
 fn add_args_from_env(cmd: &mut Command, key: &str) {
