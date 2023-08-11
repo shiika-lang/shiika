@@ -72,4 +72,20 @@ class TestRetTyUsesClassTyArg<X>
 end
 TestRetTyUsesClassTyArg<Int>.new.run(123)
 
+class TestRetTyUsesModuleTyArg
+  def run
+    C<Int, Bool>.new.foo(123)
+  end
+
+  module M<MA, MB>
+    def foo(item: MB) -> MB
+      item
+    end
+  end
+
+  class C<CA, CB> : M<CB, CA>
+  end
+end
+TestRetTyUsesModuleTyArg.new.run
+
 puts "ok"
