@@ -31,7 +31,7 @@ jobs:
         run: |
           set -eux
           sudo apt install -y llvm-16 clang-16 libgc-dev
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
 
       - name: Output versions
         run: |
