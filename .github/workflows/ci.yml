@@ -30,7 +30,7 @@ jobs:
       - name: Set up the Linux env
         run: |
           set -eux
-          sudo apt install -y llvm-15 clang-15 libgc-dev
+          sudo apt install -y llvm-16 clang-16 libgc-dev
         if: matrix.os == 'ubuntu-latest'
 
       - name: Output versions
@@ -38,15 +38,15 @@ jobs:
           set -eux
           rustc --version
           cargo --version
-          clang-15 --version
+          clang-16 --version
 
       - name: Build and test
         run: |
           set -eux
           cd lib/skc_rustlib; cargo build; cd ../../
-          env -- LLC=llc-15 CLANG=clang-15 cargo run -- build-corelib
-          env -- LLC=llc-15 CLANG=clang-15 cargo test
-          env -- LLC=llc-15 CLANG=clang-15 bash release_test.sh
+          env -- LLC=llc-16 CLANG=clang-16 cargo run -- build-corelib
+          env -- LLC=llc-16 CLANG=clang-16 cargo test
+          env -- LLC=llc-16 CLANG=clang-16 bash release_test.sh
 
   # Run cargo fmt --all -- --check
   format:

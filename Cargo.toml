@@ -23,7 +23,7 @@ skc_codegen = { path = "lib/skc_codegen/" }
 
 ariadne = "0.1.5"
 anyhow = "1.0"
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm15-0"], rev = "4030f76" }
+inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
 clap = { version = "3.1.18", features = ["derive"] }
 either = "1.5.3"
 env_logger = "0.8.2"
