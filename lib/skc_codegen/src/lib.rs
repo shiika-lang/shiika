@@ -338,7 +338,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
         self.builder.build_unconditional_branch(create_main_block);
         self.builder.position_at_end(create_main_block);
-        self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object"), "main"));
+        self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object")));
 
         // UserMain:
         let user_main_block = self.context.append_basic_block(function, "UserMain");
@@ -806,9 +806,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             let obj_ty = self.llvm_type(ty);
             if *captured {
                 // Allocate memory on heap in case it lives longer than the method call.
-                let ptrptr = self
-                    .allocate_llvm_obj(&obj_ty, "ptrptr")
-                    .into_pointer_value();
+                let ptrptr = self.allocate_llvm_obj(&obj_ty).into_pointer_value();
                 lvar_ptrs.insert(name.to_string(), ptrptr);
             } else {
                 let ptr = self.builder.build_alloca(obj_ty, name);
@@ -898,7 +896,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) {
         // Allocate memory and set .class (which is the receiver of .new)
         let class_obj = SkClassObj(llvm_func_args[0].into_pointer_value());
-        let obj = self._allocate_sk_obj(class_fullname, "addr", class_obj);
+        let obj = self._allocate_sk_obj(class_fullname, class_obj);
 
         // Call initialize
         let addr = if init_cls_name == class_fullname {
