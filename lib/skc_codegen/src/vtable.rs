@@ -25,7 +25,7 @@ impl<'run> VTableRef<'run> {
         gen: &CodeGen<'_, 'run, '_>,
         len: usize,
     ) -> inkwell::types::ArrayType<'run> {
-        gen.i8ptr_type.array_type(len as u32)
+        gen.ptr_type.array_type(len as u32)
     }
 
     /// Returns the vtable of a Shiika object.

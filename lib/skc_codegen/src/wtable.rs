@@ -7,7 +7,7 @@ use skc_hir::SkClass;
 /// Define llvm constants like `@shiika_wtable_Array_Enumerable`
 pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
     for (mod_name, method_names) in &sk_class.wtable.0 {
-        let ary_type = code_gen.i8ptr_type.array_type(method_names.len() as u32);
+        let ary_type = code_gen.ptr_type.array_type(method_names.len() as u32);
         let cname = llvm_wtable_const_name(&sk_class.fullname(), mod_name);
         let global = code_gen.module.add_global(ary_type, None, &cname);
         global.set_constant(true);
@@ -20,11 +20,11 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
                     .as_pointer_value();
                 code_gen
                     .builder
-                    .build_bitcast(func, code_gen.i8ptr_type, "")
+                    .build_bitcast(func, code_gen.ptr_type, "")
                     .into_pointer_value()
             })
             .collect::<Vec<_>>();
-        global.set_initializer(&code_gen.i8ptr_type.const_array(&func_ptrs));
+        global.set_initializer(&code_gen.ptr_type.const_array(&func_ptrs));
     }
 }
 
@@ -72,7 +72,7 @@ fn load_wtable_const<'a>(
         });
     code_gen
         .builder
-        .build_bitcast(ptr, code_gen.i8ptr_type, "ary")
+        .build_bitcast(ptr, code_gen.ptr_type, "ary")
 }
 
 /// Name of llvm constant of a wtable

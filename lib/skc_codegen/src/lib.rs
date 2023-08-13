@@ -37,7 +37,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
     pub i1_type: inkwell::types::IntType<'ictx>,
     pub i8_type: inkwell::types::IntType<'ictx>,
-    pub i8ptr_type: inkwell::types::PointerType<'ictx>,
+    pub ptr_type: inkwell::types::PointerType<'ictx>,
     pub i32_type: inkwell::types::IntType<'ictx>,
     pub i64_type: inkwell::types::IntType<'ictx>,
     pub f64_type: inkwell::types::FloatType<'ictx>,
@@ -92,7 +92,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             builder,
             i1_type: context.bool_type(),
             i8_type: context.i8_type(),
-            i8ptr_type: context.i8_type().ptr_type(Default::default()),
+            ptr_type: context.i8_type().ptr_type(Default::default()),
             i32_type: context.i32_type(),
             i64_type: context.i64_type(),
             f64_type: context.f64_type(),
@@ -136,16 +136,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_declares(&self) {
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
+        let fn_type = self.ptr_type.fn_type(&[self.i64_type.into()], false);
         self.module.add_function("shiika_malloc", fn_type, None);
         let fn_type = self
-            .i8ptr_type
-            .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
+            .ptr_type
+            .fn_type(&[self.ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("shiika_realloc", fn_type, None);
 
-        let fn_type = self.i8ptr_type.fn_type(
+        let fn_type = self.ptr_type.fn_type(
             &[
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
                 self.i64_type.into(),
             ],
@@ -154,11 +154,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.module
             .add_function("shiika_lookup_wtable", fn_type, None);
 
-        let fn_type = self.i8ptr_type.fn_type(
+        let fn_type = self.ptr_type.fn_type(
             &[
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
             ],
             false,
@@ -206,7 +206,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_import_vtables(&self, vtables: &VTables) {
         for (fullname, vtable) in vtables.iter() {
             let name = llvm_vtable_const_name(fullname);
-            let ary_type = self.i8ptr_type.array_type(vtable.size() as u32);
+            let ary_type = self.ptr_type.array_type(vtable.size() as u32);
             let _global = self.module.add_global(ary_type, None, &name);
         }
     }
@@ -228,7 +228,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_vtables(&self) {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
-            let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
+            let ary_type = self.ptr_type.array_type(method_names.len() as u32);
             let tmp = llvm_vtable_const_name(class_fullname);
             let global = self.module.add_global(ary_type, None, &tmp);
             global.set_constant(true);
@@ -240,11 +240,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         .as_global_value()
                         .as_pointer_value();
                     self.builder
-                        .build_bitcast(func, self.i8ptr_type, "")
+                        .build_bitcast(func, self.ptr_type, "")
                         .into_pointer_value()
                 })
                 .collect::<Vec<_>>();
-            global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+            global.set_initializer(&self.ptr_type.const_array(&func_ptrs));
         }
     }
 
@@ -405,7 +405,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
                     }
                     "Shiika::Internal::Ptr" => {
-                        struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
+                        struct_type.set_body(&[vt, ct, self.ptr_type.into()], false);
                     }
                     _ => {
                         struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
@@ -872,7 +872,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// LLVM type of a reference to a vtable
     fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
-        self.i8ptr_type
+        self.ptr_type
     }
 
     /// LLVM type of a reference to a class object

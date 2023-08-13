@@ -34,16 +34,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.module.add_function("unbox_float", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("Shiika::Internal::Ptr"))
-            .fn_type(&[self.i8ptr_type.into()], false);
+            .fn_type(&[self.ptr_type.into()], false);
         self.module.add_function("box_i8ptr", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(
+        let fn_type = self.ptr_type.fn_type(
             &[self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).into()],
             false,
         );
         self.module.add_function("unbox_i8ptr", fn_type, None);
         let fn_type = self
             .llvm_type(&ty::raw("String"))
-            .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
+            .fn_type(&[self.ptr_type.into(), self.i64_type.into()], false);
         self.module
             .add_function("gen_literal_string", fn_type, None);
     }
@@ -132,7 +132,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             ty::raw("Shiika::Internal::Ptr"),
             function.get_params()[0].into_pointer_value(),
         );
-        let i8ptr = self.build_ivar_load_raw(sk_ptr, self.i8ptr_type.into(), 0, "@llvm_i8ptr");
+        let i8ptr = self.build_ivar_load_raw(sk_ptr, self.ptr_type.into(), 0, "@llvm_i8ptr");
         self.builder.build_return(Some(&i8ptr));
 
         // gen_literal_string

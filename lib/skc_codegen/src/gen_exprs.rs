@@ -945,7 +945,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
-        let fnptr_i8 = self.builder.build_bitcast(fnptr, self.i8ptr_type, "");
+        let fnptr_i8 = self.builder.build_bitcast(fnptr, self.ptr_type, "");
         let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let captured = self._gen_lambda_captures(ctx, name, captures);
@@ -1039,9 +1039,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let i8ptr = self
-            .builder
-            .build_bitcast(byte_ary, self.i8ptr_type, "i8ptr");
+        let i8ptr = self.builder.build_bitcast(byte_ary, self.ptr_type, "i8ptr");
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);

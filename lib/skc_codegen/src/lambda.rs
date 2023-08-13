@@ -129,7 +129,7 @@ impl<'run> LambdaCapture<'run> {
                 .build_llvm_struct_ref_raw(
                     &self.struct_type(gen),
                     self.to_struct_ptr(),
-                    gen.i8ptr_type.clone().as_basic_type_enum(),
+                    gen.ptr_type.clone().as_basic_type_enum(),
                     idx,
                     "load",
                 )
