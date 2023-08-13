@@ -17,10 +17,6 @@ impl<'run> VTableRef<'run> {
         VTableRef { ptr, len }
     }
 
-    fn llvm_type(gen: &CodeGen<'_, 'run, '_>, len: usize) -> inkwell::types::PointerType<'run> {
-        Self::llvm_pointee_type(gen, len).ptr_type(Default::default())
-    }
-
     fn llvm_pointee_type(
         gen: &CodeGen<'_, 'run, '_>,
         len: usize,
@@ -34,7 +30,7 @@ impl<'run> VTableRef<'run> {
         object: SkObj<'run>,
         len: usize,
     ) -> VTableRef<'run> {
-        let item_ty = Self::llvm_type(gen, len).as_basic_type_enum();
+        let item_ty = gen.ptr_type.as_basic_type_enum();
         let ptr = gen
             .build_object_struct_ref_raw(object, item_ty, OBJ_VTABLE_IDX, "vtable")
             .into_pointer_value();

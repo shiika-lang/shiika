@@ -14,14 +14,10 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
         let func_ptrs = method_names
             .iter()
             .map(|name| {
-                let func = code_gen
+                code_gen
                     .get_llvm_func(&method_func_name(name))
                     .as_global_value()
-                    .as_pointer_value();
-                code_gen
-                    .builder
-                    .build_bitcast(func, code_gen.ptr_type, "")
-                    .into_pointer_value()
+                    .as_pointer_value()
             })
             .collect::<Vec<_>>();
         global.set_initializer(&code_gen.ptr_type.const_array(&func_ptrs));
