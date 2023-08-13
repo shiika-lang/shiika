@@ -1,5 +1,7 @@
 ## HEAD
 
+- Setup
+  - Upgrade to llvm-16 (#507)
 - Syntax
   - feat: Allow omitting type arguments on .new and method-wise type arguments (#491, #492, #493)
   - fix: `if` and `while` now makes a local variable scope (#388 - Thank you @EruEri!)
