@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -30,23 +30,36 @@ jobs:
       - name: Set up the Linux env
         run: |
           set -eux
-          sudo apt install -y llvm-12 clang-12 libgc-dev
-        if: matrix.os == 'ubuntu-latest'
+          sudo apt install -y libgc-dev
+
+      - name: Cache LLVM and Clang
+        id: cache-llvm
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:/Program Files/LLVM
+            ./llvm
+          key: llvm-16.0
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "16.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
       - name: Output versions
         run: |
           set -eux
           rustc --version
           cargo --version
-          clang-12 --version
+          clang --version
 
       - name: Build and test
         run: |
           set -eux
           cd lib/skc_rustlib; cargo build; cd ../../
-          env -- LLC=llc-12 CLANG=clang-12 cargo run -- build-corelib
-          env -- LLC=llc-12 CLANG=clang-12 cargo test
-          env -- LLC=llc-12 CLANG=clang-12 bash release_test.sh
+          env -- cargo run -- build-corelib
+          env -- cargo test
+          env -- bash release_test.sh
 
   # Run cargo fmt --all -- --check
   format:

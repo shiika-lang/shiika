@@ -8,10 +8,7 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
     /// Current llvm function
     pub function: inkwell::values::FunctionValue<'run>,
     /// If `function` corresponds to a lambda or a method
-    pub function_origin: FunctionOrigin,
-    /// Parameters of `function`
-    /// Only used for lambdas
-    pub function_params: Option<&'hir [MethodParam]>,
+    pub function_origin: FunctionOrigin<'hir>,
     /// Ptr of local variables
     pub lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     /// End of `while`, if any
@@ -23,9 +20,14 @@ pub struct CodeGenContext<'hir: 'run, 'run> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum FunctionOrigin {
-    Method,
-    Lambda { name: String },
+pub enum FunctionOrigin<'hir> {
+    Method {
+        params: &'hir [MethodParam],
+    },
+    Lambda {
+        name: String,
+        params: &'hir [MethodParam],
+    },
     Other,
 }
 
@@ -33,14 +35,12 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
     pub fn new(
         function: inkwell::values::FunctionValue<'run>,
         function_end: Rc<inkwell::basic_block::BasicBlock<'run>>,
-        function_origin: FunctionOrigin,
-        function_params: Option<&'hir [MethodParam]>,
+        function_origin: FunctionOrigin<'hir>,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> CodeGenContext<'hir, 'run> {
         CodeGenContext {
             function,
             function_origin,
-            function_params,
             lvars,
             current_loop_end: None,
             current_func_end: function_end,
@@ -66,7 +66,7 @@ impl<'hir, 'run> CodeGenContext<'hir, 'run> {
 
     pub fn lambda_name(&self) -> Option<&str> {
         match &self.function_origin {
-            FunctionOrigin::Lambda { name } => Some(name),
+            FunctionOrigin::Lambda { name, .. } => Some(name),
             _ => None,
         }
     }

@@ -1,10 +1,37 @@
 use crate::CodeGen;
+use inkwell::values::BasicValue;
+use shiika_core::{names::ClassFullname, ty, ty::TermTy};
 
 /// Shiika object (eg. `Int*`, `String*`)
 #[derive(Clone, Debug)]
-pub struct SkObj<'run>(pub inkwell::values::BasicValueEnum<'run>);
+pub struct SkObj<'run>(pub inkwell::values::PointerValue<'run>, TermTy);
 
 impl<'run> SkObj<'run> {
+    pub fn new<T>(ty: TermTy, ptr: T) -> SkObj<'run>
+    where
+        T: Into<inkwell::values::BasicValueEnum<'run>>,
+    {
+        SkObj(ptr.into().into_pointer_value(), ty)
+    }
+
+    /// Returns a null pointer cast to `%Object*`.
+    pub fn nullptr(gen: &CodeGen<'_, 'run, '_>) -> SkObj<'run> {
+        let ty = ty::raw("Object");
+        let null = gen.i8ptr_type.const_null().as_basic_value_enum();
+        SkObj::new(
+            ty.clone(),
+            gen.builder.build_bitcast(null, gen.llvm_type(&ty), "as"),
+        )
+    }
+
+    pub fn ty(&self) -> &TermTy {
+        &self.1
+    }
+
+    pub fn classname(&self) -> ClassFullname {
+        self.1.erasure().to_class_fullname()
+    }
+
     /// A class object is a Shiika object.
     pub fn as_class_obj(self) -> SkClassObj<'run> {
         SkClassObj(self.0)
@@ -19,27 +46,31 @@ impl<'run> SkObj<'run> {
             .builder
             .build_bitcast(self.0, code_gen.i8ptr_type, "ptr")
     }
+
+    pub fn struct_ty(&self, gen: &'run CodeGen<'_, 'run, '_>) -> inkwell::types::StructType<'run> {
+        gen.llvm_struct_type(&self.1).clone()
+    }
 }
 
 /// Shiika class object (eg. `Meta:Int*`, `Meta:String*`)
 #[derive(Debug)]
-pub struct SkClassObj<'run>(pub inkwell::values::BasicValueEnum<'run>);
+pub struct SkClassObj<'run>(pub inkwell::values::PointerValue<'run>);
 
 impl<'run> SkClassObj<'run> {
+    /// Returns a null pointer cast to `%Object*`.
+    pub fn nullptr(gen: &CodeGen<'_, 'run, '_>) -> SkClassObj<'run> {
+        let ty = ty::raw("Class");
+        let null = gen.i8ptr_type.const_null().as_basic_value_enum();
+        SkClassObj(
+            gen.builder
+                .build_bitcast(null, gen.llvm_type(&ty), "as")
+                .into_pointer_value(),
+        )
+    }
+
     /// A class object is a Shiika object.
     pub fn as_sk_obj(self) -> SkObj<'run> {
-        SkObj(self.0)
-    }
-}
-
-/// Reference to vtable (eg. `shiika_vtable_Int`)
-#[derive(Debug)]
-pub struct VTableRef<'run>(pub inkwell::values::BasicValueEnum<'run>);
-
-impl<'run> VTableRef<'run> {
-    /// Normally vtables are not Shiika object. This is used internally
-    pub fn as_sk_obj(self) -> SkObj<'run> {
-        SkObj(self.0)
+        SkObj::new(ty::raw("Class"), self.0)
     }
 }
 

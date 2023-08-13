@@ -7,25 +7,25 @@ Only 64bit environments are supported.
 
 1. Install [Git](https://git-scm.com/)
 1. Install [Rust](https://www.rust-lang.org/)
-1. Install LLVM 12
-  - eg. `brew install llvm@12` on Mac
-  - eg. `sudo apt install llvm-12 clang-12` on Ubuntu
+1. Install LLVM 16
+  - eg. `brew install llvm@16` on Mac
+  - eg. `sudo apt install llvm-16 clang-16` on Ubuntu
 - You may need `sudo apt install cmake` on Ubuntu
 - (TODO) `apt install libgc-dev` needed on Ubuntu?
 
 You may need to setup some environment variables. For example, on Mac:
 
 ```
-export PATH="$(brew --prefix)/opt/llvm@12/bin":$PATH
-export LDFLAGS="-L$(brew --prefix)/opt/llvm@12/lib"
-export CPPFLAGS="-I$(brew --prefix)/opt/llvm@12/include"
+export PATH="$(brew --prefix)/opt/llvm@16/bin":$PATH
+export LDFLAGS="-L$(brew --prefix)/opt/llvm@16/lib"
+export CPPFLAGS="-I$(brew --prefix)/opt/llvm@16/include"
 ```
 
 and on Ubuntu:
 
 ```
-export LLC=llc-12
-export CLANG=clang-12
+export LLC=llc-16
+export CLANG=clang-16
 ```
 
 ### Compiling core library
@@ -40,7 +40,7 @@ $ cd lib/skc_rustlib; cargo build; cd ../../
 $ cargo run -- build-corelib
 ```
 
-The `build-corelib` subcommand compiles core classes (builtin/*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
+The `build-corelib` subcommand compiles core classes (builtin/\*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
 
 ### Running a program
 
@@ -73,3 +73,22 @@ because `shiika` looks for corelib in the current directory by default. You can 
 ```
 export SHIIKA_ROOT=/path/to/repo/of/shiika
 ```
+
+## Troubleshooting
+
+```
+error: could not find native static library `Polly`, perhaps an -L flag is missing?
+
+error: could not compile `llvm-sys` due to previous error
+```
+
+=> `sudo apt install libpolly-16-dev`
+
+This may happen when you install llvm from https://apt.llvm.org/ .
+
+```
+  /Users/yhara/.cargo/registry/src/github.com-1ecc6299db9ec823/bdwgc-alloc-0.6.0/vendor/libatomic_ops/configure: line 4683: syntax error near unexpected token `disable-shared'                                                                        
+  /Users/yhara/.cargo/registry/src/github.com-1ecc6299db9ec823/bdwgc-alloc-0.6.0/vendor/libatomic_ops/configure: line 4683: `LT_INIT(disable-shared)'  
+```
+
+=> `brew install libtool`
