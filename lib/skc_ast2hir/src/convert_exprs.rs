@@ -16,13 +16,13 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
 impl<'hir_maker> HirMaker<'hir_maker> {
-    pub(super) fn convert_exprs(&mut self, exprs: &[AstExpression]) -> Result<HirExpressions> {
+    pub(super) fn convert_exprs(&mut self, exprs: &[AstExpression]) -> Result<HirExpression> {
         let hir_exprs = exprs
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(HirExpressions::new(hir_exprs))
+        Ok(Hir::expressions(hir_exprs))
     }
 
     pub(super) fn convert_expr(&mut self, expr: &AstExpression) -> Result<HirExpression> {
@@ -200,7 +200,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let mut else_hirs = match else_exprs {
             Some(exprs) => self.convert_exprs(exprs)?,
-            None => HirExpressions::void(),
+            None => Hir::expressions(vec![]),
         };
         let else_ctx = self.ctx_stack.pop_if_ctx();
         if_ctxs.push(else_ctx);
@@ -210,10 +210,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         } else if else_hirs.ty.is_never_type() {
             then_hirs.ty.clone()
         } else if then_hirs.ty.is_void_type() {
-            else_hirs.voidify();
+            else_hirs = else_hirs.voidify();
             ty::raw("Void")
         } else if else_hirs.ty.is_void_type() {
-            then_hirs.voidify();
+            then_hirs = then_hirs.voidify();
             ty::raw("Void")
         } else {
             let opt_ty = self
@@ -221,10 +221,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
             let ty = type_checking::check_if_body_ty(opt_ty)?;
             if !then_hirs.ty.equals_to(&ty) {
-                then_hirs = then_hirs.bitcast_to(ty.clone());
+                then_hirs = Hir::bit_cast(ty.clone(), then_hirs);
             }
             if !else_hirs.ty.equals_to(&ty) {
-                else_hirs = else_hirs.bitcast_to(ty.clone());
+                else_hirs = Hir::bit_cast(ty.clone(), else_hirs);
             }
             ty
         };
@@ -1063,8 +1063,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ));
         }
 
-        exprs.push(Hir::lvar_ref(ary_ty, tmp_name, locs.clone()));
-        Hir::parenthesized_expression(Hir::expressions(exprs), locs)
+        exprs.push(Hir::lvar_ref(ary_ty.clone(), tmp_name, locs.clone()));
+        Hir::parenthesized_expression(ary_ty, exprs, locs)
     }
 
     fn convert_self_expr(&self, locs: &LocationSpan) -> HirExpression {

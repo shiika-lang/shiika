@@ -70,7 +70,7 @@ fn compile_body(
     mk: &mut HirMaker,
     components: &[Component],
     body: &[AstExpression],
-) -> Result<(HirExpressions, HirLVars)> {
+) -> Result<(HirExpression, HirLVars)> {
     mk.ctx_stack.push(HirMakerContext::match_clause());
     // Declare lvars introduced by matching
     for component in components {
@@ -97,7 +97,9 @@ fn calc_result_ty(mk: &HirMaker, clauses_: &mut [MatchClause]) -> Result<TermTy>
     } else if clauses.iter().any(|c| c.body_hir.ty.is_void_type()) {
         for c in clauses.iter_mut() {
             if !c.body_hir.ty.is_void_type() {
-                c.body_hir.voidify();
+                let mut tmp = Hir::expressions(vec![]);
+                std::mem::swap(&mut tmp, &mut c.body_hir);
+                c.body_hir = tmp.voidify();
             }
         }
         Ok(ty::raw("Void"))
@@ -124,7 +126,7 @@ fn calc_result_ty(mk: &HirMaker, clauses_: &mut [MatchClause]) -> Result<TermTy>
 fn bitcast_match_clause_body(c: &mut MatchClause, ty: TermTy) {
     let mut tmp = Hir::expressions(Default::default());
     std::mem::swap(&mut tmp, &mut c.body_hir);
-    tmp = tmp.bitcast_to(ty);
+    tmp = Hir::bit_cast(ty, tmp);
     std::mem::swap(&mut tmp, &mut c.body_hir);
 }
 

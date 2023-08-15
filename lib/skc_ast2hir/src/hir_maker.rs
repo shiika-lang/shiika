@@ -52,7 +52,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Destructively convert self to Hir
-    pub fn extract_hir(&mut self, main_exprs: HirExpressions, main_lvars: HirLVars) -> Hir {
+    pub fn extract_hir(&mut self, main_exprs: HirExpression, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_types = std::mem::take(&mut self.class_dict.sk_types);
         let sk_methods = std::mem::take(&mut self.method_dict.0);
@@ -141,7 +141,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn convert_toplevel_items(
         &mut self,
         items: Vec<shiika_ast::TopLevelItem>,
-    ) -> Result<(HirExpressions, HirLVars)> {
+    ) -> Result<(HirExpression, HirLVars)> {
         let mut defs = vec![];
         let mut top_exprs = vec![];
         for item in items {
@@ -164,7 +164,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         debug_assert!(self.ctx_stack.len() == 1);
         let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
         Ok((
-            HirExpressions::new(main_exprs),
+            Hir::expressions(main_exprs),
             extract_lvars(&mut toplevel_ctx.lvars),
         ))
     }
@@ -471,11 +471,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let mut hir_exprs = self.convert_exprs(body_exprs)?;
         if signature.has_default_expr() {
-            hir_exprs.prepend(_set_defaults(self, ast_sig)?);
+            let mut exprs = _set_defaults(self, ast_sig)?;
+            exprs.push(hir_exprs);
+            hir_exprs = Hir::expressions(exprs);
         }
         // Insert ::Void so that last expr always matches to ret_ty
         if signature.ret_ty.is_void_type() {
-            hir_exprs.voidify();
+            hir_exprs = hir_exprs.voidify();
         }
         let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
@@ -548,7 +550,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let initialize = SkMethod::simple(
             signature,
             SkMethodBody::Normal {
-                exprs: HirExpressions::new(exprs),
+                exprs: Hir::expressions(exprs),
             },
         );
         self.method_dict
@@ -648,14 +650,8 @@ fn _set_default(
     let arg = Hir::arg_ref(value_expr.ty.clone(), idx, locs.clone());
     let cond_expr = Hir::is_omitted_value(arg.clone());
 
-    let mut then_exprs = HirExpressions::void();
-    then_exprs.prepend(vec![Hir::lvar_assign(
-        name.to_string(),
-        value_expr,
-        locs.clone(),
-    )]);
-    let mut else_exprs = HirExpressions::void();
-    else_exprs.prepend(vec![Hir::lvar_assign(name.to_string(), arg, locs)]);
+    let then_exprs = Hir::lvar_assign(name.to_string(), value_expr, locs.clone());
+    let else_exprs = Hir::lvar_assign(name.to_string(), arg, locs);
 
     let if_expr = Hir::if_expression(
         ty::raw("Void"),

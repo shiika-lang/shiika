@@ -17,7 +17,7 @@ macro_rules! type_error {
 pub fn check_return_value(
     class_dict: &ClassDict,
     sig: &MethodSignature,
-    body_exprs: &HirExpressions,
+    body_exprs: &HirExpression,
 ) -> Result<()> {
     let ty = &body_exprs.ty;
     if sig.ret_ty.is_void_type() {

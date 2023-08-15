@@ -319,7 +319,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     #[allow(clippy::ptr_arg)]
     fn gen_user_main(
         &mut self,
-        main_exprs: &'hir HirExpressions,
+        main_exprs: &'hir HirExpression,
         main_lvars: &'hir HirLVars,
     ) -> Result<()> {
         // define void @user_main()
@@ -330,7 +330,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // alloca
         let mut main_lvars = main_lvars.clone();
-        Self::collect_lvars_hir_expressions(main_exprs, &mut main_lvars);
+        Self::collect_lvars_hir_expression(main_exprs, &mut main_lvars);
 
         let lvar_ptrs = self.gen_alloca_lvars(function, &main_lvars);
 
@@ -346,7 +346,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(user_main_block);
 
         let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, lvar_ptrs);
-        self.gen_exprs(&mut ctx, main_exprs)?;
+        self.gen_expr(&mut ctx, main_exprs)?;
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
         self.builder.build_return(None);
@@ -582,11 +582,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         // Should lvars of the clauses be collected ?
         clauses
             .iter()
-            .for_each(|clause| Self::collect_lvars_hir_expressions(&clause.body_hir, lvars))
-    }
-
-    fn collect_lvars_hir_expressions(exprs: &HirExpressions, lvars: &mut HirLVars) {
-        Self::collect_lvars_hir_vexpressions(&exprs.exprs, lvars)
+            .for_each(|clause| Self::collect_lvars_hir_expression(&clause.body_hir, lvars))
     }
 
     fn collect_lvars_hir_vexpressions(exprs: &[HirExpression], lvars: &mut HirLVars) {
@@ -621,8 +617,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let mut if_lvars = if_lvars.clone();
                 lvars.append(&mut if_lvars);
                 Self::collect_lvars_hir_expression(cond_expr, lvars);
-                Self::collect_lvars_hir_expressions(then_exprs, lvars);
-                Self::collect_lvars_hir_expressions(else_exprs, lvars);
+                Self::collect_lvars_hir_expression(then_exprs, lvars);
+                Self::collect_lvars_hir_expression(else_exprs, lvars);
             }
             HirExpressionBase::HirMatchExpression {
                 cond_assign_expr,
@@ -639,7 +635,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let mut while_lvars = while_lvars.clone();
                 lvars.append(&mut while_lvars);
                 Self::collect_lvars_hir_expression(cond_expr, lvars);
-                Self::collect_lvars_hir_expressions(body_exprs, lvars);
+                Self::collect_lvars_hir_expression(body_exprs, lvars);
             }
             HirExpressionBase::HirModuleMethodCall {
                 receiver_expr,
@@ -662,7 +658,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 Self::collect_lvars_hir_vexpressions(arg_exprs, lvars);
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
-                Self::collect_lvars_hir_expressions(exprs, lvars);
+                for expr in exprs {
+                    Self::collect_lvars_hir_expression(expr, lvars);
+                }
             }
             HirExpressionBase::HirArgRef { .. }
             | HirExpressionBase::HirLambdaExpr { .. }
@@ -683,11 +681,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn collect_lvars_of_body(body: Either<&'hir SkMethodBody, &'hir HirExpressions>) -> HirLVars {
+    fn collect_lvars_of_body(body: Either<&'hir SkMethodBody, &'hir HirExpression>) -> HirLVars {
         let mut lvars = vec![];
         match body {
             Left(SkMethodBody::Normal { exprs }) | Right(exprs) => {
-                Self::collect_lvars_hir_expressions(exprs, &mut lvars)
+                Self::collect_lvars_hir_expression(exprs, &mut lvars)
             }
             _ => (),
         }
@@ -702,7 +700,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         func_name: &LlvmFuncName,
         params: &'hir [MethodParam],
         typarams: &'hir [TyParam],
-        body: Either<&'hir SkMethodBody, &'hir HirExpressions>,
+        body: Either<&'hir SkMethodBody, &'hir HirExpression>,
         lvars: &HirLVars,
         ret_ty: &TermTy,
         lambda_name: Option<String>,
@@ -825,11 +823,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         function: inkwell::values::FunctionValue<'run>,
         function_origin: FunctionOrigin<'hir>,
         ret_ty: &TermTy,
-        exprs: &'hir HirExpressions,
+        exprs: &'hir HirExpression,
         lvars: HashMap<String, inkwell::values::PointerValue<'run>>,
     ) -> Result<()> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, lvars);
-        let (last_value, last_value_block) = if let Some(v) = self.gen_exprs(&mut ctx, exprs)? {
+        let (last_value, last_value_block) = if let Some(v) = self.gen_expr(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");
             self.builder.build_unconditional_branch(b);
             self.builder.position_at_end(b);
