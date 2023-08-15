@@ -157,15 +157,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// PERF: Ideally they should be created during gen_methods but I couldn't
     /// avoid borrow checker errors.
     pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<()> {
-        let v = GenLambdaFuncVisitor(&self);
-        visitor::walk_hir(&v, hir)
+        let mut v = GenLambdaFuncVisitor(&self);
+        visitor::walk_hir(&mut v, hir)
     }
 }
-
 struct GenLambdaFuncVisitor<'hir: 'ictx, 'run, 'ictx: 'run>(&'run CodeGen<'hir, 'run, 'ictx>);
-
 impl<'hir: 'ictx, 'run, 'ictx: 'run> HirVisitor<'hir> for GenLambdaFuncVisitor<'hir, 'run, 'ictx> {
-    fn visit_expr(&self, expr: &'hir HirExpression) -> Result<()> {
+    fn visit_expr(&mut self, expr: &'hir HirExpression) -> Result<()> {
         let gen = &self.0;
         match &expr.node {
             HirLambdaExpr {
@@ -196,17 +194,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> HirVisitor<'hir> for GenLambdaFuncVisitor<'
 impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Create LLVM structs for lambda captures.
     pub(super) fn gen_lambda_capture_structs(&self, hir: &'hir Hir) -> Result<()> {
-        let v = LambdaCaptureStructsVisitor(&self);
-        visitor::walk_hir(&v, hir)
+        let mut v = LambdaCaptureStructsVisitor(&self);
+        visitor::walk_hir(&mut v, hir)
     }
 }
-
 struct LambdaCaptureStructsVisitor<'hir: 'ictx, 'run, 'ictx: 'run>(
     &'run CodeGen<'hir, 'run, 'ictx>,
 );
-
 impl<'hir> HirVisitor<'hir> for LambdaCaptureStructsVisitor<'_, '_, '_> {
-    fn visit_expr(&self, expr: &HirExpression) -> Result<()> {
+    fn visit_expr(&mut self, expr: &HirExpression) -> Result<()> {
         match &expr.node {
             HirLambdaExpr { name, captures, .. } => {
                 let gen = &self.0;

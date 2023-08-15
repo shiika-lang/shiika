@@ -4,10 +4,10 @@ use crate::{Hir, HirExpression};
 use anyhow::Result;
 
 pub trait HirVisitor<'hir> {
-    fn visit_expr(&self, expr: &'hir HirExpression) -> Result<()>;
+    fn visit_expr(&mut self, expr: &'hir HirExpression) -> Result<()>;
 }
 
-pub fn walk_hir<'hir, V: HirVisitor<'hir>>(v: &V, hir: &'hir Hir) -> Result<()> {
+pub fn walk_hir<'hir, V: HirVisitor<'hir>>(v: &mut V, hir: &'hir Hir) -> Result<()> {
     for methods in hir.sk_methods.values() {
         for method in methods {
             if let SkMethodBody::Normal { exprs } = &method.body {
@@ -24,7 +24,7 @@ pub fn walk_hir<'hir, V: HirVisitor<'hir>>(v: &V, hir: &'hir Hir) -> Result<()> 
     Ok(())
 }
 
-pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &V, expr: &'hir HirExpression) -> Result<()> {
+pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &mut V, expr: &'hir HirExpression) -> Result<()> {
     v.visit_expr(expr)?;
     match &expr.node {
         HirLogicalNot { expr } => walk_expr(v, expr)?,
