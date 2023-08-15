@@ -21,7 +21,7 @@ pub struct Hir {
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
-    pub main_exprs: HirExpressions,
+    pub main_exprs: HirExpression,
     /// Local variables in `main_exprs`
     pub main_lvars: HirLVars,
 }
@@ -75,61 +75,8 @@ pub struct HirLVar {
     pub captured: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct HirExpressions {
-    pub ty: TermTy,
-    pub exprs: Vec<HirExpression>,
-    pub locs: LocationSpan,
-}
-
-impl HirExpressions {
-    /// Create a `HirExpressions` just returns Void
-    pub fn void() -> HirExpressions {
-        HirExpressions::new(vec![void_const_ref()])
-    }
-
-    /// Destructively convert Vec<HirExpression> into HirExpressions
-    pub fn new(mut exprs: Vec<HirExpression>) -> HirExpressions {
-        if exprs.is_empty() {
-            exprs.push(void_const_ref());
-        }
-        let last_expr = exprs.last().unwrap();
-        let ty = last_expr.ty.clone();
-        let locs = LocationSpan::merge(&exprs.first().unwrap().locs, &last_expr.locs);
-
-        HirExpressions { ty, exprs, locs }
-    }
-
-    /// Prepend `exprs` to self
-    pub fn prepend(&mut self, exprs: Vec<HirExpression>) {
-        if exprs.is_empty() {
-            return;
-        }
-        let mut v = std::mem::replace(&mut self.exprs, exprs);
-        self.exprs.append(&mut v);
-    }
-
-    /// Change the type of `self` to `Void`
-    pub fn voidify(&mut self) {
-        self.exprs.push(void_const_ref());
-        self.ty = ty::raw("Void");
-    }
-
-    /// Change the type of `self` to `ty` by bitcasting the result
-    pub fn bitcast_to(mut self, ty: TermTy) -> Self {
-        let last_expr = self.exprs.pop().unwrap();
-        self.exprs.push(Hir::bit_cast(ty.clone(), last_expr));
-        self.ty = ty;
-        self
-    }
-
-    pub fn last_expr(&self) -> &HirExpression {
-        self.exprs.last().unwrap()
-    }
-}
-
 /// Make a HirExpression to refer `::Void`
-pub fn void_const_ref() -> HirExpression {
+fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
         toplevel_const("Void"),
@@ -142,6 +89,20 @@ pub struct HirExpression {
     pub ty: TermTy,
     pub node: HirExpressionBase,
     pub locs: LocationSpan,
+}
+
+impl HirExpression {
+    pub fn voidify(self) -> HirExpression {
+        let exprs = vec![self, void_const_ref()];
+        Hir::expressions(exprs)
+    }
+
+    pub fn last_expr(&self) -> &HirExpression {
+        match &self.node {
+            HirExpressionBase::HirParenthesizedExpr { exprs } => exprs.last().unwrap(),
+            _ => panic!("unexpected"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -161,8 +122,8 @@ pub enum HirExpressionBase {
     HirIfExpression {
         lvars: HirLVars,
         cond_expr: Box<HirExpression>,
-        then_exprs: Box<HirExpressions>,
-        else_exprs: Box<HirExpressions>, // may be a dummy expression
+        then_exprs: Box<HirExpression>,
+        else_exprs: Box<HirExpression>,
     },
     HirMatchExpression {
         cond_assign_expr: Box<HirExpression>,
@@ -171,7 +132,7 @@ pub enum HirExpressionBase {
     HirWhileExpression {
         lvars: HirLVars,
         cond_expr: Box<HirExpression>,
-        body_exprs: Box<HirExpressions>,
+        body_exprs: Box<HirExpression>,
     },
     HirBreakExpression {
         from: HirBreakFrom,
@@ -240,7 +201,7 @@ pub enum HirExpressionBase {
     HirLambdaExpr {
         name: String,
         params: Vec<MethodParam>,
-        exprs: HirExpressions,
+        exprs: Box<HirExpression>,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
         ret_ty: TermTy,
@@ -291,7 +252,7 @@ pub enum HirExpressionBase {
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
-        exprs: HirExpressions,
+        exprs: Vec<HirExpression>,
     },
     /// Only appears as an method call argument. Denotes using the default value.
     HirDefaultExpr,
@@ -340,8 +301,14 @@ pub enum HirReturnFrom {
 }
 
 impl Hir {
-    pub fn expressions(exprs: Vec<HirExpression>) -> HirExpressions {
-        HirExpressions::new(exprs)
+    pub fn expressions(mut exprs: Vec<HirExpression>) -> HirExpression {
+        if exprs.is_empty() {
+            exprs.push(void_const_ref());
+        }
+        let last_expr = exprs.last().unwrap();
+        let ty = last_expr.ty.clone();
+        let locs = LocationSpan::merge(&exprs.first().unwrap().locs, &last_expr.locs);
+        Hir::parenthesized_expression(ty, exprs, locs)
     }
 
     pub fn logical_not(expr_hir: HirExpression, locs: LocationSpan) -> HirExpression {
@@ -387,8 +354,8 @@ impl Hir {
     pub fn if_expression(
         ty: TermTy,
         cond_hir: HirExpression,
-        then_hir: HirExpressions,
-        else_hir: HirExpressions,
+        then_hir: HirExpression,
+        else_hir: HirExpression,
         lvars: HirLVars,
         locs: LocationSpan,
     ) -> HirExpression {
@@ -422,7 +389,7 @@ impl Hir {
 
     pub fn while_expression(
         cond_hir: HirExpression,
-        body_hirs: HirExpressions,
+        body_hirs: HirExpression,
         lvars: HirLVars,
         locs: LocationSpan,
     ) -> HirExpression {
@@ -659,7 +626,7 @@ impl Hir {
         ty: TermTy,
         name: String,
         params: Vec<MethodParam>,
-        exprs: HirExpressions,
+        exprs: HirExpression,
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
         has_break: bool,
@@ -671,7 +638,7 @@ impl Hir {
             node: HirExpressionBase::HirLambdaExpr {
                 name,
                 params,
-                exprs,
+                exprs: Box::new(exprs),
                 captures,
                 lvars,
                 ret_ty,
@@ -754,9 +721,13 @@ impl Hir {
         }
     }
 
-    pub fn parenthesized_expression(exprs: HirExpressions, locs: LocationSpan) -> HirExpression {
+    pub fn parenthesized_expression(
+        ty: TermTy,
+        exprs: Vec<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
-            ty: exprs.ty.clone(),
+            ty,
             node: HirExpressionBase::HirParenthesizedExpr { exprs },
             locs,
         }

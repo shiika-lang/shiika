@@ -19,28 +19,6 @@ use std::rc::Rc;
 const EXIT_BREAK: u64 = 1;
 
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
-    /// Generate LLVM IR from HirExpressions.
-    /// May return `None` when, for example, it ends with a `return`
-    /// expression.
-    pub fn gen_exprs(
-        &'run self,
-        ctx: &mut CodeGenContext<'hir, 'run>,
-        exprs: &'hir HirExpressions,
-    ) -> Result<Option<SkObj<'run>>> {
-        debug_assert!(!exprs.exprs.is_empty());
-        let mut last_value = None;
-        for expr in &exprs.exprs {
-            let value = self.gen_expr(ctx, expr)?;
-            if value.is_none() {
-                //log::warn!("detected unreachable code");
-                return Ok(None);
-            } else {
-                last_value = Some(value);
-            }
-        }
-        Ok(last_value.unwrap())
-    }
-
     pub fn gen_expr(
         &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
@@ -171,7 +149,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 initialize_name,
                 init_cls_name,
             ))),
-            HirParenthesizedExpr { exprs } => self.gen_exprs(ctx, exprs),
+            HirParenthesizedExpr { exprs } => self.gen_parenthesized_expr(ctx, exprs),
             HirDefaultExpr => Ok(Some(self.gen_default_expr(&expr.ty))),
             HirIsOmittedValue { expr } => self.gen_is_omitted_value(ctx, expr),
         }
@@ -262,8 +240,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         ty: &TermTy,
         cond_expr: &'hir HirExpression,
-        then_exprs: &'hir HirExpressions,
-        else_exprs: &'hir HirExpressions,
+        then_exprs: &'hir HirExpression,
+        else_exprs: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
@@ -277,14 +255,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.gen_conditional_branch(cond_value, then_block, else_block);
         // IfThen:
         self.builder.position_at_end(then_block);
-        let then_value = self.gen_exprs(ctx, then_exprs)?;
+        let then_value = self.gen_expr(ctx, then_exprs)?;
         if then_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
-        let else_value = self.gen_exprs(ctx, else_exprs)?;
+        let else_value = self.gen_expr(ctx, else_exprs)?;
         if else_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }
@@ -400,7 +378,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
         }
         let result = self
-            .gen_exprs(ctx, &clause.body_hir)?
+            .gen_expr(ctx, &clause.body_hir)?
             .map(|v| self.bitcast(v, result_ty, "as"));
         ctx.lvars = orig_lvars;
         Ok(result)
@@ -410,7 +388,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &'run self,
         ctx: &mut CodeGenContext<'hir, 'run>,
         cond_expr: &'hir HirExpression,
-        body_exprs: &'hir HirExpressions,
+        body_exprs: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
         self.builder.build_unconditional_branch(begin_block);
@@ -426,7 +404,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let rc2 = Rc::clone(&rc1);
         let orig_loop_end = ctx.current_loop_end.as_ref().map(Rc::clone);
         ctx.current_loop_end = Some(rc1);
-        self.gen_exprs(ctx, body_exprs)?;
+        self.gen_expr(ctx, body_exprs)?;
         ctx.current_loop_end = orig_loop_end;
         self.builder.build_unconditional_branch(begin_block);
 
@@ -1264,6 +1242,28 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         );
         self.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
         cls_obj
+    }
+
+    /// Compile successive expressions. The last evaluated value is returned.
+    /// Returns `None` if terminated with a `Never` type (`return`, `panic`, etc.)
+    fn gen_parenthesized_expr(
+        &'run self,
+        ctx: &mut CodeGenContext<'hir, 'run>,
+        exprs: &'hir [HirExpression],
+    ) -> Result<Option<SkObj<'run>>> {
+        debug_assert!(!exprs.is_empty());
+        let mut last_value = None;
+        for expr in exprs {
+            let value = self.gen_expr(ctx, expr)?;
+            if value.is_none() {
+                // Found `return`, `panic` or something. The rest of `exprs`
+                // will never be executed
+                return Ok(None);
+            } else {
+                last_value = Some(value);
+            }
+        }
+        Ok(last_value.unwrap())
     }
 
     /// Returns a special value (currently a nullptr) that denotes using the default argument value.

@@ -171,7 +171,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for methods in hir.sk_methods.values() {
             for method in methods {
                 if let SkMethodBody::Normal { exprs } = &method.body {
-                    self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
+                    self.gen_lambda_funcs_in_expr(exprs)?;
                 }
             }
         }
@@ -180,14 +180,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.gen_lambda_funcs_in_expr(expr)?;
         }
 
-        self.gen_lambda_funcs_in_exprs(&hir.main_exprs.exprs)?;
-        Ok(())
-    }
-
-    fn gen_lambda_funcs_in_exprs(&self, exprs: &'hir [HirExpression]) -> Result<()> {
-        for expr in exprs {
-            self.gen_lambda_funcs_in_expr(expr)?;
-        }
+        self.gen_lambda_funcs_in_expr(&hir.main_exprs)?;
         Ok(())
     }
 
@@ -209,8 +202,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_exprs(&then_exprs.exprs)?;
-                self.gen_lambda_funcs_in_exprs(&else_exprs.exprs)?;
+                self.gen_lambda_funcs_in_expr(then_exprs)?;
+                self.gen_lambda_funcs_in_expr(else_exprs)?;
             }
             HirMatchExpression {
                 cond_assign_expr,
@@ -218,7 +211,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             } => {
                 self.gen_lambda_funcs_in_expr(cond_assign_expr)?;
                 for clause in clauses {
-                    self.gen_lambda_funcs_in_exprs(&clause.body_hir.exprs)?;
+                    self.gen_lambda_funcs_in_expr(&clause.body_hir)?;
                 }
             }
             HirWhileExpression {
@@ -227,7 +220,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_exprs(&body_exprs.exprs)?;
+                self.gen_lambda_funcs_in_expr(body_exprs)?;
             }
             HirBreakExpression { .. } => (),
             HirReturnExpression { arg, .. } => self.gen_lambda_funcs_in_expr(arg)?,
@@ -278,7 +271,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_func(name, params, exprs, ret_ty, lvars)?;
-                self.gen_lambda_funcs_in_exprs(&exprs.exprs)?;
+                self.gen_lambda_funcs_in_expr(exprs)?;
             }
             HirSelfExpression => (),
             HirFloatLiteral { .. } => (),
@@ -290,7 +283,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirLambdaCaptureWrite { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
             HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
-            HirParenthesizedExpr { exprs } => self.gen_lambda_funcs_in_exprs(&exprs.exprs)?,
+            HirParenthesizedExpr { exprs } => {
+                for expr in exprs {
+                    self.gen_lambda_funcs_in_expr(expr)?;
+                }
+            }
             HirDefaultExpr { .. } => (),
             HirIsOmittedValue { expr, .. } => self.gen_lambda_funcs_in_expr(expr)?,
         }
@@ -301,7 +298,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         name: &str,
         params: &'hir [MethodParam],
-        exprs: &'hir HirExpressions,
+        exprs: &'hir HirExpression,
         ret_ty: &TermTy,
         lvars: &HirLVars,
     ) -> Result<()> {
@@ -322,7 +319,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for methods in hir.sk_methods.values() {
             for method in methods {
                 if let SkMethodBody::Normal { exprs } = &method.body {
-                    self.gen_lambda_capture_structs_in_exprs(&exprs.exprs)?;
+                    self.gen_lambda_capture_structs_in_expr(exprs)?;
                 }
             }
         }
@@ -331,14 +328,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.gen_lambda_capture_structs_in_expr(expr)?;
         }
 
-        self.gen_lambda_capture_structs_in_exprs(&hir.main_exprs.exprs)?;
-        Ok(())
-    }
-
-    fn gen_lambda_capture_structs_in_exprs(&self, exprs: &'hir [HirExpression]) -> Result<()> {
-        for expr in exprs {
-            self.gen_lambda_capture_structs_in_expr(expr)?;
-        }
+        self.gen_lambda_capture_structs_in_expr(&hir.main_exprs)?;
         Ok(())
     }
 
@@ -360,8 +350,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_capture_structs_in_expr(cond_expr)?;
-                self.gen_lambda_capture_structs_in_exprs(&then_exprs.exprs)?;
-                self.gen_lambda_capture_structs_in_exprs(&else_exprs.exprs)?;
+                self.gen_lambda_capture_structs_in_expr(then_exprs)?;
+                self.gen_lambda_capture_structs_in_expr(else_exprs)?;
             }
             HirMatchExpression {
                 cond_assign_expr,
@@ -369,7 +359,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             } => {
                 self.gen_lambda_capture_structs_in_expr(cond_assign_expr)?;
                 for clause in clauses {
-                    self.gen_lambda_capture_structs_in_exprs(&clause.body_hir.exprs)?;
+                    self.gen_lambda_capture_structs_in_expr(&clause.body_hir)?;
                 }
             }
             HirWhileExpression {
@@ -378,7 +368,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_capture_structs_in_expr(cond_expr)?;
-                self.gen_lambda_capture_structs_in_exprs(&body_exprs.exprs)?;
+                self.gen_lambda_capture_structs_in_expr(body_exprs)?;
             }
             HirBreakExpression { .. } => (),
             HirReturnExpression { arg, .. } => self.gen_lambda_capture_structs_in_expr(arg)?,
@@ -427,7 +417,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 ..
             } => {
                 self.gen_lambda_capture_struct(name, captures)?;
-                self.gen_lambda_capture_structs_in_exprs(&exprs.exprs)?;
+                self.gen_lambda_capture_structs_in_expr(exprs)?;
             }
             HirSelfExpression => (),
             HirFloatLiteral { .. } => (),
@@ -440,7 +430,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             HirBitCast { expr } => self.gen_lambda_capture_structs_in_expr(expr)?,
             HirClassLiteral { .. } => (),
             HirParenthesizedExpr { exprs } => {
-                self.gen_lambda_capture_structs_in_exprs(&exprs.exprs)?
+                for expr in exprs {
+                    self.gen_lambda_capture_structs_in_expr(expr)?;
+                }
             }
             HirDefaultExpr { .. } => (),
             HirIsOmittedValue { expr, .. } => self.gen_lambda_capture_structs_in_expr(expr)?,

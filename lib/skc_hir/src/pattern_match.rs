@@ -1,4 +1,4 @@
-use crate::{HirExpression, HirExpressions, HirLVars};
+use crate::{HirExpression, HirLVars};
 
 #[derive(Debug, Clone)]
 pub enum Component {
@@ -11,7 +11,7 @@ pub enum Component {
 #[derive(Debug, Clone)]
 pub struct MatchClause {
     pub components: Vec<Component>,
-    pub body_hir: HirExpressions,
+    pub body_hir: HirExpression,
     /// Local variables declared in this clause
     pub lvars: HirLVars,
 }
