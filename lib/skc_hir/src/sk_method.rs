@@ -1,5 +1,5 @@
 use crate::signature::MethodSignature;
-use crate::{HirExpressions, HirLVars};
+use crate::{HirExpression, HirLVars};
 use shiika_core::names::*;
 use shiika_core::ty::TermTy;
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ pub type SkMethods = HashMap<TypeFullname, Vec<SkMethod>>;
 #[derive(Debug)]
 pub enum SkMethodBody {
     /// A method defined with Shiika expressions
-    Normal { exprs: HirExpressions },
+    Normal { exprs: HirExpression },
     /// A method defined in skc_rustlib
     RustLib,
     /// The method .new
