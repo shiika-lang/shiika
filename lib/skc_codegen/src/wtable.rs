@@ -26,7 +26,7 @@ pub fn gen_wtable_constants(code_gen: &CodeGen, sk_class: &SkClass) {
 
 /// Define `@insert_XX_wtables()` for the class
 pub fn gen_insert_wtable(code_gen: &CodeGen, sk_class: &SkClass) {
-    let fargs = &[code_gen.llvm_type(&ty::raw("Class")).into()];
+    let fargs = &[code_gen.llvm_type().into()];
     let ftype = code_gen.void_type.fn_type(fargs, false);
     let fname = insert_wtable_func_name(&sk_class.fullname());
     let function = code_gen.module.add_function(&fname, ftype, None);

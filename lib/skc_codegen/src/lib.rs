@@ -215,7 +215,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in imported_constants {
             let name = llvm_const_name(fullname);
-            let global = self.module.add_global(self.llvm_type(ty), None, &name);
+            let global = self.module.add_global(self.llvm_type(), None, &name);
             global.set_linkage(inkwell::module::Linkage::External);
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
@@ -428,7 +428,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         values.sort_by_key(|ivar| ivar.idx);
         let mut types = values
             .iter()
-            .map(|ivar| self.llvm_type(&ivar.ty))
+            .map(|ivar| self.llvm_type())
             .collect::<Vec<_>>();
         types.insert(0, self.llvm_vtable_ref_type().into());
         types.insert(1, self.class_object_ref_type().into());
@@ -459,8 +459,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
         for (fullname, ty) in constants {
             let name = llvm_const_name(fullname);
-            let global = self.module.add_global(self.llvm_type(ty), None, &name);
-            let null = self.llvm_type(ty).into_pointer_type().const_null();
+            let global = self.module.add_global(self.llvm_type(), None, &name);
+            let null = self.llvm_type().into_pointer_type().const_null();
             global.set_initializer(&null);
         }
     }
@@ -538,18 +538,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> inkwell::types::FunctionType<'ictx> {
         let mut arg_types = param_tys
             .iter()
-            .map(|ty| self.llvm_type(ty.as_ref()).into())
+            .map(|ty| self.llvm_type().into())
             .collect::<Vec<_>>();
         // Methods takes the self as the first argument
         if let Some(ty) = self_ty {
-            arg_types.insert(0, self.llvm_type(ty).into());
+            arg_types.insert(0, self.llvm_type().into());
         }
 
         if ret_ty.is_never_type() {
             // `Never` does not have an instance
             self.void_type.fn_type(&arg_types, false)
         } else {
-            self.llvm_type(ret_ty).fn_type(&arg_types, false)
+            self.llvm_type().fn_type(&arg_types, false)
         }
     }
 
@@ -801,7 +801,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
         for HirLVar { name, ty, captured } in lvars {
-            let obj_ty = self.llvm_type(ty);
+            let obj_ty = self.llvm_type();
             if *captured {
                 // Allocate memory on heap in case it lives longer than the method call.
                 let ptrptr = self.allocate_llvm_obj(&obj_ty).into_pointer_value();
@@ -845,7 +845,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_return(None);
         } else if last_value.is_none() && ctx.returns.is_empty() {
             // `exprs` ends with `panic` and there is no `return`
-            let null = self.llvm_type(ret_ty).into_pointer_type().const_null();
+            let null = self.llvm_type().into_pointer_type().const_null();
             self.builder.build_return(Some(&null));
         } else if ret_ty.is_void_type() {
             self.build_return_void();
@@ -861,9 +861,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 v = last_value.unwrap();
                 incomings.push((&v.0, b));
             }
-            let phi_node = self
-                .builder
-                .build_phi(self.llvm_type(ret_ty), "methodResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "methodResult");
             phi_node.add_incoming(incomings.as_slice());
             self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
@@ -877,7 +875,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// LLVM type of a reference to a class object
     fn class_object_ref_type(&self) -> inkwell::types::PointerType {
-        self.llvm_type(&ty::raw("Class")).into_pointer_type()
+        self.llvm_type().into_pointer_type()
     }
 
     /// Generate body of `.new`

@@ -20,7 +20,7 @@ impl<'run> SkObj<'run> {
         let null = gen.ptr_type.const_null().as_basic_value_enum();
         SkObj::new(
             ty.clone(),
-            gen.builder.build_bitcast(null, gen.llvm_type(&ty), "as"),
+            gen.builder.build_bitcast(null, gen.llvm_type(), "as"),
         )
     }
 
@@ -63,7 +63,7 @@ impl<'run> SkClassObj<'run> {
         let null = gen.ptr_type.const_null().as_basic_value_enum();
         SkClassObj(
             gen.builder
-                .build_bitcast(null, gen.llvm_type(&ty), "as")
+                .build_bitcast(null, gen.llvm_type(), "as")
                 .into_pointer_value(),
         )
     }

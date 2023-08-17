@@ -134,7 +134,7 @@ impl<'run> LambdaCapture<'run> {
                     "load",
                 )
                 .into_pointer_value();
-            let pointee_ty = gen.llvm_type(ty).as_basic_type_enum();
+            let pointee_ty = gen.llvm_type().as_basic_type_enum();
             gen.builder.build_load(pointee_ty, addr, "deref")
         } else {
             gen.build_llvm_struct_ref(
@@ -453,12 +453,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     fn capture_ty(&self, cap: &HirLambdaCapture) -> inkwell::types::BasicTypeEnum {
         if cap.readonly {
-            self.llvm_type(&cap.ty)
+            self.llvm_type()
         } else {
             // The (local) variable is captured by reference.
             // PERF: not needed to be by-ref when the variable is declared with
             // `var` but not reassigned from closure.
-            self.llvm_type(&cap.ty)
+            self.llvm_type()
                 .ptr_type(Default::default())
                 .as_basic_type_enum()
         }

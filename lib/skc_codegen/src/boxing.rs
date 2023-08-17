@@ -8,41 +8,24 @@ use shiika_core::{names::*, ty};
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Generate llvm funcs about boxing
     pub fn gen_boxing_funcs(&self) {
-        let fn_type = self
-            .llvm_type(&ty::raw("Bool"))
-            .fn_type(&[self.i1_type.into()], false);
+        let fn_type = self.llvm_type().fn_type(&[self.i1_type.into()], false);
         self.module.add_function("box_bool", fn_type, None);
-        let fn_type = self
-            .i1_type
-            .fn_type(&[self.llvm_type(&ty::raw("Bool")).into()], false);
+        let fn_type = self.i1_type.fn_type(&[self.llvm_type().into()], false);
         self.module.add_function("unbox_bool", fn_type, None);
-        let fn_type = self
-            .llvm_type(&ty::raw("Int"))
-            .fn_type(&[self.i64_type.into()], false);
+        let fn_type = self.llvm_type().fn_type(&[self.i64_type.into()], false);
         self.module.add_function("box_int", fn_type, None);
-        let fn_type = self
-            .i64_type
-            .fn_type(&[self.llvm_type(&ty::raw("Int")).into()], false);
+        let fn_type = self.i64_type.fn_type(&[self.llvm_type().into()], false);
         self.module.add_function("unbox_int", fn_type, None);
-        let fn_type = self
-            .llvm_type(&ty::raw("Float"))
-            .fn_type(&[self.f64_type.into()], false);
+        let fn_type = self.llvm_type().fn_type(&[self.f64_type.into()], false);
         self.module.add_function("box_float", fn_type, None);
-        let fn_type = self
-            .f64_type
-            .fn_type(&[self.llvm_type(&ty::raw("Float")).into()], false);
+        let fn_type = self.f64_type.fn_type(&[self.llvm_type().into()], false);
         self.module.add_function("unbox_float", fn_type, None);
-        let fn_type = self
-            .llvm_type(&ty::raw("Shiika::Internal::Ptr"))
-            .fn_type(&[self.ptr_type.into()], false);
+        let fn_type = self.llvm_type().fn_type(&[self.ptr_type.into()], false);
         self.module.add_function("box_i8ptr", fn_type, None);
-        let fn_type = self.ptr_type.fn_type(
-            &[self.llvm_type(&ty::raw("Shiika::Internal::Ptr")).into()],
-            false,
-        );
+        let fn_type = self.ptr_type.fn_type(&[self.llvm_type().into()], false);
         self.module.add_function("unbox_i8ptr", fn_type, None);
         let fn_type = self
-            .llvm_type(&ty::raw("String"))
+            .llvm_type()
             .fn_type(&[self.ptr_type.into(), self.i64_type.into()], false);
         self.module
             .add_function("gen_literal_string", fn_type, None);

@@ -75,7 +75,7 @@ impl<'run> OpaqueVTableRef<'run> {
         SkObj::new(
             ty.clone(),
             gen.builder
-                .build_bitcast(self.ptr.as_basic_value_enum(), gen.llvm_type(&ty), "as"),
+                .build_bitcast(self.ptr.as_basic_value_enum(), gen.llvm_type(), "as"),
         )
     }
 }

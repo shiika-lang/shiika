@@ -192,9 +192,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // AndEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self
-            .builder
-            .build_phi(self.llvm_type(&ty::raw("Bool")), "AndResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "AndResult");
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, more_block_end),
@@ -225,9 +223,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // OrEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self
-            .builder
-            .build_phi(self.llvm_type(&ty::raw("Bool")), "OrResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "OrResult");
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, else_block_end),
@@ -278,7 +274,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (None, else_value) => Ok(else_value),
             (then_value, None) => Ok(then_value),
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.llvm_type(ty), "ifResult");
+                let phi_node = self.builder.build_phi(self.llvm_type(), "ifResult");
                 phi_node
                     .add_incoming(&[(&then_val.0, then_block_end), (&else_val.0, else_block_end)]);
                 Ok(Some(SkObj::new(ty.clone(), phi_node.as_basic_value())))
@@ -336,9 +332,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             // MatchEnd:
             self.builder.position_at_end(merge_block);
-            let phi_node = self
-                .builder
-                .build_phi(self.llvm_type(result_ty), "matchResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "matchResult");
             phi_node.add_incoming(
                 incoming_values
                     .iter()
@@ -699,12 +693,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         // Create the type of lambda_xx()
         let fn_x_ty = ty::raw(&format!("Fn{}", n_args));
-        let fn_x_type = self.llvm_type(&fn_x_ty);
+        let fn_x_type = self.llvm_type();
         let mut arg_types = vec![fn_x_type.into()];
         for e in arg_exprs {
-            arg_types.push(self.llvm_type(&e.ty).into());
+            arg_types.push(self.llvm_type().into());
         }
-        let fntype = self.llvm_type(ret_ty).fn_type(&arg_types, false);
+        let fntype = self.llvm_type().fn_type(&arg_types, false);
         let fnptype = fntype.ptr_type(Default::default());
 
         // Cast `fnptr` to that type
@@ -849,7 +843,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
         SkObj::new(
             ty.clone(),
-            self.builder.build_load(self.llvm_type(ty), *ptr, name),
+            self.builder.build_load(self.llvm_type(), *ptr, name),
         )
     }
 
@@ -910,7 +904,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
     pub fn gen_const_ref(&'run self, fullname: &ConstFullname, ty: &TermTy) -> SkObj<'run> {
         let name = llvm_const_name(fullname);
-        let llvm_type = self.llvm_type(ty);
+        let llvm_type = self.llvm_type();
         let ptr = self
             .module
             .get_global(&name)
