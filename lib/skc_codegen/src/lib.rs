@@ -37,7 +37,7 @@ pub struct CodeGen<'hir: 'ictx, 'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
     pub i1_type: inkwell::types::IntType<'ictx>,
     pub i8_type: inkwell::types::IntType<'ictx>,
-    pub i8ptr_type: inkwell::types::PointerType<'ictx>,
+    pub ptr_type: inkwell::types::PointerType<'ictx>,
     pub i32_type: inkwell::types::IntType<'ictx>,
     pub i64_type: inkwell::types::IntType<'ictx>,
     pub f64_type: inkwell::types::FloatType<'ictx>,
@@ -92,7 +92,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             builder,
             i1_type: context.bool_type(),
             i8_type: context.i8_type(),
-            i8ptr_type: context.i8_type().ptr_type(Default::default()),
+            ptr_type: context.i8_type().ptr_type(Default::default()),
             i32_type: context.i32_type(),
             i64_type: context.i64_type(),
             f64_type: context.f64_type(),
@@ -136,16 +136,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_declares(&self) {
         let fn_type = self.void_type.fn_type(&[], false);
         self.module.add_function("GC_init", fn_type, None);
-        let fn_type = self.i8ptr_type.fn_type(&[self.i64_type.into()], false);
+        let fn_type = self.ptr_type.fn_type(&[self.i64_type.into()], false);
         self.module.add_function("shiika_malloc", fn_type, None);
         let fn_type = self
-            .i8ptr_type
-            .fn_type(&[self.i8ptr_type.into(), self.i64_type.into()], false);
+            .ptr_type
+            .fn_type(&[self.ptr_type.into(), self.i64_type.into()], false);
         self.module.add_function("shiika_realloc", fn_type, None);
 
-        let fn_type = self.i8ptr_type.fn_type(
+        let fn_type = self.ptr_type.fn_type(
             &[
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
                 self.i64_type.into(),
             ],
@@ -154,11 +154,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.module
             .add_function("shiika_lookup_wtable", fn_type, None);
 
-        let fn_type = self.i8ptr_type.fn_type(
+        let fn_type = self.ptr_type.fn_type(
             &[
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
-                self.i8ptr_type.into(),
+                self.ptr_type.into(),
                 self.i64_type.into(),
             ],
             false,
@@ -206,16 +206,16 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_import_vtables(&self, vtables: &VTables) {
         for (fullname, vtable) in vtables.iter() {
             let name = llvm_vtable_const_name(fullname);
-            let ary_type = self.i8ptr_type.array_type(vtable.size() as u32);
+            let ary_type = self.ptr_type.array_type(vtable.size() as u32);
             let _global = self.module.add_global(ary_type, None, &name);
         }
     }
 
     /// Declare `external global` for each imported constant
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
-        for (fullname, ty) in imported_constants {
+        for (fullname, _) in imported_constants {
             let name = llvm_const_name(fullname);
-            let global = self.module.add_global(self.llvm_type(ty), None, &name);
+            let global = self.module.add_global(self.llvm_type(), None, &name);
             global.set_linkage(inkwell::module::Linkage::External);
             // @init_::XX
             let fn_type = self.void_type.fn_type(&[], false);
@@ -228,7 +228,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn gen_vtables(&self) {
         for (class_fullname, vtable) in self.vtables.iter() {
             let method_names = vtable.to_vec();
-            let ary_type = self.i8ptr_type.array_type(method_names.len() as u32);
+            let ary_type = self.ptr_type.array_type(method_names.len() as u32);
             let tmp = llvm_vtable_const_name(class_fullname);
             let global = self.module.add_global(ary_type, None, &tmp);
             global.set_constant(true);
@@ -240,11 +240,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         .as_global_value()
                         .as_pointer_value();
                     self.builder
-                        .build_bitcast(func, self.i8ptr_type, "")
+                        .build_bitcast(func, self.ptr_type, "")
                         .into_pointer_value()
                 })
                 .collect::<Vec<_>>();
-            global.set_initializer(&self.i8ptr_type.const_array(&func_ptrs));
+            global.set_initializer(&self.ptr_type.const_array(&func_ptrs));
         }
     }
 
@@ -405,7 +405,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         struct_type.set_body(&[vt, ct, self.i1_type.into()], false);
                     }
                     "Shiika::Internal::Ptr" => {
-                        struct_type.set_body(&[vt, ct, self.i8ptr_type.into()], false);
+                        struct_type.set_body(&[vt, ct, self.ptr_type.into()], false);
                     }
                     _ => {
                         struct_type.set_body(&self.llvm_field_types(&class.ivars), false);
@@ -426,10 +426,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> Vec<inkwell::types::BasicTypeEnum> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
-        let mut types = values
-            .iter()
-            .map(|ivar| self.llvm_type(&ivar.ty))
-            .collect::<Vec<_>>();
+        let mut types = vec![self.llvm_type(); values.len()];
         types.insert(0, self.llvm_vtable_ref_type().into());
         types.insert(1, self.class_object_ref_type().into());
         types
@@ -457,10 +454,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate llvm global that holds Shiika constants
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
-        for (fullname, ty) in constants {
+        for (fullname, _) in constants {
             let name = llvm_const_name(fullname);
-            let global = self.module.add_global(self.llvm_type(ty), None, &name);
-            let null = self.llvm_type(ty).into_pointer_type().const_null();
+            let global = self.module.add_global(self.llvm_type(), None, &name);
+            let null = self.llvm_type().into_pointer_type().const_null();
             global.set_initializer(&null);
         }
     }
@@ -536,20 +533,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         param_tys: &[T],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let mut arg_types = param_tys
-            .iter()
-            .map(|ty| self.llvm_type(ty.as_ref()).into())
-            .collect::<Vec<_>>();
+        let mut arg_types = vec![self.llvm_type().into(); param_tys.len()];
         // Methods takes the self as the first argument
-        if let Some(ty) = self_ty {
-            arg_types.insert(0, self.llvm_type(ty).into());
+        if self_ty.is_some() {
+            arg_types.insert(0, self.llvm_type().into());
         }
 
         if ret_ty.is_never_type() {
             // `Never` does not have an instance
             self.void_type.fn_type(&arg_types, false)
         } else {
-            self.llvm_type(ret_ty).fn_type(&arg_types, false)
+            self.llvm_type().fn_type(&arg_types, false)
         }
     }
 
@@ -800,8 +794,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let alloca_start = self.context.append_basic_block(function, "alloca");
         self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
-        for HirLVar { name, ty, captured } in lvars {
-            let obj_ty = self.llvm_type(ty);
+        for HirLVar { name, captured, .. } in lvars {
+            let obj_ty = self.llvm_type();
             if *captured {
                 // Allocate memory on heap in case it lives longer than the method call.
                 let ptrptr = self.allocate_llvm_obj(&obj_ty).into_pointer_value();
@@ -845,7 +839,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             self.builder.build_return(None);
         } else if last_value.is_none() && ctx.returns.is_empty() {
             // `exprs` ends with `panic` and there is no `return`
-            let null = self.llvm_type(ret_ty).into_pointer_type().const_null();
+            let null = self.llvm_type().into_pointer_type().const_null();
             self.builder.build_return(Some(&null));
         } else if ret_ty.is_void_type() {
             self.build_return_void();
@@ -861,9 +855,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 v = last_value.unwrap();
                 incomings.push((&v.0, b));
             }
-            let phi_node = self
-                .builder
-                .build_phi(self.llvm_type(ret_ty), "methodResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "methodResult");
             phi_node.add_incoming(incomings.as_slice());
             self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
@@ -872,12 +864,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// LLVM type of a reference to a vtable
     fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
-        self.i8ptr_type
+        self.ptr_type
     }
 
     /// LLVM type of a reference to a class object
     fn class_object_ref_type(&self) -> inkwell::types::PointerType {
-        self.llvm_type(&ty::raw("Class")).into_pointer_type()
+        self.llvm_type().into_pointer_type()
     }
 
     /// Generate body of `.new`

@@ -17,15 +17,11 @@ impl<'run> VTableRef<'run> {
         VTableRef { ptr, len }
     }
 
-    fn llvm_type(gen: &CodeGen<'_, 'run, '_>, len: usize) -> inkwell::types::PointerType<'run> {
-        Self::llvm_pointee_type(gen, len).ptr_type(Default::default())
-    }
-
     fn llvm_pointee_type(
         gen: &CodeGen<'_, 'run, '_>,
         len: usize,
     ) -> inkwell::types::ArrayType<'run> {
-        gen.i8ptr_type.array_type(len as u32)
+        gen.ptr_type.array_type(len as u32)
     }
 
     /// Returns the vtable of a Shiika object.
@@ -34,7 +30,7 @@ impl<'run> VTableRef<'run> {
         object: SkObj<'run>,
         len: usize,
     ) -> VTableRef<'run> {
-        let item_ty = Self::llvm_type(gen, len).as_basic_type_enum();
+        let item_ty = gen.ptr_type.as_basic_type_enum();
         let ptr = gen
             .build_object_struct_ref_raw(object, item_ty, OBJ_VTABLE_IDX, "vtable")
             .into_pointer_value();
@@ -79,7 +75,7 @@ impl<'run> OpaqueVTableRef<'run> {
         SkObj::new(
             ty.clone(),
             gen.builder
-                .build_bitcast(self.ptr.as_basic_value_enum(), gen.llvm_type(&ty), "as"),
+                .build_bitcast(self.ptr.as_basic_value_enum(), gen.llvm_type(), "as"),
         )
     }
 }

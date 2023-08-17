@@ -17,10 +17,10 @@ impl<'run> SkObj<'run> {
     /// Returns a null pointer cast to `%Object*`.
     pub fn nullptr(gen: &CodeGen<'_, 'run, '_>) -> SkObj<'run> {
         let ty = ty::raw("Object");
-        let null = gen.i8ptr_type.const_null().as_basic_value_enum();
+        let null = gen.ptr_type.const_null().as_basic_value_enum();
         SkObj::new(
             ty.clone(),
-            gen.builder.build_bitcast(null, gen.llvm_type(&ty), "as"),
+            gen.builder.build_bitcast(null, gen.llvm_type(), "as"),
         )
     }
 
@@ -44,7 +44,7 @@ impl<'run> SkObj<'run> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         code_gen
             .builder
-            .build_bitcast(self.0, code_gen.i8ptr_type, "ptr")
+            .build_bitcast(self.0, code_gen.ptr_type, "ptr")
     }
 
     pub fn struct_ty(&self, gen: &'run CodeGen<'_, 'run, '_>) -> inkwell::types::StructType<'run> {
@@ -59,11 +59,10 @@ pub struct SkClassObj<'run>(pub inkwell::values::PointerValue<'run>);
 impl<'run> SkClassObj<'run> {
     /// Returns a null pointer cast to `%Object*`.
     pub fn nullptr(gen: &CodeGen<'_, 'run, '_>) -> SkClassObj<'run> {
-        let ty = ty::raw("Class");
-        let null = gen.i8ptr_type.const_null().as_basic_value_enum();
+        let null = gen.ptr_type.const_null().as_basic_value_enum();
         SkClassObj(
             gen.builder
-                .build_bitcast(null, gen.llvm_type(&ty), "as")
+                .build_bitcast(null, gen.llvm_type(), "as")
                 .into_pointer_value(),
         )
     }
@@ -86,7 +85,7 @@ impl<'run> I8Ptr<'run> {
     ) -> I8Ptr<'run> {
         I8Ptr(
             gen.builder
-                .build_bitcast(p, gen.i8ptr_type, "cast")
+                .build_bitcast(p, gen.ptr_type, "cast")
                 .into_pointer_value(),
         )
     }
