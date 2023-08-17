@@ -137,27 +137,15 @@ impl<'run> LambdaCapture<'run> {
             let pointee_ty = gen.llvm_type().as_basic_type_enum();
             gen.builder.build_load(pointee_ty, addr, "deref")
         } else {
-            gen.build_llvm_struct_ref(
-                &self.struct_type(gen),
-                self.to_struct_ptr(),
-                ty,
-                idx,
-                "load",
-            )
+            gen.build_llvm_struct_ref(&self.struct_type(gen), self.to_struct_ptr(), idx, "load")
         };
         SkObj::new(ty.clone(), v)
     }
 
     /// Given there is a pointer stored at `idx`, update its value.
-    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj, ty: &TermTy) {
+    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
         let ptr = gen
-            .build_llvm_struct_ref(
-                &self.struct_type(gen),
-                self.to_struct_ptr(),
-                ty,
-                idx,
-                "load",
-            )
+            .build_llvm_struct_ref(&self.struct_type(gen), self.to_struct_ptr(), idx, "load")
             .into_pointer_value();
         gen.builder.build_store(ptr, value.0);
     }

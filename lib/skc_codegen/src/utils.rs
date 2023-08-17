@@ -88,7 +88,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Get the class object of an object as `*Class`
     pub fn get_class_of_obj(&self, object: SkObj<'run>) -> SkClassObj<'run> {
         SkClassObj(
-            self.build_object_struct_ref(object, &ty::raw("Class"), OBJ_CLASS_IDX, "class")
+            self.build_object_struct_ref(object, OBJ_CLASS_IDX, "class")
                 .into_pointer_value(),
         )
     }
@@ -125,12 +125,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     pub fn build_object_struct_ref(
         &self,
         object: SkObj<'run>,
-        item_ty: &TermTy,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
         let struct_ty = self.llvm_struct_type(object.ty());
-        self.build_llvm_struct_ref(&struct_ty, object.0, item_ty, idx, name)
+        self.build_llvm_struct_ref(&struct_ty, object.0, idx, name)
     }
 
     /// Load a raw llvm value in a Shiika object
@@ -151,7 +150,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         &self,
         struct_ty: &inkwell::types::StructType<'run>,
         struct_ptr: inkwell::values::PointerValue<'run>,
-        item_ty: &TermTy,
         idx: usize,
         name: &str,
     ) -> inkwell::values::BasicValueEnum<'run> {
@@ -177,7 +175,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             )
             .unwrap_or_else(|_| {
                 panic!(
-                    "build_llvm_struct_ref: elem not found (idx: {}, name: {}, struct_ptr: {:?})",
+                    "build_llvm_struct_ref_raw: elem not found (idx: {}, name: {}, struct_ptr: {:?})",
                     &idx, &name, &struct_ptr
                 )
             });
