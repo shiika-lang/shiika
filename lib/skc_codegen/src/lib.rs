@@ -213,7 +213,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Declare `external global` for each imported constant
     fn gen_import_constants(&self, imported_constants: &HashMap<ConstFullname, TermTy>) {
-        for (fullname, ty) in imported_constants {
+        for (fullname, _) in imported_constants {
             let name = llvm_const_name(fullname);
             let global = self.module.add_global(self.llvm_type(), None, &name);
             global.set_linkage(inkwell::module::Linkage::External);
@@ -426,10 +426,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     ) -> Vec<inkwell::types::BasicTypeEnum> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
-        let mut types = values
-            .iter()
-            .map(|ivar| self.llvm_type())
-            .collect::<Vec<_>>();
+        let mut types = vec![self.llvm_type(); values.len()];
         types.insert(0, self.llvm_vtable_ref_type().into());
         types.insert(1, self.class_object_ref_type().into());
         types
@@ -457,7 +454,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
     /// Generate llvm global that holds Shiika constants
     fn gen_constant_ptrs(&self, constants: &HashMap<ConstFullname, TermTy>) {
-        for (fullname, ty) in constants {
+        for (fullname, _) in constants {
             let name = llvm_const_name(fullname);
             let global = self.module.add_global(self.llvm_type(), None, &name);
             let null = self.llvm_type().into_pointer_type().const_null();
@@ -536,12 +533,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         param_tys: &[T],
         ret_ty: &TermTy,
     ) -> inkwell::types::FunctionType<'ictx> {
-        let mut arg_types = param_tys
-            .iter()
-            .map(|ty| self.llvm_type().into())
-            .collect::<Vec<_>>();
+        let mut arg_types = vec![self.llvm_type().into(); param_tys.len()];
         // Methods takes the self as the first argument
-        if let Some(ty) = self_ty {
+        if self_ty.is_some() {
             arg_types.insert(0, self.llvm_type().into());
         }
 
@@ -800,7 +794,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let alloca_start = self.context.append_basic_block(function, "alloca");
         self.builder.build_unconditional_branch(alloca_start);
         self.builder.position_at_end(alloca_start);
-        for HirLVar { name, ty, captured } in lvars {
+        for HirLVar { name, captured, .. } in lvars {
             let obj_ty = self.llvm_type();
             if *captured {
                 // Allocate memory on heap in case it lives longer than the method call.

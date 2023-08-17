@@ -59,7 +59,6 @@ pub struct SkClassObj<'run>(pub inkwell::values::PointerValue<'run>);
 impl<'run> SkClassObj<'run> {
     /// Returns a null pointer cast to `%Object*`.
     pub fn nullptr(gen: &CodeGen<'_, 'run, '_>) -> SkClassObj<'run> {
-        let ty = ty::raw("Class");
         let null = gen.ptr_type.const_null().as_basic_value_enum();
         SkClassObj(
             gen.builder

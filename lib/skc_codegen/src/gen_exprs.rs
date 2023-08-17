@@ -673,7 +673,6 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ret_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
         let lambda_obj = self.gen_expr(ctx, lambda_expr)?.unwrap();
-        let n_args = arg_exprs.len();
 
         // Prepare arguments
         let mut args = vec![lambda_obj.clone()];
@@ -692,14 +691,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .append_basic_block(ctx.function, "Invoke_lambda_end");
 
         // Create the type of lambda_xx()
-        let fn_x_ty = ty::raw(&format!("Fn{}", n_args));
-        let fn_x_type = self.llvm_type();
-        let mut arg_types = vec![fn_x_type.into()];
-        for e in arg_exprs {
-            arg_types.push(self.llvm_type().into());
-        }
+        let n = arg_exprs.len() + 1; // +1 for self
+        let arg_types = vec![self.llvm_type().into(); n];
         let fntype = self.llvm_type().fn_type(&arg_types, false);
-        let fnptype = fntype.ptr_type(Default::default());
+        let fnptype = self.ptr_type;
 
         // Cast `fnptr` to that type
         let fnptr = self.unbox_i8ptr(self.build_ivar_load(
