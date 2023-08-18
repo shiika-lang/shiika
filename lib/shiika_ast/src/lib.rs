@@ -146,6 +146,12 @@ pub struct UnresolvedTypeName {
     pub locs: LocationSpan,
 }
 
+impl UnresolvedTypeName {
+    pub fn appears(&self, name: &str) -> bool {
+        self.names.join("::") == name || self.args.iter().any(|arg| arg.appears(name))
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstExpression {
     pub body: AstExpressionBody,
