@@ -330,10 +330,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // alloca
         let mut lvars = main_lvars.clone();
-        let mut v = CollectLVarsVisitor(&mut lvars);
-        visitor::walk_expr(&mut v, main_exprs)?;
-
-        let lvar_ptrs = self.gen_alloca_lvars(function, &main_lvars);
+        lvars.append(&mut CollectLVarsVisitor::run(main_exprs)?);
+        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
 
         // CreateMain:
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
@@ -601,13 +599,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // alloca
         let mut lvars = lvars.clone();
-        let mut v = CollectLVarsVisitor(&mut lvars);
-        match body {
-            Left(SkMethodBody::Normal { exprs }) | Right(exprs) => {
-                visitor::walk_expr(&mut v, exprs)?;
-            }
-            _ => (),
-        }
+        let mut more_lvars = match body {
+            Left(SkMethodBody::Normal { exprs }) | Right(exprs) => CollectLVarsVisitor::run(exprs)?,
+            _ => Default::default(),
+        };
+        lvars.append(&mut more_lvars);
         let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
 
         // Method body
@@ -863,8 +859,15 @@ fn const_initialize_func_name(name: &ConstFullname) -> String {
     format!("init_{}", &name.0[2..])
 }
 
-struct CollectLVarsVisitor<'a>(&'a mut HirLVars);
-impl HirVisitor<'_> for CollectLVarsVisitor<'_> {
+struct CollectLVarsVisitor(HirLVars);
+impl CollectLVarsVisitor {
+    fn run(e: &HirExpression) -> Result<HirLVars> {
+        let mut v = CollectLVarsVisitor(Default::default());
+        visitor::walk_expr(&mut v, e)?;
+        Ok(v.0)
+    }
+}
+impl HirVisitor<'_> for CollectLVarsVisitor {
     fn visit_expr(&mut self, expr: &HirExpression) -> Result<()> {
         match &expr.node {
             HirExpressionBase::HirIfExpression { lvars, .. } => self.0.append(&mut lvars.clone()),
