@@ -14,7 +14,7 @@ use either::*;
 use inkwell::types::*;
 use inkwell::values::*;
 use shiika_core::{names::*, ty, ty::*};
-use skc_hir::pattern_match::MatchClause;
+use skc_hir::visitor::HirVisitor;
 use skc_hir::*;
 use skc_mir::{LibraryExports, Mir, VTables};
 use std::collections::HashMap;
@@ -329,10 +329,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(block);
 
         // alloca
-        let mut main_lvars = main_lvars.clone();
-        Self::collect_lvars_hir_expression(main_exprs, &mut main_lvars);
-
-        let lvar_ptrs = self.gen_alloca_lvars(function, &main_lvars);
+        let mut lvars = main_lvars.clone();
+        lvars.append(&mut CollectLVarsVisitor::run(main_exprs)?);
+        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
 
         // CreateMain:
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
@@ -572,120 +571,6 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         )
     }
 
-    fn collect_lvars_clauses(clauses: &[MatchClause], lvars: &mut HirLVars) {
-        // Should lvars of the clauses be collected ?
-        clauses
-            .iter()
-            .for_each(|clause| Self::collect_lvars_hir_expression(&clause.body_hir, lvars))
-    }
-
-    fn collect_lvars_hir_vexpressions(exprs: &[HirExpression], lvars: &mut HirLVars) {
-        exprs
-            .iter()
-            .for_each(|expr| Self::collect_lvars_hir_expression(expr, lvars))
-    }
-
-    fn collect_lvars_hir_expression(expr: &HirExpression, lvars: &mut HirLVars) {
-        match &expr.node {
-            HirExpressionBase::HirBitCast { expr }
-            | HirExpressionBase::HirConstAssign { rhs: expr, .. }
-            | HirExpressionBase::HirIVarAssign { rhs: expr, .. }
-            | HirExpressionBase::HirReturnExpression { arg: expr, .. }
-            | HirExpressionBase::HirLVarAssign { rhs: expr, .. }
-            | HirExpressionBase::HirIsOmittedValue { expr }
-            | HirExpressionBase::HirLambdaCaptureWrite { rhs: expr, .. }
-            | HirExpressionBase::HirLogicalNot { expr } => {
-                Self::collect_lvars_hir_expression(expr, lvars)
-            }
-            HirExpressionBase::HirLogicalOr { left, right }
-            | HirExpressionBase::HirLogicalAnd { left, right } => {
-                Self::collect_lvars_hir_expression(left, lvars);
-                Self::collect_lvars_hir_expression(right, lvars);
-            }
-            HirExpressionBase::HirIfExpression {
-                lvars: if_lvars,
-                cond_expr,
-                then_exprs,
-                else_exprs,
-            } => {
-                let mut if_lvars = if_lvars.clone();
-                lvars.append(&mut if_lvars);
-                Self::collect_lvars_hir_expression(cond_expr, lvars);
-                Self::collect_lvars_hir_expression(then_exprs, lvars);
-                Self::collect_lvars_hir_expression(else_exprs, lvars);
-            }
-            HirExpressionBase::HirMatchExpression {
-                cond_assign_expr,
-                clauses,
-            } => {
-                Self::collect_lvars_hir_expression(cond_assign_expr, lvars);
-                Self::collect_lvars_clauses(clauses, lvars);
-            }
-            HirExpressionBase::HirWhileExpression {
-                cond_expr,
-                body_exprs,
-                lvars: while_lvars,
-            } => {
-                let mut while_lvars = while_lvars.clone();
-                lvars.append(&mut while_lvars);
-                Self::collect_lvars_hir_expression(cond_expr, lvars);
-                Self::collect_lvars_hir_expression(body_exprs, lvars);
-            }
-            HirExpressionBase::HirModuleMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            }
-            | HirExpressionBase::HirMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            } => {
-                Self::collect_lvars_hir_expression(receiver_expr, lvars);
-                Self::collect_lvars_hir_vexpressions(arg_exprs, lvars);
-            }
-            HirExpressionBase::HirLambdaInvocation {
-                lambda_expr,
-                arg_exprs,
-            } => {
-                Self::collect_lvars_hir_expression(lambda_expr, lvars);
-                Self::collect_lvars_hir_vexpressions(arg_exprs, lvars);
-            }
-            HirExpressionBase::HirParenthesizedExpr { exprs } => {
-                for expr in exprs {
-                    Self::collect_lvars_hir_expression(expr, lvars);
-                }
-            }
-            HirExpressionBase::HirArgRef { .. }
-            | HirExpressionBase::HirLambdaExpr { .. }
-            | HirExpressionBase::HirLVarRef { .. }
-            | HirExpressionBase::HirIVarRef { .. }
-            | HirExpressionBase::HirClassTVarRef { .. }
-            | HirExpressionBase::HirMethodTVarRef { .. }
-            | HirExpressionBase::HirConstRef { .. }
-            | HirExpressionBase::HirSelfExpression
-            | HirExpressionBase::HirFloatLiteral { .. }
-            | HirExpressionBase::HirDecimalLiteral { .. }
-            | HirExpressionBase::HirStringLiteral { .. }
-            | HirExpressionBase::HirBooleanLiteral { .. }
-            | HirExpressionBase::HirLambdaCaptureRef { .. }
-            | HirExpressionBase::HirClassLiteral { .. }
-            | HirExpressionBase::HirDefaultExpr
-            | HirExpressionBase::HirBreakExpression { .. } => (),
-        }
-    }
-
-    fn collect_lvars_of_body(body: Either<&'hir SkMethodBody, &'hir HirExpression>) -> HirLVars {
-        let mut lvars = vec![];
-        match body {
-            Left(SkMethodBody::Normal { exprs }) | Right(exprs) => {
-                Self::collect_lvars_hir_expression(exprs, &mut lvars)
-            }
-            _ => (),
-        }
-        lvars
-    }
-
     /// Generate body of a llvm function
     /// Used for methods and lambdas
     #[allow(clippy::too_many_arguments)]
@@ -712,10 +597,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             inkwell_set_name(param, name);
         }
 
-        let mut lvars = lvars.clone();
-        let mut collected_lvars = Self::collect_lvars_of_body(body);
         // alloca
-        lvars.append(&mut collected_lvars);
+        let mut lvars = lvars.clone();
+        let mut more_lvars = match body {
+            Left(SkMethodBody::Normal { exprs }) | Right(exprs) => CollectLVarsVisitor::run(exprs)?,
+            _ => Default::default(),
+        };
+        lvars.append(&mut more_lvars);
         let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
 
         // Method body
@@ -969,4 +857,25 @@ fn inkwell_set_name(val: BasicValueEnum, name: &str) {
 
 fn const_initialize_func_name(name: &ConstFullname) -> String {
     format!("init_{}", &name.0[2..])
+}
+
+struct CollectLVarsVisitor(HirLVars);
+impl CollectLVarsVisitor {
+    fn run(e: &HirExpression) -> Result<HirLVars> {
+        let mut v = CollectLVarsVisitor(Default::default());
+        visitor::walk_expr(&mut v, e)?;
+        Ok(v.0)
+    }
+}
+impl HirVisitor<'_> for CollectLVarsVisitor {
+    fn visit_expr(&mut self, expr: &HirExpression) -> Result<()> {
+        match &expr.node {
+            HirExpressionBase::HirIfExpression { lvars, .. } => self.0.append(&mut lvars.clone()),
+            HirExpressionBase::HirWhileExpression { lvars, .. } => {
+                self.0.append(&mut lvars.clone())
+            }
+            _ => (),
+        }
+        Ok(())
+    }
 }

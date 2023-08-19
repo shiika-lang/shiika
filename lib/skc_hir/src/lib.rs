@@ -4,6 +4,7 @@ mod signatures;
 mod sk_method;
 mod sk_type;
 mod supertype;
+pub mod visitor;
 pub use crate::signature::*;
 pub use crate::signatures::MethodSignatures;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};

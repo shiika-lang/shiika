@@ -7,6 +7,7 @@ use inkwell::types::AnyType;
 use inkwell::types::BasicType;
 use inkwell::values::BasicValue;
 use shiika_core::ty::*;
+use skc_hir::visitor::HirVisitor;
 use skc_hir::HirExpressionBase::*;
 use skc_hir::*;
 
@@ -156,100 +157,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// PERF: Ideally they should be created during gen_methods but I couldn't
     /// avoid borrow checker errors.
     pub(super) fn gen_lambda_funcs(&self, hir: &'hir Hir) -> Result<()> {
-        for methods in hir.sk_methods.values() {
-            for method in methods {
-                if let SkMethodBody::Normal { exprs } = &method.body {
-                    self.gen_lambda_funcs_in_expr(exprs)?;
-                }
-            }
-        }
-
-        for expr in &hir.const_inits {
-            self.gen_lambda_funcs_in_expr(expr)?;
-        }
-
-        self.gen_lambda_funcs_in_expr(&hir.main_exprs)?;
-        Ok(())
+        let mut v = GenLambdaFuncVisitor(&self);
+        visitor::walk_hir(&mut v, hir)
     }
-
-    fn gen_lambda_funcs_in_expr(&self, expr: &'hir HirExpression) -> Result<()> {
+}
+struct GenLambdaFuncVisitor<'hir: 'ictx, 'run, 'ictx: 'run>(&'run CodeGen<'hir, 'run, 'ictx>);
+impl<'hir: 'ictx, 'run, 'ictx: 'run> HirVisitor<'hir> for GenLambdaFuncVisitor<'hir, 'run, 'ictx> {
+    fn visit_expr(&mut self, expr: &'hir HirExpression) -> Result<()> {
+        let gen = &self.0;
         match &expr.node {
-            HirLogicalNot { expr } => self.gen_lambda_funcs_in_expr(expr)?,
-            HirLogicalAnd { left, right } => {
-                self.gen_lambda_funcs_in_expr(left)?;
-                self.gen_lambda_funcs_in_expr(right)?;
-            }
-            HirLogicalOr { left, right } => {
-                self.gen_lambda_funcs_in_expr(left)?;
-                self.gen_lambda_funcs_in_expr(right)?;
-            }
-            HirIfExpression {
-                cond_expr,
-                then_exprs,
-                else_exprs,
-                ..
-            } => {
-                self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_expr(then_exprs)?;
-                self.gen_lambda_funcs_in_expr(else_exprs)?;
-            }
-            HirMatchExpression {
-                cond_assign_expr,
-                clauses,
-            } => {
-                self.gen_lambda_funcs_in_expr(cond_assign_expr)?;
-                for clause in clauses {
-                    self.gen_lambda_funcs_in_expr(&clause.body_hir)?;
-                }
-            }
-            HirWhileExpression {
-                cond_expr,
-                body_exprs,
-                ..
-            } => {
-                self.gen_lambda_funcs_in_expr(cond_expr)?;
-                self.gen_lambda_funcs_in_expr(body_exprs)?;
-            }
-            HirBreakExpression { .. } => (),
-            HirReturnExpression { arg, .. } => self.gen_lambda_funcs_in_expr(arg)?,
-            HirLVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
-            HirIVarAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
-            HirConstAssign { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
-            HirMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            } => {
-                self.gen_lambda_funcs_in_expr(receiver_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_funcs_in_expr(expr)?;
-                }
-            }
-            HirModuleMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            } => {
-                self.gen_lambda_funcs_in_expr(receiver_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_funcs_in_expr(expr)?;
-                }
-            }
-            HirLambdaInvocation {
-                lambda_expr,
-                arg_exprs,
-            } => {
-                self.gen_lambda_funcs_in_expr(lambda_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_funcs_in_expr(expr)?;
-                }
-            }
-            HirArgRef { .. } => (),
-            HirLVarRef { .. } => (),
-            HirIVarRef { .. } => (),
-            HirClassTVarRef { .. } => (),
-            HirMethodTVarRef { .. } => (),
-            HirConstRef { .. } => (),
             HirLambdaExpr {
                 name,
                 params,
@@ -258,197 +174,48 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 lvars,
                 ..
             } => {
-                self.gen_lambda_func(name, params, exprs, ret_ty, lvars)?;
-                self.gen_lambda_funcs_in_expr(exprs)?;
+                let func_name = LlvmFuncName(name.to_string());
+                gen.gen_llvm_func_body(
+                    &func_name,
+                    params,
+                    Default::default(),
+                    Right(exprs),
+                    lvars,
+                    ret_ty,
+                    Some(name.to_string()),
+                )?;
             }
-            HirSelfExpression => (),
-            HirFloatLiteral { .. } => (),
-            HirDecimalLiteral { .. } => (),
-            HirStringLiteral { .. } => (),
-            HirBooleanLiteral { .. } => (),
-
-            HirLambdaCaptureRef { .. } => (),
-            HirLambdaCaptureWrite { rhs, .. } => self.gen_lambda_funcs_in_expr(rhs)?,
-            HirBitCast { expr } => self.gen_lambda_funcs_in_expr(expr)?,
-            HirClassLiteral { .. } => (),
-            HirParenthesizedExpr { exprs } => {
-                for expr in exprs {
-                    self.gen_lambda_funcs_in_expr(expr)?;
-                }
-            }
-            HirDefaultExpr { .. } => (),
-            HirIsOmittedValue { expr, .. } => self.gen_lambda_funcs_in_expr(expr)?,
+            _ => (),
         }
         Ok(())
     }
+}
 
-    fn gen_lambda_func(
-        &self,
-        name: &str,
-        params: &'hir [MethodParam],
-        exprs: &'hir HirExpression,
-        ret_ty: &TermTy,
-        lvars: &HirLVars,
-    ) -> Result<()> {
-        let func_name = LlvmFuncName(name.to_string());
-        self.gen_llvm_func_body(
-            &func_name,
-            params,
-            Default::default(),
-            Right(exprs),
-            lvars,
-            ret_ty,
-            Some(name.to_string()),
-        )
-    }
-
-    /// TODO: refactor (preprocess in MIR)
+impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
+    /// Create LLVM structs for lambda captures.
     pub(super) fn gen_lambda_capture_structs(&self, hir: &'hir Hir) -> Result<()> {
-        for methods in hir.sk_methods.values() {
-            for method in methods {
-                if let SkMethodBody::Normal { exprs } = &method.body {
-                    self.gen_lambda_capture_structs_in_expr(exprs)?;
-                }
-            }
-        }
-
-        for expr in &hir.const_inits {
-            self.gen_lambda_capture_structs_in_expr(expr)?;
-        }
-
-        self.gen_lambda_capture_structs_in_expr(&hir.main_exprs)?;
-        Ok(())
+        let mut v = LambdaCaptureStructsVisitor(&self);
+        visitor::walk_hir(&mut v, hir)
     }
-
-    fn gen_lambda_capture_structs_in_expr(&self, expr: &'hir HirExpression) -> Result<()> {
+}
+struct LambdaCaptureStructsVisitor<'hir: 'ictx, 'run, 'ictx: 'run>(
+    &'run CodeGen<'hir, 'run, 'ictx>,
+);
+impl<'hir> HirVisitor<'hir> for LambdaCaptureStructsVisitor<'_, '_, '_> {
+    fn visit_expr(&mut self, expr: &HirExpression) -> Result<()> {
         match &expr.node {
-            HirLogicalNot { expr } => self.gen_lambda_capture_structs_in_expr(expr)?,
-            HirLogicalAnd { left, right } => {
-                self.gen_lambda_capture_structs_in_expr(left)?;
-                self.gen_lambda_capture_structs_in_expr(right)?;
+            HirLambdaExpr { name, captures, .. } => {
+                let gen = &self.0;
+                let struct_name = lambda_capture_struct_name(name);
+                let struct_type = gen.context.opaque_struct_type(&struct_name);
+                // The type of a capture may a Shiika object or a pointer to
+                // a Shiika object; in both cases its llvm type is `ptr`.
+                let capture_ty = gen.ptr_type.as_basic_type_enum();
+                let body = captures.iter().map(|_| capture_ty).collect::<Vec<_>>();
+                struct_type.set_body(&body, false);
             }
-            HirLogicalOr { left, right } => {
-                self.gen_lambda_capture_structs_in_expr(left)?;
-                self.gen_lambda_capture_structs_in_expr(right)?;
-            }
-            HirIfExpression {
-                cond_expr,
-                then_exprs,
-                else_exprs,
-                ..
-            } => {
-                self.gen_lambda_capture_structs_in_expr(cond_expr)?;
-                self.gen_lambda_capture_structs_in_expr(then_exprs)?;
-                self.gen_lambda_capture_structs_in_expr(else_exprs)?;
-            }
-            HirMatchExpression {
-                cond_assign_expr,
-                clauses,
-            } => {
-                self.gen_lambda_capture_structs_in_expr(cond_assign_expr)?;
-                for clause in clauses {
-                    self.gen_lambda_capture_structs_in_expr(&clause.body_hir)?;
-                }
-            }
-            HirWhileExpression {
-                cond_expr,
-                body_exprs,
-                ..
-            } => {
-                self.gen_lambda_capture_structs_in_expr(cond_expr)?;
-                self.gen_lambda_capture_structs_in_expr(body_exprs)?;
-            }
-            HirBreakExpression { .. } => (),
-            HirReturnExpression { arg, .. } => self.gen_lambda_capture_structs_in_expr(arg)?,
-            HirLVarAssign { rhs, .. } => self.gen_lambda_capture_structs_in_expr(rhs)?,
-            HirIVarAssign { rhs, .. } => self.gen_lambda_capture_structs_in_expr(rhs)?,
-            HirConstAssign { rhs, .. } => self.gen_lambda_capture_structs_in_expr(rhs)?,
-            HirMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            } => {
-                self.gen_lambda_capture_structs_in_expr(receiver_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_capture_structs_in_expr(expr)?;
-                }
-            }
-            HirModuleMethodCall {
-                receiver_expr,
-                arg_exprs,
-                ..
-            } => {
-                self.gen_lambda_capture_structs_in_expr(receiver_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_capture_structs_in_expr(expr)?;
-                }
-            }
-            HirLambdaInvocation {
-                lambda_expr,
-                arg_exprs,
-            } => {
-                self.gen_lambda_capture_structs_in_expr(lambda_expr)?;
-                for expr in arg_exprs {
-                    self.gen_lambda_capture_structs_in_expr(expr)?;
-                }
-            }
-            HirArgRef { .. } => (),
-            HirLVarRef { .. } => (),
-            HirIVarRef { .. } => (),
-            HirClassTVarRef { .. } => (),
-            HirMethodTVarRef { .. } => (),
-            HirConstRef { .. } => (),
-            HirLambdaExpr {
-                name,
-                exprs,
-                captures,
-                ..
-            } => {
-                self.gen_lambda_capture_struct(name, captures)?;
-                self.gen_lambda_capture_structs_in_expr(exprs)?;
-            }
-            HirSelfExpression => (),
-            HirFloatLiteral { .. } => (),
-            HirDecimalLiteral { .. } => (),
-            HirStringLiteral { .. } => (),
-            HirBooleanLiteral { .. } => (),
-
-            HirLambdaCaptureRef { .. } => (),
-            HirLambdaCaptureWrite { rhs, .. } => self.gen_lambda_capture_structs_in_expr(rhs)?,
-            HirBitCast { expr } => self.gen_lambda_capture_structs_in_expr(expr)?,
-            HirClassLiteral { .. } => (),
-            HirParenthesizedExpr { exprs } => {
-                for expr in exprs {
-                    self.gen_lambda_capture_structs_in_expr(expr)?;
-                }
-            }
-            HirDefaultExpr { .. } => (),
-            HirIsOmittedValue { expr, .. } => self.gen_lambda_capture_structs_in_expr(expr)?,
+            _ => (),
         }
         Ok(())
-    }
-
-    fn gen_lambda_capture_struct(&self, name: &str, captures: &[HirLambdaCapture]) -> Result<()> {
-        let struct_name = lambda_capture_struct_name(name);
-        let struct_type = self.context.opaque_struct_type(&struct_name);
-        let body = captures
-            .iter()
-            .map(|cap| self.capture_ty(cap))
-            .collect::<Vec<_>>();
-        struct_type.set_body(&body, false);
-        Ok(()) // REFACTOR: not needed to be a Result
-    }
-
-    fn capture_ty(&self, cap: &HirLambdaCapture) -> inkwell::types::BasicTypeEnum {
-        if cap.readonly {
-            self.llvm_type()
-        } else {
-            // The (local) variable is captured by reference.
-            // PERF: not needed to be by-ref when the variable is declared with
-            // `var` but not reassigned from closure.
-            self.llvm_type()
-                .ptr_type(Default::default())
-                .as_basic_type_enum()
-        }
     }
 }
