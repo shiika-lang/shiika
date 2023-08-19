@@ -210,7 +210,7 @@ impl<'hir> HirVisitor<'hir> for LambdaCaptureStructsVisitor<'_, '_, '_> {
                 let struct_type = gen.context.opaque_struct_type(&struct_name);
                 // The type of a capture may a Shiika object or a pointer to
                 // a Shiika object; in both cases its llvm type is `ptr`.
-                let capture_ty = gen.i8ptr_type.as_basic_type_enum();
+                let capture_ty = gen.ptr_type.as_basic_type_enum();
                 let body = captures.iter().map(|_| capture_ty).collect::<Vec<_>>();
                 struct_type.set_body(&body, false);
             }
