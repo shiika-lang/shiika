@@ -708,7 +708,7 @@ fn enum_case_superclass(
         .iter()
         .enumerate()
         .map(|(i, t)| {
-            if case.params.iter().any(|param| param.typ.appears(&t.name)) {
+            if case.appears(&t.name) {
                 case_typarams.push(t.clone());
                 ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty()
             } else {
