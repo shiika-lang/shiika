@@ -24,7 +24,7 @@ module Readable
           end
         end
       when Fail(e)
-        return Fail<Maybe<String>>.new(e)
+        return Fail.new(e)
       end
       break if done
     end
@@ -44,7 +44,7 @@ module Readable
       when Ok(None)
         break
       when Fail(e)
-        return Fail<Array<String>>.new(e)
+        return Fail.new(e)
       end
     end
     Ok.new(a)
@@ -62,7 +62,7 @@ module Readable
           consume(s.bytesize)
         end
       when Fail(e)
-        return Fail<String>.new(e)
+        return Fail.new(e)
       end
     end
     Ok.new(acc._unsafe_to_s)

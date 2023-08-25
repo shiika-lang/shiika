@@ -12,7 +12,7 @@ class File : Readable
       #file.close
       Ok.new(v)
     when Fail(e)
-      Fail<V>.new(e)
+      Fail.new(e)
     end
   end
   

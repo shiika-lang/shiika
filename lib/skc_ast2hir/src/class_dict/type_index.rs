@@ -94,8 +94,20 @@ fn index_enum(
     let inner_namespace = namespace.add(firstname.0.clone());
     for case in cases {
         let case_fullname = inner_namespace.type_fullname(&case.name.0);
-        insert_class_and_metaclass(cindex, case_fullname, typarams.clone());
+        let case_typarams = enum_case_typarams(case, &typarams);
+        insert_class_and_metaclass(cindex, case_fullname, case_typarams);
     }
+}
+
+fn enum_case_typarams(
+    case: &shiika_ast::EnumCase,
+    base_typarams: &[ty::TyParam],
+) -> Vec<ty::TyParam> {
+    base_typarams
+        .iter()
+        .filter(|t| case.appears(&t.name))
+        .map(|t| t.clone())
+        .collect::<Vec<_>>()
 }
 
 fn insert_class_and_metaclass(
