@@ -307,7 +307,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let ivar_list = self._enum_case_ivars(namespace, typarams, case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
         let (superclass, case_typarams) = enum_case_superclass(enum_fullname, typarams, case);
-        let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, typarams, &fullname);
+        let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, &case_typarams, &fullname);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
         instance_methods.insert(initialize_sig);
