@@ -5,6 +5,6 @@ class Error
   # def backtrace
 
   def to_s -> String
-    "#<Error: #{@msg}>"
+    "#<Error \{@msg}>"
   end
 end
