@@ -6,7 +6,7 @@ f(b)
 unless a.value == 1; puts "ng Some#value"; end
 
 let o = Ok<Int>.new(0)
-let e = Fail<Int>.new(Error.new("fail"))
+let e = Fail.new(Error.new("fail"))
 
 # Class method of enum
 enum EnumWithClassMethod
