@@ -657,7 +657,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let self_expr = self.convert_self_expr(&LocationSpan::todo());
         let result = self
             .class_dict
-            .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
+            .lookup_method(&self_expr.ty, &method_firstname(name));
         if let Ok(found) = result {
             method_call::build_simple(self, found, self_expr, locs)
         } else {

@@ -2,7 +2,7 @@ use crate::class_dict::FoundMethod;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
-use crate::type_inference::method_call_inf;
+use crate::type_inference::Infer;
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
 use shiika_ast::{AstCallArgs, AstExpression, LocationSpan};
@@ -38,39 +38,76 @@ pub fn convert_method_call(
         // Implicit self
         _ => mk.convert_self_expr(&LocationSpan::todo()),
     };
+    let receiver_ty = &receiver_hir.ty;
 
-    let mut method_tyargs = vec![];
-    for tyarg in type_args {
-        method_tyargs.push(resolve_method_tyarg(mk, tyarg)?);
-    }
-
-    let found =
-        mk.class_dict
-            .lookup_method(&receiver_hir.ty, method_name, method_tyargs.as_slice())?;
+    let found = mk.class_dict.lookup_method(receiver_ty, method_name)?;
     let arranged = arrange_named_args(&found.sig, args)?;
-    validate_method_tyargs(&found, type_args)?;
 
-    let inf1 = if !found.sig.typarams.is_empty() && type_args.is_empty() {
-        let sig = &found.sig; //.specialize(class_tyargs, method_tyargs);
-        Some(method_call_inf::MethodCallInf1::new(sig, args.has_block()))
-    } else if args.has_block() {
-        type_checking::check_takes_block(&found.sig, locs)?;
-        Some(method_call_inf::MethodCallInf1::infer_block(&found.sig))
-    } else {
+    validate_method_tyargs(&found, type_args)?;
+    let method_tyargs = if found.sig.has_typarams() && type_args.is_empty() {
+        // The method has typarams but not specified; need to infer them.
         None
+    } else {
+        Some(
+            type_args
+                .iter()
+                .map(|tyarg| resolve_method_tyarg(mk, tyarg))
+                .collect::<Result<Vec<_>>>()?,
+        )
     };
-    let (arg_hirs, inf3) = convert_method_args(
+
+    let block_taker = BlockTaker::Method {
+        sig: found.sig.clone(),
+        locs,
+    };
+    let class_typarams = &mk
+        .class_dict
+        .get_type(&found.owner.to_type_fullname())
+        .base()
+        .typarams;
+    let class_tyargs = receiver_ty.type_args();
+    let mut inf = Infer::new(&block_taker, class_typarams, class_tyargs, method_tyargs);
+    let mut arg_hirs = convert_method_args(mk, &mut inf, &block_taker, &arranged, &args.block)?;
+
+    let tyargs = inf
+        .method_tyargs()
+        .with_context(|| error(&block_taker, locs))?;
+    let updated_param_types = inf.param_tys().with_context(|| error(&block_taker, locs))?;
+
+    check_argument_types(
         mk,
-        inf1,
-        &BlockTaker::Method {
-            sig: found.sig.clone(),
-            locs,
-        },
-        &arranged,
-        args.has_block(),
+        &found.sig,
+        &receiver_hir,
+        &mut arg_hirs,
+        &updated_param_types,
     )?;
 
-    build(mk, found, receiver_hir, arg_hirs, inf3, method_tyargs, locs)
+    let args = arg_hirs;
+    //        if specialized {
+    //        arg_hirs
+    //            .into_iter()
+    //            .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
+    //            .collect::<Vec<_>>()
+    //    } else {
+    //        arg_hirs
+    //    };
+
+    // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
+    // `T` is inferred from `x`.
+    if found.is_generic_new(&receiver_ty) {
+        return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
+    }
+
+    let ret_ty = inf.ret_ty().with_context(|| error(&block_taker, locs))?;
+
+    let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
+    let first_arg_ty = args.first().map(|arg| arg.ty.clone());
+    let hir = build_hir(mk, &found, receiver, args, tyargs, ret_ty);
+    if found.sig.fullname.full_name == "Object#unsafe_cast" {
+        Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
+    } else {
+        Ok(hir)
+    }
 }
 
 /// Arrange named and unnamed arguments into a Vec which corresponds to `sig.params`.
@@ -79,7 +116,6 @@ pub fn arrange_named_args<'a>(
     sig: &'a MethodSignature,
     args: &'a AstCallArgs,
 ) -> Result<Vec<ArrangedArg<'a>>> {
-    let n_params = sig.params.len();
     let n_unnamed = args.unnamed.len();
     let mut named = args.named.iter().collect::<Vec<_>>();
     let mut v = vec![];
@@ -92,12 +128,6 @@ pub fn arrange_named_args<'a>(
             let (_, expr) = named.remove(j);
             v.push(ArrangedArg::Expr(expr));
             continue;
-        }
-        if let Some(expr) = &args.block {
-            if i == n_params - 1 {
-                v.push(ArrangedArg::Expr(expr));
-                continue;
-            }
         }
         if param.has_default {
             v.push(ArrangedArg::Default(&param.ty));
@@ -116,13 +146,18 @@ pub fn arrange_named_args<'a>(
 }
 
 /// Check if number of type arguments matches to the typarams.
-/// If no tyargs are given, check is skipped (it will be inferred instead.)
 pub fn validate_method_tyargs(found: &FoundMethod, type_args: &[AstExpression]) -> Result<()> {
-    if !type_args.is_empty() && type_args.len() != found.sig.typarams.len() {
+    if type_args.is_empty() {
+        // If the method has no typarams, this is just ok.
+        // If the method has typarams, it is inferred later.
+        return Ok(());
+    }
+    let expected = found.sig.typarams.len();
+    let given = type_args.len();
+    if given != expected {
         return Err(error::type_error(format!(
             "wrong number of method-wise type arguments ({} for {:?}",
-            type_args.len(),
-            &found.sig,
+            given, &found.sig,
         )));
     }
     Ok(())
@@ -144,16 +179,18 @@ pub fn convert_lambda_invocation(
         .map(|e| ArrangedArg::Expr(e))
         .collect::<Vec<_>>();
 
-    let (arg_hirs, _) = convert_method_args(
-        mk,
-        None,
-        &BlockTaker::Function {
-            fn_ty: &fn_expr.ty,
-            locs,
-        },
-        &arg_exprs,
-        args.has_block(),
-    )?;
+    let block_taker = BlockTaker::Function {
+        fn_ty: &fn_expr.ty,
+        locs,
+    };
+    let mut inf = Infer::new(
+        &block_taker,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+    );
+
+    let arg_hirs = convert_method_args(mk, &mut inf, &block_taker, &arg_exprs, &args.block)?;
     let ret_ty = fn_expr.ty.fn_x_info().unwrap().last().unwrap().clone();
     Ok(Hir::lambda_invocation(
         ret_ty,
@@ -175,43 +212,34 @@ fn resolve_method_tyarg(mk: &mut HirMaker, arg: &AstExpression) -> Result<TermTy
 }
 
 /// Convert method call arguments to HirExpression's
-/// Also returns inferred type of this method call.
 fn convert_method_args(
     mk: &mut HirMaker,
-    inf: Option<method_call_inf::MethodCallInf1>,
+    inf: &mut Infer,
     // The method or lambda to be called.
     // (TODO: this name is odd when has_block=false...)
     block_taker: &BlockTaker,
+    // Note: this does not contain `block`.
     arg_exprs: &[ArrangedArg],
-    has_block: bool,
-) -> Result<(Vec<HirExpression>, Option<method_call_inf::MethodCallInf3>)> {
-    let infer_block = has_block && inf.is_some();
-    let mut n = arg_exprs.len();
-    if infer_block {
-        n -= 1;
-    }
-    let mut arg_hirs = (0..n)
-        .map(|i| match &arg_exprs[i] {
+    opt_block: &Option<Box<AstExpression>>,
+) -> Result<Vec<HirExpression>> {
+    let mut arg_hirs = arg_exprs
+        .iter()
+        .map(|expr| match expr {
             ArrangedArg::Expr(e) => mk.convert_expr(e),
             ArrangedArg::Default(ty) => Ok(Hir::default_expression((*ty).clone())),
         })
         .collect::<Result<Vec<_>>>()?;
+    let arg_tys = arg_hirs.iter().map(|arg| &arg.ty).collect::<Vec<_>>();
+    inf.set_arg_tys(&arg_tys)?;
 
-    if infer_block {
-        let arg_tys = arg_hirs.iter().map(|x| &x.ty).collect::<Vec<_>>();
-        let inf2 = method_call_inf::infer_block_param(inf.unwrap(), &arg_tys).context(format!(
-            "failed to infer block parameter of {}",
-            block_taker
-        ))?;
-        let block_hir = block::convert_block(mk, block_taker, &inf2, arg_exprs.last().unwrap())?;
-        let inf3 = method_call_inf::infer_result_ty_with_block(inf2, &block_hir.ty)
-            .context(format!("failed to infer result type of {}", block_taker))?;
-
+    // Convert the block (if any)
+    if let Some(block) = opt_block {
+        let block_param_tys = inf.block_param_tys()?;
+        let block_hir = block::convert_block(mk, block_taker, &block_param_tys, &block)?;
         arg_hirs.push(block_hir);
-        Ok((arg_hirs, Some(inf3)))
-    } else {
-        Ok((arg_hirs, None))
     }
+
+    Ok(arg_hirs)
 }
 
 /// For method calls without any arguments.
@@ -221,88 +249,37 @@ pub fn build_simple(
     receiver_hir: HirExpression,
     locs: &LocationSpan,
 ) -> Result<HirExpression> {
-    build(
-        mk,
-        found,
-        receiver_hir,
-        Default::default(),
-        Default::default(),
-        Default::default(),
+    debug_assert!(!found.sig.has_typarams());
+    let receiver_ty = &receiver_hir.ty;
+
+    let block_taker = BlockTaker::Method {
+        sig: found.sig.clone(),
         locs,
-    )
-}
-
-/// Check the arguments and create HirMethodCall or HirModuleMethodCall
-pub fn build(
-    mk: &mut HirMaker,
-    found: FoundMethod,
-    receiver_hir: HirExpression,
-    mut arg_hirs: Vec<HirExpression>,
-    inf: Option<method_call_inf::MethodCallInf3>,
-    method_tyargs: Vec<TermTy>,
-    locs: &LocationSpan,
-) -> Result<HirExpression> {
-    let receiver_ty = receiver_hir.ty.clone();
-    let specialized = receiver_hir.ty.is_specialized();
-    let first_arg_ty = arg_hirs.get(0).map(|x| x.ty.clone());
-    let arg_types = arg_hirs.iter().map(|x| x.ty.clone()).collect::<Vec<_>>();
-    let infer_tyargs = found.sig.has_typarams() && method_tyargs.is_empty();
-
-    let tyargs = if infer_tyargs {
-        let err = error::method_tyarg_inference_failed(
-            format!("Could not infer type arg(s) of {}", found.sig),
-            locs,
-        );
-        method_call_inf::infer_method_tyargs(&found.sig, &arg_types).context(err)?
-    } else {
-        method_tyargs
     };
-
-    let updated_param_types = if infer_tyargs {
-        found
-            .sig
-            .params
-            .iter()
-            .map(|param| param.ty.substitute(Default::default(), &tyargs))
-            .collect::<Vec<_>>()
-    } else {
-        found
-            .sig
-            .params
-            .iter()
-            .map(|param| param.ty.clone())
-            .collect::<Vec<_>>()
-    };
-    check_argument_types(
-        mk,
-        &found.sig,
-        &receiver_hir,
-        &mut arg_hirs,
-        &updated_param_types,
-    )?;
-
-    let args = if specialized {
-        arg_hirs
-            .into_iter()
-            .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
-            .collect::<Vec<_>>()
-    } else {
-        arg_hirs
-    };
-
-    // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
-    // `T` is inferred from `x`.
-    if found.is_generic_new(&receiver_ty) {
-        return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
-    }
+    let class_typarams = &mk
+        .class_dict
+        .get_type(&found.owner.to_type_fullname())
+        .base()
+        .typarams;
+    let class_tyargs = receiver_ty.type_args();
+    let inf = Infer::new(
+        &block_taker,
+        class_typarams,
+        class_tyargs,
+        Default::default(),
+    );
+    let ret_ty = inf.ret_ty()?;
 
     let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
-    let hir = build_hir(mk, &found, receiver, args, tyargs, &inf);
-    if found.sig.fullname.full_name == "Object#unsafe_cast" {
-        Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
-    } else {
-        Ok(hir)
-    }
+    let hir = build_hir(
+        mk,
+        &found,
+        receiver,
+        Default::default(),
+        Default::default(),
+        ret_ty,
+    );
+    Ok(hir)
 }
 
 fn check_argument_types(
@@ -347,7 +324,7 @@ fn build_hir(
     receiver_hir: HirExpression,
     arg_hirs: Vec<HirExpression>,
     tyargs: Vec<TermTy>,
-    inf: &Option<method_call_inf::MethodCallInf3>,
+    ret_ty: TermTy,
 ) -> HirExpression {
     debug_assert!(tyargs.len() == found.sig.typarams.len());
     let tyarg_hirs = tyargs
@@ -355,10 +332,6 @@ fn build_hir(
         .map(|t| mk.get_class_object(&t.meta_ty(), &receiver_hir.locs))
         .collect();
 
-    let ret_ty = match inf {
-        Some(inf_) => inf_.solved_method_ret_ty.clone(),
-        None => found.sig.ret_ty.clone(), //.substitute(class_tyargs, method_tyargs);
-    };
     match mk.class_dict.get_type(&found.owner.to_type_fullname()) {
         SkType::Class(_) => Hir::method_call(
             ret_ty,
@@ -402,4 +375,12 @@ fn call_specialized_new(
         arg_hirs,
         tyarg_hirs,
     )
+}
+
+fn error(block_taker: &BlockTaker, locs: &LocationSpan) -> String {
+    let detail = match block_taker {
+        BlockTaker::Method { sig, .. } => format!("{}", sig),
+        _ => "here".to_string(),
+    };
+    error::method_call_tyinf_failed(detail, locs).to_string()
 }

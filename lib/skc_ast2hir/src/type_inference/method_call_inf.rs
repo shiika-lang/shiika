@@ -1,4 +1,4 @@
-use crate::type_inference::{unify, Answer, Equation, TmpTy};
+use crate::type_inference::{Answer, Equation, Infer, TmpTy};
 use anyhow::Context;
 use anyhow::Result;
 use shiika_core::ty;
@@ -180,18 +180,22 @@ pub fn infer_result_ty_with_block(
 pub fn infer_method_tyargs(sig: &MethodSignature, arg_types: &[TermTy]) -> Result<Vec<TermTy>> {
     let tprefs = ty::typarams_to_typaram_refs(&sig.typarams, TyParamKind::Method, false);
     let vars = tprefs.into_iter().enumerate().collect::<Vec<_>>();
-    let mut ans = Answer::new();
+
+    let mut infer = Infer::new();
+
     let param_types = sig.params.iter().map(|param| &param.ty);
     let equations = param_types
         .zip(arg_types.iter())
         .map(|(param_ty, arg_ty)| Equation(TmpTy::make(param_ty, &vars), TmpTy::from(arg_ty)))
         .collect::<Vec<_>>();
     let err = Equation::display_equations(&equations);
-    unify(equations, &mut ans)?;
+    infer.solve(equations);
     let unknowns = vars
         .iter()
         .map(|(id, _)| TmpTy::unknown(*id))
         .collect::<Vec<_>>();
-    ans.apply_to_vec(&unknowns)
+    infer
+        .ans
+        .apply_to_vec(&unknowns)
         .context(format!("Where {}", err))
 }

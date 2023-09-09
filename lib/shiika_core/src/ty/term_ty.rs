@@ -189,6 +189,13 @@ impl TermTy {
         }
     }
 
+    pub fn type_args(&self) -> &[TermTy] {
+        match &self.body {
+            TyRaw(LitTy { type_args, .. }) => type_args,
+            _ => &[],
+        }
+    }
+
     pub fn as_type_argument(&self) -> TermTy {
         match &self.body {
             TyRaw(LitTy {
