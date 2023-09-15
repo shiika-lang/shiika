@@ -10,6 +10,7 @@ Only 64bit environments are supported.
 1. Install LLVM 16
   - eg. `brew install llvm@16` on Mac
   - eg. `sudo apt install llvm-16 clang-16` on Ubuntu
+    - Try https://apt.llvm.org/ if llvm-16 not available
 - You may need `sudo apt install cmake` on Ubuntu
 - (TODO) `apt install libgc-dev` needed on Ubuntu?
 
