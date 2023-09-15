@@ -11,8 +11,10 @@ end
 
 desc "git ci, git tag and git push"
 task :release do
+  ver = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
+  v = "v" + ver
+  raise "Cargo.toml not updated" unless File.readlines("Cargo.toml").include?("version = \"#{ver}\"\n")
   sh "git diff --cached"
-  v = "v" + File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
