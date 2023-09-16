@@ -70,7 +70,7 @@ RUSTLIB_FILES = [
   RUSTLIB_SIG,
   "lib/skc_rustlib/Cargo.toml",
 ]
-CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "~/tmp/cargo_target"
+CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "./target"
 RUSTLIB_A = File.expand_path "#{CARGO_TARGET}/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
   cd "lib/skc_rustlib" do
