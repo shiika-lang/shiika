@@ -55,12 +55,12 @@ Example
 ```sk
 class Person
   def initialize(name: String, age: Int)
-    @name = name
+    let @name = name
     var @age = age
   end
 end
 
-taro = Person.new("Taro", 20)
+let taro = Person.new("Taro", 20)
 p taro.name #=> "Taro"
 p taro.age  #=> 20
 taro.age += 1
@@ -95,4 +95,3 @@ p Int.class             #=> #<class Meta:Int>
 p Int.class.class       #=> #<class Metaclass>
 p Int.class.class.class #=> #<class Metaclass>
 ```
-

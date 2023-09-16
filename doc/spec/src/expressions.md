@@ -35,12 +35,12 @@ In the toplevel, `self` evaluates to the toplevel self. The type of toplevel sel
 
 There are two ways to declare a local variable.
 
-- `x = 1`
+- `let x = 1`
 - `var x = 1`
 
 Reassigning to `x` only allowed for the latter form.
 
-- `@a = 1`
+- `let @a = 1`
 - `var @a = 1`
 
 ## Lambda expression
@@ -221,3 +221,5 @@ Type of a break expressions is `Never`.
 1. If none found, compile-time error
 
 Type of a return expressions is `Never`.
+
+(NOTE: non-local return is not yet implemented - see #242)

@@ -13,16 +13,16 @@ end
 This defines these classes,
 
 - `class Enum1<A, B> : Object`
-- `class Enum1::Case1<A, B> : Enum1<A, B>`
-- `class Enum1::Case2<A, B> : Enum1<A, B>`
+- `class Enum1::Case1<A> : Enum1<A, Never>`
+- `class Enum1::Case2<B> : Enum1<Never, B>`
 - `class Enum1::Case3 : Enum1<Never, Never>`
 
 these methods
 
-- `Enum1::Case1<A, B>.new(a: A) -> Enum1::Case1<A, B>`
-- `Enum1::Case1<A, B>#a -> A`
-- `Enum1::Case2<A, B>.new(b: B) -> Enum1::Case2<A, B>`
-- `Enum1::Case2<A, B>#b -> B`
+- `Enum1::Case1<A>.new(a: A) -> Enum1::Case1<A>`
+- `Enum1::Case1<A>#a -> A`
+- `Enum1::Case2<B>.new(b: B) -> Enum1::Case2<B>`
+- `Enum1::Case2<B>#b -> B`
 
 and these constants.
 
