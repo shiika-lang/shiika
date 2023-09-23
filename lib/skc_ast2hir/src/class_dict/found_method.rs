@@ -50,6 +50,11 @@ impl FoundMethod {
         }
     }
 
+    /// Returns if this `.new`
+    pub fn is_new(&self, receiver_ty: &TermTy) -> bool {
+        self.sig.fullname.first_name.0 == "new" && receiver_ty.is_metaclass()
+    }
+
     /// Returns if this is of the form `Foo.new<Bar>`
     pub fn is_generic_new(&self, receiver_ty: &TermTy) -> bool {
         self.sig.fullname.first_name.0 == "new"

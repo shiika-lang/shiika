@@ -45,8 +45,13 @@ pub fn convert_method_call(
 
     validate_method_tyargs(&found, type_args)?;
     let method_tyargs = if found.sig.has_typarams() && type_args.is_empty() {
-        // The method has typarams but not specified; need to infer them.
-        None
+        if found.is_new(&receiver_ty) && receiver_ty.has_type_args() {
+            // Special handling for `Foo<Bar>.new`
+            Some(receiver_ty.type_args().to_vec())
+        } else {
+            // The method has typarams but not specified; need to infer them.
+            None
+        }
     } else {
         Some(
             type_args
