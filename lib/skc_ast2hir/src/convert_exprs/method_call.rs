@@ -123,17 +123,26 @@ pub fn arrange_named_args<'a>(
 ) -> Result<Vec<ArrangedArg<'a>>> {
     let n_unnamed = args.unnamed.len();
     let mut named = args.named.iter().collect::<Vec<_>>();
+    let mut block_seen = false;
     let mut v = vec![];
     for (i, param) in sig.params.iter().enumerate() {
+        // 1. Take unnamed arguments
         if i < n_unnamed {
             v.push(ArrangedArg::Expr(args.unnamed.get(i).unwrap()));
             continue;
         }
+        // 2. Take named arguments
         if let Some(j) = named.iter().position(|(name, _)| name == &param.name) {
             let (_, expr) = named.remove(j);
             v.push(ArrangedArg::Expr(expr));
             continue;
         }
+        // 3. Take the block
+        if args.block.is_some() && !block_seen {
+            block_seen = true;
+            continue;
+        }
+        // 4. If there are more parameters, the arg may be omitted
         if param.has_default {
             v.push(ArrangedArg::Default(&param.ty));
             continue;
