@@ -2,6 +2,7 @@ use crate::class_dict::*;
 use crate::error;
 use crate::type_system;
 use anyhow::Result;
+use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
@@ -48,8 +49,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         receiver_type: &TermTy,
         method_name: &MethodFirstname,
+        // For error messages
+        locs: &LocationSpan,
     ) -> Result<FoundMethod> {
-        self.lookup_method_(receiver_type, receiver_type, method_name)
+        self.lookup_method_(receiver_type, receiver_type, method_name, locs)
     }
 
     // `receiver_type` is for error message.
@@ -58,6 +61,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_type: &TermTy,
         current_type: &TermTy,
         method_name: &MethodFirstname,
+        locs: &LocationSpan,
     ) -> Result<FoundMethod> {
         let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
@@ -84,18 +88,26 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
                 // Look up in superclass
                 if let Some(super_ty) = &sk_class.specialized_superclass(class_tyargs) {
-                    return self.lookup_method_(receiver_type, &super_ty.to_term_ty(), method_name);
+                    return self.lookup_method_(
+                        receiver_type,
+                        &super_ty.to_term_ty(),
+                        method_name,
+                        locs,
+                    );
                 }
             }
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
-                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name);
+                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
             }
         }
-        Err(error::program_error(&format!(
-            "method {:?} not found on {:?}",
-            method_name, receiver_type.fullname
-        )))
+        Err(error::method_not_found(
+            format!(
+                "method {:?} not found on {:?}",
+                method_name, receiver_type.fullname
+            ),
+            locs,
+        ))
     }
 
     /// Return the class/module of the specified name, if any

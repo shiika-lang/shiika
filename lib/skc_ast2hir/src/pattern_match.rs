@@ -250,9 +250,11 @@ fn infer_pat_ty(mk: &mut HirMaker, pat_base_ty: &Erasure, value_ty: &TermTy) -> 
 }
 
 fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
-    let found = mk
-        .class_dict
-        .lookup_method(cls, &method_firstname("initialize"))?;
+    let found = mk.class_dict.lookup_method(
+        cls,
+        &method_firstname("initialize"),
+        &LocationSpan::internal(),
+    )?;
     Ok(found
         .sig
         .params

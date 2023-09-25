@@ -85,6 +85,13 @@ pub fn assign_to_undeclared_ivar(name: &str, locs: &LocationSpan) -> anyhow::Err
     program_error(report)
 }
 
+pub fn method_not_found(msg: String, locs: &LocationSpan) -> anyhow::Error {
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
 pub fn unknown_barename(name: &str, locs: &LocationSpan) -> anyhow::Error {
     let msg = format!("variable or method `{}' was not found", name);
     let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {

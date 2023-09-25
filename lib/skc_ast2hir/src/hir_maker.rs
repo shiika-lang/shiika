@@ -375,9 +375,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
         let (initialize_name, init_cls_name) = self._find_initialize(class_name)?;
-        let found = self
-            .class_dict
-            .lookup_method(&class_name.meta_ty(), &method_firstname("new"))?;
+        let found = self.class_dict.lookup_method(
+            &class_name.meta_ty(),
+            &method_firstname("new"),
+            &LocationSpan::internal(),
+        )?;
         let new_body = SkMethodBody::New {
             classname: class_name.fullname.to_class_fullname(),
             initialize_name,
@@ -395,9 +397,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Find actual `initialize` func to call from `.new`
     fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
-        let found = self
-            .class_dict
-            .lookup_method(class, &method_firstname("initialize"))?;
+        let found = self.class_dict.lookup_method(
+            class,
+            &method_firstname("initialize"),
+            &LocationSpan::internal(),
+        )?;
         let fullname = found.owner.to_class_fullname();
         Ok((
             method_fullname(fullname.clone().into(), "initialize"),

@@ -40,7 +40,9 @@ pub fn convert_method_call(
     };
     let receiver_ty = &receiver_hir.ty;
 
-    let found = mk.class_dict.lookup_method(receiver_ty, method_name)?;
+    let found = mk
+        .class_dict
+        .lookup_method(receiver_ty, method_name, locs)?;
     let arranged = arrange_named_args(&found.sig, args)?;
 
     validate_method_tyargs(&found, type_args)?;
