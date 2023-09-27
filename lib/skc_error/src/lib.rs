@@ -13,9 +13,9 @@ type AriadneSpan<'a> = (&'a String, Range<usize>);
 pub fn build_report<F>(main_msg: String, locs: &LocationSpan, f: F) -> String
 where
     F: for<'b> FnOnce(
-        ReportBuilder<AriadneSpan<'b>>,
+        ReportBuilder<'b, AriadneSpan<'b>>,
         AriadneSpan<'b>,
-    ) -> ReportBuilder<AriadneSpan<'b>>,
+    ) -> ReportBuilder<'b, AriadneSpan<'b>>,
 {
     if let LocationSpan::Just {
         filepath,
