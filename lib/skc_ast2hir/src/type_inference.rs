@@ -31,12 +31,14 @@ impl Infer {
         let mut vars = vec![];
         let mut method_tyargs = vec![];
         // Class-wise typarams
-        for tpref in
-            ty::typarams_to_typaram_refs(class_typarams, TyParamKind::Class, false).into_iter()
-        {
-            vars.push((i, tpref));
-            ans.merge(i, TmpTy::make(&class_tyargs[i], Default::default()));
-            i += 1;
+        if !class_tyargs.is_empty() {
+            for tpref in
+                ty::typarams_to_typaram_refs(class_typarams, TyParamKind::Class, false).into_iter()
+            {
+                vars.push((i, tpref));
+                ans.merge(i, TmpTy::make(&class_tyargs[i], Default::default()));
+                i += 1;
+            }
         }
         let n_class_typarams = i;
         // Method-wise typarams
