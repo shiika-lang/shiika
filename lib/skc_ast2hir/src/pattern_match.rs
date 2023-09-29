@@ -255,8 +255,8 @@ fn class_props(mk: &HirMaker, cls: &TermTy) -> Result<Vec<(String, TermTy)>> {
         &method_firstname("initialize"),
         &LocationSpan::internal(),
     )?;
-    Ok(found
-        .sig
+    let sig = found.sig.specialize(&cls.tyargs(), Default::default());
+    Ok(sig
         .params
         .iter()
         .map(|x| (x.name.to_string(), x.ty.clone()))
