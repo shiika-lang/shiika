@@ -148,3 +148,17 @@ pub fn not_a_class_expression(ty: &TermTy, locs: &LocationSpan) -> anyhow::Error
     );
     program_error(report)
 }
+
+pub fn if_clauses_type_mismatch(
+    then_ty: &TermTy,
+    else_ty: &TermTy,
+    then_locs: LocationSpan,
+    else_locs: LocationSpan,
+) -> anyhow::Error {
+    let main_msg = "if clauses type mismatch".to_string();
+    let report = skc_error::report_builder()
+        .annotate(then_locs.clone(), then_ty.to_string())
+        .annotate(else_locs, else_ty.to_string())
+        .build(main_msg, &then_locs);
+    type_error(report)
+}

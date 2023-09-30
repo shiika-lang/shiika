@@ -1,5 +1,6 @@
 use crate::class_dict::ClassDict;
 use crate::convert_exprs::block::BlockTaker;
+use crate::error;
 use crate::error::type_error;
 use anyhow::Result;
 use shiika_ast::LocationSpan;
@@ -70,10 +71,19 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<()> {
     }
 }
 
-pub fn check_if_body_ty(opt_ty: Option<TermTy>) -> Result<TermTy> {
-    match opt_ty {
-        Some(ty) => Ok(ty),
-        None => Err(type_error!("if clauses type mismatch")),
+pub fn check_if_body_ty(
+    class_dict: &ClassDict,
+    then_ty: &TermTy,
+    then_locs: LocationSpan,
+    else_ty: &TermTy,
+    else_locs: LocationSpan,
+) -> Result<TermTy> {
+    if let Some(ty) = class_dict.nearest_common_ancestor(then_ty, else_ty) {
+        Ok(ty)
+    } else {
+        Err(error::if_clauses_type_mismatch(
+            then_ty, else_ty, then_locs, else_locs,
+        ))
     }
 }
 

@@ -216,10 +216,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             then_hirs = then_hirs.voidify();
             ty::raw("Void")
         } else {
-            let opt_ty = self
-                .class_dict
-                .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
-            let ty = type_checking::check_if_body_ty(opt_ty)?;
+            let ty = type_checking::check_if_body_ty(
+                &self.class_dict,
+                &then_hirs.ty,
+                then_hirs.locs.clone(),
+                &else_hirs.ty,
+                else_hirs.locs.clone(),
+            )?;
             if !then_hirs.ty.equals_to(&ty) {
                 then_hirs = Hir::bit_cast(ty.clone(), then_hirs);
             }
