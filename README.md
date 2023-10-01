@@ -76,24 +76,20 @@ See [tests/sk/](https://github.com/shiika-lang/shiika/tree/master/tests/sk) and
 
 See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 
-### Roadmap (tentative)
+### Roadmap
 
-- [x] v0.1.0 - Type system POC
-- [x] v0.2.0 - Start writing with Rust
-- [x] v0.3.0 - Generics
-- [x] v0.4.0 - Anonymous function (lambda)
-- [x] v0.5.0 - Virtual methods
-- [x] v0.6.0 - Generic methods
-- [x] v0.6.0 - Enums, basic pattern matching
-- [x] v0.7.0 - Modules (like Ruby's `module`)
-- [x] v0.8.0 - Default arguments, keyword arguments
+- v0.10.0~
+  - Type system: Upper and lower bound
+  - Type system: Variance specifier
+  - Syntax: `.try!`
+  - Semantics: Non-local return
+  - Built-in: Bignum, Rational?
+  - Built-in: Dir, Process
+  - Built-in: Split Array and MutableArray?
+  - Simple package system (`shiika build`)
 - After v1.0.0
-  - Built-in library
-    - Bignum, etc
-  - Standard library?
-    - Http, etc?
-  - Package system
-  - Some meta-programming feature (but not AST macro, sorry lisp fans)
+  - Some meta-programming feature (like Crystal?)
+  - Some mechanics for parallel computation
 
 ## Supported platform
 

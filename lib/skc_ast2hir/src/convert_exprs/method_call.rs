@@ -43,7 +43,7 @@ pub fn convert_method_call(
     let found = mk
         .class_dict
         .lookup_method(receiver_ty, method_name, locs)?;
-    let arranged = arrange_named_args(&found.sig, args)?;
+    let arranged = arrange_named_args(&found.sig, args, locs)?;
 
     validate_method_tyargs(&found, type_args)?;
     let method_tyargs = if found.sig.has_typarams() && type_args.is_empty() {
@@ -112,11 +112,17 @@ pub fn convert_method_call(
 pub fn arrange_named_args<'a>(
     sig: &'a MethodSignature,
     args: &'a AstCallArgs,
+    method_span: &'a LocationSpan,
 ) -> Result<Vec<ArrangedArg<'a>>> {
     let n_unnamed = args.unnamed.len();
     let mut named = args.named.iter().collect::<Vec<_>>();
     let mut block_seen = false;
     let mut v = vec![];
+    let locs = args.locs();
+    let error_locs = match &locs {
+        Some(loc) => loc,
+        None => method_span,
+    };
     for (i, param) in sig.params.iter().enumerate() {
         // 1. Take unnamed arguments
         if i < n_unnamed {
@@ -139,14 +145,10 @@ pub fn arrange_named_args<'a>(
             v.push(ArrangedArg::Default(&param.ty));
             continue;
         }
-        return Err(error::unspecified_arg(
-            &param.name,
-            sig,
-            &args.locs().unwrap(),
-        ));
+        return Err(error::unspecified_arg(&param.name, sig, error_locs));
     }
     if let Some((name, _)) = named.first() {
-        return Err(error::extranous_arg(name, sig, &args.locs().unwrap()));
+        return Err(error::extranous_arg(name, sig, error_locs));
     }
     Ok(v)
 }

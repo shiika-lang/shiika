@@ -1,4 +1,4 @@
-## HEAD
+## v0.9.1 (2023-09-15)
 
 - Setup
   - Upgrade to llvm-16 (#507)

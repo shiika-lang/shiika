@@ -101,6 +101,13 @@ pub struct EnumCase {
     pub params: Vec<Param>,
 }
 
+impl EnumCase {
+    /// Returns true if the typaram name `name` appears in the type definition of any of `params`.
+    pub fn appears(&self, name: &str) -> bool {
+        self.params.iter().any(|param| param.typ.appears(name))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct AstMethodSignature {
     pub name: MethodFirstname,
@@ -144,6 +151,12 @@ pub struct UnresolvedTypeName {
     pub names: Vec<String>,
     pub args: Vec<UnresolvedTypeName>,
     pub locs: LocationSpan,
+}
+
+impl UnresolvedTypeName {
+    pub fn appears(&self, name: &str) -> bool {
+        self.names.join("::") == name || self.args.iter().any(|arg| arg.appears(name))
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

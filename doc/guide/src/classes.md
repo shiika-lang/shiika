@@ -30,8 +30,8 @@ Example
 ```sk
 class Book
   def initialize(title: String, price: Int)
-    @title = title
-    @price = price
+    let @title = title
+    let @price = price
   end
 end
 ```
@@ -55,7 +55,7 @@ Example
 ```sk
 class Person
   def initialize(name: String, age: Int)
-    @name = name
+    let @name = name
     var @age = age
   end
 end
@@ -75,9 +75,9 @@ Shiika does not have visibility specifier like `private` or `protected`. Convent
 ```sk
 class Person
   def initialize(name: String, age: Int)
-    @name = name
+    let @name = name
     var @age = age
-    @_secret_count = 0
+    let @_secret_count = 0
   end
 end
 ```

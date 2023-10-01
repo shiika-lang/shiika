@@ -11,8 +11,10 @@ end
 
 desc "git ci, git tag and git push"
 task :release do
+  ver = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
+  v = "v" + ver
+  raise "Cargo.toml not updated" unless File.readlines("Cargo.toml").include?("version = \"#{ver}\"\n")
   sh "git diff --cached"
-  v = "v" + File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
   puts "release as #{v}? [y/N]"
   break unless $stdin.gets.chomp == "y"
 
@@ -68,7 +70,7 @@ RUSTLIB_FILES = [
   RUSTLIB_SIG,
   "lib/skc_rustlib/Cargo.toml",
 ]
-CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "~/tmp/cargo_target"
+CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "./target"
 RUSTLIB_A = File.expand_path "#{CARGO_TARGET}/debug/libskc_rustlib.a"
 file RUSTLIB_A => RUSTLIB_FILES do
   cd "lib/skc_rustlib" do

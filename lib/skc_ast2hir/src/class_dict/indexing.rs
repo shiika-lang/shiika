@@ -306,20 +306,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<()> {
         let ivar_list = self._enum_case_ivars(namespace, typarams, case)?;
         let fullname = case.name.add_namespace(&enum_fullname.0);
-        let superclass = enum_case_superclass(enum_fullname, typarams, case);
-        let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, typarams, &fullname);
+        let (superclass, case_typarams) = enum_case_superclass(enum_fullname, typarams, case);
+        let (new_sig, initialize_sig) = enum_case_new_sig(&ivar_list, &case_typarams, &fullname);
 
         let mut instance_methods = enum_case_getters(&fullname, &ivar_list);
         instance_methods.insert(initialize_sig);
 
-        let case_typarams = if case.params.is_empty() {
-            Default::default()
-        } else {
-            typarams
-        };
         self.add_new_class(
             &fullname,
-            case_typarams,
+            &case_typarams,
             superclass,
             Default::default(),
             Some(new_sig),
@@ -707,23 +702,22 @@ fn enum_case_superclass(
     enum_fullname: &ClassFullname,
     typarams: &[ty::TyParam],
     case: &shiika_ast::EnumCase,
-) -> Supertype {
-    if case.params.is_empty() {
-        // eg. Maybe::None : Maybe<Never>
-        let tyargs = typarams
-            .iter()
-            .map(|_| ty::raw("Never"))
-            .collect::<Vec<_>>();
-        Supertype::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
-    } else {
-        // eg. Maybe::Some<out V> : Maybe<V>
-        let tyargs = typarams
-            .iter()
-            .enumerate()
-            .map(|(i, t)| ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty())
-            .collect::<Vec<_>>();
-        Supertype::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false))
-    }
+) -> (Supertype, Vec<ty::TyParam>) {
+    let mut case_typarams = vec![];
+    let tyargs = typarams
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            if case.appears(&t.name) {
+                case_typarams.push(t.clone());
+                ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty()
+            } else {
+                ty::raw("Never")
+            }
+        })
+        .collect::<Vec<_>>();
+    let supertype = Supertype::from_ty(LitTy::new(enum_fullname.0.clone(), tyargs, false));
+    (supertype, case_typarams)
 }
 
 /// Returns signature of `.new` and `#initialize` of an enum case
