@@ -1,7 +1,7 @@
 mod tmp_ty;
 use crate::convert_exprs::block::BlockTaker;
 use crate::error::type_error;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use shiika_core::ty::{self, LitTy, TermTy, TyParam, TyParamKind, TyParamRef};
 use std::collections::HashMap;
 use std::fmt;
@@ -91,7 +91,9 @@ impl Infer {
     }
 
     pub fn block_param_tys(&self) -> Result<Vec<TermTy>> {
-        let block_ty = self.param_tys.last().unwrap();
+        let Some(block_ty) = self.param_tys.last() else {
+            return Err(anyhow!("this method does not take a block"));
+        };
         let tyargs = block_ty.type_args().unwrap();
         self.ans
             .apply_to_vec(&tyargs[0..tyargs.len() - 1])
