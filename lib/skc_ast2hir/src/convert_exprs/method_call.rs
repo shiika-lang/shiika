@@ -89,27 +89,17 @@ pub fn convert_method_call(
         &updated_param_types,
     )?;
 
-    let args = arg_hirs;
-    //        if specialized {
-    //        arg_hirs
-    //            .into_iter()
-    //            .map(|expr| Hir::bit_cast(ty::raw("Object"), expr))
-    //            .collect::<Vec<_>>()
-    //    } else {
-    //        arg_hirs
-    //    };
-
     // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
     // `T` is inferred from `x`.
     if found.is_generic_new(&receiver_ty) {
-        return Ok(call_specialized_new(mk, &receiver_ty, args, tyargs, locs));
+        return Ok(call_specialized_new(mk, &receiver_ty, arg_hirs, tyargs, locs));
     }
 
     let ret_ty = inf.ret_ty().with_context(|| error(&block_taker, locs))?;
 
     let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
-    let first_arg_ty = args.first().map(|arg| arg.ty.clone());
-    let hir = build_hir(mk, &found, receiver, args, tyargs, ret_ty);
+    let first_arg_ty = arg_hirs.first().map(|arg| arg.ty.clone());
+    let hir = build_hir(mk, &found, receiver, arg_hirs, tyargs, ret_ty);
     if found.sig.fullname.full_name == "Object#unsafe_cast" {
         Ok(Hir::bit_cast(first_arg_ty.unwrap().instance_ty(), hir))
     } else {
