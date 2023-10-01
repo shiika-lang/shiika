@@ -252,6 +252,7 @@ fn convert_method_args(
     if let Some(block) = opt_block {
         let block_param_tys = inf.block_param_tys()?;
         let block_hir = block::convert_block(mk, block_taker, &block_param_tys, &block)?;
+        inf.set_block_ty(&block_hir.ty)?;
         arg_hirs.push(block_hir);
     }
 

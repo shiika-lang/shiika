@@ -84,6 +84,12 @@ impl Infer {
         unify(equations, &mut self.ans).with_context(|| self.error())
     }
 
+    pub fn set_block_ty(&mut self, block_ty: &TermTy) -> Result<()> {
+        let l = self.param_tys.last().unwrap().clone();
+        let equation = Equation(l, TmpTy::from(block_ty));
+        unify(vec![equation], &mut self.ans).with_context(|| self.error())
+    }
+
     pub fn block_param_tys(&self) -> Result<Vec<TermTy>> {
         let block_ty = self.param_tys.last().unwrap();
         let tyargs = block_ty.type_args().unwrap();
