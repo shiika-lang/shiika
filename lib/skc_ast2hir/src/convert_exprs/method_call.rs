@@ -92,7 +92,13 @@ pub fn convert_method_call(
     // Special handling for `Foo.new(x)` where `Foo<T>` is a generic class and
     // `T` is inferred from `x`.
     if found.is_generic_new(&receiver_ty) {
-        return Ok(call_specialized_new(mk, &receiver_ty, arg_hirs, tyargs, locs));
+        return Ok(call_specialized_new(
+            mk,
+            &receiver_ty,
+            arg_hirs,
+            tyargs,
+            locs,
+        ));
     }
 
     let ret_ty = inf.ret_ty().with_context(|| error(&block_taker, locs))?;
