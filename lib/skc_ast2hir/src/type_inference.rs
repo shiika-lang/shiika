@@ -138,17 +138,17 @@ impl Infer {
 struct Equation(TmpTy, TmpTy);
 
 impl Equation {
-//    pub fn display_equations(equations: &[Equation]) -> String {
-//        equations
-//            .iter()
-//            .map(|e| e.display())
-//            .collect::<Vec<_>>()
-//            .join(", ")
-//    }
-//
-//    pub fn display(&self) -> String {
-//        format!("{} = {}", &self.0, &self.1)
-//    }
+    //    pub fn display_equations(equations: &[Equation]) -> String {
+    //        equations
+    //            .iter()
+    //            .map(|e| e.display())
+    //            .collect::<Vec<_>>()
+    //            .join(", ")
+    //    }
+    //
+    //    pub fn display(&self) -> String {
+    //        format!("{} = {}", &self.0, &self.1)
+    //    }
 
     /// Returns swapped version of self
     fn swap(self) -> Equation {
