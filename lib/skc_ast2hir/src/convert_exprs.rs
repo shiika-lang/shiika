@@ -216,10 +216,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             then_hirs = then_hirs.voidify();
             ty::raw("Void")
         } else {
-            let opt_ty = self
-                .class_dict
-                .nearest_common_ancestor(&then_hirs.ty, &else_hirs.ty);
-            let ty = type_checking::check_if_body_ty(opt_ty)?;
+            let ty = type_checking::check_if_body_ty(
+                &self.class_dict,
+                &then_hirs.ty,
+                then_hirs.locs.clone(),
+                &else_hirs.ty,
+                else_hirs.locs.clone(),
+            )?;
             if !then_hirs.ty.equals_to(&ty) {
                 then_hirs = Hir::bit_cast(ty.clone(), then_hirs);
             }
@@ -657,7 +660,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let self_expr = self.convert_self_expr(&LocationSpan::todo());
         let result = self
             .class_dict
-            .lookup_method(&self_expr.ty, &method_firstname(name), &[]);
+            .lookup_method(&self_expr.ty, &method_firstname(name), locs);
         if let Ok(found) = result {
             method_call::build_simple(self, found, self_expr, locs)
         } else {

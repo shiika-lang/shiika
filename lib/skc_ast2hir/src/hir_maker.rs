@@ -378,7 +378,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
-            Default::default(),
+            &LocationSpan::internal(),
         )?;
         let new_body = SkMethodBody::New {
             classname: class_name.fullname.to_class_fullname(),
@@ -400,7 +400,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let found = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
-            Default::default(),
+            &LocationSpan::internal(),
         )?;
         let fullname = found.owner.to_class_fullname();
         Ok((

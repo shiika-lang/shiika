@@ -85,6 +85,13 @@ pub fn assign_to_undeclared_ivar(name: &str, locs: &LocationSpan) -> anyhow::Err
     program_error(report)
 }
 
+pub fn method_not_found(msg: String, locs: &LocationSpan) -> anyhow::Error {
+    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+        r.with_label(Label::new(locs_span).with_message(msg))
+    });
+    program_error(report)
+}
+
 pub fn unknown_barename(name: &str, locs: &LocationSpan) -> anyhow::Error {
     let msg = format!("variable or method `{}' was not found", name);
     let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
@@ -124,10 +131,10 @@ pub fn named_arg_for_lambda(name: &str, locs: &LocationSpan) -> anyhow::Error {
     program_error(report)
 }
 
-pub fn method_tyarg_inference_failed(detail: String, locs: &LocationSpan) -> anyhow::Error {
+pub fn method_call_tyinf_failed(detail: String, locs: &LocationSpan) -> anyhow::Error {
     let report =
         skc_error::build_report("Type inference failed".to_string(), locs, |r, locs_span| {
-            r.with_label(Label::new(locs_span).with_message(detail))
+            r.with_label(Label::new(locs_span.clone()).with_message(detail))
         });
     program_error(report)
 }
@@ -140,4 +147,18 @@ pub fn not_a_class_expression(ty: &TermTy, locs: &LocationSpan) -> anyhow::Error
         |r, locs_span| r.with_label(Label::new(locs_span).with_message(detail)),
     );
     program_error(report)
+}
+
+pub fn if_clauses_type_mismatch(
+    then_ty: &TermTy,
+    else_ty: &TermTy,
+    then_locs: LocationSpan,
+    else_locs: LocationSpan,
+) -> anyhow::Error {
+    let main_msg = "if clauses type mismatch".to_string();
+    let report = skc_error::report_builder()
+        .annotate(then_locs.clone(), then_ty.to_string())
+        .annotate(else_locs, else_ty.to_string())
+        .build(main_msg, &then_locs);
+    type_error(report)
 }

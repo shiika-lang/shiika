@@ -260,7 +260,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 .lookup_method(
                     &superclass.to_term_ty(),
                     &method_firstname("initialize"),
-                    &[],
+                    &LocationSpan::internal(),
                 )
                 .expect("[BUG] initialize not found");
             Ok(specialized_initialize(&found.sig, superclass).params)

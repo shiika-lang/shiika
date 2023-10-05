@@ -28,11 +28,13 @@ module Readable
       end
       break if done
     end
-    if l.empty?
-      Ok<Maybe<String>>.new(None)
-    else
-      Ok<Maybe<String>>.new(Some<String>.new(l._unsafe_to_s))
-    end
+    Ok.new(
+      if l.empty?
+        None
+      else
+        Some.new(l._unsafe_to_s)
+      end
+    )
   end
 
   def lines -> Result<Array<String>>

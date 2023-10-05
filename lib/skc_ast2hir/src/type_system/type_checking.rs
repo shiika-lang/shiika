@@ -1,7 +1,7 @@
 use crate::class_dict::ClassDict;
 use crate::convert_exprs::block::BlockTaker;
+use crate::error;
 use crate::error::type_error;
-use crate::type_inference::method_call_inf;
 use anyhow::Result;
 use shiika_ast::LocationSpan;
 use shiika_core::{ty, ty::*};
@@ -71,10 +71,19 @@ pub fn check_condition_ty(ty: &TermTy, on: &str) -> Result<()> {
     }
 }
 
-pub fn check_if_body_ty(opt_ty: Option<TermTy>) -> Result<TermTy> {
-    match opt_ty {
-        Some(ty) => Ok(ty),
-        None => Err(type_error!("if clauses type mismatch")),
+pub fn check_if_body_ty(
+    class_dict: &ClassDict,
+    then_ty: &TermTy,
+    then_locs: LocationSpan,
+    else_ty: &TermTy,
+    else_locs: LocationSpan,
+) -> Result<TermTy> {
+    if let Some(ty) = class_dict.nearest_common_ancestor(then_ty, else_ty) {
+        Ok(ty)
+    } else {
+        Err(error::if_clauses_type_mismatch(
+            then_ty, else_ty, then_locs, else_locs,
+        ))
     }
 }
 
@@ -187,37 +196,20 @@ fn check_arg_type(
     Err(type_error(report))
 }
 
-/// Check the method takes a block
-pub fn check_takes_block(sig: &MethodSignature, locs: &LocationSpan) -> Result<()> {
-    if let Some(param) = sig.params.last() {
-        if param.ty.fn_x_info().is_some() {
-            return Ok(());
-        }
-    }
-
-    let msg = format!("the method {} does not take a block", sig);
-    let sub_msg = "This method does not take a block.";
-    let report = skc_error::build_report(msg, locs, |r, locs_span| {
-        r.with_label(Label::new(locs_span).with_message(sub_msg))
-    });
-    Err(type_error(report))
-}
-
 /// Check number of block parameters
 pub fn check_block_arity(
     block_taker: &BlockTaker, // for error message
-    inf: &method_call_inf::MethodCallInf2,
+    expected_arity: usize,
     params: &[shiika_ast::BlockParam],
 ) -> Result<()> {
-    let expected = inf.solved_block_param_tys.len();
-    if params.len() == expected {
+    if params.len() == expected_arity {
         return Ok(());
     }
 
     let msg = format!(
         "the block of {} takes {} args but got {}",
         block_taker,
-        expected,
+        expected_arity,
         params.len()
     );
     let locs = &block_taker.locs();

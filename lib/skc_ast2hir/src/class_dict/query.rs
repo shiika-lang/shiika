@@ -2,6 +2,7 @@ use crate::class_dict::*;
 use crate::error;
 use crate::type_system;
 use anyhow::Result;
+use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
 use skc_hir::*;
 
@@ -48,9 +49,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         receiver_type: &TermTy,
         method_name: &MethodFirstname,
-        method_tyargs: &[TermTy],
+        // For error messages
+        locs: &LocationSpan,
     ) -> Result<FoundMethod> {
-        self.lookup_method_(receiver_type, receiver_type, method_name, method_tyargs)
+        self.lookup_method_(receiver_type, receiver_type, method_name, locs)
     }
 
     // `receiver_type` is for error message.
@@ -59,7 +61,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_type: &TermTy,
         current_type: &TermTy,
         method_name: &MethodFirstname,
-        method_tyargs: &[TermTy],
+        locs: &LocationSpan,
     ) -> Result<FoundMethod> {
         let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
@@ -69,20 +71,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
-            if !method_tyargs.is_empty() && method_tyargs.len() != found.sig.typarams.len() {
-                return Err(error::type_error(format!(
-                    "wrong number of type arguments, expected: {:?} got: {:?}",
-                    &found.sig.typarams.len(),
-                    method_tyargs.len(),
-                )));
-            }
-
-            return Ok(specialized_version(
-                found,
-                receiver_type,
-                class_tyargs,
-                method_tyargs,
-            ));
+            return Ok(found);
+            //return Ok(specialized_version(found, receiver_type, class_tyargs));
         }
         match sk_type {
             SkType::Class(sk_class) => {
@@ -92,7 +82,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
                     {
                         let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
-                        found.specialize(&mod_tyargs, method_tyargs);
+                        found.specialize(&mod_tyargs, Default::default());
                         return Ok(found);
                     }
                 }
@@ -102,24 +92,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         receiver_type,
                         &super_ty.to_term_ty(),
                         method_name,
-                        method_tyargs,
+                        locs,
                     );
                 }
             }
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
-                return self.lookup_method_(
-                    receiver_type,
-                    &ty::raw("Object"),
-                    method_name,
-                    method_tyargs,
-                );
+                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
             }
         }
-        Err(error::program_error(&format!(
-            "method {:?} not found on {:?}",
-            method_name, receiver_type.fullname
-        )))
+        Err(error::method_not_found(
+            format!(
+                "method {:?} not found on {:?}",
+                method_name, receiver_type.fullname
+            ),
+            locs,
+        ))
     }
 
     /// Return the class/module of the specified name, if any
@@ -245,33 +233,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 .map(|(name, ivar)| (name.clone(), ivar.substitute(&ty.type_args)))
                 .collect()
         })
-    }
-}
-
-fn specialized_version(
-    mut found: FoundMethod,
-    receiver_ty: &TermTy,
-    class_tyargs: &[TermTy],
-    method_tyargs: &[TermTy],
-) -> FoundMethod {
-    if found.sig.fullname.first_name.0 == "new"
-        && receiver_ty.is_metaclass()
-        && receiver_ty.has_type_args()
-    {
-        // Special handling for `.new`.
-        // self:    `#new<A0M,B1M>(a: A0M, b: B1M) -> Pair<A0M,B1M>`
-        // returns: `#new(a: A0C, b: B1C) -> Pair<A0C,B1C>`
-        let sig2 = found.sig.specialize(Default::default(), class_tyargs);
-        FoundMethod {
-            sig: MethodSignature {
-                typarams: Default::default(),
-                ..sig2
-            },
-            ..found
-        }
-    } else {
-        found.specialize(class_tyargs, method_tyargs);
-        found
     }
 }
 

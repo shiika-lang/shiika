@@ -1,12 +1,10 @@
-use crate::convert_exprs::method_call::ArrangedArg;
 use crate::convert_exprs::params;
 use crate::hir_maker::{extract_lvars, HirMaker};
 use crate::hir_maker_context::HirMakerContext;
-use crate::type_inference::method_call_inf;
 use crate::type_system::type_checking;
 use anyhow::Result;
 use shiika_ast::{AstExpression, AstExpressionBody, LocationSpan};
-use shiika_core::ty::{self, TermTy};
+use shiika_core::ty::{self, TermTy, TyParam};
 use skc_hir::{Hir, HirExpression, MethodParam, MethodSignature};
 use std::fmt;
 
@@ -35,6 +33,39 @@ impl<'hir_maker> fmt::Display for BlockTaker<'hir_maker> {
 }
 
 impl<'hir_maker> BlockTaker<'hir_maker> {
+    pub fn typarams(&self) -> &[TyParam] {
+        match self {
+            BlockTaker::Method { sig, .. } => &sig.typarams,
+            BlockTaker::Function { .. } => &[],
+        }
+    }
+
+    pub fn param_tys(&self) -> Vec<TermTy> {
+        match self {
+            BlockTaker::Method { sig, .. } => sig
+                .params
+                .iter()
+                .map(|param| param.ty.clone())
+                .collect::<Vec<_>>(),
+            BlockTaker::Function { fn_ty, .. } => {
+                let mut tys = fn_ty.fn_x_info().unwrap().to_vec();
+                // Drop the last ty (i.e. the return type)
+                tys.pop();
+                tys
+            }
+        }
+    }
+
+    pub fn ret_ty(&self) -> &TermTy {
+        match self {
+            BlockTaker::Method { sig, .. } => &sig.ret_ty,
+            BlockTaker::Function { fn_ty, .. } => {
+                let tys = fn_ty.fn_x_info().unwrap();
+                tys.last().unwrap()
+            }
+        }
+    }
+
     pub fn locs(&self) -> &LocationSpan {
         match self {
             BlockTaker::Method { locs, .. } => locs,
@@ -44,26 +75,29 @@ impl<'hir_maker> BlockTaker<'hir_maker> {
 }
 
 /// Convert a block to HirLambdaExpr.
-/// `arg_expr` must be a LambdaExpr.
 pub fn convert_block(
     mk: &mut HirMaker,
     block_taker: &BlockTaker,
-    inf: &method_call_inf::MethodCallInf2,
-    arg: &ArrangedArg,
+    inferred_block_param_tys: &[TermTy],
+    arg: &AstExpression,
 ) -> Result<HirExpression> {
-    match arg {
-        ArrangedArg::Expr(e) => match &e.body {
-            AstExpressionBody::LambdaExpr {
+    match &arg.body {
+        AstExpressionBody::LambdaExpr {
+            params,
+            exprs,
+            is_fn,
+        } => {
+            debug_assert!(!is_fn);
+            _convert_block(
+                mk,
+                block_taker,
+                inferred_block_param_tys,
                 params,
                 exprs,
-                is_fn,
-            } => {
-                debug_assert!(!is_fn);
-                _convert_block(mk, block_taker, inf, params, exprs, e.locs.clone())
-            }
-            _ => panic!("expected LambdaExpr but got {:?}", e),
-        },
-        ArrangedArg::Default(ty) => Ok(Hir::default_expression((*ty).clone())),
+                arg.locs.clone(),
+            )
+        }
+        _ => panic!("expected LambdaExpr but got {:?}", arg),
     }
 }
 
@@ -73,12 +107,12 @@ pub fn convert_block(
 fn _convert_block(
     mk: &mut HirMaker,
     block_taker: &BlockTaker,
-    inf: &method_call_inf::MethodCallInf2,
+    inferred_block_param_tys: &[TermTy],
     params: &[shiika_ast::BlockParam],
     body_exprs: &[AstExpression],
     locs: LocationSpan,
 ) -> Result<HirExpression> {
-    type_checking::check_block_arity(block_taker, inf, params)?;
+    type_checking::check_block_arity(block_taker, inferred_block_param_tys.len(), params)?;
 
     let namespace = mk.ctx_stack.const_scopes().next().unwrap();
     let hir_params = params::convert_block_params(
@@ -87,7 +121,7 @@ fn _convert_block(
         params,
         &mk.ctx_stack.current_class_typarams(),
         &mk.ctx_stack.current_method_typarams(),
-        Some(inf),
+        inferred_block_param_tys,
     )?;
 
     // Convert lambda body
