@@ -196,22 +196,6 @@ fn check_arg_type(
     Err(type_error(report))
 }
 
-/// Check the method takes a block
-pub fn check_takes_block(sig: &MethodSignature, locs: &LocationSpan) -> Result<()> {
-    if let Some(param) = sig.params.last() {
-        if param.ty.fn_x_info().is_some() {
-            return Ok(());
-        }
-    }
-
-    let msg = format!("the method {} does not take a block", sig);
-    let sub_msg = "This method does not take a block.";
-    let report = skc_error::build_report(msg, locs, |r, locs_span| {
-        r.with_label(Label::new(locs_span).with_message(sub_msg))
-    });
-    Err(type_error(report))
-}
-
 /// Check number of block parameters
 pub fn check_block_arity(
     block_taker: &BlockTaker, // for error message

@@ -236,35 +236,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 }
 
-/// Apply class_tyargs to the signature.
-/// (Note: this does not take method_tyargs because it may be unknown at the
-/// time of lookup_method.)
-fn specialized_version(
-    mut found: FoundMethod,
-    receiver_ty: &TermTy,
-    class_tyargs: &[TermTy],
-) -> FoundMethod {
-    if found.sig.fullname.first_name.0 == "new"
-        && receiver_ty.is_metaclass()
-        && receiver_ty.has_type_args()
-    {
-        // Special handling for `.new`.
-        // self:    `#new<A0M,B1M>(a: A0M, b: B1M) -> Pair<A0M,B1M>`
-        // returns: `#new(a: A0C, b: B1C) -> Pair<A0C,B1C>`
-        let sig2 = found.sig.specialize(Default::default(), class_tyargs);
-        FoundMethod {
-            sig: MethodSignature {
-                typarams: Default::default(),
-                ..sig2
-            },
-            ..found
-        }
-    } else {
-        found.specialize(class_tyargs, Default::default());
-        found
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::class_dict::*;
