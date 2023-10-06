@@ -1,6 +1,0 @@
----
-source: tests/erroneous.rs
-expression: result
-input_file: tests/erroneous/method_call/no_args_given.sk
----
-Object#puts takes 1 args but got 0
