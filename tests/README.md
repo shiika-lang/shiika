@@ -23,6 +23,7 @@ Rather than that, erroneous tests are for:
 
 - assuring the type checker detects various type errors
 - assuring the compiler does not crash with an erroneous program
+- investigating the impact of a modification to the type checker 
 
 ### How to add new .sk to `tests/erroneous`
 
