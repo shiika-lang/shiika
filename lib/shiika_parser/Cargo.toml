@@ -7,4 +7,4 @@ edition = "2021"
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
 thiserror = "1.0"
-ariadne = "0.1.5"
+ariadne = { version = "0.3.0", features = ["auto-color"] }

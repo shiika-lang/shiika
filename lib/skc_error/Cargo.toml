@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 shiika_ast = { path = "../shiika_ast" }
-ariadne = "0.1.5"
+ariadne = { version = "0.3.0", features = ["auto-color"] }

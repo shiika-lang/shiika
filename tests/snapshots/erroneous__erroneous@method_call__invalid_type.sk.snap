@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/method_call/invalid_type.sk
+---
+Error: the argument `str' of `Object#puts' should be String but got Int
+   ╭─[tests/erroneous/method_call/invalid_type.sk:1:6]
+   │
+ 1 │ puts 123
+   │      ─┬─  
+   │       ╰─── Int
+───╯
+
