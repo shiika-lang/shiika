@@ -4,7 +4,7 @@ expression: compiler_output
 input_file: tests/erroneous/method_call/invalid_type.sk
 ---
 Error: the argument `str' of `Object#puts' should be String but got Int
-   ╭─[/home/yhara/shiika/tests/erroneous/method_call/invalid_type.sk:1:6]
+   ╭─[tests/erroneous/method_call/invalid_type.sk:1:6]
    │
  1 │ puts 123
    │      ─┬─  

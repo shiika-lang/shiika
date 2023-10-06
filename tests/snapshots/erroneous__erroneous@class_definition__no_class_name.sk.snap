@@ -4,7 +4,7 @@ expression: compiler_output
 input_file: tests/erroneous/class_definition/no_class_name.sk
 ---
 Error: class name must start with A-Z but got Separator
-   ╭─[/home/yhara/shiika/tests/erroneous/class_definition/no_class_name.sk:1:6]
+   ╭─[tests/erroneous/class_definition/no_class_name.sk:1:6]
    │
  1 │ class
    │      ─  

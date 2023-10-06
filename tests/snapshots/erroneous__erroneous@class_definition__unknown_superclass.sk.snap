@@ -4,7 +4,7 @@ expression: compiler_output
 input_file: tests/erroneous/class_definition/unknown_superclass.sk
 ---
 Error: unknown type XXX in Namespace([])
-   ╭─[/home/yhara/shiika/tests/erroneous/class_definition/unknown_superclass.sk:1:11]
+   ╭─[tests/erroneous/class_definition/unknown_superclass.sk:1:11]
    │
  1 │ class A : XXX
    │           ─┬─  
