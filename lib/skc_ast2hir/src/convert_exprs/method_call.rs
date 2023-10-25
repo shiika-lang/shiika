@@ -257,46 +257,6 @@ fn convert_method_args(
     Ok(arg_hirs)
 }
 
-/// For method calls without any arguments.
-pub fn build_simple(
-    mk: &mut HirMaker,
-    found: FoundMethod,
-    receiver_hir: HirExpression,
-    locs: &LocationSpan,
-) -> Result<HirExpression> {
-    debug_assert!(!found.sig.has_typarams());
-    let receiver_ty = &receiver_hir.ty;
-
-    let block_taker = BlockTaker::Method {
-        sig: found.sig.clone(),
-        locs,
-    };
-    let class_typarams = &mk
-        .class_dict
-        .get_type(&found.owner.to_type_fullname())
-        .base()
-        .typarams;
-    let class_tyargs = receiver_ty.type_args();
-    let inf = Infer::new(
-        &block_taker,
-        class_typarams,
-        class_tyargs,
-        Default::default(),
-    );
-    let ret_ty = inf.ret_ty()?;
-
-    let receiver = Hir::bit_cast(found.owner.to_term_ty(), receiver_hir);
-    let hir = build_hir(
-        mk,
-        &found,
-        receiver,
-        Default::default(),
-        Default::default(),
-        ret_ty,
-    );
-    Ok(hir)
-}
-
 fn check_argument_types(
     mk: &HirMaker,
     sig: &MethodSignature,

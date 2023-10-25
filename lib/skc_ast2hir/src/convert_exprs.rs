@@ -656,16 +656,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             return Ok(lvar_info.ref_expr());
         }
 
-        // Search method
-        let self_expr = self.convert_self_expr(&LocationSpan::todo());
-        let result = self
-            .class_dict
-            .lookup_method(&self_expr.ty, &method_firstname(name), locs);
-        if let Ok(found) = result {
-            method_call::build_simple(self, found, self_expr, locs)
-        } else {
-            Err(error::unknown_barename(name, locs))
-        }
+        method_call::convert_method_call(
+            self,
+            &None,
+            &method_firstname(name),
+            &Default::default(),
+            Default::default(),
+            locs,
+        )
     }
 
     /// Return the variable of the given name, if any
