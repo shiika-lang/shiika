@@ -344,6 +344,7 @@ impl<'a> Lexer<'a> {
     // Read either of
     // - an identifier starting with a small letter
     //   - May be suffixed by a `?`
+    //   - May be suffixed by a `!`
     //   - May be suffixed by a `=` when lexer state is LexerState::MethodName.
     // - a keyword (`if`, `class`, etc.)
     // - a KeyName (`foo:`, etc.).
@@ -369,6 +370,7 @@ impl<'a> Lexer<'a> {
                         next_cur.proceed(self.src);
                         return (Token::KeyName(s.to_string()), Some(LexerState::ExprBegin));
                     } else if c == Some('?')
+                        || c == Some('!')
                         || (c == Some('=') && self.state == LexerState::MethodName)
                     {
                         next_cur.proceed(self.src);
