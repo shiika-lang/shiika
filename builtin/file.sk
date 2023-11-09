@@ -6,14 +6,10 @@ class File : Readable
   # def self.write(path: String, content: String) -> Result<Void>
 
   def self.open<V>(path: String, f: Fn1<File,V>) -> Result<V>
-    match File._open(path)
-    when Ok(file)
-      let v = f(file)
-      #file.close
-      Ok.new(v)
-    when Fail(e)
-      Fail.new(e)
-    end
+    let file = File._open(path).try!
+    let v = f(file)
+    #file.close
+    Ok.new(v)
   end
   
   # TODO: will we need this?

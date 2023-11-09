@@ -8,23 +8,19 @@ module Readable
     let l = MutableString.new
     var done = false
     while true
-      match fill_buf
-      when Ok(s)
-        if s.bytesize == 0
-          done = true
-        else
-          s.each_byte do |b|
-            if b == 10 # LF(\n)
-              consume(1)
-              done = true
-              break
-            end
-            l.append_byte(b)
+      let s = fill_buf.try!
+      if s.bytesize == 0
+        done = true
+      else
+        s.each_byte do |b|
+          if b == 10 # LF(\n)
             consume(1)
+            done = true
+            break
           end
+          l.append_byte(b)
+          consume(1)
         end
-      when Fail(e)
-        return Fail.new(e)
       end
       break if done
     end
@@ -55,16 +51,12 @@ module Readable
   def read -> Result<String>
     let acc = MutableString.new
     while true
-      match fill_buf
-      when Ok(s)
-        if s.bytesize == 0
-          break
-        else
-          acc.append(s)
-          consume(s.bytesize)
-        end
-      when Fail(e)
-        return Fail.new(e)
+      let s = fill_buf.try!
+      if s.bytesize == 0
+        break
+      else
+        acc.append(s)
+        consume(s.bytesize)
       end
     end
     Ok.new(acc._unsafe_to_s)
