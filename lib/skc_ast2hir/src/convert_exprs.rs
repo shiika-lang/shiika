@@ -263,12 +263,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         clauses: &[AstMatchClause],
         _locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
-        for lvar in lvars {
-            let readonly = true;
-            self.ctx_stack.declare_lvar(&lvar.name, lvar.ty, readonly);
-        }
-        Ok(match_expr)
+        pattern_match::convert_match_expr(self, cond_expr, clauses)
     }
 
     fn convert_while_expr(
@@ -338,10 +333,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             )
         };
         let merge_ty = self._validate_return_type(&arg_expr.ty, locs)?;
-        Ok(Hir::bit_cast(
-            merge_ty,
-            Hir::return_expression(from, arg_expr, locs.clone()),
-        ))
+        let cast = Hir::bit_cast(merge_ty, arg_expr);
+        Ok(Hir::return_expression(from, cast, locs.clone()))
     }
 
     /// Check if `return' is valid in the current context
@@ -656,16 +649,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             return Ok(lvar_info.ref_expr());
         }
 
-        // Search method
-        let self_expr = self.convert_self_expr(&LocationSpan::todo());
-        let result = self
-            .class_dict
-            .lookup_method(&self_expr.ty, &method_firstname(name), locs);
-        if let Ok(found) = result {
-            method_call::build_simple(self, found, self_expr, locs)
-        } else {
-            Err(error::unknown_barename(name, locs))
-        }
+        method_call::convert_method_call(
+            self,
+            &None,
+            &method_firstname(name),
+            &Default::default(),
+            Default::default(),
+            locs,
+        )
     }
 
     /// Return the variable of the given name, if any

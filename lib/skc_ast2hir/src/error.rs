@@ -92,14 +92,6 @@ pub fn method_not_found(msg: String, locs: &LocationSpan) -> anyhow::Error {
     program_error(report)
 }
 
-pub fn unknown_barename(name: &str, locs: &LocationSpan) -> anyhow::Error {
-    let msg = format!("variable or method `{}' was not found", name);
-    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
-        r.with_label(Label::new(locs_span).with_message(msg))
-    });
-    program_error(report)
-}
-
 pub fn unspecified_arg(
     param_name: &str,
     sig: &MethodSignature,
@@ -160,5 +152,19 @@ pub fn if_clauses_type_mismatch(
         .annotate(then_locs.clone(), then_ty.to_string())
         .annotate(else_locs, else_ty.to_string())
         .build(main_msg, &then_locs);
+    type_error(report)
+}
+
+pub fn match_clauses_type_mismatch(
+    ty1: &TermTy,
+    locs1: LocationSpan,
+    ty2: &TermTy,
+    locs2: LocationSpan,
+) -> anyhow::Error {
+    let main_msg = format!("match clauses type mismatch ({} vs {})", &ty1, &ty2);
+    let report = skc_error::report_builder()
+        .annotate(locs1.clone(), ty1.to_string())
+        .annotate(locs2, ty2.to_string())
+        .build(main_msg, &locs1);
     type_error(report)
 }
