@@ -8,12 +8,74 @@ use shiika_core::{names::*, ty, ty::*};
 use skc_hir::pattern_match::{Component, MatchClause};
 use skc_hir::*;
 
+pub fn expand_result_try(
+    mk: &mut HirMaker,
+    receiver_hir: HirExpression,
+    locs: &LocationSpan,
+) -> Result<HirExpression> {
+    let tmp_name = mk.generate_lvar_name("expr");
+    let tmp_ref = Hir::lvar_ref(receiver_hir.ty.clone(), tmp_name.clone(), locs.clone());
+
+    // `when Ok(v) then v`
+    let ok_tmp = mk.generate_lvar_name("v");
+    let ok_pattern = AstPattern::ExtractorPattern {
+        names: vec!["Ok".to_string()],
+        params: vec![AstPattern::VariablePattern(ok_tmp.clone())],
+    };
+    let ok_body = AstExpression {
+        body: AstExpressionBody::BareName(ok_tmp),
+        primary: true,
+        locs: locs.clone(),
+    };
+    let ok_clause = (ok_pattern, vec![ok_body]);
+
+    // `when e then return e.unsafe_cast(Fail)`
+    let err_tmp = mk.generate_lvar_name("e");
+    let err_pattern = AstPattern::VariablePattern(err_tmp.clone());
+    let err_ref = AstExpression {
+        body: AstExpressionBody::BareName(err_tmp),
+        primary: true,
+        locs: locs.clone(),
+    };
+    let the_err = AstExpression {
+        body: AstExpressionBody::CapitalizedName(UnresolvedConstName(vec!["Fail".to_string()])),
+        primary: true,
+        locs: locs.clone(),
+    };
+    let err_cast = AstExpression {
+        body: AstExpressionBody::MethodCall(AstMethodCall {
+            receiver_expr: Some(Box::new(err_ref)),
+            method_name: method_firstname("unsafe_cast"),
+            args: AstCallArgs::single_unnamed(the_err),
+            type_args: Default::default(),
+            may_have_paren_wo_args: false,
+        }),
+        primary: true,
+        locs: locs.clone(),
+    };
+    let err_body = AstExpression {
+        body: AstExpressionBody::Return {
+            arg: Some(Box::new(err_cast)),
+        },
+        primary: false,
+        locs: locs.clone(),
+    };
+    let err_clause = (err_pattern, vec![err_body]);
+
+    let clauses = vec![
+        convert_match_clause(mk, &tmp_ref, &ok_clause)?,
+        convert_match_clause(mk, &tmp_ref, &err_clause)?,
+    ];
+
+    _convert_match_expr(mk, tmp_name, receiver_hir, clauses)
+}
+
 /// Convert a match expression into Hir::match_expression
 pub fn convert_match_expr(
     mk: &mut HirMaker,
     cond: &AstExpression,
     ast_clauses: &[AstMatchClause],
-) -> Result<(HirExpression, HirLVars)> {
+) -> Result<HirExpression> {
     let cond_expr = mk.convert_expr(cond)?;
     let tmp_name = mk.generate_lvar_name("expr");
     let tmp_ref = Hir::lvar_ref(cond_expr.ty.clone(), tmp_name.clone(), LocationSpan::todo());
@@ -21,7 +83,6 @@ pub fn convert_match_expr(
         .iter()
         .map(|clause| convert_match_clause(mk, &tmp_ref, clause))
         .collect::<Result<Vec<MatchClause>>>()?;
-    let result_ty = calc_result_ty(mk, &mut clauses)?;
     let panic_msg = Hir::string_literal(
         mk.register_string_literal("no matching clause found"),
         LocationSpan::todo(),
@@ -38,15 +99,29 @@ pub fn convert_match_expr(
         lvars: Default::default(),
     });
 
-    let lvars = vec![HirLVar {
+    _convert_match_expr(mk, tmp_name, cond_expr, clauses)
+}
+pub fn _convert_match_expr(
+    mk: &mut HirMaker,
+    tmp_name: String,
+    cond_expr: HirExpression,
+    mut clauses: Vec<MatchClause>,
+) -> Result<HirExpression> {
+    let lvar = HirLVar {
         name: tmp_name.clone(),
         ty: cond_expr.ty.clone(),
         captured: false, // This lvar cannot be captured because its name is hidden to the programmer.
-    }];
+    };
+    let readonly = true;
+    mk.ctx_stack.declare_lvar(&lvar.name, lvar.ty, readonly);
+
+    let result_ty = calc_result_ty(mk, &mut clauses)?;
     let tmp_assign = Hir::lvar_assign(tmp_name, cond_expr, LocationSpan::todo());
-    Ok((
-        Hir::match_expression(result_ty, tmp_assign, clauses, LocationSpan::todo()),
-        lvars,
+    Ok(Hir::match_expression(
+        result_ty,
+        tmp_assign,
+        clauses,
+        LocationSpan::todo(),
     ))
 }
 
@@ -109,8 +184,12 @@ fn calc_result_ty(mk: &HirMaker, clauses_: &mut [MatchClause]) -> Result<TermTy>
             if let Some(t) = mk.class_dict.nearest_common_ancestor(&ty, &c.body_hir.ty) {
                 ty = t;
             } else {
-                let msg = format!("match clause type mismatch ({} vs {})", &ty, &c.body_hir.ty);
-                return Err(error::type_error(msg));
+                return Err(error::match_clauses_type_mismatch(
+                    &ty,
+                    clauses[0].body_hir.locs.clone(),
+                    &c.body_hir.ty,
+                    c.body_hir.locs.clone(),
+                ));
             }
         }
         for c in clauses.iter_mut() {
@@ -273,7 +352,8 @@ fn extract_props(
     let ivars = class_props(mk, pat_ty)?; // eg. ("value", ty::spe("Maybe", "Int"))
     if ivars.len() != patterns.len() {
         return Err(error::program_error(&format!(
-            "this match needs {} patterns but {} there",
+            "this match for {} needs {} pattern(s) but {} there",
+            pat_ty,
             ivars.len(),
             patterns.len()
         )));

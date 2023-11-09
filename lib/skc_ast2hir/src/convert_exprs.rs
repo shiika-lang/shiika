@@ -263,12 +263,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         clauses: &[AstMatchClause],
         _locs: &LocationSpan,
     ) -> Result<HirExpression> {
-        let (match_expr, lvars) = pattern_match::convert_match_expr(self, cond_expr, clauses)?;
-        for lvar in lvars {
-            let readonly = true;
-            self.ctx_stack.declare_lvar(&lvar.name, lvar.ty, readonly);
-        }
-        Ok(match_expr)
+        pattern_match::convert_match_expr(self, cond_expr, clauses)
     }
 
     fn convert_while_expr(

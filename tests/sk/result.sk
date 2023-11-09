@@ -1,0 +1,32 @@
+class TestTryBang
+  def self.run
+    match try_calc(1)
+    when Ok(v)
+      unless v == 2; puts "TestTryBang fail A"; end
+    when Fail(e)
+      puts "TestTryBang fail B"
+    end
+    match try_calc(-1)
+    when Ok(v)
+      puts "TestTryBang fail C"
+    when Fail(e)
+      # ok
+    end
+  end
+
+  def self.try_calc -> Result<Int>
+    let a = try_calc(n).try!
+    Ok.new(a + 1)
+  end
+
+  def self.calc_inner(n: Int) -> Result<Int>
+    if n > 0
+      Ok.new(n)
+    else
+      Fail.new(Error.new("failed"))
+    end
+  end
+end
+TestTryBang.run
+
+puts "ok"

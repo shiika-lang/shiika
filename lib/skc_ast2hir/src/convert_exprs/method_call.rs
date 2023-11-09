@@ -2,6 +2,7 @@ use crate::class_dict::FoundMethod;
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
+use crate::pattern_match;
 use crate::type_inference::Infer;
 use crate::type_system::type_checking;
 use anyhow::{Context, Result};
@@ -99,6 +100,8 @@ pub fn convert_method_call(
             tyargs,
             locs,
         ));
+    } else if found.sig.fullname.full_name == "Result#try!" {
+        return expand_result_try(mk, receiver_hir, locs);
     }
 
     let ret_ty = inf.ret_ty().with_context(|| error(&block_taker, locs))?;
@@ -358,4 +361,14 @@ fn error(block_taker: &BlockTaker, locs: &LocationSpan) -> String {
         _ => "here".to_string(),
     };
     error::method_call_tyinf_failed(detail, locs).to_string()
+}
+
+// match receiver when Ok(v) then v when e then return e
+fn expand_result_try(
+    mk: &mut HirMaker,
+    receiver_hir: HirExpression,
+    locs: &LocationSpan,
+) -> Result<HirExpression> {
+    debug_assert!(receiver_hir.ty.fullname.0.starts_with("Result"));
+    pattern_match::expand_result_try(mk, receiver_hir, locs)
 }

@@ -154,3 +154,17 @@ pub fn if_clauses_type_mismatch(
         .build(main_msg, &then_locs);
     type_error(report)
 }
+
+pub fn match_clauses_type_mismatch(
+    ty1: &TermTy,
+    locs1: LocationSpan,
+    ty2: &TermTy,
+    locs2: LocationSpan,
+) -> anyhow::Error {
+    let main_msg = format!("match clauses type mismatch ({} vs {})", &ty1, &ty2);
+    let report = skc_error::report_builder()
+        .annotate(locs1.clone(), ty1.to_string())
+        .annotate(locs2, ty2.to_string())
+        .build(main_msg, &locs1);
+    type_error(report)
+}
