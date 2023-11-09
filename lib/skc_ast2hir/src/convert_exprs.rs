@@ -338,10 +338,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             )
         };
         let merge_ty = self._validate_return_type(&arg_expr.ty, locs)?;
-        Ok(Hir::bit_cast(
-            merge_ty,
-            Hir::return_expression(from, arg_expr, locs.clone()),
-        ))
+        let cast = Hir::bit_cast(merge_ty, arg_expr);
+        Ok(Hir::return_expression(from, cast, locs.clone()))
     }
 
     /// Check if `return' is valid in the current context
