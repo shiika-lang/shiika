@@ -14,8 +14,8 @@ class TestTryBang
     end
   end
 
-  def self.try_calc -> Result<Int>
-    let a = try_calc(n).try!
+  def self.try_calc(n: Int) -> Result<Int>
+    let a = calc_inner(n).try!
     Ok.new(a + 1)
   end
 
