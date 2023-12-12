@@ -26,6 +26,10 @@ pub fn syntax_error(msg: &str) -> anyhow::Error {
     .into()
 }
 
+pub fn argument_error(msg: impl Into<String>) -> anyhow::Error {
+    Error::TypeError { msg: msg.into() }.into()
+}
+
 pub fn type_error(msg: impl Into<String>) -> anyhow::Error {
     Error::TypeError { msg: msg.into() }.into()
 }
