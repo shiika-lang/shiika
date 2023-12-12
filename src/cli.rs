@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(clap::Parser, Debug)]
-#[clap(name = "subcommand", author, version, about)]
+#[clap(name = "shiika", author, version, about)]
 pub struct Arguments {
     #[clap(subcommand)]
     pub command: Command,
