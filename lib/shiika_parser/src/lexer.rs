@@ -738,7 +738,7 @@ impl<'a> Lexer<'a> {
             return CharType::Eof;
         }
         match cc.unwrap() {
-            ' ' | '\t' => CharType::Space,
+            ' ' | '\t' | '\r' => CharType::Space,
             '\n' | ';' => CharType::Separator,
             '#' => CharType::Comment,
             '"' => CharType::Str,
