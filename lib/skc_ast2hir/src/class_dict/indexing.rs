@@ -225,9 +225,31 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
+        let metaclass_fullname = fullname.meta_name();
 
         match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
-            Some(_) => todo!(),
+            Some(_) => {
+                // This module is predefined in skc_corelib.
+                // Inject methods
+                let metaclass = self
+                    .sk_types
+                    .0
+                    .get_mut(&metaclass_fullname.to_type_fullname())
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "[BUG] metaclass not found: {} <- {}",
+                            fullname, &metaclass_fullname
+                        )
+                    });
+                let meta_method_sigs = &mut metaclass.base_mut().method_sigs;
+                meta_method_sigs.append(instance_methods);
+                if let Some(sigs) = self
+                    .rust_methods
+                    .remove(&metaclass_fullname.to_type_fullname())
+                {
+                    meta_method_sigs.append_vec(sigs);
+                }
+            }
             None => self.add_new_module(
                 &fullname,
                 &typarams,
