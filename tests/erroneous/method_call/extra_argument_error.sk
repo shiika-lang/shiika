@@ -1,0 +1,5 @@
+class A
+  def self.run
+  end
+end
+A.run(1)
