@@ -6,8 +6,8 @@ Only 64bit environments are supported.
 ## Mac, Linux and WSL2
 
 1. Install [Git](https://git-scm.com/)
-1. Install [Rust](https://www.rust-lang.org/)
-1. Install LLVM 16
+1. Install [Rust](https://www.rust-lang.org/). Use latest stable version.
+2. Install LLVM 16
   - eg. `brew install llvm@16` on Mac
   - eg. `sudo apt install llvm-16 clang-16` on Ubuntu
     - Try https://apt.llvm.org/ if llvm-16 not available
