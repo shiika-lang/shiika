@@ -1,9 +1,17 @@
 //! Instance of `::String`
 use crate::builtin::object::ShiikaObject;
-use crate::builtin::{SkAry, SkInt, SkObj, SkPtr};
-use shiika_ffi_macro::shiika_method;
+use crate::builtin::{SkAry, SkClass, SkInt, SkObj, SkPtr};
+use crate::sk_cls::SkCls;
+use shiika_ffi_macro::{shiika_const_ref, shiika_method};
 use std::ffi::CString;
 use unicode_segmentation::UnicodeSegmentation;
+
+shiika_const_ref!("::String", SkClass, "sk_String");
+impl SkCls for SkStr {
+    fn get_class_object() -> SkClass {
+        sk_String()
+    }
+}
 
 extern "C" {
     // TODO: better name

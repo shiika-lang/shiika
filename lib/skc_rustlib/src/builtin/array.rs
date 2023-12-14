@@ -1,6 +1,13 @@
-use crate::builtin::{SkInt, SkObj};
-use crate::sk_methods::meta_array_new;
-use shiika_ffi_macro::shiika_method;
+use crate::builtin::{SkClass, SkInt, SkObj};
+use crate::sk_cls::SkCls;
+use shiika_ffi_macro::{shiika_const_ref, shiika_method, shiika_method_ref};
+
+shiika_const_ref!("::Array", SkClass, "sk_Array");
+shiika_method_ref!(
+    "Meta:Array#new",
+    fn(receiver: SkClass) -> SkAry<SkObj>,
+    "meta_array_new"
+);
 
 #[repr(C)]
 #[derive(Debug)]
@@ -16,8 +23,9 @@ struct ShiikaArray<T> {
 
 impl<T> SkAry<T> {
     /// Call `Array.new`.
-    pub fn new<U>() -> SkAry<U> {
-        let sk_ary = meta_array_new(std::ptr::null());
+    pub fn new<U: SkCls>() -> SkAry<U> {
+        let spe_cls = sk_Array().specialize(vec![U::get_class_object()]);
+        let sk_ary = meta_array_new(spe_cls);
         // Force cast because external function (Meta_Array_new)
         // cannot have type a parameter.
         SkAry(sk_ary.0 as *mut ShiikaArray<U>)
