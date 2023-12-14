@@ -2,9 +2,15 @@
 mod witness_table;
 use crate::builtin::class::witness_table::WitnessTable;
 use crate::builtin::{SkAry, SkInt, SkStr};
-use crate::sk_methods::meta_class_new;
-use shiika_ffi_macro::shiika_method;
+use shiika_ffi_macro::{shiika_method, shiika_method_ref};
 use std::collections::HashMap;
+
+shiika_method_ref!(
+    "Meta:Class#new",
+    fn(receiver: *const u8) -> SkClass,
+    "meta_class_new"
+);
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct SkClass(*mut ShiikaClass);
@@ -29,6 +35,10 @@ impl SkClass {
 
     fn name(&self) -> &SkStr {
         unsafe { &(*self.0).name }
+    }
+
+    pub fn specialize(self, tyargs: Vec<SkClass>) -> SkClass {
+        class_specialize(self, tyargs)
     }
 
     fn specialized_classes(&mut self) -> &mut HashMap<String, *mut ShiikaClass> {

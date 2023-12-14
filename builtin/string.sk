@@ -54,6 +54,10 @@ class String
     ret
   end
 
+  # Returns list of characters (more specifically,
+  # grapheme clusters).
+  #def chars -> Array<String>
+
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>) 
     @bytesize.times do |i|
