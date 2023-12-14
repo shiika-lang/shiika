@@ -46,7 +46,7 @@ pub fn convert_method_call(
         .lookup_method(receiver_ty, method_name, locs)?;
 
     let total_args = args.unnamed.len() + args.named.len();
-    validate_argument_length(total_args, &found.sig.params)?;
+    validate_argument_length(total_args, &found.sig.params, &locs)?;
 
     let arranged = arrange_named_args(&found.sig, args, locs)?;
 
@@ -167,13 +167,13 @@ pub fn arrange_named_args<'a>(
 }
 
 /// Check if number of arguments matches to the params.
-fn validate_argument_length(total_args: usize, params: &[MethodParam]) -> Result<()> {
+fn validate_argument_length(
+    total_args: usize,
+    params: &[MethodParam],
+    locs: &LocationSpan,
+) -> Result<()> {
     if total_args > params.len() {
-        return Err(error::argument_error(format!(
-            "wrong number of arguments: expected {}, got {}",
-            params.len(),
-            total_args
-        )));
+        return Err(error::argument_error(params.len(), total_args, &locs));
     }
     Ok(())
 }
