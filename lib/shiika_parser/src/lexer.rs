@@ -23,13 +23,13 @@ pub struct Lexer<'a> {
 /// Flags to decide a `-`, `+`, etc. is unary or binary.
 ///
 /// - `p(-x)`  # unary minus             ExprBegin
-/// - `p(- x)` # unary minus             ExprBegin   
-/// - `p( - x)`# unary minus             ExprBegin   
+/// - `p(- x)` # unary minus             ExprBegin
+/// - `p( - x)`# unary minus             ExprBegin
 /// - `p- x`   # binary minus (unusual)  ExprEnd
 /// - `p-x`    # binary minus            ExprEnd
 /// - `p - x`  # binary minus            ExprArg
 /// - `p -x`   # unary minus             ExprArg
-/// - `1 -2`   # binary minus (unusual)  ExprArg  
+/// - `1 -2`   # binary minus (unusual)  ExprArg
 #[derive(Debug, PartialEq, Eq)]
 pub enum LexerState {
     /// A new expression begins here
