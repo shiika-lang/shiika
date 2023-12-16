@@ -228,9 +228,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let metaclass_fullname = fullname.meta_name();
 
         match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
-            Some(_) => {
+            Some(sk_type) => {
                 // This module is predefined in skc_corelib.
-                // Inject methods
+                // Inject instance methods
+                let method_sigs = &mut sk_type.base_mut().method_sigs;
+                method_sigs.append(instance_methods);
+                if let Some(sigs) = self.rust_methods.remove(&fullname.to_type_fullname()) {
+                    method_sigs.append_vec(sigs);
+                }
+                // Inject class methods
                 let metaclass = self
                     .sk_types
                     .0
@@ -242,7 +248,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         )
                     });
                 let meta_method_sigs = &mut metaclass.base_mut().method_sigs;
-                meta_method_sigs.append(instance_methods);
+                meta_method_sigs.append(class_methods);
                 if let Some(sigs) = self
                     .rust_methods
                     .remove(&metaclass_fullname.to_type_fullname())
