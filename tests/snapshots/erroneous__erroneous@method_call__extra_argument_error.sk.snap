@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/method_call/extra_argument_error.sk
+---
+Error: wrong number of arguments: expected 0, got 1
+   ╭─[tests/erroneous/method_call/extra_argument_error.sk:5:2]
+   │
+ 5 │ A.run(1)
+   │  ───┬───  
+   │     ╰───── expected 0, got 1
+───╯
+

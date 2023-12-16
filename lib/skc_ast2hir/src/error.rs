@@ -26,6 +26,18 @@ pub fn syntax_error(msg: &str) -> anyhow::Error {
     .into()
 }
 
+pub fn argument_error(expected: usize, got: usize, locs: &LocationSpan) -> anyhow::Error {
+    let main_msg = format!(
+        "wrong number of arguments: expected {}, got {}",
+        expected, got
+    );
+    let sub_msg = format!("expected {}, got {}", expected, got);
+    let report = skc_error::report_builder()
+        .annotate(locs.clone(), sub_msg)
+        .build(main_msg, &locs);
+    type_error(report)
+}
+
 pub fn type_error(msg: impl Into<String>) -> anyhow::Error {
     Error::TypeError { msg: msg.into() }.into()
 }

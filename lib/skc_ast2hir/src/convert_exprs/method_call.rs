@@ -44,6 +44,10 @@ pub fn convert_method_call(
     let found = mk
         .class_dict
         .lookup_method(receiver_ty, method_name, locs)?;
+
+    let total_args = args.unnamed.len() + args.named.len();
+    validate_argument_length(total_args, &found.sig.params, &locs)?;
+
     let arranged = arrange_named_args(&found.sig, args, locs)?;
 
     validate_method_tyargs(&found, type_args)?;
@@ -160,6 +164,18 @@ pub fn arrange_named_args<'a>(
         return Err(error::extranous_arg(name, sig, error_locs));
     }
     Ok(v)
+}
+
+/// Check if number of arguments matches to the params.
+fn validate_argument_length(
+    total_args: usize,
+    params: &[MethodParam],
+    locs: &LocationSpan,
+) -> Result<()> {
+    if total_args > params.len() {
+        return Err(error::argument_error(params.len(), total_args, &locs));
+    }
+    Ok(())
 }
 
 /// Check if number of type arguments matches to the typarams.
