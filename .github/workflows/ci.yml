@@ -49,54 +49,10 @@ jobs:
           version: "16.0"
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Set up LLVM and Clang on macOS
+        if: runner.os == 'macOS'
         run: |
           brew install llvm@16
           echo "/usr/local/opt/llvm@16/bin" >> $GITHUB_PATH
-
-      - name: Output versions
-        run: |
-          set -eux
-          rustc --version
-          cargo --version
-          clang --version
-
-      - name: Build and test
-        run: |
-          set -eux
-          cd lib/skc_rustlib; cargo build; cd ../../
-          env -- cargo run -- build-corelib
-          env -- cargo test
-          env -- bash release_test.sh
-
-  build-macos:
-    env:
-      LDFLAGS: "-L/usr/local/opt/llvm@16/lib"
-      CPPFLAGS: "-I/usr/local/opt/llvm@16/include"
-
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: Set up the macOS env
-        run: |
-          set -eux
-
-      - name: Set up LLVM and Clang
-        run: |
-          brew install llvm@16
 
       - name: Output versions
         run: |
