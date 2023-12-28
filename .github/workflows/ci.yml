@@ -61,6 +61,43 @@ jobs:
           env -- cargo test
           env -- bash release_test.sh
 
+  build-macos:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Set up the macOS env
+        run: |
+          set -eux
+
+      - name: Cache LLVM and Clang
+        id: cache-llvm
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:/Program Files/LLVM
+            ./llvm
+          key: llvm-16.0
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "16.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+
   # Run cargo fmt --all -- --check
   format:
     name: Format
