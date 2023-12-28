@@ -99,6 +99,14 @@ jobs:
           cargo --version
           clang --version
 
+      - name: Build and test
+        run: |
+          set -eux
+          cd lib/skc_rustlib; cargo build; cd ../../
+          env -- cargo run -- build-corelib
+          env -- cargo test
+          env -- bash release_test.sh
+
   # Run cargo fmt --all -- --check
   format:
     name: Format
