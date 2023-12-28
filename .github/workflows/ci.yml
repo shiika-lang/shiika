@@ -83,20 +83,9 @@ jobs:
         run: |
           set -eux
 
-      - name: Cache LLVM and Clang
-        id: cache-llvm
-        uses: actions/cache@v3
-        with:
-          path: |
-            C:/Program Files/LLVM
-            ./llvm
-          key: llvm-16.0
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "16.0"
-          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-
+      - name: Set up LLVM and Clang
+        run: |
+          brew install llvm@16
 
   # Run cargo fmt --all -- --check
   format:
