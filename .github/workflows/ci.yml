@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -28,23 +28,31 @@ jobs:
           override: true
 
       - name: Set up the Linux env
+        if: runner.os == 'Linux'
         run: |
           set -eux
           sudo apt install -y libgc-dev
 
-      - name: Cache LLVM and Clang
+      - name: Cache LLVM and Clang on Linux
         id: cache-llvm
+        if: runner.os == 'Linux'
         uses: actions/cache@v3
         with:
           path: |
             C:/Program Files/LLVM
             ./llvm
           key: llvm-16.0
-      - name: Install LLVM and Clang
+      - name: Install LLVM and Clang on Linux
+        if: runner.os == 'Linux'
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "16.0"
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Set up LLVM and Clang on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm@16
+          echo "/usr/local/opt/llvm@16/bin" >> $GITHUB_PATH
 
       - name: Output versions
         run: |
