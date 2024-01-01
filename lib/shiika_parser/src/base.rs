@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     // Consume a separator and its surrounding spaces
     pub(super) fn expect_sep(&mut self) -> Result<(), Error> {
         match self.current_token() {
-            Token::Separator => {
+            Token::Separator | Token::Newline => {
                 self.consume_token()?;
             }
             Token::Eof => (),
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
     pub(super) fn skip_wsn(&mut self) -> Result<(), Error> {
         loop {
             match self.current_token() {
-                Token::Space | Token::Separator => self.consume_token()?,
+                Token::Space | Token::Separator | Token::Newline => self.consume_token()?,
                 _ => return Ok(()),
             };
         }
