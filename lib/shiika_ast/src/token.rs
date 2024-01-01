@@ -3,7 +3,7 @@ pub enum Token {
     Bof,
     Eof,
     Space,
-    Separator, // Newline, ';' or comment
+    Separator, // ';' or comment
     Newline,
     UpperWord(String),
     LowerWord(String),
@@ -134,7 +134,7 @@ impl Token {
             Token::Bof => false,
             Token::Eof => false,
             Token::Space => panic!("must not called on Space"),
-            Token::Separator => false, // Newline or ';'
+            Token::Separator => false, // ';' or comment
             Token::Newline => false,
             Token::UpperWord(_) => true,
             Token::LowerWord(_) => true,
