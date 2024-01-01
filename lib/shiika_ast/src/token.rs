@@ -4,6 +4,7 @@ pub enum Token {
     Eof,
     Space,
     Separator, // Newline, ';' or comment
+    Newline,
     UpperWord(String),
     LowerWord(String),
     IVar(String),
@@ -134,6 +135,7 @@ impl Token {
             Token::Eof => false,
             Token::Space => panic!("must not called on Space"),
             Token::Separator => false, // Newline or ';'
+            Token::Newline => false,
             Token::UpperWord(_) => true,
             Token::LowerWord(_) => true,
             Token::IVar(_) => true,
