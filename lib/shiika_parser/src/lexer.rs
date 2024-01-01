@@ -312,7 +312,10 @@ impl<'a> Lexer<'a> {
 
     fn read_separator(&mut self, next_cur: &mut Cursor) -> Token {
         while let CharType::Space | CharType::Separator = self.char_type(next_cur.peek(self.src)) {
-            next_cur.proceed(self.src);
+            let c = next_cur.proceed(self.src);
+            if c == '\n' {
+                return Token::Newline;
+            }
         }
         Token::Separator
     }
