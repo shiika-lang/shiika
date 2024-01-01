@@ -541,7 +541,7 @@ impl<'a> Parser<'a> {
             self.skip_wsn()?;
         } else {
             self.set_lexer_state(LexerState::ExprBegin); // +/- is always unary here
-            self.expect(Token::Separator)?;
+            self.expect_sep()?;
         }
 
         // then body
@@ -565,7 +565,7 @@ impl<'a> Parser<'a> {
             if self.consume(Token::KwThen)? {
                 self.skip_wsn()?;
             } else {
-                self.expect(Token::Separator)?;
+                self.expect_sep()?;
             }
             let then_exprs2 =
                 self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
@@ -604,7 +604,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::KwThen)? {
             self.skip_wsn()?;
         } else {
-            self.expect(Token::Separator)?;
+            self.expect_sep()?;
         }
         let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
         self.skip_wsn()?;
@@ -681,7 +681,7 @@ impl<'a> Parser<'a> {
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
         self.skip_ws()?;
-        self.expect(Token::Separator)?;
+        self.expect_sep()?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.skip_wsn()?;
         self.expect(Token::KwEnd)?;
