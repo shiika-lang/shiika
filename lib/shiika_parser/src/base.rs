@@ -81,6 +81,10 @@ impl<'a> Parser<'a> {
         *self.current_token() == token
     }
 
+    pub(super) fn current_token_is_separator(&mut self) -> bool {
+        *self.current_token() == Token::Separator || *self.current_token() == Token::Newline
+    }
+
     pub(super) fn current_token(&self) -> &Token {
         &self.lexer.current_token
     }

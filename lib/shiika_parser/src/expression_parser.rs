@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
                 return Ok(ret);
             } else if self.current_token_is(Token::Space) {
                 self.consume_token()?;
-            } else if self.current_token_is(Token::Separator) {
+            } else if self.current_token_is_separator() {
                 self.consume_token()?;
                 expr_seen = false;
             } else {
