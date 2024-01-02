@@ -247,7 +247,7 @@ impl<'a> Parser<'a> {
             }
         }
         let params = match self.current_token() {
-            Token::Separator | Token::Newline => vec![],
+            Token::Semicolon | Token::Newline => vec![],
             Token::LParen => {
                 self.consume_token()?;
                 let is_initialize = false;

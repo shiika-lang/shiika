@@ -317,7 +317,7 @@ impl<'a> Lexer<'a> {
                 return Token::Newline;
             }
         }
-        Token::Separator
+        Token::Semicolon
     }
 
     fn read_comment(&mut self, next_cur: &mut Cursor) -> Token {
