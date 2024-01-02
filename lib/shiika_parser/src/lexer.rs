@@ -320,7 +320,7 @@ impl<'a> Lexer<'a> {
         Token::Semicolon
     }
 
-    /// Return Token::Newline Because break line should be placed after a comment
+    /// A comment is always followed by a newline, so treat the combination as a newline
     fn read_comment(&mut self, next_cur: &mut Cursor) -> Token {
         next_cur.proceed(self.src); // Skip the `#'
         loop {

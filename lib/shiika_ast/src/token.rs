@@ -4,7 +4,7 @@ pub enum Token {
     Eof,
     Space,
     Semicolon,
-    Newline,
+    Newline, // A comment is always followed by a newline, so treat the combination as a newline
     UpperWord(String),
     LowerWord(String),
     IVar(String),
