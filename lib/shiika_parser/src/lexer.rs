@@ -320,6 +320,7 @@ impl<'a> Lexer<'a> {
         Token::Semicolon
     }
 
+    /// Return Token::Newline Because break line should be placed after a comment
     fn read_comment(&mut self, next_cur: &mut Cursor) -> Token {
         next_cur.proceed(self.src); // Skip the `#'
         loop {
@@ -328,7 +329,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        Token::Separator
+        Token::Newline
     }
 
     fn read_upper_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {
