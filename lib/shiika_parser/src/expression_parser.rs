@@ -867,7 +867,7 @@ impl<'a> Parser<'a> {
                         break;
                     }
                     if self.current_token_is(Token::Semicolon) {
-                        Err(parse_error!(self, "unexpected separator"))?;
+                        Err(parse_error!(self, "unexpected semicolon"))?;
                     }
                     self.skip_wsn()?;
                 }
