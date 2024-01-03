@@ -4,7 +4,15 @@ class Test
   end
 end
 
-Test.new.foo(1,
+var result = 0
+
+result = Test.new.foo(1,
 2)
+
+unless result == 3 then puts "ng 1" end
+
+result = Test.new.foo(1,2);
+
+unless result == 3 then puts "ng 2" end
 
 puts "ok"
