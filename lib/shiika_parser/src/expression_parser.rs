@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
-            let mut args = self.parse_method_call_args()?;
+            let mut args = self.parse_method_call_args(false)?;
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.set_lexer_state(LexerState::ExprArg);
         assert!(self.consume(Token::Space)?);
-        let mut args = self.parse_method_call_args()?;
+        let mut args = self.parse_method_call_args(false)?;
         self.debug_log(&format!("tried/args: {:?}", args));
         if !args.is_empty() {
             self.skip_ws()?;
@@ -829,7 +829,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::RParen)? {
             args = AstCallArgs::new();
         } else {
-            args = self.parse_method_call_args()?;
+            args = self.parse_method_call_args(true)?;
             self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
             self.expect(Token::RParen)?;
         }
@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse method call arguments (an expr or `foo: bar`)
-    fn parse_method_call_args(&mut self) -> Result<AstCallArgs, Error> {
+    fn parse_method_call_args(&mut self, with_paren: bool) -> Result<AstCallArgs, Error> {
         self.lv += 1;
         self.debug_log("parse_method_call_args");
         let mut args = AstCallArgs::new();
@@ -862,11 +862,25 @@ impl<'a> Parser<'a> {
                             args.add_unnamed(e);
                         }
                     }
-                    self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
-                    if !self.consume(Token::Comma)? {
-                        break;
+                    if with_paren {
+                        self.skip_or_error(
+                            vec![Token::Space, Token::Newline],
+                            vec![Token::Semicolon],
+                        )?;
+                        if !self.consume(Token::Comma)? {
+                            break;
+                        }
+                        self.skip_or_error(
+                            vec![Token::Space, Token::Newline],
+                            vec![Token::Semicolon],
+                        )?;
+                    } else {
+                        self.skip_ws()?;
+                        if !self.consume(Token::Comma)? {
+                            break;
+                        }
+                        self.skip_wsn()?;
                     }
-                    self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
                 }
                 None => break,
             }
