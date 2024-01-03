@@ -862,7 +862,7 @@ impl<'a> Parser<'a> {
                             args.add_unnamed(e);
                         }
                     }
-                    self.skip_ws()?;
+                    self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
                     if !self.consume(Token::Comma)? {
                         break;
                     }
