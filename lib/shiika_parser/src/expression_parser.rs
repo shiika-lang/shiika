@@ -830,7 +830,7 @@ impl<'a> Parser<'a> {
             args = AstCallArgs::new();
         } else {
             args = self.parse_method_call_args()?;
-            self.skip_wsn()?;
+            self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
             self.expect(Token::RParen)?;
         }
         self.lv -= 1;
