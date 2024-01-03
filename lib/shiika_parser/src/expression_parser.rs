@@ -862,23 +862,16 @@ impl<'a> Parser<'a> {
                             args.add_unnamed(e);
                         }
                     }
+                    self.skip_ws()?;
+                    if !self.consume(Token::Comma)? {
+                        break;
+                    }
                     if with_paren {
                         self.skip_or_error(
                             vec![Token::Space, Token::Newline],
                             vec![Token::Semicolon],
                         )?;
-                        if !self.consume(Token::Comma)? {
-                            break;
-                        }
-                        self.skip_or_error(
-                            vec![Token::Space, Token::Newline],
-                            vec![Token::Semicolon],
-                        )?;
                     } else {
-                        self.skip_ws()?;
-                        if !self.consume(Token::Comma)? {
-                            break;
-                        }
                         self.skip_wsn()?;
                     }
                 }
