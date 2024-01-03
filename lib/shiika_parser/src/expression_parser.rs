@@ -824,7 +824,7 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_paren_and_args");
         assert!(self.consume(Token::LParen)?);
-        self.skip_wsn()?;
+        self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
         let args;
         if self.consume(Token::RParen)? {
             args = AstCallArgs::new();
@@ -866,10 +866,7 @@ impl<'a> Parser<'a> {
                     if !self.consume(Token::Comma)? {
                         break;
                     }
-                    if self.current_token_is(Token::Semicolon) {
-                        Err(parse_error!(self, "unexpected semicolon"))?;
-                    }
-                    self.skip_wsn()?;
+                    self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
                 }
                 None => break,
             }
