@@ -1,0 +1,7 @@
+class Test
+  def foo(a: Int, b: Int) -> Int
+    return a + b
+  end
+end
+
+Test.new.foo(;1,2)
