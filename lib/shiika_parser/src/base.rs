@@ -56,6 +56,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub(super) fn skip_or_error(
+        &mut self,
+        skips: Vec<Token>,
+        error_tokens: Vec<Token>,
+    ) -> Result<(), Error> {
+        loop {
+            let current_token = self.current_token();
+            if skips.contains(&current_token) {
+                self.consume_token()?;
+            } else if error_tokens.contains(&current_token) {
+                return Err(parse_error!(self, "unexpected token: {:?}", current_token));
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
     /// Consume the current token and return it
     pub(super) fn consume_token(&mut self) -> Result<Token, Error> {
         let tok = self.current_token();
