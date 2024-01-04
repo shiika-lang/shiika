@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     // Consume a separator and its surrounding spaces
     pub(super) fn expect_sep(&mut self) -> Result<(), Error> {
         match self.current_token() {
-            Token::Separator => {
+            Token::Semicolon | Token::Newline => {
                 self.consume_token()?;
             }
             Token::Eof => (),
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
     pub(super) fn skip_wsn(&mut self) -> Result<(), Error> {
         loop {
             match self.current_token() {
-                Token::Space | Token::Separator => self.consume_token()?,
+                Token::Space | Token::Semicolon | Token::Newline => self.consume_token()?,
                 _ => return Ok(()),
             };
         }
@@ -54,6 +54,24 @@ impl<'a> Parser<'a> {
                 _ => return Ok(()),
             };
         }
+    }
+
+    pub(super) fn skip_or_error(
+        &mut self,
+        skips: Vec<Token>,
+        error_tokens: Vec<Token>,
+    ) -> Result<(), Error> {
+        loop {
+            let current_token = self.current_token();
+            if skips.contains(&current_token) {
+                self.consume_token()?;
+            } else if error_tokens.contains(&current_token) {
+                return Err(parse_error!(self, "unexpected token: {:?}", current_token));
+            } else {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// Consume the current token and return it
@@ -79,6 +97,10 @@ impl<'a> Parser<'a> {
     /// Note: Takes `Token` rather than `&Token` for convenience.
     pub(super) fn current_token_is(&mut self, token: Token) -> bool {
         *self.current_token() == token
+    }
+
+    pub(super) fn current_token_is_separator(&mut self) -> bool {
+        *self.current_token() == Token::Semicolon || *self.current_token() == Token::Newline
     }
 
     pub(super) fn current_token(&self) -> &Token {

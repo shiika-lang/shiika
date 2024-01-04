@@ -312,11 +312,15 @@ impl<'a> Lexer<'a> {
 
     fn read_separator(&mut self, next_cur: &mut Cursor) -> Token {
         while let CharType::Space | CharType::Separator = self.char_type(next_cur.peek(self.src)) {
-            next_cur.proceed(self.src);
+            let c = next_cur.proceed(self.src);
+            if c == '\n' {
+                return Token::Newline;
+            }
         }
-        Token::Separator
+        Token::Semicolon
     }
 
+    /// A comment is always followed by a newline, so treat the combination as a newline
     fn read_comment(&mut self, next_cur: &mut Cursor) -> Token {
         next_cur.proceed(self.src); // Skip the `#'
         loop {
@@ -325,7 +329,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        Token::Separator
+        Token::Newline
     }
 
     fn read_upper_word(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Token {

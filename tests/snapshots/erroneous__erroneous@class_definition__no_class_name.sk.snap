@@ -3,7 +3,7 @@ source: tests/erroneous.rs
 expression: compiler_output
 input_file: tests/erroneous/class_definition/no_class_name.sk
 ---
-Error: class name must start with A-Z but got Separator
+Error: class name must start with A-Z but got Newline
    ╭─[tests/erroneous/class_definition/no_class_name.sk:1:6]
    │
  1 │ class

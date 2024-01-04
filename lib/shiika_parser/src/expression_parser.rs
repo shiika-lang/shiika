@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
                 return Ok(ret);
             } else if self.current_token_is(Token::Space) {
                 self.consume_token()?;
-            } else if self.current_token_is(Token::Separator) {
+            } else if self.current_token_is_separator() {
                 self.consume_token()?;
                 expr_seen = false;
             } else {
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
 
         // See if it is a method invocation (eg. `x.foo 1, 2`)
         if expr.may_have_paren_wo_args() {
-            let mut args = self.parse_method_call_args()?;
+            let mut args = self.parse_method_call_args(false)?;
             if !args.is_empty() {
                 self.skip_ws()?;
                 if let Some(lambda) = self.parse_opt_do_block()? {
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
         self.consume_token()?;
         self.set_lexer_state(LexerState::ExprArg);
         assert!(self.consume(Token::Space)?);
-        let mut args = self.parse_method_call_args()?;
+        let mut args = self.parse_method_call_args(false)?;
         self.debug_log(&format!("tried/args: {:?}", args));
         if !args.is_empty() {
             self.skip_ws()?;
@@ -541,7 +541,7 @@ impl<'a> Parser<'a> {
             self.skip_wsn()?;
         } else {
             self.set_lexer_state(LexerState::ExprBegin); // +/- is always unary here
-            self.expect(Token::Separator)?;
+            self.expect_sep()?;
         }
 
         // then body
@@ -565,7 +565,7 @@ impl<'a> Parser<'a> {
             if self.consume(Token::KwThen)? {
                 self.skip_wsn()?;
             } else {
-                self.expect(Token::Separator)?;
+                self.expect_sep()?;
             }
             let then_exprs2 =
                 self.parse_exprs(vec![Token::KwEnd, Token::KwElse, Token::KwElsif])?;
@@ -604,7 +604,7 @@ impl<'a> Parser<'a> {
         if self.consume(Token::KwThen)? {
             self.skip_wsn()?;
         } else {
-            self.expect(Token::Separator)?;
+            self.expect_sep()?;
         }
         let then_exprs = self.parse_exprs(vec![Token::KwEnd, Token::KwElse])?;
         self.skip_wsn()?;
@@ -681,7 +681,7 @@ impl<'a> Parser<'a> {
         self.skip_ws()?;
         let cond_expr = self.parse_call_wo_paren()?;
         self.skip_ws()?;
-        self.expect(Token::Separator)?;
+        self.expect_sep()?;
         let body_exprs = self.parse_exprs(vec![Token::KwEnd])?;
         self.skip_wsn()?;
         self.expect(Token::KwEnd)?;
@@ -824,13 +824,13 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_paren_and_args");
         assert!(self.consume(Token::LParen)?);
-        self.skip_wsn()?;
+        self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
         let args;
         if self.consume(Token::RParen)? {
             args = AstCallArgs::new();
         } else {
-            args = self.parse_method_call_args()?;
-            self.skip_wsn()?;
+            args = self.parse_method_call_args(true)?;
+            self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
             self.expect(Token::RParen)?;
         }
         self.lv -= 1;
@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse method call arguments (an expr or `foo: bar`)
-    fn parse_method_call_args(&mut self) -> Result<AstCallArgs, Error> {
+    fn parse_method_call_args(&mut self, with_paren: bool) -> Result<AstCallArgs, Error> {
         self.lv += 1;
         self.debug_log("parse_method_call_args");
         let mut args = AstCallArgs::new();
@@ -866,7 +866,14 @@ impl<'a> Parser<'a> {
                     if !self.consume(Token::Comma)? {
                         break;
                     }
-                    self.skip_wsn()?;
+                    if with_paren {
+                        self.skip_or_error(
+                            vec![Token::Space, Token::Newline],
+                            vec![Token::Semicolon],
+                        )?;
+                    } else {
+                        self.skip_wsn()?;
+                    }
                 }
                 None => break,
             }

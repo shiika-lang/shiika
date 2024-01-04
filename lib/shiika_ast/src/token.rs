@@ -3,7 +3,8 @@ pub enum Token {
     Bof,
     Eof,
     Space,
-    Separator, // Newline, ';' or comment
+    Semicolon,
+    Newline, // A comment is always followed by a newline, so treat the combination as a newline
     UpperWord(String),
     LowerWord(String),
     IVar(String),
@@ -133,7 +134,8 @@ impl Token {
             Token::Bof => false,
             Token::Eof => false,
             Token::Space => panic!("must not called on Space"),
-            Token::Separator => false, // Newline or ';'
+            Token::Semicolon => false,
+            Token::Newline => false,
             Token::UpperWord(_) => true,
             Token::LowerWord(_) => true,
             Token::IVar(_) => true,

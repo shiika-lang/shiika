@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/parsing/semicolon_within_parentheses4.sk
+---
+Error: unexpected token: Semicolon
+   ╭─[tests/erroneous/parsing/semicolon_within_parentheses4.sk:7:17]
+   │
+ 7 │ Test.new.foo(1,2;)
+   │                 ─  
+   │                     
+───╯
+)
