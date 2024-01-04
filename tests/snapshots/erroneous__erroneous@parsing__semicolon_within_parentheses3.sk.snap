@@ -1,10 +1,10 @@
 ---
 source: tests/erroneous.rs
 expression: compiler_output
-input_file: tests/erroneous/method_call/semicolon_within_parentheses3.sk
+input_file: tests/erroneous/parsing/semicolon_within_parentheses3.sk
 ---
 Error: unexpected token: Semicolon
-   ╭─[tests/erroneous/method_call/semicolon_within_parentheses3.sk:7:16]
+   ╭─[tests/erroneous/parsing/semicolon_within_parentheses3.sk:7:16]
    │
  7 │ Test.new.foo(1,;2)
    │                ─  
