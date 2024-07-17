@@ -103,7 +103,8 @@ impl Cursor {
 #[derive(Debug, PartialEq)]
 enum CharType {
     Space,
-    Separator, // Newline or ';'
+    Semicolon,
+    Newline,
     Comment,   // From '#' to the next newline
     UpperWord, // identifier which starts with upper-case letter
     LowerWord, // Keyword or identifier which starts with lower-case letter. May suffixed by '?'
@@ -235,7 +236,8 @@ impl<'a> Lexer<'a> {
         let mut next_next_cur = next_cur.clone();
         let (token, _) = match self.char_type(c) {
             CharType::Space => (self.read_space(&mut next_next_cur), None),
-            CharType::Separator => (self.read_separator(&mut next_next_cur), None),
+            CharType::Semicolon => (self.read_semicolon(&mut next_next_cur), None),
+            CharType::Newline => (self.read_newline(&mut next_next_cur), None),
             CharType::Comment => (self.read_comment(&mut next_next_cur), None),
             CharType::UpperWord => (
                 self.read_upper_word(&mut next_next_cur, Some(&next_cur)),
@@ -264,8 +266,12 @@ impl<'a> Lexer<'a> {
         } else {
             let (t, s) = match self.char_type(c) {
                 CharType::Space => (self.read_space(&mut next_cur), None),
-                CharType::Separator => (
-                    self.read_separator(&mut next_cur),
+                CharType::Semicolon => (
+                    self.read_semicolon(&mut next_cur),
+                    Some(LexerState::ExprBegin),
+                ),
+                CharType::Newline => (
+                    self.read_newline(&mut next_cur),
                     Some(LexerState::ExprBegin),
                 ),
                 CharType::Comment => (
@@ -310,14 +316,18 @@ impl<'a> Lexer<'a> {
         Token::Space
     }
 
-    fn read_separator(&mut self, next_cur: &mut Cursor) -> Token {
-        while let CharType::Space | CharType::Separator = self.char_type(next_cur.peek(self.src)) {
-            let c = next_cur.proceed(self.src);
-            if c == '\n' {
-                return Token::Newline;
-            }
+    fn read_semicolon(&mut self, next_cur: &mut Cursor) -> Token {
+        while let CharType::Space | CharType::Semicolon = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
         }
         Token::Semicolon
+    }
+
+    fn read_newline(&mut self, next_cur: &mut Cursor) -> Token {
+        while let CharType::Space | CharType::Newline = self.char_type(next_cur.peek(self.src)) {
+            next_cur.proceed(self.src);
+        }
+        Token::Newline
     }
 
     /// A comment is always followed by a newline, so treat the combination as a newline
@@ -743,7 +753,8 @@ impl<'a> Lexer<'a> {
         }
         match cc.unwrap() {
             ' ' | '\t' | '\r' => CharType::Space,
-            '\n' | ';' => CharType::Separator,
+            '\n' => CharType::Newline,
+            ';' => CharType::Semicolon,
             '#' => CharType::Comment,
             '"' => CharType::Str,
             '0'..='9' => CharType::Number,
