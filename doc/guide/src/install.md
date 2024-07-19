@@ -3,6 +3,12 @@
 Shiika works on Mac, Linux and Windows (with and without WSL2.)
 Only 64bit environments are supported.
 
+## Develop in a Docker conteiner
+
+You can develop shiika in a Docker container without configuring your local environment.
+
+See [develop-in-docker.md](./develop-in-docker.md) for details.
+
 ## Mac, Linux and WSL2
 
 1. Install [Git](https://git-scm.com/)
