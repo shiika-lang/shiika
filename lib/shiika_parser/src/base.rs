@@ -122,6 +122,36 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Return the token after the next non-space token without changing the current state
+    /// Note: newlines are not skipped. (i.e. this function may return Token::Newline)
+    pub(super) fn next_next_nonspace_token(&mut self) -> Result<Token, Error> {
+        let mut token;
+
+        // Find the next non-space token
+        loop {
+            token = self.lexer.peek_next()?;
+            if !matches!(token, Token::Space | Token::Semicolon) {
+                break;
+            }
+        }
+
+        // If we've reached EOF, return it
+        if token == Token::Eof {
+            return Ok(Token::Eof);
+        }
+
+        // Find the next non-space token after that
+        loop {
+            token = self.lexer.peek_next()?;
+            if !matches!(token, Token::Space | Token::Semicolon) {
+                break;
+            }
+        }
+
+        // Return the found token
+        Ok(token)
+    }
+
     /// Get the lexer position
     pub(super) fn current_position(&self) -> Cursor {
         self.lexer.cur.clone()
@@ -157,7 +187,7 @@ impl<'a> Parser<'a> {
 
     /// Print parser debug log (uncomment to enable)
     pub(super) fn debug_log(&self, _msg: &str) {
-        //println!("{}{} {}", self.lv_space(), _msg, self.lexer.debug_info());
+        // println!("{}{} {}", self.lv_space(), _msg, self.lexer.debug_info());
     }
     #[allow(dead_code)]
     fn lv_space(&self) -> String {

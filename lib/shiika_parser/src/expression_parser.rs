@@ -716,12 +716,22 @@ impl<'a> Parser<'a> {
                     begin.clone(),
                     end,
                 );
-            } else if self.next_nonspace_token()? == Token::Dot {
-                // TODO: Newline should also be allowed here (but Semicolon is not)
-                self.skip_ws()?;
-                expr = self.parse_method_chain(expr)?;
             } else {
-                break;
+                let next_token = self.next_nonspace_token()?;
+                match next_token {
+                    Token::Dot => {
+                        self.skip_ws()?;
+                        expr = self.parse_method_chain(expr)?;
+                    }
+                    Token::Newline => {
+                        if self.next_next_nonspace_token()? == Token::Dot {
+                            self.skip_wsn()?;
+                            expr = self.parse_method_chain(expr)?;
+                        }
+                        break;
+                    }
+                    _ => break,
+                }
             }
         }
         self.lv -= 1;
