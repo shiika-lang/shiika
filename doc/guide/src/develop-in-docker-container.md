@@ -30,6 +30,7 @@ docker-compose exec dev bash
 
 After that, run the setup script:
 ```
+chmod +x ./setup.sh
 ./setup.sh
 ```
 
