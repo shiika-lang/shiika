@@ -1295,7 +1295,7 @@ impl<'a> Parser<'a> {
             };
             self.skip_ws()?;
             self.consume_token()?; // Consume t
-            self.skip_wsn()?; // TODO: should ban ';' here
+            self.skip_or_error(vec![Token::Space, Token::Newline], vec![Token::Semicolon])?;
             let right = func(self)?;
             left = self.ast.bin_op_expr(left, op, right)
         }
