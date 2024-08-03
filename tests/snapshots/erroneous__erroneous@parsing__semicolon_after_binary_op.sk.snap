@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/parsing/semicolon_after_binary_op.sk
+---
+Error: unexpected token: Semicolon
+   ╭─[tests/erroneous/parsing/semicolon_after_binary_op.sk:1:3]
+   │
+ 1 │ 1+;2
+   │   ─  
+   │       
+───╯
+)
