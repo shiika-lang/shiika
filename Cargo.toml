@@ -3,6 +3,7 @@ edition = "2021"
 name = "shiika"
 version = "0.9.1"
 authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
+default-run = "shiika"
 
 [workspace]
 members = [
@@ -20,6 +21,7 @@ skc_corelib = { path = "lib/skc_corelib/" }
 skc_ast2hir = { path = "lib/skc_ast2hir/" }
 skc_mir = { path = "lib/skc_mir/" }
 skc_codegen = { path = "lib/skc_codegen/" }
+skc_async_experiment = { path = "lib/skc_async_experiment/" }
 
 anyhow = "1.0"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
@@ -33,6 +35,8 @@ concolor = { version = "0.1.1", features = ["api"] }
 
 chrono = "0.4"
 chrono-tz = "0.8"
+
+ariadne = "0.3.0"
 
 [dev-dependencies]
 insta = { version = "1.32.0", features = ["glob"] }
