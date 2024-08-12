@@ -149,3 +149,10 @@ task :a => [:fmt, A_OUT] do
   # sh "cargo run -- run a.sk"
 end
 
+#
+# new async runtime
+#
+task :async do
+  sh "cargo fmt"
+  sh "cargo run --bin exp_shiika -- a.milika"
+end

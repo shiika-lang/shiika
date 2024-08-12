@@ -3,7 +3,7 @@ use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
-pub fn run(hir: &hir::blocked::Program) -> Result<()> {
+pub fn run(hir: &hir::Program) -> Result<()> {
     let mut sigs: HashMap<_, _> = hir
         .funcs
         .iter()
@@ -15,10 +15,8 @@ pub fn run(hir: &hir::blocked::Program) -> Result<()> {
 
     let v = Verifier { sigs };
     for f in &hir.funcs {
-        for b in &f.body_blocks {
-            for e in &b.stmts {
-                v.verify_expr(f, e)?;
-            }
+        for e in &f.body_stmts {
+            v.verify_expr(f, e)?;
         }
     }
     Ok(())
@@ -29,14 +27,14 @@ struct Verifier {
 }
 
 impl Verifier {
-    fn verify_expr(&self, f: &hir::blocked::Function, e: &hir::TypedExpr) -> Result<()> {
+    fn verify_expr(&self, f: &hir::Function, e: &hir::TypedExpr) -> Result<()> {
         self._verify_expr(f, e)
             .context(format!("in expr {:?}", e.0))
             .context(format!("in function {:?}", f.name))
             .context(format!("[BUG] Type verifier failed"))
     }
 
-    fn _verify_expr(&self, f: &hir::blocked::Function, e: &hir::TypedExpr) -> Result<()> {
+    fn _verify_expr(&self, f: &hir::Function, e: &hir::TypedExpr) -> Result<()> {
         match &e.0 {
             hir::Expr::Number(_) => assert(&e, "number", &hir::Ty::Int)?,
             hir::Expr::PseudoVar(_) => (),
@@ -131,29 +129,12 @@ impl Verifier {
                     }
                 }
             }
-            hir::Expr::Br(e, n) => {
-                if *n >= f.body_blocks.len() {
-                    bail!("block index out of range: {}", n);
-                }
-                self.verify_expr(f, e)?;
-            }
-            hir::Expr::CondBr(cond, then, els) => {
-                self.verify_expr(f, cond)?;
-                if *then >= f.body_blocks.len() {
-                    bail!("block index out of range: {}", then);
-                }
-                if *els >= f.body_blocks.len() {
-                    bail!("block index out of range: {}", els);
-                }
-            }
-            hir::Expr::BlockArgRef => (),
-            hir::Expr::Nop => (),
             _ => panic!("not supported by verifier: {:?}", e.0),
         }
         Ok(())
     }
 
-    fn verify_exprs(&self, f: &hir::blocked::Function, es: &[hir::TypedExpr]) -> Result<()> {
+    fn verify_exprs(&self, f: &hir::Function, es: &[hir::TypedExpr]) -> Result<()> {
         for e in es {
             self.verify_expr(f, e)?;
         }

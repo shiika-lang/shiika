@@ -1,6 +1,6 @@
-use skc_async_experiment::{prelude, compiler, hir, hir_lowering, parser, verifier};
 use anyhow::{bail, Context, Result};
 use ariadne::{Label, Report, ReportKind, Source};
+use skc_async_experiment::{codegen, hir, hir_lowering, parser, prelude, verifier};
 use std::io::Write;
 
 fn main() -> Result<()> {
@@ -39,16 +39,11 @@ impl Main {
         self.log(&format!("# -- verifier input --\n{bhir}\n"));
         verifier::run(&bhir)?;
 
-        compiler::run(path, &src, bhir)?;
+        codegen::run(path, &src, bhir)?;
         Ok(())
     }
 
-    fn compile(
-        &mut self,
-        src: &str,
-        path: &str,
-        is_prelude: bool,
-    ) -> Result<hir::blocked::Program> {
+    fn compile(&mut self, src: &str, path: &str, is_prelude: bool) -> Result<hir::Program> {
         let ast = match parser::parse(src) {
             Ok(ast) => ast,
             Err(e) => {
@@ -77,8 +72,7 @@ impl Main {
                 !is_prelude,
             );
         }
-        let bhir = hir_lowering::lower_if::run(hir);
-        Ok(bhir)
+        Ok(hir)
     }
 
     fn debug(&mut self, s: String, print: bool) {
@@ -92,7 +86,7 @@ impl Main {
     }
 }
 
-fn main_is_async(hir: &hir::blocked::Program) -> Result<bool> {
+fn main_is_async(hir: &hir::Program) -> Result<bool> {
     let Some(main) = hir.funcs.iter().find(|x| x.name == "chiika_main") else {
         bail!("chiika_main not found");
     };

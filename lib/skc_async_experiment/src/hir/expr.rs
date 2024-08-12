@@ -20,13 +20,6 @@ pub enum Expr {
     Assign(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
-
-    //
-    // Appears after `lower_if`
-    //
-    Br(Box<Typed<Expr>>, usize),
-    CondBr(Box<Typed<Expr>>, usize, usize),
-    BlockArgRef,
     Nop,
 }
 
@@ -108,11 +101,6 @@ impl std::fmt::Display for Expr {
             Expr::Assign(name, e) => write!(f, "{} = {}", name, e.0),
             Expr::Return(e) => write!(f, "return {}  # {}", e.0, e.1),
             Expr::Cast(cast_type, e) => write!(f, "({} as {})", e.0, cast_type.result_ty()),
-            Expr::Br(e, target) => write!(f, "%br ^bb{}({})  # {}", target, e.0, e.1),
-            Expr::CondBr(cond, target_t, target_f) => {
-                write!(f, "%cond_br {} ^bb{} ^bb{}", cond.0, target_t, target_f)
-            }
-            Expr::BlockArgRef => write!(f, "%block_arg"),
             Expr::Nop => write!(f, "%nop"),
             //_ => todo!("{:?}", self),
         }
@@ -215,18 +203,6 @@ impl Expr {
             CastType::FunToAny => Ty::Any,
         };
         (Expr::Cast(cast_type, Box::new(e)), ty)
-    }
-
-    pub fn br(value: TypedExpr, target: usize) -> TypedExpr {
-        (Expr::Br(Box::new(value), target), Ty::Void)
-    }
-
-    pub fn cond_br(cond: TypedExpr, target_t: usize, target_f: usize) -> TypedExpr {
-        (Expr::CondBr(Box::new(cond), target_t, target_f), Ty::Void)
-    }
-
-    pub fn block_arg_ref(ty: Ty) -> TypedExpr {
-        (Expr::BlockArgRef, ty)
     }
 
     pub fn nop() -> TypedExpr {

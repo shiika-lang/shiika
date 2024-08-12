@@ -1,5 +1,5 @@
 pub mod ast;
-pub mod compiler;
+pub mod codegen;
 pub mod hir;
 pub mod hir_lowering;
 pub mod parser;
