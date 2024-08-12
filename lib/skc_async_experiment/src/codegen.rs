@@ -47,18 +47,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(())
     }
 
-    //    fn compile_value_expr(&self, texpr: &hir::TypedExpr) -> Result<SkValue<'run>> {
-    //        match self.compile_expr(texpr)? {
-    //            Some(v) => Ok(v),
-    //            None => panic!("this expression does not have value"),
-    //        }
-    //    }
+    fn compile_value_expr(&self, texpr: &hir::TypedExpr) -> Result<SkValue<'run>> {
+        match self.compile_expr(texpr)? {
+            Some(v) => Ok(v),
+            None => panic!("this expression does not have value"),
+        }
+    }
 
     fn compile_expr(&self, texpr: &hir::TypedExpr) -> Result<Option<SkValue<'run>>> {
         match &texpr.0 {
             hir::Expr::Number(n) => self.compile_number(*n),
             hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
-            _ => todo!(),
             //            hir::Expr::LVarRef(name) => self.compile_lvarref(block, lvars, name),
             //            hir::Expr::ArgRef(idx) => self.compile_argref(blocks, idx),
             //            hir::Expr::FuncRef(name) => {
@@ -80,7 +79,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),
             //            hir::Expr::Alloc(name) => self.compile_alloc(block, lvars, name),
             //            hir::Expr::Assign(name, rhs) => self.compile_assign(blocks, block, lvars, name, rhs),
-            //            hir::Expr::Return(val_expr) => self.compile_return(blocks, block, lvars, val_expr),
+            hir::Expr::Return(val_expr) => self.compile_return(val_expr),
             //            hir::Expr::Cast(expr, cast_type) => {
             //                self.compile_cast(blocks, block, lvars, expr, cast_type)
             //            }
@@ -90,17 +89,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            }
             //            hir::Expr::BlockArgRef => self.compile_block_arg_ref(block),
             //            hir::Expr::Nop => Ok(None),
-            //            _ => panic!("should be lowered before compiler.rs: {:?}", texpr.0),
+            _ => panic!("should be lowered before compiler.rs: {:?}", texpr.0),
         }
     }
 
-    fn compile_number<'a>(&self, n: i64) -> Result<Option<SkValue<'run>>> {
+    fn compile_number(&self, n: i64) -> Result<Option<SkValue<'run>>> {
         Ok(Some(SkValue(
             self.context.i64_type().const_int(n as u64, false).into(),
         )))
     }
 
-    fn compile_pseudo_var<'a>(&self, pseudo_var: &hir::PseudoVar) -> Result<Option<SkValue<'run>>> {
+    fn compile_pseudo_var(&self, pseudo_var: &hir::PseudoVar) -> Result<Option<SkValue<'run>>> {
         let v = match pseudo_var {
             hir::PseudoVar::True => self.context.bool_type().const_int(1, false),
             hir::PseudoVar::False => self.context.bool_type().const_int(0, false),
@@ -108,6 +107,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::PseudoVar::Null => self.context.i64_type().const_int(0, false),
         };
         Ok(Some(SkValue(v.into())))
+    }
+
+    fn compile_return(&self, val_expr: &hir::TypedExpr) -> Result<Option<SkValue<'run>>> {
+        let val = self.compile_value_expr(val_expr)?;
+        self.builder.build_return(Some(&val.0));
+        Ok(None)
     }
 
     fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {
