@@ -25,21 +25,21 @@ impl Main {
 
     fn run(&mut self, path: &str) -> Result<()> {
         let src = std::fs::read_to_string(path).context(format!("failed to read {}", path))?;
-        let mut bhir = self.compile(&src, &path, false)?;
+        let mut hir = self.compile(&src, &path, false)?;
 
-        let prelude_txt = prelude::prelude_funcs(main_is_async(&bhir)?);
+        let prelude_txt = prelude::prelude_funcs(main_is_async(&hir)?);
         let mut prelude_hir = self.compile(&prelude_txt, "src/prelude.rs", true)?;
         for e in prelude_hir.externs {
             if !e.is_internal {
-                bhir.externs.push(e);
+                hir.externs.push(e);
             }
         }
-        bhir.funcs.append(&mut prelude_hir.funcs);
+        hir.funcs.append(&mut prelude_hir.funcs);
 
-        self.log(&format!("# -- verifier input --\n{bhir}\n"));
-        verifier::run(&bhir)?;
+        self.log(&format!("# -- verifier input --\n{hir}\n"));
+        verifier::run(&hir)?;
 
-        codegen::run(path, &src, bhir);
+        codegen::run(path, &src, hir);
         Ok(())
     }
 
