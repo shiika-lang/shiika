@@ -51,7 +51,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_func(&self, f: hir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
-        self.module.add_function(&f.name, func_type, None);
+        let function = self.module.add_function(&f.name, func_type, None);
+        let basic_block = self.context.append_basic_block(function, "");
+        self.builder.position_at_end(basic_block);
+
         let mut ctx = CodeGenContext {
             function: self.get_llvm_func(&f.name),
         };
