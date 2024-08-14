@@ -1,5 +1,7 @@
+mod codegen_context;
 use crate::hir;
 use anyhow::Result;
+use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
 
 pub struct SkValue<'run>(pub inkwell::values::BasicValueEnum<'run>);
@@ -41,25 +43,39 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_func(&self, f: hir::Function) -> Result<()> {
+        let func_type = self.llvm_function_type(&f.fun_ty());
+        self.module.add_function(&f.name, func_type, None);
+        let mut ctx = CodeGenContext {
+            function: self.get_llvm_func(&f.name),
+        };
+
         for stmt in &f.body_stmts {
-            self.compile_expr(stmt)?;
+            self.compile_expr(&mut ctx, stmt)?;
         }
         Ok(())
     }
 
-    fn compile_value_expr(&self, texpr: &hir::TypedExpr) -> Result<SkValue<'run>> {
-        match self.compile_expr(texpr)? {
+    fn compile_value_expr(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        texpr: &hir::TypedExpr,
+    ) -> Result<SkValue<'run>> {
+        match self.compile_expr(ctx, texpr)? {
             Some(v) => Ok(v),
             None => panic!("this expression does not have value"),
         }
     }
 
-    fn compile_expr(&self, texpr: &hir::TypedExpr) -> Result<Option<SkValue<'run>>> {
+    fn compile_expr(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        texpr: &hir::TypedExpr,
+    ) -> Result<Option<SkValue<'run>>> {
         match &texpr.0 {
             hir::Expr::Number(n) => self.compile_number(*n),
             hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
             //            hir::Expr::LVarRef(name) => self.compile_lvarref(block, lvars, name),
-            //            hir::Expr::ArgRef(idx) => self.compile_argref(blocks, idx),
+            hir::Expr::ArgRef(idx) => self.compile_argref(ctx, idx),
             //            hir::Expr::FuncRef(name) => {
             //                let hir::Ty::Fun(fun_ty) = &texpr.1 else {
             //                    return Err(anyhow!("[BUG] not a function: {:?}", texpr.1));
@@ -69,9 +85,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            hir::Expr::OpCall(op, lhs, rhs) => {
             //                self.compile_op_call(blocks, block, lvars, op, lhs, rhs)
             //            }
-            //            hir::Expr::FunCall(fexpr, arg_exprs) => {
-            //                self.compile_funcall(blocks, block, lvars, fexpr, arg_exprs)
-            //            }
+            hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             //            hir::Expr::If(cond, then, els) => {
             //                self.compile_if(blocks, block, lvars, cond, then, els, &texpr.1)
             //            }
@@ -79,7 +93,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),
             //            hir::Expr::Alloc(name) => self.compile_alloc(block, lvars, name),
             //            hir::Expr::Assign(name, rhs) => self.compile_assign(blocks, block, lvars, name, rhs),
-            hir::Expr::Return(val_expr) => self.compile_return(val_expr),
+            hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             //            hir::Expr::Cast(expr, cast_type) => {
             //                self.compile_cast(blocks, block, lvars, expr, cast_type)
             //            }
@@ -99,6 +113,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         )))
     }
 
+    fn compile_argref(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        idx: &usize,
+    ) -> Result<Option<SkValue<'run>>> {
+        Ok(Some(SkValue(
+            ctx.function.get_nth_param(*idx as u32).unwrap(),
+        )))
+    }
+
     fn compile_pseudo_var(&self, pseudo_var: &hir::PseudoVar) -> Result<Option<SkValue<'run>>> {
         let v = match pseudo_var {
             hir::PseudoVar::True => self.context.bool_type().const_int(1, false),
@@ -109,8 +133,34 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(Some(SkValue(v.into())))
     }
 
-    fn compile_return(&self, val_expr: &hir::TypedExpr) -> Result<Option<SkValue<'run>>> {
-        let val = self.compile_value_expr(val_expr)?;
+    fn compile_funcall(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        fexpr: &hir::TypedExpr,
+        arg_exprs: &[hir::TypedExpr],
+    ) -> Result<Option<SkValue<'run>>> {
+        let func = self.compile_value_expr(ctx, fexpr)?;
+        let func_type = self.llvm_function_type(fexpr.1.as_fun_ty());
+        let args = arg_exprs
+            .iter()
+            .map(|x| self.compile_value_expr(ctx, x))
+            .collect::<Result<Vec<_>>>()?;
+        let args = args.iter().map(|x| x.0.into()).collect::<Vec<_>>();
+        let ret = self.builder.build_indirect_call(
+            func_type,
+            func.0.into_pointer_value(),
+            &args,
+            "calltmp",
+        );
+        Ok(Some(SkValue(ret.try_as_basic_value().left().unwrap())))
+    }
+
+    fn compile_return(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        val_expr: &hir::TypedExpr,
+    ) -> Result<Option<SkValue<'run>>> {
+        let val = self.compile_value_expr(ctx, val_expr)?;
         self.builder.build_return(Some(&val.0));
         Ok(None)
     }
@@ -146,5 +196,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn bool_type(&self) -> inkwell::types::IntType<'ictx> {
         self.context.bool_type()
+    }
+
+    fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'run> {
+        self.module
+            .get_function(name)
+            .unwrap_or_else(|| panic!("function `{:?}' not found", name))
     }
 }
