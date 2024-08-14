@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use ariadne::{Label, Report, ReportKind, Source};
 use skc_async_experiment::{codegen, hir, hir_lowering, parser, prelude, verifier};
 use std::io::Write;
+use std::path::Path;
 
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
@@ -23,9 +24,11 @@ impl Main {
         }
     }
 
-    fn run(&mut self, path: &str) -> Result<()> {
-        let src = std::fs::read_to_string(path).context(format!("failed to read {}", path))?;
-        let mut hir = self.compile(&src, &path, false)?;
+    fn run<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
+        let path = filepath.as_ref();
+        let src = std::fs::read_to_string(path)
+            .context(format!("failed to read {}", &path.to_string_lossy()))?;
+        let mut hir = self.compile(&src, &path.to_string_lossy(), false)?;
 
         let prelude_txt = prelude::prelude_funcs(main_is_async(&hir)?);
         let mut prelude_hir = self.compile(&prelude_txt, "src/prelude.rs", true)?;
@@ -39,7 +42,9 @@ impl Main {
         self.log(&format!("# -- verifier input --\n{hir}\n"));
         verifier::run(&hir)?;
 
-        codegen::run(path, &src, hir);
+        let bc_path = path.with_extension("bc");
+        let ll_path = path.with_extension("ll");
+        codegen::run(bc_path, Some(ll_path), hir)?;
         Ok(())
     }
 

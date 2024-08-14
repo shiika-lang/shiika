@@ -1,7 +1,9 @@
 mod codegen_context;
 use crate::hir;
+use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
+use std::path::Path;
 
 pub struct SkValue<'run>(pub inkwell::values::BasicValueEnum<'run>);
 
@@ -11,7 +13,7 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
 }
 
-pub fn run(_filename: &str, _src: &str, prog: hir::Program) {
+pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Program) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -22,6 +24,14 @@ pub fn run(_filename: &str, _src: &str, prog: hir::Program) {
         builder: &builder,
     };
     c.compile_program(prog);
+
+    c.module.write_bitcode_to_path(bc_path.as_ref());
+    if let Some(ll_path) = opt_ll_path {
+        c.module
+            .print_to_file(ll_path)
+            .map_err(|llvm_str| anyhow!("{}", llvm_str.to_string()))?;
+    }
+    Ok(())
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
