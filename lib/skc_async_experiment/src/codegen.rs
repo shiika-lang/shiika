@@ -72,12 +72,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
             //            hir::Expr::LVarRef(name) => self.compile_lvarref(block, lvars, name),
             hir::Expr::ArgRef(idx) => self.compile_argref(ctx, idx),
-            //hir::Expr::FuncRef(name) => {
-            //    let hir::Ty::Fun(fun_ty) = &texpr.1 else {
-            //        panic!("[BUG] not a function: {:?}", texpr.1);
-            //    };
-            //    self.compile_funcref(block, name, &fun_ty)
-            //}
+            hir::Expr::FuncRef(name) => self.compile_funcref(name),
             //            hir::Expr::OpCall(op, lhs, rhs) => {
             //                self.compile_op_call(blocks, block, lvars, op, lhs, rhs)
             //            }
@@ -104,13 +99,21 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_number(&self, n: i64) -> Option<SkValue<'run>> {
-        Some(SkValue(
-            self.context.i64_type().const_int(n as u64, false).into(),
-        ))
+        let i = self.context.i64_type().const_int(n as u64, false);
+        Some(SkValue(i.into()))
     }
 
     fn compile_argref(&self, ctx: &mut CodeGenContext<'run>, idx: &usize) -> Option<SkValue<'run>> {
-        Some(SkValue(ctx.function.get_nth_param(*idx as u32).unwrap()))
+        let v = ctx.function.get_nth_param(*idx as u32).unwrap();
+        Some(SkValue(v))
+    }
+
+    fn compile_funcref(&self, name: &str) -> Option<SkValue<'run>> {
+        let f = self
+            .get_llvm_func(name)
+            .as_global_value()
+            .as_pointer_value();
+        Some(SkValue(f.into()))
     }
 
     fn compile_pseudo_var(&self, pseudo_var: &hir::PseudoVar) -> Option<SkValue<'run>> {
