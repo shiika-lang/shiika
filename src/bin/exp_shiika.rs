@@ -39,7 +39,7 @@ impl Main {
         self.log(&format!("# -- verifier input --\n{bhir}\n"));
         verifier::run(&bhir)?;
 
-        codegen::run(path, &src, bhir)?;
+        codegen::run(path, &src, bhir);
         Ok(())
     }
 
