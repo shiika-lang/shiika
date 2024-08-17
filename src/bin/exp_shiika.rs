@@ -9,7 +9,6 @@ fn main() -> Result<()> {
     let Some(path) = args.get(1) else {
         bail!("usage: cargo run --bin exp_shiika a.milika > a.mlir");
     };
-    println!("--CUTHERE--");
     Main::new().run(path)
 }
 
