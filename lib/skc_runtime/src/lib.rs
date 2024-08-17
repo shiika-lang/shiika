@@ -42,14 +42,11 @@ extern "C" fn chiika_finish(env: *mut ChiikaEnv, _v: ChiikaValue) -> ContFuture 
     Box::new(poll_fn(move |_context| Poll::Ready(_v)))
 }
 
-static spawns: Vec<JoinHandle> = Vec::new();
-
 #[no_mangle]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
     let poller = make_poller(f);
-    let handle = tokio::spawn(poller);
-    spawns.push(handle);
+    tokio::spawn(poller);
     0
 }
 
