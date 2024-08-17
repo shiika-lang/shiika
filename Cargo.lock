@@ -195,13 +195,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "chiika_runtime"
-version = "0.1.0"
-dependencies = [
- "tokio",
-]
-
-[[package]]
 name = "chrono"
 version = "0.4.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1394,6 +1387,7 @@ dependencies = [
  "inkwell",
  "nom",
  "nom_locate",
+ "os_info",
  "peg",
 ]
 
@@ -1467,6 +1461,13 @@ dependencies = [
  "serde",
  "shiika_core",
  "skc_hir",
+]
+
+[[package]]
+name = "skc_runtime"
+version = "0.1.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

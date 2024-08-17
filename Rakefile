@@ -154,5 +154,8 @@ end
 #
 task :async do
   sh "cargo fmt"
+  cd "lib/skc_runtime/" do
+    sh "cargo build"
+  end
   sh "cargo run --bin exp_shiika -- a.milika"
 end

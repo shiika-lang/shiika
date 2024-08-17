@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use ariadne::{Label, Report, ReportKind, Source};
-use skc_async_experiment::{codegen, hir, hir_lowering, parser, prelude, verifier};
+use skc_async_experiment::{codegen, hir, hir_lowering, linker, parser, prelude, verifier};
 use std::io::Write;
 use std::path::Path;
 
@@ -43,7 +43,8 @@ impl Main {
 
         let bc_path = path.with_extension("bc");
         let ll_path = path.with_extension("ll");
-        codegen::run(bc_path, Some(ll_path), hir)?;
+        codegen::run(&bc_path, Some(&ll_path), hir)?;
+        linker::run(bc_path)?;
         Ok(())
     }
 
