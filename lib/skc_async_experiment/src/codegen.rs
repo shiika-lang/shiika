@@ -98,9 +98,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            hir::Expr::Alloc(name) => self.compile_alloc(block, lvars, name),
             //            hir::Expr::Assign(name, rhs) => self.compile_assign(blocks, block, lvars, name, rhs),
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
-            //            hir::Expr::Cast(expr, cast_type) => {
-            //                self.compile_cast(blocks, block, lvars, expr, cast_type)
-            //            }
+            hir::Expr::Cast(expr, cast_type) => self.compile_cast(ctx, expr, cast_type),
             //            hir::Expr::Br(expr, block_id) => self.compile_br(blocks, block, lvars, expr, block_id),
             //            hir::Expr::CondBr(cond, true_block_id, false_block_id) => {
             //                self.compile_cond_br(blocks, block, lvars, cond, true_block_id, false_block_id)
@@ -168,6 +166,31 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let val = self.compile_value_expr(ctx, val_expr);
         self.builder.build_return(Some(&val.0));
         None
+    }
+
+    fn compile_cast<'a>(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        cast_type: &hir::CastType,
+        expr: &hir::TypedExpr,
+    ) -> Option<SkValue<'run>> {
+        let e = self.compile_value_expr(ctx, expr);
+        let v = match cast_type {
+            hir::CastType::AnyToFun(fun_ty) => self
+                .builder
+                .build_int_to_ptr(
+                    e.0.into_int_value(),
+                    self.llvm_function_type(fun_ty).ptr_type(Default::default()),
+                    "inttoptr",
+                )
+                .into(),
+            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::NullToAny => e.0,
+            hir::CastType::FunToAny => self
+                .builder
+                .build_ptr_to_int(e.0.into_pointer_value(), self.int_type(), "ptrtoint")
+                .into(),
+        };
+        Some(SkValue(v))
     }
 
     fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {
