@@ -62,7 +62,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext { function };
+        let mut ctx = CodeGenContext {
+            function,
+            lvars: Default::default(),
+        };
 
         for stmt in &f.body_stmts {
             self.compile_expr(&mut ctx, stmt);
@@ -88,7 +91,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         match &texpr.0 {
             hir::Expr::Number(n) => self.compile_number(*n),
             hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
-            //            hir::Expr::LVarRef(name) => self.compile_lvarref(block, lvars, name),
+            hir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             hir::Expr::ArgRef(idx) => self.compile_argref(ctx, idx),
             hir::Expr::FuncRef(name) => self.compile_funcref(name),
             //            hir::Expr::OpCall(op, lhs, rhs) => {
@@ -100,8 +103,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //            }
             //            hir::Expr::Yield(expr) => self.compile_yield(blocks, block, lvars, expr),
             //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),
-            //            hir::Expr::Alloc(name) => self.compile_alloc(block, lvars, name),
-            //            hir::Expr::Assign(name, rhs) => self.compile_assign(blocks, block, lvars, name, rhs),
+            hir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
+            hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             hir::Expr::Cast(expr, cast_type) => self.compile_cast(ctx, expr, cast_type),
             //            hir::Expr::Br(expr, block_id) => self.compile_br(blocks, block, lvars, expr, block_id),
@@ -142,6 +145,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(SkValue(v.into()))
     }
 
+    fn compile_lvarref(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
+        let v = ctx.lvars.get(name).unwrap();
+        let t = self.int_type();
+        let v = self.builder.build_load(t, *v, name);
+        Some(SkValue(v))
+    }
+
     fn compile_funcall(
         &self,
         ctx: &mut CodeGenContext<'run>,
@@ -161,6 +171,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             "calltmp",
         );
         Some(SkValue(ret.try_as_basic_value().left().unwrap()))
+    }
+
+    fn compile_alloc(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
+        let v = self.builder.build_alloca(self.int_type(), name);
+        ctx.lvars.insert(name.to_string(), v);
+        None
+    }
+
+    fn compile_assign(
+        &self,
+        ctx: &mut CodeGenContext<'run>,
+        name: &str,
+        rhs: &hir::TypedExpr,
+    ) -> Option<SkValue<'run>> {
+        let v = self.compile_value_expr(ctx, rhs);
+        let ptr = ctx.lvars.get(name).unwrap();
+        self.builder.build_store(ptr.clone(), v.0);
+        Some(v)
     }
 
     fn compile_return(
