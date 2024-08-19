@@ -39,6 +39,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         for e in prog.externs {
             self.compile_extern(e);
         }
+        for f in &prog.funcs {
+            self.declare_func(f);
+        }
         for f in prog.funcs {
             self.compile_func(f);
         }
@@ -49,15 +52,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&ext.name, func_type, None);
     }
 
-    fn compile_func(&self, f: hir::Function) {
+    fn declare_func(&self, f: &hir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
-        let function = self.module.add_function(&f.name, func_type, None);
+        self.module.add_function(&f.name, func_type, None);
+    }
+
+    fn compile_func(&self, f: hir::Function) {
+        let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
-        let mut ctx = CodeGenContext {
-            function: self.get_llvm_func(&f.name),
-        };
+        let mut ctx = CodeGenContext { function };
 
         for stmt in &f.body_stmts {
             self.compile_expr(&mut ctx, stmt);
