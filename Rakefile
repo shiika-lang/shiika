@@ -143,11 +143,12 @@ end
 
 task :debugify => DEBUG_OUT
 
-task :a => [:fmt, A_OUT] do
+task :a => :async
+#task :a => [:fmt, A_OUT] do
 #task :a => [:fmt] do
   # sh "cargo clippy"
   # sh "cargo run -- run a.sk"
-end
+#end
 
 #
 # new async runtime
