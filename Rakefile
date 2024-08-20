@@ -143,9 +143,20 @@ end
 
 task :debugify => DEBUG_OUT
 
-task :a => [:fmt, A_OUT] do
+task :a => :async
+#task :a => [:fmt, A_OUT] do
 #task :a => [:fmt] do
   # sh "cargo clippy"
   # sh "cargo run -- run a.sk"
-end
+#end
 
+#
+# new async runtime
+#
+task :async do
+  sh "cargo fmt"
+  cd "lib/skc_runtime/" do
+    sh "cargo build"
+  end
+  sh "cargo run --bin exp_shiika -- a.milika"
+end
