@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
-use ariadne::{Label, Report, ReportKind, Source};
-use skc_async_experiment::{codegen, hir, hir_lowering, linker, parser, prelude, verifier};
+use shiika_parser::{Parser, SourceFile};
+use skc_async_experiment::{codegen, hir, hir_lowering, linker, prelude, verifier};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
@@ -25,12 +25,14 @@ impl Main {
 
     fn run<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
         let path = filepath.as_ref();
-        let src = std::fs::read_to_string(path)
+        let txt = std::fs::read_to_string(path)
             .context(format!("failed to read {}", &path.to_string_lossy()))?;
-        let mut hir = self.compile(&src, &path.to_string_lossy(), false)?;
+        let src = SourceFile::new(path.to_path_buf(), txt);
+        let mut hir = self.compile(src, false)?;
 
         let prelude_txt = prelude::prelude_funcs(main_is_async(&hir)?);
-        let mut prelude_hir = self.compile(&prelude_txt, "src/prelude.rs", true)?;
+        let prelude_src = SourceFile::new(PathBuf::from("src/prelude.rs"), prelude_txt);
+        let mut prelude_hir = self.compile(prelude_src, true)?;
         for e in prelude_hir.externs {
             if !e.is_internal {
                 hir.externs.push(e);
@@ -48,20 +50,8 @@ impl Main {
         Ok(())
     }
 
-    fn compile(&mut self, src: &str, path: &str, is_prelude: bool) -> Result<hir::Program> {
-        let ast = match parser::parse(src) {
-            Ok(ast) => ast,
-            Err(e) => {
-                dbg!(&e);
-                let span = e.location.offset..e.location.offset;
-                Report::build(ReportKind::Error, path, e.location.offset)
-                    .with_label(Label::new((path, span)).with_message("here"))
-                    .finish()
-                    .print((path, Source::from(src)))
-                    .unwrap();
-                bail!("parse error");
-            }
-        };
+    fn compile(&mut self, src: SourceFile, is_prelude: bool) -> Result<hir::Program> {
+        let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
         hir::typing::run(&mut hir)?;
         if !is_prelude {
