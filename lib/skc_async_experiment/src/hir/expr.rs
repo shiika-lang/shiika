@@ -112,6 +112,14 @@ impl Expr {
         (Expr::Number(n), Ty::Int)
     }
 
+    pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
+        let t = match var {
+            PseudoVar::True | PseudoVar::False => Ty::Bool,
+            PseudoVar::Null => Ty::Null,
+        };
+        (Expr::PseudoVar(var), t)
+    }
+
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::LVarRef(name.into()), ty)
     }
