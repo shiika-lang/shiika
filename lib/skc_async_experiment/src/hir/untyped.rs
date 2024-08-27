@@ -14,7 +14,7 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program> {
         return Err(anyhow!("[wip] top-level item must be a class definition"));
     };
 
-    let func_names = HashSet::new();
+    let mut func_names = HashSet::new();
     for def in defs {
         match def {
             shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
@@ -29,6 +29,7 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program> {
                     func_names.insert(sig.name.0.to_string());
                 }
             }
+            _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
 
@@ -51,6 +52,7 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program> {
                     };
                 externs.push(compile_extern(&name, sig, is_async, is_internal)?);
             }
+            _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
     Ok(hir::Program { externs, funcs })
@@ -110,18 +112,28 @@ impl Compiler {
                 }
                 self.compile_var_ref(sig, lvars, name)?
             }
-            shiika_ast::AstExpressionBody::OpCall(op, lhs, rhs) => {
-                let lhs = self.compile_expr(sig, lvars, lhs)?;
-                let rhs = self.compile_expr(sig, lvars, rhs)?;
-                hir::Expr::OpCall(op.clone(), Box::new(lhs), Box::new(rhs))
-            }
-            shiika_ast::AstExpressionBody::FunCall(fexpr, args) => {
-                let fexpr = self.compile_expr(sig, lvars, fexpr)?;
-                let mut arg_hirs = vec![];
-                for a in args {
-                    arg_hirs.push(self.compile_expr(sig, lvars, a)?);
+            shiika_ast::AstExpressionBody::MethodCall(mcall) => {
+                let method_name = mcall.method_name.0.to_string();
+                match &method_name[..] {
+                    "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" | "==" | "!=" => {
+                        let lhs =
+                            self.compile_expr(sig, lvars, &mcall.receiver_expr.as_ref().unwrap())?;
+                        let rhs =
+                            self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
+                        hir::Expr::OpCall(method_name, Box::new(lhs), Box::new(rhs))
+                    }
+                    _ => {
+                        if mcall.receiver_expr.is_some() {
+                            return Err(anyhow!("[wip] receiver_expr must be None now"));
+                        }
+                        let fexpr = (hir::Expr::FuncRef(method_name), hir::Ty::Unknown);
+                        let mut arg_hirs = vec![];
+                        for a in &mcall.args.unnamed {
+                            arg_hirs.push(self.compile_expr(sig, lvars, a)?);
+                        }
+                        hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
+                    }
                 }
-                hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
             }
             shiika_ast::AstExpressionBody::If {
                 cond_expr,
@@ -189,6 +201,7 @@ impl Compiler {
                 };
                 hir::Expr::Return(Box::new(e))
             }
+            _ => return Err(anyhow!("[wip] not supported yet: {:?}", x)),
         };
         Ok((e, hir::Ty::Unknown))
     }
@@ -238,7 +251,7 @@ fn compile_extern(
     is_internal: bool,
 ) -> Result<hir::Extern> {
     let mut params = vec![];
-    for p in sig.params {
+    for p in &sig.params {
         params.push(hir::Param {
             name: p.name.clone(),
             ty: compile_ty(&p.typ)?,
