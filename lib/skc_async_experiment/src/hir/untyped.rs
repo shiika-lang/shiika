@@ -107,10 +107,21 @@ impl Compiler {
         let e = match &x.body {
             shiika_ast::AstExpressionBody::DecimalLiteral { value } => hir::Expr::Number(*value),
             shiika_ast::AstExpressionBody::BareName(name) => {
-                if !lvars.contains(name) {
+                if lvars.contains(name) {
+                    self.compile_var_ref(sig, lvars, name)?
+                } else if let Some(idx) = sig.params.iter().position(|p| &p.name == name) {
+                    hir::Expr::ArgRef(idx)
+                } else if self.func_names.contains(name) {
+                    hir::Expr::FuncRef(name.to_string())
+                } else if name == "true" {
+                    hir::Expr::PseudoVar(hir::PseudoVar::True)
+                } else if name == "false" {
+                    hir::Expr::PseudoVar(hir::PseudoVar::False)
+                } else if name == "null" {
+                    hir::Expr::PseudoVar(hir::PseudoVar::Null)
+                } else {
                     return Err(anyhow!("unknown variable: {name}"));
                 }
-                self.compile_var_ref(sig, lvars, name)?
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
