@@ -159,4 +159,5 @@ task :async do
     sh "cargo build"
   end
   sh "cargo run --bin exp_shiika -- a.milika"
+  sh "./a"
 end
