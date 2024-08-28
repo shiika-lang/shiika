@@ -52,7 +52,7 @@ impl<'f> Typing<'f> {
             hir::Expr::Number(_) => e.1 = hir::Ty::Int,
             hir::Expr::PseudoVar(hir::PseudoVar::True) => e.1 = hir::Ty::Bool,
             hir::Expr::PseudoVar(hir::PseudoVar::False) => e.1 = hir::Ty::Bool,
-            hir::Expr::PseudoVar(hir::PseudoVar::Null) => e.1 = hir::Ty::Null,
+            hir::Expr::PseudoVar(hir::PseudoVar::Void) => e.1 = hir::Ty::Void,
             hir::Expr::LVarRef(name) => {
                 if let Some(ty) = lvars.get(name) {
                     e.1 = ty.clone();
@@ -151,7 +151,7 @@ impl<'f> Typing<'f> {
                         val.1
                     ));
                 }
-                e.1 = hir::Ty::Void;
+                e.1 = hir::Ty::Never;
             }
             hir::Expr::Cast(_, _) => {
                 return Err(anyhow!("[BUG] Cast unexpected here"));

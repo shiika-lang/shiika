@@ -77,7 +77,7 @@ impl Compiler {
         }
         let ret_ty = match &sig.ret_typ {
             Some(t) => compile_ty(&t)?,
-            None => hir::Ty::Null,
+            None => hir::Ty::Void,
         };
         let mut lvars = HashSet::new();
         let body_stmts = body_exprs
@@ -118,7 +118,7 @@ impl Compiler {
                 } else if name == "false" {
                     hir::Expr::PseudoVar(hir::PseudoVar::False)
                 } else if name == "null" {
-                    hir::Expr::PseudoVar(hir::PseudoVar::Null)
+                    hir::Expr::PseudoVar(hir::PseudoVar::Void)
                 } else {
                     return Err(anyhow!("unknown variable: {name}"));
                 }
@@ -208,7 +208,7 @@ impl Compiler {
                 let e = if let Some(v) = arg {
                     self.compile_expr(sig, lvars, v)?
                 } else {
-                    hir::Expr::pseudo_var(hir::PseudoVar::Null)
+                    hir::Expr::pseudo_var(hir::PseudoVar::Void)
                 };
                 hir::Expr::Return(Box::new(e))
             }
@@ -234,7 +234,7 @@ impl Compiler {
         } else if name == "false" {
             hir::Expr::PseudoVar(hir::PseudoVar::False)
         } else if name == "null" {
-            hir::Expr::PseudoVar(hir::PseudoVar::Null)
+            hir::Expr::PseudoVar(hir::PseudoVar::Void)
         } else {
             return Err(anyhow!("unknown variable: {name}"));
         };
@@ -270,7 +270,7 @@ fn compile_extern(
     }
     let ret_ty = match &sig.ret_typ {
         Some(t) => compile_ty(&t)?,
-        None => hir::Ty::Null,
+        None => hir::Ty::Void,
     };
     Ok(hir::Extern {
         is_async,
@@ -285,7 +285,7 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
     let t = if n.args.len() == 0 {
         let s = n.names.first().unwrap();
         match &s[..] {
-            "Null" => hir::Ty::Null,
+            "Void" => hir::Ty::Void,
             "Int" => hir::Ty::Int,
             "Bool" => hir::Ty::Bool,
             // Internally used types (in src/prelude.rs)

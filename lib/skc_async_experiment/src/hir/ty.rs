@@ -6,8 +6,8 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Unknown, // Used before typecheck
-    Null,    // A unit type. Represented by `i64 0`
-    Void,    // eg. the type of `return` or assignment. There is no value of this type.
+    Void,    // A unit type. Represented by `i64 0`
+    Never,   // eg. the type of `return` or assignment. There is no value of this type.
     Any,     // Corresponds to `ptr` in llvm
     ChiikaEnv,
     RustFuture,
@@ -31,7 +31,7 @@ impl TryFrom<ast::Ty> for Ty {
     fn try_from(x: ast::Ty) -> Result<Self> {
         let t = match x {
             ast::Ty::Raw(s) => match &s[..] {
-                "Null" => Ty::Null,
+                "Void" => Ty::Void,
                 "Int" => Ty::Int,
                 "Bool" => Ty::Bool,
                 // Internally used types (in src/prelude.rs)
@@ -87,7 +87,7 @@ impl Ty {
 
     pub fn type_id(&self) -> i64 {
         match self {
-            Ty::Null => 0,
+            Ty::Void => 0,
             Ty::Int => 1,
             Ty::Bool => 2,
             Ty::Any => 3,

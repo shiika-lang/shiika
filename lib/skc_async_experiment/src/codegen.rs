@@ -139,8 +139,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let v = match pseudo_var {
             hir::PseudoVar::True => self.context.bool_type().const_int(1, false),
             hir::PseudoVar::False => self.context.bool_type().const_int(0, false),
-            // Null is represented as `i64 0`
-            hir::PseudoVar::Null => self.context.i64_type().const_int(0, false),
+            // Void is represented as `i64 0`
+            hir::PseudoVar::Void => self.context.i64_type().const_int(0, false),
         };
         Some(SkValue(v.into()))
     }
@@ -217,7 +217,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                     "inttoptr",
                 )
                 .into(),
-            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::NullToAny => e.0,
+            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::VoidToAny => e.0,
             hir::CastType::FunToAny => self
                 .builder
                 .build_ptr_to_int(e.0.into_pointer_value(), self.int_type(), "ptrtoint")
@@ -239,9 +239,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn llvm_type(&self, ty: &hir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
             hir::Ty::Unknown => panic!("Unknown is unexpected here"),
-            hir::Ty::Void => panic!("void is unexpected here"),
+            hir::Ty::Never => panic!("Never is unexpected here"),
             hir::Ty::ChiikaEnv | hir::Ty::RustFuture => self.ptr_type().into(),
-            hir::Ty::Any | hir::Ty::Int | hir::Ty::Null => self.int_type().into(),
+            hir::Ty::Any | hir::Ty::Int | hir::Ty::Void => self.int_type().into(),
             hir::Ty::Bool => self.bool_type().into(),
             hir::Ty::Fun(_) => self.ptr_type().into(),
         }
