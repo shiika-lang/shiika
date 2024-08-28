@@ -1,9 +1,9 @@
 /// Returns the functions needed to run the Milika program.
 pub fn prelude_funcs(main_is_async: bool) -> String {
     let main_sig = if main_is_async {
-        "extern(internal) chiika_main(ENV env, FN((ENV, Int)->FUTURE) cont) -> FUTURE"
+        "requirement __internal__chiika_main(env: ENV, cont: Fn2<ENV, Int, FUTURE>) -> FUTURE"
     } else {
-        "extern(internal) chiika_main() -> Int"
+        "requirement __internal__chiika_main() -> Int"
     };
     let call_user_main = if main_is_async {
         "return chiika_main(env, cont)"
@@ -11,21 +11,23 @@ pub fn prelude_funcs(main_is_async: bool) -> String {
         "return cont(env, chiika_main())"
     };
     String::new()
+        + "class Main\n"
         + main_sig
         + "
-        extern chiika_env_push_frame(ENV env, Int n) -> Null
-        extern chiika_env_set(ENV env, Int idx, ANY obj, Int type_id) -> Null
-        extern chiika_env_pop_frame(ENV env, Int expected_len) -> ANY
-        extern chiika_env_ref(ENV env, Int idx, Int expected_type_id) -> Int
-        extern chiika_spawn(FN((ENV,FN((ENV,Null)->FUTURE))->FUTURE) f) -> Null
-        extern chiika_start_tokio(Int n) -> Int
-        fun chiika_start_user(ENV env, FN((ENV,Int)->FUTURE) cont) -> FUTURE {
+        requirement chiika_env_push_frame(env: ENV, n: Int) -> Null
+        requirement chiika_env_set(env: ENV, idx: Int, obj: ANY, type_id: Int) -> Null
+        requirement chiika_env_pop_frame(env: ENV, expected_len: Int) -> ANY
+        requirement chiika_env_get(env: ENV, idx: Int, expected_type_id: Int) -> ANY
+        requirement chiika_spawn(f: Fn2<ENV,Fn2<ENV,Null,FUTURE>,FUTURE>) -> Null
+        requirement chiika_start_tokio(n: Int) -> Int
+        def self.chiika_start_user(env: ENV, cont: Fn2<ENV,Int,FUTURE>) -> FUTURE
     " + call_user_main
         + "
-        }
-        fun main() -> Int {
+        end
+        def self.main() -> Int
           chiika_start_tokio(0)
           return 0
-        }
+        end
+    end
     "
 }

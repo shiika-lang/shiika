@@ -1389,6 +1389,8 @@ dependencies = [
  "nom_locate",
  "os_info",
  "peg",
+ "shiika_ast",
+ "shiika_parser",
 ]
 
 [[package]]
