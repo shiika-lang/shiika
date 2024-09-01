@@ -115,8 +115,8 @@ impl Verifier {
                         assert(&val, "castee", &hir::Ty::Any)?;
                         assert(&e, "result", &hir::Ty::Int)?;
                     }
-                    hir::CastType::NullToAny => {
-                        assert(&val, "castee", &hir::Ty::Null)?;
+                    hir::CastType::VoidToAny => {
+                        assert(&val, "castee", &hir::Ty::Void)?;
                         assert(&e, "result", &hir::Ty::Any)?;
                     }
                     hir::CastType::IntToAny => {

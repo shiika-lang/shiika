@@ -14,11 +14,11 @@ pub fn prelude_funcs(main_is_async: bool) -> String {
         + "class Main\n"
         + main_sig
         + "
-        requirement chiika_env_push_frame(env: ENV, n: Int) -> Null
-        requirement chiika_env_set(env: ENV, idx: Int, obj: ANY, type_id: Int) -> Null
+        requirement chiika_env_push_frame(env: ENV, n: Int) -> Void
+        requirement chiika_env_set(env: ENV, idx: Int, obj: ANY, type_id: Int) -> Void
         requirement chiika_env_pop_frame(env: ENV, expected_len: Int) -> ANY
         requirement chiika_env_get(env: ENV, idx: Int, expected_type_id: Int) -> ANY
-        requirement chiika_spawn(f: Fn2<ENV,Fn2<ENV,Null,FUTURE>,FUTURE>) -> Null
+        requirement chiika_spawn(f: Fn2<ENV,Fn2<ENV,Void,FUTURE>,FUTURE>) -> Void
         requirement chiika_start_tokio(n: Int) -> Int
         def self.chiika_start_user(env: ENV, cont: Fn2<ENV,Int,FUTURE>) -> FUTURE
     " + call_user_main

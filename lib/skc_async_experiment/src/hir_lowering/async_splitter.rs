@@ -486,7 +486,7 @@ fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {
             hir::FunTy {
                 asyncness: hir::Asyncness::Lowered,
                 param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int],
-                ret_ty: Box::new(hir::Ty::Null),
+                ret_ty: Box::new(hir::Ty::Void),
             },
         ),
         vec![arg_ref_env(), hir::Expr::number(size as i64)],
@@ -521,7 +521,7 @@ fn call_chiika_env_set(i: usize, val: hir::TypedExpr) -> hir::TypedExpr {
     let type_id = hir::Expr::number(val.1.type_id());
     let cast_val = {
         let cast_type = match val.1 {
-            hir::Ty::Null => hir::CastType::NullToAny,
+            hir::Ty::Void => hir::CastType::VoidToAny,
             hir::Ty::Int => hir::CastType::IntToAny,
             hir::Ty::Fun(_) => hir::CastType::FunToAny,
             _ => panic!("[BUG] don't know how to cast {:?} to Any", val),
@@ -531,7 +531,7 @@ fn call_chiika_env_set(i: usize, val: hir::TypedExpr) -> hir::TypedExpr {
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int, hir::Ty::Any, hir::Ty::Int],
-        ret_ty: Box::new(hir::Ty::Null),
+        ret_ty: Box::new(hir::Ty::Void),
     };
     hir::Expr::fun_call(
         hir::Expr::func_ref("chiika_env_set", fun_ty),
@@ -556,7 +556,7 @@ fn call_chiika_env_ref(n: hir::TypedExpr) -> hir::TypedExpr {
 fn call_chiika_spawn(f: hir::TypedExpr) -> hir::TypedExpr {
     let null_cont_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
-        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Null],
+        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Void],
         ret_ty: Box::new(hir::Ty::RustFuture),
     };
     let new_f_ty = hir::FunTy {
@@ -568,7 +568,7 @@ fn call_chiika_spawn(f: hir::TypedExpr) -> hir::TypedExpr {
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::Fun(new_f_ty)],
-        ret_ty: Box::new(hir::Ty::Null),
+        ret_ty: Box::new(hir::Ty::Void),
     };
     hir::Expr::fun_call(hir::Expr::func_ref("chiika_spawn", fun_ty), vec![new_f])
 }

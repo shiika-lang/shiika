@@ -27,14 +27,14 @@ pub enum Expr {
 pub enum PseudoVar {
     True,
     False,
-    Null,
+    Void,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CastType {
     AnyToFun(FunTy),
     AnyToInt,
-    NullToAny,
+    VoidToAny,
     IntToAny,
     FunToAny,
 }
@@ -44,7 +44,7 @@ impl CastType {
         match self {
             CastType::AnyToFun(x) => x.clone().into(),
             CastType::AnyToInt => Ty::Int,
-            CastType::NullToAny | CastType::IntToAny | CastType::FunToAny => Ty::Any,
+            CastType::VoidToAny | CastType::IntToAny | CastType::FunToAny => Ty::Any,
         }
     }
 }
@@ -55,7 +55,7 @@ impl std::fmt::Display for Expr {
             Expr::Number(n) => write!(f, "{}", n),
             Expr::PseudoVar(PseudoVar::True) => write!(f, "true"),
             Expr::PseudoVar(PseudoVar::False) => write!(f, "false"),
-            Expr::PseudoVar(PseudoVar::Null) => write!(f, "null"),
+            Expr::PseudoVar(PseudoVar::Void) => write!(f, "null"),
             Expr::LVarRef(name) => write!(f, "{}", name),
             Expr::ArgRef(idx) => write!(f, "%arg_{}", idx),
             Expr::FuncRef(name) => write!(f, "{}", name),
@@ -115,7 +115,7 @@ impl Expr {
     pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
         let t = match var {
             PseudoVar::True | PseudoVar::False => Ty::Bool,
-            PseudoVar::Null => Ty::Null,
+            PseudoVar::Void => Ty::Void,
         };
         (Expr::PseudoVar(var), t)
     }
@@ -175,15 +175,15 @@ impl Expr {
     }
 
     pub fn yield_null() -> TypedExpr {
-        let null = (Expr::PseudoVar(PseudoVar::Null), Ty::Null);
-        (Expr::Yield(Box::new(null)), Ty::Null)
+        let null = (Expr::PseudoVar(PseudoVar::Void), Ty::Void);
+        (Expr::Yield(Box::new(null)), Ty::Void)
     }
 
     pub fn while_(cond: TypedExpr, body: Vec<TypedExpr>) -> TypedExpr {
         if cond.1 != Ty::Bool {
             panic!("[BUG] while cond not bool: {:?}", cond);
         }
-        (Expr::While(Box::new(cond), body), Ty::Null)
+        (Expr::While(Box::new(cond), body), Ty::Void)
     }
 
     pub fn spawn(e: TypedExpr) -> TypedExpr {
@@ -191,7 +191,7 @@ impl Expr {
     }
 
     pub fn alloc(name: impl Into<String>) -> TypedExpr {
-        (Expr::Alloc(name.into()), Ty::Null)
+        (Expr::Alloc(name.into()), Ty::Void)
     }
 
     pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
@@ -206,7 +206,7 @@ impl Expr {
         let ty = match &cast_type {
             CastType::AnyToFun(f) => f.clone().into(),
             CastType::AnyToInt => Ty::Int,
-            CastType::NullToAny => Ty::Any,
+            CastType::VoidToAny => Ty::Any,
             CastType::IntToAny => Ty::Any,
             CastType::FunToAny => Ty::Any,
         };
