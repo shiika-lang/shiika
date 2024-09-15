@@ -140,12 +140,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(SkValue(f.into()))
     }
 
-    fn compile_pseudo_var(&self, pseudo_var: &hir::PseudoVar) -> Option<SkValue<'run>> {
+    fn compile_pseudo_var(&mut self, pseudo_var: &hir::PseudoVar) -> Option<SkValue<'run>> {
         let v = match pseudo_var {
-            hir::PseudoVar::True => self.context.bool_type().const_int(1, false),
-            hir::PseudoVar::False => self.context.bool_type().const_int(0, false),
-            // Void is represented as `i64 0`
-            hir::PseudoVar::Void => self.context.i64_type().const_int(0, false),
+            hir::PseudoVar::True => intrinsics::box_bool(self, true),
+            hir::PseudoVar::False => intrinsics::box_bool(self, false),
+            // TODO: should be instance of Void
+            hir::PseudoVar::Void => intrinsics::box_bool(self, false),
         };
         Some(SkValue(v.into()))
     }

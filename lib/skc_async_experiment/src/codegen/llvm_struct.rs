@@ -9,14 +9,32 @@ pub const OBJ_VTABLE_IDX: usize = 0;
 pub const OBJ_CLASS_IDX: usize = 1;
 
 pub fn define(gen: &mut CodeGen) {
+    define_bool(gen);
     define_int(gen);
+    define_void(gen);
+}
+
+fn define_bool(gen: &mut CodeGen) {
+    let struct_type = gen.context.opaque_struct_type(&"::Bool");
+    let vtable = gen.ptr_type().into();
+    let class = gen.ptr_type().into();
+    let value = gen.context.bool_type().into();
+    struct_type.set_body(&[vtable, class, value], false);
 }
 
 fn define_int(gen: &mut CodeGen) {
     let struct_type = gen.context.opaque_struct_type(&"::Int");
-    let vt = gen.ptr_type().into(); //TODO: vtable
-    let ct = gen.ptr_type().into(); //TODO: class type
-    struct_type.set_body(&[vt, ct, gen.context.i64_type().into()], false);
+    let vtable = gen.ptr_type().into();
+    let class = gen.ptr_type().into();
+    let value = gen.context.i64_type().into();
+    struct_type.set_body(&[vtable, class, value], false);
+}
+
+fn define_void(gen: &mut CodeGen) {
+    let struct_type = gen.context.opaque_struct_type(&"::Void");
+    let vtable = gen.ptr_type().into();
+    let class = gen.ptr_type().into();
+    struct_type.set_body(&[vtable, class], false);
 }
 
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
