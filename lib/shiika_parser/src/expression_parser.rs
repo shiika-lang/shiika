@@ -716,22 +716,16 @@ impl<'a> Parser<'a> {
                     begin.clone(),
                     end,
                 );
+            } else if self.next_nonspace_token()? == Token::Dot {
+                self.skip_ws()?;
+                expr = self.parse_method_chain(expr)?;
+            } else if self.next_nonspace_token()? == Token::Newline
+                && self.next_next_nonspace_token()? == Token::Dot
+            {
+                self.skip_wsn()?;
+                expr = self.parse_method_chain(expr)?;
             } else {
-                let next_token = self.next_nonspace_token()?;
-                match next_token {
-                    Token::Dot => {
-                        self.skip_ws()?;
-                        expr = self.parse_method_chain(expr)?;
-                    }
-                    Token::Newline => {
-                        if self.next_next_nonspace_token()? == Token::Dot {
-                            self.skip_wsn()?;
-                            expr = self.parse_method_chain(expr)?;
-                        }
-                        break;
-                    }
-                    _ => break,
-                }
+                break;
             }
         }
         self.lv -= 1;
