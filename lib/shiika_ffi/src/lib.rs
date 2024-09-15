@@ -1,3 +1,5 @@
+pub mod core_class;
+
 pub fn mangle_method(method_name: &str) -> String {
     let s = method_name
         // Replace '_' to use '_' as delimiter

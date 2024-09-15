@@ -1,11 +1,15 @@
 mod codegen_context;
+mod instance;
+mod intrinsics;
+mod llvm_struct;
 use crate::hir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
 use std::path::Path;
 
-pub struct SkValue<'run>(pub inkwell::values::BasicValueEnum<'run>);
+#[derive(Clone)]
+pub struct SkValue<'run>(pub inkwell::values::PointerValue<'run>);
 
 pub struct CodeGen<'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
@@ -18,7 +22,7 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
     let module = context.create_module("main");
     let builder = context.create_builder();
 
-    let c = CodeGen {
+    let mut c = CodeGen {
         context: &context,
         module: &module,
         builder: &builder,
@@ -35,7 +39,9 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
-    fn compile_program(&self, prog: hir::Program) {
+    fn compile_program(&mut self, prog: hir::Program) {
+        llvm_struct::define(self);
+
         for e in prog.externs {
             self.compile_extern(e);
         }
@@ -117,9 +123,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         }
     }
 
-    fn compile_number(&self, n: i64) -> Option<SkValue<'run>> {
-        let i = self.context.i64_type().const_int(n as u64, false);
-        Some(SkValue(i.into()))
+    fn compile_number(&mut self, n: i64) -> Option<SkValue<'run>> {
+        Some(intrinsics::box_int(self, n))
     }
 
     fn compile_argref(&self, ctx: &mut CodeGenContext<'run>, idx: &usize) -> Option<SkValue<'run>> {
@@ -257,6 +262,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn bool_type(&self) -> inkwell::types::IntType<'ictx> {
         self.context.bool_type()
+    }
+
+    /// Call llvm function (whose return type is not `void`)
+    fn call_llvm_func(
+        &self,
+        func_name: &str,
+        args: &[inkwell::values::BasicMetadataValueEnum<'run>],
+        reg_name: &str,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        let f = self
+            .module
+            .get_function(&func_name)
+            .unwrap_or_else(|| panic!("llvm function {:?} not found", func_name));
+        self.builder
+            .build_direct_call(f, args, reg_name)
+            .try_as_basic_value()
+            .left()
+            .unwrap()
     }
 
     fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'run> {
