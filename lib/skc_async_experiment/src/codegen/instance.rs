@@ -1,37 +1,37 @@
-use crate::codegen::{llvm_struct, CodeGen, SkValue};
+use crate::codegen::{llvm_struct, value::SkObj, CodeGen};
 use inkwell::values::BasicValue;
 
-pub fn build_ivar_store<'run>(
-    gen: &mut CodeGen,
-    sk_value: SkValue,
-    struct_type: &inkwell::types::StructType<'run>,
-    idx: usize,
-    value: SkValue,
-    name: &str,
-) {
-    let llvm_value = value.0.as_basic_value_enum();
-    build_ivar_store_raw(gen, sk_value, struct_type, idx, llvm_value, name);
-}
+//pub fn build_ivar_store<'run>(
+//    gen: &mut CodeGen,
+//    sk_obj: SkObj,
+//    struct_type: &inkwell::types::StructType<'run>,
+//    idx: usize,
+//    value: SkObj<'run>,
+//    name: &str,
+//) {
+//    let llvm_value = value.0.as_basic_value_enum();
+//    build_ivar_store_raw(gen, sk_obj, struct_type, idx, llvm_value, name);
+//}
 
 pub fn build_ivar_store_raw<'run>(
     gen: &mut CodeGen,
-    sk_value: SkValue,
+    sk_obj: SkObj,
     struct_type: &inkwell::types::StructType<'run>,
     idx: usize,
     value: inkwell::values::BasicValueEnum,
     name: &str,
 ) {
     let i = llvm_struct::OBJ_HEADER_SIZE + idx;
-    let ptr = sk_value.0;
+    let ptr = sk_obj.0;
     llvm_struct::build_llvm_value_store(gen, struct_type, ptr, i, value, name);
 }
 
-pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, name: &str) -> SkValue<'run> {
+pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, name: &str) -> SkObj<'run> {
     let t = gen
         .context
         .get_struct_type(name)
         .expect(&format!("struct type not found: {}", name));
-    SkValue(allocate_mem(gen, &t))
+    SkObj(allocate_mem(gen, &t))
 }
 
 /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.

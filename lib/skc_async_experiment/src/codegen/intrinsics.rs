@@ -1,5 +1,5 @@
 //! Intrinsics are functions defined directly by the compiler.
-use crate::codegen::{instance, llvm_struct, CodeGen, SkValue};
+use crate::codegen::{instance, llvm_struct, value::SkObj, CodeGen};
 use inkwell::values::BasicValue;
 
 pub fn define(gen: &mut CodeGen) {
@@ -37,9 +37,9 @@ fn define_box_bool(gen: &mut CodeGen) {
     gen.builder.build_return(Some(&sk_bool.0));
 }
 
-pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkValue<'run> {
+pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkObj<'run> {
     let llvm_n = gen.context.i64_type().const_int(n as u64, false);
-    SkValue(
+    SkObj(
         gen.call_llvm_func(
             "shiika_intrinsic_box_int",
             &[llvm_n.as_basic_value_enum().into()],
@@ -49,9 +49,9 @@ pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkValue<'run> {
     )
 }
 
-pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkValue<'run> {
+pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {
     let llvm_b = gen.context.bool_type().const_int(b as u64, false);
-    SkValue(
+    SkObj(
         gen.call_llvm_func(
             "shiika_intrinsic_box_bool",
             &[llvm_b.as_basic_value_enum().into()],

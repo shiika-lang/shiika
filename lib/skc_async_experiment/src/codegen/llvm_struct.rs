@@ -4,9 +4,9 @@ use inkwell::types::BasicType;
 /// Number of elements before ivars
 pub const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
-pub const OBJ_VTABLE_IDX: usize = 0;
+//const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
-pub const OBJ_CLASS_IDX: usize = 1;
+//const OBJ_CLASS_IDX: usize = 1;
 
 pub fn define(gen: &mut CodeGen) {
     define_bool(gen);

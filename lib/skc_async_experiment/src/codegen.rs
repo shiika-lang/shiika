@@ -2,14 +2,13 @@ mod codegen_context;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
+mod value;
 use crate::hir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
 use std::path::Path;
-
-#[derive(Clone)]
-pub struct SkValue<'run>(pub inkwell::values::PointerValue<'run>);
+use value::SkValue;
 
 pub struct CodeGen<'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
@@ -27,6 +26,8 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
         module: &module,
         builder: &builder,
     };
+    llvm_struct::define(&mut c);
+    intrinsics::define(&mut c);
     c.compile_program(prog);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
@@ -63,7 +64,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&f.name, func_type, None);
     }
 
-    fn compile_func(&self, f: hir::Function) {
+    fn compile_func(&mut self, f: hir::Function) {
         let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
@@ -79,7 +80,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_value_expr(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         texpr: &hir::TypedExpr,
     ) -> SkValue<'run> {
@@ -90,7 +91,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_expr(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         texpr: &hir::TypedExpr,
     ) -> Option<SkValue<'run>> {
@@ -124,12 +125,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_number(&mut self, n: i64) -> Option<SkValue<'run>> {
-        Some(intrinsics::box_int(self, n))
+        Some(intrinsics::box_int(self, n).into())
     }
 
     fn compile_argref(&self, ctx: &mut CodeGenContext<'run>, idx: &usize) -> Option<SkValue<'run>> {
         let v = ctx.function.get_nth_param(*idx as u32).unwrap();
-        Some(SkValue(v))
+        Some(SkValue::Opaque(v))
     }
 
     fn compile_funcref(&self, name: &str) -> Option<SkValue<'run>> {
@@ -137,7 +138,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .get_llvm_func(name)
             .as_global_value()
             .as_pointer_value();
-        Some(SkValue(f.into()))
+        Some(SkValue::Opaque(f.into()))
     }
 
     fn compile_pseudo_var(&mut self, pseudo_var: &hir::PseudoVar) -> Option<SkValue<'run>> {
@@ -147,18 +148,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             // TODO: should be instance of Void
             hir::PseudoVar::Void => intrinsics::box_bool(self, false),
         };
-        Some(SkValue(v.into()))
+        Some(v.into())
     }
 
     fn compile_lvarref(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
         let v = ctx.lvars.get(name).unwrap();
         let t = self.int_type();
         let v = self.builder.build_load(t, *v, name);
-        Some(SkValue(v))
+        Some(SkValue::Opaque(v))
     }
 
     fn compile_funcall(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         fexpr: &hir::TypedExpr,
         arg_exprs: &[hir::TypedExpr],
@@ -167,15 +168,15 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let func_type = self.llvm_function_type(fexpr.1.as_fun_ty());
         let args = arg_exprs
             .iter()
-            .map(|x| self.compile_value_expr(ctx, x).0.into())
+            .map(|x| self.compile_value_expr(ctx, x).into())
             .collect::<Vec<_>>();
         let ret = self.builder.build_indirect_call(
             func_type,
-            func.0.into_pointer_value(),
+            func.into_function_pointer(),
             &args,
             "calltmp",
         );
-        Some(SkValue(ret.try_as_basic_value().left().unwrap()))
+        Some(SkValue::Opaque(ret.try_as_basic_value().left().unwrap()))
     }
 
     fn compile_alloc(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
@@ -185,50 +186,42 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_assign(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
         rhs: &hir::TypedExpr,
     ) -> Option<SkValue<'run>> {
         let v = self.compile_value_expr(ctx, rhs);
         let ptr = ctx.lvars.get(name).unwrap();
-        self.builder.build_store(ptr.clone(), v.0);
+        self.builder
+            .build_store(ptr.clone(), v.clone().into_basic_value_enum());
         Some(v)
     }
 
     fn compile_return(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         val_expr: &hir::TypedExpr,
     ) -> Option<SkValue<'run>> {
         let val = self.compile_value_expr(ctx, val_expr);
-        self.builder.build_return(Some(&val.0));
+        self.builder
+            .build_return(Some(&val.into_basic_value_enum()));
         None
     }
 
     fn compile_cast<'a>(
-        &self,
+        &mut self,
         ctx: &mut CodeGenContext<'run>,
         cast_type: &hir::CastType,
         expr: &hir::TypedExpr,
     ) -> Option<SkValue<'run>> {
         let e = self.compile_value_expr(ctx, expr);
-        let v = match cast_type {
-            hir::CastType::AnyToFun(fun_ty) => self
-                .builder
-                .build_int_to_ptr(
-                    e.0.into_int_value(),
-                    self.llvm_function_type(fun_ty).ptr_type(Default::default()),
-                    "inttoptr",
-                )
-                .into(),
-            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::VoidToAny => e.0,
-            hir::CastType::FunToAny => self
-                .builder
-                .build_ptr_to_int(e.0.into_pointer_value(), self.int_type(), "ptrtoint")
-                .into(),
-        };
-        Some(SkValue(v))
+        //        let v = match cast_type {
+        //            hir::CastType::AnyToFun(_) => e,
+        //            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::VoidToAny => e,
+        //            hir::CastType::FunToAny => e,
+        //        };
+        Some(e)
     }
 
     fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {
@@ -246,8 +239,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Ty::Unknown => panic!("Unknown is unexpected here"),
             hir::Ty::Never => panic!("Never is unexpected here"),
             hir::Ty::ChiikaEnv | hir::Ty::RustFuture => self.ptr_type().into(),
-            hir::Ty::Any | hir::Ty::Int | hir::Ty::Void => self.int_type().into(),
-            hir::Ty::Bool => self.bool_type().into(),
+            hir::Ty::Any | hir::Ty::Int | hir::Ty::Void => self.ptr_type().into(),
+            hir::Ty::Bool => self.ptr_type().into(),
             hir::Ty::Fun(_) => self.ptr_type().into(),
         }
     }
