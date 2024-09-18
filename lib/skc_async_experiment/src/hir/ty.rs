@@ -9,9 +9,10 @@ pub enum Ty {
     Void,    // A unit type. Represented by `i64 0`
     Never,   // eg. the type of `return` or assignment. There is no value of this type.
     Any,     // Corresponds to `ptr` in llvm
+    Int64,   // Corresponds to `i64` in llvm
     ChiikaEnv,
     RustFuture,
-    Int,
+    Int, // Shiika int
     Bool,
     Fun(FunTy),
 }

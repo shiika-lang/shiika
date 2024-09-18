@@ -14,18 +14,19 @@ pub fn prelude_funcs(main_is_async: bool) -> String {
         + "class Main\n"
         + main_sig
         + "
-        requirement chiika_env_push_frame(env: ENV, n: Int) -> Void
-        requirement chiika_env_set(env: ENV, idx: Int, obj: ANY, type_id: Int) -> Void
-        requirement chiika_env_pop_frame(env: ENV, expected_len: Int) -> ANY
-        requirement chiika_env_get(env: ENV, idx: Int, expected_type_id: Int) -> ANY
+        requirement shiika_malloc(n: Shiika::Internal::Int64) -> ANY
+        requirement chiika_env_push_frame(env: ENV, n: Shiika::Internal::Int64) -> Void
+        requirement chiika_env_set(env: ENV, idx: Shiika::Internal::Int64, obj: ANY, type_id: Shiika::Internal::Int64) -> Void
+        requirement chiika_env_pop_frame(env: ENV, expected_len: Shiika::Internal::Int64) -> ANY
+        requirement chiika_env_get(env: ENV, idx: Shiika::Internal::Int64, expected_type_id: Shiika::Internal::Int64) -> ANY
         requirement chiika_spawn(f: Fn2<ENV,Fn2<ENV,Void,FUTURE>,FUTURE>) -> Void
-        requirement chiika_start_tokio(n: Int) -> Int
+        requirement chiika_start_tokio() -> Void
         def self.chiika_start_user(env: ENV, cont: Fn2<ENV,Int,FUTURE>) -> FUTURE
     " + call_user_main
         + "
         end
         def self.main() -> Int
-          chiika_start_tokio(0)
+          chiika_start_tokio()
           return 0
         end
     end

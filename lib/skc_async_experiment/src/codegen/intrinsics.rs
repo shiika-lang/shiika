@@ -8,7 +8,9 @@ pub fn define(gen: &mut CodeGen) {
 }
 
 fn define_box_int(gen: &mut CodeGen) {
-    let fn_type = gen.ptr_type().fn_type(&[gen.int_type().into()], false);
+    let fn_type = gen
+        .ptr_type()
+        .fn_type(&[gen.context.i64_type().into()], false);
     let function = gen
         .module
         .add_function("shiika_intrinsic_box_int", fn_type, None);
@@ -23,7 +25,9 @@ fn define_box_int(gen: &mut CodeGen) {
 }
 
 fn define_box_bool(gen: &mut CodeGen) {
-    let fn_type = gen.ptr_type().fn_type(&[gen.bool_type().into()], false);
+    let fn_type = gen
+        .ptr_type()
+        .fn_type(&[gen.context.bool_type().into()], false);
     let function = gen
         .module
         .add_function("shiika_intrinsic_box_bool", fn_type, None);

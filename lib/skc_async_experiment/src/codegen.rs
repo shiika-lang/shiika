@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
 use std::path::Path;
-use value::SkValue;
+use value::{SkObj, SkValue};
 
 pub struct CodeGen<'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
@@ -153,9 +153,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_lvarref(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
         let v = ctx.lvars.get(name).unwrap();
-        let t = self.int_type();
-        let v = self.builder.build_load(t, *v, name);
-        Some(SkValue::Opaque(v))
+        let t = self.ptr_type();
+        let v = self.builder.build_load(t, *v, name).into_pointer_value();
+        Some(SkObj(v).into())
     }
 
     fn compile_funcall(
@@ -180,7 +180,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_alloc(&self, ctx: &mut CodeGenContext<'run>, name: &str) -> Option<SkValue<'run>> {
-        let v = self.builder.build_alloca(self.int_type(), name);
+        let v = self.builder.build_alloca(self.ptr_type(), name);
         ctx.lvars.insert(name.to_string(), v);
         None
     }
@@ -209,10 +209,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         None
     }
 
+    // TODO: just remove this?
     fn compile_cast<'a>(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        cast_type: &hir::CastType,
+        _cast_type: &hir::CastType,
         expr: &hir::TypedExpr,
     ) -> Option<SkValue<'run>> {
         let e = self.compile_value_expr(ctx, expr);
@@ -238,23 +239,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         match ty {
             hir::Ty::Unknown => panic!("Unknown is unexpected here"),
             hir::Ty::Never => panic!("Never is unexpected here"),
+            hir::Ty::Any => self.ptr_type().into(),
             hir::Ty::ChiikaEnv | hir::Ty::RustFuture => self.ptr_type().into(),
-            hir::Ty::Any | hir::Ty::Int | hir::Ty::Void => self.ptr_type().into(),
-            hir::Ty::Bool => self.ptr_type().into(),
+            hir::Ty::Bool | hir::Ty::Int | hir::Ty::Void => self.ptr_type().into(),
             hir::Ty::Fun(_) => self.ptr_type().into(),
+            hir::Ty::Int64 => self.context.i64_type().into(),
         }
     }
 
     fn ptr_type(&self) -> inkwell::types::PointerType<'ictx> {
         self.context.i8_type().ptr_type(Default::default())
-    }
-
-    fn int_type(&self) -> inkwell::types::IntType<'ictx> {
-        self.context.i64_type()
-    }
-
-    fn bool_type(&self) -> inkwell::types::IntType<'ictx> {
-        self.context.bool_type()
     }
 
     /// Call llvm function (whose return type is not `void`)
