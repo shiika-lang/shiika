@@ -14,6 +14,7 @@ pub fn prelude_funcs(main_is_async: bool) -> String {
         + "class Main\n"
         + main_sig
         + "
+        requirement GC_init -> Void
         requirement shiika_malloc(n: Shiika::Internal::Int64) -> ANY
         requirement chiika_env_push_frame(env: ENV, n: Shiika::Internal::Int64) -> Void
         requirement chiika_env_set(env: ENV, idx: Shiika::Internal::Int64, obj: ANY, type_id: Shiika::Internal::Int64) -> Void

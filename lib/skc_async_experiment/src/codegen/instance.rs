@@ -1,6 +1,18 @@
 use crate::codegen::{llvm_struct, value::SkObj, CodeGen};
 use inkwell::values::BasicValue;
 
+pub fn build_ivar_load_raw<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    sk_obj: SkObj<'run>,
+    struct_type: inkwell::types::StructType<'run>,
+    idx: usize,
+    name: &str,
+) -> inkwell::values::BasicValueEnum<'run> {
+    let i = llvm_struct::OBJ_HEADER_SIZE + idx;
+    let ptr = sk_obj.0;
+    llvm_struct::build_llvm_value_load(gen, struct_type, ptr, i, name)
+}
+
 //pub fn build_ivar_store<'run>(
 //    gen: &mut CodeGen,
 //    sk_obj: SkObj,
@@ -14,8 +26,8 @@ use inkwell::values::BasicValue;
 //}
 
 pub fn build_ivar_store_raw<'run>(
-    gen: &mut CodeGen,
-    sk_obj: SkObj,
+    gen: &mut CodeGen<'run, '_>,
+    sk_obj: SkObj<'run>,
     struct_type: &inkwell::types::StructType<'run>,
     idx: usize,
     value: inkwell::values::BasicValueEnum,

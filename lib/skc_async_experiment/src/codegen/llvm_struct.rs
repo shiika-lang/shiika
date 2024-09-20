@@ -43,8 +43,33 @@ pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> 
         .expect(&format!("struct type not found: {}", name))
 }
 
+pub fn build_llvm_value_load<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    struct_type: inkwell::types::StructType<'run>,
+    struct_ptr: inkwell::values::PointerValue<'run>,
+    idx: usize,
+    name: &str,
+) -> inkwell::values::BasicValueEnum<'run> {
+    let ptr = gen
+        .builder
+        .build_struct_gep(
+            struct_type.as_basic_type_enum(),
+            struct_ptr,
+            idx as u32,
+            &format!("addr_{}", name),
+        )
+        .unwrap_or_else(|_| {
+            panic!(
+                "build_llvm_struct_get: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
+                &idx, &name, &struct_ptr
+            )
+        });
+    gen.builder
+        .build_load(struct_type, ptr, &format!("load_{}", name))
+}
+
 pub fn build_llvm_value_store<'run>(
-    gen: &mut CodeGen,
+    gen: &mut CodeGen<'run, '_>,
     struct_type: &inkwell::types::StructType<'run>,
     struct_ptr: inkwell::values::PointerValue<'run>,
     idx: usize,
