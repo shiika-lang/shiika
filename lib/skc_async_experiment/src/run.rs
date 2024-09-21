@@ -1,6 +1,6 @@
+use crate::{codegen, hir, hir_lowering, linker, prelude, verifier};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
-use skc_async_experiment::{codegen, hir, hir_lowering, linker, prelude, verifier};
 use std::io::Write;
 use std::path::Path;
 

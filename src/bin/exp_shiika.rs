@@ -1,5 +1,5 @@
-use skc_async_experiment::main;
+use skc_async_experiment::run;
 
 fn main() -> Result<()> {
-    main::main()
+    run::main()
 }
