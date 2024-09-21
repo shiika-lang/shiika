@@ -1,6 +1,4 @@
-use crate::ast;
 use crate::hir::Asyncness;
-use anyhow::{anyhow, Result};
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,28 +21,6 @@ impl fmt::Display for Ty {
             Ty::Fun(fun_ty) => write!(f, "{}", fun_ty),
             _ => write!(f, "{:?}", self),
         }
-    }
-}
-
-impl TryFrom<ast::Ty> for Ty {
-    type Error = anyhow::Error;
-
-    fn try_from(x: ast::Ty) -> Result<Self> {
-        let t = match x {
-            ast::Ty::Raw(s) => match &s[..] {
-                "Void" => Ty::Void,
-                "Int" => Ty::Int,
-                "Bool" => Ty::Bool,
-                // Internally used types (in src/prelude.rs)
-                "ANY" => Ty::Any,
-                "ENV" => Ty::ChiikaEnv,
-                "FUTURE" => Ty::RustFuture,
-                "CONT" => Ty::chiika_cont(),
-                _ => return Err(anyhow!("unknown type: {s}")),
-            },
-            ast::Ty::Fun(f) => Ty::Fun(f.try_into()?),
-        };
-        Ok(t)
     }
 }
 
@@ -140,23 +116,27 @@ impl From<Ty> for FunTy {
     }
 }
 
-impl TryFrom<ast::FunTy> for FunTy {
-    type Error = anyhow::Error;
-
-    fn try_from(x: ast::FunTy) -> Result<Self> {
-        Ok(Self {
-            asyncness: Asyncness::Unknown,
-            param_tys: x
-                .param_tys
-                .into_iter()
-                .map(|x| x.try_into())
-                .collect::<Result<_>>()?,
-            ret_ty: Box::new((*x.ret_ty).try_into()?),
-        })
-    }
-}
-
 impl FunTy {
+    fn new(asyncness: Asyncness, param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
+        FunTy {
+            asyncness,
+            param_tys,
+            ret_ty: Box::new(ret_ty),
+        }
+    }
+
+    pub fn sync(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
+        Self::new(Asyncness::Sync, param_tys, ret_ty)
+    }
+
+    pub fn async_(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
+        Self::new(Asyncness::Async, param_tys, ret_ty)
+    }
+
+    pub fn lowered(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
+        Self::new(Asyncness::Lowered, param_tys, ret_ty)
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         self.ret_ty.same(&other.ret_ty)

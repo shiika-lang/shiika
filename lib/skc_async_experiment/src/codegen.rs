@@ -55,7 +55,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_extern(&self, ext: hir::Extern) {
-        let func_type = self.llvm_function_type(&ext.fun_ty());
+        let func_type = self.llvm_function_type(&ext.fun_ty);
         self.module.add_function(&ext.name, func_type, None);
     }
 

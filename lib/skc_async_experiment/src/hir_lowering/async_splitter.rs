@@ -23,21 +23,21 @@ use std::collections::VecDeque;
 /// Splits asynchronous Milika func into multiple funcs.
 /// Also, signatures of async externs are modified to take `$env` and `$cont` as the first two params.
 pub fn run(hir: hir::Program) -> Result<hir::Program> {
-    let externs = hir
-        .externs
-        .into_iter()
-        .map(|e| {
-            if e.is_async {
-                hir::Extern {
-                    params: append_async_params(&e.params, e.ret_ty.clone(), false),
-                    ret_ty: hir::Ty::RustFuture,
-                    ..e
-                }
-            } else {
-                e
-            }
-        })
-        .collect();
+    //    let externs = hir
+    //        .externs
+    //        .into_iter()
+    //        .map(|e| {
+    //            if e.is_async {
+    //                hir::Extern {
+    //                    params: append_async_params(&e.params, e.ret_ty.clone(), false),
+    //                    ret_ty: hir::Ty::RustFuture,
+    //                    ..e
+    //                }
+    //            } else {
+    //                e
+    //            }
+    //        })
+    //        .collect();
 
     let mut funcs = vec![];
     for mut f in hir.funcs {
@@ -51,7 +51,7 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
         let mut split_funcs = c.compile_func()?;
         funcs.append(&mut split_funcs);
     }
-    Ok(hir::Program::new(externs, funcs))
+    Ok(hir::Program::new(hir.externs, funcs))
 }
 
 #[derive(Debug)]
@@ -432,26 +432,26 @@ fn modify_async_call(
 }
 
 /// Append params for async (`$env` and `$cont`)
-fn append_async_params(
-    params: &[hir::Param],
-    result_ty: hir::Ty,
-    generated: bool,
-) -> Vec<hir::Param> {
-    let mut new_params = params.to_vec();
-    if generated {
-        new_params.insert(0, hir::Param::new(hir::Ty::ChiikaEnv, "$env"));
-    } else {
-        new_params.insert(0, hir::Param::new(hir::Ty::ChiikaEnv, "$env"));
-        let fun_ty = hir::FunTy {
-            asyncness: hir::Asyncness::Lowered,
-            param_tys: vec![hir::Ty::ChiikaEnv, result_ty],
-            ret_ty: Box::new(hir::Ty::RustFuture),
-        };
-        new_params.push(hir::Param::new(hir::Ty::Fun(fun_ty), "$cont"));
-    }
-
-    new_params
-}
+//fn append_async_params(
+//    params: &[hir::Param],
+//    result_ty: hir::Ty,
+//    generated: bool,
+//) -> Vec<hir::Param> {
+//    let mut new_params = params.to_vec();
+//    if generated {
+//        new_params.insert(0, hir::Param::new(hir::Ty::ChiikaEnv, "$env"));
+//    } else {
+//        new_params.insert(0, hir::Param::new(hir::Ty::ChiikaEnv, "$env"));
+//        let fun_ty = hir::FunTy {
+//            asyncness: hir::Asyncness::Lowered,
+//            param_tys: vec![hir::Ty::ChiikaEnv, result_ty],
+//            ret_ty: Box::new(hir::Ty::RustFuture),
+//        };
+//        new_params.push(hir::Param::new(hir::Ty::Fun(fun_ty), "$cont"));
+//    }
+//
+//    new_params
+//}
 
 /// Create name of generated function like `foo_1`
 fn chapter_func_name(orig_name: &str, chapter_idx: usize) -> String {

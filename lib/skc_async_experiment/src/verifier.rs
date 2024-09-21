@@ -10,7 +10,7 @@ pub fn run(hir: &hir::Program) -> Result<()> {
         .map(|f| (f.name.clone(), f.fun_ty().clone()))
         .collect();
     for e in &hir.externs {
-        sigs.insert(e.name.clone(), e.fun_ty().clone());
+        sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
 
     let v = Verifier { sigs };

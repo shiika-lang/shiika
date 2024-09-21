@@ -5,8 +5,6 @@ mod ty;
 pub mod typing;
 pub mod untyped;
 pub mod visitor;
-use crate::ast;
-use anyhow::Result;
 pub use expr::{yielded_ty, CastType, Expr, PseudoVar, Typed, TypedExpr};
 use std::fmt;
 pub use ty::{FunTy, Ty};
@@ -38,58 +36,14 @@ impl Program {
 #[derive(Debug, Clone)]
 pub struct Extern {
     pub is_async: bool,
-    pub is_internal: bool,
     pub name: String,
-    pub params: Vec<Param>,
-    pub ret_ty: Ty,
-}
-
-impl TryFrom<ast::Extern> for Extern {
-    type Error = anyhow::Error;
-    fn try_from(x: ast::Extern) -> Result<Self> {
-        Extern::from_ast(&x)
-    }
-}
-
-impl Extern {
-    pub fn from_ast(x: &ast::Extern) -> Result<Self> {
-        Ok(Self {
-            is_async: x.is_async,
-            is_internal: x.is_internal,
-            name: x.name.clone(),
-            params: x
-                .params
-                .iter()
-                .map(|x| x.clone().try_into())
-                .collect::<Result<_>>()?,
-            ret_ty: x.ret_ty.clone().try_into()?,
-        })
-    }
-
-    pub fn fun_ty(&self) -> FunTy {
-        FunTy {
-            asyncness: self.is_async.into(),
-            param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
-            ret_ty: Box::new(self.ret_ty.clone()),
-        }
-    }
+    pub fun_ty: FunTy,
 }
 
 impl fmt::Display for Extern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let asyn = if self.is_async { "(async)" } else { "" };
-        let inte = if self.is_internal { "(internal)" } else { "" };
-        let para = self
-            .params
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(
-            f,
-            "extern{}{} {}({}) -> {};\n",
-            asyn, inte, self.name, para, self.ret_ty
-        )
+        write!(f, "extern{} {} {};\n", asyn, self.name, self.fun_ty)
     }
 }
 
@@ -138,17 +92,6 @@ impl Function {
 pub struct Param {
     pub ty: Ty,
     pub name: String,
-}
-
-impl TryFrom<ast::Param> for Param {
-    type Error = anyhow::Error;
-
-    fn try_from(x: ast::Param) -> Result<Self> {
-        Ok(Self {
-            ty: x.ty.try_into()?,
-            name: x.name,
-        })
-    }
 }
 
 impl Param {
