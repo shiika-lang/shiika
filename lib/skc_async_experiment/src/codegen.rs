@@ -26,9 +26,10 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
         module: &module,
         builder: &builder,
     };
+    c.compile_externs(prog.externs);
     llvm_struct::define(&mut c);
     intrinsics::define(&mut c);
-    c.compile_program(prog);
+    c.compile_program(prog.funcs);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
@@ -40,16 +41,17 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
-    fn compile_program(&mut self, prog: hir::Program) {
-        llvm_struct::define(self);
-
-        for e in prog.externs {
+    fn compile_externs(&mut self, externs: Vec<hir::Extern>) {
+        for e in externs {
             self.compile_extern(e);
         }
-        for f in &prog.funcs {
+    }
+
+    fn compile_program(&mut self, funcs: Vec<hir::Function>) {
+        for f in &funcs {
             self.declare_func(f);
         }
-        for f in prog.funcs {
+        for f in funcs {
             self.compile_func(f);
         }
     }
