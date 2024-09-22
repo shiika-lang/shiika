@@ -30,17 +30,14 @@ impl Main {
         let src = SourceFile::new(path.to_path_buf(), txt);
         let mut hir = self.compile(src, false)?;
 
-        //        let prelude_txt = prelude::prelude_funcs(main_is_async(&hir)?);
-        //        let prelude_src = SourceFile::new(PathBuf::from("src/prelude.rs"), prelude_txt);
-        for (name, fun_ty) in prelude::externs() {
+        for (name, fun_ty) in prelude::core_externs() {
             hir.externs.push(hir::Extern {
                 is_async: false,
                 name: name.to_string(),
                 fun_ty,
             });
         }
-        //let mut prelude_hir = self.compile(prelude_src, true)?;
-        hir.funcs.append(&mut prelude::funcs);
+        hir.funcs.append(&mut prelude::funcs(main_is_async(&hir)?));
 
         self.log(&format!("# -- verifier input --\n{hir}\n"));
         verifier::run(&hir)?;
@@ -55,6 +52,14 @@ impl Main {
     fn compile(&mut self, src: SourceFile, is_prelude: bool) -> Result<hir::Program> {
         let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
+        hir.externs = prelude::lib_externs()
+            .into_iter()
+            .map(|(name, fun_ty)| hir::Extern {
+                is_async: false,
+                name: name.to_string(),
+                fun_ty,
+            })
+            .collect();
         hir::typing::run(&mut hir)?;
         if !is_prelude {
             self.debug(format!("# -- typing output --\n{hir}\n"), !is_prelude);

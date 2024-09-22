@@ -36,9 +36,16 @@ pub fn prelude_funcs(main_is_async: bool) -> String {
     "
 }
 
-pub fn externs() -> Vec<(&'static str, FunTy)> {
+pub fn lib_externs() -> Vec<(&'static str, FunTy)> {
+    vec![
+        // Built-in functions
+        ("print", FunTy::sync(vec![Ty::Int], Ty::Void)),
+        ("sleep_sec", FunTy::async_(vec![Ty::Int], Ty::Void)),
+    ]
+}
+
+pub fn core_externs() -> Vec<(&'static str, FunTy)> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Void], Ty::RustFuture);
-    let int_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
     let spawnee = FunTy::lowered(
         vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
         Ty::RustFuture,
@@ -67,12 +74,6 @@ pub fn externs() -> Vec<(&'static str, FunTy)> {
             FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::Void),
         ),
         ("chiika_start_tokio", FunTy::lowered(vec![], Ty::Void)),
-        // Built-in functions
-        ("print", FunTy::lowered(vec![Ty::Int64], Ty::Void)),
-        (
-            "sleep_sec",
-            FunTy::lowered(vec![Ty::ChiikaEnv, int_cont.into(), Ty::Int64], Ty::Void),
-        ),
     ]
 }
 
