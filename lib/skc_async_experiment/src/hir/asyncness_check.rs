@@ -12,7 +12,7 @@ pub fn run(mut hir: hir::Program) -> hir::Program {
     // Externs are known to be async or not
     let mut known = HashMap::new();
     for e in &hir.externs {
-        known.insert(e.name.clone(), e.is_async);
+        known.insert(e.name.clone(), e.is_async());
     }
     for f in &hir.funcs {
         match f.asyncness {

@@ -35,15 +35,23 @@ impl Program {
 
 #[derive(Debug, Clone)]
 pub struct Extern {
-    pub is_async: bool,
     pub name: String,
     pub fun_ty: FunTy,
 }
 
 impl fmt::Display for Extern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let asyn = if self.is_async { "(async)" } else { "" };
-        write!(f, "extern{} {} {};\n", asyn, self.name, self.fun_ty)
+        write!(
+            f,
+            "extern({}) {} {};\n",
+            self.fun_ty.asyncness, self.name, self.fun_ty
+        )
+    }
+}
+
+impl Extern {
+    pub fn is_async(&self) -> bool {
+        self.fun_ty.asyncness.is_async()
     }
 }
 

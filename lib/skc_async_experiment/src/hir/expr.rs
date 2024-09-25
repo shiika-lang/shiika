@@ -21,6 +21,7 @@ pub enum Expr {
     Return(Box<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     Unbox(Box<Typed<Expr>>),
+    RawI64(i64),
     Nop,
 }
 
@@ -103,6 +104,7 @@ impl std::fmt::Display for Expr {
             Expr::Return(e) => write!(f, "return {}  # {}", e.0, e.1),
             Expr::Cast(cast_type, e) => write!(f, "({} as {})", e.0, cast_type.result_ty()),
             Expr::Unbox(e) => write!(f, "unbox {}", e.0),
+            Expr::RawI64(n) => write!(f, "{}.raw", n),
             Expr::Nop => write!(f, "%nop"),
             //_ => todo!("{:?}", self),
         }
@@ -220,6 +222,10 @@ impl Expr {
             panic!("[BUG] unbox non-Int: {:?}", e);
         }
         (Expr::Unbox(Box::new(e)), Ty::Int64)
+    }
+
+    pub fn raw_i64(n: i64) -> TypedExpr {
+        (Expr::RawI64(n), Ty::Int64)
     }
 
     pub fn nop() -> TypedExpr {

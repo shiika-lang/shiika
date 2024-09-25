@@ -117,13 +117,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             hir::Expr::Cast(expr, cast_type) => self.compile_cast(ctx, expr, cast_type),
             hir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
+            hir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             //            hir::Expr::Br(expr, block_id) => self.compile_br(blocks, block, lvars, expr, block_id),
             //            hir::Expr::CondBr(cond, true_block_id, false_block_id) => {
             //                self.compile_cond_br(blocks, block, lvars, cond, true_block_id, false_block_id)
             //            }
             //            hir::Expr::BlockArgRef => self.compile_block_arg_ref(block),
             //            hir::Expr::Nop => Ok(None),
-            _ => panic!("should be lowered before compiler.rs: {:?}", texpr.0),
+            _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
     }
 
@@ -249,6 +250,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let e = self.compile_value_expr(ctx, expr);
         let sk_int = SkObj::from_basic_value_enum(e);
         Some(intrinsics::unbox_int(self, sk_int).into())
+    }
+
+    fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let llvm_n = self.context.i64_type().const_int(n as u64, false);
+        Some(llvm_n.into())
     }
 
     fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {

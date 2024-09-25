@@ -27,7 +27,7 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
         .externs
         .into_iter()
         .map(|e| {
-            if e.is_async {
+            if e.is_async() {
                 hir::Extern {
                     fun_ty: hir::FunTy::lowered(
                         append_async_params(&e.fun_ty),
@@ -137,7 +137,7 @@ impl<'a> Compiler<'a> {
             hir::Expr::PseudoVar(_) => e,
             hir::Expr::LVarRef(ref varname) => {
                 let i = self.lvar_idx(varname);
-                call_chiika_env_ref(hir::Expr::number(i as i64))
+                call_chiika_env_ref(i)
             }
             hir::Expr::ArgRef(idx) => {
                 if self.chapters.len() == 1 {
@@ -149,7 +149,7 @@ impl<'a> Compiler<'a> {
                     hir::Expr::arg_ref(i, e.1)
                 } else {
                     let i = idx + 1; // +1 for $cont
-                    call_chiika_env_ref(hir::Expr::number(i as i64))
+                    call_chiika_env_ref(i)
                 }
             }
             hir::Expr::FuncRef(_) => e,
@@ -472,7 +472,7 @@ fn arg_ref_async_result(ty: hir::Ty) -> hir::TypedExpr {
 }
 
 fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {
-    let size_native = hir::Expr::unbox(hir::Expr::number(size as i64));
+    let size_native = hir::Expr::raw_i64(size as i64);
     hir::Expr::fun_call(
         hir::Expr::func_ref(
             "chiika_env_push_frame",
@@ -487,7 +487,7 @@ fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {
 }
 
 fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::TypedExpr {
-    let n_pop_native = hir::Expr::unbox(hir::Expr::number(n_pop as i64));
+    let n_pop_native = hir::Expr::raw_i64(n_pop as i64);
     let env_pop = {
         let fun_ty = hir::FunTy {
             asyncness: hir::Asyncness::Lowered,
@@ -508,8 +508,8 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::Typ
 }
 
 fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
-    let idx_native = hir::Expr::unbox(hir::Expr::number(idx as i64));
-    let type_id = hir::Expr::unbox(hir::Expr::number(val.1.type_id()));
+    let idx_native = hir::Expr::raw_i64(idx as i64);
+    let type_id = hir::Expr::raw_i64(val.1.type_id());
     let cast_val = {
         let cast_type = match val.1 {
             hir::Ty::Void => hir::CastType::VoidToAny,
@@ -535,9 +535,9 @@ fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
     )
 }
 
-fn call_chiika_env_ref(idx: hir::TypedExpr) -> hir::TypedExpr {
-    let idx_native = hir::Expr::unbox(idx);
-    let type_id = hir::Expr::unbox(hir::Expr::number(hir::Ty::Int.type_id()));
+fn call_chiika_env_ref(idx: usize) -> hir::TypedExpr {
+    let idx_native = hir::Expr::raw_i64(idx as i64);
+    let type_id = hir::Expr::raw_i64(hir::Ty::Int.type_id());
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64, hir::Ty::Int64],

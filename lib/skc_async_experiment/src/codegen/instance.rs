@@ -5,12 +5,13 @@ pub fn build_ivar_load_raw<'run>(
     gen: &mut CodeGen<'run, '_>,
     sk_obj: SkObj<'run>,
     struct_type: inkwell::types::StructType<'run>,
+    item_type: inkwell::types::BasicTypeEnum<'run>,
     idx: usize,
     name: &str,
 ) -> inkwell::values::BasicValueEnum<'run> {
     let i = llvm_struct::OBJ_HEADER_SIZE + idx;
     let ptr = sk_obj.0;
-    llvm_struct::build_llvm_value_load(gen, struct_type, ptr, i, name)
+    llvm_struct::build_llvm_value_load(gen, struct_type, ptr, item_type, i, name)
 }
 
 //pub fn build_ivar_store<'run>(

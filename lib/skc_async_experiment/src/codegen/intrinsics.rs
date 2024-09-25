@@ -58,7 +58,9 @@ pub fn unbox_int<'run>(
     sk_obj: SkObj<'run>,
 ) -> inkwell::values::IntValue<'run> {
     let struct_type = llvm_struct::get(gen, "::Int");
-    instance::build_ivar_load_raw(gen, sk_obj, struct_type, 0, "llvm_int").into_int_value()
+    let item_type = gen.context.i64_type().into();
+    let x = instance::build_ivar_load_raw(gen, sk_obj, struct_type, item_type, 0, "llvm_int");
+    x.into_int_value()
 }
 
 pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {

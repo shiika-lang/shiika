@@ -32,7 +32,6 @@ impl Main {
 
         for (name, fun_ty) in prelude::core_externs() {
             hir.externs.push(hir::Extern {
-                is_async: false,
                 name: name.to_string(),
                 fun_ty,
             });
@@ -55,7 +54,6 @@ impl Main {
         hir.externs = prelude::lib_externs()
             .into_iter()
             .map(|(name, fun_ty)| hir::Extern {
-                is_async: false,
                 name: name.to_string(),
                 fun_ty,
             })

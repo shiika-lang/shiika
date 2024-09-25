@@ -1470,6 +1470,7 @@ name = "skc_runtime"
 version = "0.1.0"
 dependencies = [
  "bdwgc-alloc",
+ "shiika_ffi",
  "tokio",
 ]
 

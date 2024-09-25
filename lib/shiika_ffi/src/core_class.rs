@@ -1,1 +1,3 @@
-pub mod int;
+mod int;
+
+pub use int::SkInt;

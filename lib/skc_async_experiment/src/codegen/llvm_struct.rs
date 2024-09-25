@@ -47,6 +47,7 @@ pub fn build_llvm_value_load<'run>(
     gen: &mut CodeGen<'run, '_>,
     struct_type: inkwell::types::StructType<'run>,
     struct_ptr: inkwell::values::PointerValue<'run>,
+    item_type: inkwell::types::BasicTypeEnum<'run>,
     idx: usize,
     name: &str,
 ) -> inkwell::values::BasicValueEnum<'run> {
@@ -60,12 +61,12 @@ pub fn build_llvm_value_load<'run>(
         )
         .unwrap_or_else(|_| {
             panic!(
-                "build_llvm_struct_get: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
+                "build_llvm_value_load: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
                 &idx, &name, &struct_ptr
             )
         });
     gen.builder
-        .build_load(struct_type, ptr, &format!("load_{}", name))
+        .build_load(item_type, ptr, &format!("load_{}", name))
 }
 
 pub fn build_llvm_value_store<'run>(
