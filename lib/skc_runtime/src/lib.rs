@@ -1,3 +1,4 @@
+mod allocator;
 mod chiika_env;
 use crate::chiika_env::ChiikaEnv;
 mod async_functions;
@@ -51,7 +52,7 @@ pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn chiika_start_tokio(_: u64) -> u64 {
+pub extern "C" fn chiika_start_tokio() {
     let poller = make_poller(chiika_start_user);
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -61,8 +62,6 @@ pub extern "C" fn chiika_start_tokio(_: u64) -> u64 {
 
     // Q: Need this?
     // sleep(Duration::from_millis(50)).await;
-
-    0
 }
 
 fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {

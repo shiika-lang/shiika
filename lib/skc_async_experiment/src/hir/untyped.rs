@@ -34,28 +34,19 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program> {
     }
 
     let c = Compiler { func_names };
-    let mut externs = vec![];
     let mut funcs = vec![];
     for def in defs {
         match def {
             shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
                 funcs.push(c.compile_func(sig, body_exprs)?);
             }
-            shiika_ast::Definition::MethodRequirementDefinition { sig } => {
-                let (name, is_async, is_internal) =
-                    if let Some(name) = sig.name.0.strip_prefix("__async__") {
-                        (name.to_string(), true, false)
-                    } else if let Some(name) = sig.name.0.strip_prefix("__internal__") {
-                        (name.to_string(), false, true)
-                    } else {
-                        (sig.name.0.to_string(), false, false)
-                    };
-                externs.push(compile_extern(&name, sig, is_async, is_internal)?);
-            }
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
-    Ok(hir::Program { externs, funcs })
+    Ok(hir::Program {
+        externs: vec![],
+        funcs,
+    })
 }
 
 struct Compiler {
@@ -255,40 +246,15 @@ impl Compiler {
     }
 }
 
-fn compile_extern(
-    name: &str,
-    sig: &shiika_ast::AstMethodSignature,
-    is_async: bool,
-    is_internal: bool,
-) -> Result<hir::Extern> {
-    let mut params = vec![];
-    for p in &sig.params {
-        params.push(hir::Param {
-            name: p.name.clone(),
-            ty: compile_ty(&p.typ)?,
-        });
-    }
-    let ret_ty = match &sig.ret_typ {
-        Some(t) => compile_ty(&t)?,
-        None => hir::Ty::Void,
-    };
-    Ok(hir::Extern {
-        is_async,
-        is_internal,
-        name: name.to_string(),
-        params,
-        ret_ty,
-    })
-}
-
 fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
     let t = if n.args.len() == 0 {
-        let s = n.names.first().unwrap();
+        let s = n.names.join("::");
         match &s[..] {
             "Void" => hir::Ty::Void,
             "Int" => hir::Ty::Int,
             "Bool" => hir::Ty::Bool,
             // Internally used types (in src/prelude.rs)
+            "Shiika::Internal::Int64" => hir::Ty::Int64,
             "ANY" => hir::Ty::Any,
             "ENV" => hir::Ty::ChiikaEnv,
             "FUTURE" => hir::Ty::RustFuture,

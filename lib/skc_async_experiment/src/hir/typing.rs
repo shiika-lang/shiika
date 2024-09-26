@@ -18,7 +18,7 @@ pub fn run(hir: &mut hir::Program) -> Result<()> {
         current_func_ret_ty: None,
     };
     for e in &hir.externs {
-        c.sigs.insert(e.name.clone(), e.fun_ty());
+        c.sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
     for f in &hir.funcs {
         c.sigs.insert(f.name.clone(), f.fun_ty());

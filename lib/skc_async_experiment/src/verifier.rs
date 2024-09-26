@@ -10,7 +10,7 @@ pub fn run(hir: &hir::Program) -> Result<()> {
         .map(|f| (f.name.clone(), f.fun_ty().clone()))
         .collect();
     for e in &hir.externs {
-        sigs.insert(e.name.clone(), e.fun_ty().clone());
+        sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
 
     let v = Verifier { sigs };
@@ -129,6 +129,11 @@ impl Verifier {
                     }
                 }
             }
+            hir::Expr::Unbox(val) => {
+                assert(&val, "unboxee", &hir::Ty::Int)?;
+                assert(&e, "result", &hir::Ty::Int64)?;
+            }
+            hir::Expr::RawI64(_) => assert(&e, "raw i64", &hir::Ty::Int64)?,
             _ => panic!("not supported by verifier: {:?}", e.0),
         }
         Ok(())
