@@ -1,4 +1,8 @@
 123
   .to_s
 
+[1,2,3]
+  .select{|i: Int| i % 2 == 0}
+  .map<Int>{|i: Int| i * 2}
+
 puts "ok"
