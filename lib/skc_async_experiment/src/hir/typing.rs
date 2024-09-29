@@ -100,13 +100,17 @@ impl<'f> Typing<'f> {
                 if cond.1 != hir::Ty::Bool {
                     return Err(anyhow!("condition should be bool but got {:?}", cond.1));
                 }
-                self.compile_exprs(lvars, then)?;
-                self.compile_exprs(lvars, els)?;
-                let t1 = hir::yielded_ty(&then);
-                let t2 = hir::yielded_ty(&els);
-                let t = if t1 == hir::Ty::Void {
+                self.compile_expr(lvars, then)?;
+                let t1 = &then.1;
+                let t2 = if let Some(els) = els {
+                    self.compile_expr(lvars, els)?;
+                    &els.1
+                } else {
+                    &hir::Ty::Void
+                };
+                let t = if *t1 == hir::Ty::Void {
                     t2
-                } else if t2 == hir::Ty::Void {
+                } else if *t2 == hir::Ty::Void {
                     t1
                 } else if t1 != t2 {
                     return Err(anyhow!(
@@ -119,15 +123,11 @@ impl<'f> Typing<'f> {
                 };
                 e.1 = t.clone();
             }
-            hir::Expr::Yield(val) => {
-                self.compile_expr(lvars, val)?;
-                e.1 = val.1.clone();
-            }
-            hir::Expr::While(cond, body) => {
-                self.compile_expr(lvars, cond)?;
-                self.compile_exprs(lvars, body)?;
-                e.1 = hir::Ty::Void;
-            }
+            //hir::Expr::While(cond, body) => {
+            //    self.compile_expr(lvars, cond)?;
+            //    self.compile_expr(lvars, body)?;
+            //    e.1 = hir::Ty::Void;
+            //}
             hir::Expr::Spawn(func) => {
                 self.compile_expr(lvars, func)?;
                 e.1 = hir::Ty::Void;
@@ -153,21 +153,17 @@ impl<'f> Typing<'f> {
                 }
                 e.1 = hir::Ty::Never;
             }
+            hir::Expr::Exprs(exprs) => {
+                for e in exprs.iter_mut() {
+                    self.compile_expr(lvars, e)?;
+                }
+                e.1 = exprs.last().unwrap().1.clone();
+            }
             hir::Expr::Cast(_, _) => {
                 return Err(anyhow!("[BUG] Cast unexpected here"));
             }
-            _ => panic!("must not occur in hir::typing"),
+            _ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
-        Ok(())
-    }
-
-    fn compile_exprs(
-        &mut self,
-        lvars: &mut HashMap<String, hir::Ty>,
-        es: &mut [hir::TypedExpr],
-    ) -> Result<()> {
-        es.iter_mut()
-            .try_for_each(|e| self.compile_expr(lvars, e))?;
         Ok(())
     }
 }

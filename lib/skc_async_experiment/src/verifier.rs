@@ -83,13 +83,12 @@ impl Verifier {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument {}", i), p))?;
             }
-            hir::Expr::If(cond, then, els) => {
+            hir::Expr::If(cond, then, opt_els) => {
                 self.verify_expr(f, cond)?;
-                self.verify_exprs(f, then)?;
-                self.verify_exprs(f, els)?;
-            }
-            hir::Expr::Yield(expr) => {
-                self.verify_expr(f, expr)?;
+                self.verify_expr(f, then)?;
+                if let Some(els) = opt_els {
+                    self.verify_expr(f, els)?;
+                }
             }
             hir::Expr::While(cond, body) => {
                 self.verify_expr(f, cond)?;
@@ -102,6 +101,9 @@ impl Verifier {
             hir::Expr::Return(e) => {
                 self.verify_expr(f, e)?;
                 assert(&e, "return value", &f.ret_ty)?;
+            }
+            hir::Expr::Exprs(es) => {
+                self.verify_exprs(f, es)?;
             }
             hir::Expr::Cast(cast_type, val) => {
                 self.verify_expr(f, val)?;

@@ -107,10 +107,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //                self.compile_op_call(blocks, block, lvars, op, lhs, rhs)
             //            }
             hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
-            //            hir::Expr::If(cond, then, els) => {
-            //                self.compile_if(blocks, block, lvars, cond, then, els, &texpr.1)
-            //            }
-            //            hir::Expr::Yield(expr) => self.compile_yield(blocks, block, lvars, expr),
+            hir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),
             hir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
             hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
@@ -194,6 +191,59 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(ret.try_as_basic_value().left().unwrap())
     }
 
+    fn compile_if(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        cond_expr: &hir::TypedExpr,
+        then_exprs: &hir::TypedExpr,
+        else_exprs: &Option<Box<hir::TypedExpr>>,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
+        let then_block = self.context.append_basic_block(ctx.function, "IfThen");
+        let else_block = self.context.append_basic_block(ctx.function, "IfElse");
+        let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
+
+        // IfBegin:
+        self.builder.build_unconditional_branch(begin_block);
+        self.builder.position_at_end(begin_block);
+        let cond_value = self.compile_value_expr(ctx, cond_expr);
+        self.gen_conditional_branch(cond_value, then_block, else_block);
+        // IfThen:
+        self.builder.position_at_end(then_block);
+        let then_value = self.compile_expr(ctx, then_exprs);
+        if then_value.is_some() {
+            self.builder.build_unconditional_branch(merge_block);
+        }
+        let then_block_end = self.builder.get_insert_block().unwrap();
+        // IfElse:
+        self.builder.position_at_end(else_block);
+        let else_value = if let Some(else_exprs) = else_exprs {
+            self.compile_expr(ctx, else_exprs)
+        } else {
+            None
+        };
+        if else_value.is_some() {
+            self.builder.build_unconditional_branch(merge_block);
+        }
+        let else_block_end = self.builder.get_insert_block().unwrap();
+
+        // IfEnd:
+        self.builder.position_at_end(merge_block);
+        match (then_value, else_value) {
+            (None, None) => {
+                self.builder.build_unreachable();
+                None
+            }
+            (None, else_value) => else_value,
+            (then_value, None) => then_value,
+            (Some(then_val), Some(else_val)) => {
+                let phi_node = self.builder.build_phi(self.ptr_type(), "ifResult");
+                phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
+                Some(phi_node.as_basic_value())
+            }
+        }
+    }
+
     fn compile_alloc(
         &self,
         ctx: &mut CodeGenContext<'run>,
@@ -255,6 +305,22 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let llvm_n = self.context.i64_type().const_int(n as u64, false);
         Some(llvm_n.into())
+    }
+
+    /// Generate conditional branch by Shiika Bool
+    fn gen_conditional_branch(
+        &mut self,
+        cond: inkwell::values::BasicValueEnum<'run>,
+        then_block: inkwell::basic_block::BasicBlock,
+        else_block: inkwell::basic_block::BasicBlock,
+    ) {
+        let i = intrinsics::unbox_bool(self, SkObj::from_basic_value_enum(cond));
+        let one = self.context.bool_type().const_int(1, false);
+        let istrue = self
+            .builder
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
+        self.builder
+            .build_conditional_branch(istrue, then_block, else_block);
     }
 
     fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {
