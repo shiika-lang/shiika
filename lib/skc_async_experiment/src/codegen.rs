@@ -112,6 +112,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
             hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
+            hir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             hir::Expr::Cast(expr, cast_type) => self.compile_cast(ctx, expr, cast_type),
             hir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             hir::Expr::RawI64(n) => self.compile_raw_i64(*n),
@@ -274,6 +275,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let val = self.compile_value_expr(ctx, val_expr);
         self.builder.build_return(Some(&val));
         None
+    }
+
+    fn compile_exprs(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        exprs: &[hir::TypedExpr],
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let mut last_val = None;
+        for e in exprs {
+            last_val = self.compile_expr(ctx, e);
+        }
+        last_val
     }
 
     // TODO: just remove this?

@@ -188,6 +188,10 @@ impl<'a> Compiler<'a> {
             }
             hir::Expr::Alloc(_) => hir::Expr::nop(),
             hir::Expr::Return(expr) => self.compile_return(*expr)?,
+            hir::Expr::Exprs(exprs) => {
+                let new_exprs = self.compile_exprs(exprs)?;
+                hir::Expr::exprs(new_exprs)
+            }
             _ => panic!("[BUG] unexpected for async_splitter: {:?}", e.0),
         };
         Ok(Some(new_e))
