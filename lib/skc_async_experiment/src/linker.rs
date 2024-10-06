@@ -66,7 +66,6 @@ fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf) -> Command {
         cmd.arg("-lpthread");
     }
 
-    dbg!(&cmd);
     cmd
 }
 
