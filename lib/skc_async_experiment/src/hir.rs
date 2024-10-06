@@ -1,11 +1,11 @@
 pub mod asyncness_check;
-mod expr;
+pub mod expr;
 pub mod rewriter;
 mod ty;
 pub mod typing;
 pub mod untyped;
 pub mod visitor;
-pub use expr::{yielded_ty, CastType, Expr, PseudoVar, Typed, TypedExpr};
+pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use std::fmt;
 pub use ty::{FunTy, Ty};
 

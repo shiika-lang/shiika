@@ -179,11 +179,7 @@ impl<'a> Compiler<'a> {
                 call_chiika_env_set(i, v)
             }
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
-                return self.compile_if(&e.1, *cond_expr, then_exprs, else_exprs);
-            }
-            hir::Expr::Yield(expr) => {
-                let new_expr = self.compile_value_expr(*expr, false)?;
-                hir::Expr::yield_(new_expr)
+                return self.compile_if(&e.1, *cond_expr, *then_exprs, else_exprs);
             }
             hir::Expr::While(_cond_expr, _body_exprs) => todo!(),
             hir::Expr::Spawn(fexpr) => {
@@ -192,6 +188,10 @@ impl<'a> Compiler<'a> {
             }
             hir::Expr::Alloc(_) => hir::Expr::nop(),
             hir::Expr::Return(expr) => self.compile_return(*expr)?,
+            hir::Expr::Exprs(exprs) => {
+                let new_exprs = self.compile_exprs(exprs)?;
+                hir::Expr::exprs(new_exprs)
+            }
             _ => panic!("[BUG] unexpected for async_splitter: {:?}", e.0),
         };
         Ok(Some(new_e))
@@ -223,14 +223,20 @@ impl<'a> Compiler<'a> {
         &mut self,
         if_ty: &hir::Ty,
         cond_expr: hir::TypedExpr,
-        then_exprs: Vec<hir::TypedExpr>,
-        else_exprs: Vec<hir::TypedExpr>,
+        then_exprs: hir::TypedExpr,
+        else_exprs_: Option<Box<hir::TypedExpr>>,
     ) -> Result<Option<hir::TypedExpr>> {
+        let else_exprs = if let Some(e) = else_exprs_ {
+            *e
+        } else {
+            hir::Expr::pseudo_var(hir::PseudoVar::Void)
+        };
+
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
         if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_exprs(then_exprs)?;
-            let els = self.compile_exprs(else_exprs)?;
-            return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
+            let then = self.compile_value_expr(then_exprs, false)?;
+            let els = self.compile_value_expr(else_exprs, false)?;
+            return Ok(Some(hir::Expr::if_(new_cond_expr, then, Some(els))));
         }
 
         let func_name = self.chapters.current_name().to_string();
@@ -244,8 +250,8 @@ impl<'a> Compiler<'a> {
         let fcall_f = self.branch_call(&else_chap.name);
         let terminator = hir::Expr::if_(
             new_cond_expr,
-            vec![hir::Expr::return_(fcall_t)],
-            vec![hir::Expr::return_(fcall_f)],
+            hir::Expr::return_(fcall_t),
+            Some(hir::Expr::return_(fcall_f)),
         );
         self.chapters.add_stmt(terminator);
 
@@ -275,23 +281,14 @@ impl<'a> Compiler<'a> {
         Ok(new_exprs)
     }
 
-    fn compile_if_clause(
-        &mut self,
-        mut exprs: Vec<hir::TypedExpr>,
-        endif_chap_name: &str,
-    ) -> Result<()> {
+    fn compile_if_clause(&mut self, exprs_: hir::TypedExpr, endif_chap_name: &str) -> Result<()> {
+        let mut exprs = hir::expr::into_exprs(exprs_);
         let e = exprs.pop().unwrap();
-        let opt_vexpr = match e {
-            (hir::Expr::Return(_), _) => {
-                exprs.push(e);
-                None
-            }
-            (hir::Expr::Yield(vexpr), _) => Some(vexpr),
-            _ => {
-                return Err(anyhow!(
-                    "[BUG] last statement of a clause must be a yield or a return"
-                ))
-            }
+        let opt_vexpr = if e.1 == hir::Ty::Never {
+            exprs.push(e);
+            None
+        } else {
+            Some(e)
         };
         for expr in exprs {
             if let Some(new_expr) = self.compile_expr(expr, false)? {
@@ -299,7 +296,7 @@ impl<'a> Compiler<'a> {
             }
         }
         if let Some(vexpr) = opt_vexpr {
-            let new_vexpr = self.compile_value_expr(*vexpr, false)?;
+            let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = hir::Expr::fun_call(
                 hir::Expr::func_ref(
                     endif_chap_name,

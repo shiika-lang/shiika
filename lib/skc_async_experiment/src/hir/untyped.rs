@@ -97,6 +97,11 @@ impl Compiler {
     ) -> Result<hir::TypedExpr> {
         let e = match &x.body {
             shiika_ast::AstExpressionBody::DecimalLiteral { value } => hir::Expr::Number(*value),
+            shiika_ast::AstExpressionBody::PseudoVariable(token) => match token {
+                shiika_ast::Token::KwTrue => hir::Expr::PseudoVar(hir::PseudoVar::True),
+                shiika_ast::Token::KwFalse => hir::Expr::PseudoVar(hir::PseudoVar::False),
+                _ => panic!("unexpected token: {:?}", token),
+            },
             shiika_ast::AstExpressionBody::BareName(name) => {
                 if lvars.contains(name) {
                     self.compile_var_ref(sig, lvars, name)?
@@ -143,42 +148,21 @@ impl Compiler {
                 else_exprs,
             } => {
                 let cond = self.compile_expr(sig, lvars, &cond_expr)?;
-                let mut then = self.compile_exprs(sig, lvars, &then_exprs)?;
-                let mut els = if let Some(els) = &else_exprs {
-                    self.compile_exprs(sig, lvars, &els)?
-                } else {
-                    vec![]
-                };
-                if (ends_with_yield(&then) && ends_with_yield(&els))
-                    || (ends_with_return(&then) && ends_with_return(&els))
-                    || (ends_with_yield(&then) && ends_with_return(&els))
-                    || (ends_with_return(&then) && ends_with_yield(&els))
-                {
-                    hir::Expr::If(Box::new(cond), then, els)
-                } else if ends_with_yield(&then) || ends_with_yield(&els) {
-                    return Err(anyhow!("yield must be in both (or neither) branches"));
-                } else {
-                    if !ends_with_yield(&then) && !ends_with_return(&then) {
-                        then.push(hir::Expr::yield_null());
-                    }
-                    if !ends_with_yield(&els) && !ends_with_return(&els) {
-                        els.push(hir::Expr::yield_null());
-                    }
-                    hir::Expr::If(Box::new(cond), then, els)
-                }
+                let then = self.compile_exprs(sig, lvars, &then_exprs)?;
+                let els = else_exprs
+                    .as_ref()
+                    .map(|els| self.compile_exprs(sig, lvars, els))
+                    .transpose()?;
+                hir::Expr::If(Box::new(cond), Box::new(then), els.map(Box::new))
             }
-            //shiika_ast::AstExpressionBody::Yield(v) => {
-            //    let e = self.compile_expr(sig, lvars, v)?;
-            //    hir::Expr::Yield(Box::new(e))
+            //shiika_ast::AstExpressionBody::While {
+            //    cond_expr,
+            //    body_exprs,
+            //} => {
+            //    let cond = self.compile_expr(sig, lvars, &cond_expr)?;
+            //    let body = self.compile_exprs(sig, lvars, &body_exprs)?;
+            //    hir::Expr::While(Box::new(cond), body)
             //}
-            shiika_ast::AstExpressionBody::While {
-                cond_expr,
-                body_exprs,
-            } => {
-                let cond = self.compile_expr(sig, lvars, &cond_expr)?;
-                let body = self.compile_exprs(sig, lvars, &body_exprs)?;
-                hir::Expr::While(Box::new(cond), body)
-            }
             //shiika_ast::AstExpressionBody::Spawn(func) => {
             //    let func = self.compile_expr(sig, lvars, func)?;
             //    hir::Expr::Spawn(Box::new(func))
@@ -237,12 +221,12 @@ impl Compiler {
         sig: &shiika_ast::AstMethodSignature,
         lvars: &mut HashSet<String>,
         xs: &[shiika_ast::AstExpression],
-    ) -> Result<Vec<hir::TypedExpr>> {
+    ) -> Result<hir::TypedExpr> {
         let mut es = vec![];
         for x in xs {
             es.push(self.compile_expr(sig, lvars, x)?);
         }
-        Ok(es)
+        Ok(hir::Expr::exprs(es))
     }
 }
 
@@ -277,12 +261,4 @@ fn compile_fun_ty(x: &[shiika_ast::UnresolvedTypeName]) -> Result<hir::FunTy> {
         param_tys,
         ret_ty,
     })
-}
-
-fn ends_with_yield(stmts: &[hir::TypedExpr]) -> bool {
-    matches!(stmts.last(), Some((hir::Expr::Yield(_), _)))
-}
-
-fn ends_with_return(stmts: &[hir::TypedExpr]) -> bool {
-    matches!(stmts.last(), Some((hir::Expr::Return(_), _)))
 }

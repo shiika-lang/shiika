@@ -36,17 +36,12 @@ pub trait HirVisitor {
                     self.walk_expr(arg)?;
                 }
             }
-            hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
+            hir::Expr::If(cond_expr, then_exprs, opt_else_exprs) => {
                 self.walk_expr(cond_expr)?;
-                for expr in then_exprs {
-                    self.walk_expr(expr)?;
+                self.walk_expr(then_exprs)?;
+                if let Some(else_exprs) = opt_else_exprs {
+                    self.walk_expr(else_exprs)?;
                 }
-                for expr in else_exprs {
-                    self.walk_expr(expr)?;
-                }
-            }
-            hir::Expr::Yield(expr) => {
-                self.walk_expr(expr)?;
             }
             hir::Expr::While(cond_expr, body_exprs) => {
                 self.walk_expr(cond_expr)?;
@@ -63,6 +58,9 @@ pub trait HirVisitor {
             }
             hir::Expr::Return(expr) => {
                 self.walk_expr(expr)?;
+            }
+            hir::Expr::Exprs(exprs) => {
+                self.walk_exprs(exprs)?;
             }
             hir::Expr::Cast(_, expr) => {
                 self.walk_expr(expr)?;

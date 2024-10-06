@@ -34,12 +34,13 @@ pub trait HirRewriter {
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 hir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
             }
-            hir::Expr::If(cond_expr, then_exprs, else_exprs) => hir::Expr::if_(
+            hir::Expr::If(cond_expr, then_exprs, opt_else_exprs) => hir::Expr::if_(
                 self.walk_expr(*cond_expr)?,
-                self.walk_exprs(then_exprs)?,
-                self.walk_exprs(else_exprs)?,
+                self.walk_expr(*then_exprs)?,
+                opt_else_exprs
+                    .map(|else_exprs| self.walk_expr(*else_exprs))
+                    .transpose()?,
             ),
-            hir::Expr::Yield(expr) => hir::Expr::yield_(self.walk_expr(*expr)?),
             hir::Expr::While(cond_expr, body_exprs) => {
                 hir::Expr::while_(self.walk_expr(*cond_expr)?, self.walk_exprs(body_exprs)?)
             }
@@ -47,6 +48,7 @@ pub trait HirRewriter {
             hir::Expr::Alloc(_) => expr,
             hir::Expr::Assign(name, rhs) => hir::Expr::assign(name, self.walk_expr(*rhs)?),
             hir::Expr::Return(expr) => hir::Expr::return_(self.walk_expr(*expr)?),
+            hir::Expr::Exprs(exprs) => hir::Expr::exprs(self.walk_exprs(exprs)?),
             hir::Expr::Cast(cast_type, expr) => hir::Expr::cast(cast_type, self.walk_expr(*expr)?),
             _ => panic!("not supported by hir::rewriter: {:?}", expr),
         };
