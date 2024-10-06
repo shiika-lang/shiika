@@ -113,7 +113,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             hir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
-            hir::Expr::Cast(expr, cast_type) => self.compile_cast(ctx, expr, cast_type),
+            hir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
             hir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             hir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             //            hir::Expr::Br(expr, block_id) => self.compile_br(blocks, block, lvars, expr, block_id),
@@ -289,19 +289,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         last_val
     }
 
-    // TODO: just remove this?
     fn compile_cast<'a>(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        _cast_type: &hir::CastType,
         expr: &hir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
-        //        let v = match cast_type {
-        //            hir::CastType::AnyToFun(_) => e,
-        //            hir::CastType::AnyToInt | hir::CastType::IntToAny | hir::CastType::VoidToAny => e,
-        //            hir::CastType::FunToAny => e,
-        //        };
         Some(e)
     }
 
