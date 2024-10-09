@@ -1,0 +1,13 @@
+class Main
+  def self.chiika_main() -> Int
+    if true
+      sleep_sec(1)
+      print(123)
+      return 0
+    else
+      print(456)
+      return 0
+    end
+  end
+  
+end

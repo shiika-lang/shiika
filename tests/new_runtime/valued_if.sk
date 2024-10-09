@@ -1,0 +1,12 @@
+class Main
+  def self.chiika_main() -> Int
+    print(
+      if true
+        456
+      else
+        789
+      end
+    )
+    return 0
+  end
+end
