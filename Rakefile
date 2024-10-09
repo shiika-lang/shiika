@@ -159,5 +159,14 @@ task :async do
     sh "cargo build"
   end
   sh "cargo run --bin exp_shiika -- a.milika"
+end
+task async_test: :async do
   sh "./a"
+end
+task :async_integration_test do
+  Dir["tests/new_runtime/*.sk"].each do |path|
+    name = path.sub(".sk", "")
+    sh "cargo run --bin exp_shiika -- #{name}.sk > #{name}.actual_out"
+    sh "diff #{name}.actual_out #{name}.expected_out"
+  end
 end

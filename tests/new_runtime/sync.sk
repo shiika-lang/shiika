@@ -1,0 +1,6 @@
+class Main
+  def self.chiika_main() -> Int
+    print(123)
+    return 0
+  end
+end

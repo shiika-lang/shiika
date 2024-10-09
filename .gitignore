@@ -1,3 +1,4 @@
+.DS_Store
 *.ll
 *.out
 *.bc
@@ -14,4 +15,4 @@
 /target
 /tests/tmp.*
 /tests/tmp/hello.txt
-.DS_Store
+/tests/new_runtime/*.actual_out

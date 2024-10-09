@@ -1,0 +1,18 @@
+class Main
+  def self.foo(a: Int, b: Int) -> Int
+    if a < b
+      print(a + b)
+      sleep_sec(0)
+      return a + b
+    else
+      print(a + b)
+      sleep_sec(0)
+      return a + b
+    end
+  end
+  
+  def self.chiika_main() -> Int
+    print(foo(1, 2))
+    return 0
+  end
+end
