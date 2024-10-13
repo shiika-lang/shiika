@@ -15,9 +15,7 @@ pub fn run(hir: &hir::Program) -> Result<()> {
 
     let v = Verifier { sigs };
     for f in &hir.funcs {
-        for e in &f.body_stmts {
-            v.verify_expr(f, e)?;
-        }
+        v.verify_function(f)?;
     }
     Ok(())
 }
@@ -27,6 +25,19 @@ struct Verifier {
 }
 
 impl Verifier {
+    fn verify_function(&self, f: &hir::Function) -> Result<()> {
+        for p in &f.params {
+            assert_not_never(&p.ty)
+                .context(format!("in parameter {:?}", p.name))
+                .context(format!("in function {:?}", f.name))?;
+        }
+
+        for e in &f.body_stmts {
+            self.verify_expr(f, e)?;
+        }
+        Ok(())
+    }
+
     fn verify_expr(&self, f: &hir::Function, e: &hir::TypedExpr) -> Result<()> {
         self._verify_expr(f, e)
             .context(format!("in expr {:?}", e.0))
@@ -69,10 +80,11 @@ impl Verifier {
                 self.verify_expr(f, b)?;
             }
             hir::Expr::FunCall(fexpr, args) => {
-                self.verify_expr(f, fexpr)?;
                 for a in args {
+                    assert_not_never(&a.1)?;
                     self.verify_expr(f, a)?;
                 }
+                self.verify_expr(f, fexpr)?;
                 let hir::Ty::Fun(fun_ty) = &fexpr.1 else {
                     bail!("expected function, but got {:?}", fexpr.1);
                 };
@@ -98,9 +110,10 @@ impl Verifier {
             hir::Expr::Assign(_, v) => {
                 self.verify_expr(f, v)?;
             }
-            hir::Expr::Return(e) => {
-                self.verify_expr(f, e)?;
-                assert(&e, "return value", &f.ret_ty)?;
+            hir::Expr::Return(v) => {
+                self.verify_expr(f, v)?;
+                assert(&v, "return value", &f.ret_ty)?;
+                assert(&e, "return itself", &hir::Ty::Never)?;
             }
             hir::Expr::Exprs(es) => {
                 self.verify_exprs(f, es)?;
@@ -159,6 +172,13 @@ fn assert(v: &hir::TypedExpr, for_: &str, expected: &hir::Ty) -> Result<()> {
 fn assert_fun(ty: &hir::Ty) -> Result<()> {
     if !matches!(ty, hir::Ty::Fun(_)) {
         bail!("expected Ty::Fun, but got {:?}", ty);
+    }
+    Ok(())
+}
+
+fn assert_not_never(ty: &hir::Ty) -> Result<()> {
+    if matches!(ty, hir::Ty::Never) {
+        bail!("must not be Ty::Never here");
     }
     Ok(())
 }
