@@ -200,7 +200,7 @@ impl Expr {
     }
 
     pub fn return_(e: TypedExpr) -> TypedExpr {
-        (Expr::Return(Box::new(e)), Ty::Void)
+        (Expr::Return(Box::new(e)), Ty::Never)
     }
 
     pub fn exprs(exprs: Vec<TypedExpr>) -> TypedExpr {

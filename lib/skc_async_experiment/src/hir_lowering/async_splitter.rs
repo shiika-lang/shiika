@@ -260,7 +260,7 @@ impl<'a> Compiler<'a> {
         self.chapters.add(else_chap);
         self.compile_if_clause(else_exprs, &endif_chap.name)?;
 
-        if *if_ty == hir::Ty::Void {
+        if *if_ty == hir::Ty::Never {
             // Both branches end with return
             Ok(None)
         } else {
