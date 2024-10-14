@@ -127,7 +127,11 @@ impl Compiler {
                             self.compile_expr(sig, lvars, &mcall.receiver_expr.as_ref().unwrap())?;
                         let rhs =
                             self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
-                        hir::Expr::OpCall(method_name, Box::new(lhs), Box::new(rhs))
+                        let method_name = shiika_ffi::mangle_method_full("Int", &method_name);
+                        hir::Expr::FunCall(
+                            Box::new((hir::Expr::FuncRef(method_name), hir::Ty::Unknown)),
+                            vec![lhs, rhs],
+                        )
                     }
                     _ => {
                         if mcall.receiver_expr.is_some() {

@@ -75,10 +75,6 @@ impl Verifier {
                     );
                 }
             }
-            hir::Expr::OpCall(_, a, b) => {
-                self.verify_expr(f, a)?;
-                self.verify_expr(f, b)?;
-            }
             hir::Expr::FunCall(fexpr, args) => {
                 for a in args {
                     assert_not_never(&a.1)?;

@@ -153,11 +153,6 @@ impl<'a> Compiler<'a> {
                 }
             }
             hir::Expr::FuncRef(_) => e,
-            hir::Expr::OpCall(op, lhs, rhs) => {
-                let l = self.compile_value_expr(*lhs, false)?;
-                let r = self.compile_value_expr(*rhs, false)?;
-                hir::Expr::op_call(op, l, r)
-            }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
                 let new_args = arg_exprs

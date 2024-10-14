@@ -10,7 +10,6 @@ pub enum Expr {
     LVarRef(String),
     ArgRef(usize),
     FuncRef(String),
-    OpCall(String, Box<Typed<Expr>>, Box<Typed<Expr>>),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Option<Box<Typed<Expr>>>),
     While(Box<Typed<Expr>>, Vec<Typed<Expr>>),
@@ -61,7 +60,6 @@ impl std::fmt::Display for Expr {
             Expr::LVarRef(name) => write!(f, "{}", name),
             Expr::ArgRef(idx) => write!(f, "%arg_{}", idx),
             Expr::FuncRef(name) => write!(f, "{}", name),
-            Expr::OpCall(op, lhs, rhs) => write!(f, "({} {} {})", lhs.0, op, rhs.0),
             Expr::FunCall(func, args) => {
                 let Ty::Fun(fun_ty) = &func.1 else {
                     panic!("[BUG] not a function: {:?}", func);
@@ -135,16 +133,6 @@ impl Expr {
 
     pub fn func_ref(name: impl Into<String>, fun_ty: FunTy) -> TypedExpr {
         (Expr::FuncRef(name.into()), fun_ty.into())
-    }
-
-    pub fn op_call(op_: impl Into<String>, lhs: TypedExpr, rhs: TypedExpr) -> TypedExpr {
-        let op = op_.into();
-        let ty = match &op[..] {
-            "+" | "-" | "*" | "/" => Ty::Int,
-            "<" | "<=" | ">" | ">=" | "==" | "!=" => Ty::Bool,
-            _ => panic!("[BUG] unknown operator: {op}"),
-        };
-        (Expr::OpCall(op, Box::new(lhs), Box::new(rhs)), ty)
     }
 
     pub fn fun_call(func: TypedExpr, args: Vec<TypedExpr>) -> TypedExpr {

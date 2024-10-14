@@ -26,10 +26,6 @@ pub trait HirVisitor {
             hir::Expr::LVarRef(_) => {}
             hir::Expr::ArgRef(_) => {}
             hir::Expr::FuncRef(_) => {}
-            hir::Expr::OpCall(_, lhs, rhs) => {
-                self.walk_expr(lhs)?;
-                self.walk_expr(rhs)?;
-            }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.walk_expr(fexpr)?;
                 for arg in arg_exprs {

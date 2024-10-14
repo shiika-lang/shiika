@@ -103,9 +103,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             hir::Expr::ArgRef(idx) => self.compile_argref(ctx, idx),
             hir::Expr::FuncRef(name) => self.compile_funcref(name),
-            //            hir::Expr::OpCall(op, lhs, rhs) => {
-            //                self.compile_op_call(blocks, block, lvars, op, lhs, rhs)
-            //            }
             hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             hir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),

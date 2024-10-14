@@ -68,15 +68,6 @@ impl<'f> Typing<'f> {
                     return Err(anyhow!("[BUG] unknown function `{name}'"));
                 }
             }
-            hir::Expr::OpCall(op, l, r) => {
-                self.compile_expr(lvars, &mut *l)?;
-                self.compile_expr(lvars, &mut *r)?;
-                e.1 = match &op[..] {
-                    "+" | "-" | "*" | "/" => hir::Ty::Int,
-                    "<" | "<=" | ">" | ">=" | "==" | "!=" => hir::Ty::Bool,
-                    _ => return Err(anyhow!("[BUG] unknown operator: {op}")),
-                };
-            }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.compile_expr(lvars, &mut *fexpr)?;
                 let hir::Ty::Fun(fun_ty) = &fexpr.1 else {
