@@ -1385,11 +1385,13 @@ dependencies = [
  "ariadne",
  "either",
  "inkwell",
+ "json5",
  "nom",
  "nom_locate",
  "os_info",
  "peg",
  "shiika_ast",
+ "shiika_ffi",
  "shiika_parser",
 ]
 
@@ -1471,6 +1473,7 @@ version = "0.1.0"
 dependencies = [
  "bdwgc-alloc",
  "shiika_ffi",
+ "shiika_ffi_macro",
  "tokio",
 ]
 

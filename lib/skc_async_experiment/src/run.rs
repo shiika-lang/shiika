@@ -54,7 +54,7 @@ impl Main {
         hir.externs = prelude::lib_externs()
             .into_iter()
             .map(|(name, fun_ty)| hir::Extern {
-                name: name.to_string(),
+                name: format!("{:?}", name),
                 fun_ty,
             })
             .collect();

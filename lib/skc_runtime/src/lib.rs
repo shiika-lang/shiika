@@ -1,5 +1,6 @@
 mod allocator;
 mod chiika_env;
+pub mod core_class;
 use crate::chiika_env::ChiikaEnv;
 mod async_functions;
 mod sync_functions;

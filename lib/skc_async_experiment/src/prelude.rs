@@ -1,13 +1,52 @@
 use crate::hir::{self, FunTy, Ty};
+use crate::names::FunctionName;
+use anyhow::{Context, Result};
+use shiika_parser;
+use std::io::Read;
 
-pub fn lib_externs() -> Vec<(&'static str, FunTy)> {
-    vec![
+/// Functions that are called by the user code
+pub fn lib_externs() -> Vec<(FunctionName, FunTy)> {
+    let mut v = vec![
         // Built-in functions
         ("print", FunTy::sync(vec![Ty::Int], Ty::Void)),
         ("sleep_sec", FunTy::async_(vec![Ty::Int], Ty::Void)),
     ]
+    .into_iter()
+    .map(|(name, ty)| (FunctionName::Mangled(name.to_string()), ty))
+    .collect::<Vec<_>>();
+    v.append(&mut core_class_funcs());
+    v
 }
 
+fn core_class_funcs() -> Vec<(FunctionName, FunTy)> {
+    load_methods_json("lib/skc_runtime/")
+        .unwrap()
+        .into_iter()
+        .map(|(class, method)| {
+            let sig_str = format!("{}#{}", class, method);
+            parse_sig(&sig_str)
+        })
+        .collect()
+}
+
+fn load_methods_json<P: AsRef<std::path::Path>>(dir: P) -> Result<Vec<(String, String)>> {
+    let json_path = dir.as_ref().join("exports.json5");
+    let mut f = std::fs::File::open(json_path).context("exports.json5 not found")?;
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .context("failed to read exports.json5")?;
+    json5::from_str(&contents).context("exports.json5 is broken")
+}
+
+fn parse_sig(sig_str: &str) -> (FunctionName, FunTy) {
+    let ast_sig = shiika_parser::Parser::parse_signature(sig_str).unwrap();
+    let mut fun_ty = hir::untyped::signature_to_fun_ty(&ast_sig);
+    // TODO: Support async rust libfunc
+    fun_ty.asyncness = hir::Asyncness::Sync;
+    (FunctionName::Mangled(ast_sig.name.to_string()), fun_ty)
+}
+
+/// Functions that are called by the generated code
 pub fn core_externs() -> Vec<(&'static str, FunTy)> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Void], Ty::RustFuture);
     let spawnee = FunTy::lowered(

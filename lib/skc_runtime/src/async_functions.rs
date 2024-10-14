@@ -14,7 +14,7 @@ pub extern "C" fn sleep_sec(
 ) -> ContFuture {
     async fn sleep_sec(n: SkInt) {
         // Hand written part (all the rest will be macro-generated)
-        let sec = n.value() as u64;
+        let sec = n.val() as u64;
         tokio::time::sleep(Duration::from_secs(sec)).await;
     }
     env.cont = Some(cont);

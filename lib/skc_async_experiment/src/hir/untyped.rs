@@ -127,7 +127,7 @@ impl Compiler {
                             self.compile_expr(sig, lvars, &mcall.receiver_expr.as_ref().unwrap())?;
                         let rhs =
                             self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
-                        let method_name = shiika_ffi::mangle_method_full("Int", &method_name);
+                        let method_name = format!("Int#{}", method_name);
                         hir::Expr::FunCall(
                             Box::new((hir::Expr::FuncRef(method_name), hir::Ty::Unknown)),
                             vec![lhs, rhs],
@@ -265,4 +265,20 @@ fn compile_fun_ty(x: &[shiika_ast::UnresolvedTypeName]) -> Result<hir::FunTy> {
         param_tys,
         ret_ty,
     })
+}
+
+pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
+    let mut param_tys = vec![];
+    for p in &sig.params {
+        param_tys.push(compile_ty(&p.typ).unwrap());
+    }
+    let ret_ty = match &sig.ret_typ {
+        Some(t) => compile_ty(t).unwrap(),
+        None => hir::Ty::Void,
+    };
+    hir::FunTy {
+        asyncness: hir::Asyncness::Unknown,
+        param_tys,
+        ret_ty: Box::new(ret_ty),
+    }
 }
