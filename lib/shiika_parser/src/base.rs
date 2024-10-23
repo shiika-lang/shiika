@@ -174,7 +174,12 @@ impl<'a> Parser<'a> {
         let (begin, end) = self.lexer.location_span();
         let path = format!("{}", self.ast.filepath.display()); // ariadne 0.1.5 needs Id: Display (zesterer/ariadne#12)
         let span = (&path, begin.pos..end.pos);
-        let src = Source::from(fs::read_to_string(&*self.ast.filepath).unwrap_or_default());
+        let src = if path.is_empty() {
+            // TODO: Use Option
+            Source::from(self.lexer.src)
+        } else {
+            Source::from(fs::read_to_string(&*self.ast.filepath).unwrap())
+        };
         let mut report = vec![];
         Report::build(ReportKind::Error, &path, begin.pos)
             .with_message(msg)
