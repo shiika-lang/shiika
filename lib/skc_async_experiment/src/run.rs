@@ -85,7 +85,7 @@ fn main_is_async(hir: &hir::Program) -> Result<bool> {
     let Some(main) = hir
         .funcs
         .iter()
-        .find(|x| x.name == FunctionName::mangled("chiika_main"))
+        .find(|x| x.name == FunctionName::unmangled("chiika_main"))
     else {
         bail!("chiika_main not found");
     };

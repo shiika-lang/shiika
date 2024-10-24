@@ -1,12 +1,12 @@
 use crate::chiika_env::ChiikaEnv;
 use crate::{ChiikaCont, ContFuture};
 use shiika_ffi::core_class::SkInt;
+use shiika_ffi_macro::shiika_method;
 use std::future::{poll_fn, Future};
 use std::task::Poll;
 use std::time::Duration;
 
-#[no_mangle]
-#[allow(improper_ctypes_definitions)]
+#[shiika_method("sleep_sec")]
 pub extern "C" fn sleep_sec(
     env: &'static mut ChiikaEnv,
     nn: SkInt,

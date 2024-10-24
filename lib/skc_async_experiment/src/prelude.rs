@@ -12,7 +12,7 @@ pub fn lib_externs() -> Result<Vec<(FunctionName, FunTy)>> {
         ("sleep_sec", FunTy::async_(vec![Ty::Int], Ty::Void)),
     ]
     .into_iter()
-    .map(|(name, ty)| (FunctionName::mangled(name), ty))
+    .map(|(name, ty)| (FunctionName::unmangled(name), ty))
     .collect::<Vec<_>>();
     v.append(&mut core_class_funcs()?);
     Ok(v)
@@ -128,7 +128,7 @@ fn main_body() -> Vec<hir::TypedExpr> {
 fn chiika_start_user_body(main_is_async: bool) -> Vec<hir::TypedExpr> {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
     let chiika_main = hir::Expr::func_ref(
-        FunctionName::mangled("chiika_main"),
+        FunctionName::unmangled("chiika_main"),
         if main_is_async {
             FunTy::lowered(
                 vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],
