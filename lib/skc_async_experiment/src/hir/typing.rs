@@ -1,10 +1,11 @@
 use crate::hir;
+use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
 struct Typing<'f> {
-    sigs: HashMap<String, hir::FunTy>,
-    current_func_name: Option<&'f String>,
+    sigs: HashMap<FunctionName, hir::FunTy>,
+    current_func_name: Option<&'f FunctionName>,
     current_func_params: Option<&'f [hir::Param]>,
     current_func_ret_ty: Option<&'f hir::Ty>,
 }

@@ -1,3 +1,4 @@
+use crate::names::FunctionName;
 mod codegen_context;
 mod instance;
 mod intrinsics;
@@ -58,12 +59,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_extern(&self, ext: hir::Extern) {
         let func_type = self.llvm_function_type(&ext.fun_ty);
-        self.module.add_function(&ext.name, func_type, None);
+        self.module
+            .add_function(&ext.name.mangle(), func_type, None);
     }
 
     fn declare_func(&self, f: &hir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
-        self.module.add_function(&f.name, func_type, None);
+        self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
     fn compile_func(&mut self, f: hir::Function) {
@@ -136,9 +138,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(v)
     }
 
-    fn compile_funcref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    fn compile_funcref(
+        &self,
+        name: &FunctionName,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let f = self
-            .get_llvm_func(name)
+            .get_llvm_func(&name)
             .as_global_value()
             .as_pointer_value();
         Some(f.into())
@@ -370,9 +375,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .unwrap()
     }
 
-    fn get_llvm_func(&self, name: &str) -> inkwell::values::FunctionValue<'run> {
+    fn get_llvm_func(&self, name: &FunctionName) -> inkwell::values::FunctionValue<'run> {
         self.module
-            .get_function(name)
+            .get_function(&name.mangle())
             .unwrap_or_else(|| panic!("function `{:?}' not found", name))
     }
 }

@@ -1,3 +1,4 @@
+use crate::hir::FunctionName;
 use crate::hir::{FunTy, Ty};
 
 pub type Typed<T> = (T, Ty);
@@ -9,7 +10,7 @@ pub enum Expr {
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize),
-    FuncRef(String),
+    FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Option<Box<Typed<Expr>>>),
     While(Box<Typed<Expr>>, Vec<Typed<Expr>>),
@@ -131,8 +132,8 @@ impl Expr {
         (Expr::ArgRef(idx), ty)
     }
 
-    pub fn func_ref(name: impl Into<String>, fun_ty: FunTy) -> TypedExpr {
-        (Expr::FuncRef(name.into()), fun_ty.into())
+    pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
+        (Expr::FuncRef(name), fun_ty.into())
     }
 
     pub fn fun_call(func: TypedExpr, args: Vec<TypedExpr>) -> TypedExpr {

@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 
@@ -21,7 +22,7 @@ pub fn run(hir: &hir::Program) -> Result<()> {
 }
 
 struct Verifier {
-    sigs: HashMap<String, hir::FunTy>,
+    sigs: HashMap<FunctionName, hir::FunTy>,
 }
 
 impl Verifier {

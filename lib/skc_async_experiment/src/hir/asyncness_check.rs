@@ -1,6 +1,7 @@
 use crate::hir;
 use crate::hir::rewriter::HirRewriter;
 use crate::hir::visitor::HirVisitor;
+use crate::names::FunctionName;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -63,20 +64,20 @@ pub fn run(mut hir: hir::Program) -> hir::Program {
 /// Check if a function is async or not.
 struct Check<'a> {
     is_async: bool,
-    funcs: &'a HashMap<String, &'a hir::Function>,
-    current_func: &'a str,
-    known: &'a mut HashMap<String, bool>,
-    checking: &'a mut HashSet<String>,
-    depends: HashSet<String>,
-    unresolved_deps: &'a mut HashMap<String, HashSet<String>>,
+    funcs: &'a HashMap<FunctionName, &'a hir::Function>,
+    current_func: &'a FunctionName,
+    known: &'a mut HashMap<FunctionName, bool>,
+    checking: &'a mut HashSet<FunctionName>,
+    depends: HashSet<FunctionName>,
+    unresolved_deps: &'a mut HashMap<FunctionName, HashSet<FunctionName>>,
 }
 impl<'a> Check<'a> {
     fn run(
-        funcs: &HashMap<String, &hir::Function>,
-        fname: &str,
-        known: &mut HashMap<String, bool>,
-        checking: &mut HashSet<String>,
-        unresolved_deps: &mut HashMap<String, HashSet<String>>,
+        funcs: &HashMap<FunctionName, &hir::Function>,
+        fname: &FunctionName,
+        known: &mut HashMap<FunctionName, bool>,
+        checking: &mut HashSet<FunctionName>,
+        unresolved_deps: &mut HashMap<FunctionName, HashSet<FunctionName>>,
     ) {
         let mut c = Check {
             is_async: false,
@@ -87,18 +88,13 @@ impl<'a> Check<'a> {
             depends: HashSet::new(),
             unresolved_deps,
         };
-        c.checking.insert(fname.to_string());
+        c.checking.insert(fname.clone());
         let func = funcs.get(fname).unwrap();
         c.walk_exprs(&func.body_stmts).unwrap();
         if c.depends.is_empty() {
-            let mut is_async = c.is_async;
-            // HACK: force endif-functions to be marked as async
-            if fname.ends_with("'e") {
-                is_async = true;
-            }
-            c.known.insert(fname.to_string(), is_async);
+            c.known.insert(fname.clone(), c.is_async);
         } else {
-            c.unresolved_deps.insert(fname.to_string(), c.depends);
+            c.unresolved_deps.insert(fname.clone(), c.depends);
         }
     }
 
@@ -171,7 +167,7 @@ impl<'a> HirVisitor for Check<'a> {
 
 /// Update function references to reflect the asyncness check result.
 struct Update<'a> {
-    known: &'a HashMap<String, bool>,
+    known: &'a HashMap<FunctionName, bool>,
 }
 impl<'a> Update<'a> {
     fn set_func_asyncness(&self, hir: &mut hir::Program) {
