@@ -41,6 +41,10 @@ fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, FunTy)> {
     let mut fun_ty = hir::untyped::signature_to_fun_ty(&ast_sig);
     // TODO: Support async rust libfunc
     fun_ty.asyncness = hir::Asyncness::Sync;
+
+    // TMP: Insert receiver
+    fun_ty.param_tys.insert(0, Ty::Int);
+
     Ok((
         FunctionName::unmangled(format!("{}#{}", class, ast_sig.name.0)),
         fun_ty,
