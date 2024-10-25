@@ -5,6 +5,7 @@ mod ty;
 pub mod typing;
 pub mod untyped;
 pub mod visitor;
+use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use std::fmt;
 pub use ty::{FunTy, Ty};
@@ -35,7 +36,7 @@ impl Program {
 
 #[derive(Debug, Clone)]
 pub struct Extern {
-    pub name: String,
+    pub name: FunctionName,
     pub fun_ty: FunTy,
 }
 
@@ -59,7 +60,7 @@ impl Extern {
 pub struct Function {
     pub generated: bool,
     pub asyncness: Asyncness,
-    pub name: String,
+    pub name: FunctionName,
     pub params: Vec<Param>,
     pub ret_ty: Ty,
     pub body_stmts: Vec<Typed<Expr>>,

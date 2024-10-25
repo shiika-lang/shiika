@@ -17,6 +17,7 @@
 //! }
 //! ```
 use crate::hir;
+use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use std::collections::VecDeque;
 
@@ -104,7 +105,7 @@ impl<'a> Compiler<'a> {
         let f = hir::Function {
             generated: self.orig_func.generated,
             asyncness: hir::Asyncness::Lowered,
-            name: chap.name,
+            name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: chap.stmts,
@@ -153,11 +154,6 @@ impl<'a> Compiler<'a> {
                 }
             }
             hir::Expr::FuncRef(_) => e,
-            hir::Expr::OpCall(op, lhs, rhs) => {
-                let l = self.compile_value_expr(*lhs, false)?;
-                let r = self.compile_value_expr(*rhs, false)?;
-                hir::Expr::op_call(op, l, r)
-            }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
                 let new_args = arg_exprs
@@ -260,7 +256,7 @@ impl<'a> Compiler<'a> {
         self.chapters.add(else_chap);
         self.compile_if_clause(else_exprs, &endif_chap.name)?;
 
-        if *if_ty == hir::Ty::Void {
+        if *if_ty == hir::Ty::Never {
             // Both branches end with return
             Ok(None)
         } else {
@@ -299,7 +295,7 @@ impl<'a> Compiler<'a> {
             let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = hir::Expr::fun_call(
                 hir::Expr::func_ref(
-                    endif_chap_name,
+                    FunctionName::unmangled(endif_chap_name),
                     hir::FunTy {
                         asyncness: hir::Asyncness::Lowered,
                         param_tys: vec![hir::Ty::ChiikaEnv, new_vexpr.1.clone()],
@@ -322,7 +318,8 @@ impl<'a> Compiler<'a> {
             param_tys: vec![hir::Ty::ChiikaEnv],
             ret_ty: Box::new(hir::Ty::RustFuture),
         };
-        hir::Expr::fun_call(hir::Expr::func_ref(chap_name, chap_fun_ty), args)
+        let fname = FunctionName::unmangled(chap_name.to_string());
+        hir::Expr::fun_call(hir::Expr::func_ref(fname, chap_fun_ty), args)
     }
 
     fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<hir::TypedExpr> {
@@ -410,7 +407,7 @@ fn async_fun_ty(orig_fun_ty: &hir::FunTy) -> hir::FunTy {
 fn modify_async_call(
     fexpr: hir::TypedExpr,
     mut args: Vec<hir::TypedExpr>,
-    next_chapter_name: String,
+    next_chapter_name: FunctionName,
 ) -> hir::TypedExpr {
     let hir::Ty::Fun(fun_ty) = &fexpr.1 else {
         panic!("[BUG] not a function: {:?}", fexpr.0);
@@ -443,8 +440,8 @@ fn append_async_params(fun_ty: &hir::FunTy) -> Vec<hir::Ty> {
 }
 
 /// Create name of generated function like `foo_1`
-fn chapter_func_name(orig_name: &str, chapter_idx: usize) -> String {
-    format!("{}_{}", orig_name, chapter_idx)
+fn chapter_func_name(orig_name: &FunctionName, chapter_idx: usize) -> FunctionName {
+    FunctionName::unmangled(format!("{}_{}", orig_name, chapter_idx))
 }
 
 /// Get the `$env` that is 0-th param of async func
@@ -472,7 +469,7 @@ fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {
     let size_native = hir::Expr::raw_i64(size as i64);
     hir::Expr::fun_call(
         hir::Expr::func_ref(
-            "chiika_env_push_frame",
+            FunctionName::mangled("chiika_env_push_frame"),
             hir::FunTy {
                 asyncness: hir::Asyncness::Lowered,
                 param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64],
@@ -491,7 +488,8 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::Typ
             param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64],
             ret_ty: Box::new(hir::Ty::Any),
         };
-        hir::Expr::func_ref("chiika_env_pop_frame", fun_ty)
+        let fname = FunctionName::mangled("chiika_env_pop_frame");
+        hir::Expr::func_ref(fname, fun_ty)
     };
     let cast_type = match &popped_value_ty {
         hir::Ty::Int => hir::CastType::AnyToInt,
@@ -526,8 +524,9 @@ fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
         ],
         ret_ty: Box::new(hir::Ty::Void),
     };
+    let fname = FunctionName::mangled("chiika_env_set");
     hir::Expr::fun_call(
-        hir::Expr::func_ref("chiika_env_set", fun_ty),
+        hir::Expr::func_ref(fname, fun_ty),
         vec![arg_ref_env(), idx_native, cast_val, type_id],
     )
 }
@@ -541,8 +540,9 @@ fn call_chiika_env_ref(idx: usize) -> hir::TypedExpr {
         // Milika lvars are all int
         ret_ty: Box::new(hir::Ty::Int),
     };
+    let fname = FunctionName::mangled("chiika_env_ref");
     hir::Expr::fun_call(
-        hir::Expr::func_ref("chiika_env_ref", fun_ty),
+        hir::Expr::func_ref(fname, fun_ty),
         vec![arg_ref_env(), idx_native, type_id],
     )
 }
@@ -564,7 +564,8 @@ fn call_chiika_spawn(f: hir::TypedExpr) -> hir::TypedExpr {
         param_tys: vec![hir::Ty::Fun(new_f_ty)],
         ret_ty: Box::new(hir::Ty::Void),
     };
-    hir::Expr::fun_call(hir::Expr::func_ref("chiika_spawn", fun_ty), vec![new_f])
+    let fname = FunctionName::mangled("chiika_spawn");
+    hir::Expr::fun_call(hir::Expr::func_ref(fname, fun_ty), vec![new_f])
 }
 
 #[derive(Debug)]
@@ -634,14 +635,14 @@ impl Chapter {
             ));
             Self::new(
                 ChapterType::Original,
-                f.name.clone(),
+                f.name.to_string(),
                 params,
                 hir::Ty::RustFuture,
             )
         } else {
             Self::new(
                 ChapterType::Original,
-                f.name.clone(),
+                f.name.to_string(),
                 f.params.clone(),
                 f.ret_ty.clone(),
             )
@@ -671,14 +672,14 @@ impl Chapter {
         )
     }
 
-    fn new_async_call_receiver(name: String, async_result_ty: hir::Ty) -> Chapter {
+    fn new_async_call_receiver(name: FunctionName, async_result_ty: hir::Ty) -> Chapter {
         let params = vec![
             hir::Param::new(hir::Ty::ChiikaEnv, "$env"),
             hir::Param::new(async_result_ty.clone(), "$async_result"),
         ];
         Self::new(
             ChapterType::AsyncCallReceiver,
-            name,
+            name.to_string(),
             params,
             hir::Ty::RustFuture,
         )

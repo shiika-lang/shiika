@@ -1,14 +1,58 @@
 use crate::hir::{self, FunTy, Ty};
+use crate::names::FunctionName;
+use anyhow::{Context, Result};
+use shiika_parser;
+use std::io::Read;
 
-pub fn lib_externs() -> Vec<(&'static str, FunTy)> {
-    vec![
+/// Functions that are called by the user code
+pub fn lib_externs() -> Result<Vec<(FunctionName, FunTy)>> {
+    let mut v = vec![
         // Built-in functions
         ("print", FunTy::sync(vec![Ty::Int], Ty::Void)),
         ("sleep_sec", FunTy::async_(vec![Ty::Int], Ty::Void)),
     ]
+    .into_iter()
+    .map(|(name, ty)| (FunctionName::unmangled(name), ty))
+    .collect::<Vec<_>>();
+    v.append(&mut core_class_funcs()?);
+    Ok(v)
 }
 
-pub fn core_externs() -> Vec<(&'static str, FunTy)> {
+fn core_class_funcs() -> Result<Vec<(FunctionName, FunTy)>> {
+    load_methods_json("lib/skc_runtime/")
+        .unwrap()
+        .into_iter()
+        .map(|(class, method)| parse_sig(class, method))
+        .collect::<Result<Vec<_>>>()
+        .context("Failed to load skc_runtime/exports.json5")
+}
+
+fn load_methods_json<P: AsRef<std::path::Path>>(dir: P) -> Result<Vec<(String, String)>> {
+    let json_path = dir.as_ref().join("exports.json5");
+    let mut f = std::fs::File::open(json_path).context("exports.json5 not found")?;
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .context("failed to read exports.json5")?;
+    json5::from_str(&contents).context("exports.json5 is broken")
+}
+
+fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, FunTy)> {
+    let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+    let mut fun_ty = hir::untyped::signature_to_fun_ty(&ast_sig);
+    // TODO: Support async rust libfunc
+    fun_ty.asyncness = hir::Asyncness::Sync;
+
+    // TMP: Insert receiver
+    fun_ty.param_tys.insert(0, Ty::Int);
+
+    Ok((
+        FunctionName::unmangled(format!("{}#{}", class, ast_sig.name.0)),
+        fun_ty,
+    ))
+}
+
+/// Functions that are called by the generated code
+pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Void], Ty::RustFuture);
     let spawnee = FunTy::lowered(
         vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
@@ -30,8 +74,8 @@ pub fn core_externs() -> Vec<(&'static str, FunTy)> {
             FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::Any),
         ),
         (
-            "chiika_env_get",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Any),
+            "chiika_env_ref",
+            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Int),
         ),
         (
             "chiika_spawn",
@@ -39,12 +83,15 @@ pub fn core_externs() -> Vec<(&'static str, FunTy)> {
         ),
         ("chiika_start_tokio", FunTy::lowered(vec![], Ty::Void)),
     ]
+    .into_iter()
+    .map(|(name, ty)| (FunctionName::mangled(name), ty))
+    .collect()
 }
 
 pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
     vec![
         hir::Function {
-            name: "main".to_string(),
+            name: FunctionName::mangled("main"),
             generated: false,
             asyncness: hir::Asyncness::Lowered,
             params: vec![],
@@ -52,7 +99,7 @@ pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
             body_stmts: main_body(),
         },
         hir::Function {
-            name: "chiika_start_user".to_string(),
+            name: FunctionName::mangled("chiika_start_user"),
             generated: false,
             asyncness: hir::Asyncness::Lowered,
             params: vec![
@@ -70,7 +117,7 @@ pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
 
 fn main_body() -> Vec<hir::TypedExpr> {
     let t = FunTy::lowered(vec![], Ty::Void);
-    let chiika_start_tokio = hir::Expr::func_ref("chiika_start_tokio", t);
+    let chiika_start_tokio = hir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
     vec![
         hir::Expr::fun_call(chiika_start_tokio, vec![]),
         // TODO: pass the resulting int to the user's main
@@ -81,7 +128,7 @@ fn main_body() -> Vec<hir::TypedExpr> {
 fn chiika_start_user_body(main_is_async: bool) -> Vec<hir::TypedExpr> {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
     let chiika_main = hir::Expr::func_ref(
-        "chiika_main",
+        FunctionName::unmangled("chiika_main"),
         if main_is_async {
             FunTy::lowered(
                 vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],

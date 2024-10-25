@@ -28,9 +28,6 @@ pub trait HirRewriter {
             hir::Expr::LVarRef(_) => expr,
             hir::Expr::ArgRef(_) => expr,
             hir::Expr::FuncRef(_) => expr,
-            hir::Expr::OpCall(op, lhs, rhs) => {
-                hir::Expr::op_call(op, self.walk_expr(*lhs)?, self.walk_expr(*rhs)?)
-            }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 hir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
             }

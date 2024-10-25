@@ -1,4 +1,5 @@
 use crate::codegen::{llvm_struct, value::SkObj, CodeGen};
+use crate::names::FunctionName;
 use inkwell::values::BasicValue;
 
 pub fn build_ivar_load_raw<'run>(
@@ -61,7 +62,7 @@ fn shiika_malloc<'run>(
     gen: &mut CodeGen<'run, '_>,
     size: inkwell::values::IntValue<'run>,
 ) -> inkwell::values::PointerValue<'run> {
-    let func = gen.get_llvm_func("shiika_malloc");
+    let func = gen.get_llvm_func(&FunctionName::mangled("shiika_malloc"));
     gen.builder
         .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
         .try_as_basic_value()

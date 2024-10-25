@@ -1,3 +1,4 @@
+use crate::names::FunctionName;
 use crate::{codegen, hir, hir_lowering, linker, prelude, verifier};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
@@ -31,10 +32,7 @@ impl Main {
         let mut hir = self.compile(src, false)?;
 
         for (name, fun_ty) in prelude::core_externs() {
-            hir.externs.push(hir::Extern {
-                name: name.to_string(),
-                fun_ty,
-            });
+            hir.externs.push(hir::Extern { name, fun_ty });
         }
         hir.funcs.append(&mut prelude::funcs(main_is_async(&hir)?));
 
@@ -51,12 +49,9 @@ impl Main {
     fn compile(&mut self, src: SourceFile, is_prelude: bool) -> Result<hir::Program> {
         let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
-        hir.externs = prelude::lib_externs()
+        hir.externs = prelude::lib_externs()?
             .into_iter()
-            .map(|(name, fun_ty)| hir::Extern {
-                name: name.to_string(),
-                fun_ty,
-            })
+            .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
             .collect();
         hir::typing::run(&mut hir)?;
         if !is_prelude {
@@ -87,7 +82,11 @@ impl Main {
 }
 
 fn main_is_async(hir: &hir::Program) -> Result<bool> {
-    let Some(main) = hir.funcs.iter().find(|x| x.name == "chiika_main") else {
+    let Some(main) = hir
+        .funcs
+        .iter()
+        .find(|x| x.name == FunctionName::unmangled("chiika_main"))
+    else {
         bail!("chiika_main not found");
     };
     // When chiika_main calls async function, it is lowered to take a continuation.

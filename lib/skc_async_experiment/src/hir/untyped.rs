@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
 use std::collections::HashSet;
@@ -82,7 +83,7 @@ impl Compiler {
         Ok(hir::Function {
             generated: false,
             asyncness: hir::Asyncness::Unknown,
-            name: sig.name.to_string(),
+            name: FunctionName::unmangled(sig.name.to_string()),
             params,
             ret_ty,
             body_stmts: allocs.into_iter().chain(body_stmts).collect(),
@@ -108,7 +109,7 @@ impl Compiler {
                 } else if let Some(idx) = sig.params.iter().position(|p| &p.name == name) {
                     hir::Expr::ArgRef(idx)
                 } else if self.func_names.contains(name) {
-                    hir::Expr::FuncRef(name.to_string())
+                    hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
                 } else if name == "true" {
                     hir::Expr::PseudoVar(hir::PseudoVar::True)
                 } else if name == "false" {
@@ -127,13 +128,18 @@ impl Compiler {
                             self.compile_expr(sig, lvars, &mcall.receiver_expr.as_ref().unwrap())?;
                         let rhs =
                             self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
-                        hir::Expr::OpCall(method_name, Box::new(lhs), Box::new(rhs))
+                        let method_name = FunctionName::unmangled(format!("Int#{}", method_name));
+                        hir::Expr::FunCall(
+                            Box::new((hir::Expr::FuncRef(method_name), hir::Ty::Unknown)),
+                            vec![lhs, rhs],
+                        )
                     }
                     _ => {
                         if mcall.receiver_expr.is_some() {
                             return Err(anyhow!("[wip] receiver_expr must be None now"));
                         }
-                        let fexpr = (hir::Expr::FuncRef(method_name), hir::Ty::Unknown);
+                        let fname = FunctionName::unmangled(method_name.clone());
+                        let fexpr = (hir::Expr::FuncRef(fname), hir::Ty::Unknown);
                         let mut arg_hirs = vec![];
                         for a in &mcall.args.unnamed {
                             arg_hirs.push(self.compile_expr(sig, lvars, a)?);
@@ -203,7 +209,7 @@ impl Compiler {
         } else if let Some(idx) = sig.params.iter().position(|p| p.name == name) {
             hir::Expr::ArgRef(idx)
         } else if self.func_names.contains(name) {
-            hir::Expr::FuncRef(name.to_string())
+            hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
         } else if name == "true" {
             hir::Expr::PseudoVar(hir::PseudoVar::True)
         } else if name == "false" {
@@ -261,4 +267,20 @@ fn compile_fun_ty(x: &[shiika_ast::UnresolvedTypeName]) -> Result<hir::FunTy> {
         param_tys,
         ret_ty,
     })
+}
+
+pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
+    let mut param_tys = vec![];
+    for p in &sig.params {
+        param_tys.push(compile_ty(&p.typ).unwrap());
+    }
+    let ret_ty = match &sig.ret_typ {
+        Some(t) => compile_ty(t).unwrap(),
+        None => hir::Ty::Void,
+    };
+    hir::FunTy {
+        asyncness: hir::Asyncness::Unknown,
+        param_tys,
+        ret_ty: Box::new(ret_ty),
+    }
 }

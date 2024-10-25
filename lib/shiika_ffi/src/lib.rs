@@ -1,5 +1,7 @@
 pub mod core_class;
 
+/// Returns the C-level name of a Shiika method
+/// (eg: `Int#+`, `Meta:Class#new`)
 pub fn mangle_method(method_name: &str) -> String {
     let s = method_name
         // Replace '_' to use '_' as delimiter
@@ -29,6 +31,7 @@ pub fn mangle_method(method_name: &str) -> String {
     }
 }
 
+/// Returns the C-level name of a Shiika constant.
 pub fn mangle_const(const_name: &str) -> String {
     let s = const_name
         // Replace '_' to use '_' as delimiter
