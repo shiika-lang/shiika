@@ -120,7 +120,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             //                self.compile_cond_br(blocks, block, lvars, cond, true_block_id, false_block_id)
             //            }
             //            hir::Expr::BlockArgRef => self.compile_block_arg_ref(block),
-            //            hir::Expr::Nop => Ok(None),
+            hir::Expr::Nop => None,
             _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
     }
