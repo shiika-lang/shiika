@@ -25,14 +25,6 @@ impl fmt::Display for Ty {
 }
 
 impl Ty {
-    pub fn chiika_cont() -> Ty {
-        Ty::Fun(FunTy {
-            asyncness: Asyncness::Lowered,
-            param_tys: vec![Ty::ChiikaEnv, Ty::Any],
-            ret_ty: Box::new(Ty::RustFuture),
-        })
-    }
-
     pub fn as_fun_ty(&self) -> &FunTy {
         match self {
             Ty::Fun(f) => f,
