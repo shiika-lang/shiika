@@ -1,0 +1,10 @@
+class App
+  def self.run -> Int
+    if true
+      1
+    else
+      2
+    end
+    3
+  end
+end

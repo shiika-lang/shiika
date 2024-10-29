@@ -1,0 +1,31 @@
+---
+source: lib/skc_async_experiment/tests/cps.rs
+expression: compile(sk_path).unwrap()
+input_file: lib/skc_async_experiment/tests/cps/if_sync.sk
+---
+extern([+]) print (Int)->Void;
+extern() sleep_sec (ChiikaEnv,Int,(ChiikaEnv,Void)->RustFuture)->RustFuture;
+extern([+]) Int#+ (Int,Int)->Int;
+extern([+]) Int#- (Int,Int)->Int;
+extern([+]) Int#* (Int,Int)->Int;
+extern([+]) Int#% (Int,Int)->Int;
+extern([+]) Int#and (Int,Int)->Int;
+extern([+]) Int#or (Int,Int)->Int;
+extern([+]) Int#xor (Int,Int)->Int;
+extern([+]) Int#lshift (Int,Int)->Int;
+extern([+]) Int#rshift (Int,Int)->Int;
+extern([+]) Int#< (Int,Int)->Bool;
+extern([+]) Int#<= (Int,Int)->Bool;
+extern([+]) Int#> (Int,Int)->Bool;
+extern([+]) Int#>= (Int,Int)->Bool;
+extern([+]) Int#== (Int,Int)->Bool;
+fun run() -> Int {
+  if (true) {
+    1
+
+  } else {
+        2
+
+  }  #-> Int
+  3  #-> Int
+}

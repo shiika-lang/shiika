@@ -1,0 +1,19 @@
+// List of methods defined in skc_runtime
+[
+  ["Int", "+(other: Int) -> Int"],
+  ["Int", "-(other: Int) -> Int"],
+  ["Int", "*(other: Int) -> Int"],
+  //["Int", "/(other: Int) -> Float"],
+  ["Int", "%(other: Int) -> Int"],
+  ["Int", "and(other: Int) -> Int"],
+  ["Int", "or(other: Int) -> Int"],
+  ["Int", "xor(other: Int) -> Int"],
+  ["Int", "lshift(n_bits: Int) -> Int"],
+  ["Int", "rshift(n_bits: Int) -> Int"],
+  ["Int", "<(other: Int) -> Bool"],
+  ["Int", "<=(other: Int) -> Bool"],
+  ["Int", ">(other: Int) -> Bool"],
+  ["Int", ">=(other: Int) -> Bool"],
+  ["Int", "==(other: Int) -> Bool"],
+  //["Int", "to_f -> Float"],
+]

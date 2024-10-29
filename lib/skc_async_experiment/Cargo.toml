@@ -17,3 +17,6 @@ nom_locate = "4.2.0"
 os_info = "3.7.0"
 # To read exports.json5
 json5 = "0.2.8"
+
+[dev-dependencies]
+insta = { version = "1.32.0", features = ["glob"] }

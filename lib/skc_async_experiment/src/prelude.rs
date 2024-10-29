@@ -5,7 +5,9 @@ use shiika_parser;
 use std::io::Read;
 
 /// Functions that are called by the user code
-pub fn lib_externs() -> Result<Vec<(FunctionName, FunTy)>> {
+pub fn lib_externs(
+    skc_runtime_dir: &std::path::Path,
+    ) -> Result<Vec<(FunctionName, FunTy)>> {
     let mut v = vec![
         // Built-in functions
         ("print", FunTy::sync(vec![Ty::Int], Ty::Void)),
@@ -14,21 +16,27 @@ pub fn lib_externs() -> Result<Vec<(FunctionName, FunTy)>> {
     .into_iter()
     .map(|(name, ty)| (FunctionName::unmangled(name), ty))
     .collect::<Vec<_>>();
-    v.append(&mut core_class_funcs()?);
+    v.append(&mut core_class_funcs(skc_runtime_dir)?);
     Ok(v)
 }
 
-fn core_class_funcs() -> Result<Vec<(FunctionName, FunTy)>> {
-    load_methods_json("lib/skc_runtime/")
+fn core_class_funcs(
+    skc_runtime_dir: &std::path::Path,
+    ) -> Result<Vec<(FunctionName, FunTy)>> {
+    load_methods_json(skc_runtime_dir)
         .unwrap()
         .into_iter()
         .map(|(class, method)| parse_sig(class, method))
         .collect::<Result<Vec<_>>>()
-        .context("Failed to load skc_runtime/exports.json5")
+        .context(
+            format!(
+            "Failed to load skc_runtime/exports.json5 in {}", skc_runtime_dir.display()))
 }
 
-fn load_methods_json<P: AsRef<std::path::Path>>(dir: P) -> Result<Vec<(String, String)>> {
-    let json_path = dir.as_ref().join("exports.json5");
+fn load_methods_json(
+    skc_runtime_dir: &std::path::Path,
+    ) -> Result<Vec<(String, String)>> {
+    let json_path = skc_runtime_dir.join("exports.json5");
     let mut f = std::fs::File::open(json_path).context("exports.json5 not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)

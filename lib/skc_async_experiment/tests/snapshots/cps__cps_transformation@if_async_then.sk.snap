@@ -1,0 +1,44 @@
+---
+source: lib/skc_async_experiment/tests/cps.rs
+expression: compile(sk_path).unwrap()
+input_file: lib/skc_async_experiment/tests/cps/if_async_then.sk
+---
+extern([+]) print (Int)->Void;
+extern() sleep_sec (ChiikaEnv,Int,(ChiikaEnv,Void)->RustFuture)->RustFuture;
+extern([+]) Int#+ (Int,Int)->Int;
+extern([+]) Int#- (Int,Int)->Int;
+extern([+]) Int#* (Int,Int)->Int;
+extern([+]) Int#% (Int,Int)->Int;
+extern([+]) Int#and (Int,Int)->Int;
+extern([+]) Int#or (Int,Int)->Int;
+extern([+]) Int#xor (Int,Int)->Int;
+extern([+]) Int#lshift (Int,Int)->Int;
+extern([+]) Int#rshift (Int,Int)->Int;
+extern([+]) Int#< (Int,Int)->Bool;
+extern([+]) Int#<= (Int,Int)->Bool;
+extern([+]) Int#> (Int,Int)->Bool;
+extern([+]) Int#>= (Int,Int)->Bool;
+extern([+]) Int#== (Int,Int)->Bool;
+fun run(ChiikaEnv $env, (ChiikaEnv,Int)->RustFuture $cont) -> RustFuture {
+  chiika_env_push_frame(%arg_0, 1.raw)  #-> Void
+  chiika_env_set(%arg_0, 0.raw, (%arg_1 as Any), 6.raw)  #-> Void
+  if (true) {
+return run't[*](%arg_0)  # RustFuture
+  } else {
+    return run'f[*](%arg_0)  # RustFuture
+  }  #-> Never
+}
+fun run't(ChiikaEnv $env) -> RustFuture {
+  return sleep_sec[*](%arg_0, 1, run_2)  # RustFuture  #-> Never
+}
+fun run_2(ChiikaEnv $env, Void $async_result) -> RustFuture {
+  %arg_1  #-> Void
+  return run'e(%arg_0, 1)  # RustFuture  #-> Never
+}
+fun run'f(ChiikaEnv $env) -> RustFuture {
+  return run'e(%arg_0, 2)  # RustFuture  #-> Never
+}
+fun run'e(ChiikaEnv $env, Int $ifResult) -> RustFuture {
+  %arg_1  #-> Int
+  3  #-> Int
+}
