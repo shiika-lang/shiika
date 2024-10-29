@@ -1,7 +1,7 @@
 use anyhow::Result;
 use insta::{assert_snapshot, glob};
-use skc_async_experiment::{hir, hir_lowering, prelude};
 use shiika_parser::{Parser, SourceFile};
+use skc_async_experiment::{hir, hir_lowering, prelude};
 use std::path::Path;
 
 #[test]
@@ -21,9 +21,7 @@ fn compile(sk_path: &Path) -> Result<String> {
     let src = SourceFile::new(sk_path.to_path_buf(), txt);
     let ast = Parser::parse_files(&[src])?;
     let mut hir = hir::untyped::create(&ast)?;
-    hir.externs = prelude::lib_externs(
-            Path::new("../skc_runtime/")
-        )?
+    hir.externs = prelude::lib_externs(Path::new("../skc_runtime/"))?
         .into_iter()
         .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
         .collect();

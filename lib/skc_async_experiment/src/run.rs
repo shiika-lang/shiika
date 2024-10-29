@@ -49,9 +49,7 @@ impl Main {
     fn compile(&mut self, src: SourceFile, is_prelude: bool) -> Result<hir::Program> {
         let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
-        hir.externs = prelude::lib_externs(
-            Path::new("lib/skc_runtime/")
-            )?
+        hir.externs = prelude::lib_externs(Path::new("lib/skc_runtime/"))?
             .into_iter()
             .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
             .collect();
