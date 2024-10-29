@@ -81,7 +81,7 @@ impl fmt::Display for Function {
             gen, self.name, self.asyncness, para, self.ret_ty
         )?;
         for expr in &self.body_stmts {
-            write!(f, "  {}  #-> {}\n", &expr.0, &expr.1)?;
+            write!(f, "{}  #-> {}\n", &expr.0.pretty_print(1, true), &expr.1)?;
         }
         write!(f, "}}\n")
     }

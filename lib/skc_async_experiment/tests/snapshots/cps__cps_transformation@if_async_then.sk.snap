@@ -20,25 +20,25 @@ extern([+]) Int#> (Int,Int)->Bool;
 extern([+]) Int#>= (Int,Int)->Bool;
 extern([+]) Int#== (Int,Int)->Bool;
 fun run(ChiikaEnv $env, (ChiikaEnv,Int)->RustFuture $cont) -> RustFuture {
-  chiika_env_push_frame(%arg_0, 1.raw)  #-> Void
-  chiika_env_set(%arg_0, 0.raw, (%arg_1 as Any), 6.raw)  #-> Void
-  if (true) {
-return run't[*](%arg_0)  # RustFuture
-  } else {
-    return run'f[*](%arg_0)  # RustFuture
-  }  #-> Never
+  chiika_env_push_frame(%arg0, 1)  #-> Void
+  chiika_env_set(%arg0, 0, (%arg1 as Any), 6)  #-> Void
+  if true
+    return run't[*](%arg0) # RustFuture
+  else
+    return run'f[*](%arg0) # RustFuture
+  end  #-> Never
 }
 fun run't(ChiikaEnv $env) -> RustFuture {
-  return sleep_sec[*](%arg_0, 1, run_2)  # RustFuture  #-> Never
+  return sleep_sec[*](%arg0, 1, run_2) # RustFuture  #-> Never
 }
 fun run_2(ChiikaEnv $env, Void $async_result) -> RustFuture {
-  %arg_1  #-> Void
-  return run'e(%arg_0, 1)  # RustFuture  #-> Never
+  %arg1  #-> Void
+  return run'e(%arg0, 1) # RustFuture  #-> Never
 }
 fun run'f(ChiikaEnv $env) -> RustFuture {
-  return run'e(%arg_0, 2)  # RustFuture  #-> Never
+  return run'e(%arg0, 2) # RustFuture  #-> Never
 }
 fun run'e(ChiikaEnv $env, Int $ifResult) -> RustFuture {
-  %arg_1  #-> Int
+  %arg1  #-> Int
   3  #-> Int
 }
