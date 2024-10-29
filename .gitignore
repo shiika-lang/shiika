@@ -15,4 +15,5 @@
 /target
 /tests/tmp.*
 /tests/tmp/hello.txt
+/tests/new_runtime/*.out
 /tests/new_runtime/*.actual_out

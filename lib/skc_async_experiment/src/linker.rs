@@ -9,7 +9,9 @@ pub fn run<P: AsRef<Path>>(bc_path_: P) -> Result<()> {
     let exe_ext = if cfg!(target_os = "windows") {
         "exe"
     } else {
-        ""
+        // Using "out" to gitignore test outputs
+        // TODO: Option to set the output filename
+        "out"
     };
     let exe_path = bc_path.canonicalize()?.with_extension(exe_ext);
     let mut cmd = build_clang_cmd(bc_path, exe_path);
