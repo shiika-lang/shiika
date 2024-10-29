@@ -7,6 +7,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 #[shiika_method("sleep_sec")]
+#[allow(improper_ctypes_definitions)]
 pub extern "C" fn sleep_sec(
     env: &'static mut ChiikaEnv,
     nn: SkInt,
