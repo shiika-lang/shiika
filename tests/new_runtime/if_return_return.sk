@@ -9,5 +9,4 @@ class Main
       return 0
     end
   end
-  
 end
