@@ -38,9 +38,7 @@ impl<'f> Typing<'f> {
         self.current_func_params = Some(&func.params);
         self.current_func_ret_ty = Some(&func.ret_ty);
         let mut lvars = HashMap::new();
-        func.body_stmts
-            .iter_mut()
-            .try_for_each(|e| self.compile_expr(&mut lvars, e))?;
+        self.compile_expr(&mut lvars, &mut func.body_stmts)?;
         Ok(())
     }
 

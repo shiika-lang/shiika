@@ -45,13 +45,16 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
     let mut funcs = vec![];
     for mut f in hir.funcs {
         let allocs = hir::visitor::Allocs::collect(&f.body_stmts)?;
+        // Extract body_stmts from f
+        let mut body_stmts = hir::Expr::nop();
+        std::mem::swap(&mut f.body_stmts, &mut body_stmts);
         let mut c = Compiler {
             orig_func: &mut f,
             allocs,
             chapters: Chapters::new(),
             gensym_ct: 0,
         };
-        let mut split_funcs = c.compile_func()?;
+        let mut split_funcs = c.compile_func(body_stmts)?;
         funcs.append(&mut split_funcs);
     }
     Ok(hir::Program::new(externs, funcs))
@@ -67,15 +70,13 @@ struct Compiler<'a> {
 
 impl<'a> Compiler<'a> {
     /// Entry point for each milika function
-    fn compile_func(&mut self) -> Result<Vec<hir::Function>> {
+    fn compile_func(&mut self, body_stmts: hir::TypedExpr) -> Result<Vec<hir::Function>> {
         self.chapters.add(Chapter::new_original(self.orig_func));
         if self.orig_func.asyncness.is_async() {
             self._compile_async_intro();
         }
-        for expr in self.orig_func.body_stmts.drain(..).collect::<Vec<_>>() {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                self.chapters.add_stmt(new_expr);
-            }
+        if let Some(new_expr) = self.compile_expr(body_stmts, false)? {
+            self.chapters.add_stmt(new_expr);
         }
 
         let chaps = self.chapters.extract();
@@ -108,7 +109,7 @@ impl<'a> Compiler<'a> {
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
-            body_stmts: chap.stmts,
+            body_stmts: hir::Expr::exprs(chap.stmts),
         };
         match chap.chaptype {
             ChapterType::Original => f,

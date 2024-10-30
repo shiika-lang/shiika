@@ -90,7 +90,7 @@ impl<'a> Check<'a> {
         };
         c.checking.insert(fname.clone());
         let func = funcs.get(fname).unwrap();
-        c.walk_exprs(&func.body_stmts).unwrap();
+        c.walk_expr(&func.body_stmts).unwrap();
         if c.depends.is_empty() {
             c.known.insert(fname.clone(), c.is_async);
         } else {
@@ -216,7 +216,7 @@ impl Assert {
     }
 
     fn check_func(&mut self, f: &hir::Function) -> bool {
-        self.walk_exprs(&f.body_stmts).unwrap();
+        self.walk_expr(&f.body_stmts).unwrap();
         if self.found_async_call && !f.asyncness.is_async() {
             panic!(
                 "Function {} is marked as sync, but found async call",

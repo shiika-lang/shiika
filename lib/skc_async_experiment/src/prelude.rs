@@ -118,17 +118,17 @@ pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
     ]
 }
 
-fn main_body() -> Vec<hir::TypedExpr> {
+fn main_body() -> hir::TypedExpr {
     let t = FunTy::lowered(vec![], Ty::Void);
     let chiika_start_tokio = hir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
-    vec![
+    hir::Expr::exprs(vec![
         hir::Expr::fun_call(chiika_start_tokio, vec![]),
         // TODO: pass the resulting int to the user's main
         hir::Expr::return_(hir::Expr::unbox(hir::Expr::number(0))),
-    ]
+    ])
 }
 
-fn chiika_start_user_body(main_is_async: bool) -> Vec<hir::TypedExpr> {
+fn chiika_start_user_body(main_is_async: bool) -> hir::TypedExpr {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
     let chiika_main = hir::Expr::func_ref(
         FunctionName::unmangled("chiika_main"),
@@ -149,5 +149,5 @@ fn chiika_start_user_body(main_is_async: bool) -> Vec<hir::TypedExpr> {
         let call_sync_main = hir::Expr::fun_call(chiika_main, vec![]);
         hir::Expr::fun_call(get_cont, vec![get_env, call_sync_main])
     };
-    vec![hir::Expr::return_(call)]
+    hir::Expr::return_(call)
 }

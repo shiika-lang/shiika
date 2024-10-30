@@ -10,7 +10,7 @@ pub trait HirRewriter {
             .funcs
             .into_iter()
             .map(|f| {
-                let body_stmts = self.walk_exprs(f.body_stmts)?;
+                let body_stmts = self.walk_expr(f.body_stmts)?;
                 Ok(hir::Function { body_stmts, ..f })
             })
             .collect::<Result<_>>()?;

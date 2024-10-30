@@ -33,9 +33,7 @@ impl Verifier {
                 .context(format!("in function {:?}", f.name))?;
         }
 
-        for e in &f.body_stmts {
-            self.verify_expr(f, e)?;
-        }
+        self.verify_expr(f, &f.body_stmts)?;
         Ok(())
     }
 

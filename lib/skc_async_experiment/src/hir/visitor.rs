@@ -7,7 +7,7 @@ pub trait HirVisitor {
 
     fn walk_hir(&mut self, hir: &hir::Program) -> Result<()> {
         for f in &hir.funcs {
-            self.walk_exprs(&f.body_stmts)?;
+            self.walk_expr(&f.body_stmts)?;
         }
         Ok(())
     }
@@ -71,9 +71,9 @@ pub trait HirVisitor {
 pub struct Allocs(Vec<(String, hir::Ty)>);
 impl Allocs {
     /// Collects `alloc`ed variable names and their types.
-    pub fn collect(body_stmts: &[hir::TypedExpr]) -> Result<Vec<(String, hir::Ty)>> {
+    pub fn collect(body_stmts: &hir::TypedExpr) -> Result<Vec<(String, hir::Ty)>> {
         let mut a = Allocs(vec![]);
-        a.walk_exprs(body_stmts)?;
+        a.walk_expr(body_stmts)?;
         Ok(a.0)
     }
 }

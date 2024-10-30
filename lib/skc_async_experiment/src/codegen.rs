@@ -78,9 +78,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             lvars: Default::default(),
         };
 
-        for stmt in &f.body_stmts {
-            self.compile_expr(&mut ctx, stmt);
-        }
+        self.compile_expr(&mut ctx, &f.body_stmts);
     }
 
     fn compile_value_expr(

@@ -72,21 +72,20 @@ impl Compiler {
             None => hir::Ty::Void,
         };
         let mut lvars = HashSet::new();
-        let body_stmts = body_exprs
+        let mut body_stmts = body_exprs
             .iter()
             .map(|e| self.compile_expr(&sig, &mut lvars, &e))
             .collect::<Result<Vec<_>>>()?;
-        let allocs = lvars
-            .into_iter()
-            .map(|name| (hir::Expr::Alloc(name), hir::Ty::Unknown))
-            .collect::<Vec<_>>();
+        for name in lvars {
+            body_stmts.insert(0, (hir::Expr::Alloc(name), hir::Ty::Unknown));
+        }
         Ok(hir::Function {
             generated: false,
             asyncness: hir::Asyncness::Unknown,
             name: FunctionName::unmangled(sig.name.to_string()),
             params,
             ret_ty,
-            body_stmts: allocs.into_iter().chain(body_stmts).collect(),
+            body_stmts: hir::Expr::exprs(body_stmts),
         })
     }
 
