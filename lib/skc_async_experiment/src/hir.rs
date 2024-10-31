@@ -80,12 +80,7 @@ impl fmt::Display for Function {
             "fun{} {}{}({}) -> {} {{\n",
             gen, self.name, self.asyncness, para, self.ret_ty
         )?;
-        write!(
-            f,
-            "{}  #-> {}\n",
-            &self.body_stmts.0.pretty_print(1, true),
-            &self.body_stmts.1
-        )?;
+        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)?;
         write!(f, "}}\n")
     }
 }

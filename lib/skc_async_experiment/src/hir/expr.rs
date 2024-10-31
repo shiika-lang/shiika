@@ -185,6 +185,7 @@ pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
 
 fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
     let sp = "  ".repeat(lv);
+    let mut indent = as_stmt;
     let s = match node {
         Expr::Number(n) => format!("{}", n),
         Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
@@ -235,11 +236,14 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Alloc(name) => format!("alloc {}", name),
         Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
-        Expr::Exprs(exprs) => exprs
-            .iter()
-            .map(|expr| pretty_print(&expr.0, lv, true))
-            .collect::<Vec<String>>()
-            .join("\n"),
+        Expr::Exprs(exprs) => {
+            indent = false;
+            exprs
+                .iter()
+                .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
+                .collect::<Vec<String>>()
+                .join("\n")
+        }
         Expr::Cast(cast_type, e) => format!(
             "({} as {})",
             pretty_print(&e.0, lv, false),
@@ -250,7 +254,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Nop => "%nop".to_string(),
         //_ => todo!("{:?}", self),
     };
-    if as_stmt {
+    if indent {
         format!("{}{}", sp, s)
     } else {
         s
