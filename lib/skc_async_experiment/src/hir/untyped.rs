@@ -71,6 +71,7 @@ impl Compiler {
             Some(t) => compile_ty(&t)?,
             None => hir::Ty::Void,
         };
+
         let mut lvars = HashSet::new();
         let mut body_stmts = body_exprs
             .iter()
@@ -79,6 +80,8 @@ impl Compiler {
         for name in lvars {
             body_stmts.insert(0, (hir::Expr::Alloc(name), hir::Ty::Unknown));
         }
+        insert_implicit_return(&mut body_stmts);
+
         Ok(hir::Function {
             generated: false,
             asyncness: hir::Asyncness::Unknown,
@@ -281,5 +284,28 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
         asyncness: hir::Asyncness::Unknown,
         param_tys,
         ret_ty: Box::new(ret_ty),
+    }
+}
+
+fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
+    match exprs.pop() {
+        Some(last_expr) => {
+            let needs_return = match &last_expr.0 {
+                hir::Expr::Return(_) => false,
+                hir::Expr::If(_, _, _) => last_expr.1 == hir::Ty::Never,
+                _ => true,
+            };
+            if needs_return {
+                exprs.push(hir::Expr::return_(last_expr));
+            } else {
+                exprs.push(last_expr);
+            }
+        }
+        None => {
+            // Insert `return Void` for empty method
+            exprs.push(hir::Expr::return_(hir::Expr::pseudo_var(
+                hir::PseudoVar::Void,
+            )));
+        }
     }
 }

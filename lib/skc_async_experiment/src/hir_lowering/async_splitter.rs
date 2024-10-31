@@ -187,7 +187,11 @@ impl<'a> Compiler<'a> {
             hir::Expr::Return(expr) => self.compile_return(*expr)?,
             hir::Expr::Exprs(exprs) => {
                 let new_exprs = self.compile_exprs(exprs)?;
-                hir::Expr::exprs(new_exprs)
+                if new_exprs.is_empty() {
+                    return Ok(None);
+                } else {
+                    hir::Expr::exprs(new_exprs)
+                }
             }
             _ => panic!("[BUG] unexpected for async_splitter: {:?}", e.0),
         };
@@ -268,7 +272,6 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_exprs(&mut self, exprs: Vec<hir::TypedExpr>) -> Result<Vec<hir::TypedExpr>> {
-        debug_assert!(self.orig_func.asyncness.is_sync());
         let mut new_exprs = vec![];
         for expr in exprs {
             if let Some(new_expr) = self.compile_expr(expr, false)? {
