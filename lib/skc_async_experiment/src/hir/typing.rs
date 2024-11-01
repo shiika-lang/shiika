@@ -91,27 +91,14 @@ impl<'f> Typing<'f> {
                     return Err(anyhow!("condition should be bool but got {:?}", cond.1));
                 }
                 self.compile_expr(lvars, then)?;
-                let t1 = &then.1;
-                let t2 = if let Some(els) = els {
+                let else_ty = if let Some(els) = els {
                     self.compile_expr(lvars, els)?;
-                    &els.1
+                    Some(els.1.clone())
                 } else {
-                    &hir::Ty::Void
+                    None
                 };
-                let t = if *t1 == hir::Ty::Void {
-                    t2
-                } else if *t2 == hir::Ty::Void {
-                    t1
-                } else if t1 != t2 {
-                    return Err(anyhow!(
-                        "then and else should have the same type but got {:?} and {:?}",
-                        t1,
-                        t2
-                    ));
-                } else {
-                    t1
-                };
-                e.1 = t.clone();
+                let if_ty = hir::Expr::if_ty(&then.1, &else_ty)?;
+                e.1 = if_ty.clone();
             }
             //hir::Expr::While(cond, body) => {
             //    self.compile_expr(lvars, cond)?;

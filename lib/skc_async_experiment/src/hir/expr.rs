@@ -1,5 +1,6 @@
 use crate::hir::FunctionName;
 use crate::hir::{FunTy, Ty};
+use anyhow::{anyhow, Result};
 
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
@@ -85,28 +86,37 @@ impl Expr {
     }
 
     pub fn if_(cond: TypedExpr, then: TypedExpr, else_: Option<TypedExpr>) -> TypedExpr {
-        if cond.1 != Ty::Bool {
-            panic!("[BUG] if cond not bool: {:?}", cond);
-        }
-        let t1 = &then.1;
-        let t2 = match &else_ {
-            Some(e) => e.1.clone(),
-            None => Ty::Void,
-        };
-        let if_ty = if *t1 == Ty::Void {
-            t2.clone()
-        } else if t2 == Ty::Void {
-            t1.clone()
-        } else if *t1 == t2 {
-            t1.clone()
-        } else {
-            panic!("[BUG] if types mismatch (t1: {:?}, t2: {:?})", t1, t2);
-        };
-
+        let if_ty = Expr::if_ty(&then.1, &else_.as_ref().map(|e| e.1.clone())).unwrap();
         (
             Expr::If(Box::new(cond), Box::new(then), else_.map(Box::new)),
             if_ty,
         )
+    }
+
+    pub fn if_ty(then_ty: &Ty, else_ty: &Option<Ty>) -> Result<Ty> {
+        let t1 = then_ty;
+        let t2 = match else_ty {
+            Some(t) => &t,
+            None => &Ty::Void,
+        };
+        let if_ty = if *t1 == Ty::Never {
+            t2
+        } else if *t2 == Ty::Never {
+            t1
+        } else if *t1 == Ty::Void {
+            t2
+        } else if *t2 == Ty::Void {
+            t1
+        } else if t1 != t2 {
+            return Err(anyhow!(
+                "then and else should have the same type but got {:?} and {:?}",
+                t1,
+                t2
+            ));
+        } else {
+            t1
+        };
+        Ok(if_ty.clone())
     }
 
     pub fn while_(cond: TypedExpr, body: Vec<TypedExpr>) -> TypedExpr {
