@@ -142,8 +142,10 @@ impl Expr {
         (Expr::Return(Box::new(e)), Ty::Never)
     }
 
-    pub fn exprs(exprs: Vec<TypedExpr>) -> TypedExpr {
-        debug_assert!(!exprs.is_empty());
+    pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
+        if exprs.is_empty() {
+            exprs.push(Expr::pseudo_var(PseudoVar::Void));
+        }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
     }

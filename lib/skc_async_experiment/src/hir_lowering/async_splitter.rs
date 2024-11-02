@@ -75,10 +75,7 @@ impl<'a> Compiler<'a> {
         if self.orig_func.asyncness.is_async() {
             self._compile_async_intro();
         }
-        if let Some(new_expr) = self.compile_expr(body_stmts, false)? {
-            self.chapters.add_stmt(new_expr);
-        }
-
+        self.compile_stmts(hir::expr::into_exprs(body_stmts))?;
         let chaps = self.chapters.extract();
         Ok(chaps
             .into_iter()
@@ -185,15 +182,10 @@ impl<'a> Compiler<'a> {
             }
             hir::Expr::Alloc(_) => hir::Expr::nop(),
             hir::Expr::Return(expr) => self.compile_return(*expr)?,
-            hir::Expr::Exprs(exprs) => {
-                let new_exprs = self.compile_exprs(exprs)?;
-                if new_exprs.is_empty() {
-                    return Ok(None);
-                } else {
-                    hir::Expr::exprs(new_exprs)
-                }
+            hir::Expr::Exprs(_) => {
+                panic!("Exprs must be handled by its parent");
             }
-            _ => panic!("[BUG] unexpected for async_splitter: {:?}", e.0),
+            _ => panic!("unexpected for async_splitter: {:?}", e.0),
         };
         Ok(Some(new_e))
     }
@@ -220,6 +212,30 @@ impl<'a> Compiler<'a> {
         Ok(arg_ref_async_result(async_result_ty))
     }
 
+    /// Compile a list of statements. It may contain an async call.
+    fn compile_stmts(&mut self, stmts: Vec<hir::TypedExpr>) -> Result<()> {
+        for stmt in stmts {
+            if let Some(new_stmt) = self.compile_expr(stmt, false)? {
+                self.chapters.add_stmt(new_stmt);
+            }
+        }
+        Ok(())
+    }
+
+    /// Compile a list of expressions which does not contain async calls
+    /// into Exprs.
+    fn compile_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
+        let exprs = hir::expr::into_exprs(exprs_);
+        let mut new_exprs = vec![];
+        for expr in exprs {
+            let Some(new_expr) = self.compile_expr(expr, false)? else {
+                panic!("got None in compile_exprs (async call?)");
+            };
+            new_exprs.push(new_expr);
+        }
+        Ok(hir::Expr::exprs(new_exprs))
+    }
+
     fn compile_if(
         &mut self,
         if_ty: &hir::Ty,
@@ -235,8 +251,8 @@ impl<'a> Compiler<'a> {
 
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
         if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_value_expr(then_exprs, false)?;
-            let els = self.compile_value_expr(else_exprs, false)?;
+            let then = self.compile_exprs(then_exprs)?;
+            let els = self.compile_exprs(else_exprs)?;
             return Ok(Some(hir::Expr::if_(new_cond_expr, then, Some(els))));
         }
 
@@ -271,16 +287,6 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn compile_exprs(&mut self, exprs: Vec<hir::TypedExpr>) -> Result<Vec<hir::TypedExpr>> {
-        let mut new_exprs = vec![];
-        for expr in exprs {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                new_exprs.push(new_expr);
-            }
-        }
-        Ok(new_exprs)
-    }
-
     fn compile_if_clause(&mut self, exprs_: hir::TypedExpr, endif_chap_name: &str) -> Result<()> {
         let mut exprs = hir::expr::into_exprs(exprs_);
         let e = exprs.pop().unwrap();
@@ -290,11 +296,8 @@ impl<'a> Compiler<'a> {
         } else {
             Some(e)
         };
-        for expr in exprs {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                self.chapters.add_stmt(new_expr);
-            }
-        }
+        self.compile_stmts(exprs)?;
+        // Send the value to the endif chapter (unless ends with `return`)
         if let Some(vexpr) = opt_vexpr {
             let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = hir::Expr::fun_call(
