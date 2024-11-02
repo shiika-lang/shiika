@@ -13,7 +13,7 @@ pub enum Expr {
     ArgRef(usize),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
-    If(Box<Typed<Expr>>, Box<Typed<Expr>>, Option<Box<Typed<Expr>>>),
+    If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String),
@@ -85,20 +85,17 @@ impl Expr {
         (Expr::FunCall(Box::new(func), args), result_ty)
     }
 
-    pub fn if_(cond: TypedExpr, then: TypedExpr, else_: Option<TypedExpr>) -> TypedExpr {
-        let if_ty = Expr::if_ty(&then.1, &else_.as_ref().map(|e| e.1.clone())).unwrap();
+    pub fn if_(cond: TypedExpr, then: TypedExpr, else_: TypedExpr) -> TypedExpr {
+        let if_ty = Expr::if_ty(&then.1, &else_.1).unwrap();
         (
-            Expr::If(Box::new(cond), Box::new(then), else_.map(Box::new)),
+            Expr::If(Box::new(cond), Box::new(then), Box::new(else_)),
             if_ty,
         )
     }
 
-    pub fn if_ty(then_ty: &Ty, else_ty: &Option<Ty>) -> Result<Ty> {
+    pub fn if_ty(then_ty: &Ty, else_ty: &Ty) -> Result<Ty> {
         let t1 = then_ty;
-        let t2 = match else_ty {
-            Some(t) => &t,
-            None => &Ty::Void,
-        };
+        let t2 = else_ty;
         let if_ty = if *t1 == Ty::Never {
             t2
         } else if *t2 == Ty::Never {
@@ -220,17 +217,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + ")"
         }
         Expr::If(cond, then, else_) => {
-            let els = if let Some(e) = else_ {
-                format!("\n{}else\n{}", sp, e.0.pretty_print(lv + 1, true))
-            } else {
-                "".to_string()
-            };
-
             "if ".to_string()
                 + cond.0.pretty_print(lv + 1, false).as_str()
                 + "\n"
                 + then.0.pretty_print(lv + 1, true).as_str()
-                + els.as_str()
+                + "\n{}else\n"
+                + else_.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
         Expr::While(cond, body) => {

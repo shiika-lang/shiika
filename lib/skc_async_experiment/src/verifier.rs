@@ -90,12 +90,10 @@ impl Verifier {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument {}", i), p))?;
             }
-            hir::Expr::If(cond, then, opt_els) => {
+            hir::Expr::If(cond, then, els) => {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, then)?;
-                if let Some(els) = opt_els {
-                    self.verify_expr(f, els)?;
-                }
+                self.verify_expr(f, els)?;
             }
             hir::Expr::While(cond, body) => {
                 self.verify_expr(f, cond)?;

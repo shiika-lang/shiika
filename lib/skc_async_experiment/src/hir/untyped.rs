@@ -157,11 +157,12 @@ impl Compiler {
             } => {
                 let cond = self.compile_expr(sig, lvars, &cond_expr)?;
                 let then = self.compile_exprs(sig, lvars, &then_exprs)?;
-                let els = else_exprs
-                    .as_ref()
-                    .map(|els| self.compile_exprs(sig, lvars, els))
-                    .transpose()?;
-                hir::Expr::If(Box::new(cond), Box::new(then), els.map(Box::new))
+                let els = if let Some(else_) = else_exprs {
+                    self.compile_exprs(sig, lvars, else_)?
+                } else {
+                    hir::Expr::pseudo_var(hir::PseudoVar::Void)
+                };
+                hir::Expr::If(Box::new(cond), Box::new(then), Box::new(els))
             }
             //shiika_ast::AstExpressionBody::While {
             //    cond_expr,

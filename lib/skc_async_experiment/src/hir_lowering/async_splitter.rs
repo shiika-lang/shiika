@@ -173,7 +173,7 @@ impl<'a> Compiler<'a> {
                 call_chiika_env_set(i, v)
             }
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
-                return self.compile_if(&e.1, *cond_expr, *then_exprs, else_exprs);
+                return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
             hir::Expr::While(_cond_expr, _body_exprs) => todo!(),
             hir::Expr::Spawn(fexpr) => {
@@ -241,19 +241,13 @@ impl<'a> Compiler<'a> {
         if_ty: &hir::Ty,
         cond_expr: hir::TypedExpr,
         then_exprs: hir::TypedExpr,
-        else_exprs_: Option<Box<hir::TypedExpr>>,
+        else_exprs_: hir::TypedExpr,
     ) -> Result<Option<hir::TypedExpr>> {
-        let else_exprs = if let Some(e) = else_exprs_ {
-            *e
-        } else {
-            hir::Expr::pseudo_var(hir::PseudoVar::Void)
-        };
-
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
         if self.orig_func.asyncness.is_sync() {
             let then = self.compile_exprs(then_exprs)?;
-            let els = self.compile_exprs(else_exprs)?;
-            return Ok(Some(hir::Expr::if_(new_cond_expr, then, Some(els))));
+            let els = self.compile_exprs(else_exprs_)?;
+            return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
         }
 
         let func_name = self.chapters.current_name().to_string();
@@ -268,14 +262,14 @@ impl<'a> Compiler<'a> {
         let terminator = hir::Expr::if_(
             new_cond_expr,
             hir::Expr::return_(fcall_t),
-            Some(hir::Expr::return_(fcall_f)),
+            hir::Expr::return_(fcall_f),
         );
         self.chapters.add_stmt(terminator);
 
         self.chapters.add(then_chap);
         self.compile_if_clause(then_exprs, &endif_chap.name)?;
         self.chapters.add(else_chap);
-        self.compile_if_clause(else_exprs, &endif_chap.name)?;
+        self.compile_if_clause(else_exprs_, &endif_chap.name)?;
 
         if *if_ty == hir::Ty::Never {
             // Both branches end with return

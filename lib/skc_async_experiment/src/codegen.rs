@@ -197,7 +197,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         cond_expr: &hir::TypedExpr,
         then_exprs: &hir::TypedExpr,
-        else_exprs: &Option<Box<hir::TypedExpr>>,
+        else_exprs: &hir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
@@ -218,11 +218,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
-        let else_value = if let Some(else_exprs) = else_exprs {
-            self.compile_expr(ctx, else_exprs)
-        } else {
-            None
-        };
+        let else_value = self.compile_expr(ctx, else_exprs);
         if else_value.is_some() {
             self.builder.build_unconditional_branch(merge_block);
         }

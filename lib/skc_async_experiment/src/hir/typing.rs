@@ -91,13 +91,8 @@ impl<'f> Typing<'f> {
                     return Err(anyhow!("condition should be bool but got {:?}", cond.1));
                 }
                 self.compile_expr(lvars, then)?;
-                let else_ty = if let Some(els) = els {
-                    self.compile_expr(lvars, els)?;
-                    Some(els.1.clone())
-                } else {
-                    None
-                };
-                let if_ty = hir::Expr::if_ty(&then.1, &else_ty)?;
+                self.compile_expr(lvars, els)?;
+                let if_ty = hir::Expr::if_ty(&then.1, &els.1)?;
                 e.1 = if_ty.clone();
             }
             //hir::Expr::While(cond, body) => {

@@ -32,12 +32,10 @@ pub trait HirVisitor {
                     self.walk_expr(arg)?;
                 }
             }
-            hir::Expr::If(cond_expr, then_exprs, opt_else_exprs) => {
+            hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 self.walk_expr(cond_expr)?;
                 self.walk_expr(then_exprs)?;
-                if let Some(else_exprs) = opt_else_exprs {
-                    self.walk_expr(else_exprs)?;
-                }
+                self.walk_expr(else_exprs)?;
             }
             hir::Expr::While(cond_expr, body_exprs) => {
                 self.walk_expr(cond_expr)?;
