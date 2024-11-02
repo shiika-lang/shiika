@@ -1,7 +1,7 @@
 class Main
   def self.chiika_main() -> Int
     print(123)
-    sleep_sec(1)
+    sleep_sec(0)
     print(456)
     return 0
   end

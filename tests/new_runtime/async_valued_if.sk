@@ -2,7 +2,7 @@ class Main
   def self.chiika_main() -> Int
     print(
       if true
-        sleep_sec(1)
+        sleep_sec(0)
         456
       else
         789

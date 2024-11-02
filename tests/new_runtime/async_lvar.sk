@@ -2,7 +2,7 @@ class Main
   def self.chiika_main() -> Int
     let x = 3
     print(x)
-    sleep_sec(1)
+    sleep_sec(0)
     print(x)
     return 0
   end

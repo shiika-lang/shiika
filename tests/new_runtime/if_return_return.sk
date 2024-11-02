@@ -1,7 +1,7 @@
 class Main
   def self.chiika_main() -> Int
     if true
-      sleep_sec(1)
+      sleep_sec(0)
       print(123)
       return 0
     else
