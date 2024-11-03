@@ -164,6 +164,9 @@ task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
+  cd "lib/skc_runtime/" do
+    sh "cargo build"
+  end
   Dir["tests/new_runtime/*.sk"].each do |path|
     name = path.sub(".sk", "")
     sh "cargo run --bin exp_shiika -- #{name}.sk"

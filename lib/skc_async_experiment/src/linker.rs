@@ -15,6 +15,7 @@ pub fn run<P: AsRef<Path>>(bc_path_: P) -> Result<()> {
     };
     let exe_path = bc_path.canonicalize()?.with_extension(exe_ext);
     let mut cmd = build_clang_cmd(bc_path, exe_path);
+    dbg!(&cmd);
     if !cmd.status()?.success() {
         return Err(anyhow!("clang failed"));
     }
