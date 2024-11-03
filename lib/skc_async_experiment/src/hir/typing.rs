@@ -115,7 +115,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::Return(val) => {
                 self.compile_expr(lvars, val)?;
-                if val.1 != *self.current_func_ret_ty.unwrap() {
+                if !valid_return_type(self.current_func_ret_ty.unwrap(), &val.1) {
                     return Err(anyhow!(
                         "return type mismatch: {} should return {:?} but got {:?}",
                         self.current_func_name.unwrap(),
@@ -137,5 +137,13 @@ impl<'f> Typing<'f> {
             _ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
         Ok(())
+    }
+}
+
+fn valid_return_type(expected: &hir::Ty, actual: &hir::Ty) -> bool {
+    if actual == &hir::Ty::Never {
+        true
+    } else {
+        expected == actual
     }
 }

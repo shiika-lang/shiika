@@ -120,7 +120,7 @@ impl<'a> Compiler<'a> {
         if let Some(expr) = self.compile_expr(e, on_return)? {
             Ok(expr)
         } else {
-            Err(anyhow!("[BUG] unexpected void expr"))
+            Err(anyhow!("Got None in compile_value_expr (async call?)"))
         }
     }
 
@@ -181,7 +181,7 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             hir::Expr::Alloc(_) => hir::Expr::nop(),
-            hir::Expr::Return(expr) => self.compile_return(*expr)?,
+            hir::Expr::Return(expr) => return self.compile_return(*expr),
             hir::Expr::Exprs(_) => {
                 panic!("Exprs must be handled by its parent");
             }
@@ -323,10 +323,14 @@ impl<'a> Compiler<'a> {
         hir::Expr::fun_call(hir::Expr::func_ref(fname, chap_fun_ty), args)
     }
 
-    fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<hir::TypedExpr> {
+    fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<Option<hir::TypedExpr>> {
+        // `return return 1` == `return 1`
+        if expr.1 == hir::Ty::Never {
+            return self.compile_expr(expr, false);
+        }
         let new_expr = self.compile_value_expr(expr, true)?;
         if self.orig_func.asyncness.is_sync() {
-            return Ok(hir::Expr::return_(new_expr));
+            return Ok(Some(hir::Expr::return_(new_expr)));
         }
         let env_pop = {
             let cont_ty = hir::Ty::Fun(hir::FunTy {
@@ -353,7 +357,7 @@ impl<'a> Compiler<'a> {
             let tmp = self.store_to_tmpvar(new_expr);
             hir::Expr::fun_call(env_pop, vec![arg_ref_env(), tmp])
         };
-        Ok(hir::Expr::return_(value_expr))
+        Ok(Some(hir::Expr::return_(value_expr)))
     }
 
     fn lvar_idx(&self, varname: &str) -> usize {

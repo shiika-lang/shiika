@@ -293,7 +293,6 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
         Some(last_expr) => {
             let needs_return = match &last_expr.0 {
                 hir::Expr::Return(_) => false,
-                hir::Expr::If(_, _, _) => last_expr.1 == hir::Ty::Never,
                 _ => true,
             };
             if needs_return {

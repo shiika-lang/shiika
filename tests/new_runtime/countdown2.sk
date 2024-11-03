@@ -1,0 +1,14 @@
+class Main
+  def self.countdown(i: Int) -> Void
+    print(i)
+    sleep_sec(0)
+    if i > 0
+      countdown(i - 1)
+    end
+  end
+  
+  def self.chiika_main() -> Int
+    countdown(3)
+    return 0
+  end
+end
