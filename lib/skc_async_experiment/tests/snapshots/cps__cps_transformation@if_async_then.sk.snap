@@ -40,5 +40,7 @@ fun run'f(ChiikaEnv $env) -> RustFuture {
 }
 fun run'e(ChiikaEnv $env, Int $ifResult) -> RustFuture {
   %arg1  #-> Int
-  3  #-> Int
+  alloc $0  #-> Void
+  $0 = 3  #-> Void
+  return (chiika_env_pop_frame(%arg0, 1) as (ChiikaEnv,Int)->RustFuture)(%arg0, $0) # RustFuture  #-> Never
 }
