@@ -221,7 +221,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + cond.0.pretty_print(lv + 1, false).as_str()
                 + "\n"
                 + then.0.pretty_print(lv + 1, true).as_str()
-                + "\n{}else\n"
+                + &format!("\n{}else\n", sp)
                 + else_.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
