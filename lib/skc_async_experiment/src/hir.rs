@@ -4,6 +4,7 @@ pub mod rewriter;
 mod ty;
 pub mod typing;
 pub mod untyped;
+pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};

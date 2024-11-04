@@ -6,4 +6,3 @@ mod names;
 pub mod prelude;
 pub mod run;
 mod targets;
-mod verifier;
