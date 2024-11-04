@@ -1,5 +1,5 @@
 use crate::names::FunctionName;
-use crate::{codegen, hir, hir_lowering, linker, prelude, verifier};
+use crate::{codegen, hir, hir_lowering, linker, prelude};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
 use std::io::Write;
@@ -37,7 +37,7 @@ impl Main {
         hir.funcs.append(&mut prelude::funcs(main_is_async(&hir)?));
 
         self.log(&format!("# -- verifier input --\n{hir}\n"));
-        verifier::run(&hir)?;
+        hir::verifier::run(&hir)?;
 
         let bc_path = path.with_extension("bc");
         let ll_path = path.with_extension("ll");
