@@ -43,9 +43,7 @@ pub trait HirVisitor {
             }
             hir::Expr::While(cond_expr, body_exprs) => {
                 self.walk_expr(cond_expr)?;
-                for expr in body_exprs {
-                    self.walk_expr(expr)?;
-                }
+                self.walk_expr(body_exprs)?;
             }
             hir::Expr::Spawn(expr) => {
                 self.walk_expr(expr)?;

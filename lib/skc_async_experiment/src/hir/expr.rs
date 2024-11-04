@@ -16,7 +16,7 @@ pub enum Expr {
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
-    While(Box<Typed<Expr>>, Vec<Typed<Expr>>),
+    While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String),
     Assign(String, Box<Typed<Expr>>),
@@ -126,11 +126,11 @@ impl Expr {
         Ok(if_ty.clone())
     }
 
-    pub fn while_(cond: TypedExpr, body: Vec<TypedExpr>) -> TypedExpr {
+    pub fn while_(cond: TypedExpr, body: TypedExpr) -> TypedExpr {
         if cond.1 != Ty::Bool {
             panic!("[BUG] while cond not bool: {:?}", cond);
         }
-        (Expr::While(Box::new(cond), body), Ty::Void)
+        (Expr::While(Box::new(cond), Box::new(body)), Ty::Void)
     }
 
     pub fn spawn(e: TypedExpr) -> TypedExpr {
@@ -236,24 +236,16 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + ")"
         }
         Expr::If(cond, then, else_) => {
-            "if ".to_string()
-                + cond.0.pretty_print(lv + 1, false).as_str()
-                + "\n"
+            format!("if {}\n", cond.0.pretty_print(0, false))
                 + then.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}else\n", sp)
                 + else_.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
         Expr::While(cond, body) => {
-            "while ".to_string()
-                + cond.0.pretty_print(lv + 1, false).as_str()
-                + "\n"
-                + body
-                    .iter()
-                    .map(|stmt| stmt.0.pretty_print(lv + 1, true))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-                    .as_str()
+            format!("while {}\n", cond.0.pretty_print(0, false))
+                + body.0.pretty_print(lv + 1, true).as_str()
+                + &format!("\n{}end", sp)
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name) => format!("alloc {}", name),

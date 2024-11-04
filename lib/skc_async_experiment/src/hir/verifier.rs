@@ -101,7 +101,7 @@ impl Verifier {
             }
             hir::Expr::While(cond, body) => {
                 self.verify_expr(f, cond)?;
-                self.verify_exprs(f, body)?;
+                self.verify_expr(f, body)?;
             }
             hir::Expr::Alloc(_) => (),
             hir::Expr::Assign(_, v) => {
