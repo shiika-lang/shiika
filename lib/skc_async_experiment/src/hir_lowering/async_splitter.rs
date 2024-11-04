@@ -45,13 +45,16 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
     let mut funcs = vec![];
     for mut f in hir.funcs {
         let allocs = hir::visitor::Allocs::collect(&f.body_stmts)?;
+        // Extract body_stmts from f
+        let mut body_stmts = hir::Expr::nop();
+        std::mem::swap(&mut f.body_stmts, &mut body_stmts);
         let mut c = Compiler {
             orig_func: &mut f,
             allocs,
             chapters: Chapters::new(),
             gensym_ct: 0,
         };
-        let mut split_funcs = c.compile_func()?;
+        let mut split_funcs = c.compile_func(body_stmts)?;
         funcs.append(&mut split_funcs);
     }
     Ok(hir::Program::new(externs, funcs))
@@ -67,17 +70,12 @@ struct Compiler<'a> {
 
 impl<'a> Compiler<'a> {
     /// Entry point for each milika function
-    fn compile_func(&mut self) -> Result<Vec<hir::Function>> {
+    fn compile_func(&mut self, body_stmts: hir::TypedExpr) -> Result<Vec<hir::Function>> {
         self.chapters.add(Chapter::new_original(self.orig_func));
         if self.orig_func.asyncness.is_async() {
             self._compile_async_intro();
         }
-        for expr in self.orig_func.body_stmts.drain(..).collect::<Vec<_>>() {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                self.chapters.add_stmt(new_expr);
-            }
-        }
-
+        self.compile_stmts(hir::expr::into_exprs(body_stmts))?;
         let chaps = self.chapters.extract();
         Ok(chaps
             .into_iter()
@@ -108,7 +106,7 @@ impl<'a> Compiler<'a> {
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
-            body_stmts: chap.stmts,
+            body_stmts: hir::Expr::exprs(chap.stmts),
         };
         match chap.chaptype {
             ChapterType::Original => f,
@@ -122,7 +120,7 @@ impl<'a> Compiler<'a> {
         if let Some(expr) = self.compile_expr(e, on_return)? {
             Ok(expr)
         } else {
-            Err(anyhow!("[BUG] unexpected void expr"))
+            Err(anyhow!("Got None in compile_value_expr (async call?)"))
         }
     }
 
@@ -175,7 +173,7 @@ impl<'a> Compiler<'a> {
                 call_chiika_env_set(i, v)
             }
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
-                return self.compile_if(&e.1, *cond_expr, *then_exprs, else_exprs);
+                return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
             hir::Expr::While(_cond_expr, _body_exprs) => todo!(),
             hir::Expr::Spawn(fexpr) => {
@@ -183,12 +181,11 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             hir::Expr::Alloc(_) => hir::Expr::nop(),
-            hir::Expr::Return(expr) => self.compile_return(*expr)?,
-            hir::Expr::Exprs(exprs) => {
-                let new_exprs = self.compile_exprs(exprs)?;
-                hir::Expr::exprs(new_exprs)
+            hir::Expr::Return(expr) => return self.compile_return(*expr),
+            hir::Expr::Exprs(_) => {
+                panic!("Exprs must be handled by its parent");
             }
-            _ => panic!("[BUG] unexpected for async_splitter: {:?}", e.0),
+            _ => panic!("unexpected for async_splitter: {:?}", e.0),
         };
         Ok(Some(new_e))
     }
@@ -215,24 +212,42 @@ impl<'a> Compiler<'a> {
         Ok(arg_ref_async_result(async_result_ty))
     }
 
+    /// Compile a list of statements. It may contain an async call.
+    fn compile_stmts(&mut self, stmts: Vec<hir::TypedExpr>) -> Result<()> {
+        for stmt in stmts {
+            if let Some(new_stmt) = self.compile_expr(stmt, false)? {
+                self.chapters.add_stmt(new_stmt);
+            }
+        }
+        Ok(())
+    }
+
+    /// Compile a list of expressions which does not contain async calls
+    /// into Exprs.
+    fn compile_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
+        let exprs = hir::expr::into_exprs(exprs_);
+        let mut new_exprs = vec![];
+        for expr in exprs {
+            let Some(new_expr) = self.compile_expr(expr, false)? else {
+                panic!("got None in compile_exprs (async call?)");
+            };
+            new_exprs.push(new_expr);
+        }
+        Ok(hir::Expr::exprs(new_exprs))
+    }
+
     fn compile_if(
         &mut self,
         if_ty: &hir::Ty,
         cond_expr: hir::TypedExpr,
         then_exprs: hir::TypedExpr,
-        else_exprs_: Option<Box<hir::TypedExpr>>,
+        else_exprs_: hir::TypedExpr,
     ) -> Result<Option<hir::TypedExpr>> {
-        let else_exprs = if let Some(e) = else_exprs_ {
-            *e
-        } else {
-            hir::Expr::pseudo_var(hir::PseudoVar::Void)
-        };
-
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
         if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_value_expr(then_exprs, false)?;
-            let els = self.compile_value_expr(else_exprs, false)?;
-            return Ok(Some(hir::Expr::if_(new_cond_expr, then, Some(els))));
+            let then = self.compile_exprs(then_exprs)?;
+            let els = self.compile_exprs(else_exprs_)?;
+            return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
         }
 
         let func_name = self.chapters.current_name().to_string();
@@ -247,14 +262,14 @@ impl<'a> Compiler<'a> {
         let terminator = hir::Expr::if_(
             new_cond_expr,
             hir::Expr::return_(fcall_t),
-            Some(hir::Expr::return_(fcall_f)),
+            hir::Expr::return_(fcall_f),
         );
         self.chapters.add_stmt(terminator);
 
         self.chapters.add(then_chap);
         self.compile_if_clause(then_exprs, &endif_chap.name)?;
         self.chapters.add(else_chap);
-        self.compile_if_clause(else_exprs, &endif_chap.name)?;
+        self.compile_if_clause(else_exprs_, &endif_chap.name)?;
 
         if *if_ty == hir::Ty::Never {
             // Both branches end with return
@@ -266,17 +281,6 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn compile_exprs(&mut self, exprs: Vec<hir::TypedExpr>) -> Result<Vec<hir::TypedExpr>> {
-        debug_assert!(self.orig_func.asyncness.is_sync());
-        let mut new_exprs = vec![];
-        for expr in exprs {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                new_exprs.push(new_expr);
-            }
-        }
-        Ok(new_exprs)
-    }
-
     fn compile_if_clause(&mut self, exprs_: hir::TypedExpr, endif_chap_name: &str) -> Result<()> {
         let mut exprs = hir::expr::into_exprs(exprs_);
         let e = exprs.pop().unwrap();
@@ -286,11 +290,8 @@ impl<'a> Compiler<'a> {
         } else {
             Some(e)
         };
-        for expr in exprs {
-            if let Some(new_expr) = self.compile_expr(expr, false)? {
-                self.chapters.add_stmt(new_expr);
-            }
-        }
+        self.compile_stmts(exprs)?;
+        // Send the value to the endif chapter (unless ends with `return`)
         if let Some(vexpr) = opt_vexpr {
             let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = hir::Expr::fun_call(
@@ -322,10 +323,14 @@ impl<'a> Compiler<'a> {
         hir::Expr::fun_call(hir::Expr::func_ref(fname, chap_fun_ty), args)
     }
 
-    fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<hir::TypedExpr> {
+    fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<Option<hir::TypedExpr>> {
+        // `return return 1` == `return 1`
+        if expr.1 == hir::Ty::Never {
+            return self.compile_expr(expr, false);
+        }
         let new_expr = self.compile_value_expr(expr, true)?;
         if self.orig_func.asyncness.is_sync() {
-            return Ok(hir::Expr::return_(new_expr));
+            return Ok(Some(hir::Expr::return_(new_expr)));
         }
         let env_pop = {
             let cont_ty = hir::Ty::Fun(hir::FunTy {
@@ -352,7 +357,7 @@ impl<'a> Compiler<'a> {
             let tmp = self.store_to_tmpvar(new_expr);
             hir::Expr::fun_call(env_pop, vec![arg_ref_env(), tmp])
         };
-        Ok(hir::Expr::return_(value_expr))
+        Ok(Some(hir::Expr::return_(value_expr)))
     }
 
     fn lvar_idx(&self, varname: &str) -> usize {

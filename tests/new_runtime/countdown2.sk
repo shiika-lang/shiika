@@ -3,9 +3,7 @@ class Main
     print(i)
     sleep_sec(0)
     if i > 0
-      return countdown(i - 1)
-    else
-      return null
+      countdown(i - 1)
     end
   end
   

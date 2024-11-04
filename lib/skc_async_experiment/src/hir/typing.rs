@@ -38,9 +38,7 @@ impl<'f> Typing<'f> {
         self.current_func_params = Some(&func.params);
         self.current_func_ret_ty = Some(&func.ret_ty);
         let mut lvars = HashMap::new();
-        func.body_stmts
-            .iter_mut()
-            .try_for_each(|e| self.compile_expr(&mut lvars, e))?;
+        self.compile_expr(&mut lvars, &mut func.body_stmts)?;
         Ok(())
     }
 
@@ -93,27 +91,9 @@ impl<'f> Typing<'f> {
                     return Err(anyhow!("condition should be bool but got {:?}", cond.1));
                 }
                 self.compile_expr(lvars, then)?;
-                let t1 = &then.1;
-                let t2 = if let Some(els) = els {
-                    self.compile_expr(lvars, els)?;
-                    &els.1
-                } else {
-                    &hir::Ty::Void
-                };
-                let t = if *t1 == hir::Ty::Void {
-                    t2
-                } else if *t2 == hir::Ty::Void {
-                    t1
-                } else if t1 != t2 {
-                    return Err(anyhow!(
-                        "then and else should have the same type but got {:?} and {:?}",
-                        t1,
-                        t2
-                    ));
-                } else {
-                    t1
-                };
-                e.1 = t.clone();
+                self.compile_expr(lvars, els)?;
+                let if_ty = hir::Expr::if_ty(&then.1, &els.1)?;
+                e.1 = if_ty.clone();
             }
             //hir::Expr::While(cond, body) => {
             //    self.compile_expr(lvars, cond)?;
@@ -135,7 +115,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::Return(val) => {
                 self.compile_expr(lvars, val)?;
-                if val.1 != *self.current_func_ret_ty.unwrap() {
+                if !valid_return_type(self.current_func_ret_ty.unwrap(), &val.1) {
                     return Err(anyhow!(
                         "return type mismatch: {} should return {:?} but got {:?}",
                         self.current_func_name.unwrap(),
@@ -157,5 +137,13 @@ impl<'f> Typing<'f> {
             _ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
         Ok(())
+    }
+}
+
+fn valid_return_type(expected: &hir::Ty, actual: &hir::Ty) -> bool {
+    if actual == &hir::Ty::Never {
+        true
+    } else {
+        expected == actual
     }
 }

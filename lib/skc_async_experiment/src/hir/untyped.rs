@@ -71,22 +71,24 @@ impl Compiler {
             Some(t) => compile_ty(&t)?,
             None => hir::Ty::Void,
         };
+
         let mut lvars = HashSet::new();
-        let body_stmts = body_exprs
+        let mut body_stmts = body_exprs
             .iter()
             .map(|e| self.compile_expr(&sig, &mut lvars, &e))
             .collect::<Result<Vec<_>>>()?;
-        let allocs = lvars
-            .into_iter()
-            .map(|name| (hir::Expr::Alloc(name), hir::Ty::Unknown))
-            .collect::<Vec<_>>();
+        for name in lvars {
+            body_stmts.insert(0, (hir::Expr::Alloc(name), hir::Ty::Unknown));
+        }
+        insert_implicit_return(&mut body_stmts);
+
         Ok(hir::Function {
             generated: false,
             asyncness: hir::Asyncness::Unknown,
             name: FunctionName::unmangled(sig.name.to_string()),
             params,
             ret_ty,
-            body_stmts: allocs.into_iter().chain(body_stmts).collect(),
+            body_stmts: hir::Expr::exprs(body_stmts),
         })
     }
 
@@ -155,11 +157,12 @@ impl Compiler {
             } => {
                 let cond = self.compile_expr(sig, lvars, &cond_expr)?;
                 let then = self.compile_exprs(sig, lvars, &then_exprs)?;
-                let els = else_exprs
-                    .as_ref()
-                    .map(|els| self.compile_exprs(sig, lvars, els))
-                    .transpose()?;
-                hir::Expr::If(Box::new(cond), Box::new(then), els.map(Box::new))
+                let els = if let Some(else_) = else_exprs {
+                    self.compile_exprs(sig, lvars, else_)?
+                } else {
+                    hir::Expr::pseudo_var(hir::PseudoVar::Void)
+                };
+                hir::Expr::If(Box::new(cond), Box::new(then), Box::new(els))
             }
             //shiika_ast::AstExpressionBody::While {
             //    cond_expr,
@@ -282,5 +285,27 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
         asyncness: hir::Asyncness::Unknown,
         param_tys,
         ret_ty: Box::new(ret_ty),
+    }
+}
+
+fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
+    match exprs.pop() {
+        Some(last_expr) => {
+            let needs_return = match &last_expr.0 {
+                hir::Expr::Return(_) => false,
+                _ => true,
+            };
+            if needs_return {
+                exprs.push(hir::Expr::return_(last_expr));
+            } else {
+                exprs.push(last_expr);
+            }
+        }
+        None => {
+            // Insert `return Void` for empty method
+            exprs.push(hir::Expr::return_(hir::Expr::pseudo_var(
+                hir::PseudoVar::Void,
+            )));
+        }
     }
 }

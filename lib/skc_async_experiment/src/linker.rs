@@ -9,10 +9,13 @@ pub fn run<P: AsRef<Path>>(bc_path_: P) -> Result<()> {
     let exe_ext = if cfg!(target_os = "windows") {
         "exe"
     } else {
-        ""
+        // Using "out" to gitignore test outputs
+        // TODO: Option to set the output filename
+        "out"
     };
     let exe_path = bc_path.canonicalize()?.with_extension(exe_ext);
     let mut cmd = build_clang_cmd(bc_path, exe_path);
+    dbg!(&cmd);
     if !cmd.status()?.success() {
         return Err(anyhow!("clang failed"));
     }
@@ -37,6 +40,7 @@ fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf) -> Command {
     }
     cmd.arg("-o");
     cmd.arg(exe_path.clone());
+    cmd.arg(bc_path.to_path_buf());
     //cmd.arg(from_shiika_root("builtin/builtin.bc"));
     let skc_runtime = if cfg!(target_os = "windows") {
         "skc_runtime.lib"
@@ -44,7 +48,6 @@ fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf) -> Command {
         "libskc_runtime.a"
     };
     cmd.arg(cargo_target_path().join("debug").join(skc_runtime));
-    cmd.arg(bc_path.to_path_buf());
 
     if cfg!(target_os = "windows") {
         cmd.arg("-luser32");

@@ -63,7 +63,7 @@ pub struct Function {
     pub name: FunctionName,
     pub params: Vec<Param>,
     pub ret_ty: Ty,
-    pub body_stmts: Vec<Typed<Expr>>,
+    pub body_stmts: Typed<Expr>,
 }
 
 impl fmt::Display for Function {
@@ -80,9 +80,7 @@ impl fmt::Display for Function {
             "fun{} {}{}({}) -> {} {{\n",
             gen, self.name, self.asyncness, para, self.ret_ty
         )?;
-        for expr in &self.body_stmts {
-            write!(f, "  {}  #-> {}\n", &expr.0, &expr.1)?;
-        }
+        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)?;
         write!(f, "}}\n")
     }
 }

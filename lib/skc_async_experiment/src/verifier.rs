@@ -33,9 +33,7 @@ impl Verifier {
                 .context(format!("in function {:?}", f.name))?;
         }
 
-        for e in &f.body_stmts {
-            self.verify_expr(f, e)?;
-        }
+        self.verify_expr(f, &f.body_stmts)?;
         Ok(())
     }
 
@@ -92,12 +90,10 @@ impl Verifier {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument {}", i), p))?;
             }
-            hir::Expr::If(cond, then, opt_els) => {
+            hir::Expr::If(cond, then, els) => {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, then)?;
-                if let Some(els) = opt_els {
-                    self.verify_expr(f, els)?;
-                }
+                self.verify_expr(f, els)?;
             }
             hir::Expr::While(cond, body) => {
                 self.verify_expr(f, cond)?;
@@ -146,6 +142,7 @@ impl Verifier {
                 assert(&e, "result", &hir::Ty::Int64)?;
             }
             hir::Expr::RawI64(_) => assert(&e, "raw i64", &hir::Ty::Int64)?,
+            hir::Expr::Nop => (),
             _ => panic!("not supported by verifier: {:?}", e.0),
         }
         Ok(())

@@ -1,11 +1,11 @@
 class Main
-  def self.countdown(i: Int) -> Void
+  def self.countdown(i: Int) -> Int
     print(i)
     sleep_sec(0)
     if i > 0
-      return countdown(i - 1)
+      countdown(i - 1)
     else
-      return null
+      0
     end
   end
   

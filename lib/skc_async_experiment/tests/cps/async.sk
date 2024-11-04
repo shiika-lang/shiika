@@ -1,0 +1,6 @@
+class App
+  def self.run -> Int
+    sleep_sec(1)
+    2
+  end
+end

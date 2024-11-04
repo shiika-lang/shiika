@@ -10,7 +10,7 @@ pub trait HirRewriter {
             .funcs
             .into_iter()
             .map(|f| {
-                let body_stmts = self.walk_exprs(f.body_stmts)?;
+                let body_stmts = self.walk_expr(f.body_stmts)?;
                 Ok(hir::Function { body_stmts, ..f })
             })
             .collect::<Result<_>>()?;
@@ -31,12 +31,10 @@ pub trait HirRewriter {
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 hir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
             }
-            hir::Expr::If(cond_expr, then_exprs, opt_else_exprs) => hir::Expr::if_(
+            hir::Expr::If(cond_expr, then_exprs, else_exprs) => hir::Expr::if_(
                 self.walk_expr(*cond_expr)?,
                 self.walk_expr(*then_exprs)?,
-                opt_else_exprs
-                    .map(|else_exprs| self.walk_expr(*else_exprs))
-                    .transpose()?,
+                self.walk_expr(*else_exprs)?,
             ),
             hir::Expr::While(cond_expr, body_exprs) => {
                 hir::Expr::while_(self.walk_expr(*cond_expr)?, self.walk_exprs(body_exprs)?)
