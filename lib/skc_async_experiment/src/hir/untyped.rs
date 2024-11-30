@@ -83,7 +83,6 @@ impl Compiler {
         insert_implicit_return(&mut body_stmts);
 
         Ok(hir::Function {
-            generated: false,
             asyncness: hir::Asyncness::Unknown,
             name: FunctionName::unmangled(sig.name.to_string()),
             params,

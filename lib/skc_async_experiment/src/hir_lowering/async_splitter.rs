@@ -104,7 +104,6 @@ impl<'a> Compiler<'a> {
 
     fn _serialize_chapter(&self, chap: Chapter) -> hir::Function {
         let f = hir::Function {
-            generated: self.orig_func.generated,
             asyncness: hir::Asyncness::Lowered,
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,

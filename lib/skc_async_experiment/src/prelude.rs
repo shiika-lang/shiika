@@ -95,7 +95,6 @@ pub fn funcs() -> Vec<hir::Function> {
     vec![
         hir::Function {
             name: FunctionName::mangled("main"),
-            generated: false,
             asyncness: hir::Asyncness::Lowered,
             params: vec![],
             ret_ty: Ty::Int64,
@@ -103,7 +102,6 @@ pub fn funcs() -> Vec<hir::Function> {
         },
         hir::Function {
             name: FunctionName::mangled("chiika_start_user"),
-            generated: false,
             asyncness: hir::Asyncness::Lowered,
             params: vec![
                 hir::Param::new(Ty::ChiikaEnv, "env"),
