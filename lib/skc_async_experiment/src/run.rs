@@ -56,7 +56,7 @@ impl Main {
         hir::typing::run(&mut hir)?;
         if !is_prelude {
             self.debug(format!("# -- typing output --\n{hir}\n"), !is_prelude);
-            hir = hir::asyncness_check::run(hir);
+            hir = hir_lowering::asyncness_check::run(hir);
             self.debug(
                 format!("# -- asyncness_check output --\n{hir}\n"),
                 !is_prelude,

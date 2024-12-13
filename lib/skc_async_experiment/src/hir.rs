@@ -1,4 +1,3 @@
-pub mod asyncness_check;
 pub mod expr;
 pub mod rewriter;
 mod ty;
