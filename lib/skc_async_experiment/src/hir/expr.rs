@@ -10,7 +10,7 @@ pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
     LVarRef(String),
-    ArgRef(usize),
+    ArgRef(usize, String), // (index, debug_name)
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -69,8 +69,8 @@ impl Expr {
         (Expr::LVarRef(name.into()), ty)
     }
 
-    pub fn arg_ref(idx: usize, ty: Ty) -> TypedExpr {
-        (Expr::ArgRef(idx), ty)
+    pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::ArgRef(idx, name.into()), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -201,7 +201,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
-        Expr::ArgRef(idx) => format!("%arg{}", idx),
+        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {

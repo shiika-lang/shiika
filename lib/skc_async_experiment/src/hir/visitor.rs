@@ -24,7 +24,7 @@ pub trait HirVisitor {
             hir::Expr::Number(_) => {}
             hir::Expr::PseudoVar(_) => {}
             hir::Expr::LVarRef(_) => {}
-            hir::Expr::ArgRef(_) => {}
+            hir::Expr::ArgRef(_, _) => {}
             hir::Expr::FuncRef(_) => {}
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.walk_expr(fexpr)?;

@@ -89,9 +89,11 @@ impl<'a> Compiler<'a> {
             .add_stmt(call_chiika_env_push_frame(self.frame_size()));
         let mut push_items = vec![arg_ref_cont(arity, self.orig_func.ret_ty.clone())];
         for i in 0..arity {
+            let param = &self.orig_func.params[i];
             push_items.push(hir::Expr::arg_ref(
                 i + 1, // +1 for $env
-                self.orig_func.params[i].ty.clone(),
+                param.name.clone(),
+                param.ty.clone(),
             ));
         }
         for (i, arg) in push_items.into_iter().enumerate() {
@@ -138,14 +140,14 @@ impl<'a> Compiler<'a> {
                 let i = self.lvar_idx(varname);
                 call_chiika_env_ref(i)
             }
-            hir::Expr::ArgRef(idx) => {
+            hir::Expr::ArgRef(idx, name) => {
                 if self.chapters.len() == 1 {
                     let i = if self.orig_func.asyncness.is_async() {
                         idx + 1
                     } else {
                         idx
                     };
-                    hir::Expr::arg_ref(i, e.1)
+                    hir::Expr::arg_ref(i, name, e.1)
                 } else {
                     let i = idx + 1; // +1 for $cont
                     call_chiika_env_ref(i)
@@ -276,8 +278,7 @@ impl<'a> Compiler<'a> {
             Ok(None)
         } else {
             self.chapters.add(endif_chap);
-            // FIXME: This magic number is decided by async_splitter.rs
-            Ok(Some(hir::Expr::arg_ref(1, if_ty.clone())))
+            Ok(Some(hir::Expr::arg_ref(1, "$ifResult", if_ty.clone())))
         }
     }
 
@@ -451,7 +452,7 @@ fn chapter_func_name(orig_name: &FunctionName, chapter_idx: usize) -> FunctionNa
 
 /// Get the `$env` that is 0-th param of async func
 fn arg_ref_env() -> hir::TypedExpr {
-    hir::Expr::arg_ref(0, hir::Ty::ChiikaEnv)
+    hir::Expr::arg_ref(0, "$env", hir::Ty::ChiikaEnv)
 }
 
 /// Get the `$cont` param of async func
@@ -462,12 +463,12 @@ fn arg_ref_cont(arity: usize, arg_ty: hir::Ty) -> hir::TypedExpr {
         param_tys: vec![hir::Ty::ChiikaEnv, arg_ty],
         ret_ty: Box::new(hir::Ty::RustFuture),
     };
-    hir::Expr::arg_ref(arity + 1, hir::Ty::Fun(cont_ty))
+    hir::Expr::arg_ref(arity + 1, "$cont", hir::Ty::Fun(cont_ty))
 }
 
 /// Get the `$async_result` which is 1-th param of chapter func
 fn arg_ref_async_result(ty: hir::Ty) -> hir::TypedExpr {
-    hir::Expr::arg_ref(1, ty)
+    hir::Expr::arg_ref(1, "$async_result", ty)
 }
 
 fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {

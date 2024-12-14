@@ -59,7 +59,7 @@ impl<'f> Typing<'f> {
                     return Err(anyhow!("[BUG] unknown variable `{name}'"));
                 }
             }
-            hir::Expr::ArgRef(i) => e.1 = self.current_func_params.unwrap()[*i].ty.clone(),
+            hir::Expr::ArgRef(i, _) => e.1 = self.current_func_params.unwrap()[*i].ty.clone(),
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(name) {
                     e.1 = hir::Ty::Fun(fun_ty.clone());

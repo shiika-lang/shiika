@@ -141,8 +141,8 @@ fn chiika_start_user_body(main_is_async: bool) -> hir::TypedExpr {
             FunTy::lowered(vec![], Ty::Int)
         },
     );
-    let get_env = hir::Expr::arg_ref(0, Ty::ChiikaEnv);
-    let get_cont = hir::Expr::arg_ref(1, Ty::Fun(cont_ty));
+    let get_env = hir::Expr::arg_ref(0, "env", Ty::ChiikaEnv);
+    let get_cont = hir::Expr::arg_ref(1, "cont", Ty::Fun(cont_ty));
     let call = if main_is_async {
         hir::Expr::fun_call(chiika_main, vec![get_env, get_cont])
     } else {
