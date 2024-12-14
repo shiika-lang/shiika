@@ -39,10 +39,13 @@ impl Ty {
         }
     }
 
-    pub fn is_async_fun(&self) -> bool {
+    /// Returns Some(true) if the type is a function type and it is async.
+    /// Returns Some(false) if the type is a function type and it is sync.
+    /// Returns None if the type is not a function type.
+    pub fn is_async_fun(&self) -> Option<bool> {
         match self {
-            Ty::Fun(f) => f.asyncness.is_async(),
-            _ => panic!("[BUG] not a function type: {:?}", self),
+            Ty::Fun(f) => Some(f.asyncness.is_async()),
+            _ => None,
         }
     }
 

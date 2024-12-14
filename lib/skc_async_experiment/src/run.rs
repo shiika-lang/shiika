@@ -61,6 +61,11 @@ impl Main {
                 format!("# -- asyncness_check output --\n{hir}\n"),
                 !is_prelude,
             );
+            hir = hir_lowering::pass_async_env::run(hir);
+            self.debug(
+                format!("# -- pass_async_env output --\n{hir}\n"),
+                !is_prelude,
+            );
             hir = hir_lowering::async_splitter::run(hir)?;
             self.debug(
                 format!("# -- async_splitter output --\n{hir}\n"),
