@@ -49,15 +49,19 @@ impl Verifier {
             hir::Expr::Number(_) => assert(&e, "number", &hir::Ty::Int)?,
             hir::Expr::PseudoVar(_) => (),
             hir::Expr::LVarRef(_) => (),
-            hir::Expr::ArgRef(idx) => {
+            hir::Expr::ArgRef(idx, name) => {
                 if *idx >= f.params.len() {
                     bail!("argument index out of range: {}", idx);
                 }
-                assert(
-                    &e,
-                    "according to the function decalation",
-                    &f.params[*idx].ty,
-                )?;
+                let param = &f.params[*idx];
+                if param.name != *name {
+                    bail!(
+                        "argument name mismatch: expected {}, but got {}",
+                        param.name,
+                        name
+                    );
+                }
+                assert(&e, "according to the function decalation", &param.ty)?;
             }
             hir::Expr::FuncRef(name) => {
                 let ty_expected = self

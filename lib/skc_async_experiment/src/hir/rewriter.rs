@@ -26,7 +26,7 @@ pub trait HirRewriter {
             hir::Expr::Number(_) => expr,
             hir::Expr::PseudoVar(_) => expr,
             hir::Expr::LVarRef(_) => expr,
-            hir::Expr::ArgRef(_) => expr,
+            hir::Expr::ArgRef(_, _) => expr,
             hir::Expr::FuncRef(_) => expr,
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 hir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)

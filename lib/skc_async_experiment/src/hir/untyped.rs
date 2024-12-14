@@ -109,7 +109,7 @@ impl Compiler {
                 if lvars.contains(name) {
                     self.compile_var_ref(sig, lvars, name)?
                 } else if let Some(idx) = sig.params.iter().position(|p| &p.name == name) {
-                    hir::Expr::ArgRef(idx)
+                    hir::Expr::ArgRef(idx, name.to_string())
                 } else if self.func_names.contains(name) {
                     hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
                 } else if name == "true" {
@@ -210,7 +210,7 @@ impl Compiler {
         let e = if lvars.contains(name) {
             hir::Expr::LVarRef(name.to_string())
         } else if let Some(idx) = sig.params.iter().position(|p| p.name == name) {
-            hir::Expr::ArgRef(idx)
+            hir::Expr::ArgRef(idx, name.to_string())
         } else if self.func_names.contains(name) {
             hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
         } else if name == "true" {

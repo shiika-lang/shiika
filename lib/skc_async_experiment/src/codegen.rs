@@ -101,7 +101,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::Number(n) => self.compile_number(*n),
             hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
             hir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
-            hir::Expr::ArgRef(idx) => self.compile_argref(ctx, idx),
+            hir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
             hir::Expr::FuncRef(name) => self.compile_funcref(name),
             hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             hir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
