@@ -214,7 +214,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
-            format!("{}%{} = {}", name, idx, pretty_print(&e.0, lv, false))
+            format!(
+                "env_set({}%{}, {})",
+                name,
+                idx,
+                pretty_print(&e.0, lv, false)
+            )
         }
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {

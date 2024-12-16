@@ -137,10 +137,6 @@ impl<'a> Compiler<'a> {
         let new_e = match e.0 {
             hir::Expr::Number(_) => e,
             hir::Expr::PseudoVar(_) => e,
-            //            hir::Expr::LVarRef(ref varname) => {
-            //                let i = self.lvar_idx(varname);
-            //                hir::Expr::env_ref(i, varname.clone(), e.1.clone())
-            //            }
             hir::Expr::ArgRef(_, _) => e,
             hir::Expr::EnvRef(_, _) => e,
             hir::Expr::EnvSet(idx, rhs, name) => {
@@ -163,11 +159,6 @@ impl<'a> Compiler<'a> {
                     hir::Expr::fun_call(new_fexpr, new_args)
                 }
             }
-            //            hir::Expr::Assign(varname, rhs) => {
-            //                let i = self.lvar_idx(&varname);
-            //                let v = self.compile_value_expr(*rhs, false)?;
-            //                hir::Expr::env_set(i, v, varname)
-            //            }
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
@@ -307,7 +298,6 @@ impl<'a> Compiler<'a> {
 
     /// Generate a call to the if-branch function
     fn branch_call(&self, chap_name: &str) -> hir::TypedExpr {
-        // TODO: Support local variables
         let args = vec![arg_ref_env()];
         let chap_fun_ty = hir::FunTy {
             asyncness: self.orig_func.asyncness.clone(),
