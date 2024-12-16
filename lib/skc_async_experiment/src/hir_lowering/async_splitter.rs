@@ -326,12 +326,11 @@ impl<'a> Compiler<'a> {
             call_chiika_env_pop_frame(self.frame_size(), cont_ty)
         };
         let value_expr = if new_expr.0.is_async_fun_call() {
-            // Convert `callee(args...)`
-            // to `callee(args..., env, env_pop())`
+            // Convert `callee($env, args...)`
+            // to `callee($env, args..., env_pop())`
             let hir::Expr::FunCall(fexpr, mut args) = new_expr.0 else {
                 unreachable!();
             };
-            args.insert(0, arg_ref_env());
             args.push(env_pop);
             let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty()).into());
             hir::Expr::fun_call(new_fexpr, args)
