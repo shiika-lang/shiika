@@ -91,7 +91,7 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     .collect()
 }
 
-pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
+pub fn funcs() -> Vec<hir::Function> {
     vec![
         hir::Function {
             name: FunctionName::mangled("main"),
@@ -113,7 +113,7 @@ pub fn funcs(main_is_async: bool) -> Vec<hir::Function> {
                 ),
             ],
             ret_ty: Ty::RustFuture,
-            body_stmts: chiika_start_user_body(main_is_async),
+            body_stmts: chiika_start_user_body(),
         },
     ]
 }
@@ -128,26 +128,17 @@ fn main_body() -> hir::TypedExpr {
     ])
 }
 
-fn chiika_start_user_body(main_is_async: bool) -> hir::TypedExpr {
+fn chiika_start_user_body() -> hir::TypedExpr {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
     let chiika_main = hir::Expr::func_ref(
         FunctionName::unmangled("chiika_main"),
-        if main_is_async {
-            FunTy::lowered(
-                vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],
-                Ty::RustFuture,
-            )
-        } else {
-            FunTy::lowered(vec![], Ty::Int)
-        },
+        FunTy::lowered(
+            vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],
+            Ty::RustFuture,
+        ),
     );
     let get_env = hir::Expr::arg_ref(0, "env", Ty::ChiikaEnv);
     let get_cont = hir::Expr::arg_ref(1, "cont", Ty::Fun(cont_ty));
-    let call = if main_is_async {
-        hir::Expr::fun_call(chiika_main, vec![get_env, get_cont])
-    } else {
-        let call_sync_main = hir::Expr::fun_call(chiika_main, vec![]);
-        hir::Expr::fun_call(get_cont, vec![get_env, call_sync_main])
-    };
+    let call = hir::Expr::fun_call(chiika_main, vec![get_env, get_cont]);
     hir::Expr::return_(call)
 }

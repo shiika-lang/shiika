@@ -158,7 +158,7 @@ task :async do
   cd "lib/skc_runtime/" do
     sh "cargo build"
   end
-  sh "cargo run --bin exp_shiika -- a.milika"
+  sh "cargo run --bin exp_shiika -- a.sk"
 end
 task async_test: :async do
   sh "./a.out"

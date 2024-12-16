@@ -1,4 +1,3 @@
-use crate::names::FunctionName;
 use crate::{codegen, hir, hir_lowering, linker, prelude};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
@@ -34,7 +33,7 @@ impl Main {
         for (name, fun_ty) in prelude::core_externs() {
             hir.externs.push(hir::Extern { name, fun_ty });
         }
-        hir.funcs.append(&mut prelude::funcs(main_is_async(&hir)?));
+        hir.funcs.append(&mut prelude::funcs());
 
         self.log(&format!("# -- verifier input --\n{hir}\n"));
         hir::verifier::run(&hir)?;
@@ -56,9 +55,14 @@ impl Main {
         hir::typing::run(&mut hir)?;
         if !is_prelude {
             self.debug(format!("# -- typing output --\n{hir}\n"), !is_prelude);
-            hir = hir::asyncness_check::run(hir);
+            hir = hir_lowering::asyncness_check::run(hir);
             self.debug(
                 format!("# -- asyncness_check output --\n{hir}\n"),
+                !is_prelude,
+            );
+            hir = hir_lowering::pass_async_env::run(hir);
+            self.debug(
+                format!("# -- pass_async_env output --\n{hir}\n"),
                 !is_prelude,
             );
             hir = hir_lowering::async_splitter::run(hir)?;
@@ -66,6 +70,7 @@ impl Main {
                 format!("# -- async_splitter output --\n{hir}\n"),
                 !is_prelude,
             );
+            hir = hir_lowering::resolve_env_op::run(hir);
         }
         Ok(hir)
     }
@@ -79,16 +84,4 @@ impl Main {
     fn log(&mut self, s: &str) {
         self.log_file.write_all(s.as_bytes()).unwrap();
     }
-}
-
-fn main_is_async(hir: &hir::Program) -> Result<bool> {
-    let Some(main) = hir
-        .funcs
-        .iter()
-        .find(|x| x.name == FunctionName::unmangled("chiika_main"))
-    else {
-        bail!("chiika_main not found");
-    };
-    // When chiika_main calls async function, it is lowered to take a continuation.
-    Ok(main.params.len() > 0)
 }

@@ -10,7 +10,9 @@ pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
     LVarRef(String),
-    ArgRef(usize, String), // (index, debug_name)
+    ArgRef(usize, String),                   // (index, debug_name)
+    EnvRef(usize, String),                   // (index, debug_name)
+    EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -71,6 +73,14 @@ impl Expr {
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::ArgRef(idx, name.into()), ty)
+    }
+
+    pub fn env_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::EnvRef(idx, name.into()), ty)
+    }
+
+    pub fn env_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
+        (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::Void)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -175,7 +185,7 @@ impl Expr {
 
     pub fn is_async_fun_call(&self) -> bool {
         match self {
-            Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun(),
+            Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun().unwrap(),
             _ => false,
         }
     }
@@ -202,6 +212,15 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
+        Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
+        Expr::EnvSet(idx, e, name) => {
+            format!(
+                "env_set({}%{}, {})",
+                name,
+                idx,
+                pretty_print(&e.0, lv, false)
+            )
+        }
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {
