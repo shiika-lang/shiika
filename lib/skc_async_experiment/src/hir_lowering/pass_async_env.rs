@@ -21,15 +21,11 @@
 //! ```
 use crate::hir;
 use crate::hir::rewriter::HirRewriter;
-use crate::names::FunctionName;
 use anyhow::Result;
-use std::collections::HashMap;
 
 pub fn run(hir: hir::Program) -> hir::Program {
-    let mut func_idx = HashMap::new();
     let mut externs = vec![];
     for e in hir.externs {
-        func_idx.insert(e.name.clone(), e.is_async());
         let new_e = if e.is_async() {
             hir::Extern {
                 name: e.name,
@@ -41,20 +37,17 @@ pub fn run(hir: hir::Program) -> hir::Program {
         externs.push(new_e);
     }
 
-    let mut u = Update { func_idx };
-
-    let funcs = hir
-        .funcs
-        .into_iter()
-        .map(|f| compile_func(&mut u, f))
-        .collect();
+    let funcs = hir.funcs.into_iter().map(|f| compile_func(f)).collect();
     hir::Program::new(externs, funcs)
 }
 
-/// Entry point for each milika function
-fn compile_func(u: &mut Update, orig_func: hir::Function) -> hir::Function {
-    let new_body_stmts = u.walk_expr(orig_func.body_stmts).unwrap();
-    let new_params = insert_env_to_params(orig_func.params);
+fn compile_func(orig_func: hir::Function) -> hir::Function {
+    let new_body_stmts = Update::run(orig_func.body_stmts);
+    let new_params = if orig_func.asyncness.is_async() {
+        insert_env_to_params(orig_func.params)
+    } else {
+        orig_func.params
+    };
     hir::Function {
         generated: orig_func.generated,
         asyncness: orig_func.asyncness,
@@ -65,19 +58,21 @@ fn compile_func(u: &mut Update, orig_func: hir::Function) -> hir::Function {
     }
 }
 
-struct Update {
-    func_idx: HashMap<FunctionName, bool>,
+struct Update();
+impl Update {
+    fn run(expr: hir::TypedExpr) -> hir::TypedExpr {
+        Update().walk_expr(expr).unwrap()
+    }
 }
 impl HirRewriter for Update {
     fn rewrite_expr(&mut self, texpr: hir::TypedExpr) -> Result<hir::TypedExpr> {
         let mut new_texpr = match texpr.0 {
-            hir::Expr::FunCall(fexpr, args) => {
-                let mut new_args = args
-                    .into_iter()
-                    .map(|arg| self.walk_expr(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                insert_env_to_args(&mut new_args);
-                hir::Expr::fun_call(*fexpr, new_args)
+            hir::Expr::ArgRef(idx, name) => hir::Expr::env_ref(idx + 1, name, texpr.1),
+            hir::Expr::FunCall(fexpr, mut args) => {
+                if fexpr.1.is_async_fun() == Some(true) {
+                    insert_env_to_args(&mut args);
+                }
+                hir::Expr::fun_call(*fexpr, args)
             }
             _ => texpr,
         };
@@ -106,5 +101,5 @@ fn insert_env_to_params(params: Vec<hir::Param>) -> Vec<hir::Param> {
 }
 
 fn insert_env_to_args(args: &mut Vec<hir::TypedExpr>) {
-    args.insert(0, hir::Expr::arg_ref(0, hir::Ty::ChiikaEnv));
+    args.insert(0, hir::Expr::arg_ref(0, "$env", hir::Ty::ChiikaEnv));
 }

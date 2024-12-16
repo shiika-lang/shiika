@@ -71,6 +71,7 @@ impl Main {
                 format!("# -- async_splitter output --\n{hir}\n"),
                 !is_prelude,
             );
+            hir = hir_lowering::resolve_env_op::run(hir);
         }
         Ok(hir)
     }

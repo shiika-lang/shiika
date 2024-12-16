@@ -27,6 +27,10 @@ pub trait HirRewriter {
             hir::Expr::PseudoVar(_) => expr,
             hir::Expr::LVarRef(_) => expr,
             hir::Expr::ArgRef(_, _) => expr,
+            hir::Expr::EnvRef(_, _) => expr,
+            hir::Expr::EnvSet(idx, value_expr, name) => {
+                hir::Expr::env_set(idx, self.walk_expr(*value_expr)?, name)
+            }
             hir::Expr::FuncRef(_) => expr,
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 hir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
@@ -45,6 +49,7 @@ pub trait HirRewriter {
             hir::Expr::Return(expr) => hir::Expr::return_(self.walk_expr(*expr)?),
             hir::Expr::Exprs(exprs) => hir::Expr::exprs(self.walk_exprs(exprs)?),
             hir::Expr::Cast(cast_type, expr) => hir::Expr::cast(cast_type, self.walk_expr(*expr)?),
+            hir::Expr::RawI64(_) => expr,
             _ => panic!("not supported by hir::rewriter: {:?}", expr),
         };
         self.rewrite_expr(new_expr)
