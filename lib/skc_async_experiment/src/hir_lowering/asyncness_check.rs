@@ -15,7 +15,10 @@ pub fn run(mut hir: hir::Program) -> hir::Program {
     for e in &hir.externs {
         known.insert(e.name.clone(), e.is_async());
     }
-    for f in &hir.funcs {
+    for f in &mut hir.funcs {
+        if f.name == FunctionName::unmangled("chiika_main") {
+            f.asyncness = hir::Asyncness::Async;
+        }
         match f.asyncness {
             hir::Asyncness::Async => {
                 known.insert(f.name.clone(), true);
