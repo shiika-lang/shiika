@@ -50,6 +50,7 @@ pub trait HirRewriter {
             hir::Expr::Exprs(exprs) => hir::Expr::exprs(self.walk_exprs(exprs)?),
             hir::Expr::Cast(cast_type, expr) => hir::Expr::cast(cast_type, self.walk_expr(*expr)?),
             hir::Expr::RawI64(_) => expr,
+            hir::Expr::Nop => expr,
             _ => panic!("not supported by hir::rewriter: {:?}", expr),
         };
         self.rewrite_expr(new_expr)
