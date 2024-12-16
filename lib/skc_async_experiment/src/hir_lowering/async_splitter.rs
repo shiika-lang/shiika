@@ -1,7 +1,7 @@
 //! Example
 //! ```
 //! // Before
-//! fun foo() -> Int {
+//! fun foo($env) -> Int {
 //!   print(sleep_sec(1));
 //!   return 42;
 //! }
@@ -44,7 +44,7 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
 
     let mut funcs = vec![];
     for mut f in hir.funcs {
-        let allocs = hir::visitor::Allocs::collect(&f.body_stmts)?;
+        let allocs = hir::visitor::Allocs::collect(&f.body_stmts);
         // Extract body_stmts from f
         let mut body_stmts = hir::Expr::nop();
         std::mem::swap(&mut f.body_stmts, &mut body_stmts);
@@ -87,17 +87,18 @@ impl<'a> Compiler<'a> {
         let arity = self.orig_func.params.len();
         self.chapters
             .add_stmt(call_chiika_env_push_frame(self.frame_size()));
-        let mut push_items = vec![arg_ref_cont(arity, self.orig_func.ret_ty.clone())];
-        for i in 0..arity {
+        self.chapters.add_stmt(hir::Expr::env_set(
+            0,
+            arg_ref_cont(arity, self.orig_func.ret_ty.clone()),
+            "$cont",
+        ));
+        for i in 1..arity {
             let param = &self.orig_func.params[i];
-            push_items.push(hir::Expr::arg_ref(
-                i + 1, // +1 for $env
-                param.name.clone(),
-                param.ty.clone(),
+            self.chapters.add_stmt(hir::Expr::env_set(
+                i,
+                hir::Expr::arg_ref(i, &param.name, param.ty.clone()),
+                &param.name,
             ));
-        }
-        for (i, arg) in push_items.into_iter().enumerate() {
-            self.chapters.add_stmt(call_chiika_env_set(i, arg));
         }
     }
 
@@ -136,22 +137,15 @@ impl<'a> Compiler<'a> {
         let new_e = match e.0 {
             hir::Expr::Number(_) => e,
             hir::Expr::PseudoVar(_) => e,
-            hir::Expr::LVarRef(ref varname) => {
-                let i = self.lvar_idx(varname);
-                call_chiika_env_ref(i)
-            }
-            hir::Expr::ArgRef(idx, name) => {
-                if self.chapters.len() == 1 {
-                    let i = if self.orig_func.asyncness.is_async() {
-                        idx + 1
-                    } else {
-                        idx
-                    };
-                    hir::Expr::arg_ref(i, name, e.1)
-                } else {
-                    let i = idx + 1; // +1 for $cont
-                    call_chiika_env_ref(i)
-                }
+            //            hir::Expr::LVarRef(ref varname) => {
+            //                let i = self.lvar_idx(varname);
+            //                hir::Expr::env_ref(i, varname.clone(), e.1.clone())
+            //            }
+            hir::Expr::ArgRef(_, _) => e,
+            hir::Expr::EnvRef(_, _) => e,
+            hir::Expr::EnvSet(idx, rhs, name) => {
+                let v = self.compile_value_expr(*rhs, false)?;
+                hir::Expr::env_set(idx, v, name)
             }
             hir::Expr::FuncRef(_) => e,
             hir::Expr::FunCall(fexpr, arg_exprs) => {
@@ -169,11 +163,11 @@ impl<'a> Compiler<'a> {
                     hir::Expr::fun_call(new_fexpr, new_args)
                 }
             }
-            hir::Expr::Assign(varname, rhs) => {
-                let i = self.lvar_idx(&varname);
-                let v = self.compile_value_expr(*rhs, false)?;
-                call_chiika_env_set(i, v)
-            }
+            //            hir::Expr::Assign(varname, rhs) => {
+            //                let i = self.lvar_idx(&varname);
+            //                let v = self.compile_value_expr(*rhs, false)?;
+            //                hir::Expr::env_set(i, v, varname)
+            //            }
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
@@ -361,16 +355,6 @@ impl<'a> Compiler<'a> {
         Ok(Some(hir::Expr::return_(value_expr)))
     }
 
-    fn lvar_idx(&self, varname: &str) -> usize {
-        let i = self
-            .allocs
-            .iter()
-            .position(|(name, _)| name == varname)
-            .expect("[BUG] lvar not in self.lvars");
-        // +1 for $cont
-        1 + self.orig_func.params.len() + i
-    }
-
     /// Store the value to a temporary variable and return the varref
     fn store_to_tmpvar(&mut self, value: hir::TypedExpr) -> hir::TypedExpr {
         let ty = value.1.clone();
@@ -394,10 +378,9 @@ impl<'a> Compiler<'a> {
     }
 }
 
-// Convert `Fun((X)->Y)` to `Fun((ChiikaEnv, X, Fun((Y,ChiikaEnv)->RustFuture))->RustFuture)`
+// Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((Y,ChiikaEnv)->RustFuture))->RustFuture)`
 fn async_fun_ty(orig_fun_ty: &hir::FunTy) -> hir::FunTy {
     let mut param_tys = orig_fun_ty.param_tys.clone();
-    param_tys.insert(0, hir::Ty::ChiikaEnv);
     param_tys.push(hir::Ty::Fun(hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::ChiikaEnv, *orig_fun_ty.ret_ty.clone()],
@@ -418,8 +401,7 @@ fn modify_async_call(
     let hir::Ty::Fun(fun_ty) = &fexpr.1 else {
         panic!("[BUG] not a function: {:?}", fexpr.0);
     };
-    // Append `$env` and `$cont` (i.e. the next chapter)
-    args.insert(0, arg_ref_env());
+    // Append `$cont` (i.e. the next chapter)
     let next_chapter = {
         let next_chapter_ty = hir::FunTy {
             asyncness: hir::Asyncness::Lowered,
@@ -433,10 +415,9 @@ fn modify_async_call(
     hir::Expr::fun_call(new_fexpr, args)
 }
 
-/// Append params for async libfunc (`$env` and `$cont`)
+/// Append param for async libfunc (i.e. `$cont`)
 fn append_async_params(fun_ty: &hir::FunTy) -> Vec<hir::Ty> {
     let mut new_params = fun_ty.param_tys.to_vec();
-    new_params.insert(0, hir::Ty::ChiikaEnv);
     let cont_ty = hir::FunTy::lowered(
         vec![hir::Ty::ChiikaEnv, *fun_ty.ret_ty.clone()],
         hir::Ty::RustFuture,
@@ -463,7 +444,7 @@ fn arg_ref_cont(arity: usize, arg_ty: hir::Ty) -> hir::TypedExpr {
         param_tys: vec![hir::Ty::ChiikaEnv, arg_ty],
         ret_ty: Box::new(hir::Ty::RustFuture),
     };
-    hir::Expr::arg_ref(arity + 1, "$cont", hir::Ty::Fun(cont_ty))
+    hir::Expr::arg_ref(arity, "$cont", hir::Ty::Fun(cont_ty))
 }
 
 /// Get the `$async_result` which is 1-th param of chapter func
@@ -505,51 +486,6 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::Typ
     hir::Expr::cast(
         cast_type,
         hir::Expr::fun_call(env_pop, vec![arg_ref_env(), n_pop_native]),
-    )
-}
-
-fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
-    let idx_native = hir::Expr::raw_i64(idx as i64);
-    let type_id = hir::Expr::raw_i64(val.1.type_id());
-    let cast_val = {
-        let cast_type = match val.1 {
-            hir::Ty::Void => hir::CastType::VoidToAny,
-            hir::Ty::Int => hir::CastType::IntToAny,
-            hir::Ty::Fun(_) => hir::CastType::FunToAny,
-            _ => panic!("[BUG] don't know how to cast {:?} to Any", val),
-        };
-        hir::Expr::cast(cast_type, val)
-    };
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Lowered,
-        param_tys: vec![
-            hir::Ty::ChiikaEnv,
-            hir::Ty::Int64,
-            hir::Ty::Any,
-            hir::Ty::Int64,
-        ],
-        ret_ty: Box::new(hir::Ty::Void),
-    };
-    let fname = FunctionName::mangled("chiika_env_set");
-    hir::Expr::fun_call(
-        hir::Expr::func_ref(fname, fun_ty),
-        vec![arg_ref_env(), idx_native, cast_val, type_id],
-    )
-}
-
-fn call_chiika_env_ref(idx: usize) -> hir::TypedExpr {
-    let idx_native = hir::Expr::raw_i64(idx as i64);
-    let type_id = hir::Expr::raw_i64(hir::Ty::Int.type_id());
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Lowered,
-        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64, hir::Ty::Int64],
-        // Milika lvars are all int
-        ret_ty: Box::new(hir::Ty::Int),
-    };
-    let fname = FunctionName::mangled("chiika_env_ref");
-    hir::Expr::fun_call(
-        hir::Expr::func_ref(fname, fun_ty),
-        vec![arg_ref_env(), idx_native, type_id],
     )
 }
 
@@ -630,7 +566,6 @@ impl Chapter {
         if f.asyncness.is_async() {
             let async_result_ty = f.ret_ty.clone();
             let mut params = f.params.clone();
-            params.insert(0, hir::Param::new(hir::Ty::ChiikaEnv, "$env"));
             params.push(hir::Param::new(
                 hir::Ty::Fun(hir::FunTy {
                     asyncness: hir::Asyncness::Lowered,

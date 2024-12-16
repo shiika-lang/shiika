@@ -211,10 +211,10 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
-        Expr::ArgRef(idx, name) => format!("{}'{}", name, idx),
-        Expr::EnvRef(idx, name) => format!("{}&{}", name, idx),
+        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
+        Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
-            format!("{}&{} = {}", name, idx, pretty_print(&e.0, lv, false))
+            format!("{}%{} = {}", name, idx, pretty_print(&e.0, lv, false))
         }
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {

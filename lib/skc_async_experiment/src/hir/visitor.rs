@@ -25,6 +25,10 @@ pub trait HirVisitor {
             hir::Expr::PseudoVar(_) => {}
             hir::Expr::LVarRef(_) => {}
             hir::Expr::ArgRef(_, _) => {}
+            hir::Expr::EnvRef(_, _) => {}
+            hir::Expr::EnvSet(_, value_expr, _) => {
+                self.walk_expr(value_expr)?;
+            }
             hir::Expr::FuncRef(_) => {}
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.walk_expr(fexpr)?;
@@ -69,10 +73,10 @@ pub trait HirVisitor {
 pub struct Allocs(Vec<(String, hir::Ty)>);
 impl Allocs {
     /// Collects `alloc`ed variable names and their types.
-    pub fn collect(body_stmts: &hir::TypedExpr) -> Result<Vec<(String, hir::Ty)>> {
+    pub fn collect(body_stmts: &hir::TypedExpr) -> Vec<(String, hir::Ty)> {
         let mut a = Allocs(vec![]);
-        a.walk_expr(body_stmts)?;
-        Ok(a.0)
+        a.walk_expr(body_stmts).unwrap();
+        a.0
     }
 }
 impl HirVisitor for Allocs {

@@ -42,7 +42,12 @@ pub fn run(hir: hir::Program) -> hir::Program {
 }
 
 fn compile_func(orig_func: hir::Function) -> hir::Function {
-    let new_body_stmts = Update::run(orig_func.body_stmts);
+    let allocs = hir::visitor::Allocs::collect(&orig_func.body_stmts);
+    let new_body_stmts = Update {
+        orig_arity: orig_func.params.len(),
+        allocs,
+    }
+    .run(orig_func.body_stmts);
     let new_params = if orig_func.asyncness.is_async() {
         insert_env_to_params(orig_func.params)
     } else {
@@ -58,16 +63,38 @@ fn compile_func(orig_func: hir::Function) -> hir::Function {
     }
 }
 
-struct Update();
+struct Update {
+    orig_arity: usize,
+    allocs: Vec<(String, hir::Ty)>,
+}
 impl Update {
-    fn run(expr: hir::TypedExpr) -> hir::TypedExpr {
-        Update().walk_expr(expr).unwrap()
+    fn run(&mut self, expr: hir::TypedExpr) -> hir::TypedExpr {
+        self.walk_expr(expr).unwrap()
+    }
+
+    /// Returns the position of the lvar in $env
+    fn lvar_idx(&self, varname: &str) -> usize {
+        let i = self
+            .allocs
+            .iter()
+            .position(|(name, _)| name == varname)
+            .expect("[BUG] lvar not in self.lvars");
+        // +1 for $cont
+        1 + self.orig_arity + i
     }
 }
 impl HirRewriter for Update {
     fn rewrite_expr(&mut self, texpr: hir::TypedExpr) -> Result<hir::TypedExpr> {
         let mut new_texpr = match texpr.0 {
+            hir::Expr::LVarRef(ref varname) => {
+                let i = self.lvar_idx(varname);
+                hir::Expr::env_ref(i, varname, texpr.1.clone())
+            }
             hir::Expr::ArgRef(idx, name) => hir::Expr::env_ref(idx + 1, name, texpr.1),
+            hir::Expr::Assign(varname, rhs) => {
+                let i = self.lvar_idx(&varname);
+                hir::Expr::env_set(i, *rhs, varname)
+            }
             hir::Expr::FunCall(fexpr, mut args) => {
                 if fexpr.1.is_async_fun() == Some(true) {
                     insert_env_to_args(&mut args);
