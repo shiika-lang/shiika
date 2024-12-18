@@ -1,3 +1,7 @@
+//! - Convert `LVarRef` to `EnvRef` and `Assign` to `EnvSet`.
+//! - Insert `$env` to the beginning of the async function parameters.
+//! - Insert `$env` to the beginning of the async funcall arguments.
+//!
 //! Example
 //! ```
 //! // Before
@@ -54,7 +58,6 @@ fn compile_func(orig_func: hir::Function) -> hir::Function {
         orig_func.params
     };
     hir::Function {
-        generated: orig_func.generated,
         asyncness: orig_func.asyncness,
         name: orig_func.name,
         params: new_params,

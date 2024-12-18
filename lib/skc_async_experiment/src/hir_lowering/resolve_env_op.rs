@@ -13,7 +13,6 @@ pub fn run(hir: hir::Program) -> hir::Program {
 fn compile_func(orig_func: hir::Function) -> hir::Function {
     let new_body_stmts = Update::run(orig_func.body_stmts);
     hir::Function {
-        generated: orig_func.generated,
         asyncness: orig_func.asyncness,
         name: orig_func.name,
         params: orig_func.params,

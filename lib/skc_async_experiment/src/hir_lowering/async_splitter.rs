@@ -155,7 +155,9 @@ impl<'a> Compiler<'a> {
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
-            hir::Expr::While(_cond_expr, _body_exprs) => todo!(),
+            hir::Expr::While(cond_expr, body_exprs) => {
+                return self.compile_while(*cond_expr, *body_exprs);
+            }
             hir::Expr::Spawn(fexpr) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
                 call_chiika_spawn(new_fexpr)
@@ -299,6 +301,56 @@ impl<'a> Compiler<'a> {
         };
         let fname = FunctionName::unmangled(chap_name.to_string());
         hir::Expr::fun_call(hir::Expr::func_ref(fname, chap_fun_ty), args)
+    }
+
+    fn compile_while(
+        &mut self,
+        cond_expr: hir::TypedExpr,
+        body_expr: hir::TypedExpr,
+    ) -> Result<Option<hir::TypedExpr>> {
+        if self.orig_func.asyncness.is_sync() {
+            let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
+            let new_body_expr = self.compile_value_expr(body_expr, false)?;
+            return Ok(Some(hir::Expr::while_(new_cond_expr, new_body_expr)));
+        }
+
+        let func_name = self.chapters.current_name().to_string();
+
+        let beginwhile_chap = Chapter::new_beginwhile_clause(func_name.clone());
+        let jump_to_beginwhile = self.while_jump(&beginwhile_chap.name);
+        let whilebody_chap = Chapter::new_whilebody_clause(func_name.clone());
+        let endwhile_chap = Chapter::new_endwhile_clause(func_name.clone());
+
+        self.chapters.add_stmt(jump_to_beginwhile.clone());
+        // Create beginwhile chapter
+        self.chapters.add(beginwhile_chap);
+        let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
+        self.chapters.add_stmt(hir::Expr::if_(
+            new_cond_expr,
+            self.while_jump(&whilebody_chap.name),
+            self.while_jump(&endwhile_chap.name),
+        ));
+
+        // Create whilebody chapter
+        self.chapters.add(whilebody_chap);
+        self.compile_stmts(hir::expr::into_exprs(body_expr))?;
+        self.chapters.add_stmt(jump_to_beginwhile);
+
+        // Create endwhile chapter
+        self.chapters.add(endwhile_chap);
+        Ok(None)
+    }
+
+    fn while_jump(&self, chap_name: &str) -> hir::TypedExpr {
+        let chap_func_ty = hir::Ty::Fun(hir::FunTy {
+            asyncness: hir::Asyncness::Async,
+            param_tys: vec![hir::Ty::ChiikaEnv],
+            ret_ty: Box::new(hir::Ty::RustFuture),
+        });
+        hir::Expr::return_(hir::Expr::fun_call(
+            hir::Expr::func_ref(FunctionName::unmangled(chap_name), chap_func_ty.into()),
+            vec![hir::Expr::arg_ref(0, "$env", hir::Ty::ChiikaEnv)],
+        ))
     }
 
     fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<Option<hir::TypedExpr>> {
@@ -582,6 +634,30 @@ impl Chapter {
         Self::new(name.to_string(), params, hir::Ty::RustFuture)
     }
 
+    fn new_beginwhile_clause(name: String) -> Chapter {
+        Self::new(
+            format!("{}'w", name),
+            vec![env_param()],
+            hir::Ty::RustFuture,
+        )
+    }
+
+    fn new_whilebody_clause(name: String) -> Chapter {
+        Self::new(
+            format!("{}'h", name),
+            vec![env_param()],
+            hir::Ty::RustFuture,
+        )
+    }
+
+    fn new_endwhile_clause(name: String) -> Chapter {
+        Self::new(
+            format!("{}'q", name),
+            vec![env_param()],
+            hir::Ty::RustFuture,
+        )
+    }
+
     fn new(name: String, params: Vec<hir::Param>, ret_ty: hir::Ty) -> Chapter {
         Chapter {
             stmts: vec![],
@@ -599,4 +675,8 @@ impl Chapter {
     fn add_stmts(&mut self, stmts: Vec<hir::TypedExpr>) {
         self.stmts.extend(stmts);
     }
+}
+
+fn env_param() -> hir::Param {
+    hir::Param::new(hir::Ty::ChiikaEnv, "$env")
 }
