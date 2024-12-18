@@ -103,18 +103,12 @@ impl<'a> Compiler<'a> {
     }
 
     fn _serialize_chapter(&self, chap: Chapter) -> hir::Function {
-        let f = hir::Function {
+        hir::Function {
             asyncness: hir::Asyncness::Lowered,
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: hir::Expr::exprs(chap.stmts),
-        };
-        match chap.chaptype {
-            ChapterType::Original => f,
-            ChapterType::AsyncIfClause => f,
-            ChapterType::AsyncEndIf => f,
-            ChapterType::AsyncCallReceiver => f,
         }
     }
 
@@ -366,7 +360,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-// Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((Y,ChiikaEnv)->RustFuture))->RustFuture)`
+// Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((ChiikaEnv, Y)->RustFuture))->RustFuture)`
 fn async_fun_ty(orig_fun_ty: &hir::FunTy) -> hir::FunTy {
     let mut param_tys = orig_fun_ty.param_tys.clone();
     param_tys.push(hir::Ty::Fun(hir::FunTy {
@@ -540,7 +534,6 @@ impl Chapters {
 
 #[derive(Debug)]
 struct Chapter {
-    chaptype: ChapterType,
     stmts: Vec<hir::TypedExpr>,
     // The resulting type of the async function called with the last stmt
     async_result_ty: Option<hir::Ty>,
@@ -562,30 +555,15 @@ impl Chapter {
                 }),
                 "$cont",
             ));
-            Self::new(
-                ChapterType::Original,
-                f.name.to_string(),
-                params,
-                hir::Ty::RustFuture,
-            )
+            Self::new(f.name.to_string(), params, hir::Ty::RustFuture)
         } else {
-            Self::new(
-                ChapterType::Original,
-                f.name.to_string(),
-                f.params.clone(),
-                f.ret_ty.clone(),
-            )
+            Self::new(f.name.to_string(), f.params.clone(), f.ret_ty.clone())
         }
     }
 
     fn new_async_if_clause(name: String, suffix: &str) -> Chapter {
         let params = vec![hir::Param::new(hir::Ty::ChiikaEnv, "$env")];
-        Self::new(
-            ChapterType::AsyncIfClause,
-            format!("{}'{}", name, suffix),
-            params,
-            hir::Ty::RustFuture,
-        )
+        Self::new(format!("{}'{}", name, suffix), params, hir::Ty::RustFuture)
     }
 
     fn new_async_end_if(name: String, suffix: &str, if_ty: hir::Ty) -> Chapter {
@@ -593,12 +571,7 @@ impl Chapter {
             hir::Param::new(hir::Ty::ChiikaEnv, "$env"),
             hir::Param::new(if_ty, "$ifResult"),
         ];
-        Self::new(
-            ChapterType::AsyncEndIf,
-            format!("{}'{}", name, suffix),
-            params,
-            hir::Ty::RustFuture,
-        )
+        Self::new(format!("{}'{}", name, suffix), params, hir::Ty::RustFuture)
     }
 
     fn new_async_call_receiver(name: FunctionName, async_result_ty: hir::Ty) -> Chapter {
@@ -606,22 +579,11 @@ impl Chapter {
             hir::Param::new(hir::Ty::ChiikaEnv, "$env"),
             hir::Param::new(async_result_ty.clone(), "$async_result"),
         ];
-        Self::new(
-            ChapterType::AsyncCallReceiver,
-            name.to_string(),
-            params,
-            hir::Ty::RustFuture,
-        )
+        Self::new(name.to_string(), params, hir::Ty::RustFuture)
     }
 
-    fn new(
-        chaptype: ChapterType,
-        name: String,
-        params: Vec<hir::Param>,
-        ret_ty: hir::Ty,
-    ) -> Chapter {
+    fn new(name: String, params: Vec<hir::Param>, ret_ty: hir::Ty) -> Chapter {
         Chapter {
-            chaptype,
             stmts: vec![],
             async_result_ty: None,
             name,
@@ -637,12 +599,4 @@ impl Chapter {
     fn add_stmts(&mut self, stmts: Vec<hir::TypedExpr>) {
         self.stmts.extend(stmts);
     }
-}
-
-#[derive(Debug)]
-enum ChapterType {
-    Original,
-    AsyncIfClause,
-    AsyncEndIf,
-    AsyncCallReceiver,
 }
