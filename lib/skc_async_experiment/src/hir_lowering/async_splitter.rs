@@ -206,12 +206,12 @@ impl<'a> Compiler<'a> {
 
     /// Compile a list of expressions which does not contain async calls
     /// into Exprs.
-    fn compile_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
+    fn compile_sync_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
         let exprs = hir::expr::into_exprs(exprs_);
         let mut new_exprs = vec![];
         for expr in exprs {
             let Some(new_expr) = self.compile_expr(expr, false)? else {
-                panic!("got None in compile_exprs (async call?)");
+                panic!("got None in compile_sync_exprs (async call?)");
             };
             new_exprs.push(new_expr);
         }
@@ -227,8 +227,8 @@ impl<'a> Compiler<'a> {
     ) -> Result<Option<hir::TypedExpr>> {
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
         if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_exprs(then_exprs)?;
-            let els = self.compile_exprs(else_exprs_)?;
+            let then = self.compile_sync_exprs(then_exprs)?;
+            let els = self.compile_sync_exprs(else_exprs_)?;
             return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
         }
 
@@ -310,7 +310,7 @@ impl<'a> Compiler<'a> {
     ) -> Result<Option<hir::TypedExpr>> {
         if self.orig_func.asyncness.is_sync() {
             let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
-            let new_body_expr = self.compile_value_expr(body_expr, false)?;
+            let new_body_expr = self.compile_sync_exprs(body_expr)?;
             return Ok(Some(hir::Expr::while_(new_cond_expr, new_body_expr)));
         }
 
