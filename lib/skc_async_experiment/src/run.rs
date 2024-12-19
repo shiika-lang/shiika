@@ -28,7 +28,7 @@ impl Main {
         let txt = std::fs::read_to_string(path)
             .context(format!("failed to read {}", &path.to_string_lossy()))?;
         let src = SourceFile::new(path.to_path_buf(), txt);
-        let mut hir = self.compile(src, false)?;
+        let mut hir = self.compile(src)?;
 
         for (name, fun_ty) in prelude::core_externs() {
             hir.externs.push(hir::Extern { name, fun_ty });
@@ -45,7 +45,7 @@ impl Main {
         Ok(())
     }
 
-    fn compile(&mut self, src: SourceFile, is_prelude: bool) -> Result<hir::Program> {
+    fn compile(&mut self, src: SourceFile) -> Result<hir::Program> {
         let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
         hir.externs = prelude::lib_externs(Path::new("lib/skc_runtime/"))?
@@ -53,35 +53,18 @@ impl Main {
             .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
             .collect();
         hir::typing::run(&mut hir)?;
-        if !is_prelude {
-            self.debug(format!("# -- typing output --\n{hir}\n"), !is_prelude);
-            hir = hir_lowering::asyncness_check::run(hir);
-            self.debug(
-                format!("# -- asyncness_check output --\n{hir}\n"),
-                !is_prelude,
-            );
-            hir = hir_lowering::pass_async_env::run(hir);
-            self.debug(
-                format!("# -- pass_async_env output --\n{hir}\n"),
-                !is_prelude,
-            );
-            hir = hir_lowering::async_splitter::run(hir)?;
-            self.debug(
-                format!("# -- async_splitter output --\n{hir}\n"),
-                !is_prelude,
-            );
-            hir = hir_lowering::resolve_env_op::run(hir);
-        }
+        self.log(format!("# -- typing output --\n{hir}\n"));
+        hir = hir_lowering::asyncness_check::run(hir);
+        self.log(format!("# -- asyncness_check output --\n{hir}\n"));
+        hir = hir_lowering::pass_async_env::run(hir);
+        self.log(format!("# -- pass_async_env output --\n{hir}\n"));
+        hir = hir_lowering::async_splitter::run(hir)?;
+        self.log(format!("# -- async_splitter output --\n{hir}\n"));
+        hir = hir_lowering::resolve_env_op::run(hir);
         Ok(hir)
     }
 
-    fn debug(&mut self, s: String, print: bool) {
-        if print {
-            self.log(&s);
-        }
-    }
-
-    fn log(&mut self, s: &str) {
-        self.log_file.write_all(s.as_bytes()).unwrap();
+    fn log(&mut self, s: impl AsRef<str>) {
+        self.log_file.write_all(s.as_ref().as_bytes()).unwrap();
     }
 }
