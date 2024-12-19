@@ -41,7 +41,17 @@ pub fn run(hir: hir::Program) -> hir::Program {
         externs.push(new_e);
     }
 
-    let funcs = hir.funcs.into_iter().map(|f| compile_func(f)).collect();
+    let funcs = hir
+        .funcs
+        .into_iter()
+        .map(|f| {
+            if f.asyncness.is_async() {
+                compile_func(f)
+            } else {
+                f
+            }
+        })
+        .collect();
     hir::Program::new(externs, funcs)
 }
 

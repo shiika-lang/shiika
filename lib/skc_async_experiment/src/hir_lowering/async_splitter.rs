@@ -44,6 +44,10 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
 
     let mut funcs = vec![];
     for mut f in hir.funcs {
+        if f.asyncness.is_sync() {
+            funcs.push(f);
+            continue;
+        }
         let allocs = hir::visitor::Allocs::collect(&f.body_stmts);
         // Extract body_stmts from f
         let mut body_stmts = hir::Expr::nop();
@@ -204,20 +208,6 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    /// Compile a list of expressions which does not contain async calls
-    /// into Exprs.
-    fn compile_sync_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
-        let exprs = hir::expr::into_exprs(exprs_);
-        let mut new_exprs = vec![];
-        for expr in exprs {
-            let Some(new_expr) = self.compile_expr(expr, false)? else {
-                panic!("got None in compile_sync_exprs (async call?)");
-            };
-            new_exprs.push(new_expr);
-        }
-        Ok(hir::Expr::exprs(new_exprs))
-    }
-
     fn compile_if(
         &mut self,
         if_ty: &hir::Ty,
@@ -226,12 +216,6 @@ impl<'a> Compiler<'a> {
         else_exprs_: hir::TypedExpr,
     ) -> Result<Option<hir::TypedExpr>> {
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
-        if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_sync_exprs(then_exprs)?;
-            let els = self.compile_sync_exprs(else_exprs_)?;
-            return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
-        }
-
         let func_name = self.chapters.current_name().to_string();
 
         let then_chap = Chapter::new_async_if_clause(func_name.clone(), "t");
@@ -308,12 +292,6 @@ impl<'a> Compiler<'a> {
         cond_expr: hir::TypedExpr,
         body_expr: hir::TypedExpr,
     ) -> Result<Option<hir::TypedExpr>> {
-        if self.orig_func.asyncness.is_sync() {
-            let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
-            let new_body_expr = self.compile_sync_exprs(body_expr)?;
-            return Ok(Some(hir::Expr::while_(new_cond_expr, new_body_expr)));
-        }
-
         let func_name = self.chapters.current_name().to_string();
 
         let beginwhile_chap = Chapter::new_beginwhile_clause(func_name.clone());

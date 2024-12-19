@@ -99,13 +99,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             hir::Expr::Number(n) => self.compile_number(*n),
-            hir::Expr::PseudoVar(pvar) => self.compile_pseudo_var(pvar),
+            hir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             hir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             hir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
             hir::Expr::FuncRef(name) => self.compile_funcref(name),
             hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             hir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
-            //            hir::Expr::While(cond, exprs) => self.compile_while(blocks, block, lvars, cond, exprs),
+            hir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             hir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
             hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
@@ -113,11 +113,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             hir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
             hir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             hir::Expr::RawI64(n) => self.compile_raw_i64(*n),
-            //            hir::Expr::Br(expr, block_id) => self.compile_br(blocks, block, lvars, expr, block_id),
-            //            hir::Expr::CondBr(cond, true_block_id, false_block_id) => {
-            //                self.compile_cond_br(blocks, block, lvars, cond, true_block_id, false_block_id)
-            //            }
-            //            hir::Expr::BlockArgRef => self.compile_block_arg_ref(block),
             hir::Expr::Nop => None,
             _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
@@ -150,14 +145,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_pseudo_var(
         &mut self,
         pseudo_var: &hir::PseudoVar,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = match pseudo_var {
-            hir::PseudoVar::True => intrinsics::box_bool(self, true),
-            hir::PseudoVar::False => intrinsics::box_bool(self, false),
-            // TODO: should be instance of Void
-            hir::PseudoVar::Void => intrinsics::box_bool(self, false),
-        };
-        Some(v.into())
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        match pseudo_var {
+            hir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
+            hir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
+            hir::PseudoVar::Void => return self.compile_void(),
+        }
+    }
+
+    fn compile_void(&mut self) -> inkwell::values::BasicValueEnum<'run> {
+        // TODO: should be instance of Void
+        intrinsics::box_bool(self, false).into()
     }
 
     fn compile_lvarref(
@@ -192,6 +190,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(ret.try_as_basic_value().left().unwrap())
     }
 
+    /// Compile a sync if
     fn compile_if(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
@@ -239,6 +238,33 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                 Some(phi_node.as_basic_value())
             }
         }
+    }
+
+    /// Compile a sync while
+    fn compile_while(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        cond_expr: &hir::TypedExpr,
+        body_expr: &hir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let cond_block = self.context.append_basic_block(ctx.function, "WhileCond");
+        let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
+        let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
+
+        // WhileCond:
+        self.builder.build_unconditional_branch(cond_block);
+        self.builder.position_at_end(cond_block);
+        let cond_value = self.compile_value_expr(ctx, cond_expr);
+        self.gen_conditional_branch(cond_value, body_block, end_block);
+
+        // WhileBody:
+        self.builder.position_at_end(body_block);
+        self.compile_expr(ctx, body_expr);
+        self.builder.build_unconditional_branch(cond_block);
+
+        // WhileEnd:
+        self.builder.position_at_end(end_block);
+        Some(self.compile_void())
     }
 
     fn compile_alloc(
