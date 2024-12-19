@@ -95,11 +95,11 @@ impl<'f> Typing<'f> {
                 let if_ty = hir::Expr::if_ty(&then.1, &els.1)?;
                 e.1 = if_ty.clone();
             }
-            //hir::Expr::While(cond, body) => {
-            //    self.compile_expr(lvars, cond)?;
-            //    self.compile_expr(lvars, body)?;
-            //    e.1 = hir::Ty::Void;
-            //}
+            hir::Expr::While(cond, body) => {
+                self.compile_expr(lvars, cond)?;
+                self.compile_expr(lvars, body)?;
+                e.1 = hir::Ty::Void;
+            }
             hir::Expr::Spawn(func) => {
                 self.compile_expr(lvars, func)?;
                 e.1 = hir::Ty::Void;

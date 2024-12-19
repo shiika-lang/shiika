@@ -1,0 +1,13 @@
+class Main
+  def self.chiika_main() -> Int
+    let a = 123
+    var i = 0
+    while i < 3
+      print a + i
+      sleep_sec 0
+      i += 1
+    end
+    print a
+    return 0
+  end
+end

@@ -168,6 +168,7 @@ task :async_integration_test do
     sh "cargo build"
   end
   Dir["tests/new_runtime/*.sk"].each do |path|
+    next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
     sh "cargo run --bin exp_shiika -- #{name}.sk"
     sh "#{name}.out > #{name}.actual_out"

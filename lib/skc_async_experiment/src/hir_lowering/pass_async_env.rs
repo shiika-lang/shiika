@@ -1,3 +1,7 @@
+//! - Convert `LVarRef` to `EnvRef` and `Assign` to `EnvSet`.
+//! - Insert `$env` to the beginning of the async function parameters.
+//! - Insert `$env` to the beginning of the async funcall arguments.
+//!
 //! Example
 //! ```
 //! // Before
@@ -37,7 +41,17 @@ pub fn run(hir: hir::Program) -> hir::Program {
         externs.push(new_e);
     }
 
-    let funcs = hir.funcs.into_iter().map(|f| compile_func(f)).collect();
+    let funcs = hir
+        .funcs
+        .into_iter()
+        .map(|f| {
+            if f.asyncness.is_async() {
+                compile_func(f)
+            } else {
+                f
+            }
+        })
+        .collect();
     hir::Program::new(externs, funcs)
 }
 
@@ -54,7 +68,6 @@ fn compile_func(orig_func: hir::Function) -> hir::Function {
         orig_func.params
     };
     hir::Function {
-        generated: orig_func.generated,
         asyncness: orig_func.asyncness,
         name: orig_func.name,
         params: new_params,

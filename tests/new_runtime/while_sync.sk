@@ -1,0 +1,18 @@
+class Main
+  def self.foo()
+    var i = 1
+    while i < 3
+      var j = 2
+      while j < 4
+        print i * j
+        j += 1
+      end
+      i += 1
+    end
+  end
+  def self.chiika_main() -> Int
+    foo()
+    return 0
+  end
+end
+

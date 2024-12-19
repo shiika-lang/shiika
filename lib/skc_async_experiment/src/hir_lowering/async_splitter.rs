@@ -44,6 +44,10 @@ pub fn run(hir: hir::Program) -> Result<hir::Program> {
 
     let mut funcs = vec![];
     for mut f in hir.funcs {
+        if f.asyncness.is_sync() {
+            funcs.push(f);
+            continue;
+        }
         let allocs = hir::visitor::Allocs::collect(&f.body_stmts);
         // Extract body_stmts from f
         let mut body_stmts = hir::Expr::nop();
@@ -103,19 +107,12 @@ impl<'a> Compiler<'a> {
     }
 
     fn _serialize_chapter(&self, chap: Chapter) -> hir::Function {
-        let f = hir::Function {
-            generated: self.orig_func.generated,
+        hir::Function {
             asyncness: hir::Asyncness::Lowered,
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: hir::Expr::exprs(chap.stmts),
-        };
-        match chap.chaptype {
-            ChapterType::Original => f,
-            ChapterType::AsyncIfClause => f,
-            ChapterType::AsyncEndIf => f,
-            ChapterType::AsyncCallReceiver => f,
         }
     }
 
@@ -162,7 +159,9 @@ impl<'a> Compiler<'a> {
             hir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
-            hir::Expr::While(_cond_expr, _body_exprs) => todo!(),
+            hir::Expr::While(cond_expr, body_exprs) => {
+                return self.compile_while(*cond_expr, *body_exprs);
+            }
             hir::Expr::Spawn(fexpr) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
                 call_chiika_spawn(new_fexpr)
@@ -209,20 +208,6 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    /// Compile a list of expressions which does not contain async calls
-    /// into Exprs.
-    fn compile_exprs(&mut self, exprs_: hir::TypedExpr) -> Result<hir::TypedExpr> {
-        let exprs = hir::expr::into_exprs(exprs_);
-        let mut new_exprs = vec![];
-        for expr in exprs {
-            let Some(new_expr) = self.compile_expr(expr, false)? else {
-                panic!("got None in compile_exprs (async call?)");
-            };
-            new_exprs.push(new_expr);
-        }
-        Ok(hir::Expr::exprs(new_exprs))
-    }
-
     fn compile_if(
         &mut self,
         if_ty: &hir::Ty,
@@ -231,12 +216,6 @@ impl<'a> Compiler<'a> {
         else_exprs_: hir::TypedExpr,
     ) -> Result<Option<hir::TypedExpr>> {
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
-        if self.orig_func.asyncness.is_sync() {
-            let then = self.compile_exprs(then_exprs)?;
-            let els = self.compile_exprs(else_exprs_)?;
-            return Ok(Some(hir::Expr::if_(new_cond_expr, then, els)));
-        }
-
         let func_name = self.chapters.current_name().to_string();
 
         let then_chap = Chapter::new_async_if_clause(func_name.clone(), "t");
@@ -308,6 +287,50 @@ impl<'a> Compiler<'a> {
         hir::Expr::fun_call(hir::Expr::func_ref(fname, chap_fun_ty), args)
     }
 
+    fn compile_while(
+        &mut self,
+        cond_expr: hir::TypedExpr,
+        body_expr: hir::TypedExpr,
+    ) -> Result<Option<hir::TypedExpr>> {
+        let func_name = self.chapters.current_name().to_string();
+
+        let beginwhile_chap = Chapter::new_beginwhile_clause(func_name.clone());
+        let jump_to_beginwhile = self.while_jump(&beginwhile_chap.name);
+        let whilebody_chap = Chapter::new_whilebody_clause(func_name.clone());
+        let endwhile_chap = Chapter::new_endwhile_clause(func_name.clone());
+
+        self.chapters.add_stmt(jump_to_beginwhile.clone());
+        // Create beginwhile chapter
+        self.chapters.add(beginwhile_chap);
+        let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
+        self.chapters.add_stmt(hir::Expr::if_(
+            new_cond_expr,
+            self.while_jump(&whilebody_chap.name),
+            self.while_jump(&endwhile_chap.name),
+        ));
+
+        // Create whilebody chapter
+        self.chapters.add(whilebody_chap);
+        self.compile_stmts(hir::expr::into_exprs(body_expr))?;
+        self.chapters.add_stmt(jump_to_beginwhile);
+
+        // Create endwhile chapter
+        self.chapters.add(endwhile_chap);
+        Ok(None)
+    }
+
+    fn while_jump(&self, chap_name: &str) -> hir::TypedExpr {
+        let chap_func_ty = hir::Ty::Fun(hir::FunTy {
+            asyncness: hir::Asyncness::Async,
+            param_tys: vec![hir::Ty::ChiikaEnv],
+            ret_ty: Box::new(hir::Ty::RustFuture),
+        });
+        hir::Expr::return_(hir::Expr::fun_call(
+            hir::Expr::func_ref(FunctionName::unmangled(chap_name), chap_func_ty.into()),
+            vec![hir::Expr::arg_ref(0, "$env", hir::Ty::ChiikaEnv)],
+        ))
+    }
+
     fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<Option<hir::TypedExpr>> {
         // `return return 1` == `return 1`
         if expr.1 == hir::Ty::Never {
@@ -367,7 +390,7 @@ impl<'a> Compiler<'a> {
     }
 }
 
-// Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((Y,ChiikaEnv)->RustFuture))->RustFuture)`
+// Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((ChiikaEnv, Y)->RustFuture))->RustFuture)`
 fn async_fun_ty(orig_fun_ty: &hir::FunTy) -> hir::FunTy {
     let mut param_tys = orig_fun_ty.param_tys.clone();
     param_tys.push(hir::Ty::Fun(hir::FunTy {
@@ -541,7 +564,6 @@ impl Chapters {
 
 #[derive(Debug)]
 struct Chapter {
-    chaptype: ChapterType,
     stmts: Vec<hir::TypedExpr>,
     // The resulting type of the async function called with the last stmt
     async_result_ty: Option<hir::Ty>,
@@ -563,30 +585,15 @@ impl Chapter {
                 }),
                 "$cont",
             ));
-            Self::new(
-                ChapterType::Original,
-                f.name.to_string(),
-                params,
-                hir::Ty::RustFuture,
-            )
+            Self::new(f.name.to_string(), params, hir::Ty::RustFuture)
         } else {
-            Self::new(
-                ChapterType::Original,
-                f.name.to_string(),
-                f.params.clone(),
-                f.ret_ty.clone(),
-            )
+            Self::new(f.name.to_string(), f.params.clone(), f.ret_ty.clone())
         }
     }
 
     fn new_async_if_clause(name: String, suffix: &str) -> Chapter {
         let params = vec![hir::Param::new(hir::Ty::ChiikaEnv, "$env")];
-        Self::new(
-            ChapterType::AsyncIfClause,
-            format!("{}'{}", name, suffix),
-            params,
-            hir::Ty::RustFuture,
-        )
+        Self::new(format!("{}'{}", name, suffix), params, hir::Ty::RustFuture)
     }
 
     fn new_async_end_if(name: String, suffix: &str, if_ty: hir::Ty) -> Chapter {
@@ -594,12 +601,7 @@ impl Chapter {
             hir::Param::new(hir::Ty::ChiikaEnv, "$env"),
             hir::Param::new(if_ty, "$ifResult"),
         ];
-        Self::new(
-            ChapterType::AsyncEndIf,
-            format!("{}'{}", name, suffix),
-            params,
-            hir::Ty::RustFuture,
-        )
+        Self::new(format!("{}'{}", name, suffix), params, hir::Ty::RustFuture)
     }
 
     fn new_async_call_receiver(name: FunctionName, async_result_ty: hir::Ty) -> Chapter {
@@ -607,22 +609,35 @@ impl Chapter {
             hir::Param::new(hir::Ty::ChiikaEnv, "$env"),
             hir::Param::new(async_result_ty.clone(), "$async_result"),
         ];
+        Self::new(name.to_string(), params, hir::Ty::RustFuture)
+    }
+
+    fn new_beginwhile_clause(name: String) -> Chapter {
         Self::new(
-            ChapterType::AsyncCallReceiver,
-            name.to_string(),
-            params,
+            format!("{}'w", name),
+            vec![env_param()],
             hir::Ty::RustFuture,
         )
     }
 
-    fn new(
-        chaptype: ChapterType,
-        name: String,
-        params: Vec<hir::Param>,
-        ret_ty: hir::Ty,
-    ) -> Chapter {
+    fn new_whilebody_clause(name: String) -> Chapter {
+        Self::new(
+            format!("{}'h", name),
+            vec![env_param()],
+            hir::Ty::RustFuture,
+        )
+    }
+
+    fn new_endwhile_clause(name: String) -> Chapter {
+        Self::new(
+            format!("{}'q", name),
+            vec![env_param()],
+            hir::Ty::RustFuture,
+        )
+    }
+
+    fn new(name: String, params: Vec<hir::Param>, ret_ty: hir::Ty) -> Chapter {
         Chapter {
-            chaptype,
             stmts: vec![],
             async_result_ty: None,
             name,
@@ -640,10 +655,6 @@ impl Chapter {
     }
 }
 
-#[derive(Debug)]
-enum ChapterType {
-    Original,
-    AsyncIfClause,
-    AsyncEndIf,
-    AsyncCallReceiver,
+fn env_param() -> hir::Param {
+    hir::Param::new(hir::Ty::ChiikaEnv, "$env")
 }

@@ -83,7 +83,6 @@ impl Compiler {
         insert_implicit_return(&mut body_stmts);
 
         Ok(hir::Function {
-            generated: false,
             asyncness: hir::Asyncness::Unknown,
             name: FunctionName::unmangled(sig.name.to_string()),
             params,
@@ -164,14 +163,14 @@ impl Compiler {
                 };
                 hir::Expr::If(Box::new(cond), Box::new(then), Box::new(els))
             }
-            //shiika_ast::AstExpressionBody::While {
-            //    cond_expr,
-            //    body_exprs,
-            //} => {
-            //    let cond = self.compile_expr(sig, lvars, &cond_expr)?;
-            //    let body = self.compile_exprs(sig, lvars, &body_exprs)?;
-            //    hir::Expr::While(Box::new(cond), body)
-            //}
+            shiika_ast::AstExpressionBody::While {
+                cond_expr,
+                body_exprs,
+            } => {
+                let cond = self.compile_expr(sig, lvars, &cond_expr)?;
+                let body = self.compile_exprs(sig, lvars, &body_exprs)?;
+                hir::Expr::While(Box::new(cond), Box::new(body))
+            }
             //shiika_ast::AstExpressionBody::Spawn(func) => {
             //    let func = self.compile_expr(sig, lvars, func)?;
             //    hir::Expr::Spawn(Box::new(func))

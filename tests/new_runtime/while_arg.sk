@@ -1,0 +1,15 @@
+class Main
+  def self.foo(x: Int)
+    var i = 0
+    while i < 3
+      print x + i
+      sleep_sec 0
+      i += 1
+    end
+    print x
+  end
+  def self.chiika_main() -> Int
+    foo(7)
+    return 0
+  end
+end

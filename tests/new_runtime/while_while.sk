@@ -1,0 +1,15 @@
+class Main
+  def self.chiika_main() -> Int
+    var i = 1
+    while i < 3
+      var j = 2
+      while j < 4
+        print i * j
+        sleep_sec 0
+        j += 1
+      end
+      i += 1
+    end
+    return 0
+  end
+end
