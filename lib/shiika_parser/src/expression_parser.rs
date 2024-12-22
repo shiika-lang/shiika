@@ -478,18 +478,25 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    // TODO: Parse ~, +
+    // TODO: Parse ~
     fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unary_expr");
         let begin = self.lexer.location();
-        let expr = if self.consume(Token::KwNot)? {
-            self.skip_ws()?;
-            let target = self.parse_secondary_expr()?;
-            let end = self.lexer.location();
-            self.ast.logical_not(target, begin, end)
-        } else {
-            self.parse_secondary_expr()?
+        let expr = match self.next_nonspace_token()? {
+            Token::KwNot => {
+                self.consume_token()?;
+                self.skip_ws()?;
+                let target = self.parse_secondary_expr()?;
+                let end = self.lexer.location();
+                self.ast.logical_not(target, begin, end)
+            }
+            Token::UnaryPlus => {
+                // This indicates a unary plus so we just skip it
+                self.consume_token()?;
+                self.parse_secondary_expr()?
+            }
+            _ => self.parse_secondary_expr()?,
         };
         self.lv -= 1;
         Ok(expr)
