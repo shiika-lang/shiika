@@ -17,6 +17,10 @@ pub fn method_firstname(s: impl Into<String>) -> MethodFirstname {
 }
 
 impl MethodFirstname {
+    pub fn new(s: impl Into<String>) -> MethodFirstname {
+        MethodFirstname(s.into())
+    }
+
     pub fn append(&self, suffix: &str) -> MethodFirstname {
         MethodFirstname(self.0.clone() + suffix)
     }

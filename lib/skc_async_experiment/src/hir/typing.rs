@@ -85,6 +85,23 @@ impl<'f> Typing<'f> {
                 }
                 e.1 = *fun_ty.ret_ty.clone();
             }
+            hir::Expr::MethodCall(receiver_expr, method_name, arg_exprs) => {
+                self.compile_expr(lvars, &mut *receiver_expr)?;
+                let receiver_ty = &receiver_expr.1;
+                let method_ty = hir::Ty::method_ty(receiver_ty, method_name)?;
+                if method_ty.param_tys.len() != arg_exprs.len() {
+                    return Err(anyhow!(
+                        "methodcall arity mismatch (expected {}, got {}): {:?}",
+                        method_ty.param_tys.len(),
+                        arg_exprs.len(),
+                        e
+                    ));
+                }
+                for e in arg_exprs {
+                    self.compile_expr(lvars, e)?;
+                }
+                e.1 = *method_ty.ret_ty.clone();
+            }
             hir::Expr::If(cond, then, els) => {
                 self.compile_expr(lvars, &mut *cond)?;
                 if cond.1 != hir::Ty::Bool {

@@ -2,6 +2,7 @@ use crate::hir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
+use shiika_core::names::MethodFirstname;
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
@@ -136,16 +137,23 @@ impl Compiler {
                         )
                     }
                     _ => {
-                        if mcall.receiver_expr.is_some() {
-                            return Err(anyhow!("[wip] receiver_expr must be None now"));
-                        }
-                        let fname = FunctionName::unmangled(method_name.clone());
-                        let fexpr = (hir::Expr::FuncRef(fname), hir::Ty::Unknown);
                         let mut arg_hirs = vec![];
                         for a in &mcall.args.unnamed {
                             arg_hirs.push(self.compile_expr(sig, lvars, a)?);
                         }
-                        hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
+                        if let Some(e) = &mcall.receiver_expr {
+                            let receiver = self.compile_expr(sig, lvars, e)?;
+
+                            hir::Expr::MethodCall(
+                                Box::new(receiver),
+                                MethodFirstname::new(method_name),
+                                arg_hirs,
+                            )
+                        } else {
+                            let fname = FunctionName::unmangled(method_name.clone());
+                            let fexpr = (hir::Expr::FuncRef(fname), hir::Ty::Unknown);
+                            hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
+                        }
                     }
                 }
             }

@@ -1,6 +1,7 @@
 use crate::hir::FunctionName;
 use crate::hir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
+use shiika_core::names::MethodFirstname;
 
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
@@ -15,6 +16,7 @@ pub enum Expr {
     EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
+    MethodCall(Box<Typed<Expr>>, MethodFirstname, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
@@ -227,6 +229,16 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 panic!("[BUG] not a function: {:?}", func);
             };
             format!("{}{}(", func.0.pretty_print(0, false), fun_ty.asyncness)
+                + args
+                    .iter()
+                    .map(|arg| arg.0.pretty_print(0, false))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+                    .as_str()
+                + ")"
+        }
+        Expr::MethodCall(receiver, method_name, args) => {
+            format!("{}.{}(", receiver.0.pretty_print(0, false), method_name.0)
                 + args
                     .iter()
                     .map(|arg| arg.0.pretty_print(0, false))

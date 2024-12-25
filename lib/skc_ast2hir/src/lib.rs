@@ -9,7 +9,7 @@ mod method_dict;
 mod pattern_match;
 mod type_inference;
 mod type_system;
-use crate::class_dict::type_index;
+pub use crate::class_dict::type_index;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
 use shiika_core::ty;
