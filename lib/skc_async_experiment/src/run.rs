@@ -1,4 +1,4 @@
-use crate::{codegen, hir, hir_lowering, linker, prelude};
+use crate::{codegen, hir, linker, mir_lowering, prelude};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
 use std::io::Write;
@@ -54,13 +54,13 @@ impl Main {
             .collect();
         hir::typing::run(&mut hir)?;
         self.log(format!("# -- typing output --\n{hir}\n"));
-        hir = hir_lowering::asyncness_check::run(hir);
+        hir = mir_lowering::asyncness_check::run(hir);
         self.log(format!("# -- asyncness_check output --\n{hir}\n"));
-        hir = hir_lowering::pass_async_env::run(hir);
+        hir = mir_lowering::pass_async_env::run(hir);
         self.log(format!("# -- pass_async_env output --\n{hir}\n"));
-        hir = hir_lowering::async_splitter::run(hir)?;
+        hir = mir_lowering::async_splitter::run(hir)?;
         self.log(format!("# -- async_splitter output --\n{hir}\n"));
-        hir = hir_lowering::resolve_env_op::run(hir);
+        hir = mir_lowering::resolve_env_op::run(hir);
         Ok(hir)
     }
 

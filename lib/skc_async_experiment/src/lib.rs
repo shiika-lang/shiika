@@ -1,7 +1,7 @@
 mod codegen;
 pub mod hir;
-pub mod hir_lowering;
 mod linker;
+pub mod mir_lowering;
 mod names;
 pub mod prelude;
 pub mod run;
