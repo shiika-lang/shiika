@@ -478,7 +478,6 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    // TODO: Parse ~
     fn parse_unary_expr(&mut self) -> Result<AstExpression, Error> {
         self.lv += 1;
         self.debug_log("parse_unary_expr");
