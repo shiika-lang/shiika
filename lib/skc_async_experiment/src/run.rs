@@ -1,4 +1,4 @@
-use crate::{codegen, hir, hir_lowering, linker, prelude};
+use crate::{codegen, hir, hir_to_mir, linker, mir, mir_lowering, prelude};
 use anyhow::{bail, Context, Result};
 use shiika_parser::{Parser, SourceFile};
 use std::io::Write;
@@ -28,24 +28,24 @@ impl Main {
         let txt = std::fs::read_to_string(path)
             .context(format!("failed to read {}", &path.to_string_lossy()))?;
         let src = SourceFile::new(path.to_path_buf(), txt);
-        let mut hir = self.compile(src)?;
+        let mut mir = self.compile(src)?;
 
         for (name, fun_ty) in prelude::core_externs() {
-            hir.externs.push(hir::Extern { name, fun_ty });
+            mir.externs.push(mir::Extern { name, fun_ty });
         }
-        hir.funcs.append(&mut prelude::funcs());
+        mir.funcs.append(&mut prelude::funcs());
 
-        self.log(&format!("# -- verifier input --\n{hir}\n"));
-        hir::verifier::run(&hir)?;
+        self.log(&format!("# -- verifier input --\n{mir}\n"));
+        mir::verifier::run(&mir)?;
 
         let bc_path = path.with_extension("bc");
         let ll_path = path.with_extension("ll");
-        codegen::run(&bc_path, Some(&ll_path), hir)?;
+        codegen::run(&bc_path, Some(&ll_path), mir)?;
         linker::run(bc_path)?;
         Ok(())
     }
 
-    fn compile(&mut self, src: SourceFile) -> Result<hir::Program> {
+    fn compile(&mut self, src: SourceFile) -> Result<mir::Program> {
         let ast = Parser::parse_files(&[src])?;
         let mut hir = hir::untyped::create(&ast)?;
         hir.externs = prelude::lib_externs(Path::new("lib/skc_runtime/"))?
@@ -54,14 +54,15 @@ impl Main {
             .collect();
         hir::typing::run(&mut hir)?;
         self.log(format!("# -- typing output --\n{hir}\n"));
-        hir = hir_lowering::asyncness_check::run(hir);
-        self.log(format!("# -- asyncness_check output --\n{hir}\n"));
-        hir = hir_lowering::pass_async_env::run(hir);
-        self.log(format!("# -- pass_async_env output --\n{hir}\n"));
-        hir = hir_lowering::async_splitter::run(hir)?;
-        self.log(format!("# -- async_splitter output --\n{hir}\n"));
-        hir = hir_lowering::resolve_env_op::run(hir);
-        Ok(hir)
+        let mut mir = hir_to_mir::run(hir);
+        mir = mir_lowering::asyncness_check::run(mir);
+        self.log(format!("# -- asyncness_check output --\n{mir}\n"));
+        mir = mir_lowering::pass_async_env::run(mir);
+        self.log(format!("# -- pass_async_env output --\n{mir}\n"));
+        mir = mir_lowering::async_splitter::run(mir)?;
+        self.log(format!("# -- async_splitter output --\n{mir}\n"));
+        mir = mir_lowering::resolve_env_op::run(mir);
+        Ok(mir)
     }
 
     fn log(&mut self, s: impl AsRef<str>) {

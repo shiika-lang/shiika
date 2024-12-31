@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -48,10 +49,10 @@ impl<'f> Typing<'f> {
         e: &mut hir::TypedExpr,
     ) -> Result<()> {
         match &mut e.0 {
-            hir::Expr::Number(_) => e.1 = hir::Ty::Int,
-            hir::Expr::PseudoVar(hir::PseudoVar::True) => e.1 = hir::Ty::Bool,
-            hir::Expr::PseudoVar(hir::PseudoVar::False) => e.1 = hir::Ty::Bool,
-            hir::Expr::PseudoVar(hir::PseudoVar::Void) => e.1 = hir::Ty::Void,
+            hir::Expr::Number(_) => e.1 = hir::Ty::raw("Int"),
+            hir::Expr::PseudoVar(mir::PseudoVar::True) => e.1 = hir::Ty::raw("Bool"),
+            hir::Expr::PseudoVar(mir::PseudoVar::False) => e.1 = hir::Ty::raw("Bool"),
+            hir::Expr::PseudoVar(mir::PseudoVar::Void) => e.1 = hir::Ty::raw("Void"),
             hir::Expr::LVarRef(name) => {
                 if let Some(ty) = lvars.get(name) {
                     e.1 = ty.clone();
@@ -87,7 +88,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::If(cond, then, els) => {
                 self.compile_expr(lvars, &mut *cond)?;
-                if cond.1 != hir::Ty::Bool {
+                if cond.1 != hir::Ty::raw("Bool") {
                     return Err(anyhow!("condition should be bool but got {:?}", cond.1));
                 }
                 self.compile_expr(lvars, then)?;
@@ -98,20 +99,20 @@ impl<'f> Typing<'f> {
             hir::Expr::While(cond, body) => {
                 self.compile_expr(lvars, cond)?;
                 self.compile_expr(lvars, body)?;
-                e.1 = hir::Ty::Void;
+                e.1 = hir::Ty::raw("Void");
             }
             hir::Expr::Spawn(func) => {
                 self.compile_expr(lvars, func)?;
-                e.1 = hir::Ty::Void;
+                e.1 = hir::Ty::raw("Void");
             }
             hir::Expr::Alloc(name) => {
                 // Milika vars are always Int now
-                lvars.insert(name.clone(), hir::Ty::Int);
-                e.1 = hir::Ty::Void;
+                lvars.insert(name.clone(), hir::Ty::raw("Int"));
+                e.1 = hir::Ty::raw("Void");
             }
             hir::Expr::Assign(_, val) => {
                 self.compile_expr(lvars, val)?;
-                e.1 = hir::Ty::Void;
+                e.1 = hir::Ty::raw("Void");
             }
             hir::Expr::Return(val) => {
                 self.compile_expr(lvars, val)?;
@@ -123,25 +124,21 @@ impl<'f> Typing<'f> {
                         val.1
                     ));
                 }
-                e.1 = hir::Ty::Never;
+                e.1 = hir::Ty::raw("Never");
             }
             hir::Expr::Exprs(exprs) => {
                 for e in exprs.iter_mut() {
                     self.compile_expr(lvars, e)?;
                 }
                 e.1 = exprs.last().unwrap().1.clone();
-            }
-            hir::Expr::Cast(_, _) => {
-                return Err(anyhow!("[BUG] Cast unexpected here"));
-            }
-            _ => panic!("must not occur in hir::typing: {:?}", e.0),
+            } //_ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
         Ok(())
     }
 }
 
 fn valid_return_type(expected: &hir::Ty, actual: &hir::Ty) -> bool {
-    if actual == &hir::Ty::Never {
+    if actual == &hir::Ty::raw("Never") {
         true
     } else {
         expected == actual

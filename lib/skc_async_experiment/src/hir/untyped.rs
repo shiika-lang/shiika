@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
@@ -69,7 +70,7 @@ impl Compiler {
         }
         let ret_ty = match &sig.ret_typ {
             Some(t) => compile_ty(&t)?,
-            None => hir::Ty::Void,
+            None => hir::Ty::raw("Void"),
         };
 
         let mut lvars = HashSet::new();
@@ -100,8 +101,8 @@ impl Compiler {
         let e = match &x.body {
             shiika_ast::AstExpressionBody::DecimalLiteral { value } => hir::Expr::Number(*value),
             shiika_ast::AstExpressionBody::PseudoVariable(token) => match token {
-                shiika_ast::Token::KwTrue => hir::Expr::PseudoVar(hir::PseudoVar::True),
-                shiika_ast::Token::KwFalse => hir::Expr::PseudoVar(hir::PseudoVar::False),
+                shiika_ast::Token::KwTrue => hir::Expr::PseudoVar(mir::PseudoVar::True),
+                shiika_ast::Token::KwFalse => hir::Expr::PseudoVar(mir::PseudoVar::False),
                 _ => panic!("unexpected token: {:?}", token),
             },
             shiika_ast::AstExpressionBody::BareName(name) => {
@@ -112,11 +113,11 @@ impl Compiler {
                 } else if self.func_names.contains(name) {
                     hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
                 } else if name == "true" {
-                    hir::Expr::PseudoVar(hir::PseudoVar::True)
+                    hir::Expr::PseudoVar(mir::PseudoVar::True)
                 } else if name == "false" {
-                    hir::Expr::PseudoVar(hir::PseudoVar::False)
+                    hir::Expr::PseudoVar(mir::PseudoVar::False)
                 } else if name == "null" {
-                    hir::Expr::PseudoVar(hir::PseudoVar::Void)
+                    hir::Expr::PseudoVar(mir::PseudoVar::Void)
                 } else {
                     return Err(anyhow!("unknown variable: {name}"));
                 }
@@ -159,7 +160,7 @@ impl Compiler {
                 let els = if let Some(else_) = else_exprs {
                     self.compile_exprs(sig, lvars, else_)?
                 } else {
-                    hir::Expr::pseudo_var(hir::PseudoVar::Void)
+                    hir::Expr::pseudo_var(mir::PseudoVar::Void)
                 };
                 hir::Expr::If(Box::new(cond), Box::new(then), Box::new(els))
             }
@@ -191,7 +192,7 @@ impl Compiler {
                 let e = if let Some(v) = arg {
                     self.compile_expr(sig, lvars, v)?
                 } else {
-                    hir::Expr::pseudo_var(hir::PseudoVar::Void)
+                    hir::Expr::pseudo_var(mir::PseudoVar::Void)
                 };
                 hir::Expr::Return(Box::new(e))
             }
@@ -213,11 +214,11 @@ impl Compiler {
         } else if self.func_names.contains(name) {
             hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
         } else if name == "true" {
-            hir::Expr::PseudoVar(hir::PseudoVar::True)
+            hir::Expr::PseudoVar(mir::PseudoVar::True)
         } else if name == "false" {
-            hir::Expr::PseudoVar(hir::PseudoVar::False)
+            hir::Expr::PseudoVar(mir::PseudoVar::False)
         } else if name == "null" {
-            hir::Expr::PseudoVar(hir::PseudoVar::Void)
+            hir::Expr::PseudoVar(mir::PseudoVar::Void)
         } else {
             return Err(anyhow!("unknown variable: {name}"));
         };
@@ -242,15 +243,7 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
     let t = if n.args.len() == 0 {
         let s = n.names.join("::");
         match &s[..] {
-            "Void" => hir::Ty::Void,
-            "Int" => hir::Ty::Int,
-            "Bool" => hir::Ty::Bool,
-            // Internally used types (in src/prelude.rs)
-            "Shiika::Internal::Int64" => hir::Ty::Int64,
-            "ANY" => hir::Ty::Any,
-            "ENV" => hir::Ty::ChiikaEnv,
-            "FUTURE" => hir::Ty::RustFuture,
-            _ => return Err(anyhow!("unknown type: {s}")),
+            _ => hir::Ty::raw(s),
         }
     } else {
         hir::Ty::Fun(compile_fun_ty(&n.args)?)
@@ -278,7 +271,7 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
     }
     let ret_ty = match &sig.ret_typ {
         Some(t) => compile_ty(t).unwrap(),
-        None => hir::Ty::Void,
+        None => hir::Ty::raw("Void"),
     };
     hir::FunTy {
         asyncness: hir::Asyncness::Unknown,
@@ -303,7 +296,7 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
         None => {
             // Insert `return Void` for empty method
             exprs.push(hir::Expr::return_(hir::Expr::pseudo_var(
-                hir::PseudoVar::Void,
+                mir::PseudoVar::Void,
             )));
         }
     }
