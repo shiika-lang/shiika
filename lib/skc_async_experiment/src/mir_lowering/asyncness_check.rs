@@ -1,6 +1,6 @@
-use crate::hir;
-use crate::hir::rewriter::HirRewriter;
-use crate::hir::visitor::HirVisitor;
+use crate::mir;
+use crate::mir::rewriter::MirRewriter;
+use crate::mir::visitor::MirVisitor;
 use crate::names::FunctionName;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -9,27 +9,27 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// This judgement is conservative because it is (possible, but) hard to
 /// tell if a function is async or not when we support first-class functions.
 /// It is safe to be false-positive (performance penalty aside).
-pub fn run(mut hir: hir::Program) -> hir::Program {
+pub fn run(mut mir: mir::Program) -> mir::Program {
     // Externs are known to be async or not
     let mut known = HashMap::new();
-    for e in &hir.externs {
+    for e in &mir.externs {
         known.insert(e.name.clone(), e.is_async());
     }
-    for f in &mut hir.funcs {
+    for f in &mut mir.funcs {
         if f.name == FunctionName::unmangled("chiika_main") {
-            f.asyncness = hir::Asyncness::Async;
+            f.asyncness = mir::Asyncness::Async;
         }
         match f.asyncness {
-            hir::Asyncness::Async => {
+            mir::Asyncness::Async => {
                 known.insert(f.name.clone(), true);
             }
-            hir::Asyncness::Sync => {
+            mir::Asyncness::Sync => {
                 known.insert(f.name.clone(), false);
             }
             _ => {}
         }
     }
-    let funcs: HashMap<_, _> = hir.funcs.iter().map(|f| (f.name.clone(), f)).collect();
+    let funcs: HashMap<_, _> = mir.funcs.iter().map(|f| (f.name.clone(), f)).collect();
 
     let mut q = VecDeque::from(funcs.values().map(|f| f.name.clone()).collect::<Vec<_>>());
     let mut unresolved_deps = HashMap::new();
@@ -52,22 +52,22 @@ pub fn run(mut hir: hir::Program) -> hir::Program {
 
     // Apply the result
     let mut u = Update { known: &known };
-    u.set_func_asyncness(&mut hir);
-    let new_hir = u.walk_hir(hir).unwrap();
+    u.set_func_asyncness(&mut mir);
+    let new_mir = u.walk_mir(mir).unwrap();
 
     // Consistency check
-    for f in &new_hir.funcs {
+    for f in &new_mir.funcs {
         let mut a = Assert::new();
         debug_assert!(a.check_func(f));
     }
 
-    new_hir
+    new_mir
 }
 
 /// Check if a function is async or not.
 struct Check<'a> {
     is_async: bool,
-    funcs: &'a HashMap<FunctionName, &'a hir::Function>,
+    funcs: &'a HashMap<FunctionName, &'a mir::Function>,
     current_func: &'a FunctionName,
     known: &'a mut HashMap<FunctionName, bool>,
     checking: &'a mut HashSet<FunctionName>,
@@ -76,7 +76,7 @@ struct Check<'a> {
 }
 impl<'a> Check<'a> {
     fn run(
-        funcs: &HashMap<FunctionName, &hir::Function>,
+        funcs: &HashMap<FunctionName, &mir::Function>,
         fname: &FunctionName,
         known: &mut HashMap<FunctionName, bool>,
         checking: &mut HashSet<FunctionName>,
@@ -101,10 +101,10 @@ impl<'a> Check<'a> {
         }
     }
 
-    /// Called via HirVisitor
-    fn visit_fexpr(&mut self, fexpr: &hir::TypedExpr) {
+    /// Called via MirVisitor
+    fn visit_fexpr(&mut self, fexpr: &mir::TypedExpr) {
         match fexpr {
-            (hir::Expr::FuncRef(ref name), _) => {
+            (mir::Expr::FuncRef(ref name), _) => {
                 if !self.known.contains_key(name) {
                     if name == self.current_func {
                         // Ignore call to itself
@@ -140,9 +140,9 @@ impl<'a> Check<'a> {
             _ => {
                 // Indirect calls
                 self.is_async = match fexpr.1.as_fun_ty().asyncness {
-                    hir::Asyncness::Async => true,
-                    hir::Asyncness::Sync => false,
-                    hir::Asyncness::Unknown => {
+                    mir::Asyncness::Async => true,
+                    mir::Asyncness::Sync => false,
+                    mir::Asyncness::Unknown => {
                         // Conservatively assume it is async
                         true
                     }
@@ -152,14 +152,14 @@ impl<'a> Check<'a> {
         }
     }
 }
-impl<'a> HirVisitor for Check<'a> {
-    fn visit_expr(&mut self, texpr: &hir::TypedExpr) -> Result<()> {
+impl<'a> MirVisitor for Check<'a> {
+    fn visit_expr(&mut self, texpr: &mir::TypedExpr) -> Result<()> {
         // Short circuit
         if self.is_async {
             return Ok(());
         }
         match texpr {
-            (hir::Expr::FunCall(fexpr, _), _) => {
+            (mir::Expr::FunCall(fexpr, _), _) => {
                 self.visit_fexpr(fexpr);
             }
             _ => {}
@@ -173,18 +173,18 @@ struct Update<'a> {
     known: &'a HashMap<FunctionName, bool>,
 }
 impl<'a> Update<'a> {
-    fn set_func_asyncness(&self, hir: &mut hir::Program) {
-        for f in &mut hir.funcs {
+    fn set_func_asyncness(&self, mir: &mut mir::Program) {
+        for f in &mut mir.funcs {
             let is_async = self.known.get(&f.name).unwrap();
             f.asyncness = (*is_async).into();
         }
     }
 }
-impl HirRewriter for Update<'_> {
-    fn rewrite_expr(&mut self, texpr: hir::TypedExpr) -> Result<hir::TypedExpr> {
+impl MirRewriter for Update<'_> {
+    fn rewrite_expr(&mut self, texpr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         match texpr.0 {
             // Apply known asyncness
-            hir::Expr::FuncRef(ref name) => {
+            mir::Expr::FuncRef(ref name) => {
                 let Some(is_async) = self.known.get(name) else {
                     panic!("Function {} is not found in known", name);
                 };
@@ -193,14 +193,14 @@ impl HirRewriter for Update<'_> {
                 Ok((texpr.0, fun_ty.into()))
             }
             // Fix indirect calls
-            hir::Expr::FunCall(mut fexpr, args) => {
+            mir::Expr::FunCall(mut fexpr, args) => {
                 let mut fun_ty = fexpr.1.clone().into_fun_ty();
-                if fun_ty.asyncness == hir::Asyncness::Unknown {
+                if fun_ty.asyncness == mir::Asyncness::Unknown {
                     // Conservatively assume it is async
-                    fun_ty.asyncness = hir::Asyncness::Async;
+                    fun_ty.asyncness = mir::Asyncness::Async;
                 }
                 fexpr.1 = fun_ty.into();
-                Ok(hir::Expr::fun_call(*fexpr, args))
+                Ok(mir::Expr::fun_call(*fexpr, args))
             }
             _ => Ok(texpr),
         }
@@ -218,7 +218,7 @@ impl Assert {
         }
     }
 
-    fn check_func(&mut self, f: &hir::Function) -> bool {
+    fn check_func(&mut self, f: &mir::Function) -> bool {
         self.walk_expr(&f.body_stmts).unwrap();
         if self.found_async_call && !f.asyncness.is_async() {
             panic!(
@@ -229,14 +229,14 @@ impl Assert {
         true
     }
 
-    fn check_funcall(&mut self, fexpr: &hir::TypedExpr) {
+    fn check_funcall(&mut self, fexpr: &mir::TypedExpr) {
         self.found_async_call |= fexpr.1.as_fun_ty().asyncness.is_async();
     }
 }
-impl HirVisitor for Assert {
-    fn visit_expr(&mut self, texpr: &hir::TypedExpr) -> Result<()> {
+impl MirVisitor for Assert {
+    fn visit_expr(&mut self, texpr: &mir::TypedExpr) -> Result<()> {
         match texpr {
-            (hir::Expr::FunCall(fexpr, _), _) => {
+            (mir::Expr::FunCall(fexpr, _), _) => {
                 self.check_funcall(fexpr);
             }
             _ => {}

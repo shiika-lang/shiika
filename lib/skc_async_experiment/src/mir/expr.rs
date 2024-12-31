@@ -1,6 +1,5 @@
-use crate::hir::FunctionName;
-use crate::hir::{FunTy, Ty};
-use crate::mir::expr::{CastType, PseudoVar};
+use crate::mir::FunctionName;
+use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
 
 pub type Typed<T> = (T, Ty);
@@ -29,23 +28,30 @@ pub enum Expr {
     Nop,
 }
 
-//#[derive(Debug, Clone, PartialEq, Eq)]
-//pub enum CastType {
-//    AnyToFun(FunTy),
-//    AnyToInt,
-//    RawToAny,
-//    FunToAny,
-//}
-//
-//impl CastType {
-//    pub fn result_ty(&self) -> Ty {
-//        match self {
-//            CastType::AnyToFun(x) => x.clone().into(),
-//            CastType::AnyToInt => Ty::raw("Int"),
-//            CastType::RawToAny | CastType::FunToAny => Ty::Any,
-//        }
-//    }
-//}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PseudoVar {
+    True,
+    False,
+    Void,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CastType {
+    AnyToFun(FunTy),
+    AnyToInt,
+    RawToAny,
+    FunToAny,
+}
+
+impl CastType {
+    pub fn result_ty(&self) -> Ty {
+        match self {
+            CastType::AnyToFun(x) => x.clone().into(),
+            CastType::AnyToInt => Ty::raw("Int"),
+            CastType::RawToAny | CastType::FunToAny => Ty::Any,
+        }
+    }
+}
 
 impl Expr {
     pub fn number(n: i64) -> TypedExpr {

@@ -1,18 +1,18 @@
 //! Lowers EnvRef and EnvSet to FunCall.
 
-use crate::hir;
-use crate::hir::rewriter::HirRewriter;
+use crate::mir;
+use crate::mir::rewriter::MirRewriter;
 use crate::names::FunctionName;
 use anyhow::Result;
 
-pub fn run(hir: hir::Program) -> hir::Program {
-    let funcs = hir.funcs.into_iter().map(|f| compile_func(f)).collect();
-    hir::Program::new(hir.externs, funcs)
+pub fn run(mir: mir::Program) -> mir::Program {
+    let funcs = mir.funcs.into_iter().map(|f| compile_func(f)).collect();
+    mir::Program::new(mir.externs, funcs)
 }
 
-fn compile_func(orig_func: hir::Function) -> hir::Function {
+fn compile_func(orig_func: mir::Function) -> mir::Function {
     let new_body_stmts = Update::run(orig_func.body_stmts);
-    hir::Function {
+    mir::Function {
         asyncness: orig_func.asyncness,
         name: orig_func.name,
         params: orig_func.params,
@@ -23,66 +23,66 @@ fn compile_func(orig_func: hir::Function) -> hir::Function {
 
 struct Update();
 impl Update {
-    fn run(expr: hir::TypedExpr) -> hir::TypedExpr {
+    fn run(expr: mir::TypedExpr) -> mir::TypedExpr {
         Update().walk_expr(expr).unwrap()
     }
 }
-impl HirRewriter for Update {
-    fn rewrite_expr(&mut self, texpr: hir::TypedExpr) -> Result<hir::TypedExpr> {
+impl MirRewriter for Update {
+    fn rewrite_expr(&mut self, texpr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         let new_texpr = match texpr.0 {
-            hir::Expr::EnvRef(idx, _) => call_chiika_env_ref(idx),
-            hir::Expr::EnvSet(idx, expr, _) => call_chiika_env_set(idx, *expr),
+            mir::Expr::EnvRef(idx, _) => call_chiika_env_ref(idx),
+            mir::Expr::EnvSet(idx, expr, _) => call_chiika_env_set(idx, *expr),
             _ => texpr,
         };
         Ok(new_texpr)
     }
 }
 
-fn call_chiika_env_ref(idx: usize) -> hir::TypedExpr {
-    let idx_native = hir::Expr::raw_i64(idx as i64);
-    let type_id = hir::Expr::raw_i64(hir::Ty::raw("Int").type_id());
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Lowered,
-        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64, hir::Ty::Int64],
+fn call_chiika_env_ref(idx: usize) -> mir::TypedExpr {
+    let idx_native = mir::Expr::raw_i64(idx as i64);
+    let type_id = mir::Expr::raw_i64(mir::Ty::raw("Int").type_id());
+    let fun_ty = mir::FunTy {
+        asyncness: mir::Asyncness::Lowered,
+        param_tys: vec![mir::Ty::ChiikaEnv, mir::Ty::Int64, mir::Ty::Int64],
         // Milika lvars are all int
-        ret_ty: Box::new(hir::Ty::raw("Int")),
+        ret_ty: Box::new(mir::Ty::raw("Int")),
     };
     let fname = FunctionName::mangled("chiika_env_ref");
-    hir::Expr::fun_call(
-        hir::Expr::func_ref(fname, fun_ty),
+    mir::Expr::fun_call(
+        mir::Expr::func_ref(fname, fun_ty),
         vec![arg_ref_env(), idx_native, type_id],
     )
 }
 
-fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
-    let idx_native = hir::Expr::raw_i64(idx as i64);
-    let type_id = hir::Expr::raw_i64(val.1.type_id());
+fn call_chiika_env_set(idx: usize, val: mir::TypedExpr) -> mir::TypedExpr {
+    let idx_native = mir::Expr::raw_i64(idx as i64);
+    let type_id = mir::Expr::raw_i64(val.1.type_id());
     let cast_val = {
         let cast_type = match val.1 {
-            hir::Ty::Raw(_) => hir::CastType::RawToAny,
-            hir::Ty::Fun(_) => hir::CastType::FunToAny,
+            mir::Ty::Raw(_) => mir::CastType::RawToAny,
+            mir::Ty::Fun(_) => mir::CastType::FunToAny,
             _ => panic!("[BUG] don't know how to cast {:?} to Any", val),
         };
-        hir::Expr::cast(cast_type, val)
+        mir::Expr::cast(cast_type, val)
     };
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Lowered,
+    let fun_ty = mir::FunTy {
+        asyncness: mir::Asyncness::Lowered,
         param_tys: vec![
-            hir::Ty::ChiikaEnv,
-            hir::Ty::Int64,
-            hir::Ty::Any,
-            hir::Ty::Int64,
+            mir::Ty::ChiikaEnv,
+            mir::Ty::Int64,
+            mir::Ty::Any,
+            mir::Ty::Int64,
         ],
-        ret_ty: Box::new(hir::Ty::raw("Void")),
+        ret_ty: Box::new(mir::Ty::raw("Void")),
     };
     let fname = FunctionName::mangled("chiika_env_set");
-    hir::Expr::fun_call(
-        hir::Expr::func_ref(fname, fun_ty),
+    mir::Expr::fun_call(
+        mir::Expr::func_ref(fname, fun_ty),
         vec![arg_ref_env(), idx_native, cast_val, type_id],
     )
 }
 
 /// Get the `$env` that is 0-th param of async func
-fn arg_ref_env() -> hir::TypedExpr {
-    hir::Expr::arg_ref(0, "$env", hir::Ty::ChiikaEnv)
+fn arg_ref_env() -> mir::TypedExpr {
+    mir::Expr::arg_ref(0, "$env", mir::Ty::ChiikaEnv)
 }

@@ -1,17 +1,22 @@
-use crate::hir::{self, FunTy, Ty};
+use crate::hir;
+use crate::mir::{self, FunTy, Ty};
 use crate::names::FunctionName;
 use anyhow::{Context, Result};
 use shiika_parser;
 use std::io::Read;
 
 /// Functions that are called by the user code
-pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, FunTy)>> {
+/// Returns hir::FunTy because type checker needs it
+pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, hir::FunTy)>> {
     let mut v = vec![
         // Built-in functions
-        ("print", FunTy::sync(vec![Ty::raw("Int")], Ty::raw("Void"))),
+        (
+            "print",
+            hir::FunTy::sync(vec![hir::Ty::raw("Int")], hir::Ty::raw("Void")),
+        ),
         (
             "sleep_sec",
-            FunTy::async_(vec![Ty::raw("Int")], Ty::raw("Void")),
+            hir::FunTy::async_(vec![hir::Ty::raw("Int")], hir::Ty::raw("Void")),
         ),
     ]
     .into_iter()
@@ -21,7 +26,7 @@ pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionNam
     Ok(v)
 }
 
-fn core_class_funcs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, FunTy)>> {
+fn core_class_funcs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, hir::FunTy)>> {
     load_methods_json(skc_runtime_dir)
         .unwrap()
         .into_iter()
@@ -42,7 +47,7 @@ fn load_methods_json(skc_runtime_dir: &std::path::Path) -> Result<Vec<(String, S
     json5::from_str(&contents).context("exports.json5 is broken")
 }
 
-fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, FunTy)> {
+fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, hir::FunTy)> {
     let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
     let mut fun_ty = hir::untyped::signature_to_fun_ty(&ast_sig);
     // TODO: Support async rust libfunc
@@ -100,21 +105,21 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     .collect()
 }
 
-pub fn funcs() -> Vec<hir::Function> {
+pub fn funcs() -> Vec<mir::Function> {
     vec![
-        hir::Function {
+        mir::Function {
             name: FunctionName::mangled("main"),
-            asyncness: hir::Asyncness::Lowered,
+            asyncness: mir::Asyncness::Lowered,
             params: vec![],
             ret_ty: Ty::Int64,
             body_stmts: main_body(),
         },
-        hir::Function {
+        mir::Function {
             name: FunctionName::mangled("chiika_start_user"),
-            asyncness: hir::Asyncness::Lowered,
+            asyncness: mir::Asyncness::Lowered,
             params: vec![
-                hir::Param::new(Ty::ChiikaEnv, "env"),
-                hir::Param::new(
+                mir::Param::new(Ty::ChiikaEnv, "env"),
+                mir::Param::new(
                     Ty::Fun(FunTy::lowered(
                         vec![Ty::ChiikaEnv, Ty::raw("Int")],
                         Ty::RustFuture,
@@ -128,27 +133,27 @@ pub fn funcs() -> Vec<hir::Function> {
     ]
 }
 
-fn main_body() -> hir::TypedExpr {
+fn main_body() -> mir::TypedExpr {
     let t = FunTy::lowered(vec![], Ty::raw("Void"));
-    let chiika_start_tokio = hir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
-    hir::Expr::exprs(vec![
-        hir::Expr::fun_call(chiika_start_tokio, vec![]),
+    let chiika_start_tokio = mir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
+    mir::Expr::exprs(vec![
+        mir::Expr::fun_call(chiika_start_tokio, vec![]),
         // TODO: pass the resulting int to the user's main
-        hir::Expr::return_(hir::Expr::unbox(hir::Expr::number(0))),
+        mir::Expr::return_(mir::Expr::unbox(mir::Expr::number(0))),
     ])
 }
 
-fn chiika_start_user_body() -> hir::TypedExpr {
+fn chiika_start_user_body() -> mir::TypedExpr {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Int")], Ty::RustFuture);
-    let chiika_main = hir::Expr::func_ref(
+    let chiika_main = mir::Expr::func_ref(
         FunctionName::unmangled("chiika_main"),
         FunTy::lowered(
             vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],
             Ty::RustFuture,
         ),
     );
-    let get_env = hir::Expr::arg_ref(0, "env", Ty::ChiikaEnv);
-    let get_cont = hir::Expr::arg_ref(1, "cont", Ty::Fun(cont_ty));
-    let call = hir::Expr::fun_call(chiika_main, vec![get_env, get_cont]);
-    hir::Expr::return_(call)
+    let get_env = mir::Expr::arg_ref(0, "env", Ty::ChiikaEnv);
+    let get_cont = mir::Expr::arg_ref(1, "cont", Ty::Fun(cont_ty));
+    let call = mir::Expr::fun_call(chiika_main, vec![get_env, get_cont]);
+    mir::Expr::return_(call)
 }

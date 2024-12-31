@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -49,9 +50,9 @@ impl<'f> Typing<'f> {
     ) -> Result<()> {
         match &mut e.0 {
             hir::Expr::Number(_) => e.1 = hir::Ty::raw("Int"),
-            hir::Expr::PseudoVar(hir::PseudoVar::True) => e.1 = hir::Ty::raw("Bool"),
-            hir::Expr::PseudoVar(hir::PseudoVar::False) => e.1 = hir::Ty::raw("Bool"),
-            hir::Expr::PseudoVar(hir::PseudoVar::Void) => e.1 = hir::Ty::raw("Void"),
+            hir::Expr::PseudoVar(mir::PseudoVar::True) => e.1 = hir::Ty::raw("Bool"),
+            hir::Expr::PseudoVar(mir::PseudoVar::False) => e.1 = hir::Ty::raw("Bool"),
+            hir::Expr::PseudoVar(mir::PseudoVar::Void) => e.1 = hir::Ty::raw("Void"),
             hir::Expr::LVarRef(name) => {
                 if let Some(ty) = lvars.get(name) {
                     e.1 = ty.clone();

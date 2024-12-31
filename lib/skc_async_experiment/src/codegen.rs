@@ -4,7 +4,7 @@ mod instance;
 mod intrinsics;
 mod llvm_struct;
 mod value;
-use crate::hir;
+use crate::mir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
 use inkwell::types::BasicType;
@@ -17,7 +17,7 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
 }
 
-pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Program) -> Result<()> {
+pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Program) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -42,13 +42,13 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: hir::Progra
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
-    fn compile_externs(&mut self, externs: Vec<hir::Extern>) {
+    fn compile_externs(&mut self, externs: Vec<mir::Extern>) {
         for e in externs {
             self.compile_extern(e);
         }
     }
 
-    fn compile_program(&mut self, funcs: Vec<hir::Function>) {
+    fn compile_program(&mut self, funcs: Vec<mir::Function>) {
         for f in &funcs {
             self.declare_func(f);
         }
@@ -57,18 +57,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         }
     }
 
-    fn compile_extern(&self, ext: hir::Extern) {
+    fn compile_extern(&self, ext: mir::Extern) {
         let func_type = self.llvm_function_type(&ext.fun_ty);
         self.module
             .add_function(&ext.name.mangle(), func_type, None);
     }
 
-    fn declare_func(&self, f: &hir::Function) {
+    fn declare_func(&self, f: &mir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
         self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
-    fn compile_func(&mut self, f: hir::Function) {
+    fn compile_func(&mut self, f: mir::Function) {
         let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
@@ -84,7 +84,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_value_expr(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        texpr: &hir::TypedExpr,
+        texpr: &mir::TypedExpr,
     ) -> inkwell::values::BasicValueEnum<'run> {
         match self.compile_expr(ctx, texpr) {
             Some(v) => v,
@@ -95,25 +95,25 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_expr(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        texpr: &hir::TypedExpr,
+        texpr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
-            hir::Expr::Number(n) => self.compile_number(*n),
-            hir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
-            hir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
-            hir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
-            hir::Expr::FuncRef(name) => self.compile_funcref(name),
-            hir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
-            hir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
-            hir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
-            hir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
-            hir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
-            hir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
-            hir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
-            hir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
-            hir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
-            hir::Expr::RawI64(n) => self.compile_raw_i64(*n),
-            hir::Expr::Nop => None,
+            mir::Expr::Number(n) => self.compile_number(*n),
+            mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
+            mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
+            mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
+            mir::Expr::FuncRef(name) => self.compile_funcref(name),
+            mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
+            mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
+            mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
+            mir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
+            mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
+            mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
+            mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
+            mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
+            mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
+            mir::Expr::Nop => None,
             _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
     }
@@ -144,12 +144,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_pseudo_var(
         &mut self,
-        pseudo_var: &hir::PseudoVar,
+        pseudo_var: &mir::PseudoVar,
     ) -> inkwell::values::BasicValueEnum<'run> {
         match pseudo_var {
-            hir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
-            hir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
-            hir::PseudoVar::Void => return self.compile_void(),
+            mir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
+            mir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
+            mir::PseudoVar::Void => return self.compile_void(),
         }
     }
 
@@ -172,8 +172,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_funcall(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        fexpr: &hir::TypedExpr,
-        arg_exprs: &[hir::TypedExpr],
+        fexpr: &mir::TypedExpr,
+        arg_exprs: &[mir::TypedExpr],
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let func = self.compile_value_expr(ctx, fexpr);
         let func_type = self.llvm_function_type(fexpr.1.as_fun_ty());
@@ -194,9 +194,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_if(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        cond_expr: &hir::TypedExpr,
-        then_exprs: &hir::TypedExpr,
-        else_exprs: &hir::TypedExpr,
+        cond_expr: &mir::TypedExpr,
+        then_exprs: &mir::TypedExpr,
+        else_exprs: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
@@ -244,8 +244,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_while(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        cond_expr: &hir::TypedExpr,
-        body_expr: &hir::TypedExpr,
+        cond_expr: &mir::TypedExpr,
+        body_expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let cond_block = self.context.append_basic_block(ctx.function, "WhileCond");
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
@@ -281,7 +281,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
-        rhs: &hir::TypedExpr,
+        rhs: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = self.compile_value_expr(ctx, rhs);
         let ptr = ctx.lvars.get(name).unwrap();
@@ -292,7 +292,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_return(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        val_expr: &hir::TypedExpr,
+        val_expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let val = self.compile_value_expr(ctx, val_expr);
         self.builder.build_return(Some(&val));
@@ -302,7 +302,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_exprs(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        exprs: &[hir::TypedExpr],
+        exprs: &[mir::TypedExpr],
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let mut last_val = None;
         for e in exprs {
@@ -314,7 +314,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_cast<'a>(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        expr: &hir::TypedExpr,
+        expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
         Some(e)
@@ -323,7 +323,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_unbox(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        expr: &hir::TypedExpr,
+        expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
         let sk_int = SkObj::from_basic_value_enum(e);
@@ -351,24 +351,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_conditional_branch(istrue, then_block, else_block);
     }
 
-    fn llvm_function_type(&self, fun_ty: &hir::FunTy) -> inkwell::types::FunctionType<'ictx> {
+    fn llvm_function_type(&self, fun_ty: &mir::FunTy) -> inkwell::types::FunctionType<'ictx> {
         let param_tys = self.llvm_types(&fun_ty.param_tys);
         let ret_ty = self.llvm_type(&fun_ty.ret_ty);
         ret_ty.fn_type(&param_tys, false)
     }
 
-    fn llvm_types(&self, tys: &[hir::Ty]) -> Vec<inkwell::types::BasicMetadataTypeEnum<'ictx>> {
+    fn llvm_types(&self, tys: &[mir::Ty]) -> Vec<inkwell::types::BasicMetadataTypeEnum<'ictx>> {
         tys.iter().map(|x| self.llvm_type(x).into()).collect()
     }
 
-    fn llvm_type(&self, ty: &hir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
+    fn llvm_type(&self, ty: &mir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
-            hir::Ty::Unknown => panic!("Unknown is unexpected here"),
-            hir::Ty::Any => self.ptr_type().into(),
-            hir::Ty::ChiikaEnv | hir::Ty::RustFuture => self.ptr_type().into(),
-            hir::Ty::Fun(_) => self.ptr_type().into(),
-            hir::Ty::Int64 => self.context.i64_type().into(),
-            hir::Ty::Raw(s) => match s.as_str() {
+            mir::Ty::Unknown => panic!("Unknown is unexpected here"),
+            mir::Ty::Any => self.ptr_type().into(),
+            mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
+            mir::Ty::Fun(_) => self.ptr_type().into(),
+            mir::Ty::Int64 => self.context.i64_type().into(),
+            mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),
                 _ => self.ptr_type().into(),
             },

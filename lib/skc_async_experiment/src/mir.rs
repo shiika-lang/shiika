@@ -1,11 +1,10 @@
 pub mod expr;
 pub mod rewriter;
 mod ty;
-pub mod typing;
-pub mod untyped;
+pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
-pub use expr::{Expr, Typed, TypedExpr};
+pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use std::fmt;
 pub use ty::{FunTy, Ty};
 
