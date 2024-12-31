@@ -363,7 +363,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_type(&self, ty: &mir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
-            mir::Ty::Unknown => panic!("Unknown is unexpected here"),
             mir::Ty::Any => self.ptr_type().into(),
             mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Fun(_) => self.ptr_type().into(),

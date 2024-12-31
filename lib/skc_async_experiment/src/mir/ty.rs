@@ -3,9 +3,8 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
-    Unknown, // Used before typecheck
-    Any,     // Corresponds to `ptr` in llvm
-    Int64,   // Corresponds to `i64` in llvm
+    Any,   // Corresponds to `ptr` in llvm
+    Int64, // Corresponds to `i64` in llvm
     ChiikaEnv,
     RustFuture,
     Raw(String),
