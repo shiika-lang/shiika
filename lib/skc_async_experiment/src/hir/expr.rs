@@ -39,8 +39,7 @@ pub enum PseudoVar {
 pub enum CastType {
     AnyToFun(FunTy),
     AnyToInt,
-    VoidToAny,
-    IntToAny,
+    RawToAny,
     FunToAny,
 }
 
@@ -48,21 +47,21 @@ impl CastType {
     pub fn result_ty(&self) -> Ty {
         match self {
             CastType::AnyToFun(x) => x.clone().into(),
-            CastType::AnyToInt => Ty::Int,
-            CastType::VoidToAny | CastType::IntToAny | CastType::FunToAny => Ty::Any,
+            CastType::AnyToInt => Ty::raw("Int"),
+            CastType::RawToAny | CastType::FunToAny => Ty::Any,
         }
     }
 }
 
 impl Expr {
     pub fn number(n: i64) -> TypedExpr {
-        (Expr::Number(n), Ty::Int)
+        (Expr::Number(n), Ty::raw("Int"))
     }
 
     pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
         let t = match var {
-            PseudoVar::True | PseudoVar::False => Ty::Bool,
-            PseudoVar::Void => Ty::Void,
+            PseudoVar::True | PseudoVar::False => Ty::raw("Bool"),
+            PseudoVar::Void => Ty::raw("Void"),
         };
         (Expr::PseudoVar(var), t)
     }
@@ -80,7 +79,7 @@ impl Expr {
     }
 
     pub fn env_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
-        (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::Void)
+        (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::raw("Void"))
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -106,13 +105,13 @@ impl Expr {
     pub fn if_ty(then_ty: &Ty, else_ty: &Ty) -> Result<Ty> {
         let t1 = then_ty;
         let t2 = else_ty;
-        let if_ty = if *t1 == Ty::Never {
+        let if_ty = if *t1 == Ty::raw("Never") {
             t2
-        } else if *t2 == Ty::Never {
+        } else if *t2 == Ty::raw("Never") {
             t1
-        } else if *t1 == Ty::Void {
+        } else if *t1 == Ty::raw("Void") {
             t2
-        } else if *t2 == Ty::Void {
+        } else if *t2 == Ty::raw("Void") {
             t1
         } else if t1 != t2 {
             return Err(anyhow!(
@@ -127,26 +126,26 @@ impl Expr {
     }
 
     pub fn while_(cond: TypedExpr, body: TypedExpr) -> TypedExpr {
-        if cond.1 != Ty::Bool {
+        if cond.1 != Ty::raw("Bool") {
             panic!("[BUG] while cond not bool: {:?}", cond);
         }
-        (Expr::While(Box::new(cond), Box::new(body)), Ty::Void)
+        (Expr::While(Box::new(cond), Box::new(body)), Ty::raw("Void"))
     }
 
     pub fn spawn(e: TypedExpr) -> TypedExpr {
-        (Expr::Spawn(Box::new(e)), Ty::Void)
+        (Expr::Spawn(Box::new(e)), Ty::raw("Void"))
     }
 
     pub fn alloc(name: impl Into<String>) -> TypedExpr {
-        (Expr::Alloc(name.into()), Ty::Void)
+        (Expr::Alloc(name.into()), Ty::raw("Void"))
     }
 
     pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
-        (Expr::Assign(name.into(), Box::new(e)), Ty::Void)
+        (Expr::Assign(name.into(), Box::new(e)), Ty::raw("Void"))
     }
 
     pub fn return_(e: TypedExpr) -> TypedExpr {
-        (Expr::Return(Box::new(e)), Ty::Never)
+        (Expr::Return(Box::new(e)), Ty::raw("Never"))
     }
 
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
@@ -160,16 +159,15 @@ impl Expr {
     pub fn cast(cast_type: CastType, e: TypedExpr) -> TypedExpr {
         let ty = match &cast_type {
             CastType::AnyToFun(f) => f.clone().into(),
-            CastType::AnyToInt => Ty::Int,
-            CastType::VoidToAny => Ty::Any,
-            CastType::IntToAny => Ty::Any,
+            CastType::AnyToInt => Ty::raw("Int"),
+            CastType::RawToAny => Ty::Any,
             CastType::FunToAny => Ty::Any,
         };
         (Expr::Cast(cast_type, Box::new(e)), ty)
     }
 
     pub fn unbox(e: TypedExpr) -> TypedExpr {
-        if e.1 != Ty::Int {
+        if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
         }
         (Expr::Unbox(Box::new(e)), Ty::Int64)
@@ -180,7 +178,7 @@ impl Expr {
     }
 
     pub fn nop() -> TypedExpr {
-        (Expr::Nop, Ty::Void)
+        (Expr::Nop, Ty::raw("Void"))
     }
 
     pub fn is_async_fun_call(&self) -> bool {

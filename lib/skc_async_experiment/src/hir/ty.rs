@@ -4,14 +4,11 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Unknown, // Used before typecheck
-    Void,    // A unit type. Represented by `i64 0`
-    Never,   // eg. the type of `return` or assignment. There is no value of this type.
     Any,     // Corresponds to `ptr` in llvm
     Int64,   // Corresponds to `i64` in llvm
     ChiikaEnv,
     RustFuture,
-    Int, // Shiika int
-    Bool,
+    Raw(String),
     Fun(FunTy),
 }
 
@@ -25,6 +22,10 @@ impl fmt::Display for Ty {
 }
 
 impl Ty {
+    pub fn raw(s: impl Into<String>) -> Self {
+        Ty::Raw(s.into())
+    }
+
     pub fn as_fun_ty(&self) -> &FunTy {
         match self {
             Ty::Fun(f) => f,
@@ -59,13 +60,11 @@ impl Ty {
 
     pub fn type_id(&self) -> i64 {
         match self {
-            Ty::Void => 0,
-            Ty::Int => 1,
-            Ty::Bool => 2,
-            Ty::Any => 3,
-            Ty::ChiikaEnv => 4,
-            Ty::RustFuture => 5,
-            Ty::Fun(_) => 6,
+            Ty::Raw(_) => 0,
+            Ty::Any => 1,
+            Ty::ChiikaEnv => 2,
+            Ty::RustFuture => 3,
+            Ty::Fun(_) => 4,
             _ => panic!("[BUG] unknown type: {:?}", self),
         }
     }

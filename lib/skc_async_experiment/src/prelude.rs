@@ -8,8 +8,11 @@ use std::io::Read;
 pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, FunTy)>> {
     let mut v = vec![
         // Built-in functions
-        ("print", FunTy::sync(vec![Ty::Int], Ty::Void)),
-        ("sleep_sec", FunTy::async_(vec![Ty::Int], Ty::Void)),
+        ("print", FunTy::sync(vec![Ty::raw("Int")], Ty::raw("Void"))),
+        (
+            "sleep_sec",
+            FunTy::async_(vec![Ty::raw("Int")], Ty::raw("Void")),
+        ),
     ]
     .into_iter()
     .map(|(name, ty)| (FunctionName::unmangled(name), ty))
@@ -46,7 +49,7 @@ fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, FunTy)> {
     fun_ty.asyncness = hir::Asyncness::Sync;
 
     // TMP: Insert receiver
-    fun_ty.param_tys.insert(0, Ty::Int);
+    fun_ty.param_tys.insert(0, Ty::raw("Int"));
 
     Ok((
         FunctionName::unmangled(format!("{}#{}", class, ast_sig.name.0)),
@@ -56,21 +59,24 @@ fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, FunTy)> {
 
 /// Functions that are called by the generated code
 pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
-    let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Void], Ty::RustFuture);
+    let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Void")], Ty::RustFuture);
     let spawnee = FunTy::lowered(
         vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
         Ty::RustFuture,
     );
     vec![
-        ("GC_init", FunTy::lowered(vec![], Ty::Void)),
+        ("GC_init", FunTy::lowered(vec![], Ty::raw("Void"))),
         ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Any)),
         (
             "chiika_env_push_frame",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::Void),
+            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::raw("Void")),
         ),
         (
             "chiika_env_set",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Any, Ty::Int64], Ty::Void),
+            FunTy::lowered(
+                vec![Ty::ChiikaEnv, Ty::Int64, Ty::Any, Ty::Int64],
+                Ty::raw("Void"),
+            ),
         ),
         (
             "chiika_env_pop_frame",
@@ -78,13 +84,16 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         ),
         (
             "chiika_env_ref",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Int),
+            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::raw("Int")),
         ),
         (
             "chiika_spawn",
-            FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::Void),
+            FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::raw("Void")),
         ),
-        ("chiika_start_tokio", FunTy::lowered(vec![], Ty::Void)),
+        (
+            "chiika_start_tokio",
+            FunTy::lowered(vec![], Ty::raw("Void")),
+        ),
     ]
     .into_iter()
     .map(|(name, ty)| (FunctionName::mangled(name), ty))
@@ -106,7 +115,10 @@ pub fn funcs() -> Vec<hir::Function> {
             params: vec![
                 hir::Param::new(Ty::ChiikaEnv, "env"),
                 hir::Param::new(
-                    Ty::Fun(FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture)),
+                    Ty::Fun(FunTy::lowered(
+                        vec![Ty::ChiikaEnv, Ty::raw("Int")],
+                        Ty::RustFuture,
+                    )),
                     "cont",
                 ),
             ],
@@ -117,7 +129,7 @@ pub fn funcs() -> Vec<hir::Function> {
 }
 
 fn main_body() -> hir::TypedExpr {
-    let t = FunTy::lowered(vec![], Ty::Void);
+    let t = FunTy::lowered(vec![], Ty::raw("Void"));
     let chiika_start_tokio = hir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
     hir::Expr::exprs(vec![
         hir::Expr::fun_call(chiika_start_tokio, vec![]),
@@ -127,7 +139,7 @@ fn main_body() -> hir::TypedExpr {
 }
 
 fn chiika_start_user_body() -> hir::TypedExpr {
-    let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int], Ty::RustFuture);
+    let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Int")], Ty::RustFuture);
     let chiika_main = hir::Expr::func_ref(
         FunctionName::unmangled("chiika_main"),
         FunTy::lowered(

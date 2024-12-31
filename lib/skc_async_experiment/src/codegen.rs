@@ -364,12 +364,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn llvm_type(&self, ty: &hir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
             hir::Ty::Unknown => panic!("Unknown is unexpected here"),
-            hir::Ty::Never => panic!("Never is unexpected here"),
             hir::Ty::Any => self.ptr_type().into(),
             hir::Ty::ChiikaEnv | hir::Ty::RustFuture => self.ptr_type().into(),
-            hir::Ty::Bool | hir::Ty::Int | hir::Ty::Void => self.ptr_type().into(),
             hir::Ty::Fun(_) => self.ptr_type().into(),
             hir::Ty::Int64 => self.context.i64_type().into(),
+            hir::Ty::Raw(s) => match s.as_str() {
+                "Never" => panic!("Never is unexpected here"),
+                _ => self.ptr_type().into(),
+            },
         }
     }
 

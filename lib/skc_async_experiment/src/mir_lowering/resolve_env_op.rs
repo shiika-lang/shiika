@@ -40,12 +40,12 @@ impl HirRewriter for Update {
 
 fn call_chiika_env_ref(idx: usize) -> hir::TypedExpr {
     let idx_native = hir::Expr::raw_i64(idx as i64);
-    let type_id = hir::Expr::raw_i64(hir::Ty::Int.type_id());
+    let type_id = hir::Expr::raw_i64(hir::Ty::raw("Int").type_id());
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64, hir::Ty::Int64],
         // Milika lvars are all int
-        ret_ty: Box::new(hir::Ty::Int),
+        ret_ty: Box::new(hir::Ty::raw("Int")),
     };
     let fname = FunctionName::mangled("chiika_env_ref");
     hir::Expr::fun_call(
@@ -59,8 +59,7 @@ fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
     let type_id = hir::Expr::raw_i64(val.1.type_id());
     let cast_val = {
         let cast_type = match val.1 {
-            hir::Ty::Void => hir::CastType::VoidToAny,
-            hir::Ty::Int => hir::CastType::IntToAny,
+            hir::Ty::Raw(_) => hir::CastType::RawToAny,
             hir::Ty::Fun(_) => hir::CastType::FunToAny,
             _ => panic!("[BUG] don't know how to cast {:?} to Any", val),
         };
@@ -74,7 +73,7 @@ fn call_chiika_env_set(idx: usize, val: hir::TypedExpr) -> hir::TypedExpr {
             hir::Ty::Any,
             hir::Ty::Int64,
         ],
-        ret_ty: Box::new(hir::Ty::Void),
+        ret_ty: Box::new(hir::Ty::raw("Void")),
     };
     let fname = FunctionName::mangled("chiika_env_set");
     hir::Expr::fun_call(

@@ -46,7 +46,7 @@ impl Verifier {
 
     fn _verify_expr(&self, f: &hir::Function, e: &hir::TypedExpr) -> Result<()> {
         match &e.0 {
-            hir::Expr::Number(_) => assert(&e, "number", &hir::Ty::Int)?,
+            hir::Expr::Number(_) => assert(&e, "number", &hir::Ty::raw("Int"))?,
             hir::Expr::PseudoVar(_) => (),
             hir::Expr::LVarRef(_) => (),
             hir::Expr::ArgRef(idx, name) => {
@@ -110,7 +110,7 @@ impl Verifier {
             hir::Expr::Return(v) => {
                 self.verify_expr(f, v)?;
                 assert(&v, "return value", &f.ret_ty)?;
-                assert(&e, "return itself", &hir::Ty::Never)?;
+                assert(&e, "return itself", &hir::Ty::raw("Never"))?;
             }
             hir::Expr::Exprs(es) => {
                 self.verify_exprs(f, es)?;
@@ -125,14 +125,12 @@ impl Verifier {
                     }
                     hir::CastType::AnyToInt => {
                         assert(&val, "castee", &hir::Ty::Any)?;
-                        assert(&e, "result", &hir::Ty::Int)?;
+                        assert(&e, "result", &hir::Ty::raw("Int"))?;
                     }
-                    hir::CastType::VoidToAny => {
-                        assert(&val, "castee", &hir::Ty::Void)?;
-                        assert(&e, "result", &hir::Ty::Any)?;
-                    }
-                    hir::CastType::IntToAny => {
-                        assert(&val, "castee", &hir::Ty::Int)?;
+                    hir::CastType::RawToAny => {
+                        if !matches!(val.1, hir::Ty::Raw(_)) {
+                            bail!("expected Ty::Raw");
+                        }
                         assert(&e, "result", &hir::Ty::Any)?;
                     }
                     hir::CastType::FunToAny => {
@@ -142,7 +140,7 @@ impl Verifier {
                 }
             }
             hir::Expr::Unbox(val) => {
-                assert(&val, "unboxee", &hir::Ty::Int)?;
+                assert(&val, "unboxee", &hir::Ty::raw("Int"))?;
                 assert(&e, "result", &hir::Ty::Int64)?;
             }
             hir::Expr::RawI64(_) => assert(&e, "raw i64", &hir::Ty::Int64)?,
@@ -175,7 +173,7 @@ fn assert_fun(ty: &hir::Ty) -> Result<()> {
 }
 
 fn assert_not_never(ty: &hir::Ty) -> Result<()> {
-    if matches!(ty, hir::Ty::Never) {
+    if *ty == hir::Ty::raw("Never") {
         bail!("must not be Ty::Never here");
     }
     Ok(())

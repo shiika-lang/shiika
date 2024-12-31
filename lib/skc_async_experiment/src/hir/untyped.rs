@@ -69,7 +69,7 @@ impl Compiler {
         }
         let ret_ty = match &sig.ret_typ {
             Some(t) => compile_ty(&t)?,
-            None => hir::Ty::Void,
+            None => hir::Ty::raw("Void"),
         };
 
         let mut lvars = HashSet::new();
@@ -242,15 +242,12 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
     let t = if n.args.len() == 0 {
         let s = n.names.join("::");
         match &s[..] {
-            "Void" => hir::Ty::Void,
-            "Int" => hir::Ty::Int,
-            "Bool" => hir::Ty::Bool,
             // Internally used types (in src/prelude.rs)
             "Shiika::Internal::Int64" => hir::Ty::Int64,
             "ANY" => hir::Ty::Any,
             "ENV" => hir::Ty::ChiikaEnv,
             "FUTURE" => hir::Ty::RustFuture,
-            _ => return Err(anyhow!("unknown type: {s}")),
+            _ => hir::Ty::raw(s),
         }
     } else {
         hir::Ty::Fun(compile_fun_ty(&n.args)?)
@@ -278,7 +275,7 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
     }
     let ret_ty = match &sig.ret_typ {
         Some(t) => compile_ty(t).unwrap(),
-        None => hir::Ty::Void,
+        None => hir::Ty::raw("Void"),
     };
     hir::FunTy {
         asyncness: hir::Asyncness::Unknown,

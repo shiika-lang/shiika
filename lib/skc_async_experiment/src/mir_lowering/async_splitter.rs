@@ -237,7 +237,7 @@ impl<'a> Compiler<'a> {
         self.chapters.add(else_chap);
         self.compile_if_clause(else_exprs_, &endif_chap.name)?;
 
-        if *if_ty == hir::Ty::Never {
+        if *if_ty == hir::Ty::raw("Never") {
             // Both branches end with return
             Ok(None)
         } else {
@@ -249,7 +249,7 @@ impl<'a> Compiler<'a> {
     fn compile_if_clause(&mut self, exprs_: hir::TypedExpr, endif_chap_name: &str) -> Result<()> {
         let mut exprs = hir::expr::into_exprs(exprs_);
         let e = exprs.pop().unwrap();
-        let opt_vexpr = if e.1 == hir::Ty::Never {
+        let opt_vexpr = if e.1 == hir::Ty::raw("Never") {
             exprs.push(e);
             None
         } else {
@@ -333,7 +333,7 @@ impl<'a> Compiler<'a> {
 
     fn compile_return(&mut self, expr: hir::TypedExpr) -> Result<Option<hir::TypedExpr>> {
         // `return return 1` == `return 1`
-        if expr.1 == hir::Ty::Never {
+        if expr.1 == hir::Ty::raw("Never") {
             return self.compile_expr(expr, false);
         }
         let new_expr = self.compile_value_expr(expr, true)?;
@@ -472,7 +472,7 @@ fn call_chiika_env_push_frame(size: usize) -> hir::TypedExpr {
             hir::FunTy {
                 asyncness: hir::Asyncness::Lowered,
                 param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Int64],
-                ret_ty: Box::new(hir::Ty::Void),
+                ret_ty: Box::new(hir::Ty::raw("Void")),
             },
         ),
         vec![arg_ref_env(), size_native],
@@ -490,10 +490,12 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::Typ
         let fname = FunctionName::mangled("chiika_env_pop_frame");
         hir::Expr::func_ref(fname, fun_ty)
     };
-    let cast_type = match &popped_value_ty {
-        hir::Ty::Int => hir::CastType::AnyToInt,
-        hir::Ty::Fun(fun_ty) => hir::CastType::AnyToFun(fun_ty.clone()),
-        _ => panic!("[BUG] cannot cast: {:?}", popped_value_ty),
+    let cast_type = if popped_value_ty == hir::Ty::raw("Int") {
+        hir::CastType::AnyToInt
+    } else if let hir::Ty::Fun(fun_ty) = &popped_value_ty {
+        hir::CastType::AnyToFun(fun_ty.clone())
+    } else {
+        panic!("[BUG] cannot cast: {:?}", popped_value_ty);
     };
     hir::Expr::cast(
         cast_type,
@@ -504,7 +506,7 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: hir::Ty) -> hir::Typ
 fn call_chiika_spawn(f: hir::TypedExpr) -> hir::TypedExpr {
     let null_cont_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
-        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::Void],
+        param_tys: vec![hir::Ty::ChiikaEnv, hir::Ty::raw("Void")],
         ret_ty: Box::new(hir::Ty::RustFuture),
     };
     let new_f_ty = hir::FunTy {
@@ -516,7 +518,7 @@ fn call_chiika_spawn(f: hir::TypedExpr) -> hir::TypedExpr {
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Lowered,
         param_tys: vec![hir::Ty::Fun(new_f_ty)],
-        ret_ty: Box::new(hir::Ty::Void),
+        ret_ty: Box::new(hir::Ty::raw("Void")),
     };
     let fname = FunctionName::mangled("chiika_spawn");
     hir::Expr::fun_call(hir::Expr::func_ref(fname, fun_ty), vec![new_f])
