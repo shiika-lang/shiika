@@ -4,10 +4,6 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Unknown, // Used before typecheck
-    Any,     // Corresponds to `ptr` in llvm
-    Int64,   // Corresponds to `i64` in llvm
-    ChiikaEnv,
-    RustFuture,
     Raw(String),
     Fun(FunTy),
 }
@@ -55,17 +51,6 @@ impl Ty {
         match (self, other) {
             (Ty::Fun(f1), Ty::Fun(f2)) => f1.same(f2),
             _ => self == other,
-        }
-    }
-
-    pub fn type_id(&self) -> i64 {
-        match self {
-            Ty::Raw(_) => 0,
-            Ty::Any => 1,
-            Ty::ChiikaEnv => 2,
-            Ty::RustFuture => 3,
-            Ty::Fun(_) => 4,
-            _ => panic!("[BUG] unknown type: {:?}", self),
         }
     }
 }

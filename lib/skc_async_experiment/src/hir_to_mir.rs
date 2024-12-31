@@ -46,11 +46,7 @@ fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {
 
 fn convert_ty(ty: hir::Ty) -> mir::Ty {
     match ty {
-        hir::Ty::Unknown => mir::Ty::Unknown,
-        hir::Ty::Any => mir::Ty::Any,
-        hir::Ty::Int64 => mir::Ty::Int64,
-        hir::Ty::ChiikaEnv => mir::Ty::ChiikaEnv,
-        hir::Ty::RustFuture => mir::Ty::RustFuture,
+        hir::Ty::Unknown => panic!("Unknown ty in hir"),
         hir::Ty::Raw(s) => mir::Ty::Raw(s),
         hir::Ty::Fun(fun_ty) => mir::Ty::Fun(convert_fun_ty(fun_ty)),
     }
