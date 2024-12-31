@@ -1,6 +1,6 @@
 use crate::hir::FunctionName;
 use crate::hir::{FunTy, Ty};
-use crate::mir::expr::{CastType, PseudoVar};
+use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
 
 pub type Typed<T> = (T, Ty);
@@ -23,29 +23,10 @@ pub enum Expr {
     Assign(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
-    Cast(CastType, Box<Typed<Expr>>),
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
 }
-
-//#[derive(Debug, Clone, PartialEq, Eq)]
-//pub enum CastType {
-//    AnyToFun(FunTy),
-//    AnyToInt,
-//    RawToAny,
-//    FunToAny,
-//}
-//
-//impl CastType {
-//    pub fn result_ty(&self) -> Ty {
-//        match self {
-//            CastType::AnyToFun(x) => x.clone().into(),
-//            CastType::AnyToInt => Ty::raw("Int"),
-//            CastType::RawToAny | CastType::FunToAny => Ty::Any,
-//        }
-//    }
-//}
 
 impl Expr {
     pub fn number(n: i64) -> TypedExpr {
@@ -150,16 +131,6 @@ impl Expr {
         (Expr::Exprs(exprs), t)
     }
 
-    pub fn cast(cast_type: CastType, e: TypedExpr) -> TypedExpr {
-        let ty = match &cast_type {
-            CastType::AnyToFun(f) => f.clone().into(),
-            CastType::AnyToInt => Ty::raw("Int"),
-            CastType::RawToAny => Ty::Any,
-            CastType::FunToAny => Ty::Any,
-        };
-        (Expr::Cast(cast_type, Box::new(e)), ty)
-    }
-
     pub fn unbox(e: TypedExpr) -> TypedExpr {
         if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
@@ -251,11 +222,6 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 .collect::<Vec<String>>()
                 .join("\n")
         }
-        Expr::Cast(cast_type, e) => format!(
-            "({} as {})",
-            pretty_print(&e.0, lv, false),
-            cast_type.result_ty()
-        ),
         Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%nop".to_string(),

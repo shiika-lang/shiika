@@ -132,9 +132,6 @@ impl<'f> Typing<'f> {
                 }
                 e.1 = exprs.last().unwrap().1.clone();
             }
-            hir::Expr::Cast(_, _) => {
-                return Err(anyhow!("[BUG] Cast unexpected here"));
-            }
             _ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
         Ok(())
