@@ -54,7 +54,7 @@ fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, hir::FunTy
     fun_ty.asyncness = hir::Asyncness::Sync;
 
     // TMP: Insert receiver
-    fun_ty.param_tys.insert(0, Ty::raw("Int"));
+    fun_ty.param_tys.insert(0, hir::Ty::raw("Int"));
 
     Ok((
         FunctionName::unmangled(format!("{}#{}", class, ast_sig.name.0)),
