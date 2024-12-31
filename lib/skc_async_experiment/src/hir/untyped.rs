@@ -243,11 +243,6 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
     let t = if n.args.len() == 0 {
         let s = n.names.join("::");
         match &s[..] {
-            // Internally used types (in src/prelude.rs)
-            //            "Shiika::Internal::Int64" => hir::Ty::Int64,
-            //            "ANY" => hir::Ty::Any,
-            //            "ENV" => hir::Ty::ChiikaEnv,
-            //            "FUTURE" => hir::Ty::RustFuture,
             _ => hir::Ty::raw(s),
         }
     } else {
