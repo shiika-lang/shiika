@@ -10,7 +10,7 @@ pub fn run(hir: hir::Program) -> mir::Program {
         })
         .collect();
     let funcs = hir
-        .funcs
+        .methods
         .into_iter()
         .map(|f| mir::Function {
             asyncness: convert_asyncness(f.asyncness),

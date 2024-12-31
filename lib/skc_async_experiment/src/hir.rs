@@ -9,12 +9,12 @@ pub use ty::{FunTy, Ty};
 #[derive(Debug, Clone)]
 pub struct Program {
     pub externs: Vec<Extern>,
-    pub funcs: Vec<Function>,
+    pub methods: Vec<Method>,
 }
 
 impl Program {
-    pub fn new(externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
-        Self { externs, funcs }
+    pub fn new(externs: Vec<Extern>, methods: Vec<Method>) -> Self {
+        Self { externs, methods }
     }
 }
 
@@ -31,7 +31,7 @@ impl Extern {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
+pub struct Method {
     pub asyncness: Asyncness,
     pub name: FunctionName,
     pub params: Vec<Param>,
@@ -39,7 +39,7 @@ pub struct Function {
     pub body_stmts: Typed<Expr>,
 }
 
-impl Function {
+impl Method {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: self.asyncness.clone(),

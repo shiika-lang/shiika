@@ -36,18 +36,18 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program> {
     }
 
     let c = Compiler { func_names };
-    let mut funcs = vec![];
+    let mut methods = vec![];
     for def in defs {
         match def {
             shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
-                funcs.push(c.compile_func(sig, body_exprs)?);
+                methods.push(c.compile_func(sig, body_exprs)?);
             }
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
     Ok(hir::Program {
         externs: vec![],
-        funcs,
+        methods,
     })
 }
 
@@ -60,7 +60,7 @@ impl Compiler {
         &self,
         sig: &shiika_ast::AstMethodSignature,
         body_exprs: &[shiika_ast::AstExpression],
-    ) -> Result<hir::Function> {
+    ) -> Result<hir::Method> {
         let mut params = vec![];
         for p in &sig.params {
             params.push(hir::Param {
@@ -83,7 +83,7 @@ impl Compiler {
         }
         insert_implicit_return(&mut body_stmts);
 
-        Ok(hir::Function {
+        Ok(hir::Method {
             asyncness: hir::Asyncness::Unknown,
             name: FunctionName::unmangled(sig.name.to_string()),
             params,

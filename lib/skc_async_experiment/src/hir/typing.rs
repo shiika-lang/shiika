@@ -22,11 +22,11 @@ pub fn run(hir: &mut hir::Program) -> Result<()> {
     for e in &hir.externs {
         c.sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
-    for f in &hir.funcs {
+    for f in &hir.methods {
         c.sigs.insert(f.name.clone(), f.fun_ty());
     }
 
-    for f in hir.funcs.iter_mut() {
+    for f in hir.methods.iter_mut() {
         c.compile_func(f)?;
     }
 
@@ -34,7 +34,7 @@ pub fn run(hir: &mut hir::Program) -> Result<()> {
 }
 
 impl<'f> Typing<'f> {
-    fn compile_func(&mut self, func: &'f mut hir::Function) -> Result<()> {
+    fn compile_func(&mut self, func: &'f mut hir::Method) -> Result<()> {
         self.current_func_name = Some(&func.name);
         self.current_func_params = Some(&func.params);
         self.current_func_ret_ty = Some(&func.ret_ty);
