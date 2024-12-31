@@ -53,8 +53,8 @@ impl Main {
             .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
             .collect();
         hir::typing::run(&mut hir)?;
-        self.log(format!("# -- typing output --\n{hir}\n"));
         let mut mir = hir_to_mir::run(hir);
+        self.log(format!("# -- typing output --\n{mir}\n"));
         mir = mir_lowering::asyncness_check::run(mir);
         self.log(format!("# -- asyncness_check output --\n{mir}\n"));
         mir = mir_lowering::pass_async_env::run(mir);

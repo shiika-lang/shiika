@@ -1,20 +1,10 @@
 use crate::hir::Asyncness;
-use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Unknown, // Used before typecheck
     Raw(String),
     Fun(FunTy),
-}
-
-impl fmt::Display for Ty {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Ty::Fun(fun_ty) => write!(f, "{}", fun_ty),
-            _ => write!(f, "{:?}", self),
-        }
-    }
 }
 
 impl Ty {
@@ -55,29 +45,11 @@ impl Ty {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunTy {
     pub asyncness: Asyncness,
     pub param_tys: Vec<Ty>,
     pub ret_ty: Box<Ty>,
-}
-
-impl fmt::Display for FunTy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let para = self
-            .param_tys
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        write!(f, "({})->{}", para, &self.ret_ty)
-    }
-}
-
-impl fmt::Debug for FunTy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
-    }
 }
 
 impl From<FunTy> for Ty {

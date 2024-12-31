@@ -124,71 +124,11 @@ impl Expr {
             _ => false,
         }
     }
-
-    pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
-        pretty_print(self, lv, as_stmt)
-    }
 }
 
 pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
     match expr.0 {
         Expr::Exprs(exprs) => exprs,
         _ => vec![expr],
-    }
-}
-
-fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
-    let sp = "  ".repeat(lv);
-    let mut indent = as_stmt;
-    let s = match node {
-        Expr::Number(n) => format!("{}", n),
-        Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
-        Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
-        Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
-        Expr::LVarRef(name) => format!("{}", name),
-        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
-        Expr::FuncRef(name) => format!("{}", name),
-        Expr::FunCall(func, args) => {
-            let Ty::Fun(fun_ty) = &func.1 else {
-                panic!("[BUG] not a function: {:?}", func);
-            };
-            format!("{}{}(", func.0.pretty_print(0, false), fun_ty.asyncness)
-                + args
-                    .iter()
-                    .map(|arg| arg.0.pretty_print(0, false))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-                    .as_str()
-                + ")"
-        }
-        Expr::If(cond, then, else_) => {
-            format!("if {}\n", cond.0.pretty_print(0, false))
-                + then.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}else\n", sp)
-                + else_.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}end", sp)
-        }
-        Expr::While(cond, body) => {
-            format!("while {}\n", cond.0.pretty_print(0, false))
-                + body.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}end", sp)
-        }
-        Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
-        Expr::Alloc(name) => format!("alloc {}", name),
-        Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
-        Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
-        Expr::Exprs(exprs) => {
-            indent = false;
-            exprs
-                .iter()
-                .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
-                .collect::<Vec<String>>()
-                .join("\n")
-        } //_ => todo!("{:?}", self),
-    };
-    if indent {
-        format!("{}{}", sp, s)
-    } else {
-        s
     }
 }

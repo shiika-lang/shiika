@@ -4,25 +4,12 @@ pub mod typing;
 pub mod untyped;
 use crate::names::FunctionName;
 pub use expr::{Expr, Typed, TypedExpr};
-use std::fmt;
 pub use ty::{FunTy, Ty};
 
 #[derive(Debug, Clone)]
 pub struct Program {
     pub externs: Vec<Extern>,
     pub funcs: Vec<Function>,
-}
-
-impl fmt::Display for Program {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for e in &self.externs {
-            write!(f, "{}", e)?;
-        }
-        for func in &self.funcs {
-            write!(f, "{}", func)?;
-        }
-        write!(f, "")
-    }
 }
 
 impl Program {
@@ -35,16 +22,6 @@ impl Program {
 pub struct Extern {
     pub name: FunctionName,
     pub fun_ty: FunTy,
-}
-
-impl fmt::Display for Extern {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "extern({}) {} {};\n",
-            self.fun_ty.asyncness, self.name, self.fun_ty
-        )
-    }
 }
 
 impl Extern {
@@ -60,24 +37,6 @@ pub struct Function {
     pub params: Vec<Param>,
     pub ret_ty: Ty,
     pub body_stmts: Typed<Expr>,
-}
-
-impl fmt::Display for Function {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let para = self
-            .params
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(
-            f,
-            "fun {}{}({}) -> {} {{\n",
-            self.name, self.asyncness, para, self.ret_ty
-        )?;
-        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)?;
-        write!(f, "}}\n")
-    }
 }
 
 impl Function {
@@ -105,29 +64,12 @@ impl Param {
     }
 }
 
-impl fmt::Display for Param {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.ty, self.name)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Asyncness {
     Unknown,
     Sync,
     Async,
     Lowered,
-}
-
-impl fmt::Display for Asyncness {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Asyncness::Unknown => write!(f, "[?]"),
-            Asyncness::Sync => write!(f, "[+]"),
-            Asyncness::Async => write!(f, "[*]"),
-            Asyncness::Lowered => write!(f, ""), // "[.]"
-        }
-    }
 }
 
 impl From<bool> for Asyncness {
