@@ -132,7 +132,7 @@ impl<'f> Typing<'f> {
                 }
                 e.1 = exprs.last().unwrap().1.clone();
             }
-            _ => panic!("must not occur in hir::typing: {:?}", e.0),
+            //_ => panic!("must not occur in hir::typing: {:?}", e.0),
         };
         Ok(())
     }

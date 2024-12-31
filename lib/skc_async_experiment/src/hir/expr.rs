@@ -11,9 +11,7 @@ pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
     LVarRef(String),
-    ArgRef(usize, String),                   // (index, debug_name)
-    EnvRef(usize, String),                   // (index, debug_name)
-    EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    ArgRef(usize, String), // (index, debug_name)
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -23,9 +21,6 @@ pub enum Expr {
     Assign(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
-    Unbox(Box<Typed<Expr>>),
-    RawI64(i64),
-    Nop,
 }
 
 impl Expr {
@@ -47,14 +42,6 @@ impl Expr {
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::ArgRef(idx, name.into()), ty)
-    }
-
-    pub fn env_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
-        (Expr::EnvRef(idx, name.into()), ty)
-    }
-
-    pub fn env_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
-        (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::raw("Void"))
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -131,21 +118,6 @@ impl Expr {
         (Expr::Exprs(exprs), t)
     }
 
-    pub fn unbox(e: TypedExpr) -> TypedExpr {
-        if e.1 != Ty::raw("Int") {
-            panic!("[BUG] unbox non-Int: {:?}", e);
-        }
-        (Expr::Unbox(Box::new(e)), Ty::Int64)
-    }
-
-    pub fn raw_i64(n: i64) -> TypedExpr {
-        (Expr::RawI64(n), Ty::Int64)
-    }
-
-    pub fn nop() -> TypedExpr {
-        (Expr::Nop, Ty::raw("Void"))
-    }
-
     pub fn is_async_fun_call(&self) -> bool {
         match self {
             Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun().unwrap(),
@@ -175,15 +147,6 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
-        Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
-        Expr::EnvSet(idx, e, name) => {
-            format!(
-                "env_set({}%{}, {})",
-                name,
-                idx,
-                pretty_print(&e.0, lv, false)
-            )
-        }
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {
@@ -221,11 +184,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
                 .collect::<Vec<String>>()
                 .join("\n")
-        }
-        Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
-        Expr::RawI64(n) => format!("{}", n),
-        Expr::Nop => "%nop".to_string(),
-        //_ => todo!("{:?}", self),
+        } //_ => todo!("{:?}", self),
     };
     if indent {
         format!("{}{}", sp, s)

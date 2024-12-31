@@ -77,8 +77,6 @@ fn convert_expr(expr: hir::Expr) -> mir::Expr {
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
         hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
         hir::Expr::ArgRef(i, s) => mir::Expr::ArgRef(i, s),
-        hir::Expr::EnvRef(i, s) => mir::Expr::EnvRef(i, s),
-        hir::Expr::EnvSet(i, v, s) => mir::Expr::EnvSet(i, Box::new(convert_texpr(*v)), s),
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
         hir::Expr::FunCall(f, a) => {
             mir::Expr::FunCall(Box::new(convert_texpr(*f)), convert_texpr_vec(a))
@@ -96,6 +94,6 @@ fn convert_expr(expr: hir::Expr) -> mir::Expr {
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
-        _ => panic!("unexpected for hir_to_mir"),
+        //_ => panic!("unexpected for hir_to_mir"),
     }
 }
