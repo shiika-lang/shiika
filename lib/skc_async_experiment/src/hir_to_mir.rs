@@ -1,6 +1,6 @@
 use crate::{hir, mir};
 
-pub fn run(hir: hir::Program) -> mir::Program {
+pub fn run(hir: hir::Program<hir::Ty>) -> mir::Program {
     let externs = hir
         .externs
         .into_iter()
@@ -46,7 +46,6 @@ fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {
 
 fn convert_ty(ty: hir::Ty) -> mir::Ty {
     match ty {
-        hir::Ty::Unknown => panic!("Unknown ty in hir"),
         hir::Ty::Raw(s) => mir::Ty::Raw(s),
         hir::Ty::Fun(fun_ty) => mir::Ty::Fun(convert_fun_ty(fun_ty)),
     }
@@ -59,15 +58,15 @@ fn convert_param(param: hir::Param) -> mir::Param {
     }
 }
 
-fn convert_texpr(texpr: hir::TypedExpr) -> mir::TypedExpr {
+fn convert_texpr(texpr: hir::TypedExpr<hir::Ty>) -> mir::TypedExpr {
     (convert_expr(texpr.0), convert_ty(texpr.1))
 }
 
-fn convert_texpr_vec(exprs: Vec<hir::TypedExpr>) -> Vec<mir::TypedExpr> {
+fn convert_texpr_vec(exprs: Vec<hir::TypedExpr<hir::Ty>>) -> Vec<mir::TypedExpr> {
     exprs.into_iter().map(|x| convert_texpr(x)).collect()
 }
 
-fn convert_expr(expr: hir::Expr) -> mir::Expr {
+fn convert_expr(expr: hir::Expr<hir::Ty>) -> mir::Expr {
     match expr {
         hir::Expr::Number(i) => mir::Expr::Number(i),
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),

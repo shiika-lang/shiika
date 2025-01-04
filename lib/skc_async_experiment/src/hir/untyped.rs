@@ -6,7 +6,7 @@ use shiika_ast as ast;
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &ast::Program) -> Result<hir::Program> {
+pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
     let Some(topitem) = ast.toplevel_items.first() else {
         return Err(anyhow!("[wip] no top-level item"));
     };
@@ -60,7 +60,7 @@ impl Compiler {
         &self,
         sig: &shiika_ast::AstMethodSignature,
         body_exprs: &[shiika_ast::AstExpression],
-    ) -> Result<hir::Method> {
+    ) -> Result<hir::Method<()>> {
         let mut params = vec![];
         for p in &sig.params {
             params.push(hir::Param {
@@ -79,7 +79,7 @@ impl Compiler {
             .map(|e| self.compile_expr(&sig, &mut lvars, &e))
             .collect::<Result<Vec<_>>>()?;
         for name in lvars {
-            body_stmts.insert(0, (hir::Expr::Alloc(name), hir::Ty::Unknown));
+            body_stmts.insert(0, untyped(hir::Expr::Alloc(name)));
         }
         insert_implicit_return(&mut body_stmts);
 
@@ -88,7 +88,7 @@ impl Compiler {
             name: FunctionName::unmangled(sig.name.to_string()),
             params,
             ret_ty,
-            body_stmts: hir::Expr::exprs(body_stmts),
+            body_stmts: untyped(hir::Expr::Exprs(body_stmts)),
         })
     }
 
@@ -97,7 +97,7 @@ impl Compiler {
         sig: &shiika_ast::AstMethodSignature,
         lvars: &mut HashSet<String>,
         x: &shiika_ast::AstExpression,
-    ) -> Result<hir::TypedExpr> {
+    ) -> Result<hir::TypedExpr<()>> {
         let e = match &x.body {
             shiika_ast::AstExpressionBody::DecimalLiteral { value } => hir::Expr::Number(*value),
             shiika_ast::AstExpressionBody::PseudoVariable(token) => match token {
@@ -132,7 +132,7 @@ impl Compiler {
                             self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
                         let method_name = FunctionName::unmangled(format!("Int#{}", method_name));
                         hir::Expr::FunCall(
-                            Box::new((hir::Expr::FuncRef(method_name), hir::Ty::Unknown)),
+                            Box::new(untyped(hir::Expr::FuncRef(method_name))),
                             vec![lhs, rhs],
                         )
                     }
@@ -141,7 +141,7 @@ impl Compiler {
                             return Err(anyhow!("[wip] receiver_expr must be None now"));
                         }
                         let fname = FunctionName::unmangled(method_name.clone());
-                        let fexpr = (hir::Expr::FuncRef(fname), hir::Ty::Unknown);
+                        let fexpr = untyped(hir::Expr::FuncRef(fname));
                         let mut arg_hirs = vec![];
                         for a in &mcall.args.unnamed {
                             arg_hirs.push(self.compile_expr(sig, lvars, a)?);
@@ -160,7 +160,7 @@ impl Compiler {
                 let els = if let Some(else_) = else_exprs {
                     self.compile_exprs(sig, lvars, else_)?
                 } else {
-                    hir::Expr::pseudo_var(mir::PseudoVar::Void)
+                    untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void))
                 };
                 hir::Expr::If(Box::new(cond), Box::new(then), Box::new(els))
             }
@@ -192,13 +192,13 @@ impl Compiler {
                 let e = if let Some(v) = arg {
                     self.compile_expr(sig, lvars, v)?
                 } else {
-                    hir::Expr::pseudo_var(mir::PseudoVar::Void)
+                    untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void))
                 };
                 hir::Expr::Return(Box::new(e))
             }
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", x)),
         };
-        Ok((e, hir::Ty::Unknown))
+        Ok((e, ()))
     }
 
     fn compile_var_ref(
@@ -206,7 +206,7 @@ impl Compiler {
         sig: &shiika_ast::AstMethodSignature,
         lvars: &mut HashSet<String>,
         name: &str,
-    ) -> Result<hir::Expr> {
+    ) -> Result<hir::Expr<()>> {
         let e = if lvars.contains(name) {
             hir::Expr::LVarRef(name.to_string())
         } else if let Some(idx) = sig.params.iter().position(|p| p.name == name) {
@@ -230,12 +230,12 @@ impl Compiler {
         sig: &shiika_ast::AstMethodSignature,
         lvars: &mut HashSet<String>,
         xs: &[shiika_ast::AstExpression],
-    ) -> Result<hir::TypedExpr> {
+    ) -> Result<hir::TypedExpr<()>> {
         let mut es = vec![];
         for x in xs {
             es.push(self.compile_expr(sig, lvars, x)?);
         }
-        Ok(hir::Expr::exprs(es))
+        Ok(untyped(hir::Expr::Exprs(es)))
     }
 }
 
@@ -280,7 +280,7 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
     }
 }
 
-fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
+fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
     match exprs.pop() {
         Some(last_expr) => {
             let needs_return = match &last_expr.0 {
@@ -288,16 +288,19 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr>) {
                 _ => true,
             };
             if needs_return {
-                exprs.push(hir::Expr::return_(last_expr));
+                exprs.push(untyped(hir::Expr::Return(Box::new(last_expr))));
             } else {
                 exprs.push(last_expr);
             }
         }
         None => {
             // Insert `return Void` for empty method
-            exprs.push(hir::Expr::return_(hir::Expr::pseudo_var(
-                mir::PseudoVar::Void,
-            )));
+            let void = untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void));
+            exprs.push(untyped(hir::Expr::Return(Box::new(void))));
         }
     }
+}
+
+fn untyped(e: hir::Expr<()>) -> hir::TypedExpr<()> {
+    (e, ())
 }

@@ -3,17 +3,17 @@ mod ty;
 pub mod typing;
 pub mod untyped;
 use crate::names::FunctionName;
-pub use expr::{Expr, Typed, TypedExpr};
+pub use expr::{Expr, TypedExpr};
 pub use ty::{FunTy, Ty};
 
 #[derive(Debug, Clone)]
-pub struct Program {
+pub struct Program<T> {
     pub externs: Vec<Extern>,
-    pub methods: Vec<Method>,
+    pub methods: Vec<Method<T>>,
 }
 
-impl Program {
-    pub fn new(externs: Vec<Extern>, methods: Vec<Method>) -> Self {
+impl<T> Program<T> {
+    pub fn new(externs: Vec<Extern>, methods: Vec<Method<T>>) -> Self {
         Self { externs, methods }
     }
 }
@@ -31,15 +31,15 @@ impl Extern {
 }
 
 #[derive(Debug, Clone)]
-pub struct Method {
+pub struct Method<T> {
     pub asyncness: Asyncness,
     pub name: FunctionName,
     pub params: Vec<Param>,
     pub ret_ty: Ty,
-    pub body_stmts: Typed<Expr>,
+    pub body_stmts: TypedExpr<T>,
 }
 
-impl Method {
+impl<T> Method<T> {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: self.asyncness.clone(),

@@ -2,7 +2,6 @@ use crate::hir::Asyncness;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
-    Unknown, // Used before typecheck
     Raw(String),
     Fun(FunTy),
 }
