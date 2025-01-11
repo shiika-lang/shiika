@@ -3,6 +3,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
+use shiika_core::ty::{self, TermTy};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
@@ -70,7 +71,7 @@ impl Compiler {
         }
         let ret_ty = match &sig.ret_typ {
             Some(t) => compile_ty(&t)?,
-            None => hir::Ty::raw("Void"),
+            None => ty::raw("Void"),
         };
 
         let mut lvars = HashSet::new();
@@ -239,29 +240,15 @@ impl Compiler {
     }
 }
 
-fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<hir::Ty> {
+fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
     let t = if n.args.len() == 0 {
         let s = n.names.join("::");
-        match &s[..] {
-            _ => hir::Ty::raw(s),
-        }
+        ty::raw(s)
     } else {
-        hir::Ty::Fun(compile_fun_ty(&n.args)?)
+        todo!();
+        //hir::Ty::Fun(compile_fun_ty(&n.args)?)
     };
     Ok(t)
-}
-
-fn compile_fun_ty(x: &[shiika_ast::UnresolvedTypeName]) -> Result<hir::FunTy> {
-    let mut param_tys = vec![];
-    for p in x {
-        param_tys.push(compile_ty(p)?);
-    }
-    let ret_ty = Box::new(param_tys.pop().unwrap());
-    Ok(hir::FunTy {
-        asyncness: hir::Asyncness::Unknown,
-        param_tys,
-        ret_ty,
-    })
 }
 
 pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
@@ -271,12 +258,12 @@ pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
     }
     let ret_ty = match &sig.ret_typ {
         Some(t) => compile_ty(t).unwrap(),
-        None => hir::Ty::raw("Void"),
+        None => ty::raw("Void"),
     };
     hir::FunTy {
         asyncness: hir::Asyncness::Unknown,
         param_tys,
-        ret_ty: Box::new(ret_ty),
+        ret_ty,
     }
 }
 

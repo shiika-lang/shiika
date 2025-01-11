@@ -1392,8 +1392,10 @@ dependencies = [
  "os_info",
  "peg",
  "shiika_ast",
+ "shiika_core",
  "shiika_ffi",
  "shiika_parser",
+ "skc_hir",
 ]
 
 [[package]]

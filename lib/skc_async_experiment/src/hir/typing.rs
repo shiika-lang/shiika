@@ -1,17 +1,18 @@
 use crate::hir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
+use shiika_core::ty::{self, TermTy};
 use std::collections::HashMap;
 
 struct Typing<'f> {
     sigs: &'f HashMap<FunctionName, hir::FunTy>,
     current_func_name: &'f FunctionName,
     current_func_params: &'f [hir::Param],
-    current_func_ret_ty: &'f hir::Ty,
+    current_func_ret_ty: &'f TermTy,
 }
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::Program<()>) -> Result<hir::Program<hir::Ty>> {
+pub fn run(hir: hir::Program<()>) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
     for e in &hir.externs {
         sigs.insert(e.name.clone(), e.fun_ty.clone());
@@ -48,16 +49,16 @@ pub fn run(hir: hir::Program<()>) -> Result<hir::Program<hir::Ty>> {
 }
 
 impl<'f> Typing<'f> {
-    fn compile_func(&mut self, body_stmts: hir::TypedExpr<()>) -> Result<hir::TypedExpr<hir::Ty>> {
+    fn compile_func(&mut self, body_stmts: hir::TypedExpr<()>) -> Result<hir::TypedExpr<TermTy>> {
         let mut lvars = HashMap::new();
         self.compile_expr(&mut lvars, body_stmts)
     }
 
     fn compile_expr(
         &mut self,
-        lvars: &mut HashMap<String, hir::Ty>,
+        lvars: &mut HashMap<String, TermTy>,
         e: hir::TypedExpr<()>,
-    ) -> Result<hir::TypedExpr<hir::Ty>> {
+    ) -> Result<hir::TypedExpr<TermTy>> {
         let new_e = match e.0 {
             hir::Expr::Number(n) => hir::Expr::number(n),
             hir::Expr::PseudoVar(p) => hir::Expr::pseudo_var(p),
@@ -81,13 +82,11 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_expr(lvars, *fexpr)?;
-                let hir::Ty::Fun(fun_ty) = &new_fexpr.1 else {
-                    return Err(anyhow!("not a function"));
-                };
-                if fun_ty.param_tys.len() != arg_exprs.len() {
+                let arity = new_fexpr.1.fn_x_info().unwrap().len() - 1;
+                if arity != arg_exprs.len() {
                     return Err(anyhow!(
                         "funcall arity mismatch (expected {}, got {})",
-                        fun_ty.param_tys.len(),
+                        arity,
                         arg_exprs.len(),
                     ));
                 }
@@ -99,7 +98,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::If(cond, then, els) => {
                 let new_cond = self.compile_expr(lvars, *cond)?;
-                if new_cond.1 != hir::Ty::raw("Bool") {
+                if new_cond.1 != ty::raw("Bool") {
                     return Err(anyhow!("condition should be bool but got {:?}", new_cond.1));
                 }
                 let new_then = self.compile_expr(lvars, *then)?;
@@ -108,7 +107,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::While(cond, body) => {
                 let new_cond = self.compile_expr(lvars, *cond)?;
-                if new_cond.1 != hir::Ty::raw("Bool") {
+                if new_cond.1 != ty::raw("Bool") {
                     return Err(anyhow!("condition should be bool but got {:?}", new_cond.1));
                 }
                 let new_body = self.compile_expr(lvars, *body)?;
@@ -120,7 +119,7 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::Alloc(name) => {
                 // Milika vars are always Int now
-                lvars.insert(name.clone(), hir::Ty::raw("Int"));
+                lvars.insert(name.clone(), ty::raw("Int"));
                 hir::Expr::alloc(name)
             }
             hir::Expr::Assign(name, val) => {
@@ -162,8 +161,8 @@ impl<'f> Typing<'f> {
     }
 }
 
-fn valid_return_type(expected: &hir::Ty, actual: &hir::Ty) -> bool {
-    if actual == &hir::Ty::raw("Never") {
+fn valid_return_type(expected: &TermTy, actual: &TermTy) -> bool {
+    if actual == &ty::raw("Never") {
         true
     } else {
         expected == actual
