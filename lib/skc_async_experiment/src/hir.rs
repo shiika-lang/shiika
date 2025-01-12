@@ -3,31 +3,19 @@ mod ty;
 pub mod typing;
 pub mod untyped;
 use crate::names::FunctionName;
-pub use expr::{Expr, Typed, TypedExpr};
-use std::fmt;
-pub use ty::{FunTy, Ty};
+pub use expr::{Expr, TypedExpr};
+use shiika_core::ty::TermTy;
+pub use ty::FunTy;
 
 #[derive(Debug, Clone)]
-pub struct Program {
+pub struct Program<T> {
     pub externs: Vec<Extern>,
-    pub funcs: Vec<Function>,
+    pub methods: Vec<Method<T>>,
 }
 
-impl fmt::Display for Program {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for e in &self.externs {
-            write!(f, "{}", e)?;
-        }
-        for func in &self.funcs {
-            write!(f, "{}", func)?;
-        }
-        write!(f, "")
-    }
-}
-
-impl Program {
-    pub fn new(externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
-        Self { externs, funcs }
+impl<T> Program<T> {
+    pub fn new(externs: Vec<Extern>, methods: Vec<Method<T>>) -> Self {
+        Self { externs, methods }
     }
 }
 
@@ -37,16 +25,6 @@ pub struct Extern {
     pub fun_ty: FunTy,
 }
 
-impl fmt::Display for Extern {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "extern({}) {} {};\n",
-            self.fun_ty.asyncness, self.name, self.fun_ty
-        )
-    }
-}
-
 impl Extern {
     pub fn is_async(&self) -> bool {
         self.fun_ty.asyncness.is_async()
@@ -54,60 +32,36 @@ impl Extern {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
+pub struct Method<T> {
     pub asyncness: Asyncness,
     pub name: FunctionName,
     pub params: Vec<Param>,
-    pub ret_ty: Ty,
-    pub body_stmts: Typed<Expr>,
+    pub ret_ty: TermTy,
+    pub body_stmts: TypedExpr<T>,
 }
 
-impl fmt::Display for Function {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let para = self
-            .params
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(
-            f,
-            "fun {}{}({}) -> {} {{\n",
-            self.name, self.asyncness, para, self.ret_ty
-        )?;
-        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)?;
-        write!(f, "}}\n")
-    }
-}
-
-impl Function {
+impl<T: Clone> Method<T> {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: self.asyncness.clone(),
             param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
-            ret_ty: Box::new(self.ret_ty.clone()),
+            ret_ty: self.ret_ty.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Param {
-    pub ty: Ty,
+    pub ty: TermTy,
     pub name: String,
 }
 
 impl Param {
-    pub fn new(ty: Ty, name: impl Into<String>) -> Self {
+    pub fn new(ty: TermTy, name: impl Into<String>) -> Self {
         Self {
             ty,
             name: name.into(),
         }
-    }
-}
-
-impl fmt::Display for Param {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.ty, self.name)
     }
 }
 
@@ -117,17 +71,6 @@ pub enum Asyncness {
     Sync,
     Async,
     Lowered,
-}
-
-impl fmt::Display for Asyncness {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Asyncness::Unknown => write!(f, "[?]"),
-            Asyncness::Sync => write!(f, "[+]"),
-            Asyncness::Async => write!(f, "[*]"),
-            Asyncness::Lowered => write!(f, ""), // "[.]"
-        }
-    }
 }
 
 impl From<bool> for Asyncness {

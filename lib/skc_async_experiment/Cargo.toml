@@ -7,6 +7,9 @@ edition = "2021"
 shiika_ast = { path = "../shiika_ast" }
 shiika_parser = { path = "../shiika_parser" }
 shiika_ffi = { path = "../shiika_ffi" }
+shiika_core = { path = "../shiika_core" }
+skc_hir = { path = "../skc_hir" }
+
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
 nom = "7.1.3"
 peg = "0.8.2"

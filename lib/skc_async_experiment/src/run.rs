@@ -52,16 +52,16 @@ impl Main {
             .into_iter()
             .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
             .collect();
-        hir::typing::run(&mut hir)?;
-        self.log(format!("# -- typing output --\n{hir}\n"));
-        let mut mir = hir_to_mir::run(hir);
-        mir = mir_lowering::asyncness_check::run(mir);
+        let hir = hir::typing::run(hir)?;
+        let mir = hir_to_mir::run(hir);
+        self.log(format!("# -- typing output --\n{mir}\n"));
+        let mir = mir_lowering::asyncness_check::run(mir);
         self.log(format!("# -- asyncness_check output --\n{mir}\n"));
-        mir = mir_lowering::pass_async_env::run(mir);
+        let mir = mir_lowering::pass_async_env::run(mir);
         self.log(format!("# -- pass_async_env output --\n{mir}\n"));
-        mir = mir_lowering::async_splitter::run(mir)?;
+        let mir = mir_lowering::async_splitter::run(mir)?;
         self.log(format!("# -- async_splitter output --\n{mir}\n"));
-        mir = mir_lowering::resolve_env_op::run(mir);
+        let mir = mir_lowering::resolve_env_op::run(mir);
         Ok(mir)
     }
 

@@ -1,6 +1,7 @@
 use crate::{hir, mir};
+use shiika_core::ty::TermTy;
 
-pub fn run(hir: hir::Program) -> mir::Program {
+pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
     let externs = hir
         .externs
         .into_iter()
@@ -10,7 +11,7 @@ pub fn run(hir: hir::Program) -> mir::Program {
         })
         .collect();
     let funcs = hir
-        .funcs
+        .methods
         .into_iter()
         .map(|f| mir::Function {
             asyncness: convert_asyncness(f.asyncness),
@@ -31,7 +32,7 @@ fn convert_fun_ty(fun_ty: hir::FunTy) -> mir::FunTy {
             .into_iter()
             .map(|x| convert_ty(x))
             .collect(),
-        ret_ty: Box::new(convert_ty(*fun_ty.ret_ty)),
+        ret_ty: Box::new(convert_ty(fun_ty.ret_ty)),
     }
 }
 
@@ -44,11 +45,21 @@ fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {
     }
 }
 
-fn convert_ty(ty: hir::Ty) -> mir::Ty {
-    match ty {
-        hir::Ty::Unknown => panic!("Unknown ty in hir"),
-        hir::Ty::Raw(s) => mir::Ty::Raw(s),
-        hir::Ty::Fun(fun_ty) => mir::Ty::Fun(convert_fun_ty(fun_ty)),
+fn convert_ty(ty: TermTy) -> mir::Ty {
+    match ty.fn_x_info() {
+        Some(tys) => {
+            let mut param_tys = tys
+                .into_iter()
+                .map(|x| convert_ty(x.clone()))
+                .collect::<Vec<_>>();
+            let ret_ty = param_tys.pop().unwrap();
+            mir::Ty::Fun(mir::FunTy {
+                asyncness: mir::Asyncness::Unknown,
+                param_tys,
+                ret_ty: Box::new(ret_ty),
+            })
+        }
+        _ => mir::Ty::Raw(ty.fullname.0),
     }
 }
 
@@ -59,15 +70,15 @@ fn convert_param(param: hir::Param) -> mir::Param {
     }
 }
 
-fn convert_texpr(texpr: hir::TypedExpr) -> mir::TypedExpr {
+fn convert_texpr(texpr: hir::TypedExpr<TermTy>) -> mir::TypedExpr {
     (convert_expr(texpr.0), convert_ty(texpr.1))
 }
 
-fn convert_texpr_vec(exprs: Vec<hir::TypedExpr>) -> Vec<mir::TypedExpr> {
+fn convert_texpr_vec(exprs: Vec<hir::TypedExpr<TermTy>>) -> Vec<mir::TypedExpr> {
     exprs.into_iter().map(|x| convert_texpr(x)).collect()
 }
 
-fn convert_expr(expr: hir::Expr) -> mir::Expr {
+fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
     match expr {
         hir::Expr::Number(i) => mir::Expr::Number(i),
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),

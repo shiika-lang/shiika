@@ -1,62 +1,62 @@
-use crate::hir::FunctionName;
-use crate::hir::{FunTy, Ty};
+use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
+use shiika_core::ty::{self, TermTy};
 
-pub type Typed<T> = (T, Ty);
-pub type TypedExpr = Typed<Expr>;
+pub type TypedExpr<T> = (Expr<T>, T);
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum Expr<T> {
     Number(i64),
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
     FuncRef(FunctionName),
-    FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
-    If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
-    While(Box<Typed<Expr>>, Box<Typed<Expr>>),
-    Spawn(Box<Typed<Expr>>),
+    FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
+    If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
+    While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
+    Spawn(Box<TypedExpr<T>>),
     Alloc(String),
-    Assign(String, Box<Typed<Expr>>),
-    Return(Box<Typed<Expr>>),
-    Exprs(Vec<Typed<Expr>>),
+    Assign(String, Box<TypedExpr<T>>),
+    Return(Box<TypedExpr<T>>),
+    Exprs(Vec<TypedExpr<T>>),
 }
 
-impl Expr {
-    pub fn number(n: i64) -> TypedExpr {
-        (Expr::Number(n), Ty::raw("Int"))
+impl Expr<TermTy> {
+    pub fn number(n: i64) -> TypedExpr<TermTy> {
+        (Expr::Number(n), ty::raw("Int"))
     }
 
-    pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
+    pub fn pseudo_var(var: PseudoVar) -> TypedExpr<TermTy> {
         let t = match var {
-            PseudoVar::True | PseudoVar::False => Ty::raw("Bool"),
-            PseudoVar::Void => Ty::raw("Void"),
+            PseudoVar::True | PseudoVar::False => ty::raw("Bool"),
+            PseudoVar::Void => ty::raw("Void"),
         };
         (Expr::PseudoVar(var), t)
     }
 
-    pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
+    pub fn lvar_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::LVarRef(name.into()), ty)
     }
 
-    pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+    pub fn arg_ref(idx: usize, name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::ArgRef(idx, name.into()), ty)
     }
 
-    pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
-        (Expr::FuncRef(name), fun_ty.into())
+    pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr<TermTy> {
+        (Expr::FuncRef(name), fun_ty.to_term_ty())
     }
 
-    pub fn fun_call(func: TypedExpr, args: Vec<TypedExpr>) -> TypedExpr {
-        let result_ty = match &func.1 {
-            Ty::Fun(f) => *f.ret_ty.clone(),
-            _ => panic!("[BUG] not a function: {:?}", func),
-        };
+    pub fn fun_call(func: TypedExpr<TermTy>, args: Vec<TypedExpr<TermTy>>) -> TypedExpr<TermTy> {
+        let result_ty = func.1.fn_x_info().unwrap().last().unwrap().clone();
         (Expr::FunCall(Box::new(func), args), result_ty)
     }
 
-    pub fn if_(cond: TypedExpr, then: TypedExpr, else_: TypedExpr) -> TypedExpr {
+    pub fn if_(
+        cond: TypedExpr<TermTy>,
+        then: TypedExpr<TermTy>,
+        else_: TypedExpr<TermTy>,
+    ) -> TypedExpr<TermTy> {
         let if_ty = Expr::if_ty(&then.1, &else_.1).unwrap();
         (
             Expr::If(Box::new(cond), Box::new(then), Box::new(else_)),
@@ -64,16 +64,16 @@ impl Expr {
         )
     }
 
-    pub fn if_ty(then_ty: &Ty, else_ty: &Ty) -> Result<Ty> {
+    pub fn if_ty(then_ty: &TermTy, else_ty: &TermTy) -> Result<TermTy> {
         let t1 = then_ty;
         let t2 = else_ty;
-        let if_ty = if *t1 == Ty::raw("Never") {
+        let if_ty = if *t1 == ty::raw("Never") {
             t2
-        } else if *t2 == Ty::raw("Never") {
+        } else if *t2 == ty::raw("Never") {
             t1
-        } else if *t1 == Ty::raw("Void") {
+        } else if *t1 == ty::raw("Void") {
             t2
-        } else if *t2 == Ty::raw("Void") {
+        } else if *t2 == ty::raw("Void") {
             t1
         } else if t1 != t2 {
             return Err(anyhow!(
@@ -87,108 +87,41 @@ impl Expr {
         Ok(if_ty.clone())
     }
 
-    pub fn while_(cond: TypedExpr, body: TypedExpr) -> TypedExpr {
-        if cond.1 != Ty::raw("Bool") {
+    pub fn while_(cond: TypedExpr<TermTy>, body: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        if cond.1 != ty::raw("Bool") {
             panic!("[BUG] while cond not bool: {:?}", cond);
         }
-        (Expr::While(Box::new(cond), Box::new(body)), Ty::raw("Void"))
+        (Expr::While(Box::new(cond), Box::new(body)), ty::raw("Void"))
     }
 
-    pub fn spawn(e: TypedExpr) -> TypedExpr {
-        (Expr::Spawn(Box::new(e)), Ty::raw("Void"))
+    pub fn spawn(e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::Spawn(Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn alloc(name: impl Into<String>) -> TypedExpr {
-        (Expr::Alloc(name.into()), Ty::raw("Void"))
+    pub fn alloc(name: impl Into<String>) -> TypedExpr<TermTy> {
+        (Expr::Alloc(name.into()), ty::raw("Void"))
     }
 
-    pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
-        (Expr::Assign(name.into(), Box::new(e)), Ty::raw("Void"))
+    pub fn assign(name: impl Into<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::Assign(name.into(), Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn return_(e: TypedExpr) -> TypedExpr {
-        (Expr::Return(Box::new(e)), Ty::raw("Never"))
+    pub fn return_(e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::Return(Box::new(e)), ty::raw("Never"))
     }
 
-    pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
+    pub fn exprs(mut exprs: Vec<TypedExpr<TermTy>>) -> TypedExpr<TermTy> {
         if exprs.is_empty() {
             exprs.push(Expr::pseudo_var(PseudoVar::Void));
         }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
     }
-
-    pub fn is_async_fun_call(&self) -> bool {
-        match self {
-            Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun().unwrap(),
-            _ => false,
-        }
-    }
-
-    pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
-        pretty_print(self, lv, as_stmt)
-    }
 }
 
-pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
+pub fn into_exprs<TermTy>(expr: TypedExpr<TermTy>) -> Vec<TypedExpr<TermTy>> {
     match expr.0 {
         Expr::Exprs(exprs) => exprs,
         _ => vec![expr],
-    }
-}
-
-fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
-    let sp = "  ".repeat(lv);
-    let mut indent = as_stmt;
-    let s = match node {
-        Expr::Number(n) => format!("{}", n),
-        Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
-        Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
-        Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
-        Expr::LVarRef(name) => format!("{}", name),
-        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
-        Expr::FuncRef(name) => format!("{}", name),
-        Expr::FunCall(func, args) => {
-            let Ty::Fun(fun_ty) = &func.1 else {
-                panic!("[BUG] not a function: {:?}", func);
-            };
-            format!("{}{}(", func.0.pretty_print(0, false), fun_ty.asyncness)
-                + args
-                    .iter()
-                    .map(|arg| arg.0.pretty_print(0, false))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-                    .as_str()
-                + ")"
-        }
-        Expr::If(cond, then, else_) => {
-            format!("if {}\n", cond.0.pretty_print(0, false))
-                + then.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}else\n", sp)
-                + else_.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}end", sp)
-        }
-        Expr::While(cond, body) => {
-            format!("while {}\n", cond.0.pretty_print(0, false))
-                + body.0.pretty_print(lv + 1, true).as_str()
-                + &format!("\n{}end", sp)
-        }
-        Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
-        Expr::Alloc(name) => format!("alloc {}", name),
-        Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
-        Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
-        Expr::Exprs(exprs) => {
-            indent = false;
-            exprs
-                .iter()
-                .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
-                .collect::<Vec<String>>()
-                .join("\n")
-        } //_ => todo!("{:?}", self),
-    };
-    if indent {
-        format!("{}{}", sp, s)
-    } else {
-        s
     }
 }

@@ -2,6 +2,7 @@ use crate::hir;
 use crate::mir::{self, FunTy, Ty};
 use crate::names::FunctionName;
 use anyhow::{Context, Result};
+use shiika_core::ty;
 use shiika_parser;
 use std::io::Read;
 
@@ -12,11 +13,11 @@ pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionNam
         // Built-in functions
         (
             "print",
-            hir::FunTy::sync(vec![hir::Ty::raw("Int")], hir::Ty::raw("Void")),
+            hir::FunTy::sync(vec![ty::raw("Int")], ty::raw("Void")),
         ),
         (
             "sleep_sec",
-            hir::FunTy::async_(vec![hir::Ty::raw("Int")], hir::Ty::raw("Void")),
+            hir::FunTy::async_(vec![ty::raw("Int")], ty::raw("Void")),
         ),
     ]
     .into_iter()
@@ -54,7 +55,7 @@ fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, hir::FunTy
     fun_ty.asyncness = hir::Asyncness::Sync;
 
     // TMP: Insert receiver
-    fun_ty.param_tys.insert(0, hir::Ty::raw("Int"));
+    fun_ty.param_tys.insert(0, ty::raw("Int"));
 
     Ok((
         FunctionName::unmangled(format!("{}#{}", class, ast_sig.name.0)),
