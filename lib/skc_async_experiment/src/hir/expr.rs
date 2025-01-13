@@ -1,6 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
+use shiika_core::names::MethodFirstname;
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -14,6 +15,7 @@ pub enum Expr<T> {
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
+    MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),

@@ -3,6 +3,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
+use shiika_core::names::method_firstname;
 use shiika_core::ty::{self, TermTy};
 use std::collections::HashSet;
 
@@ -138,16 +139,19 @@ impl Compiler {
                         )
                     }
                     _ => {
-                        if mcall.receiver_expr.is_some() {
-                            return Err(anyhow!("[wip] receiver_expr must be None now"));
-                        }
-                        let fname = FunctionName::unmangled(method_name.clone());
-                        let fexpr = untyped(hir::Expr::FuncRef(fname));
                         let mut arg_hirs = vec![];
                         for a in &mcall.args.unnamed {
                             arg_hirs.push(self.compile_expr(sig, lvars, a)?);
                         }
-                        hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
+                        if let Some(e) = &mcall.receiver_expr {
+                            let receiver = self.compile_expr(sig, lvars, e)?;
+                            let name = method_firstname(method_name);
+                            hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
+                        } else {
+                            let fname = FunctionName::unmangled(method_name.clone());
+                            let fexpr = untyped(hir::Expr::FuncRef(fname));
+                            hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
+                        }
                     }
                 }
             }

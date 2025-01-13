@@ -19,6 +19,14 @@ impl SkTypes {
         SkTypes(h)
     }
 
+    pub fn from_iterator(iter: impl Iterator<Item = SkType>) -> SkTypes {
+        let mut tt = HashMap::new();
+        iter.for_each(|t| {
+            tt.insert(t.fullname(), t);
+        });
+        SkTypes(tt)
+    }
+
     pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {
         self.0.values().filter_map(|sk_type| match sk_type {
             SkType::Class(x) => Some(x.fullname()),
