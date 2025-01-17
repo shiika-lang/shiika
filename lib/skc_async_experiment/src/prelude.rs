@@ -8,44 +8,26 @@ use std::io::Read;
 
 /// Functions that are called by the user code
 /// Returns hir::FunTy because type checker needs it
-pub fn lib_externs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, hir::FunTy)>> {
-    let mut v = vec![
-        // Built-in functions
-        (
-            "print",
-            hir::FunTy::sync(vec![ty::raw("Int")], ty::raw("Void")),
-        ),
-        (
-            "sleep_sec",
-            hir::FunTy::async_(vec![ty::raw("Int")], ty::raw("Void")),
-        ),
-    ]
-    .into_iter()
-    .map(|(name, ty)| (FunctionName::unmangled(name), ty))
-    .collect::<Vec<_>>();
-    v.append(&mut core_class_funcs(skc_runtime_dir)?);
-    Ok(v)
+pub fn load_lib_externs(
+    skc_runtime_dir: &std::path::Path,
+    mut hir: hir::Program<()>,
+) -> Result<Vec<(FunctionName, hir::FunTy)>> {
+    for (class, method, is_async) in load_methods_json(skc_runtime_dir)? {
+        let (fname, fun_ty) = parse_sig(class, method)?;
+        hir.imports.sk_types.define_method(&class, fun_ty);
+        if is_async {
+            hir.imported_asyncs.push(fname);
+        }
+    }
 }
 
-fn core_class_funcs(skc_runtime_dir: &std::path::Path) -> Result<Vec<(FunctionName, hir::FunTy)>> {
-    load_methods_json(skc_runtime_dir)
-        .unwrap()
-        .into_iter()
-        .map(|(class, method)| parse_sig(class, method))
-        .collect::<Result<Vec<_>>>()
-        .context(format!(
-            "Failed to load skc_runtime/exports.json5 in {}",
-            skc_runtime_dir.display()
-        ))
-}
-
-fn load_methods_json(skc_runtime_dir: &std::path::Path) -> Result<Vec<(String, String)>> {
+fn load_methods_json(skc_runtime_dir: &std::path::Path) -> Result<Vec<(String, String, bool)>> {
     let json_path = skc_runtime_dir.join("exports.json5");
     let mut f = std::fs::File::open(json_path).context("exports.json5 not found")?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .context("failed to read exports.json5")?;
-    json5::from_str(&contents).context("exports.json5 is broken")
+    json5::from_str(&contents).context(format!("{} is broken", json_path.display()))
 }
 
 fn parse_sig(class: String, sig_str: String) -> Result<(FunctionName, hir::FunTy)> {

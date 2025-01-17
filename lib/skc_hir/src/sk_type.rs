@@ -2,6 +2,7 @@ mod sk_class;
 mod sk_module;
 mod sk_type_base;
 mod wtable;
+use crate::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::{self, *};
@@ -51,6 +52,11 @@ impl SkTypes {
         } else {
             panic!("{} is module, not a class", name)
         }
+    }
+
+    pub fn define_method(&mut self, class_name: &ClassFullname, method_sig: MethodSignature) {
+        let sk_type = self.0.get_mut(&class_name.to_type_fullname()).unwrap();
+        sk_type.base_mut().method_sigs.insert(method_sig);
     }
 }
 

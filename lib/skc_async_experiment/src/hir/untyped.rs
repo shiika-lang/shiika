@@ -126,33 +126,18 @@ impl Compiler {
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
-                match &method_name[..] {
-                    "+" | "-" | "*" | "/" | "<" | "<=" | ">" | ">=" | "==" | "!=" => {
-                        let lhs =
-                            self.compile_expr(sig, lvars, &mcall.receiver_expr.as_ref().unwrap())?;
-                        let rhs =
-                            self.compile_expr(sig, lvars, mcall.args.unnamed.first().unwrap())?;
-                        let method_name = FunctionName::unmangled(format!("Int#{}", method_name));
-                        hir::Expr::FunCall(
-                            Box::new(untyped(hir::Expr::FuncRef(method_name))),
-                            vec![lhs, rhs],
-                        )
-                    }
-                    _ => {
-                        let mut arg_hirs = vec![];
-                        for a in &mcall.args.unnamed {
-                            arg_hirs.push(self.compile_expr(sig, lvars, a)?);
-                        }
-                        if let Some(e) = &mcall.receiver_expr {
-                            let receiver = self.compile_expr(sig, lvars, e)?;
-                            let name = method_firstname(method_name);
-                            hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
-                        } else {
-                            let fname = FunctionName::unmangled(method_name.clone());
-                            let fexpr = untyped(hir::Expr::FuncRef(fname));
-                            hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
-                        }
-                    }
+                let mut arg_hirs = vec![];
+                for a in &mcall.args.unnamed {
+                    arg_hirs.push(self.compile_expr(sig, lvars, a)?);
+                }
+                if let Some(e) = &mcall.receiver_expr {
+                    let receiver = self.compile_expr(sig, lvars, e)?;
+                    let name = method_firstname(method_name);
+                    hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
+                } else {
+                    let fname = FunctionName::unmangled(method_name.clone());
+                    let fexpr = untyped(hir::Expr::FuncRef(fname));
+                    hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
                 }
             }
             shiika_ast::AstExpressionBody::If {

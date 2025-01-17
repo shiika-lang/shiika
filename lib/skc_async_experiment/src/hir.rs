@@ -5,30 +5,14 @@ pub mod untyped;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::ty::TermTy;
+use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
 #[derive(Debug, Clone)]
 pub struct Program<T> {
-    pub externs: Vec<Extern>,
+    pub imports: LibraryExports,
+    pub imported_asyncs: Vec<FunctionName>,
     pub methods: Vec<Method<T>>,
-}
-
-impl<T> Program<T> {
-    pub fn new(externs: Vec<Extern>, methods: Vec<Method<T>>) -> Self {
-        Self { externs, methods }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Extern {
-    pub name: FunctionName,
-    pub fun_ty: FunTy,
-}
-
-impl Extern {
-    pub fn is_async(&self) -> bool {
-        self.fun_ty.asyncness.is_async()
-    }
 }
 
 #[derive(Debug, Clone)]

@@ -18,9 +18,6 @@ struct Typing<'f> {
 /// Create typed HIR from untyped HIR.
 pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
-    for e in &hir.externs {
-        sigs.insert(e.name.clone(), e.fun_ty.clone());
-    }
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
     }

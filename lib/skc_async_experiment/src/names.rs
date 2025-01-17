@@ -20,6 +20,10 @@ impl FunctionName {
         FunctionName::Unmangled(name.into())
     }
 
+    pub fn method(class_name: impl AsRef<String>, name: impl AsRef<String>) -> FunctionName {
+        FunctionName::Unmangled(format!("{}#{}", class_name.as_ref(), name.as_ref()))
+    }
+
     pub fn mangled(name: impl Into<String>) -> FunctionName {
         FunctionName::Mangled(name.into())
     }

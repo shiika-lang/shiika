@@ -58,10 +58,8 @@ impl Main {
         let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
         let mut hir = hir::untyped::create(&ast)?;
-        hir.externs = prelude::lib_externs(Path::new("lib/skc_runtime/"))?
-            .into_iter()
-            .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
-            .collect();
+        hir.imports = imports;
+        prelude::load_lib_externs(Path::new("lib/skc_runtime/"), &mut hir)?;
         let hir = hir::typing::run(hir, &class_dict)?;
         let mir = hir_to_mir::run(hir);
         self.log(format!("# -- typing output --\n{mir}\n"));

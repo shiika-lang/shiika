@@ -1,15 +1,11 @@
+use crate::names::FunctionName;
 use crate::{hir, mir};
 use shiika_core::ty::TermTy;
+use skc_mir::LibraryExports;
+use std::collections::HashSet;
 
 pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
-    let externs = hir
-        .externs
-        .into_iter()
-        .map(|e| mir::Extern {
-            name: e.name,
-            fun_ty: convert_fun_ty(e.fun_ty),
-        })
-        .collect();
+    let externs = convert_externs(hir.imports, hir.imported_asyncs);
     let funcs = hir
         .methods
         .into_iter()
@@ -22,6 +18,38 @@ pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
         })
         .collect();
     mir::Program::new(externs, funcs)
+}
+
+fn convert_externs(
+    imports: LibraryExports,
+    imported_asyncs: Vec<FunctionName>,
+) -> Vec<mir::Extern> {
+    let asyncs = HashSet::from_iter(imported_asyncs);
+    imports
+        .sk_types
+        .0
+        .values()
+        .flat_map(|sk_type| {
+            sk_type.base().method_sigs.unordered_iter().map(|sig| {
+                let name = FunctionName::method(sk_type.name, sig.name.0);
+                let asyncness = if asyncs.contains(&name) {
+                    mir::Asyncness::Async
+                } else {
+                    mir::Asyncness::Sync
+                };
+                let fun_ty = mir::FunTy::new(
+                    asyncness,
+                    sig.params.iter().map(|x| convert_ty(x.clone())).collect(),
+                    convert_ty(sig.ret_ty.clone()),
+                );
+                mir::Extern {
+                    name,
+                    fun_ty,
+                    asyncness,
+                }
+            })
+        })
+        .collect()
 }
 
 fn convert_fun_ty(fun_ty: hir::FunTy) -> mir::FunTy {

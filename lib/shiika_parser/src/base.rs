@@ -1,5 +1,4 @@
 use crate::error::Error;
-pub use crate::lexer;
 pub use crate::lexer::*;
 pub use crate::Parser;
 use ariadne::{Label, Report, ReportKind, Source};
