@@ -51,16 +51,22 @@ impl Main {
     fn compile(&mut self, src: SourceFile) -> Result<mir::Program> {
         let ast = Parser::parse_files(&[src])?;
 
-        let imports = create_imports();
-        let defs = ast.defs();
-        let type_index =
-            skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
-        let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+        let hir = {
+            let mut imports = create_imports();
+            let imported_asyncs =
+                prelude::load_lib_externs(Path::new("lib/skc_runtime/"), &mut imports)?;
 
-        let mut hir = hir::untyped::create(&ast)?;
-        hir.imports = imports;
-        prelude::load_lib_externs(Path::new("lib/skc_runtime/"), &mut hir)?;
-        let hir = hir::typing::run(hir, &class_dict)?;
+            let defs = ast.defs();
+            let type_index =
+                skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
+            let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+
+            let hir = hir::untyped::create(&ast)?;
+            let mut hir = hir::typing::run(hir, &class_dict)?;
+            hir.imports = imports;
+            hir.imported_asyncs = imported_asyncs;
+            hir
+        };
         let mir = hir_to_mir::run(hir);
         self.log(format!("# -- typing output --\n{mir}\n"));
         let mir = mir_lowering::asyncness_check::run(mir);

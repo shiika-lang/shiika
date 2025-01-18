@@ -24,44 +24,34 @@ fn convert_externs(
     imports: LibraryExports,
     imported_asyncs: Vec<FunctionName>,
 ) -> Vec<mir::Extern> {
-    let asyncs = HashSet::from_iter(imported_asyncs);
+    let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
     imports
         .sk_types
         .0
         .values()
         .flat_map(|sk_type| {
-            sk_type.base().method_sigs.unordered_iter().map(|sig| {
-                let name = FunctionName::method(sk_type.name, sig.name.0);
-                let asyncness = if asyncs.contains(&name) {
+            sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
+                let fname = FunctionName::from_sig(sig);
+                let asyncness = if asyncs.contains(&fname) {
                     mir::Asyncness::Async
                 } else {
                     mir::Asyncness::Sync
                 };
                 let fun_ty = mir::FunTy::new(
                     asyncness,
-                    sig.params.iter().map(|x| convert_ty(x.clone())).collect(),
+                    sig.params
+                        .iter()
+                        .map(|x| convert_ty(x.ty.clone()))
+                        .collect(),
                     convert_ty(sig.ret_ty.clone()),
                 );
                 mir::Extern {
-                    name,
+                    name: fname,
                     fun_ty,
-                    asyncness,
                 }
             })
         })
         .collect()
-}
-
-fn convert_fun_ty(fun_ty: hir::FunTy) -> mir::FunTy {
-    mir::FunTy {
-        asyncness: convert_asyncness(fun_ty.asyncness),
-        param_tys: fun_ty
-            .param_tys
-            .into_iter()
-            .map(|x| convert_ty(x))
-            .collect(),
-        ret_ty: Box::new(convert_ty(fun_ty.ret_ty)),
-    }
 }
 
 fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {

@@ -8,7 +8,7 @@ use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program<T> {
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,

@@ -45,7 +45,8 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
         .collect::<Result<_>>()?;
 
     Ok(hir::Program {
-        externs: hir.externs,
+        imports: hir.imports,
+        imported_asyncs: hir.imported_asyncs,
         methods,
     })
 }

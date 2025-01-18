@@ -54,8 +54,11 @@ impl SkTypes {
         }
     }
 
-    pub fn define_method(&mut self, class_name: &ClassFullname, method_sig: MethodSignature) {
-        let sk_type = self.0.get_mut(&class_name.to_type_fullname()).unwrap();
+    pub fn define_method(&mut self, type_name: &TypeFullname, method_sig: MethodSignature) {
+        let sk_type = self
+            .0
+            .get_mut(type_name)
+            .unwrap_or_else(|| panic!("type '{}' not found", type_name));
         sk_type.base_mut().method_sigs.insert(method_sig);
     }
 }

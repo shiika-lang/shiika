@@ -3,8 +3,9 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast as ast;
-use shiika_core::names::method_firstname;
+use shiika_core::names::{method_firstname, method_fullname_raw};
 use shiika_core::ty::{self, TermTy};
+use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
@@ -48,7 +49,8 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
         }
     }
     Ok(hir::Program {
-        externs: vec![],
+        imports: Default::default(),
+        imported_asyncs: Default::default(),
         methods,
     })
 }
@@ -240,19 +242,28 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
     Ok(t)
 }
 
-pub fn signature_to_fun_ty(sig: &shiika_ast::AstMethodSignature) -> hir::FunTy {
-    let mut param_tys = vec![];
-    for p in &sig.params {
-        param_tys.push(compile_ty(&p.typ).unwrap());
-    }
+pub fn compile_signature(
+    type_name: String,
+    sig: &shiika_ast::AstMethodSignature,
+) -> MethodSignature {
     let ret_ty = match &sig.ret_typ {
         Some(t) => compile_ty(t).unwrap(),
         None => ty::raw("Void"),
     };
-    hir::FunTy {
-        asyncness: hir::Asyncness::Unknown,
-        param_tys,
+    let params = sig
+        .params
+        .iter()
+        .map(|p| MethodParam {
+            name: p.name.clone(),
+            ty: compile_ty(&p.typ).unwrap(),
+            has_default: false,
+        })
+        .collect();
+    MethodSignature {
+        fullname: method_fullname_raw(type_name, &sig.name.0),
         ret_ty,
+        params,
+        typarams: vec![],
     }
 }
 
