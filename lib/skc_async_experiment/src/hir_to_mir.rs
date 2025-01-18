@@ -37,14 +37,13 @@ fn convert_externs(
                 } else {
                     mir::Asyncness::Sync
                 };
-                let fun_ty = mir::FunTy::new(
-                    asyncness,
-                    sig.params
-                        .iter()
-                        .map(|x| convert_ty(x.ty.clone()))
-                        .collect(),
-                    convert_ty(sig.ret_ty.clone()),
-                );
+                let mut param_tys = sig
+                    .params
+                    .iter()
+                    .map(|x| convert_ty(x.ty.clone()))
+                    .collect::<Vec<_>>();
+                param_tys.insert(0, convert_ty(sk_type.term_ty()));
+                let fun_ty = mir::FunTy::new(asyncness, param_tys, convert_ty(sig.ret_ty.clone()));
                 mir::Extern {
                     name: fname,
                     fun_ty,

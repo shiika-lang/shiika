@@ -207,9 +207,11 @@ fn valid_return_type(expected: &TermTy, actual: &TermTy) -> bool {
 
 fn method_func_ref(sig: &MethodSignature) -> hir::TypedExpr<TermTy> {
     let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
+    param_tys.insert(0, sig.fullname.type_name.to_ty());
     let fun_ty = hir::FunTy {
         asyncness: hir::Asyncness::Unknown,
-        param_tys: sig.params.iter().map(|p| p.ty.clone()).collect(),
+        param_tys,
         ret_ty: sig.ret_ty.clone(),
     };
     hir::Expr::func_ref(fname, fun_ty)
