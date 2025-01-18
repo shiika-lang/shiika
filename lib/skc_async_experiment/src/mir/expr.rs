@@ -32,6 +32,7 @@ pub enum Expr {
 pub enum PseudoVar {
     True,
     False,
+    SelfRef,
     Void,
 }
 
@@ -58,12 +59,8 @@ impl Expr {
         (Expr::Number(n), Ty::raw("Int"))
     }
 
-    pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
-        let t = match var {
-            PseudoVar::True | PseudoVar::False => Ty::raw("Bool"),
-            PseudoVar::Void => Ty::raw("Void"),
-        };
-        (Expr::PseudoVar(var), t)
+    pub fn pseudo_var(var: PseudoVar, ty: Ty) -> TypedExpr {
+        (Expr::PseudoVar(var), ty)
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -150,7 +147,7 @@ impl Expr {
 
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
         if exprs.is_empty() {
-            exprs.push(Expr::pseudo_var(PseudoVar::Void));
+            exprs.push(Expr::pseudo_var(PseudoVar::Void, Ty::raw("Void")));
         }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
@@ -207,6 +204,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Number(n) => format!("{}", n),
         Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
+        Expr::PseudoVar(PseudoVar::SelfRef) => "self".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),

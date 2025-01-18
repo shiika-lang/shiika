@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
@@ -64,7 +65,15 @@ impl<'f> Typing<'f> {
     ) -> Result<hir::TypedExpr<TermTy>> {
         let new_e = match e.0 {
             hir::Expr::Number(n) => hir::Expr::number(n),
-            hir::Expr::PseudoVar(p) => hir::Expr::pseudo_var(p),
+            hir::Expr::PseudoVar(p) => {
+                if p == mir::PseudoVar::SelfRef {
+                    // TODO: get the actual type of `self`
+                    let ty = ty::meta("Main");
+                    hir::Expr::self_ref(ty)
+                } else {
+                    hir::Expr::pseudo_var(p)
+                }
+            }
             hir::Expr::LVarRef(name) => {
                 if let Some(ty) = lvars.get(&name) {
                     hir::Expr::lvar_ref(name, ty.clone())

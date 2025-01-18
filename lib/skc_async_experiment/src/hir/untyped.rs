@@ -132,15 +132,13 @@ impl Compiler {
                 for a in &mcall.args.unnamed {
                     arg_hirs.push(self.compile_expr(sig, lvars, a)?);
                 }
-                if let Some(e) = &mcall.receiver_expr {
-                    let receiver = self.compile_expr(sig, lvars, e)?;
-                    let name = method_firstname(method_name);
-                    hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
+                let receiver = if let Some(e) = &mcall.receiver_expr {
+                    self.compile_expr(sig, lvars, e)?
                 } else {
-                    let fname = FunctionName::unmangled(method_name.clone());
-                    let fexpr = untyped(hir::Expr::FuncRef(fname));
-                    hir::Expr::FunCall(Box::new(fexpr), arg_hirs)
-                }
+                    untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef))
+                };
+                let name = method_firstname(method_name);
+                hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
             }
             shiika_ast::AstExpressionBody::If {
                 cond_expr,

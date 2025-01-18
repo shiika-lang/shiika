@@ -3,7 +3,7 @@ use anyhow::{bail, Context, Result};
 use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::{Parser, SourceFile};
-use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase};
+use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use std::io::Write;
 use std::path::Path;
 
@@ -118,7 +118,7 @@ fn create_imports() -> skc_mir::LibraryExports {
             method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
             foreign: false,
         };
-        skc_hir::SkClass::nonmeta(base, None)
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
     };
 
     skc_mir::LibraryExports {

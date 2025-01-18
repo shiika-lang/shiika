@@ -33,8 +33,13 @@ impl Expr<TermTy> {
         let t = match var {
             PseudoVar::True | PseudoVar::False => ty::raw("Bool"),
             PseudoVar::Void => ty::raw("Void"),
+            PseudoVar::SelfRef => panic!("Use self_ref(ty) instead"),
         };
         (Expr::PseudoVar(var), t)
+    }
+
+    pub fn self_ref(ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::PseudoVar(PseudoVar::SelfRef), ty)
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
