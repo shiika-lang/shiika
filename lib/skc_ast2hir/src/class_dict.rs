@@ -5,7 +5,7 @@ mod indexing;
 mod query;
 pub mod type_index;
 use anyhow::Result;
-pub use found_method::FoundMethod;
+pub use found_method::{CallType, FoundMethod};
 use shiika_ast;
 use shiika_core::names::*;
 use skc_hir::*;

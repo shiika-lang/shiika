@@ -9,15 +9,28 @@ pub struct FoundMethod {
     pub sig: MethodSignature,
     /// Index in the method list of `owner` (used for module method call via wtable)
     pub method_idx: Option<usize>,
+    pub call_type: CallType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallType {
+    /// Call a method of the class of the receiver
+    Direct,
+    /// Call a method of a superclass
+    Virtual,
+    /// Call a method of a module
+    Module,
 }
 
 impl FoundMethod {
-    pub fn class(owner: &SkType, sig: MethodSignature) -> FoundMethod {
+    pub fn class(owner: &SkType, sig: MethodSignature, call_type: CallType) -> FoundMethod {
         debug_assert!(owner.is_class());
+        debug_assert!(call_type != CallType::Module);
         FoundMethod {
             owner: owner.erasure().clone(),
             sig,
             method_idx: None,
+            call_type,
         }
     }
 
@@ -27,6 +40,7 @@ impl FoundMethod {
             owner: owner.erasure().clone(),
             sig,
             method_idx: Some(idx),
+            call_type: CallType::Module,
         }
     }
 

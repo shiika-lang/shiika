@@ -38,6 +38,7 @@ pub enum PseudoVar {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CastType {
+    Upcast(Ty),
     AnyToFun(FunTy),
     AnyToInt,
     RawToAny,
@@ -47,6 +48,7 @@ pub enum CastType {
 impl CastType {
     pub fn result_ty(&self) -> Ty {
         match self {
+            CastType::Upcast(ty) => ty.clone(),
             CastType::AnyToFun(x) => x.clone().into(),
             CastType::AnyToInt => Ty::raw("Int"),
             CastType::RawToAny | CastType::FunToAny => Ty::Any,
@@ -155,6 +157,7 @@ impl Expr {
 
     pub fn cast(cast_type: CastType, e: TypedExpr) -> TypedExpr {
         let ty = match &cast_type {
+            CastType::Upcast(ty) => ty.clone(),
             CastType::AnyToFun(f) => f.clone().into(),
             CastType::AnyToInt => Ty::raw("Int"),
             CastType::RawToAny => Ty::Any,

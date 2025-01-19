@@ -4,7 +4,7 @@ use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
 use shiika_core::ty::{self, TermTy};
-use skc_ast2hir::class_dict::ClassDict;
+use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
@@ -128,7 +128,13 @@ impl<'f> Typing<'f> {
                     .into_iter()
                     .map(|e| self.compile_expr(lvars, e))
                     .collect::<Result<Vec<_>>>()?;
-                new_arg_exprs.insert(0, new_recv);
+                let cast_recv = if found.call_type == CallType::Virtual {
+                    hir::Expr::upcast(new_recv, found.sig.fullname.type_name.to_ty())
+                } else {
+                    new_recv
+                };
+                new_arg_exprs.insert(0, cast_recv);
+
                 // TODO: method call via vtable/wtable
                 hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
             }
@@ -192,6 +198,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)
     }

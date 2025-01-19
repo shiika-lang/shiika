@@ -118,6 +118,10 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
+        hir::Expr::Upcast(v, t) => mir::Expr::Cast(
+            mir::CastType::Upcast(convert_ty(t)),
+            Box::new(convert_texpr(*v)),
+        ),
         _ => panic!("unexpected for hir_to_mir"),
     }
 }

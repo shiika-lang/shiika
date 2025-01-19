@@ -22,6 +22,7 @@ pub enum Expr<T> {
     Assign(String, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
+    Upcast(Box<TypedExpr<T>>, T),
 }
 
 impl Expr<TermTy> {
@@ -123,6 +124,10 @@ impl Expr<TermTy> {
         }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
+    }
+
+    pub fn upcast(e: TypedExpr<TermTy>, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::Upcast(Box::new(e), ty.clone()), ty)
     }
 }
 
