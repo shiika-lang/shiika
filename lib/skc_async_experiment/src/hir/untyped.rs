@@ -25,15 +25,6 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
             shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
                 func_names.insert(sig.name.0.to_string());
             }
-            shiika_ast::Definition::MethodRequirementDefinition { sig } => {
-                if let Some(name) = sig.name.0.strip_prefix("__async__") {
-                    func_names.insert(name.to_string());
-                } else if let Some(name) = sig.name.0.strip_prefix("__internal__") {
-                    func_names.insert(name.to_string());
-                } else {
-                    func_names.insert(sig.name.0.to_string());
-                }
-            }
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
