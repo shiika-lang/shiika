@@ -25,7 +25,7 @@ impl FunctionName {
         FunctionName::unmangled(&sig.fullname.full_name)
     }
 
-    pub fn method(class_name: impl AsRef<String>, name: impl AsRef<String>) -> FunctionName {
+    pub fn method(class_name: impl AsRef<str>, name: impl AsRef<str>) -> FunctionName {
         FunctionName::Unmangled(format!("{}#{}", class_name.as_ref(), name.as_ref()))
     }
 

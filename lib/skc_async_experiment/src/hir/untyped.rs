@@ -29,7 +29,7 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
         }
     }
 
-    let c = Compiler { func_names };
+    let c = Compiler();
     let mut methods = vec![];
     for def in defs {
         match def {
@@ -46,9 +46,7 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
     })
 }
 
-struct Compiler {
-    func_names: HashSet<String>,
-}
+struct Compiler();
 
 impl Compiler {
     fn compile_func(
@@ -79,10 +77,10 @@ impl Compiler {
         insert_implicit_return(&mut body_stmts);
 
         Ok(hir::Method {
-            asyncness: hir::Asyncness::Unknown,
-            name: FunctionName::unmangled(sig.name.to_string()),
+            name: FunctionName::method("Meta:Main", &sig.name.0),
             params,
             ret_ty,
+            self_ty: ty::meta("Main"),
             body_stmts: untyped(hir::Expr::Exprs(body_stmts)),
         })
     }
@@ -105,8 +103,6 @@ impl Compiler {
                     self.compile_var_ref(sig, lvars, name)?
                 } else if let Some(idx) = sig.params.iter().position(|p| &p.name == name) {
                     hir::Expr::ArgRef(idx, name.to_string())
-                } else if self.func_names.contains(name) {
-                    hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
                 } else if name == "true" {
                     hir::Expr::PseudoVar(mir::PseudoVar::True)
                 } else if name == "false" {
@@ -114,7 +110,8 @@ impl Compiler {
                 } else if name == "null" {
                     hir::Expr::PseudoVar(mir::PseudoVar::Void)
                 } else {
-                    return Err(anyhow!("unknown variable: {name}"));
+                    let receiver = untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef));
+                    hir::Expr::MethodCall(Box::new(receiver), method_firstname(name), vec![])
                 }
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
@@ -192,8 +189,6 @@ impl Compiler {
             hir::Expr::LVarRef(name.to_string())
         } else if let Some(idx) = sig.params.iter().position(|p| p.name == name) {
             hir::Expr::ArgRef(idx, name.to_string())
-        } else if self.func_names.contains(name) {
-            hir::Expr::FuncRef(FunctionName::unmangled(name.to_string()))
         } else if name == "true" {
             hir::Expr::PseudoVar(mir::PseudoVar::True)
         } else if name == "false" {

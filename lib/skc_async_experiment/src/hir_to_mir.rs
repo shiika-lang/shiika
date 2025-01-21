@@ -9,12 +9,26 @@ pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
     let funcs = hir
         .methods
         .into_iter()
-        .map(|f| mir::Function {
-            asyncness: convert_asyncness(f.asyncness),
-            name: f.name,
-            params: f.params.into_iter().map(|x| convert_param(x)).collect(),
-            ret_ty: convert_ty(f.ret_ty),
-            body_stmts: convert_texpr(f.body_stmts),
+        .map(|f| {
+            let mut params = f
+                .params
+                .into_iter()
+                .map(|x| convert_param(x))
+                .collect::<Vec<_>>();
+            params.insert(
+                0,
+                mir::Param {
+                    ty: convert_ty(f.self_ty),
+                    name: "self".to_string(),
+                },
+            );
+            mir::Function {
+                asyncness: mir::Asyncness::Unknown,
+                name: f.name,
+                params,
+                ret_ty: convert_ty(f.ret_ty),
+                body_stmts: convert_texpr(f.body_stmts),
+            }
         })
         .collect();
     mir::Program::new(externs, funcs)
@@ -51,15 +65,6 @@ fn convert_externs(
             })
         })
         .collect()
-}
-
-fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {
-    match a {
-        hir::Asyncness::Unknown => mir::Asyncness::Unknown,
-        hir::Asyncness::Sync => mir::Asyncness::Sync,
-        hir::Asyncness::Async => mir::Asyncness::Async,
-        hir::Asyncness::Lowered => mir::Asyncness::Lowered,
-    }
 }
 
 fn convert_ty(ty: TermTy) -> mir::Ty {

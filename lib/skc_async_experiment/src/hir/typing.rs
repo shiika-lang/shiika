@@ -36,9 +36,9 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
             };
             let new_body_stmts = c.compile_func(f.body_stmts)?;
             Ok(hir::Method {
-                asyncness: f.asyncness,
                 name: f.name,
                 params: f.params,
+                self_ty: f.self_ty,
                 ret_ty: f.ret_ty,
                 body_stmts: new_body_stmts,
             })

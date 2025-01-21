@@ -2,6 +2,7 @@ pub mod expr;
 mod ty;
 pub mod typing;
 pub mod untyped;
+use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::ty::TermTy;
@@ -17,9 +18,9 @@ pub struct Program<T> {
 
 #[derive(Debug, Clone)]
 pub struct Method<T> {
-    pub asyncness: Asyncness,
     pub name: FunctionName,
     pub params: Vec<Param>,
+    pub self_ty: TermTy,
     pub ret_ty: TermTy,
     pub body_stmts: TypedExpr<T>,
 }
@@ -27,7 +28,7 @@ pub struct Method<T> {
 impl<T: Clone> Method<T> {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
-            asyncness: self.asyncness.clone(),
+            asyncness: hir::Asyncness::Unknown,
             param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
             ret_ty: self.ret_ty.clone(),
         }
