@@ -7,8 +7,10 @@ class Main
     end
   end
   
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     countdown(3)
     return 0
   end
 end
+
+Main.run

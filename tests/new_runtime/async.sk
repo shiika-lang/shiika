@@ -1,8 +1,9 @@
 class Main
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     print(123)
     sleep_sec(0)
     print(456)
     return 0
   end
 end
+Main.run

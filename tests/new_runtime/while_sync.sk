@@ -10,9 +10,11 @@ class Main
       i += 1
     end
   end
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     foo()
     return 0
   end
 end
 
+
+Main.run
