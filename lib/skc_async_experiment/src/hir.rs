@@ -20,7 +20,7 @@ pub struct Program<T> {
 pub struct Method<T> {
     pub name: FunctionName,
     pub params: Vec<Param>,
-    pub self_ty: TermTy,
+    pub self_ty: Option<TermTy>,
     pub ret_ty: TermTy,
     pub body_stmts: TypedExpr<T>,
 }

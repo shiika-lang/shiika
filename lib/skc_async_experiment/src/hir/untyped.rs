@@ -10,28 +10,28 @@ use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
 pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
-    let Some(topitem) = ast.toplevel_items.first() else {
-        return Err(anyhow!("[wip] no top-level item"));
-    };
-    let shiika_ast::TopLevelItem::Def(shiika_ast::Definition::ClassDefinition { defs, .. }) =
-        topitem
-    else {
-        return Err(anyhow!("[wip] top-level item must be a class definition"));
-    };
-
-    let mut func_names = HashSet::new();
-    for def in defs {
-        match def {
-            shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
-                func_names.insert(sig.name.0.to_string());
+    let mut method_defs = None;
+    let mut top_exprs = vec![];
+    for topitem in &ast.toplevel_items {
+        match topitem {
+            ast::TopLevelItem::Def(defitem) => match defitem {
+                ast::Definition::ClassDefinition { defs, name, .. } => {
+                    if name.0 != "Main" {
+                        return Err(anyhow!("[wip] only Main class is supported"));
+                    }
+                    method_defs = Some(defs);
+                }
+                _ => return Err(anyhow!("[wip] not supported yet: {:?}", defitem)),
+            },
+            ast::TopLevelItem::Expr(e) => {
+                top_exprs.push(e.clone());
             }
-            _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
 
     let c = Compiler();
     let mut methods = vec![];
-    for def in defs {
+    for def in method_defs.unwrap() {
         match def {
             shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
                 methods.push(c.compile_func(sig, body_exprs)?);
@@ -39,6 +39,15 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
+
+    methods.push(hir::Method {
+        name: mir::main_function_name(),
+        params: vec![],
+        ret_ty: ty::raw("Int"),
+        self_ty: None,
+        body_stmts: c.compile_body(&[], &top_exprs)?,
+    });
+
     Ok(hir::Program {
         imports: Default::default(),
         imported_asyncs: Default::default(),
@@ -65,29 +74,37 @@ impl Compiler {
             Some(t) => compile_ty(&t)?,
             None => ty::raw("Void"),
         };
-
-        let mut lvars = HashSet::new();
-        let mut body_stmts = body_exprs
-            .iter()
-            .map(|e| self.compile_expr(&sig, &mut lvars, &e))
-            .collect::<Result<Vec<_>>>()?;
-        for name in lvars {
-            body_stmts.insert(0, untyped(hir::Expr::Alloc(name)));
-        }
-        insert_implicit_return(&mut body_stmts);
+        let body_stmts = self.compile_body(&sig.params, body_exprs)?;
 
         Ok(hir::Method {
             name: FunctionName::method("Meta:Main", &sig.name.0),
             params,
             ret_ty,
-            self_ty: ty::meta("Main"),
-            body_stmts: untyped(hir::Expr::Exprs(body_stmts)),
+            self_ty: Some(ty::meta("Main")),
+            body_stmts,
         })
+    }
+
+    fn compile_body(
+        &self,
+        params: &[shiika_ast::Param],
+        body_exprs: &[shiika_ast::AstExpression],
+    ) -> Result<hir::TypedExpr<()>> {
+        let mut lvars = HashSet::new();
+        let mut body_stmts = body_exprs
+            .iter()
+            .map(|e| self.compile_expr(params, &mut lvars, &e))
+            .collect::<Result<Vec<_>>>()?;
+        for name in lvars {
+            body_stmts.insert(0, untyped(hir::Expr::Alloc(name)));
+        }
+        insert_implicit_return(&mut body_stmts);
+        Ok(untyped(hir::Expr::Exprs(body_stmts)))
     }
 
     fn compile_expr(
         &self,
-        sig: &shiika_ast::AstMethodSignature,
+        params: &[shiika_ast::Param],
         lvars: &mut HashSet<String>,
         x: &shiika_ast::AstExpression,
     ) -> Result<hir::TypedExpr<()>> {
@@ -100,8 +117,8 @@ impl Compiler {
             },
             shiika_ast::AstExpressionBody::BareName(name) => {
                 if lvars.contains(name) {
-                    self.compile_var_ref(sig, lvars, name)?
-                } else if let Some(idx) = sig.params.iter().position(|p| &p.name == name) {
+                    self.compile_var_ref(params, lvars, name)?
+                } else if let Some(idx) = params.iter().position(|p| &p.name == name) {
                     hir::Expr::ArgRef(idx, name.to_string())
                 } else if name == "true" {
                     hir::Expr::PseudoVar(mir::PseudoVar::True)
@@ -118,10 +135,10 @@ impl Compiler {
                 let method_name = mcall.method_name.0.to_string();
                 let mut arg_hirs = vec![];
                 for a in &mcall.args.unnamed {
-                    arg_hirs.push(self.compile_expr(sig, lvars, a)?);
+                    arg_hirs.push(self.compile_expr(params, lvars, a)?);
                 }
                 let receiver = if let Some(e) = &mcall.receiver_expr {
-                    self.compile_expr(sig, lvars, e)?
+                    self.compile_expr(params, lvars, e)?
                 } else {
                     untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef))
                 };
@@ -133,10 +150,10 @@ impl Compiler {
                 then_exprs,
                 else_exprs,
             } => {
-                let cond = self.compile_expr(sig, lvars, &cond_expr)?;
-                let then = self.compile_exprs(sig, lvars, &then_exprs)?;
+                let cond = self.compile_expr(params, lvars, &cond_expr)?;
+                let then = self.compile_exprs(params, lvars, &then_exprs)?;
                 let els = if let Some(else_) = else_exprs {
-                    self.compile_exprs(sig, lvars, else_)?
+                    self.compile_exprs(params, lvars, else_)?
                 } else {
                     untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void))
                 };
@@ -146,8 +163,8 @@ impl Compiler {
                 cond_expr,
                 body_exprs,
             } => {
-                let cond = self.compile_expr(sig, lvars, &cond_expr)?;
-                let body = self.compile_exprs(sig, lvars, &body_exprs)?;
+                let cond = self.compile_expr(params, lvars, &cond_expr)?;
+                let body = self.compile_exprs(params, lvars, &body_exprs)?;
                 hir::Expr::While(Box::new(cond), Box::new(body))
             }
             //shiika_ast::AstExpressionBody::Spawn(func) => {
@@ -156,19 +173,19 @@ impl Compiler {
             //}
             shiika_ast::AstExpressionBody::LVarDecl { name, rhs, .. } => {
                 lvars.insert(name.clone());
-                let rhs = self.compile_expr(sig, lvars, &rhs)?;
+                let rhs = self.compile_expr(params, lvars, &rhs)?;
                 hir::Expr::Assign(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::LVarAssign { name, rhs } => {
                 if !lvars.contains(name) {
                     return Err(anyhow!("unknown variable: {name}"));
                 }
-                let rhs = self.compile_expr(sig, lvars, &rhs)?;
+                let rhs = self.compile_expr(params, lvars, &rhs)?;
                 hir::Expr::Assign(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::Return { arg } => {
                 let e = if let Some(v) = arg {
-                    self.compile_expr(sig, lvars, v)?
+                    self.compile_expr(params, lvars, v)?
                 } else {
                     untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void))
                 };
@@ -181,13 +198,13 @@ impl Compiler {
 
     fn compile_var_ref(
         &self,
-        sig: &shiika_ast::AstMethodSignature,
+        params: &[shiika_ast::Param],
         lvars: &mut HashSet<String>,
         name: &str,
     ) -> Result<hir::Expr<()>> {
         let e = if lvars.contains(name) {
             hir::Expr::LVarRef(name.to_string())
-        } else if let Some(idx) = sig.params.iter().position(|p| p.name == name) {
+        } else if let Some(idx) = params.iter().position(|p| p.name == name) {
             hir::Expr::ArgRef(idx, name.to_string())
         } else if name == "true" {
             hir::Expr::PseudoVar(mir::PseudoVar::True)
@@ -203,13 +220,13 @@ impl Compiler {
 
     fn compile_exprs(
         &self,
-        sig: &shiika_ast::AstMethodSignature,
+        params: &[shiika_ast::Param],
         lvars: &mut HashSet<String>,
         xs: &[shiika_ast::AstExpression],
     ) -> Result<hir::TypedExpr<()>> {
         let mut es = vec![];
         for x in xs {
-            es.push(self.compile_expr(sig, lvars, x)?);
+            es.push(self.compile_expr(params, lvars, x)?);
         }
         Ok(untyped(hir::Expr::Exprs(es)))
     }

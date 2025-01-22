@@ -15,13 +15,15 @@ pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
                 .into_iter()
                 .map(|x| convert_param(x))
                 .collect::<Vec<_>>();
-            params.insert(
-                0,
-                mir::Param {
-                    ty: convert_ty(f.self_ty),
-                    name: "self".to_string(),
-                },
-            );
+            if let Some(self_ty) = f.self_ty {
+                params.insert(
+                    0,
+                    mir::Param {
+                        ty: convert_ty(self_ty),
+                        name: "self".to_string(),
+                    },
+                );
+            }
             mir::Function {
                 asyncness: mir::Asyncness::Unknown,
                 name: f.name,

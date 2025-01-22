@@ -125,7 +125,7 @@ fn main_body() -> mir::TypedExpr {
 fn chiika_start_user_body() -> mir::TypedExpr {
     let cont_ty = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Int")], Ty::RustFuture);
     let chiika_main = mir::Expr::func_ref(
-        FunctionName::unmangled("chiika_main"),
+        mir::main_function_name(),
         FunTy::lowered(
             vec![Ty::ChiikaEnv, Ty::Fun(cont_ty.clone())],
             Ty::RustFuture,

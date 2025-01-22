@@ -8,6 +8,10 @@ pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use std::fmt;
 pub use ty::{FunTy, Ty};
 
+pub fn main_function_name() -> FunctionName {
+    FunctionName::unmangled("chiika_main")
+}
+
 #[derive(Debug, Clone)]
 pub struct Program {
     pub externs: Vec<Extern>,
