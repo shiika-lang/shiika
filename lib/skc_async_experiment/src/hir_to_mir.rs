@@ -107,7 +107,10 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Number(i) => mir::Expr::Number(i),
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
         hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
-        hir::Expr::ArgRef(i, s) => mir::Expr::ArgRef(i, s),
+        hir::Expr::ArgRef(i, s) => {
+            // +1 for the receiver
+            mir::Expr::ArgRef(i + 1, s)
+        }
         hir::Expr::ConstRef(_) => {
             // TODO: impl. constants
             mir::Expr::Cast(
