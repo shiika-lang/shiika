@@ -110,6 +110,15 @@ fn create_imports() -> skc_mir::LibraryExports {
         };
         skc_hir::SkClass::nonmeta(base, None)
     };
+    let class_void = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Void"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, None)
+    };
 
     let class_class = {
         let base = SkTypeBase {
@@ -123,7 +132,13 @@ fn create_imports() -> skc_mir::LibraryExports {
 
     skc_mir::LibraryExports {
         sk_types: skc_hir::SkTypes::from_iterator(
-            vec![class_object.into(), class_int.into(), class_class.into()].into_iter(),
+            vec![
+                class_object.into(),
+                class_int.into(),
+                class_void.into(),
+                class_class.into(),
+            ]
+            .into_iter(),
         ),
         vtables: Default::default(),
         constants: Default::default(),
