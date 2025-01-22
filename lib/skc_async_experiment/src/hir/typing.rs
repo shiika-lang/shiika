@@ -85,6 +85,10 @@ impl<'f> Typing<'f> {
                 let ty = self.current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
+            hir::Expr::ConstRef(ref name) => {
+                // TODO: resolve const
+                hir::Expr::const_ref(name, ty::meta(name.clone()))
+            }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {
                     hir::Expr::func_ref(name, fun_ty.clone())

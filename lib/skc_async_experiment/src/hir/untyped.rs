@@ -131,6 +131,9 @@ impl Compiler {
                     hir::Expr::MethodCall(Box::new(receiver), method_firstname(name), vec![])
                 }
             }
+            shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
+                hir::Expr::ConstRef(unresolved_const_name.0.first().unwrap().clone())
+            }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
                 let mut arg_hirs = vec![];

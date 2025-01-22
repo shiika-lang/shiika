@@ -108,6 +108,13 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
         hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
         hir::Expr::ArgRef(i, s) => mir::Expr::ArgRef(i, s),
+        hir::Expr::ConstRef(_) => {
+            // TODO: impl. constants
+            mir::Expr::Cast(
+                mir::CastType::Upcast(mir::Ty::Raw("Meta:Main".to_string())),
+                Box::new((mir::Expr::Number(0), mir::Ty::Raw("Int".to_string()))),
+            )
+        }
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
         hir::Expr::FunCall(f, a) => {
             mir::Expr::FunCall(Box::new(convert_texpr(*f)), convert_texpr_vec(a))

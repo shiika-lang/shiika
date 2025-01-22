@@ -12,6 +12,7 @@ pub enum Expr<T> {
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
+    ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
@@ -49,6 +50,10 @@ impl Expr<TermTy> {
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::ArgRef(idx, name.into()), ty)
+    }
+
+    pub fn const_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::ConstRef(name.into()), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr<TermTy> {
