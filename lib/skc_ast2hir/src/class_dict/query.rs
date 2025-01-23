@@ -115,11 +115,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
+                // Lookup in Object (the top type)
                 return self.lookup_method_(
                     receiver_type,
                     &ty::raw("Object"),
                     method_name,
-                    CallType::Module,
+                    CallType::Virtual,
                     locs,
                 );
             }
