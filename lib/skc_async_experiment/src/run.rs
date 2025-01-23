@@ -1,6 +1,9 @@
 use crate::{codegen, hir, hir_to_mir, linker, mir, mir_lowering, prelude};
 use anyhow::{bail, Context, Result};
+use shiika_core::names::method_fullname_raw;
+use shiika_core::ty::{self, Erasure};
 use shiika_parser::{Parser, SourceFile};
+use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use std::io::Write;
 use std::path::Path;
 
@@ -47,12 +50,23 @@ impl Main {
 
     fn compile(&mut self, src: SourceFile) -> Result<mir::Program> {
         let ast = Parser::parse_files(&[src])?;
-        let mut hir = hir::untyped::create(&ast)?;
-        hir.externs = prelude::lib_externs(Path::new("lib/skc_runtime/"))?
-            .into_iter()
-            .map(|(name, fun_ty)| hir::Extern { name, fun_ty })
-            .collect();
-        let hir = hir::typing::run(hir)?;
+
+        let hir = {
+            let mut imports = create_imports();
+            let imported_asyncs =
+                prelude::load_lib_externs(Path::new("lib/skc_runtime/"), &mut imports)?;
+
+            let defs = ast.defs();
+            let type_index =
+                skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
+            let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+
+            let hir = hir::untyped::create(&ast)?;
+            let mut hir = hir::typing::run(hir, &class_dict)?;
+            hir.imports = imports;
+            hir.imported_asyncs = imported_asyncs;
+            hir
+        };
         let mir = hir_to_mir::run(hir);
         self.log(format!("# -- typing output --\n{mir}\n"));
         let mir = mir_lowering::asyncness_check::run(mir);
@@ -67,5 +81,66 @@ impl Main {
 
     fn log(&mut self, s: impl AsRef<str>) {
         self.log_file.write_all(s.as_ref().as_bytes()).unwrap();
+    }
+}
+
+// TODO: should be built from ./buitlin
+fn create_imports() -> skc_mir::LibraryExports {
+    let object_initialize = MethodSignature {
+        fullname: method_fullname_raw("Object", "initialize"),
+        ret_ty: ty::raw("Object"),
+        params: vec![],
+        typarams: vec![],
+    };
+    let class_object = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Object"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![object_initialize].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, None)
+    };
+    let class_int = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Int"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, None)
+    };
+    let class_void = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Void"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, None)
+    };
+
+    let class_class = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Class"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
+    };
+
+    skc_mir::LibraryExports {
+        sk_types: skc_hir::SkTypes::from_iterator(
+            vec![
+                class_object.into(),
+                class_int.into(),
+                class_void.into(),
+                class_class.into(),
+            ]
+            .into_iter(),
+        ),
+        vtables: Default::default(),
+        constants: Default::default(),
     }
 }

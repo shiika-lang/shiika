@@ -2,40 +2,25 @@ pub mod expr;
 mod ty;
 pub mod typing;
 pub mod untyped;
+use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::ty::TermTy;
+use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program<T> {
-    pub externs: Vec<Extern>,
+    pub imports: LibraryExports,
+    pub imported_asyncs: Vec<FunctionName>,
     pub methods: Vec<Method<T>>,
-}
-
-impl<T> Program<T> {
-    pub fn new(externs: Vec<Extern>, methods: Vec<Method<T>>) -> Self {
-        Self { externs, methods }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Extern {
-    pub name: FunctionName,
-    pub fun_ty: FunTy,
-}
-
-impl Extern {
-    pub fn is_async(&self) -> bool {
-        self.fun_ty.asyncness.is_async()
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Method<T> {
-    pub asyncness: Asyncness,
     pub name: FunctionName,
     pub params: Vec<Param>,
+    pub self_ty: Option<TermTy>,
     pub ret_ty: TermTy,
     pub body_stmts: TypedExpr<T>,
 }
@@ -43,7 +28,7 @@ pub struct Method<T> {
 impl<T: Clone> Method<T> {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
-            asyncness: self.asyncness.clone(),
+            asyncness: hir::Asyncness::Unknown,
             param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
             ret_ty: self.ret_ty.clone(),
         }

@@ -171,6 +171,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::Exprs(_) => {
                 panic!("Exprs must be handled by its parent");
             }
+            mir::Expr::Cast(cast_type, expr) => {
+                let new_expr = self.compile_value_expr(*expr, on_return)?;
+                mir::Expr::cast(cast_type, new_expr)
+            }
             _ => panic!("unexpected for async_splitter: {:?}", e.0),
         };
         Ok(Some(new_e))

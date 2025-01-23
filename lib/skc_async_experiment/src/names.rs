@@ -1,3 +1,4 @@
+use skc_hir::MethodSignature;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -18,6 +19,14 @@ impl fmt::Display for FunctionName {
 impl FunctionName {
     pub fn unmangled(name: impl Into<String>) -> FunctionName {
         FunctionName::Unmangled(name.into())
+    }
+
+    pub fn from_sig(sig: &MethodSignature) -> FunctionName {
+        FunctionName::unmangled(&sig.fullname.full_name)
+    }
+
+    pub fn method(class_name: impl AsRef<str>, name: impl AsRef<str>) -> FunctionName {
+        FunctionName::Unmangled(format!("{}#{}", class_name.as_ref(), name.as_ref()))
     }
 
     pub fn mangled(name: impl Into<String>) -> FunctionName {

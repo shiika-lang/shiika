@@ -8,7 +8,9 @@ shiika_ast = { path = "../shiika_ast" }
 shiika_parser = { path = "../shiika_parser" }
 shiika_ffi = { path = "../shiika_ffi" }
 shiika_core = { path = "../shiika_core" }
+skc_ast2hir = { path = "../skc_ast2hir" }
 skc_hir = { path = "../skc_hir" }
+skc_mir = { path = "../skc_mir" }
 
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
 nom = "7.1.3"

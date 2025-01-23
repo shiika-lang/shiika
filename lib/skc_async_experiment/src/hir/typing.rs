@@ -1,10 +1,15 @@
 use crate::hir;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
+use shiika_ast::LocationSpan;
 use shiika_core::ty::{self, TermTy};
+use skc_ast2hir::class_dict::{CallType, ClassDict};
+use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
 struct Typing<'f> {
+    class_dict: &'f ClassDict<'f>,
     sigs: &'f HashMap<FunctionName, hir::FunTy>,
     current_func_name: &'f FunctionName,
     current_func_params: &'f [hir::Param],
@@ -12,11 +17,8 @@ struct Typing<'f> {
 }
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::Program<()>) -> Result<hir::Program<TermTy>> {
+pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
-    for e in &hir.externs {
-        sigs.insert(e.name.clone(), e.fun_ty.clone());
-    }
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
     }
@@ -26,6 +28,7 @@ pub fn run(hir: hir::Program<()>) -> Result<hir::Program<TermTy>> {
         .into_iter()
         .map(|f| {
             let mut c = Typing {
+                class_dict,
                 sigs: &sigs,
                 current_func_name: &f.name,
                 current_func_params: &f.params,
@@ -33,9 +36,9 @@ pub fn run(hir: hir::Program<()>) -> Result<hir::Program<TermTy>> {
             };
             let new_body_stmts = c.compile_func(f.body_stmts)?;
             Ok(hir::Method {
-                asyncness: f.asyncness,
                 name: f.name,
                 params: f.params,
+                self_ty: f.self_ty,
                 ret_ty: f.ret_ty,
                 body_stmts: new_body_stmts,
             })
@@ -43,7 +46,8 @@ pub fn run(hir: hir::Program<()>) -> Result<hir::Program<TermTy>> {
         .collect::<Result<_>>()?;
 
     Ok(hir::Program {
-        externs: hir.externs,
+        imports: hir.imports,
+        imported_asyncs: hir.imported_asyncs,
         methods,
     })
 }
@@ -61,7 +65,15 @@ impl<'f> Typing<'f> {
     ) -> Result<hir::TypedExpr<TermTy>> {
         let new_e = match e.0 {
             hir::Expr::Number(n) => hir::Expr::number(n),
-            hir::Expr::PseudoVar(p) => hir::Expr::pseudo_var(p),
+            hir::Expr::PseudoVar(p) => {
+                if p == mir::PseudoVar::SelfRef {
+                    // TODO: get the actual type of `self`
+                    let ty = ty::meta("Main");
+                    hir::Expr::self_ref(ty)
+                } else {
+                    hir::Expr::pseudo_var(p)
+                }
+            }
             hir::Expr::LVarRef(name) => {
                 if let Some(ty) = lvars.get(&name) {
                     hir::Expr::lvar_ref(name, ty.clone())
@@ -72,6 +84,10 @@ impl<'f> Typing<'f> {
             hir::Expr::ArgRef(i, s) => {
                 let ty = self.current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
+            }
+            hir::Expr::ConstRef(ref name) => {
+                // TODO: resolve const
+                hir::Expr::const_ref(name, ty::meta(name.clone()))
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {
@@ -95,6 +111,36 @@ impl<'f> Typing<'f> {
                     .map(|e| self.compile_expr(lvars, e))
                     .collect::<Result<_>>()?;
                 hir::Expr::fun_call(new_fexpr, new_arg_exprs)
+            }
+            hir::Expr::MethodCall(recv, method_name, arg_exprs) => {
+                let new_recv = self.compile_expr(lvars, *recv)?;
+                let found = self.class_dict.lookup_method(
+                    &new_recv.1,
+                    &method_name,
+                    &LocationSpan::todo(),
+                )?;
+
+                let arity = found.sig.params.len();
+                if arity != arg_exprs.len() {
+                    return Err(anyhow!(
+                        "method call arity mismatch (expected {}, got {})",
+                        arity,
+                        arg_exprs.len(),
+                    ));
+                }
+                let mut new_arg_exprs = arg_exprs
+                    .into_iter()
+                    .map(|e| self.compile_expr(lvars, e))
+                    .collect::<Result<Vec<_>>>()?;
+                let cast_recv = if found.call_type == CallType::Virtual {
+                    hir::Expr::upcast(new_recv, found.sig.fullname.type_name.to_ty())
+                } else {
+                    new_recv
+                };
+                new_arg_exprs.insert(0, cast_recv);
+
+                // TODO: method call via vtable/wtable
+                hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
             }
             hir::Expr::If(cond, then, els) => {
                 let new_cond = self.compile_expr(lvars, *cond)?;
@@ -156,6 +202,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)
     }
@@ -167,4 +214,16 @@ fn valid_return_type(expected: &TermTy, actual: &TermTy) -> bool {
     } else {
         expected == actual
     }
+}
+
+fn method_func_ref(sig: &MethodSignature) -> hir::TypedExpr<TermTy> {
+    let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
+    param_tys.insert(0, sig.fullname.type_name.to_ty());
+    let fun_ty = hir::FunTy {
+        asyncness: hir::Asyncness::Unknown,
+        param_tys,
+        ret_ty: sig.ret_ty.clone(),
+    };
+    hir::Expr::func_ref(fname, fun_ty)
 }

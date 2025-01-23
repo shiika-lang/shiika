@@ -118,6 +118,9 @@ impl Verifier {
             mir::Expr::Cast(cast_type, val) => {
                 self.verify_expr(f, val)?;
                 match cast_type {
+                    mir::CastType::Upcast(ty) => {
+                        assert(&e, "result", ty)?;
+                    }
                     mir::CastType::AnyToFun(fun_ty) => {
                         assert(&e, "cast type", &fun_ty.clone().into())?;
                         assert(&val, "castee", &mir::Ty::Any)?;

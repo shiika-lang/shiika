@@ -1,5 +1,5 @@
 class Main
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     if true
       print(456)
     else
@@ -8,3 +8,4 @@ class Main
     return 0
   end
 end
+Main.run

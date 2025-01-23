@@ -2,6 +2,7 @@ mod sk_class;
 mod sk_module;
 mod sk_type_base;
 mod wtable;
+use crate::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::{self, *};
@@ -17,6 +18,14 @@ pub struct SkTypes(pub HashMap<TypeFullname, SkType>);
 impl SkTypes {
     pub fn new(h: HashMap<TypeFullname, SkType>) -> SkTypes {
         SkTypes(h)
+    }
+
+    pub fn from_iterator(iter: impl Iterator<Item = SkType>) -> SkTypes {
+        let mut tt = HashMap::new();
+        iter.for_each(|t| {
+            tt.insert(t.fullname(), t);
+        });
+        SkTypes(tt)
     }
 
     pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {
@@ -43,6 +52,14 @@ impl SkTypes {
         } else {
             panic!("{} is module, not a class", name)
         }
+    }
+
+    pub fn define_method(&mut self, type_name: &TypeFullname, method_sig: MethodSignature) {
+        let sk_type = self
+            .0
+            .get_mut(type_name)
+            .unwrap_or_else(|| panic!("type '{}' not found", type_name));
+        sk_type.base_mut().method_sigs.insert(method_sig);
     }
 }
 

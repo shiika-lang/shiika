@@ -6,10 +6,11 @@ use std::future::{poll_fn, Future};
 use std::task::Poll;
 use std::time::Duration;
 
-#[shiika_method("sleep_sec")]
+#[shiika_method("Object#sleep_sec")]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn sleep_sec(
     env: &'static mut ChiikaEnv,
+    _receiver: SkInt,
     nn: SkInt,
     cont: ChiikaCont,
 ) -> ContFuture {

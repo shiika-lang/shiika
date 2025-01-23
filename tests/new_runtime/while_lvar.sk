@@ -1,5 +1,5 @@
 class Main
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     let a = 123
     var i = 0
     while i < 3
@@ -11,3 +11,5 @@ class Main
     return 0
   end
 end
+
+Main.run

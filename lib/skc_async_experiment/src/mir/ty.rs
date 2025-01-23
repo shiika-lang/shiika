@@ -110,7 +110,7 @@ impl From<Ty> for FunTy {
 }
 
 impl FunTy {
-    fn new(asyncness: Asyncness, param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
+    pub fn new(asyncness: Asyncness, param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
         FunTy {
             asyncness,
             param_tys,

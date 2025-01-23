@@ -1,6 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
+use shiika_core::names::MethodFirstname;
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -11,15 +12,18 @@ pub enum Expr<T> {
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
+    ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
+    MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),
     Assign(String, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
+    Upcast(Box<TypedExpr<T>>, T),
 }
 
 impl Expr<TermTy> {
@@ -31,8 +35,13 @@ impl Expr<TermTy> {
         let t = match var {
             PseudoVar::True | PseudoVar::False => ty::raw("Bool"),
             PseudoVar::Void => ty::raw("Void"),
+            PseudoVar::SelfRef => panic!("Use self_ref(ty) instead"),
         };
         (Expr::PseudoVar(var), t)
+    }
+
+    pub fn self_ref(ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::PseudoVar(PseudoVar::SelfRef), ty)
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
@@ -41,6 +50,10 @@ impl Expr<TermTy> {
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::ArgRef(idx, name.into()), ty)
+    }
+
+    pub fn const_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::ConstRef(name.into()), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr<TermTy> {
@@ -116,6 +129,10 @@ impl Expr<TermTy> {
         }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
+    }
+
+    pub fn upcast(e: TypedExpr<TermTy>, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::Upcast(Box::new(e), ty.clone()), ty)
     }
 }
 

@@ -1,5 +1,5 @@
 class Main
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     print(
       if true
         sleep_sec(0)
@@ -11,3 +11,4 @@ class Main
     return 0
   end
 end
+Main.run

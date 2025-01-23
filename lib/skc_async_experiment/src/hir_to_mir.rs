@@ -1,48 +1,72 @@
+use crate::names::FunctionName;
 use crate::{hir, mir};
 use shiika_core::ty::TermTy;
+use skc_mir::LibraryExports;
+use std::collections::HashSet;
 
 pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
-    let externs = hir
-        .externs
-        .into_iter()
-        .map(|e| mir::Extern {
-            name: e.name,
-            fun_ty: convert_fun_ty(e.fun_ty),
-        })
-        .collect();
+    let externs = convert_externs(hir.imports, hir.imported_asyncs);
     let funcs = hir
         .methods
         .into_iter()
-        .map(|f| mir::Function {
-            asyncness: convert_asyncness(f.asyncness),
-            name: f.name,
-            params: f.params.into_iter().map(|x| convert_param(x)).collect(),
-            ret_ty: convert_ty(f.ret_ty),
-            body_stmts: convert_texpr(f.body_stmts),
+        .map(|f| {
+            let mut params = f
+                .params
+                .into_iter()
+                .map(|x| convert_param(x))
+                .collect::<Vec<_>>();
+            if let Some(self_ty) = f.self_ty {
+                params.insert(
+                    0,
+                    mir::Param {
+                        ty: convert_ty(self_ty),
+                        name: "self".to_string(),
+                    },
+                );
+            }
+            mir::Function {
+                asyncness: mir::Asyncness::Unknown,
+                name: f.name,
+                params,
+                ret_ty: convert_ty(f.ret_ty),
+                body_stmts: convert_texpr(f.body_stmts),
+            }
         })
         .collect();
     mir::Program::new(externs, funcs)
 }
 
-fn convert_fun_ty(fun_ty: hir::FunTy) -> mir::FunTy {
-    mir::FunTy {
-        asyncness: convert_asyncness(fun_ty.asyncness),
-        param_tys: fun_ty
-            .param_tys
-            .into_iter()
-            .map(|x| convert_ty(x))
-            .collect(),
-        ret_ty: Box::new(convert_ty(fun_ty.ret_ty)),
-    }
-}
-
-fn convert_asyncness(a: hir::Asyncness) -> mir::Asyncness {
-    match a {
-        hir::Asyncness::Unknown => mir::Asyncness::Unknown,
-        hir::Asyncness::Sync => mir::Asyncness::Sync,
-        hir::Asyncness::Async => mir::Asyncness::Async,
-        hir::Asyncness::Lowered => mir::Asyncness::Lowered,
-    }
+fn convert_externs(
+    imports: LibraryExports,
+    imported_asyncs: Vec<FunctionName>,
+) -> Vec<mir::Extern> {
+    let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
+    imports
+        .sk_types
+        .0
+        .values()
+        .flat_map(|sk_type| {
+            sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
+                let fname = FunctionName::from_sig(sig);
+                let asyncness = if asyncs.contains(&fname) {
+                    mir::Asyncness::Async
+                } else {
+                    mir::Asyncness::Sync
+                };
+                let mut param_tys = sig
+                    .params
+                    .iter()
+                    .map(|x| convert_ty(x.ty.clone()))
+                    .collect::<Vec<_>>();
+                param_tys.insert(0, convert_ty(sk_type.term_ty()));
+                let fun_ty = mir::FunTy::new(asyncness, param_tys, convert_ty(sig.ret_ty.clone()));
+                mir::Extern {
+                    name: fname,
+                    fun_ty,
+                }
+            })
+        })
+        .collect()
 }
 
 fn convert_ty(ty: TermTy) -> mir::Ty {
@@ -83,7 +107,17 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Number(i) => mir::Expr::Number(i),
         hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
         hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
-        hir::Expr::ArgRef(i, s) => mir::Expr::ArgRef(i, s),
+        hir::Expr::ArgRef(i, s) => {
+            // +1 for the receiver
+            mir::Expr::ArgRef(i + 1, s)
+        }
+        hir::Expr::ConstRef(_) => {
+            // TODO: impl. constants
+            mir::Expr::Cast(
+                mir::CastType::Upcast(mir::Ty::Raw("Meta:Main".to_string())),
+                Box::new((mir::Expr::Number(0), mir::Ty::Raw("Int".to_string()))),
+            )
+        }
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
         hir::Expr::FunCall(f, a) => {
             mir::Expr::FunCall(Box::new(convert_texpr(*f)), convert_texpr_vec(a))
@@ -101,6 +135,10 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
-        //_ => panic!("unexpected for hir_to_mir"),
+        hir::Expr::Upcast(v, t) => mir::Expr::Cast(
+            mir::CastType::Upcast(convert_ty(t)),
+            Box::new(convert_texpr(*v)),
+        ),
+        _ => panic!("unexpected for hir_to_mir"),
     }
 }

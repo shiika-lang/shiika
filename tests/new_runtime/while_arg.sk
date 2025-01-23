@@ -8,8 +8,10 @@ class Main
     end
     print x
   end
-  def self.chiika_main() -> Int
+  def self.run() -> Int
     foo(7)
     return 0
   end
 end
+
+Main.run
