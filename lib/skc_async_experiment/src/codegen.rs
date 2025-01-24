@@ -3,6 +3,7 @@ mod codegen_context;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
+mod mir_analysis;
 mod value;
 use crate::mir;
 use anyhow::{anyhow, Result};
@@ -28,6 +29,7 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Progra
         builder: &builder,
     };
     c.compile_externs(prog.externs);
+    c.declare_const_globals(mir_analysis::list_constants::run(&prog.funcs));
     llvm_struct::define(&mut c);
     intrinsics::define(&mut c);
     c.compile_program(prog.funcs);
@@ -66,6 +68,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn declare_func(&self, f: &mir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
         self.module.add_function(&f.name.mangle(), func_type, None);
+    }
+
+    fn declare_const_globals(&self, consts: Vec<(String, mir::Ty)>) {
+        for (name, ty) in consts {
+            debug_assert!(matches!(ty, mir::Ty::Raw(_)));
+            let global = self.module.add_global(self.ptr_type(), None, &name);
+            global.set_initializer(&self.ptr_type().const_null());
+        }
     }
 
     fn compile_func(&mut self, f: mir::Function) {
@@ -108,6 +118,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
             mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
+            mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
@@ -290,6 +301,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let v = self.compile_value_expr(ctx, rhs);
         let ptr = ctx.lvars.get(name).unwrap();
         self.builder.build_store(ptr.clone(), v.clone());
+        Some(v)
+    }
+
+    fn compile_const_set(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        name: &str,
+        rhs: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, rhs);
+        let g = self.module.get_global(name).unwrap();
+        self.builder.build_store(g.as_pointer_value(), v);
         Some(v)
     }
 
