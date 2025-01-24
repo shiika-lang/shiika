@@ -21,6 +21,7 @@ pub enum Expr<T> {
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),
     Assign(String, Box<TypedExpr<T>>),
+    ConstSet(Vec<String>, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
@@ -117,6 +118,10 @@ impl Expr<TermTy> {
 
     pub fn assign(name: impl Into<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
         (Expr::Assign(name.into(), Box::new(e)), ty::raw("Void"))
+    }
+
+    pub fn const_set(names: Vec<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::ConstSet(names, Box::new(e)), ty::raw("Void"))
     }
 
     pub fn return_(e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {

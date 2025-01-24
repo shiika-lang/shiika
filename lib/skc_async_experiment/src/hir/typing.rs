@@ -183,6 +183,12 @@ impl<'f> Typing<'f> {
                 }
                 hir::Expr::assign(name, new_val)
             }
+            hir::Expr::ConstSet(mut names, rhs) => {
+                // TODO: resolve const
+                names.insert(0, "Main".to_string());
+                let new_rhs = self.compile_expr(lvars, *rhs)?;
+                hir::Expr::const_set(names, new_rhs)
+            }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
                 if !valid_return_type(self.current_func_ret_ty, &new_val.1) {
