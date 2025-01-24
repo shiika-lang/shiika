@@ -133,6 +133,9 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Spawn(b) => mir::Expr::Spawn(Box::new(convert_texpr(*b))),
         hir::Expr::Alloc(s) => mir::Expr::Alloc(s),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
+        hir::Expr::ConstSet(names, rhs) => {
+            mir::Expr::ConstSet(mir_const_name(names), Box::new(convert_texpr(*rhs)))
+        }
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
         hir::Expr::Upcast(v, t) => mir::Expr::Cast(
@@ -141,4 +144,8 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         ),
         _ => panic!("unexpected for hir_to_mir"),
     }
+}
+
+fn mir_const_name(names: Vec<String>) -> String {
+    "::".to_string() + &names.join("::")
 }

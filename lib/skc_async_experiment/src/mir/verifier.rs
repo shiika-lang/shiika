@@ -107,6 +107,9 @@ impl Verifier {
             mir::Expr::Assign(_, v) => {
                 self.verify_expr(f, v)?;
             }
+            mir::Expr::ConstSet(_, v) => {
+                self.verify_expr(f, v)?;
+            }
             mir::Expr::Return(v) => {
                 self.verify_expr(f, v)?;
                 assert(&v, "return value", &f.ret_ty)?;
