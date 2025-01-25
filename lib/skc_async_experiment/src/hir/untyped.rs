@@ -3,7 +3,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, LocationSpan};
-use shiika_core::names::{method_firstname, method_fullname_raw};
+use shiika_core::names::{method_firstname, method_fullname_raw, UnresolvedConstName};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
@@ -151,7 +151,7 @@ impl Compiler {
                 }
             }
             shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
-                hir::Expr::ConstRef(unresolved_const_name.0.first().unwrap().clone())
+                hir::Expr::UnresolvedConstRef(unresolved_const_name.clone())
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
@@ -207,7 +207,7 @@ impl Compiler {
             }
             shiika_ast::AstExpressionBody::ConstAssign { names, rhs } => {
                 let new_rhs = self.compile_expr(params, lvars, &rhs)?;
-                hir::Expr::ConstSet(names.clone(), Box::new(new_rhs))
+                hir::Expr::UnresolvedConstSet(UnresolvedConstName(names.clone()), Box::new(new_rhs))
             }
             shiika_ast::AstExpressionBody::Return { arg } => {
                 let e = if let Some(v) = arg {

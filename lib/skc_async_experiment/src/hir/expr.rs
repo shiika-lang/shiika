@@ -1,18 +1,19 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::MethodFirstname;
+use shiika_core::names::{MethodFirstname, ResolvedConstName, UnresolvedConstName};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Expr<T> {
     Number(i64),
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
-    ConstRef(String),
+    UnresolvedConstRef(UnresolvedConstName),
+    ConstRef(ResolvedConstName),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
@@ -21,7 +22,8 @@ pub enum Expr<T> {
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),
     Assign(String, Box<TypedExpr<T>>),
-    ConstSet(Vec<String>, Box<TypedExpr<T>>),
+    UnresolvedConstSet(UnresolvedConstName, Box<TypedExpr<T>>),
+    ConstSet(ResolvedConstName, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
@@ -53,8 +55,8 @@ impl Expr<TermTy> {
         (Expr::ArgRef(idx, name.into()), ty)
     }
 
-    pub fn const_ref(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
-        (Expr::ConstRef(name.into()), ty)
+    pub fn const_ref(name: ResolvedConstName, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::ConstRef(name), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr<TermTy> {
@@ -120,8 +122,8 @@ impl Expr<TermTy> {
         (Expr::Assign(name.into(), Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn const_set(names: Vec<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
-        (Expr::ConstSet(names, Box::new(e)), ty::raw("Void"))
+    pub fn const_set(name: ResolvedConstName, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::ConstSet(name, Box::new(e)), ty::raw("Void"))
     }
 
     pub fn return_(e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {

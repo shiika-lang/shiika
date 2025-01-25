@@ -13,6 +13,7 @@ pub enum Expr {
     ArgRef(usize, String),                   // (index, debug_name)
     EnvRef(usize, String),                   // (index, debug_name)
     EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -225,6 +226,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 pretty_print(&e.0, lv, false)
             )
         }
+        Expr::ConstRef(name) => format!("{}", name),
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {

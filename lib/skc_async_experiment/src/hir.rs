@@ -16,7 +16,7 @@ pub struct Program<T> {
     pub methods: Vec<Method<T>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Method<T> {
     pub name: FunctionName,
     pub params: Vec<Param>,

@@ -111,12 +111,9 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
             // +1 for the receiver
             mir::Expr::ArgRef(i + 1, s)
         }
-        hir::Expr::ConstRef(_) => {
+        hir::Expr::ConstRef(resolved_const_name) => {
             // TODO: impl. constants
-            mir::Expr::Cast(
-                mir::CastType::Upcast(mir::Ty::Raw("Meta:Main".to_string())),
-                Box::new((mir::Expr::Number(0), mir::Ty::Raw("Int".to_string()))),
-            )
+            mir::Expr::ConstRef(mir_const_name(resolved_const_name.names))
         }
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
         hir::Expr::FunCall(f, a) => {
@@ -133,8 +130,8 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Spawn(b) => mir::Expr::Spawn(Box::new(convert_texpr(*b))),
         hir::Expr::Alloc(s) => mir::Expr::Alloc(s),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
-        hir::Expr::ConstSet(names, rhs) => {
-            mir::Expr::ConstSet(mir_const_name(names), Box::new(convert_texpr(*rhs)))
+        hir::Expr::ConstSet(name, rhs) => {
+            mir::Expr::ConstSet(mir_const_name(name.names), Box::new(convert_texpr(*rhs)))
         }
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),

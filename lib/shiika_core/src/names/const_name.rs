@@ -29,6 +29,7 @@ pub struct UnresolvedConstName(pub Vec<String>);
 /// Fully qualified const name.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolvedConstName {
+    // REFACTOR: Just ResolvedConstName(pub Vec<String>)
     pub names: Vec<String>,
 }
 
