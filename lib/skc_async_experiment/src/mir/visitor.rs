@@ -34,6 +34,7 @@ pub trait MirVisitor {
             mir::Expr::EnvSet(_, value_expr, _) => {
                 self.walk_expr(value_expr)?;
             }
+            mir::Expr::ConstRef(_) => {}
             mir::Expr::FuncRef(_) => {}
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.walk_expr(fexpr)?;

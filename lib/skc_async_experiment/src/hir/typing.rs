@@ -88,14 +88,12 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::UnresolvedConstRef(names) => {
                 // TODO: resolve const
-                let ty = if names.0.first().unwrap() == "FOO" {
+                let ty = if names.0.last().unwrap() == "FOO" {
                     ty::raw("Int")
                 } else {
                     ty::meta("Main")
                 };
-                let mut n = names.0.clone();
-                n.insert(0, "Main".to_string());
-                hir::Expr::const_ref(ResolvedConstName::new(n), ty)
+                hir::Expr::const_ref(ResolvedConstName::new(names.0), ty)
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {

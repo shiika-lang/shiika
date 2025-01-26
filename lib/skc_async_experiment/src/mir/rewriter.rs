@@ -31,6 +31,7 @@ pub trait MirRewriter {
             mir::Expr::EnvSet(idx, value_expr, name) => {
                 mir::Expr::env_set(idx, self.walk_expr(*value_expr)?, name)
             }
+            mir::Expr::ConstRef(_) => expr,
             mir::Expr::FuncRef(_) => expr,
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 mir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)

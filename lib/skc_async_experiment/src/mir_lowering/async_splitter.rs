@@ -140,6 +140,7 @@ impl<'a> Compiler<'a> {
                 let v = self.compile_value_expr(*rhs, false)?;
                 mir::Expr::env_set(idx, v, name)
             }
+            mir::Expr::ConstRef(_) => e,
             mir::Expr::FuncRef(_) => e,
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;

@@ -63,6 +63,7 @@ impl Verifier {
                 }
                 assert(&e, "according to the function decalation", &param.ty)?;
             }
+            mir::Expr::ConstRef(_name) => (),
             mir::Expr::FuncRef(name) => {
                 let ty_expected = self
                     .sigs

@@ -70,7 +70,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
-    fn declare_const_globals(&self, consts: Vec<(String, mir::Ty)>) {
+    fn declare_const_globals(&self, mut consts: Vec<(String, mir::Ty)>) {
+        consts.push(("::Main".to_string(), mir::Ty::Raw("Meta:Main".to_string())));
         for (name, ty) in consts {
             debug_assert!(matches!(ty, mir::Ty::Raw(_)));
             let global = self.module.add_global(self.ptr_type(), None, &name);
@@ -112,6 +113,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
+            mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
@@ -140,6 +142,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = ctx.function.get_nth_param(*idx as u32).unwrap();
         Some(v)
+    }
+
+    fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let g = self
+            .module
+            .get_global(name)
+            .unwrap_or_else(|| panic!("global variable `{:?}' not found", name));
+        let v = self
+            .builder
+            .build_load(self.ptr_type(), g.as_pointer_value(), name);
+        Some(v.into())
     }
 
     fn compile_funcref(
