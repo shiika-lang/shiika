@@ -3,6 +3,7 @@ mod codegen_context;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
+mod mir_analysis;
 mod value;
 use crate::mir;
 use anyhow::{anyhow, Result};
@@ -28,6 +29,7 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Progra
         builder: &builder,
     };
     c.compile_externs(prog.externs);
+    c.declare_const_globals(mir_analysis::list_constants::run(&prog.funcs));
     llvm_struct::define(&mut c);
     intrinsics::define(&mut c);
     c.compile_program(prog.funcs);
@@ -68,6 +70,15 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
+    fn declare_const_globals(&self, mut consts: Vec<(String, mir::Ty)>) {
+        consts.push(("::Main".to_string(), mir::Ty::Raw("Meta:Main".to_string())));
+        for (name, ty) in consts {
+            debug_assert!(matches!(ty, mir::Ty::Raw(_)));
+            let global = self.module.add_global(self.ptr_type(), None, &name);
+            global.set_initializer(&self.ptr_type().const_null());
+        }
+    }
+
     fn compile_func(&mut self, f: mir::Function) {
         let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
@@ -102,12 +113,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
+            mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
             mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
+            mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
@@ -129,6 +142,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = ctx.function.get_nth_param(*idx as u32).unwrap();
         Some(v)
+    }
+
+    fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let g = self
+            .module
+            .get_global(name)
+            .unwrap_or_else(|| panic!("global variable `{:?}' not found", name));
+        let v = self
+            .builder
+            .build_load(self.ptr_type(), g.as_pointer_value(), name);
+        Some(v.into())
     }
 
     fn compile_funcref(
@@ -290,6 +314,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let v = self.compile_value_expr(ctx, rhs);
         let ptr = ctx.lvars.get(name).unwrap();
         self.builder.build_store(ptr.clone(), v.clone());
+        Some(v)
+    }
+
+    fn compile_const_set(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        name: &str,
+        rhs: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, rhs);
+        let g = self.module.get_global(name).unwrap();
+        self.builder.build_store(g.as_pointer_value(), v);
         Some(v)
     }
 

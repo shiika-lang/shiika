@@ -140,6 +140,7 @@ impl<'a> Compiler<'a> {
                 let v = self.compile_value_expr(*rhs, false)?;
                 mir::Expr::env_set(idx, v, name)
             }
+            mir::Expr::ConstRef(_) => e,
             mir::Expr::FuncRef(_) => e,
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
@@ -167,6 +168,10 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             mir::Expr::Alloc(_) => mir::Expr::nop(),
+            mir::Expr::ConstSet(name, rhs) => {
+                let v = self.compile_value_expr(*rhs, false)?;
+                mir::Expr::const_set(name, v)
+            }
             mir::Expr::Return(expr) => return self.compile_return(*expr),
             mir::Expr::Exprs(_) => {
                 panic!("Exprs must be handled by its parent");

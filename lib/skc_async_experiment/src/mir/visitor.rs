@@ -6,7 +6,12 @@ pub trait MirVisitor {
     fn visit_expr(&mut self, expr: &mir::TypedExpr) -> Result<()>;
 
     fn walk_mir(&mut self, mir: &mir::Program) -> Result<()> {
-        for f in &mir.funcs {
+        self.walk_funcs(&mir.funcs)?;
+        Ok(())
+    }
+
+    fn walk_funcs(&mut self, funcs: &[mir::Function]) -> Result<()> {
+        for f in funcs {
             self.walk_expr(&f.body_stmts)?;
         }
         Ok(())
@@ -29,6 +34,7 @@ pub trait MirVisitor {
             mir::Expr::EnvSet(_, value_expr, _) => {
                 self.walk_expr(value_expr)?;
             }
+            mir::Expr::ConstRef(_) => {}
             mir::Expr::FuncRef(_) => {}
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 self.walk_expr(fexpr)?;
@@ -52,6 +58,9 @@ pub trait MirVisitor {
             mir::Expr::Assign(_, rhs) => {
                 self.walk_expr(rhs)?;
             }
+            mir::Expr::ConstSet(_, rhs) => {
+                self.walk_expr(rhs)?;
+            }
             mir::Expr::Return(expr) => {
                 self.walk_expr(expr)?;
             }
@@ -61,7 +70,11 @@ pub trait MirVisitor {
             mir::Expr::Cast(_, expr) => {
                 self.walk_expr(expr)?;
             }
-            _ => todo!("{:?}", expr),
+            mir::Expr::Unbox(expr) => {
+                self.walk_expr(expr)?;
+            }
+            mir::Expr::RawI64(_) => {}
+            mir::Expr::Nop => {} //_ => todo!("{:?}", expr),
         }
         self.visit_expr(expr)?;
         Ok(())

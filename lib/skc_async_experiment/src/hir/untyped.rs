@@ -2,20 +2,20 @@ use crate::hir;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
-use shiika_ast as ast;
-use shiika_core::names::{method_firstname, method_fullname_raw};
+use shiika_ast::{self, LocationSpan};
+use shiika_core::names::{method_firstname, method_fullname_raw, UnresolvedConstName};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
+pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
     let mut method_defs = None;
     let mut top_exprs = vec![];
     for topitem in &ast.toplevel_items {
         match topitem {
-            ast::TopLevelItem::Def(defitem) => match defitem {
-                ast::Definition::ClassDefinition { defs, name, .. } => {
+            shiika_ast::TopLevelItem::Def(defitem) => match defitem {
+                shiika_ast::Definition::ClassDefinition { defs, name, .. } => {
                     if name.0 != "Main" {
                         return Err(anyhow!("[wip] only Main class is supported"));
                     }
@@ -23,12 +23,13 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
                 }
                 _ => return Err(anyhow!("[wip] not supported yet: {:?}", defitem)),
             },
-            ast::TopLevelItem::Expr(e) => {
+            shiika_ast::TopLevelItem::Expr(e) => {
                 top_exprs.push(e.clone());
             }
         }
     }
 
+    let mut const_init_exprs = vec![];
     let c = Compiler();
     let mut methods = vec![];
     for def in method_defs.unwrap() {
@@ -36,16 +37,34 @@ pub fn create(ast: &ast::Program) -> Result<hir::Program<()>> {
             shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
                 methods.push(c.compile_func(sig, body_exprs)?);
             }
+            shiika_ast::Definition::ConstDefinition { name, expr } => {
+                const_init_exprs.push(shiika_ast::AstExpression {
+                    body: shiika_ast::AstExpressionBody::ConstAssign {
+                        names: vec![name.clone()],
+                        rhs: Box::new(expr.clone()),
+                    },
+                    primary: false,
+                    locs: expr.locs.clone(),
+                });
+            }
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
 
+    let mut main_exprs = vec![];
+    main_exprs.append(&mut const_init_exprs);
+    main_exprs.append(&mut top_exprs);
+    main_exprs.push(shiika_ast::AstExpression {
+        body: shiika_ast::AstExpressionBody::DecimalLiteral { value: 0 },
+        primary: true,
+        locs: LocationSpan::todo(),
+    });
     methods.push(hir::Method {
         name: mir::main_function_name(),
         params: vec![],
         ret_ty: ty::raw("Int"),
         self_ty: None,
-        body_stmts: c.compile_body(&[], &top_exprs)?,
+        body_stmts: c.compile_body(&[], &main_exprs)?,
     });
 
     Ok(hir::Program {
@@ -132,7 +151,7 @@ impl Compiler {
                 }
             }
             shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
-                hir::Expr::ConstRef(unresolved_const_name.0.first().unwrap().clone())
+                hir::Expr::UnresolvedConstRef(unresolved_const_name.clone())
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
@@ -185,6 +204,10 @@ impl Compiler {
                 }
                 let rhs = self.compile_expr(params, lvars, &rhs)?;
                 hir::Expr::Assign(name.clone(), Box::new(rhs))
+            }
+            shiika_ast::AstExpressionBody::ConstAssign { names, rhs } => {
+                let new_rhs = self.compile_expr(params, lvars, &rhs)?;
+                hir::Expr::UnresolvedConstSet(UnresolvedConstName(names.clone()), Box::new(new_rhs))
             }
             shiika_ast::AstExpressionBody::Return { arg } => {
                 let e = if let Some(v) = arg {

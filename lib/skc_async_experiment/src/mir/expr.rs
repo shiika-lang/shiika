@@ -13,6 +13,7 @@ pub enum Expr {
     ArgRef(usize, String),                   // (index, debug_name)
     EnvRef(usize, String),                   // (index, debug_name)
     EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -20,6 +21,7 @@ pub enum Expr {
     Spawn(Box<Typed<Expr>>),
     Alloc(String),
     Assign(String, Box<Typed<Expr>>),
+    ConstSet(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
@@ -143,6 +145,10 @@ impl Expr {
         (Expr::Assign(name.into(), Box::new(e)), Ty::raw("Void"))
     }
 
+    pub fn const_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
+        (Expr::ConstSet(name.into(), Box::new(e)), Ty::raw("Void"))
+    }
+
     pub fn return_(e: TypedExpr) -> TypedExpr {
         (Expr::Return(Box::new(e)), Ty::raw("Never"))
     }
@@ -220,6 +226,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 pretty_print(&e.0, lv, false)
             )
         }
+        Expr::ConstRef(name) => format!("{}", name),
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {
@@ -249,6 +256,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name) => format!("alloc {}", name),
         Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
+        Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
         Expr::Exprs(exprs) => {
             indent = false;

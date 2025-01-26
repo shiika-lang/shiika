@@ -3,6 +3,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
+use shiika_core::names::ResolvedConstName;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
@@ -85,9 +86,14 @@ impl<'f> Typing<'f> {
                 let ty = self.current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
-            hir::Expr::ConstRef(ref name) => {
+            hir::Expr::UnresolvedConstRef(names) => {
                 // TODO: resolve const
-                hir::Expr::const_ref(name, ty::meta(name.clone()))
+                let ty = if names.0.last().unwrap() == "FOO" {
+                    ty::raw("Int")
+                } else {
+                    ty::meta("Main")
+                };
+                hir::Expr::const_ref(ResolvedConstName::new(names.0), ty)
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {
@@ -182,6 +188,13 @@ impl<'f> Typing<'f> {
                     panic!("unknown variable `{name}'");
                 }
                 hir::Expr::assign(name, new_val)
+            }
+            hir::Expr::UnresolvedConstSet(names, rhs) => {
+                // TODO: resolve const
+                let mut n = names.0.clone();
+                n.insert(0, "Main".to_string());
+                let new_rhs = self.compile_expr(lvars, *rhs)?;
+                hir::Expr::const_set(ResolvedConstName::new(n), new_rhs)
             }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
