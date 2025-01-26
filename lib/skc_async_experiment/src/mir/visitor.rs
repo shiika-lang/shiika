@@ -74,7 +74,8 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::RawI64(_) => {}
-            _ => todo!("{:?}", expr),
+            mir::Expr::Nop => {}
+            //_ => todo!("{:?}", expr),
         }
         self.visit_expr(expr)?;
         Ok(())
