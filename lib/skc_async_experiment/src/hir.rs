@@ -17,8 +17,17 @@ pub struct CompilationUnit {
 }
 
 #[derive(Debug)]
-pub struct Program<T> {
-    pub methods: Vec<Method<T>>,
+pub struct UntypedProgram {
+    pub methods: Vec<Method<()>>,
+    // Note: order is important because only forward references are allowed
+    pub constants: Vec<(UnresolvedConstName, TypedExpr<()>)>,
+}
+
+#[derive(Debug)]
+pub struct Program {
+    pub methods: Vec<Method<TermTy>>,
+    // Note: order is important; must be initialized in this order to support forward references
+    pub constants: Vec<(ResolvedConstName, TermTy)>,
 }
 
 #[derive(Debug)]

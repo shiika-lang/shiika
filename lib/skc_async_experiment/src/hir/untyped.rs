@@ -9,7 +9,7 @@ use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
+pub fn create(ast: &shiika_ast::Program) -> Result<hir::UntypedProgram> {
     let mut method_defs = None;
     let mut top_exprs = vec![];
     for topitem in &ast.toplevel_items {
@@ -67,7 +67,7 @@ pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
         body_stmts: c.compile_body(&[], &main_exprs)?,
     });
 
-    Ok(hir::Program { methods })
+    Ok(hir::UntypedProgram { methods, constants })
 }
 
 struct Compiler();

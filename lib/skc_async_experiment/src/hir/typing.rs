@@ -18,7 +18,7 @@ struct Typing<'f> {
 }
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
+pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Program> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
@@ -46,7 +46,23 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
         })
         .collect::<Result<_>>()?;
 
-    Ok(hir::Program { methods })
+    let constants = hir
+        .constants
+        .into_iter()
+        .map(|(name, rhs)| {
+            let mut c = Typing {
+                class_dict,
+                sigs: &sigs,
+                current_func_name: &FunctionName::unmangled("main"),
+                current_func_params: &[],
+                current_func_ret_ty: &ty::raw("Never"),
+            };
+            let new_e = c.compile_expr(&mut HashMap::new(), e)?;
+            Ok((name, new_e.1))
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(hir::Program { methods, constants })
 }
 
 impl<'f> Typing<'f> {
