@@ -67,11 +67,7 @@ pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
         body_stmts: c.compile_body(&[], &main_exprs)?,
     });
 
-    Ok(hir::Program {
-        imports: Default::default(),
-        imported_asyncs: Default::default(),
-        methods,
-    })
+    Ok(hir::Program { methods })
 }
 
 struct Compiler();

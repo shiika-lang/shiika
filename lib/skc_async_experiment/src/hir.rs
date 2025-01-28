@@ -10,9 +10,14 @@ use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
 #[derive(Debug)]
-pub struct Program<T> {
+pub struct CompilationUnit {
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
+    pub program: Program<TermTy>,
+}
+
+#[derive(Debug)]
+pub struct Program<T> {
     pub methods: Vec<Method<T>>,
 }
 

@@ -4,9 +4,10 @@ use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 use std::collections::HashSet;
 
-pub fn run(hir: hir::Program<TermTy>) -> mir::Program {
+pub fn run(hir: hir::CompilationUnit) -> mir::Program {
     let externs = convert_externs(hir.imports, hir.imported_asyncs);
     let funcs = hir
+        .program
         .methods
         .into_iter()
         .map(|f| {
