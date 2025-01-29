@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 shiika_core = { path = "../shiika_core" }
+anyhow = "1.0"

@@ -1,7 +1,9 @@
 mod location;
 mod token;
+mod visitor;
 pub use crate::location::{Location, LocationSpan};
 pub use crate::token::Token;
+pub use crate::visitor::AstVisitor;
 use shiika_core::names::*;
 
 #[derive(Debug, PartialEq)]
