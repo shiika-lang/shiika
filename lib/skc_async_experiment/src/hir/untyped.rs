@@ -1,17 +1,19 @@
+mod const_resolving;
 use crate::hir;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, LocationSpan};
-use shiika_core::names::{method_firstname, method_fullname_raw, UnresolvedConstName};
+use shiika_core::names::{method_firstname, method_fullname_raw, ResolvedConstName};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
+pub fn create(ast: &shiika_ast::Program) -> Result<hir::UntypedProgram> {
     let mut method_defs = None;
     let mut top_exprs = vec![];
+    //let mut constants = vec![];
     for topitem in &ast.toplevel_items {
         match topitem {
             shiika_ast::TopLevelItem::Def(defitem) => match defitem {
@@ -29,7 +31,6 @@ pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
         }
     }
 
-    let mut const_init_exprs = vec![];
     let c = Compiler();
     let mut methods = vec![];
     for def in method_defs.unwrap() {
@@ -37,19 +38,12 @@ pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
             shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
                 methods.push(c.compile_func(sig, body_exprs)?);
             }
-            shiika_ast::Definition::ConstDefinition { name, expr } => {
-                const_init_exprs.push(shiika_ast::AstExpression {
-                    body: shiika_ast::AstExpressionBody::ConstAssign {
-                        names: vec![name.clone()],
-                        rhs: Box::new(expr.clone()),
-                    },
-                    primary: false,
-                    locs: expr.locs.clone(),
-                });
-            }
+            shiika_ast::Definition::ConstDefinition { .. } => {}
             _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
         }
     }
+
+    let mut const_init_exprs = const_resolving::run(&ast);
 
     let mut main_exprs = vec![];
     main_exprs.append(&mut const_init_exprs);
@@ -67,7 +61,7 @@ pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
         body_stmts: c.compile_body(&[], &main_exprs)?,
     });
 
-    Ok(hir::Program { methods })
+    Ok(hir::UntypedProgram { methods })
 }
 
 struct Compiler();
@@ -202,8 +196,9 @@ impl Compiler {
                 hir::Expr::Assign(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::ConstAssign { names, rhs } => {
+                // `names` is already resolved in const_resolving.rs.
                 let new_rhs = self.compile_expr(params, lvars, &rhs)?;
-                hir::Expr::UnresolvedConstSet(UnresolvedConstName(names.clone()), Box::new(new_rhs))
+                hir::Expr::ConstSet(ResolvedConstName::new(names.clone()), Box::new(new_rhs))
             }
             shiika_ast::AstExpressionBody::Return { arg } => {
                 let e = if let Some(v) = arg {

@@ -22,7 +22,6 @@ pub enum Expr<T> {
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),
     Assign(String, Box<TypedExpr<T>>),
-    UnresolvedConstSet(UnresolvedConstName, Box<TypedExpr<T>>),
     ConstSet(ResolvedConstName, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),

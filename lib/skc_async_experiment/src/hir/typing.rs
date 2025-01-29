@@ -12,13 +12,11 @@ use std::collections::HashMap;
 struct Typing<'f> {
     class_dict: &'f ClassDict<'f>,
     sigs: &'f HashMap<FunctionName, hir::FunTy>,
-    current_func_name: &'f FunctionName,
-    current_func_params: &'f [hir::Param],
-    current_func_ret_ty: &'f TermTy,
+    current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
 }
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
+pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Program> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
@@ -31,9 +29,7 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
             let mut c = Typing {
                 class_dict,
                 sigs: &sigs,
-                current_func_name: &f.name,
-                current_func_params: &f.params,
-                current_func_ret_ty: &f.ret_ty,
+                current_func: Some((&f.name, &f.params, &f.ret_ty)),
             };
             let new_body_stmts = c.compile_func(f.body_stmts)?;
             Ok(hir::Method {
@@ -79,7 +75,8 @@ impl<'f> Typing<'f> {
                 }
             }
             hir::Expr::ArgRef(i, s) => {
-                let ty = self.current_func_params[i].ty.clone();
+                let current_func_params = self.current_func.as_ref().unwrap().1;
+                let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
             hir::Expr::UnresolvedConstRef(names) => {
@@ -185,22 +182,26 @@ impl<'f> Typing<'f> {
                 }
                 hir::Expr::assign(name, new_val)
             }
-            hir::Expr::UnresolvedConstSet(names, rhs) => {
-                // TODO: resolve const
-                let mut n = names.0.clone();
-                n.insert(0, "Main".to_string());
+            hir::Expr::ConstSet(names, rhs) => {
                 let new_rhs = self.compile_expr(lvars, *rhs)?;
-                hir::Expr::const_set(ResolvedConstName::new(n), new_rhs)
+                hir::Expr::const_set(names, new_rhs)
             }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
-                if !valid_return_type(self.current_func_ret_ty, &new_val.1) {
-                    return Err(anyhow!(
-                        "return type mismatch: {} should return {:?} but got {:?}",
-                        self.current_func_name,
-                        self.current_func_ret_ty,
-                        new_val.1
-                    ));
+                match &self.current_func {
+                    Some((fname, _, ret_ty)) => {
+                        if !valid_return_type(ret_ty, &new_val.1) {
+                            return Err(anyhow!(
+                                "return type mismatch: {} should return {:?} but got {:?}",
+                                fname,
+                                ret_ty,
+                                new_val.1
+                            ));
+                        }
+                    }
+                    None => {
+                        return Err(anyhow!("return outside of method"));
+                    }
                 }
                 hir::Expr::return_(new_val)
             }
