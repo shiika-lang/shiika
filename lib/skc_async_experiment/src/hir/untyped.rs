@@ -1,9 +1,10 @@
 mod const_resolving;
+mod gather_top_exprs;
 use crate::hir;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
-use shiika_ast::{self, LocationSpan};
+use shiika_ast::{self, AstVisitor, LocationSpan};
 use shiika_core::names::{method_firstname, method_fullname_raw, ResolvedConstName};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
@@ -11,64 +12,65 @@ use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
 pub fn create(ast: &shiika_ast::Program) -> Result<hir::UntypedProgram> {
-    let mut method_defs = None;
-    let mut top_exprs = vec![];
-    //let mut constants = vec![];
-    for topitem in &ast.toplevel_items {
-        match topitem {
-            shiika_ast::TopLevelItem::Def(defitem) => match defitem {
-                shiika_ast::Definition::ClassDefinition { defs, name, .. } => {
-                    if name.0 != "Main" {
-                        return Err(anyhow!("[wip] only Main class is supported"));
-                    }
-                    method_defs = Some(defs);
-                }
-                _ => return Err(anyhow!("[wip] not supported yet: {:?}", defitem)),
-            },
-            shiika_ast::TopLevelItem::Expr(e) => {
-                top_exprs.push(e.clone());
-            }
-        }
-    }
-
-    let c = Compiler();
-    let mut methods = vec![];
-    for def in method_defs.unwrap() {
-        match def {
-            shiika_ast::Definition::ClassMethodDefinition { sig, body_exprs } => {
-                methods.push(c.compile_func(sig, body_exprs)?);
-            }
-            shiika_ast::Definition::ConstDefinition { .. } => {}
-            _ => return Err(anyhow!("[wip] not supported yet: {:?}", def)),
-        }
-    }
+    let mut c = Compiler(vec![]);
+    c.walk_program(ast)?;
 
     let mut const_init_exprs = const_resolving::run(&ast);
-
+    let mut top_exprs = gather_top_exprs::run(&ast);
     let mut main_exprs = vec![];
     main_exprs.append(&mut const_init_exprs);
     main_exprs.append(&mut top_exprs);
     main_exprs.push(shiika_ast::AstExpression {
         body: shiika_ast::AstExpressionBody::DecimalLiteral { value: 0 },
         primary: true,
-        locs: LocationSpan::todo(),
+        locs: LocationSpan::internal(),
     });
-    methods.push(hir::Method {
-        name: mir::main_function_name(),
-        params: vec![],
-        ret_ty: ty::raw("Int"),
-        self_ty: None,
-        body_stmts: c.compile_body(&[], &main_exprs)?,
-    });
+    let m = c.compile_method(
+        None,
+        &shiika_ast::AstMethodSignature {
+            name: method_firstname(""),
+            typarams: vec![],
+            params: vec![],
+            ret_typ: Some(shiika_ast::UnresolvedTypeName {
+                names: vec!["Int".to_string()],
+                args: vec![],
+                locs: LocationSpan::internal(),
+            }),
+        },
+        &main_exprs,
+    )?;
+    let mut methods = c.0;
+    methods.push(m);
 
     Ok(hir::UntypedProgram { methods })
 }
 
-struct Compiler();
+struct Compiler(Vec<hir::Method<()>>);
+
+impl AstVisitor for Compiler {
+    fn visit_method_definition(
+        &mut self,
+        namespace: &shiika_core::names::Namespace,
+        is_instance: bool,
+        _is_initializer: bool,
+        sig: &shiika_ast::AstMethodSignature,
+        body_exprs: &Vec<shiika_ast::AstExpression>,
+    ) -> Result<()> {
+        let self_ty = if is_instance {
+            ty::raw(namespace.string())
+        } else {
+            ty::meta(namespace.string())
+        };
+        let m = self.compile_method(Some(self_ty), sig, body_exprs)?;
+        self.0.push(m);
+        Ok(())
+    }
+}
 
 impl Compiler {
-    fn compile_func(
+    fn compile_method(
         &self,
+        self_ty: Option<TermTy>,
         sig: &shiika_ast::AstMethodSignature,
         body_exprs: &[shiika_ast::AstExpression],
     ) -> Result<hir::Method<()>> {
@@ -85,11 +87,15 @@ impl Compiler {
         };
         let body_stmts = self.compile_body(&sig.params, body_exprs)?;
 
+        let name = match &self_ty {
+            Some(t) => FunctionName::method(&t.fullname.0, &sig.name.0),
+            None => mir::main_function_name(),
+        };
         Ok(hir::Method {
-            name: FunctionName::method("Meta:Main", &sig.name.0),
+            name,
             params,
             ret_ty,
-            self_ty: Some(ty::meta("Main")),
+            self_ty,
             body_stmts,
         })
     }

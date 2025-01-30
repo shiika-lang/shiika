@@ -1,6 +1,5 @@
 use anyhow::Result;
 use shiika_ast::{self, AstVisitor};
-//use shiika_core::names::ResolvedConstName;
 
 pub fn run(ast: &shiika_ast::Program) -> Vec<shiika_ast::AstExpression> {
     let mut visitor = Visitor(vec![]);
