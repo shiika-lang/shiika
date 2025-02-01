@@ -11,6 +11,12 @@ impl std::fmt::Display for ConstFullname {
     }
 }
 
+impl ConstFullname {
+    pub fn new(names: Vec<String>) -> ConstFullname {
+        const_fullname(names.join("::"))
+    }
+}
+
 pub fn const_fullname(s_: impl Into<String>) -> ConstFullname {
     let s = s_.into();
     debug_assert!(!s.starts_with("::"));

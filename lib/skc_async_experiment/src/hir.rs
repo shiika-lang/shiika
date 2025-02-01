@@ -20,7 +20,8 @@ pub struct CompilationUnit {
 pub struct UntypedProgram {
     pub methods: Vec<Method<()>>,
     // Note: order is important because only forward references are allowed
-    //pub constants: Vec<(UnresolvedConstName, TypedExpr<()>)>,
+    // Namespace is needed because rhs may contain constant references
+    //pub constants: Vec<ConstDefinition>,
 }
 
 #[derive(Debug)]

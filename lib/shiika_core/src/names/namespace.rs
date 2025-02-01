@@ -75,6 +75,18 @@ impl Namespace {
         &self.0[0..n]
     }
 
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn parent(&self) -> Option<Namespace> {
+        if self.0.is_empty() {
+            None
+        } else {
+            Some(Namespace::new(self.0[0..self.0.len() - 1].to_vec()))
+        }
+    }
+
     /// Number of names
     pub fn size(&self) -> usize {
         self.0.len()

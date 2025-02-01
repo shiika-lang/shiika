@@ -1,53 +1,55 @@
-mod const_resolving;
 mod gather_top_exprs;
 use crate::hir;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
-use shiika_ast::{self, AstVisitor, LocationSpan};
-use shiika_core::names::{method_firstname, method_fullname_raw, ResolvedConstName};
+use shiika_ast::{self, AstExpression, AstVisitor, LocationSpan};
+use shiika_core::names::{
+    method_firstname, method_fullname_raw, ConstFullname, Namespace, ResolvedConstName,
+};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
 pub fn create(ast: &shiika_ast::Program) -> Result<hir::UntypedProgram> {
-    let mut c = Compiler(vec![]);
-    c.walk_program(ast)?;
+    let mut v = Visitor::new();
+    v.walk_program(ast)?;
 
-    let mut const_init_exprs = const_resolving::run(&ast);
     let mut top_exprs = gather_top_exprs::run(&ast);
     let mut main_exprs = vec![];
-    main_exprs.append(&mut const_init_exprs);
     main_exprs.append(&mut top_exprs);
     main_exprs.push(shiika_ast::AstExpression {
         body: shiika_ast::AstExpressionBody::DecimalLiteral { value: 0 },
         primary: true,
         locs: LocationSpan::internal(),
     });
-    let m = c.compile_method(
-        None,
-        &shiika_ast::AstMethodSignature {
-            name: method_firstname(""),
-            typarams: vec![],
-            params: vec![],
-            ret_typ: Some(shiika_ast::UnresolvedTypeName {
-                names: vec!["Int".to_string()],
-                args: vec![],
-                locs: LocationSpan::internal(),
-            }),
-        },
+
+    let mut methods = v.methods;
+    methods.push(compile_main(
+        &v.known_consts,
         &main_exprs,
-    )?;
-    let mut methods = c.0;
-    methods.push(m);
+        v.const_init_exprs,
+    )?);
 
     Ok(hir::UntypedProgram { methods })
 }
 
-struct Compiler(Vec<hir::Method<()>>);
-
-impl AstVisitor for Compiler {
+struct Visitor {
+    methods: Vec<hir::Method<()>>,
+    known_consts: HashSet<ConstFullname>,
+    const_init_exprs: Vec<hir::TypedExpr<()>>,
+}
+impl Visitor {
+    fn new() -> Self {
+        Visitor {
+            methods: vec![],
+            known_consts: HashSet::new(),
+            const_init_exprs: vec![],
+        }
+    }
+}
+impl AstVisitor for Visitor {
     fn visit_method_definition(
         &mut self,
         namespace: &shiika_core::names::Namespace,
@@ -61,19 +63,7 @@ impl AstVisitor for Compiler {
         } else {
             ty::meta(namespace.string())
         };
-        let m = self.compile_method(Some(self_ty), sig, body_exprs)?;
-        self.0.push(m);
-        Ok(())
-    }
-}
 
-impl Compiler {
-    fn compile_method(
-        &self,
-        self_ty: Option<TermTy>,
-        sig: &shiika_ast::AstMethodSignature,
-        body_exprs: &[shiika_ast::AstExpression],
-    ) -> Result<hir::Method<()>> {
         let mut params = vec![];
         for p in &sig.params {
             params.push(hir::Param {
@@ -81,23 +71,61 @@ impl Compiler {
                 ty: compile_ty(&p.typ)?,
             });
         }
+
         let ret_ty = match &sig.ret_typ {
             Some(t) => compile_ty(&t)?,
             None => ty::raw("Void"),
         };
-        let body_stmts = self.compile_body(&sig.params, body_exprs)?;
 
-        let name = match &self_ty {
-            Some(t) => FunctionName::method(&t.fullname.0, &sig.name.0),
-            None => mir::main_function_name(),
-        };
-        Ok(hir::Method {
-            name,
+        let c = Compiler::new(namespace, &self.known_consts);
+        let body_stmts = c.compile_body(&sig.params, body_exprs)?;
+
+        let m = hir::Method {
+            name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             params,
             ret_ty,
-            self_ty,
+            self_ty: Some(self_ty),
             body_stmts,
-        })
+        };
+        self.methods.push(m);
+        Ok(())
+    }
+
+    fn visit_const_definition(
+        &mut self,
+        namespace: &shiika_core::names::Namespace,
+        name: &str,
+        expr: &AstExpression,
+    ) -> Result<()> {
+        let mut names = namespace.0.clone();
+        names.push(name.to_string());
+
+        let const_init_expr = shiika_ast::AstExpression {
+            body: shiika_ast::AstExpressionBody::ConstAssign {
+                names: names.clone(),
+                rhs: Box::new(expr.clone()),
+            },
+            primary: false,
+            locs: expr.locs.clone(),
+        };
+        let c = Compiler::new(namespace, &self.known_consts);
+        let compiled = c.compile_expr(&[], &mut HashSet::new(), &const_init_expr)?;
+        self.const_init_exprs.push(compiled);
+
+        self.known_consts
+            .insert(ResolvedConstName::new(names).to_const_fullname());
+        Ok(())
+    }
+}
+
+struct Compiler<'a> {
+    namespace: &'a Namespace,
+    consts: &'a HashSet<ConstFullname>,
+}
+
+impl<'a> Compiler<'a> {
+    fn new(namespace: &'a Namespace, consts: &'a HashSet<ConstFullname>) -> Self {
+        Compiler { namespace, consts }
     }
 
     fn compile_body(
@@ -147,7 +175,9 @@ impl Compiler {
                 }
             }
             shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
-                hir::Expr::UnresolvedConstRef(unresolved_const_name.clone())
+                let fullname = lookup_const(self.consts, &unresolved_const_name.0, &self.namespace)
+                    .ok_or_else(|| anyhow!("unknown constant: {:?}", unresolved_const_name))?;
+                hir::Expr::ConstRef(fullname)
             }
             shiika_ast::AstExpressionBody::MethodCall(mcall) => {
                 let method_name = mcall.method_name.0.to_string();
@@ -204,7 +234,7 @@ impl Compiler {
             shiika_ast::AstExpressionBody::ConstAssign { names, rhs } => {
                 // `names` is already resolved in const_resolving.rs.
                 let new_rhs = self.compile_expr(params, lvars, &rhs)?;
-                hir::Expr::ConstSet(ResolvedConstName::new(names.clone()), Box::new(new_rhs))
+                hir::Expr::ConstSet(ConstFullname::new(names.clone()), Box::new(new_rhs))
             }
             shiika_ast::AstExpressionBody::Return { arg } => {
                 let e = if let Some(v) = arg {
@@ -314,4 +344,45 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
 
 fn untyped(e: hir::Expr<()>) -> hir::TypedExpr<()> {
     (e, ())
+}
+
+fn lookup_const(
+    consts: &HashSet<ConstFullname>,
+    names: &[String],
+    namespace: &Namespace,
+) -> Option<ConstFullname> {
+    dbg!(&consts, &names, &namespace);
+    let mut ns = namespace.clone();
+    loop {
+        let fullname = ns.const_fullname(&names.join("::"));
+        if consts.contains(&fullname) {
+            return Some(fullname);
+        }
+        match ns.parent() {
+            Some(parent) => ns = parent,
+            None => return None,
+        }
+    }
+}
+
+fn compile_main(
+    consts: &HashSet<ConstFullname>,
+    main_exprs: &[shiika_ast::AstExpression],
+    mut const_init_exprs: Vec<hir::TypedExpr<()>>,
+) -> Result<hir::Method<()>> {
+    let top_ns = Namespace::root();
+    let c = Compiler::new(&top_ns, consts);
+    let main_hir = c.compile_body(&[], main_exprs)?;
+
+    let mut body_stmts = vec![];
+    body_stmts.append(&mut const_init_exprs);
+    body_stmts.append(&mut hir::expr::into_vec(main_hir));
+
+    Ok(hir::Method {
+        name: mir::main_function_name(),
+        params: vec![],
+        ret_ty: ty::raw("Int"),
+        self_ty: None,
+        body_stmts: hir::expr::from_vec(body_stmts),
+    })
 }

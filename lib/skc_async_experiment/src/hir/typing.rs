@@ -3,7 +3,6 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
-use shiika_core::names::ResolvedConstName;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
@@ -79,14 +78,14 @@ impl<'f> Typing<'f> {
                 let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
-            hir::Expr::UnresolvedConstRef(names) => {
+            hir::Expr::ConstRef(names) => {
                 // TODO: resolve const
-                let ty = if names.0.last().unwrap() == "FOO" {
+                let ty = if names.0.ends_with("FOO") {
                     ty::raw("Int")
                 } else {
                     ty::meta("Main")
                 };
-                hir::Expr::const_ref(ResolvedConstName::new(names.0), ty)
+                hir::Expr::const_ref(names, ty)
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {

@@ -1,19 +1,28 @@
 use anyhow::Result;
-use shiika_ast::{self, AstVisitor};
+use shiika_ast::{self, AstExpression, AstVisitor};
 
-pub fn run(ast: &shiika_ast::Program) -> Vec<shiika_ast::AstExpression> {
+#[derive(Debug)]
+pub struct ConstDefinition {
+    pub name: ResolvedConstName,
+    pub namespace: Namespace,
+    pub const_init_expr: AstExpression,
+}
+
+
+pub fn run(ast: &shiika_ast::Program) -> Vec<ConstDefinition> {
     let mut visitor = Visitor(vec![]);
     visitor.walk_program(ast).unwrap();
     visitor.0
 }
 
-pub struct Visitor(Vec<shiika_ast::AstExpression>);
+pub struct Visitor {
+}
 impl AstVisitor for Visitor {
     fn visit_const_definition(
         &mut self,
         namespace: &shiika_core::names::Namespace,
         name: &str,
-        expr: &shiika_ast::AstExpression,
+        expr: &AstExpression,
     ) -> Result<()> {
         let mut names = namespace.0.clone();
         names.push(name.to_string());
@@ -26,7 +35,11 @@ impl AstVisitor for Visitor {
             primary: false,
             locs: expr.locs.clone(),
         };
-        self.0.push(const_init_expr);
+        self.0.push(ConstDefinition {
+            name: shiika_core::names::ResolvedConstName::new(names),
+            namespace: namespace.clone(),
+            const_init_expr,
+        });
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{MethodFirstname, ResolvedConstName, UnresolvedConstName};
+use shiika_core::names::{ConstFullname, MethodFirstname};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -12,8 +12,7 @@ pub enum Expr<T> {
     PseudoVar(PseudoVar),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
-    UnresolvedConstRef(UnresolvedConstName),
-    ConstRef(ResolvedConstName),
+    ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
@@ -22,7 +21,7 @@ pub enum Expr<T> {
     Spawn(Box<TypedExpr<T>>),
     Alloc(String),
     Assign(String, Box<TypedExpr<T>>),
-    ConstSet(ResolvedConstName, Box<TypedExpr<T>>),
+    ConstSet(ConstFullname, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
@@ -54,7 +53,7 @@ impl Expr<TermTy> {
         (Expr::ArgRef(idx, name.into()), ty)
     }
 
-    pub fn const_ref(name: ResolvedConstName, ty: TermTy) -> TypedExpr<TermTy> {
+    pub fn const_ref(name: ConstFullname, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::ConstRef(name), ty)
     }
 
@@ -121,7 +120,7 @@ impl Expr<TermTy> {
         (Expr::Assign(name.into(), Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn const_set(name: ResolvedConstName, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+    pub fn const_set(name: ConstFullname, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
         (Expr::ConstSet(name, Box::new(e)), ty::raw("Void"))
     }
 
@@ -142,9 +141,17 @@ impl Expr<TermTy> {
     }
 }
 
-pub fn into_exprs<TermTy>(expr: TypedExpr<TermTy>) -> Vec<TypedExpr<TermTy>> {
+pub fn into_vec<T>(expr: TypedExpr<T>) -> Vec<TypedExpr<T>> {
     match expr.0 {
         Expr::Exprs(exprs) => exprs,
         _ => vec![expr],
     }
+}
+
+pub fn from_vec<T: Clone>(exprs: Vec<TypedExpr<T>>) -> TypedExpr<T> {
+    if exprs.is_empty() {
+        panic!("[BUG] from_vec: empty");
+    }
+    let t = exprs.last().unwrap().1.clone();
+    (Expr::Exprs(exprs), t)
 }
