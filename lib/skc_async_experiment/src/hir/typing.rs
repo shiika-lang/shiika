@@ -3,16 +3,31 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Program> {
+pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
+    }
+
+    let mut new_constants = vec![];
+    let mut known_consts = HashMap::new();
+    for (name, rhs) in hir.constants {
+        let mut c = Typing {
+            class_dict,
+            sigs: &mut sigs,
+            known_consts: &HashMap::new(),
+            current_func: None,
+        };
+        let new_rhs = c.compile_expr(&mut HashMap::new(), rhs)?;
+        known_consts.insert(name.clone(), new_rhs.1.clone());
+        new_constants.push((name, new_rhs));
     }
 
     let methods = hir
@@ -21,7 +36,8 @@ pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Prog
         .map(|f| {
             let mut c = Typing {
                 class_dict,
-                sigs: &sigs,
+                sigs: &mut sigs,
+                known_consts: &known_consts,
                 current_func: Some((&f.name, &f.params, &f.ret_ty)),
             };
             let new_body_stmts = c.compile_func(f.body_stmts)?;
@@ -35,12 +51,31 @@ pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Prog
         })
         .collect::<Result<_>>()?;
 
-    Ok(hir::Program { methods })
+    let new_top_exprs = hir
+        .top_exprs
+        .into_iter()
+        .map(|e| {
+            let mut c = Typing {
+                class_dict,
+                sigs: &mut sigs,
+                known_consts: &known_consts,
+                current_func: None,
+            };
+            c.compile_expr(&mut HashMap::new(), e)
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(hir::Program {
+        methods,
+        top_exprs: new_top_exprs,
+        constants: new_constants,
+    })
 }
 
 struct Typing<'f> {
     class_dict: &'f ClassDict<'f>,
-    sigs: &'f HashMap<FunctionName, hir::FunTy>,
+    sigs: &'f mut HashMap<FunctionName, hir::FunTy>,
+    known_consts: &'f HashMap<ConstFullname, TermTy>,
     current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
 }
 
@@ -79,13 +114,13 @@ impl<'f> Typing<'f> {
                 hir::Expr::arg_ref(i, s, ty)
             }
             hir::Expr::ConstRef(names) => {
-                // TODO: resolve const
-                let ty = if names.0.ends_with("FOO") {
-                    ty::raw("Int")
-                } else {
-                    ty::meta("Main")
-                };
-                hir::Expr::const_ref(names, ty)
+                let ty = self.known_consts.get(&names).unwrap_or_else(|| {
+                    panic!(
+                        "unknown constant: {:?} (known_consts: {:?})",
+                        names, self.known_consts
+                    )
+                });
+                hir::Expr::const_ref(names, ty.clone())
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {

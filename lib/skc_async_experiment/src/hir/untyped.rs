@@ -1,49 +1,38 @@
-mod gather_top_exprs;
 use crate::hir;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
-use shiika_ast::{self, AstExpression, AstVisitor, LocationSpan};
+use shiika_ast::{self, AstExpression, AstVisitor};
 use shiika_core::names::{method_firstname, method_fullname_raw, ConstFullname, Namespace};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &shiika_ast::Program) -> Result<hir::UntypedProgram> {
+pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
     let mut v = Visitor::new();
     v.walk_program(ast)?;
 
-    let mut top_exprs = gather_top_exprs::run(&ast);
-    let mut main_exprs = vec![];
-    main_exprs.append(&mut top_exprs);
-    main_exprs.push(shiika_ast::AstExpression {
-        body: shiika_ast::AstExpressionBody::DecimalLiteral { value: 0 },
-        primary: true,
-        locs: LocationSpan::internal(),
-    });
-
-    let mut methods = v.methods;
-    methods.push(compile_main(
-        &v.known_consts,
-        &main_exprs,
-        v.const_init_exprs,
-    )?);
-
-    Ok(hir::UntypedProgram { methods })
+    Ok(hir::Program {
+        top_exprs: v.top_exprs,
+        methods: v.methods,
+        constants: v.constants,
+    })
 }
 
 struct Visitor {
     methods: Vec<hir::Method<()>>,
     known_consts: HashSet<ConstFullname>,
-    const_init_exprs: Vec<hir::TypedExpr<()>>,
+    constants: Vec<(ConstFullname, hir::TypedExpr<()>)>,
+    top_exprs: Vec<hir::TypedExpr<()>>,
 }
 impl Visitor {
     fn new() -> Self {
         Visitor {
             methods: vec![],
             known_consts: HashSet::new(),
-            const_init_exprs: vec![],
+            constants: vec![],
+            top_exprs: vec![],
         }
     }
 }
@@ -100,22 +89,21 @@ impl AstVisitor for Visitor {
         name: &str,
         expr: &AstExpression,
     ) -> Result<()> {
-        let mut names = namespace.0.clone();
-        names.push(name.to_string());
+        let const_name = namespace.const_fullname(name);
 
-        let const_init_expr = shiika_ast::AstExpression {
-            body: shiika_ast::AstExpressionBody::ConstAssign {
-                names: names.clone(),
-                rhs: Box::new(expr.clone()),
-            },
-            primary: false,
-            locs: expr.locs.clone(),
-        };
         let c = Compiler::new(namespace, &self.known_consts);
-        let compiled = c.compile_expr(&[], &mut HashSet::new(), &const_init_expr)?;
-        self.const_init_exprs.push(compiled);
+        let compiled = c.compile_expr(&[], &mut HashSet::new(), expr)?;
 
-        self.known_consts.insert(ConstFullname::new(names));
+        self.constants.push((const_name.clone(), compiled));
+        self.known_consts.insert(const_name);
+        Ok(())
+    }
+
+    fn visit_toplevel_expr(&mut self, expr: &shiika_ast::AstExpression) -> Result<()> {
+        let top_ns = Namespace::root();
+        let c = Compiler::new(&top_ns, &self.known_consts);
+        let compiled = c.compile_expr(&[], &mut HashSet::new(), expr)?;
+        self.top_exprs.push(compiled);
         Ok(())
     }
 }
@@ -353,7 +341,6 @@ fn lookup_const(
     names: &[String],
     namespace: &Namespace,
 ) -> Option<ConstFullname> {
-    dbg!(&consts, &names, &namespace);
     let mut ns = namespace.clone();
     loop {
         let fullname = ns.const_fullname(&names.join("::"));
@@ -365,26 +352,4 @@ fn lookup_const(
             None => return None,
         }
     }
-}
-
-fn compile_main(
-    consts: &HashSet<ConstFullname>,
-    main_exprs: &[shiika_ast::AstExpression],
-    mut const_init_exprs: Vec<hir::TypedExpr<()>>,
-) -> Result<hir::Method<()>> {
-    let top_ns = Namespace::root();
-    let c = Compiler::new(&top_ns, consts);
-    let main_hir = c.compile_body(&[], main_exprs)?;
-
-    let mut body_stmts = vec![];
-    body_stmts.append(&mut const_init_exprs);
-    body_stmts.append(&mut hir::expr::into_vec(main_hir));
-
-    Ok(hir::Method {
-        name: mir::main_function_name(),
-        params: vec![],
-        ret_ty: ty::raw("Int"),
-        self_ty: None,
-        body_stmts: hir::expr::from_vec(body_stmts),
-    })
 }

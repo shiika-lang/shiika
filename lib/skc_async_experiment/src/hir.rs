@@ -5,6 +5,7 @@ pub mod untyped;
 use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
@@ -13,22 +14,15 @@ pub use ty::FunTy;
 pub struct CompilationUnit {
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
-    pub program: Program,
+    pub program: Program<TermTy>,
 }
 
 #[derive(Debug)]
-pub struct UntypedProgram {
-    pub methods: Vec<Method<()>>,
-    // Note: order is important because only forward references are allowed
-    // Namespace is needed because rhs may contain constant references
-    //pub constants: Vec<ConstDefinition>,
-}
-
-#[derive(Debug)]
-pub struct Program {
-    pub methods: Vec<Method<TermTy>>,
-    // Note: order is important; must be initialized in this order to support forward references
-    //pub constants: Vec<(ResolvedConstName, TermTy)>,
+pub struct Program<T> {
+    pub methods: Vec<Method<T>>,
+    pub top_exprs: Vec<TypedExpr<T>>,
+    // Note: order is important because forward references are allowed
+    pub constants: Vec<(ConstFullname, TypedExpr<T>)>,
 }
 
 #[derive(Debug)]
