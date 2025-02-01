@@ -8,12 +8,6 @@ use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
-struct Typing<'f> {
-    class_dict: &'f ClassDict<'f>,
-    sigs: &'f HashMap<FunctionName, hir::FunTy>,
-    current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
-}
-
 /// Create typed HIR from untyped HIR.
 pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Program> {
     let mut sigs = HashMap::new();
@@ -42,6 +36,12 @@ pub fn run(hir: hir::UntypedProgram, class_dict: &ClassDict) -> Result<hir::Prog
         .collect::<Result<_>>()?;
 
     Ok(hir::Program { methods })
+}
+
+struct Typing<'f> {
+    class_dict: &'f ClassDict<'f>,
+    sigs: &'f HashMap<FunctionName, hir::FunTy>,
+    current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
 }
 
 impl<'f> Typing<'f> {
