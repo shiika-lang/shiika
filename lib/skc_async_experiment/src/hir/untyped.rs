@@ -232,7 +232,7 @@ impl<'a> Compiler<'a> {
                 hir::Expr::Assign(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::ConstAssign { names, rhs } => {
-                // `names` is already resolved in const_resolving.rs.
+                // Note: `names` is already resolved here
                 let new_rhs = self.compile_expr(params, lvars, &rhs)?;
                 hir::Expr::ConstSet(ConstFullname::new(names.clone()), Box::new(new_rhs))
             }
