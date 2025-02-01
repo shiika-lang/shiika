@@ -13,6 +13,10 @@ pub trait AstVisitor {
         Ok(())
     }
 
+    fn visit_type_definition(&mut self, _namespace: &Namespace, _name: &str) -> Result<()> {
+        Ok(())
+    }
+
     /// Called for each method definition
     fn visit_method_definition(
         &mut self,
@@ -53,18 +57,21 @@ pub trait AstVisitor {
     fn walk_definition(&mut self, namespace: &Namespace, def: &Definition) -> Result<()> {
         match &def {
             Definition::ClassDefinition { name, defs, .. } => {
+                self.visit_type_definition(namespace, &name.0)?;
                 let inner_ns = namespace.add(name.0.clone());
                 for def in defs {
                     self.walk_definition(&inner_ns, def)?;
                 }
             }
             Definition::ModuleDefinition { name, defs, .. } => {
+                self.visit_type_definition(namespace, &name.0)?;
                 let inner_ns = namespace.add(name.0.clone());
                 for def in defs {
                     self.walk_definition(&inner_ns, def)?;
                 }
             }
             Definition::EnumDefinition { name, defs, .. } => {
+                self.visit_type_definition(namespace, &name.0)?;
                 let inner_ns = namespace.add(name.0.clone());
                 for def in defs {
                     self.walk_definition(&inner_ns, def)?;

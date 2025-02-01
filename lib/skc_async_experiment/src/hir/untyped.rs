@@ -4,9 +4,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor, LocationSpan};
-use shiika_core::names::{
-    method_firstname, method_fullname_raw, ConstFullname, Namespace, ResolvedConstName,
-};
+use shiika_core::names::{method_firstname, method_fullname_raw, ConstFullname, Namespace};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
 use std::collections::HashSet;
@@ -91,6 +89,11 @@ impl AstVisitor for Visitor {
         Ok(())
     }
 
+    fn visit_type_definition(&mut self, namespace: &Namespace, name: &str) -> Result<()> {
+        self.known_consts.insert(namespace.const_fullname(name));
+        Ok(())
+    }
+
     fn visit_const_definition(
         &mut self,
         namespace: &shiika_core::names::Namespace,
@@ -112,8 +115,7 @@ impl AstVisitor for Visitor {
         let compiled = c.compile_expr(&[], &mut HashSet::new(), &const_init_expr)?;
         self.const_init_exprs.push(compiled);
 
-        self.known_consts
-            .insert(ResolvedConstName::new(names).to_const_fullname());
+        self.known_consts.insert(ConstFullname::new(names));
         Ok(())
     }
 }
