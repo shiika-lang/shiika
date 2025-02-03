@@ -113,6 +113,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
+            mir::Expr::EnvRef(_, _) | mir::Expr::EnvSet(_, _, _) => {
+                panic!("should be lowered before codegen.rs")
+            }
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
