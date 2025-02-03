@@ -127,6 +127,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::CreateTypeObject(_) => {
+                self.compile_number(0) // TODO: implement
+            }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,

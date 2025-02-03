@@ -25,6 +25,7 @@ pub enum Expr {
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
+    CreateTypeObject(String),
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
@@ -271,6 +272,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             pretty_print(&e.0, lv, false),
             cast_type.result_ty()
         ),
+        Expr::CreateTypeObject(name) => format!("%create_type_object('{}')", name),
         Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%nop".to_string(),

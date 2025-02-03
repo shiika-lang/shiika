@@ -70,6 +70,7 @@ pub trait MirVisitor {
             mir::Expr::Cast(_, expr) => {
                 self.walk_expr(expr)?;
             }
+            mir::Expr::CreateTypeObject(_) => {}
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
             }

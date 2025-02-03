@@ -246,6 +246,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            hir::Expr::CreateTypeObject(type_name) => hir::Expr::create_type_object(type_name),
             _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)

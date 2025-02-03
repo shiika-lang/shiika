@@ -1,7 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ConstFullname, MethodFirstname};
+use shiika_core::names::{ConstFullname, MethodFirstname, TypeFullname};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -25,6 +25,7 @@ pub enum Expr<T> {
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
+    CreateTypeObject(TypeFullname),
 }
 
 impl Expr<TermTy> {
@@ -138,6 +139,13 @@ impl Expr<TermTy> {
 
     pub fn upcast(e: TypedExpr<TermTy>, ty: TermTy) -> TypedExpr<TermTy> {
         (Expr::Upcast(Box::new(e), ty.clone()), ty)
+    }
+
+    pub fn create_type_object(name: TypeFullname) -> TypedExpr<TermTy> {
+        (
+            Expr::CreateTypeObject(name.clone()),
+            name.meta_name().to_ty(),
+        )
     }
 }
 

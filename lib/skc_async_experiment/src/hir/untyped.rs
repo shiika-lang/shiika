@@ -79,7 +79,13 @@ impl AstVisitor for Visitor {
     }
 
     fn visit_type_definition(&mut self, namespace: &Namespace, name: &str) -> Result<()> {
-        self.known_consts.insert(namespace.const_fullname(name));
+        let const_name = namespace.const_fullname(name);
+        let type_name = namespace.type_fullname(name);
+        self.constants.push((
+            const_name.clone(),
+            untyped(hir::Expr::CreateTypeObject(type_name)),
+        ));
+        self.known_consts.insert(const_name);
         Ok(())
     }
 

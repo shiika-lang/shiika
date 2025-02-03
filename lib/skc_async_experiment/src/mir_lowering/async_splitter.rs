@@ -184,6 +184,7 @@ impl<'a> Compiler<'a> {
                 let new_expr = self.compile_value_expr(*expr, on_return)?;
                 mir::Expr::cast(cast_type, new_expr)
             }
+            mir::Expr::CreateTypeObject(_) => e,
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => {
                 panic!("Unexpected expr: {:?}", e.0)
             }

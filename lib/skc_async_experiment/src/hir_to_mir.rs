@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 pub fn run(hir: hir::CompilationUnit) -> mir::Program {
     let externs = convert_externs(hir.imports, hir.imported_asyncs);
-    let funcs = hir
+    let mut funcs: Vec<_> = hir
         .program
         .methods
         .into_iter()
@@ -35,6 +35,10 @@ pub fn run(hir: hir::CompilationUnit) -> mir::Program {
             }
         })
         .collect();
+    funcs.push(create_user_main(
+        hir.program.top_exprs,
+        hir.program.constants,
+    ));
     mir::Program::new(externs, funcs)
 }
 
@@ -132,16 +136,35 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::Spawn(b) => mir::Expr::Spawn(Box::new(convert_texpr(*b))),
         hir::Expr::Alloc(s) => mir::Expr::Alloc(s),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
-        hir::Expr::ConstSet(name, rhs) => {
-            mir::Expr::ConstSet(mir_const_name(name), Box::new(convert_texpr(*rhs)))
-        }
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
         hir::Expr::Upcast(v, t) => mir::Expr::Cast(
             mir::CastType::Upcast(convert_ty(t)),
             Box::new(convert_texpr(*v)),
         ),
-        _ => panic!("unexpected for hir_to_mir"),
+        hir::Expr::CreateTypeObject(type_name) => mir::Expr::CreateTypeObject(type_name.0),
+        _ => panic!("unexpected for hir_to_mir: {:?}", expr),
+    }
+}
+
+fn create_user_main(
+    top_exprs: Vec<hir::TypedExpr<TermTy>>,
+    constants: Vec<(ConstFullname, hir::TypedExpr<TermTy>)>,
+) -> mir::Function {
+    let mut body_stmts = vec![];
+    body_stmts.extend(
+        constants
+            .into_iter()
+            .map(|(name, rhs)| mir::Expr::const_set(mir_const_name(name), convert_texpr(rhs))),
+    );
+    body_stmts.extend(top_exprs.into_iter().map(convert_texpr));
+    body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+    mir::Function {
+        asyncness: mir::Asyncness::Unknown,
+        name: mir::main_function_name(),
+        params: vec![],
+        ret_ty: mir::Ty::Raw("Int".to_string()),
+        body_stmts: mir::Expr::exprs(body_stmts),
     }
 }
 
