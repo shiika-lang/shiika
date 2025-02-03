@@ -22,7 +22,7 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
         let mut c = Typing {
             class_dict,
             sigs: &mut sigs,
-            known_consts: &HashMap::new(),
+            known_consts: &known_consts,
             current_func: None,
         };
         let new_rhs = c.compile_expr(&mut HashMap::new(), rhs)?;
