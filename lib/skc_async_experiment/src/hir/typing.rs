@@ -3,19 +3,11 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::LocationSpan;
-use shiika_core::names::ResolvedConstName;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
 use skc_hir::MethodSignature;
 use std::collections::HashMap;
-
-struct Typing<'f> {
-    class_dict: &'f ClassDict<'f>,
-    sigs: &'f HashMap<FunctionName, hir::FunTy>,
-    current_func_name: &'f FunctionName,
-    current_func_params: &'f [hir::Param],
-    current_func_ret_ty: &'f TermTy,
-}
 
 /// Create typed HIR from untyped HIR.
 pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
@@ -24,16 +16,29 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
         sigs.insert(f.name.clone(), f.fun_ty());
     }
 
+    let mut new_constants = vec![];
+    let mut known_consts = HashMap::new();
+    for (name, rhs) in hir.constants {
+        let mut c = Typing {
+            class_dict,
+            sigs: &mut sigs,
+            known_consts: &known_consts,
+            current_func: None,
+        };
+        let new_rhs = c.compile_expr(&mut HashMap::new(), rhs)?;
+        known_consts.insert(name.clone(), new_rhs.1.clone());
+        new_constants.push((name, new_rhs));
+    }
+
     let methods = hir
         .methods
         .into_iter()
         .map(|f| {
             let mut c = Typing {
                 class_dict,
-                sigs: &sigs,
-                current_func_name: &f.name,
-                current_func_params: &f.params,
-                current_func_ret_ty: &f.ret_ty,
+                sigs: &mut sigs,
+                known_consts: &known_consts,
+                current_func: Some((&f.name, &f.params, &f.ret_ty)),
             };
             let new_body_stmts = c.compile_func(f.body_stmts)?;
             Ok(hir::Method {
@@ -46,11 +51,32 @@ pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program
         })
         .collect::<Result<_>>()?;
 
+    let new_top_exprs = hir
+        .top_exprs
+        .into_iter()
+        .map(|e| {
+            let mut c = Typing {
+                class_dict,
+                sigs: &mut sigs,
+                known_consts: &known_consts,
+                current_func: None,
+            };
+            c.compile_expr(&mut HashMap::new(), e)
+        })
+        .collect::<Result<_>>()?;
+
     Ok(hir::Program {
-        imports: hir.imports,
-        imported_asyncs: hir.imported_asyncs,
         methods,
+        top_exprs: new_top_exprs,
+        constants: new_constants,
     })
+}
+
+struct Typing<'f> {
+    class_dict: &'f ClassDict<'f>,
+    sigs: &'f mut HashMap<FunctionName, hir::FunTy>,
+    known_consts: &'f HashMap<ConstFullname, TermTy>,
+    current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
 }
 
 impl<'f> Typing<'f> {
@@ -83,17 +109,18 @@ impl<'f> Typing<'f> {
                 }
             }
             hir::Expr::ArgRef(i, s) => {
-                let ty = self.current_func_params[i].ty.clone();
+                let current_func_params = self.current_func.as_ref().unwrap().1;
+                let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
-            hir::Expr::UnresolvedConstRef(names) => {
-                // TODO: resolve const
-                let ty = if names.0.last().unwrap() == "FOO" {
-                    ty::raw("Int")
-                } else {
-                    ty::meta("Main")
-                };
-                hir::Expr::const_ref(ResolvedConstName::new(names.0), ty)
+            hir::Expr::ConstRef(names) => {
+                let ty = self.known_consts.get(&names).unwrap_or_else(|| {
+                    panic!(
+                        "unknown constant: {:?} (known_consts: {:?})",
+                        names, self.known_consts
+                    )
+                });
+                hir::Expr::const_ref(names, ty.clone())
             }
             hir::Expr::FuncRef(name) => {
                 if let Some(fun_ty) = self.sigs.get(&name) {
@@ -189,22 +216,26 @@ impl<'f> Typing<'f> {
                 }
                 hir::Expr::assign(name, new_val)
             }
-            hir::Expr::UnresolvedConstSet(names, rhs) => {
-                // TODO: resolve const
-                let mut n = names.0.clone();
-                n.insert(0, "Main".to_string());
+            hir::Expr::ConstSet(names, rhs) => {
                 let new_rhs = self.compile_expr(lvars, *rhs)?;
-                hir::Expr::const_set(ResolvedConstName::new(n), new_rhs)
+                hir::Expr::const_set(names, new_rhs)
             }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
-                if !valid_return_type(self.current_func_ret_ty, &new_val.1) {
-                    return Err(anyhow!(
-                        "return type mismatch: {} should return {:?} but got {:?}",
-                        self.current_func_name,
-                        self.current_func_ret_ty,
-                        new_val.1
-                    ));
+                match &self.current_func {
+                    Some((fname, _, ret_ty)) => {
+                        if !valid_return_type(ret_ty, &new_val.1) {
+                            return Err(anyhow!(
+                                "return type mismatch: {} should return {:?} but got {:?}",
+                                fname,
+                                ret_ty,
+                                new_val.1
+                            ));
+                        }
+                    }
+                    None => {
+                        return Err(anyhow!("return outside of method"));
+                    }
                 }
                 hir::Expr::return_(new_val)
             }
@@ -215,6 +246,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            hir::Expr::CreateTypeObject(type_name) => hir::Expr::create_type_object(type_name),
             _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)

@@ -62,10 +62,12 @@ impl Main {
             let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
             let hir = hir::untyped::create(&ast)?;
-            let mut hir = hir::typing::run(hir, &class_dict)?;
-            hir.imports = imports;
-            hir.imported_asyncs = imported_asyncs;
-            hir
+            let hir = hir::typing::run(hir, &class_dict)?;
+            hir::CompilationUnit {
+                imports,
+                imported_asyncs,
+                program: hir,
+            }
         };
         let mir = hir_to_mir::run(hir);
         self.log(format!("# -- typing output --\n{mir}\n"));

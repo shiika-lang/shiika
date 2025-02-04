@@ -5,15 +5,24 @@ pub mod untyped;
 use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
 #[derive(Debug)]
-pub struct Program<T> {
+pub struct CompilationUnit {
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
+    pub program: Program<TermTy>,
+}
+
+#[derive(Debug)]
+pub struct Program<T> {
     pub methods: Vec<Method<T>>,
+    pub top_exprs: Vec<TypedExpr<T>>,
+    // Note: order is important because forward references are allowed
+    pub constants: Vec<(ConstFullname, TypedExpr<T>)>,
 }
 
 #[derive(Debug)]

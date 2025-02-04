@@ -1464,6 +1464,7 @@ dependencies = [
 name = "shiika_ast"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "shiika_core",
 ]
 

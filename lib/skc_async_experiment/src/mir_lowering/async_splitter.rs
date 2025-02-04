@@ -134,6 +134,7 @@ impl<'a> Compiler<'a> {
         let new_e = match e.0 {
             mir::Expr::Number(_) => e,
             mir::Expr::PseudoVar(_) => e,
+            mir::Expr::LVarRef(_) => panic!("LVarRef must be lowered to EnvRef"),
             mir::Expr::ArgRef(_, _) => e,
             mir::Expr::EnvRef(_, _) => e,
             mir::Expr::EnvSet(idx, rhs, name) => {
@@ -168,6 +169,9 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             mir::Expr::Alloc(_) => mir::Expr::nop(),
+            mir::Expr::Assign(_, _) => {
+                panic!("Assign must be lowered to EnvSet");
+            }
             mir::Expr::ConstSet(name, rhs) => {
                 let v = self.compile_value_expr(*rhs, false)?;
                 mir::Expr::const_set(name, v)
@@ -180,7 +184,10 @@ impl<'a> Compiler<'a> {
                 let new_expr = self.compile_value_expr(*expr, on_return)?;
                 mir::Expr::cast(cast_type, new_expr)
             }
-            _ => panic!("unexpected for async_splitter: {:?}", e.0),
+            mir::Expr::CreateTypeObject(_) => e,
+            mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => {
+                panic!("Unexpected expr: {:?}", e.0)
+            }
         };
         Ok(Some(new_e))
     }
