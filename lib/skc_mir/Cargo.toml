@@ -7,3 +7,4 @@ edition = "2021"
 shiika_core = { path = "../shiika_core" }
 skc_hir = { path = "../skc_hir" }
 serde = { version = "1.0.125", features = ["derive"] }
+log = "0.4.25"

@@ -5,6 +5,7 @@ mod intrinsics;
 mod llvm_struct;
 mod mir_analysis;
 mod value;
+mod vtables;
 use crate::mir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
@@ -18,7 +19,11 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
 }
 
-pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Program) -> Result<()> {
+pub fn run<P: AsRef<Path>>(
+    bc_path: P,
+    opt_ll_path: Option<P>,
+    mir: mir::CompilationUnit,
+) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -28,11 +33,12 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Progra
         module: &module,
         builder: &builder,
     };
-    c.compile_externs(prog.externs);
-    c.declare_const_globals(mir_analysis::list_constants::run(&prog.funcs));
+    c.compile_externs(mir.program.externs);
+    c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
     llvm_struct::define(&mut c);
     intrinsics::define(&mut c);
-    c.compile_program(prog.funcs);
+    c.compile_program(mir.program.funcs);
+    vtables::define(&mut c, &mir.vtables);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
@@ -80,6 +86,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_func(&mut self, f: mir::Function) {
+        log::info!("Compiling function {:?}", f.name);
         let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);

@@ -44,6 +44,7 @@ impl VTables {
             }
             let vtable = VTable::build(super_vtable, sk_class);
             vtables.insert(sk_class.fullname(), vtable);
+            log::debug!("Built VTable for {}", &name);
         }
         VTables { vtables }
     }
