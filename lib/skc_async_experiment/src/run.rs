@@ -1,4 +1,4 @@
-use crate::{codegen, hir, hir_to_mir, linker, mir, mir_lowering, prelude};
+use crate::{codegen, hir, hir_building, hir_to_mir, linker, mir, mir_lowering, prelude};
 use anyhow::{bail, Context, Result};
 use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
@@ -61,10 +61,12 @@ impl Main {
             let defs = ast.defs();
             let type_index =
                 skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
-            let class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+            let mut class_dict =
+                skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
             log::info!("Type checking");
-            let hir = hir::untyped::create(&ast)?;
+            let mut hir = hir::untyped::create(&ast)?;
+            hir_building::define_new::run(&mut hir, &mut class_dict);
             let hir = hir::typing::run(hir, &class_dict)?;
             let sk_types = class_dict.sk_types;
             hir::CompilationUnit {

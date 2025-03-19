@@ -7,7 +7,7 @@ use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
-use skc_hir::{MethodSignature, SkTypes};
+use skc_hir::SkTypes;
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
