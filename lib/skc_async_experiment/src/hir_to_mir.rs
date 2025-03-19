@@ -5,7 +5,10 @@ use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 use std::collections::HashSet;
 
-pub fn run(hir: hir::CompilationUnit) -> mir::Program {
+pub fn run(hir: hir::CompilationUnit) -> mir::CompilationUnit {
+    log::debug!("Start");
+    let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
+    log::debug!("VTables built");
     let externs = convert_externs(hir.imports, hir.imported_asyncs);
     let mut funcs: Vec<_> = hir
         .program
@@ -35,11 +38,13 @@ pub fn run(hir: hir::CompilationUnit) -> mir::Program {
             }
         })
         .collect();
+    log::debug!("User functions converted");
     funcs.push(create_user_main(
         hir.program.top_exprs,
         hir.program.constants,
     ));
-    mir::Program::new(externs, funcs)
+    let program = mir::Program::new(externs, funcs);
+    mir::CompilationUnit { program, vtables }
 }
 
 fn convert_externs(

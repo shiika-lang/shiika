@@ -1,7 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ConstFullname, MethodFirstname, TypeFullname};
+use shiika_core::names::{ClassFullname, ConstFullname, MethodFirstname, TypeFullname};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -25,7 +25,8 @@ pub enum Expr<T> {
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
-    CreateTypeObject(TypeFullname),
+    CreateObject(ClassFullname),
+    CreateTypeObject(TypeFullname), // TODO: Can be merged with CreateObject?
 }
 
 impl Expr<TermTy> {
@@ -141,6 +142,11 @@ impl Expr<TermTy> {
         (Expr::Upcast(Box::new(e), ty.clone()), ty)
     }
 
+    pub fn create_object(name: ClassFullname) -> TypedExpr<TermTy> {
+        let ty = name.meta_name().to_ty();
+        (Expr::CreateObject(name), ty)
+    }
+
     pub fn create_type_object(name: TypeFullname) -> TypedExpr<TermTy> {
         (
             Expr::CreateTypeObject(name.clone()),
@@ -162,4 +168,8 @@ pub fn from_vec<T: Clone>(exprs: Vec<TypedExpr<T>>) -> TypedExpr<T> {
     }
     let t = exprs.last().unwrap().1.clone();
     (Expr::Exprs(exprs), t)
+}
+
+pub fn untyped(e: Expr<()>) -> TypedExpr<()> {
+    (e, ())
 }

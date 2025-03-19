@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::hir::expr::untyped;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
@@ -336,10 +337,6 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
             exprs.push(untyped(hir::Expr::Return(Box::new(void))));
         }
     }
-}
-
-fn untyped(e: hir::Expr<()>) -> hir::TypedExpr<()> {
-    (e, ())
 }
 
 fn lookup_const(
