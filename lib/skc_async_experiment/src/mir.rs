@@ -5,11 +5,18 @@ pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
+use skc_mir::VTables;
 use std::fmt;
 pub use ty::{FunTy, Ty};
 
 pub fn main_function_name() -> FunctionName {
     FunctionName::unmangled("chiika_main")
+}
+
+#[derive(Debug)]
+pub struct CompilationUnit {
+    pub program: Program,
+    pub vtables: VTables,
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,6 @@
 use crate::hir::Asyncness;
 use shiika_core::ty::{self, TermTy};
+use skc_hir::MethodSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunTy {
@@ -15,6 +16,10 @@ impl FunTy {
             param_tys,
             ret_ty,
         }
+    }
+
+    pub fn from_sig(sig: &MethodSignature, asyncness: Asyncness) -> Self {
+        Self::new(asyncness, sig.param_tys(), sig.ret_ty.clone())
     }
 
     pub fn sync(param_tys: Vec<TermTy>, ret_ty: TermTy) -> Self {

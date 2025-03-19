@@ -20,6 +20,10 @@ impl fmt::Display for MethodSignature {
 }
 
 impl MethodSignature {
+    pub fn param_tys(&self) -> Vec<TermTy> {
+        self.params.iter().map(|p| p.ty.clone()).collect()
+    }
+
     pub fn has_default_expr(&self) -> bool {
         self.params.iter().any(|p| p.has_default)
     }
