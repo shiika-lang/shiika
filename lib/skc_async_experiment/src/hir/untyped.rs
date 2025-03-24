@@ -135,9 +135,6 @@ impl<'a> Compiler<'a> {
             .iter()
             .map(|e| self.compile_expr(params, &mut lvars, &e))
             .collect::<Result<Vec<_>>>()?;
-        for name in lvars {
-            body_stmts.insert(0, untyped(hir::Expr::Alloc(name, ())));
-        }
         insert_implicit_return(&mut body_stmts);
         Ok(untyped(hir::Expr::Exprs(body_stmts)))
     }

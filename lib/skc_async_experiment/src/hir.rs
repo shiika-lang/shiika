@@ -2,6 +2,7 @@ pub mod expr;
 mod ty;
 pub mod typing;
 pub mod untyped;
+pub mod visitor;
 use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};

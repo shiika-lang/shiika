@@ -196,17 +196,18 @@ impl<'f> Typing<'f> {
                 let new_func = self.compile_expr(lvars, *func)?;
                 hir::Expr::spawn(new_func)
             }
-            hir::Expr::Alloc(name, _) => {
-                let ty = ty::raw("Int"); // TODO type inference
-                lvars.insert(name.clone(), ty.clone());
-                hir::Expr::alloc(name, ty)
+            hir::Expr::LVarDecl(name, rhs) => {
+                let new_rhs = self.compile_expr(lvars, *rhs)?;
+                let ty = new_rhs.1.clone();
+                lvars.insert(name.clone(), ty);
+                hir::Expr::lvar_decl(name, new_rhs)
             }
             hir::Expr::Assign(name, val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
                 if let Some(ty) = lvars.get(&name) {
                     if ty != &new_val.1 {
                         return Err(anyhow!(
-                            "type mismatch: variable `{name}' should be {:?} but got {:?}",
+                            "assigning type mismatch: variable `{name}' is {:?} but the value is {:?}",
                             ty,
                             new_val.1
                         ));

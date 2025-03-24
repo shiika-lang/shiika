@@ -170,6 +170,7 @@ pub struct MatchClauseCtx {
 /// A local variable
 #[derive(Debug)]
 pub struct CtxLVar {
+    #[allow(dead_code)] // FIXME
     pub name: String,
     pub ty: TermTy,
     pub readonly: bool,
