@@ -196,10 +196,10 @@ impl<'f> Typing<'f> {
                 let new_func = self.compile_expr(lvars, *func)?;
                 hir::Expr::spawn(new_func)
             }
-            hir::Expr::Alloc(name) => {
-                // Milika vars are always Int now
-                lvars.insert(name.clone(), ty::raw("Int"));
-                hir::Expr::alloc(name)
+            hir::Expr::Alloc(name, _) => {
+                let ty = ty::raw("Int"); // TODO type inference
+                lvars.insert(name.clone(), ty.clone());
+                hir::Expr::alloc(name, ty)
             }
             hir::Expr::Assign(name, val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
@@ -246,8 +246,9 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            hir::Expr::Upcast(_, _) => unreachable!(),
+            hir::Expr::CreateObject(class_name) => hir::Expr::create_object(class_name),
             hir::Expr::CreateTypeObject(type_name) => hir::Expr::create_type_object(type_name),
-            _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)
     }

@@ -104,7 +104,7 @@ impl Verifier {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, body)?;
             }
-            mir::Expr::Alloc(_) => (),
+            mir::Expr::Alloc(_, _) => (),
             mir::Expr::Assign(_, v) => {
                 self.verify_expr(f, v)?;
             }

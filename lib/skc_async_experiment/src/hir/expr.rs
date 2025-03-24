@@ -19,7 +19,7 @@ pub enum Expr<T> {
     MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
-    Alloc(String),
+    Alloc(String, T),
     Assign(String, Box<TypedExpr<T>>),
     ConstSet(ConstFullname, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
@@ -114,8 +114,8 @@ impl Expr<TermTy> {
         (Expr::Spawn(Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn alloc(name: impl Into<String>) -> TypedExpr<TermTy> {
-        (Expr::Alloc(name.into()), ty::raw("Void"))
+    pub fn alloc(name: impl Into<String>, ty: TermTy) -> TypedExpr<TermTy> {
+        (Expr::Alloc(name.into(), ty), ty::raw("Void"))
     }
 
     pub fn assign(name: impl Into<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {

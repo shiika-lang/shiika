@@ -128,7 +128,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
-            mir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
+            mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
             mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),

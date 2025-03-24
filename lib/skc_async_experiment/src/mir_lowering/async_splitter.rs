@@ -168,7 +168,7 @@ impl<'a> Compiler<'a> {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
                 call_chiika_spawn(new_fexpr)
             }
-            mir::Expr::Alloc(_) => mir::Expr::nop(),
+            mir::Expr::Alloc(_, _) => mir::Expr::nop(),
             mir::Expr::Assign(_, _) => {
                 panic!("Assign must be lowered to EnvSet");
             }
@@ -388,7 +388,7 @@ impl<'a> Compiler<'a> {
         let ty = value.1.clone();
         let varname = self.gensym();
         self.chapters.add_stmts(vec![
-            mir::Expr::alloc(varname.clone()),
+            mir::Expr::alloc(varname.clone(), value.1.clone()),
             mir::Expr::assign(varname.clone(), value),
         ]);
         mir::Expr::lvar_ref(varname, ty)

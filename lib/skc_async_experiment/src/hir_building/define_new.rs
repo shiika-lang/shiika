@@ -32,7 +32,7 @@ fn create_new(class_dict: &ClassDict, class: &ClassFullname) -> (hir::Method<()>
     let initialize = find_initialize(class_dict, &instance_ty);
     let tmp_name = "tmp";
     let mut exprs = vec![];
-    exprs.push(untyped(hir::Expr::Alloc(tmp_name.to_string())));
+    exprs.push(untyped(hir::Expr::Alloc(tmp_name.to_string(), ())));
 
     // - Allocate memory and set .class (which is the receiver of .new)
     exprs.push(untyped(hir::Expr::Assign(

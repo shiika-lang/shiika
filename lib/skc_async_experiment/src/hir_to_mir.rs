@@ -139,7 +139,7 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
             mir::Expr::While(Box::new(convert_texpr(*c)), Box::new(convert_texpr(*b)))
         }
         hir::Expr::Spawn(b) => mir::Expr::Spawn(Box::new(convert_texpr(*b))),
-        hir::Expr::Alloc(s) => mir::Expr::Alloc(s),
+        hir::Expr::Alloc(s, ty) => mir::Expr::Alloc(s, convert_ty(ty)),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
