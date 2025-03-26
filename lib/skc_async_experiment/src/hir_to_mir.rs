@@ -138,7 +138,6 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
             mir::Expr::ArgRef(i + 1, s)
         }
         hir::Expr::ConstRef(resolved_const_name) => {
-            // TODO: impl. constants
             mir::Expr::ConstRef(mir_const_name(resolved_const_name))
         }
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
