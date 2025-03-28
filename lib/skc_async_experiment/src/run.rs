@@ -118,7 +118,7 @@ fn create_imports() -> skc_mir::LibraryExports {
             method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
             foreign: false,
         };
-        skc_hir::SkClass::nonmeta(base, None)
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
     };
     let class_void = {
         let base = SkTypeBase {
@@ -127,9 +127,17 @@ fn create_imports() -> skc_mir::LibraryExports {
             method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
             foreign: false,
         };
-        skc_hir::SkClass::nonmeta(base, None)
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
     };
-
+    let class_metaclass = {
+        let base = SkTypeBase {
+            erasure: Erasure::nonmeta("Metaclass"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
+            foreign: false,
+        };
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
+    };
     let class_class = {
         let base = SkTypeBase {
             erasure: Erasure::nonmeta("Class"),
@@ -137,7 +145,7 @@ fn create_imports() -> skc_mir::LibraryExports {
             method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
             foreign: false,
         };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
+        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Metaclass")))
     };
 
     let sk_types = skc_hir::SkTypes::from_iterator(
@@ -145,6 +153,7 @@ fn create_imports() -> skc_mir::LibraryExports {
             class_object.into(),
             class_int.into(),
             class_void.into(),
+            class_metaclass.into(),
             class_class.into(),
         ]
         .into_iter(),
