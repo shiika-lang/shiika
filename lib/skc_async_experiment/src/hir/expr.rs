@@ -143,7 +143,7 @@ impl Expr<TermTy> {
     }
 
     pub fn create_object(name: ClassFullname) -> TypedExpr<TermTy> {
-        let ty = name.meta_name().to_ty();
+        let ty = name.to_ty();
         (Expr::CreateObject(name), ty)
     }
 
