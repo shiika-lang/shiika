@@ -149,20 +149,24 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
             Box::new(convert_texpr(*t)),
             Box::new(convert_texpr(*e)),
         ),
+        hir::Expr::MethodCall(_, _, _) => todo!(),
         hir::Expr::While(c, b) => {
             mir::Expr::While(Box::new(convert_texpr(*c)), Box::new(convert_texpr(*b)))
         }
         hir::Expr::Spawn(b) => mir::Expr::Spawn(Box::new(convert_texpr(*b))),
         hir::Expr::LVarDecl(s, rhs) => mir::Expr::Assign(s, Box::new(convert_texpr(*rhs))),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
+        hir::Expr::ConstSet(name, v) => {
+            mir::Expr::ConstSet(mir_const_name(name), Box::new(convert_texpr(*v)))
+        }
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
         hir::Expr::Upcast(v, t) => mir::Expr::Cast(
             mir::CastType::Upcast(convert_ty(t)),
             Box::new(convert_texpr(*v)),
         ),
+        hir::Expr::CreateObject(class_name) => mir::Expr::CreateObject(class_name.0),
         hir::Expr::CreateTypeObject(type_name) => mir::Expr::CreateTypeObject(type_name.0),
-        _ => panic!("unexpected for hir_to_mir: {:?}", expr),
     }
 }
 

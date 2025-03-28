@@ -63,6 +63,8 @@ impl Verifier {
                 }
                 assert(&e, "according to the function decalation", &param.ty)?;
             }
+            mir::Expr::EnvRef(_, _) => bail!("EnvRef should be lowered"),
+            mir::Expr::EnvSet(_, _, _) => bail!("EnvRef should be lowered"),
             mir::Expr::ConstRef(_name) => (),
             mir::Expr::FuncRef(name) => {
                 let ty_expected = self
@@ -104,6 +106,7 @@ impl Verifier {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, body)?;
             }
+            mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(_, _) => (),
             mir::Expr::Assign(_, v) => {
                 self.verify_expr(f, v)?;
@@ -146,6 +149,7 @@ impl Verifier {
                     }
                 }
             }
+            mir::Expr::CreateObject(_) => (),
             mir::Expr::CreateTypeObject(_) => (),
             mir::Expr::Unbox(val) => {
                 assert(&val, "unboxee", &mir::Ty::raw("Int"))?;
@@ -153,7 +157,6 @@ impl Verifier {
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
-            _ => panic!("not supported by verifier: {:?}", e.0),
         }
         Ok(())
     }
