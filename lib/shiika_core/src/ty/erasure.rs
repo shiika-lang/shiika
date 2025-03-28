@@ -1,7 +1,7 @@
 use crate::names::{
     module_fullname, toplevel_const, ClassFullname, ConstFullname, ModuleFullname, TypeFullname,
 };
-use crate::ty::{self, TermTy};
+use crate::ty::{LitTy, TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -55,6 +55,10 @@ impl Erasure {
     }
 
     pub fn to_term_ty(&self) -> TermTy {
-        ty::new(self.base_name.clone(), Default::default(), self.is_meta)
+        self.to_lit_ty().to_term_ty()
+    }
+
+    pub fn to_lit_ty(&self) -> LitTy {
+        LitTy::new(self.base_name.clone(), Default::default(), self.is_meta)
     }
 }

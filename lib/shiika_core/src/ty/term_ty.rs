@@ -221,13 +221,18 @@ impl TermTy {
     }
 
     /// Return "A" for "A<B>", "Meta:A" for "Meta:A<B>"
-    pub fn base_class_name(&self) -> ClassFullname {
+    pub fn base_type_name(&self) -> TypeFullname {
         match &self.body {
             TyRaw(LitTy {
                 base_name, is_meta, ..
-            }) => ClassFullname::new(base_name, *is_meta),
+            }) => TypeFullname::new(base_name, *is_meta),
             _ => panic!("unexpected"),
         }
+    }
+
+    // obsolete
+    pub fn base_class_name(&self) -> ClassFullname {
+        self.base_type_name().to_class_fullname()
     }
 
     /// Return true if two types are identical

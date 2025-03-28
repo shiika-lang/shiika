@@ -5,19 +5,20 @@ use crate::hir::expr::untyped;
 use crate::hir::{self, Param};
 use crate::names::FunctionName;
 use shiika_ast::LocationSpan;
-use shiika_core::names::{method_firstname, method_fullname, ClassFullname};
-use shiika_core::ty::TermTy;
+use shiika_core::names::{method_firstname, method_fullname};
+use shiika_core::ty::{LitTy, TermTy};
 use skc_ast2hir::class_dict::{ClassDict, FoundMethod};
 use skc_hir::MethodSignature;
 
 pub fn run(prog: &mut hir::Program<()>, class_dict: &mut ClassDict) {
     let mut adds = vec![];
     for sk_class in class_dict.sk_types.sk_classes() {
-        if sk_class.base.fullname().0 == "Never" {
+        let lit_ty = sk_class.lit_ty();
+        if !sk_class.lit_ty().is_meta {
             continue;
         }
 
-        let (new, new_sig) = create_new(class_dict, &sk_class.fullname());
+        let (new, new_sig) = create_new(class_dict, &lit_ty);
         prog.methods.push(new);
 
         adds.push((sk_class.fullname().clone(), new_sig.clone()));
@@ -27,15 +28,17 @@ pub fn run(prog: &mut hir::Program<()>, class_dict: &mut ClassDict) {
     }
 }
 
-fn create_new(class_dict: &ClassDict, class: &ClassFullname) -> (hir::Method<()>, MethodSignature) {
-    let instance_ty = class.to_ty();
+fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, MethodSignature) {
+    let instance_ty = meta_ty.instance_ty().to_term_ty();
     let initialize = find_initialize(class_dict, &instance_ty);
     let tmp_name = "tmp";
     let mut exprs = vec![];
     // - Allocate memory and set .class (which is the receiver of .new)
     exprs.push(untyped(hir::Expr::LVarDecl(
         tmp_name.to_string(),
-        Box::new(untyped(hir::Expr::CreateObject(class.clone()))),
+        Box::new(untyped(hir::Expr::CreateObject(
+            instance_ty.base_class_name(),
+        ))),
     )));
 
     // - Call initialize on it
@@ -46,8 +49,9 @@ fn create_new(class_dict: &ClassDict, class: &ClassFullname) -> (hir::Method<()>
         .enumerate()
         .map(|(i, param)| untyped(hir::Expr::ArgRef(i, param.name.clone())))
         .collect();
-    exprs.push(untyped(hir::Expr::FunCall(
-        Box::new(untyped(hir::Expr::FuncRef(initialize.sig.clone().into()))),
+    exprs.push(untyped(hir::Expr::MethodCall(
+        Box::new(untyped(hir::Expr::LVarRef(tmp_name.to_string()))),
+        method_firstname("initialize"),
         args,
     )));
 
@@ -57,7 +61,7 @@ fn create_new(class_dict: &ClassDict, class: &ClassFullname) -> (hir::Method<()>
     )))));
 
     let m = hir::Method {
-        name: FunctionName::method(class.0.clone(), "new"),
+        name: FunctionName::method(meta_ty.base_name.clone(), "new"),
         params: initialize
             .sig
             .params
@@ -73,7 +77,7 @@ fn create_new(class_dict: &ClassDict, class: &ClassFullname) -> (hir::Method<()>
         self_ty: Some(instance_ty.meta_ty()),
     };
     let sig = MethodSignature {
-        fullname: method_fullname(class.meta_name().to_type_fullname(), "new"),
+        fullname: method_fullname(meta_ty.to_term_ty().base_type_name(), "new"),
         ret_ty: instance_ty.clone(),
         params: initialize.sig.params.clone(),
         typarams: initialize.sig.typarams.clone(),

@@ -52,6 +52,11 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), self.type_args.clone(), true)
     }
 
+    pub fn instance_ty(&self) -> LitTy {
+        debug_assert!(self.is_meta);
+        LitTy::new(self.base_name.clone(), self.type_args.clone(), false)
+    }
+
     pub fn erasure(&self) -> Erasure {
         Erasure::new(self.base_name.clone(), self.is_meta)
     }

@@ -50,6 +50,10 @@ impl SkClass {
         }
     }
 
+    pub fn lit_ty(&self) -> LitTy {
+        self.base.erasure.to_lit_ty()
+    }
+
     pub fn ivars(mut self, x: SkIVars) -> Self {
         self.ivars = x;
         self
