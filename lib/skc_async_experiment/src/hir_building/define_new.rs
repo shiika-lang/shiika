@@ -3,7 +3,6 @@
 //! of `initialize`)
 use crate::hir::expr::untyped;
 use crate::hir::{self, Param};
-use crate::names::FunctionName;
 use shiika_ast::LocationSpan;
 use shiika_core::names::{method_firstname, method_fullname};
 use shiika_core::ty::{LitTy, TermTy};
@@ -33,6 +32,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
     let initialize = find_initialize(class_dict, &instance_ty);
     let tmp_name = "tmp";
     let mut exprs = vec![];
+
     // - Allocate memory and set .class (which is the receiver of .new)
     exprs.push(untyped(hir::Expr::LVarDecl(
         tmp_name.to_string(),
@@ -60,8 +60,9 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
         hir::Expr::LVarRef(tmp_name.to_string()),
     )))));
 
+    let method_name = method_fullname(meta_ty.to_term_ty().fullname.clone(), "new");
     let m = hir::Method {
-        name: FunctionName::method(meta_ty.base_name.clone(), "new"),
+        name: method_name.clone().into(),
         params: initialize
             .sig
             .params
@@ -77,7 +78,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
         self_ty: Some(instance_ty.meta_ty()),
     };
     let sig = MethodSignature {
-        fullname: method_fullname(meta_ty.to_term_ty().base_type_name(), "new"),
+        fullname: method_name,
         ret_ty: instance_ty.clone(),
         params: initialize.sig.params.clone(),
         typarams: initialize.sig.typarams.clone(),
