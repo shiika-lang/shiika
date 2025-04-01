@@ -7,7 +7,7 @@ use anyhow::Result;
 
 pub fn run(mir: mir::Program) -> mir::Program {
     let funcs = mir.funcs.into_iter().map(|f| compile_func(f)).collect();
-    mir::Program::new(mir.externs, funcs)
+    mir::Program::new(mir.classes, mir.externs, funcs)
 }
 
 fn compile_func(orig_func: mir::Function) -> mir::Function {

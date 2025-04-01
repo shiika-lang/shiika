@@ -68,6 +68,12 @@ impl SkClass {
         self.base.erasure.to_class_fullname()
     }
 
+    pub fn ivars_ordered(&self) -> Vec<SkIVar> {
+        let mut v = self.ivars.values().cloned().collect::<Vec<_>>();
+        v.sort_by_key(|x| x.idx);
+        v
+    }
+
     /// Returns supertype of `self` with given `type_args`.
     /// eg. given `class B<Y, X> : A<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
     /// returns `A<Bool>`.

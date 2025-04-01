@@ -29,6 +29,12 @@ impl From<&MethodSignature> for FunctionName {
     }
 }
 
+impl From<MethodFullname> for FunctionName {
+    fn from(name: MethodFullname) -> FunctionName {
+        FunctionName::Unmangled(name.full_name)
+    }
+}
+
 impl From<&MethodFullname> for FunctionName {
     fn from(name: &MethodFullname) -> FunctionName {
         FunctionName::Unmangled(name.full_name.clone())

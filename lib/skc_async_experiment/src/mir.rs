@@ -21,6 +21,7 @@ pub struct CompilationUnit {
 
 #[derive(Debug, Clone)]
 pub struct Program {
+    pub classes: Vec<MirClass>,
     pub externs: Vec<Extern>,
     pub funcs: Vec<Function>,
 }
@@ -38,9 +39,19 @@ impl fmt::Display for Program {
 }
 
 impl Program {
-    pub fn new(externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
-        Self { externs, funcs }
+    pub fn new(classes: Vec<MirClass>, externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
+        Self {
+            classes,
+            externs,
+            funcs,
+        }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct MirClass {
+    pub name: String,
+    pub ivars: Vec<(String, Ty)>,
 }
 
 #[derive(Debug, Clone)]

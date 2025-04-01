@@ -8,6 +8,7 @@ use std::collections::HashSet;
 
 pub fn run(hir: hir::CompilationUnit) -> mir::CompilationUnit {
     log::debug!("Start");
+    let classes = convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     log::debug!("VTables built");
     let externs = convert_externs(hir.imports, hir.imported_asyncs);
@@ -22,8 +23,38 @@ pub fn run(hir: hir::CompilationUnit) -> mir::CompilationUnit {
         hir.program.top_exprs,
         hir.program.constants,
     ));
-    let program = mir::Program::new(externs, funcs);
+    let program = mir::Program::new(classes, externs, funcs);
     mir::CompilationUnit { program, vtables }
+}
+
+fn convert_classes(hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
+    let mut v: Vec<_> = hir
+        .sk_types
+        .sk_classes()
+        .map(|sk_class| {
+            let ivars = sk_class
+                .ivars_ordered()
+                .iter()
+                .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
+                .collect();
+            mir::MirClass {
+                name: sk_class.fullname().0.clone(),
+                ivars,
+            }
+        })
+        .collect();
+    for c in hir.imports.sk_types.sk_classes() {
+        let ivars = c
+            .ivars_ordered()
+            .iter()
+            .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
+            .collect();
+        v.push(mir::MirClass {
+            name: c.fullname().0.clone(),
+            ivars,
+        });
+    }
+    v
 }
 
 fn convert_externs(

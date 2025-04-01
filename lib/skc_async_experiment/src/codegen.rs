@@ -35,7 +35,7 @@ pub fn run<P: AsRef<Path>>(
     };
     c.compile_externs(mir.program.externs);
     c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
-    llvm_struct::define(&mut c);
+    llvm_struct::define(&mut c, &mir.program.classes);
     intrinsics::define(&mut c);
     c.compile_program(mir.program.funcs);
     vtables::define(&mut c, &mir.vtables);
@@ -128,19 +128,20 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
+            mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
             mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
             mir::Expr::CreateTypeObject(_) => {
                 self.compile_number(0) // TODO: implement
             }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
-            _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
     }
 
@@ -371,6 +372,15 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
         Some(e)
+    }
+
+    fn compile_create_object(
+        &mut self,
+        type_name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        // TODO: set vtable and type object
+        let obj = instance::allocate_sk_obj(self, type_name);
+        Some(obj.0.into())
     }
 
     fn compile_unbox(

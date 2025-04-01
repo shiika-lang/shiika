@@ -21,8 +21,8 @@ pub struct ClassDict<'hir_maker> {
     /// Note that .ivars are empty at first (because their types cannot be decided
     /// while indexing)
     pub sk_types: SkTypes,
-    /// Imported classes
-    imported_classes: &'hir_maker SkTypes,
+    /// Imported classes (TODO: Rename to `imported_types`)
+    pub imported_classes: &'hir_maker SkTypes,
     rust_methods: RustMethods,
 }
 
