@@ -4,6 +4,9 @@ on:
   - push
   - pull_request
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   # Run unit tests
   build:
@@ -12,20 +15,14 @@ jobs:
         os: [ubuntu-22.04, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
 
       - name: Set up the Linux env
         if: runner.os == 'Linux'
@@ -36,7 +33,7 @@ jobs:
       - name: Cache LLVM and Clang on Linux
         id: cache-llvm
         if: runner.os == 'Linux'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             C:/Program Files/LLVM
@@ -76,16 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt
-          override: true
+        uses: actions/checkout@v4
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: |
+          cargo fmt --all -- --check
