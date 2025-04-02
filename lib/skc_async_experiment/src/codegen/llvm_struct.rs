@@ -13,13 +13,9 @@ pub fn define(gen: &mut CodeGen, classes: &[MirClass]) {
     for class in classes {
         define_class_struct(gen, class);
     }
-    //    define_bool(gen);
-    //    define_int(gen);
-    //    define_void(gen);
 }
 
 fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
-    dbg!(&class.name);
     let struct_type = gen.context.opaque_struct_type(&class.name);
     let vtable = gen.ptr_type().into();
     let class_obj = gen.ptr_type().into();
@@ -36,29 +32,6 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     elems.extend(ivars);
     struct_type.set_body(&elems, false);
 }
-
-//fn define_bool(gen: &mut CodeGen) {
-//    let struct_type = gen.context.opaque_struct_type(&"::Bool");
-//    let vtable = gen.ptr_type().into();
-//    let class = gen.ptr_type().into();
-//    let value = gen.context.bool_type().into();
-//    struct_type.set_body(&[vtable, class, value], false);
-//}
-//
-//fn define_int(gen: &mut CodeGen) {
-//    let struct_type = gen.context.opaque_struct_type(&"::Int");
-//    let vtable = gen.ptr_type().into();
-//    let class = gen.ptr_type().into();
-//    let value = gen.context.i64_type().into();
-//    struct_type.set_body(&[vtable, class, value], false);
-//}
-//
-//fn define_void(gen: &mut CodeGen) {
-//    let struct_type = gen.context.opaque_struct_type(&"::Void");
-//    let vtable = gen.ptr_type().into();
-//    let class = gen.ptr_type().into();
-//    struct_type.set_body(&[vtable, class], false);
-//}
 
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
     gen.context
