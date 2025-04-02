@@ -23,11 +23,15 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     let struct_type = gen.context.opaque_struct_type(&class.name);
     let vtable = gen.ptr_type().into();
     let class_obj = gen.ptr_type().into();
-    let ivars: Vec<inkwell::types::BasicTypeEnum> = class
-        .ivars
-        .iter()
-        .map(|(_, ty)| gen.llvm_type(ty).into())
-        .collect::<Vec<_>>();
+    let ivars: Vec<inkwell::types::BasicTypeEnum> = match &class.name[..] {
+        "Bool" => vec![gen.context.bool_type().into()],
+        "Int" => vec![gen.context.i64_type().into()],
+        _ => class
+            .ivars
+            .iter()
+            .map(|(_, ty)| gen.llvm_type(ty).into())
+            .collect::<Vec<_>>(),
+    };
     let mut elems = vec![vtable, class_obj];
     elems.extend(ivars);
     struct_type.set_body(&elems, false);
