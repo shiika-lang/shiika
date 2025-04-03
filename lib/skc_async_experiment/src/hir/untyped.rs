@@ -216,7 +216,7 @@ impl<'a> Compiler<'a> {
             shiika_ast::AstExpressionBody::LVarDecl { name, rhs, .. } => {
                 lvars.insert(name.clone());
                 let rhs = self.compile_expr(params, lvars, &rhs)?;
-                hir::Expr::Assign(name.clone(), Box::new(rhs))
+                hir::Expr::LVarDecl(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::LVarAssign { name, rhs } => {
                 if !lvars.contains(name) {
