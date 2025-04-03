@@ -1,4 +1,5 @@
 use crate::hir;
+use crate::hir::expr::untyped;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
@@ -134,9 +135,6 @@ impl<'a> Compiler<'a> {
             .iter()
             .map(|e| self.compile_expr(params, &mut lvars, &e))
             .collect::<Result<Vec<_>>>()?;
-        for name in lvars {
-            body_stmts.insert(0, untyped(hir::Expr::Alloc(name)));
-        }
         insert_implicit_return(&mut body_stmts);
         Ok(untyped(hir::Expr::Exprs(body_stmts)))
     }
@@ -218,7 +216,7 @@ impl<'a> Compiler<'a> {
             shiika_ast::AstExpressionBody::LVarDecl { name, rhs, .. } => {
                 lvars.insert(name.clone());
                 let rhs = self.compile_expr(params, lvars, &rhs)?;
-                hir::Expr::Assign(name.clone(), Box::new(rhs))
+                hir::Expr::LVarDecl(name.clone(), Box::new(rhs))
             }
             shiika_ast::AstExpressionBody::LVarAssign { name, rhs } => {
                 if !lvars.contains(name) {
@@ -336,10 +334,6 @@ fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
             exprs.push(untyped(hir::Expr::Return(Box::new(void))));
         }
     }
-}
-
-fn untyped(e: hir::Expr<()>) -> hir::TypedExpr<()> {
-    (e, ())
 }
 
 fn lookup_const(

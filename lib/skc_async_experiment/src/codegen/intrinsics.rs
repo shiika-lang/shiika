@@ -18,8 +18,8 @@ fn define_box_int(gen: &mut CodeGen) {
     gen.builder.position_at_end(basic_block);
 
     let i64_val = function.get_params()[0];
-    let sk_int = instance::allocate_sk_obj(gen, "::Int");
-    let struct_type = llvm_struct::get(gen, "::Int");
+    let sk_int = instance::allocate_sk_obj(gen, "Int");
+    let struct_type = llvm_struct::get(gen, "Int");
     instance::build_ivar_store_raw(gen, sk_int.clone(), &struct_type, 0, i64_val, "llvm_int");
     gen.builder.build_return(Some(&sk_int.0));
 }
@@ -35,8 +35,8 @@ fn define_box_bool(gen: &mut CodeGen) {
     gen.builder.position_at_end(basic_block);
 
     let bool_val = function.get_params()[0];
-    let sk_bool = instance::allocate_sk_obj(gen, "::Bool");
-    let struct_type = llvm_struct::get(gen, "::Bool");
+    let sk_bool = instance::allocate_sk_obj(gen, "Bool");
+    let struct_type = llvm_struct::get(gen, "Bool");
     instance::build_ivar_store_raw(gen, sk_bool.clone(), &struct_type, 0, bool_val, "llvm_bool");
     gen.builder.build_return(Some(&sk_bool.0));
 }
@@ -57,7 +57,7 @@ pub fn unbox_int<'run>(
     gen: &mut CodeGen<'run, '_>,
     sk_obj: SkObj<'run>,
 ) -> inkwell::values::IntValue<'run> {
-    let struct_type = llvm_struct::get(gen, "::Int");
+    let struct_type = llvm_struct::get(gen, "Int");
     let item_type = gen.context.i64_type().into();
     let x = instance::build_ivar_load_raw(gen, sk_obj, struct_type, item_type, 0, "llvm_int");
     x.into_int_value()
@@ -79,7 +79,7 @@ pub fn unbox_bool<'run>(
     gen: &mut CodeGen<'run, '_>,
     sk_obj: SkObj<'run>,
 ) -> inkwell::values::IntValue<'run> {
-    let struct_type = llvm_struct::get(gen, "::Bool");
+    let struct_type = llvm_struct::get(gen, "Bool");
     let item_type = gen.context.bool_type().into();
     let x = instance::build_ivar_load_raw(gen, sk_obj, struct_type, item_type, 0, "llvm_bool");
     x.into_int_value()

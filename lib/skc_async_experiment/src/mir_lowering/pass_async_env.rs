@@ -52,7 +52,7 @@ pub fn run(mir: mir::Program) -> mir::Program {
             }
         })
         .collect();
-    mir::Program::new(externs, funcs)
+    mir::Program::new(mir.classes, externs, funcs)
 }
 
 fn compile_func(orig_func: mir::Function) -> mir::Function {

@@ -196,17 +196,18 @@ impl<'f> Typing<'f> {
                 let new_func = self.compile_expr(lvars, *func)?;
                 hir::Expr::spawn(new_func)
             }
-            hir::Expr::Alloc(name) => {
-                // Milika vars are always Int now
-                lvars.insert(name.clone(), ty::raw("Int"));
-                hir::Expr::alloc(name)
+            hir::Expr::LVarDecl(name, rhs) => {
+                let new_rhs = self.compile_expr(lvars, *rhs)?;
+                let ty = new_rhs.1.clone();
+                lvars.insert(name.clone(), ty);
+                hir::Expr::lvar_decl(name, new_rhs)
             }
             hir::Expr::Assign(name, val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
                 if let Some(ty) = lvars.get(&name) {
                     if ty != &new_val.1 {
                         return Err(anyhow!(
-                            "type mismatch: variable `{name}' should be {:?} but got {:?}",
+                            "assigning type mismatch: variable `{name}' is {:?} but the value is {:?}",
                             ty,
                             new_val.1
                         ));
@@ -246,8 +247,9 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::exprs(new_exprs)
             }
+            hir::Expr::Upcast(_, _) => unreachable!(),
+            hir::Expr::CreateObject(class_name) => hir::Expr::create_object(class_name),
             hir::Expr::CreateTypeObject(type_name) => hir::Expr::create_type_object(type_name),
-            _ => panic!("should not reach here: {:?}", e.0),
         };
         Ok(new_e)
     }

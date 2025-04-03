@@ -5,6 +5,7 @@ pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
+use skc_mir::VTables;
 use std::fmt;
 pub use ty::{FunTy, Ty};
 
@@ -12,8 +13,15 @@ pub fn main_function_name() -> FunctionName {
     FunctionName::unmangled("chiika_main")
 }
 
+#[derive(Debug)]
+pub struct CompilationUnit {
+    pub program: Program,
+    pub vtables: VTables,
+}
+
 #[derive(Debug, Clone)]
 pub struct Program {
+    pub classes: Vec<MirClass>,
     pub externs: Vec<Extern>,
     pub funcs: Vec<Function>,
 }
@@ -31,9 +39,19 @@ impl fmt::Display for Program {
 }
 
 impl Program {
-    pub fn new(externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
-        Self { externs, funcs }
+    pub fn new(classes: Vec<MirClass>, externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
+        Self {
+            classes,
+            externs,
+            funcs,
+        }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct MirClass {
+    pub name: String,
+    pub ivars: Vec<(String, Ty)>,
 }
 
 #[derive(Debug, Clone)]

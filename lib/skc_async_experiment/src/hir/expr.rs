@@ -1,7 +1,7 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ConstFullname, MethodFirstname, TypeFullname};
+use shiika_core::names::{ClassFullname, ConstFullname, MethodFirstname, TypeFullname};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -19,13 +19,14 @@ pub enum Expr<T> {
     MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
-    Alloc(String),
+    LVarDecl(String, Box<TypedExpr<T>>),
     Assign(String, Box<TypedExpr<T>>),
     ConstSet(ConstFullname, Box<TypedExpr<T>>),
     Return(Box<TypedExpr<T>>),
     Exprs(Vec<TypedExpr<T>>),
     Upcast(Box<TypedExpr<T>>, T),
-    CreateTypeObject(TypeFullname),
+    CreateObject(ClassFullname),
+    CreateTypeObject(TypeFullname), // TODO: Can be merged with CreateObject?
 }
 
 impl Expr<TermTy> {
@@ -113,8 +114,8 @@ impl Expr<TermTy> {
         (Expr::Spawn(Box::new(e)), ty::raw("Void"))
     }
 
-    pub fn alloc(name: impl Into<String>) -> TypedExpr<TermTy> {
-        (Expr::Alloc(name.into()), ty::raw("Void"))
+    pub fn lvar_decl(name: impl Into<String>, rhs: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
+        (Expr::LVarDecl(name.into(), Box::new(rhs)), ty::raw("Void"))
     }
 
     pub fn assign(name: impl Into<String>, e: TypedExpr<TermTy>) -> TypedExpr<TermTy> {
@@ -141,6 +142,11 @@ impl Expr<TermTy> {
         (Expr::Upcast(Box::new(e), ty.clone()), ty)
     }
 
+    pub fn create_object(name: ClassFullname) -> TypedExpr<TermTy> {
+        let ty = name.to_ty();
+        (Expr::CreateObject(name), ty)
+    }
+
     pub fn create_type_object(name: TypeFullname) -> TypedExpr<TermTy> {
         (
             Expr::CreateTypeObject(name.clone()),
@@ -162,4 +168,8 @@ pub fn from_vec<T: Clone>(exprs: Vec<TypedExpr<T>>) -> TypedExpr<T> {
     }
     let t = exprs.last().unwrap().1.clone();
     (Expr::Exprs(exprs), t)
+}
+
+pub fn untyped(e: Expr<()>) -> TypedExpr<()> {
+    (e, ())
 }

@@ -2,11 +2,13 @@ pub mod expr;
 mod ty;
 pub mod typing;
 pub mod untyped;
+pub mod visitor;
 use crate::hir;
 use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
+use skc_hir::SkTypes;
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
@@ -15,6 +17,7 @@ pub struct CompilationUnit {
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
     pub program: Program<TermTy>,
+    pub sk_types: SkTypes,
 }
 
 #[derive(Debug)]

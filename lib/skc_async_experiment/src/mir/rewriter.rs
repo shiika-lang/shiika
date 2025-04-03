@@ -45,12 +45,13 @@ pub trait MirRewriter {
                 mir::Expr::while_(self.walk_expr(*cond_expr)?, self.walk_expr(*body_exprs)?)
             }
             mir::Expr::Spawn(expr) => mir::Expr::spawn(self.walk_expr(*expr)?),
-            mir::Expr::Alloc(_) => expr,
+            mir::Expr::Alloc(_, _) => expr,
             mir::Expr::Assign(name, rhs) => mir::Expr::assign(name, self.walk_expr(*rhs)?),
             mir::Expr::ConstSet(name, rhs) => mir::Expr::const_set(name, self.walk_expr(*rhs)?),
             mir::Expr::Return(expr) => mir::Expr::return_(self.walk_expr(*expr)?),
             mir::Expr::Exprs(exprs) => mir::Expr::exprs(self.walk_exprs(exprs)?),
             mir::Expr::Cast(cast_type, expr) => mir::Expr::cast(cast_type, self.walk_expr(*expr)?),
+            mir::Expr::CreateObject(_) => expr,
             mir::Expr::CreateTypeObject(_) => expr,
             mir::Expr::Unbox(e) => mir::Expr::unbox(self.walk_expr(*e)?),
             mir::Expr::RawI64(_) => expr,

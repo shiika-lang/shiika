@@ -1,4 +1,5 @@
 // List of methods defined in skc_runtime
+// format: [class_name, method_signature, is_async]
 [
   ["Int", "+(other: Int) -> Int", false],
   ["Int", "-(other: Int) -> Int", false],
@@ -16,6 +17,7 @@
   ["Int", ">=(other: Int) -> Bool", false],
   ["Int", "==(other: Int) -> Bool", false],
   //["Int", "to_f -> Float", false],
+  ["Object", "initialize", false],
   ["Object", "sleep_sec(sec: Int)", true],
   ["Object", "print(n: Int)", false],
 ]

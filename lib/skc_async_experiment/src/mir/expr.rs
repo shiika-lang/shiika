@@ -19,12 +19,13 @@ pub enum Expr {
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
-    Alloc(String),
+    Alloc(String, Ty),
     Assign(String, Box<Typed<Expr>>),
     ConstSet(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
+    CreateObject(String),
     CreateTypeObject(String),
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -138,8 +139,8 @@ impl Expr {
         (Expr::Spawn(Box::new(e)), Ty::raw("Void"))
     }
 
-    pub fn alloc(name: impl Into<String>) -> TypedExpr {
-        (Expr::Alloc(name.into()), Ty::raw("Void"))
+    pub fn alloc(name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
     }
 
     pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
@@ -255,7 +256,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + &format!("\n{}end", sp)
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
-        Expr::Alloc(name) => format!("alloc {}", name),
+        Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
         Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
@@ -272,6 +273,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             pretty_print(&e.0, lv, false),
             cast_type.result_ty()
         ),
+        Expr::CreateObject(name) => format!("%create_object('{}')", name),
         Expr::CreateTypeObject(name) => format!("%create_type_object('{}')", name),
         Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),

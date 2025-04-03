@@ -5,10 +5,10 @@ pub trait MirVisitor {
     /// Callback function.
     fn visit_expr(&mut self, expr: &mir::TypedExpr) -> Result<()>;
 
-    fn walk_mir(&mut self, mir: &mir::Program) -> Result<()> {
-        self.walk_funcs(&mir.funcs)?;
-        Ok(())
-    }
+    //fn walk_mir(&mut self, mir: &mir::Program) -> Result<()> {
+    //    self.walk_funcs(&mir.funcs)?;
+    //    Ok(())
+    //}
 
     fn walk_funcs(&mut self, funcs: &[mir::Function]) -> Result<()> {
         for f in funcs {
@@ -54,7 +54,7 @@ pub trait MirVisitor {
             mir::Expr::Spawn(expr) => {
                 self.walk_expr(expr)?;
             }
-            mir::Expr::Alloc(_) => {}
+            mir::Expr::Alloc(_, _) => {}
             mir::Expr::Assign(_, rhs) => {
                 self.walk_expr(rhs)?;
             }
@@ -70,6 +70,7 @@ pub trait MirVisitor {
             mir::Expr::Cast(_, expr) => {
                 self.walk_expr(expr)?;
             }
+            mir::Expr::CreateObject(_) => {}
             mir::Expr::CreateTypeObject(_) => {}
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
@@ -94,7 +95,7 @@ impl Allocs {
 impl MirVisitor for Allocs {
     fn visit_expr(&mut self, texpr: &mir::TypedExpr) -> Result<()> {
         match texpr {
-            (mir::Expr::Alloc(name), ty) => {
+            (mir::Expr::Alloc(name, ty), _) => {
                 self.0.push((name.clone(), ty.clone()));
             }
             _ => {}

@@ -5,6 +5,7 @@ mod intrinsics;
 mod llvm_struct;
 mod mir_analysis;
 mod value;
+mod vtables;
 use crate::mir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
@@ -18,7 +19,11 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub builder: &'run inkwell::builder::Builder<'ictx>,
 }
 
-pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Program) -> Result<()> {
+pub fn run<P: AsRef<Path>>(
+    bc_path: P,
+    opt_ll_path: Option<P>,
+    mir: mir::CompilationUnit,
+) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -28,11 +33,12 @@ pub fn run<P: AsRef<Path>>(bc_path: P, opt_ll_path: Option<P>, prog: mir::Progra
         module: &module,
         builder: &builder,
     };
-    c.compile_externs(prog.externs);
-    c.declare_const_globals(mir_analysis::list_constants::run(&prog.funcs));
-    llvm_struct::define(&mut c);
+    c.compile_externs(mir.program.externs);
+    c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
+    llvm_struct::define(&mut c, &mir.program.classes);
     intrinsics::define(&mut c);
-    c.compile_program(prog.funcs);
+    c.compile_program(mir.program.funcs);
+    vtables::define(&mut c, &mir.vtables);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
@@ -80,6 +86,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_func(&mut self, f: mir::Function) {
+        log::info!("Compiling function {:?}", f.name);
         let function = self.get_llvm_func(&f.name);
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
@@ -121,19 +128,20 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
-            mir::Expr::Alloc(name) => self.compile_alloc(ctx, name),
+            mir::Expr::Spawn(_) => todo!(),
+            mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
             mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
             mir::Expr::CreateTypeObject(_) => {
                 self.compile_number(0) // TODO: implement
             }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
-            _ => panic!("should be lowered before codegen.rs: {:?}", texpr.0),
         }
     }
 
@@ -364,6 +372,15 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
         Some(e)
+    }
+
+    fn compile_create_object(
+        &mut self,
+        type_name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        // TODO: set vtable and type object
+        let obj = instance::allocate_sk_obj(self, type_name);
+        Some(obj.0.into())
     }
 
     fn compile_unbox(
