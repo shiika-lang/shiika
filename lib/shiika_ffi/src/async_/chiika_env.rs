@@ -1,5 +1,5 @@
-use crate::{ChiikaCont, ContFuture};
-type ChiikaValue = u64;
+use crate::async_::{ChiikaCont, ContFuture};
+pub type ChiikaValue = u64;
 type TypeId = u64;
 type EnvItem = (ChiikaValue, TypeId);
 enum EnvFrame {
