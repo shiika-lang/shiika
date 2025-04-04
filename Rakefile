@@ -155,7 +155,7 @@ task :a => :async
 #
 task :async do
   sh "cargo fmt"
-  cd "lib/skc_runtime/" do
+  cd "packages/core/ext/" do
     sh "cargo build"
   end
   sh "RUST_BACKTRACE=1 cargo run --bin exp_shiika -- a.sk"
@@ -164,7 +164,7 @@ task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
-  cd "lib/skc_runtime/" do
+  cd "packages/core/ext/" do
     sh "cargo build"
   end
   Dir["tests/new_runtime/*.sk"].each do |path|

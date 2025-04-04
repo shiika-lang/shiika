@@ -1,3 +1,4 @@
+pub mod async_;
 pub mod core_class;
 
 /// Returns the C-level name of a Shiika method

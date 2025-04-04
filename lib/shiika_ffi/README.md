@@ -1,3 +1,3 @@
 # shiika_ffi
 
-Currently this crate just provides `mangle_method` function which returns the llvm function name of a Shiika method.
+This crate provides basic functions to write Shiika library in Rust.

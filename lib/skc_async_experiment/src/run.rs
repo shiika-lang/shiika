@@ -56,7 +56,7 @@ impl Main {
         let hir = {
             let mut imports = create_imports();
             let imported_asyncs =
-                prelude::load_lib_externs(Path::new("lib/skc_runtime/"), &mut imports)?;
+                prelude::load_lib_externs(Path::new("packages/core/"), &mut imports)?;
 
             let defs = ast.defs();
             let type_index =
