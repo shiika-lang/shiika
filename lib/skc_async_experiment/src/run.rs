@@ -1,19 +1,30 @@
-use crate::{codegen, hir, hir_building, hir_to_mir, linker, mir, mir_lowering, prelude};
-use anyhow::{bail, Context, Result};
+use crate::{cli, codegen, hir, hir_building, hir_to_mir, linker, mir, mir_lowering, prelude};
+use anyhow::{Context, Result};
+use clap::Parser;
 use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
-use shiika_parser::{Parser, SourceFile};
+use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use std::io::Write;
 use std::path::Path;
 
 pub fn main() -> Result<()> {
     env_logger::init();
-    let args = std::env::args().collect::<Vec<_>>();
-    let Some(path) = args.get(1) else {
-        bail!("usage: cargo run --bin exp_shiika a.milika > a.mlir");
-    };
-    Main::new().run(path)
+    let options = cli::CommandLineOptions::try_parse()?;
+    match &options.command {
+        Some(cli::Command::Build { path: _path }) => {
+            todo!("build");
+        }
+        Some(cli::Command::Compile { path: _path }) => {
+            todo!("compile");
+        }
+        Some(cli::Command::Run { path }) => {
+            let mut main = Main::new();
+            main.run(path)?;
+        }
+        None => {}
+    }
+    Ok(())
 }
 
 struct Main {
@@ -51,7 +62,7 @@ impl Main {
 
     fn compile(&mut self, src: SourceFile) -> Result<mir::CompilationUnit> {
         log::info!("Creating ast");
-        let ast = Parser::parse_files(&[src])?;
+        let ast = shiika_parser::Parser::parse_files(&[src])?;
 
         let hir = {
             let mut imports = create_imports();

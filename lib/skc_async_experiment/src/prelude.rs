@@ -29,10 +29,11 @@ pub fn load_lib_externs(
 
 fn load_methods_json(skc_runtime_dir: &std::path::Path) -> Result<Vec<(String, String, bool)>> {
     let json_path = skc_runtime_dir.join("exports.json5");
-    let mut f = std::fs::File::open(json_path.clone()).context("exports.json5 not found")?;
+    let mut f = std::fs::File::open(json_path.clone())
+        .context(format!("{} not found", json_path.display()))?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
-        .context("failed to read exports.json5")?;
+        .context(format!("failed to read {}", json_path.display()))?;
     json5::from_str(&contents).context(format!("{} is broken", json_path.display()))
 }
 

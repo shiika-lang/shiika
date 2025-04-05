@@ -1,3 +1,4 @@
+mod cli;
 mod codegen;
 pub mod hir;
 mod hir_building;

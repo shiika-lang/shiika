@@ -158,7 +158,7 @@ task :async do
   cd "packages/core/ext/" do
     sh "cargo build"
   end
-  sh "RUST_BACKTRACE=1 cargo run --bin exp_shiika -- a.sk"
+  sh "RUST_BACKTRACE=1 cargo run --bin exp_shiika -- run a.sk"
 end
 task async_test: :async do
   sh "./a.out"
@@ -170,7 +170,7 @@ task :async_integration_test do
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
-    sh "cargo run --bin exp_shiika -- #{name}.sk"
+    sh "cargo run --bin exp_shiika -- run #{name}.sk"
     sh "#{name}.out > #{name}.actual_out"
     sh "diff #{name}.actual_out #{name}.expected_out"
   end
