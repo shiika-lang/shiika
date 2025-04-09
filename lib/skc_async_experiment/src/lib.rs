@@ -4,7 +4,6 @@ mod codegen;
 pub mod hir;
 mod hir_building;
 mod hir_to_mir;
-mod linker;
 mod mir;
 pub mod mir_lowering;
 mod names;

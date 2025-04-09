@@ -1,6 +1,5 @@
-mod build;
 mod command_line_options;
-use crate::{codegen, hir, hir_building, hir_to_mir, linker, mir, mir_lowering, prelude};
+use crate::{build, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{bail, Context, Result};
 pub use command_line_options::{Command, CommandLineOptions};
 use shiika_core::names::method_fullname_raw;
@@ -37,8 +36,8 @@ pub fn shiika_work() -> Result<PathBuf> {
 }
 
 pub struct Cli {
-    log_file: std::fs::File,
-    shiika_work: PathBuf,
+    pub log_file: std::fs::File,
+    pub shiika_work: PathBuf,
 }
 
 impl Cli {
@@ -50,7 +49,9 @@ impl Cli {
     }
 
     pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
-        build::run(self, filepath)
+        let (dir, spec) = package::load_spec(filepath)?;
+        build::cargo_builder::run(self, &dir, &spec)?;
+        Ok(())
     }
 
     pub fn run<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
@@ -71,7 +72,7 @@ impl Cli {
         let bc_path = path.with_extension("bc");
         let ll_path = path.with_extension("ll");
         codegen::run(&bc_path, Some(&ll_path), mir)?;
-        linker::run(bc_path)?;
+        build::linker::run(bc_path)?;
         Ok(())
     }
 
