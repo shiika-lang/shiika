@@ -1,4 +1,4 @@
-mod cargo_builder;
+use crate::build::cargo_builder;
 use crate::cli::Cli;
 use crate::package;
 use anyhow::Result;
