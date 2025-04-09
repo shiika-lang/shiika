@@ -4,11 +4,11 @@ use clap::Parser;
 
 pub fn main() -> Result<()> {
     env_logger::init();
-    let mut cli = cli::Cli::new();
+    let mut cli = cli::Cli::init()?;
     let options = cli::CommandLineOptions::try_parse()?;
     match &options.command {
-        Some(cli::Command::Build { path: _path }) => {
-            todo!("build");
+        Some(cli::Command::Build { path }) => {
+            cli.build(path)?;
         }
         Some(cli::Command::Compile { path: _path }) => {
             todo!("compile");

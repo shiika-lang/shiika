@@ -1734,6 +1734,7 @@ dependencies = [
  "nom_locate",
  "os_info",
  "peg",
+ "serde",
  "shiika_ast",
  "shiika_core",
  "shiika_ffi",

@@ -155,9 +155,7 @@ task :a => :async
 #
 task :async do
   sh "cargo fmt"
-  cd "packages/core/ext/" do
-    sh "cargo build"
-  end
+  sh "cargo run --bin exp_shiika -- build packages/core"
   sh "RUST_BACKTRACE=1 cargo run --bin exp_shiika -- run a.sk"
 end
 task async_test: :async do

@@ -1,24 +1,56 @@
-//mod build;
+mod build;
 mod command_line_options;
 use crate::{codegen, hir, hir_building, hir_to_mir, linker, mir, mir_lowering, prelude};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 pub use command_line_options::{Command, CommandLineOptions};
 use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
+use std::env;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+const SHIIKA_ROOT: &str = "SHIIKA_ROOT";
+const SHIIKA_WORK: &str = "SHIIKA_WORK";
+
+pub fn shiika_root() -> Result<PathBuf> {
+    let Ok(shiika_root) = env::var(SHIIKA_ROOT) else {
+        bail!("please set {} (where you cloned shiika repo)", SHIIKA_ROOT);
+    };
+    let path = PathBuf::from(shiika_root);
+    if !path.exists() {
+        bail!("{} does not exist", path.display());
+    }
+    Ok(path)
+}
+
+pub fn shiika_work() -> Result<PathBuf> {
+    let Ok(shiika_work) = env::var(SHIIKA_WORK) else {
+        bail!("please set {} (eg. ~/.shiika)", SHIIKA_WORK);
+    };
+    let path = PathBuf::from(shiika_work);
+    if !path.exists() {
+        bail!("{} does not exist", path.display());
+    }
+    Ok(path)
+}
 
 pub struct Cli {
     log_file: std::fs::File,
+    shiika_work: PathBuf,
 }
 
 impl Cli {
-    pub fn new() -> Self {
-        Self {
+    pub fn init() -> Result<Self> {
+        Ok(Self {
             log_file: std::fs::File::create("log.milikac").unwrap(),
-        }
+            shiika_work: shiika_work()?,
+        })
+    }
+
+    pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
+        build::run(self, filepath)
     }
 
     pub fn run<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {

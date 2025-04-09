@@ -7,6 +7,7 @@ mod linker;
 mod mir;
 pub mod mir_lowering;
 mod names;
+mod package;
 pub mod prelude;
 pub mod run;
 mod targets;
