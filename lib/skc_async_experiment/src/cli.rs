@@ -46,14 +46,41 @@ impl Cli {
         })
     }
 
+    /// Build a package.
     pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
         let (dir, spec) = package::load_spec(filepath)?;
         build::cargo_builder::run(self, &dir, &spec)?;
         Ok(())
     }
 
+    /// Build and run a single .sk file.
     pub fn run(&mut self, filepath: &PathBuf) -> Result<()> {
-        build::exe_builder::run(self, filepath)
+        let bin_path = build::exe_builder::run(self, filepath)?;
+        let mut cmd = std::process::Command::new(bin_path);
+        cmd.status()?;
+        Ok(())
+    }
+
+    /// Like `run`, but only builds the executable.
+    pub fn compile(&mut self, filepath: &PathBuf) -> Result<()> {
+        build::exe_builder::run(self, filepath)?;
+        Ok(())
+    }
+
+    pub fn package_build_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.shiika_work
+            .join("packages")
+            .join(format!("{}-{}", &spec.name, &spec.version))
+    }
+
+    pub fn built_core(&self) -> Result<PathBuf> {
+        let (_, spec) = package::load_core(self.shiika_root.clone())?;
+        let name = if cfg!(target_os = "windows") {
+            "ext.lib"
+        } else {
+            "libext.a"
+        };
+        Ok(self.package_build_dir(&spec).join("debug").join(name))
     }
 
     pub fn log(&mut self, s: impl AsRef<str>) {

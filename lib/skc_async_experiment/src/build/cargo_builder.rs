@@ -10,14 +10,11 @@ pub fn run(cli: &mut Cli, spec_dir: &PathBuf, spec: &PackageSpec) -> Result<()> 
     };
     for rust_lib in rust_libs {
         let manifest_path = spec_dir.join(rust_lib).join("Cargo.toml");
-        let target_dir = cli
-            .shiika_work
-            .join(format!("{}-{}", &spec.name, &spec.version));
+        let target_dir = cli.package_build_dir(&spec);
         let mut cmd = Command::new("cargo");
         cmd.arg("build");
         cmd.arg("--manifest-path").arg(manifest_path);
         cmd.arg("--target-dir").arg(target_dir);
-        dbg!(&cmd);
         if !cmd.status()?.success() {
             bail!("cargo failed ({:?})", cmd);
         }

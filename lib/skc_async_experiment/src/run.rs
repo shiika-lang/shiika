@@ -10,8 +10,8 @@ pub fn main() -> Result<()> {
         Some(cli::Command::Build { path }) => {
             cli.build(path)?;
         }
-        Some(cli::Command::Compile { path: _path }) => {
-            todo!("compile");
+        Some(cli::Command::Compile { path }) => {
+            cli.compile(path)?;
         }
         Some(cli::Command::Run { path }) => {
             cli.run(path)?;
