@@ -1,11 +1,10 @@
 mod command_line_options;
-use crate::{build, codegen, mir, package, prelude};
-use anyhow::{bail, Context, Result};
+use crate::{build, package};
+use anyhow::{bail, Result};
 pub use command_line_options::{Command, CommandLineOptions};
-use shiika_parser::SourceFile;
 use std::env;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 const SHIIKA_ROOT: &str = "SHIIKA_ROOT";
 const SHIIKA_WORK: &str = "SHIIKA_WORK";
@@ -53,26 +52,8 @@ impl Cli {
         Ok(())
     }
 
-    pub fn run<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
-        let path = filepath.as_ref();
-        let txt = std::fs::read_to_string(path)
-            .context(format!("failed to read {}", &path.to_string_lossy()))?;
-        let src = SourceFile::new(path.to_path_buf(), txt);
-        let mut mir = build::compiler::run(self, src)?;
-
-        for (name, fun_ty) in prelude::core_externs() {
-            mir.program.externs.push(mir::Extern { name, fun_ty });
-        }
-        mir.program.funcs.append(&mut prelude::funcs());
-
-        self.log(&format!("# -- verifier input --\n{}\n", mir.program));
-        mir::verifier::run(&mir.program)?;
-
-        let bc_path = path.with_extension("bc");
-        let ll_path = path.with_extension("ll");
-        codegen::run(&bc_path, Some(&ll_path), mir)?;
-        build::linker::run(bc_path)?;
-        Ok(())
+    pub fn run(&mut self, filepath: &PathBuf) -> Result<()> {
+        build::exe_builder::run(self, filepath)
     }
 
     pub fn log(&mut self, s: impl AsRef<str>) {
