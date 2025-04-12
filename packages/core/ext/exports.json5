@@ -1,4 +1,4 @@
-// List of methods defined in skc_runtime
+// List of methods defined in ./ext
 // format: [class_name, method_signature, is_async]
 [
   ["Int", "+(other: Int) -> Int", false],

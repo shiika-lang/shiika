@@ -1,18 +1,30 @@
-use crate::{cli, hir, hir_building, hir_to_mir, mir, mir_lowering, prelude};
+use crate::names::FunctionName;
+use crate::{cli, hir, hir_building, hir_to_mir, mir, mir_lowering, package};
 use anyhow::Result;
 use shiika_core::names::method_fullname_raw;
+use shiika_core::names::type_fullname;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
-use std::path::Path;
+use skc_mir::LibraryExports;
+use std::path::PathBuf;
 
-pub fn run(cli: &mut cli::Cli, src: SourceFile) -> Result<mir::CompilationUnit> {
+pub fn compile(
+    cli: &mut cli::Cli,
+    src: SourceFile,
+    deps: &[package::Package],
+) -> Result<mir::CompilationUnit> {
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(&[src])?;
 
     let hir = {
         let mut imports = create_imports();
-        let imported_asyncs = prelude::load_lib_externs(Path::new("packages/core/"), &mut imports)?;
+        let mut imported_asyncs = vec![];
+        for package in deps {
+            for exp in package.export_files() {
+                imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
+            }
+        }
 
         let defs = ast.defs();
         let type_index =
@@ -42,6 +54,30 @@ pub fn run(cli: &mut cli::Cli, src: SourceFile) -> Result<mir::CompilationUnit> 
     cli.log(format!("# -- async_splitter output --\n{}\n", mir.program));
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
     Ok(mir)
+}
+
+/// Functions that are called by the user code
+/// Returns hir::FunTy because type checker needs it
+pub fn load_externs(
+    exports_json5: &PathBuf,
+    imports: &mut LibraryExports,
+) -> Result<Vec<FunctionName>> {
+    let mut imported_asyncs = vec![];
+    for (type_name, sig_str, is_async) in package::load_exports_json5(exports_json5)? {
+        let sig = parse_sig(type_name.clone(), sig_str)?;
+        if is_async {
+            imported_asyncs.push(FunctionName::from_sig(&sig));
+        }
+        imports
+            .sk_types
+            .define_method(&type_fullname(type_name), sig);
+    }
+    Ok(imported_asyncs)
+}
+
+fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
+    let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+    Ok(hir::untyped::compile_signature(type_name, &ast_sig))
 }
 
 // TODO: should be built from ./buitlin

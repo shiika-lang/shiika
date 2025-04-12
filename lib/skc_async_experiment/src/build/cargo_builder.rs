@@ -1,16 +1,20 @@
 use crate::cli::Cli;
-use crate::package::PackageSpec;
+use crate::package::Package;
 use anyhow::{bail, Result};
-use std::path::PathBuf;
 use std::process::Command;
 
-pub fn run(cli: &mut Cli, spec_dir: &PathBuf, spec: &PackageSpec) -> Result<()> {
-    let Some(rust_libs) = &spec.rust_libs else {
+pub fn run(cli: &mut Cli, p: &Package) -> Result<()> {
+    let Some(rust_libs) = &p.spec.rust_libs else {
         return Ok(());
     };
     for rust_lib in rust_libs {
-        let manifest_path = spec_dir.join(rust_lib).join("Cargo.toml");
-        let target_dir = cli.package_build_dir(&spec);
+        let manifest_path = p
+            .spec_path
+            .parent()
+            .unwrap()
+            .join(rust_lib)
+            .join("Cargo.toml");
+        let target_dir = cli.cargo_target_dir(&p.spec);
         let mut cmd = Command::new("cargo");
         cmd.arg("build");
         cmd.arg("--manifest-path").arg(manifest_path);

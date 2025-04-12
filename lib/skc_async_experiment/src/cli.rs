@@ -48,8 +48,8 @@ impl Cli {
 
     /// Build a package.
     pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
-        let (dir, spec) = package::load_spec(filepath)?;
-        build::cargo_builder::run(self, &dir, &spec)?;
+        let p = package::Package::new(&self, filepath)?;
+        build::cargo_builder::run(self, &p)?;
         Ok(())
     }
 
@@ -67,20 +67,22 @@ impl Cli {
         Ok(())
     }
 
-    pub fn package_build_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+    pub fn cargo_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
         self.shiika_work
             .join("packages")
             .join(format!("{}-{}", &spec.name, &spec.version))
+            .join("cargo_target")
     }
 
-    pub fn built_core(&self) -> Result<PathBuf> {
-        let (_, spec) = package::load_core(self.shiika_root.clone())?;
-        let name = if cfg!(target_os = "windows") {
-            "ext.lib"
-        } else {
-            "libext.a"
-        };
-        Ok(self.package_build_dir(&spec).join("debug").join(name))
+    pub fn rust_artifact_path(&self, spec: &package::PackageSpec, _rust_lib: &str) -> PathBuf {
+        let name = "ext"; // TODO: read Cargo.toml
+        self.cargo_target_dir(spec)
+            .join("debug")
+            .join(if cfg!(target_os = "windows") {
+                format!("{}.lib", name)
+            } else {
+                format!("lib{}.a", name)
+            })
     }
 
     pub fn log(&mut self, s: impl AsRef<str>) {

@@ -1,5 +1,5 @@
 use crate::cli::Cli;
-//use crate::package::PackageSpec;
+use crate::package::Package;
 use crate::{build, codegen, mir, prelude};
 use anyhow::{Context, Result};
 use shiika_parser::SourceFile;
@@ -11,7 +11,8 @@ pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
     let txt = std::fs::read_to_string(entry_point)
         .context(format!("failed to read {}", &entry_point.to_string_lossy()))?;
     let src = SourceFile::new(entry_point.clone(), txt);
-    let mut mir = build::compiler::run(cli, src)?;
+    let deps = vec![Package::load_core(cli)?];
+    let mut mir = build::compiler::compile(cli, src, &deps)?;
 
     for (name, fun_ty) in prelude::core_externs() {
         mir.program.externs.push(mir::Extern { name, fun_ty });
@@ -24,5 +25,7 @@ pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
     let bc_path = entry_point.with_extension("bc");
     let ll_path = entry_point.with_extension("ll");
     codegen::run(&bc_path, Some(&ll_path), mir)?;
-    build::linker::run(bc_path, &vec![cli.built_core()?])
+
+    let deps = Package::load_core(cli)?.artifacts;
+    build::linker::run(bc_path, &deps)
 }
