@@ -63,9 +63,15 @@ jobs:
       - name: Build and test
         run: |
           set -eux
+          mkdir ~/.shiika
+          export SHIIKA_WORK=~/.shiika
+          export SHIIKA_ROOT=.
+          export RUST_BACKTRACE=1
+          env -- cargo run --bin exp_shiika -- build packages/core
+          env -- rake async_integration_test
+
           cd lib/skc_rustlib; cargo build; cd ../../
           env -- cargo run -- build-corelib
-          env -- rake async_integration_test
           env -- cargo test
           env -- bash release_test.sh
 

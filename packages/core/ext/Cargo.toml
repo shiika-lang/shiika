@@ -1,5 +1,5 @@
 [package]
-name = "skc_runtime"
+name = "ext"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,8 +7,7 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
+shiika_ffi = { path = "../../../lib/shiika_ffi" }
+shiika_ffi_macro = { path = "../../../lib/shiika_ffi_macro" }
 tokio = { version = "1.35.1", features = ["full"] }
 bdwgc-alloc = { version = "0.6.5", default-features=false, features = ["cmake"] }
-#tokio = { path = "../tokio/tokio", features = ["full"] }
-shiika_ffi = { path = "../shiika_ffi" }
-shiika_ffi_macro = { path = "../shiika_ffi_macro" }

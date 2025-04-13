@@ -1,32 +1,8 @@
 mod allocator;
-mod chiika_env;
-pub mod core_class;
-use crate::chiika_env::ChiikaEnv;
-mod async_functions;
-mod sync_functions;
+use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ChiikaValue, ContFuture};
 use std::future::{poll_fn, Future};
 use std::pin::Pin;
 use std::task::Poll;
-
-//async fn read(_: i64) -> i64 {
-//    match fs::read_to_string("count.txt").await {
-//        Ok(s) => s.parse().unwrap(),
-//        Err(_) => 0,
-//    }
-//}
-//
-//async fn write(n: i64) -> i64 {
-//    let _ = fs::write("count.txt", n.to_string()).await;
-//    0
-//}
-
-pub type ChiikaValue = u64;
-
-#[allow(improper_ctypes_definitions)]
-pub type ContFuture = Box<dyn Future<Output = ChiikaValue> + Unpin + Send>;
-
-#[allow(improper_ctypes_definitions)]
-type ChiikaCont = extern "C" fn(env: *mut ChiikaEnv, value: ChiikaValue) -> ContFuture;
 
 #[allow(improper_ctypes_definitions)]
 type ChiikaThunk = unsafe extern "C" fn(env: *mut ChiikaEnv, cont: ChiikaCont) -> ContFuture;

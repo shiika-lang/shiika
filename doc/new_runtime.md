@@ -1,28 +1,21 @@
 # New runtime for concurrency
 
+Shiika will have concurrent feature with this new runtime using tokio.
+
 Tracking issue: https://github.com/shiika-lang/shiika/issues/545
 
 ## Files
 
 - src/bin/exp_shiika.rs
-- lib/skc_runtime/
 - lib/skc_async_experiment/
+- packages/core
 
 ## How to try
 
-1. Run `cargo build` at lib/skc_runtime
-2. `cargo run --bin exp_shiika -- a.milika"`
-3. `./a`
+1. `cargo run --bin exp_shiika -- build packages/core`
+1. `cargo run --bin exp_shiika -- a.sk"`
 
-## Syntax
+## Status
 
-Currently the syntax and semantics are the same as that of [milika](https://github.com/yhara/milika). Example:
-
-```
-extern print(Int n) -> Null
-extern(async) sleep_sec(Int n) -> Null
-fun chiika_main() -> Int {
-  print(123)
-  return 0
-}
-```
+Currently the syntax is the same as Shiika (as using lib/shiika_parser)
+but some features are not implemented yet. Please check the github issue above.

@@ -4,7 +4,9 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub fn run<P: AsRef<Path>>(bc_path_: P) -> Result<()> {
+/// Build a .bc file to an executable using clang.
+/// Returns the path to the executable.
+pub fn run<P: AsRef<Path>>(bc_path_: P, deps: &[PathBuf]) -> Result<PathBuf> {
     let bc_path = bc_path_.as_ref();
     let exe_ext = if cfg!(target_os = "windows") {
         "exe"
@@ -14,14 +16,14 @@ pub fn run<P: AsRef<Path>>(bc_path_: P) -> Result<()> {
         "out"
     };
     let exe_path = bc_path.canonicalize()?.with_extension(exe_ext);
-    let mut cmd = build_clang_cmd(bc_path, exe_path);
+    let mut cmd = build_clang_cmd(bc_path, exe_path.clone(), deps);
     if !cmd.status()?.success() {
-        return Err(anyhow!("clang failed"));
+        return Err(anyhow!("clang failed: {:?}", cmd));
     }
-    Ok(())
+    Ok(exe_path)
 }
 
-fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf) -> Command {
+fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf, deps: &[PathBuf]) -> Command {
     let triple = targets::default_triple();
     let mut cmd = Command::new(env::var("CLANG").unwrap_or_else(|_| "clang".to_string()));
     add_args_from_env(&mut cmd, "CFLAGS");
@@ -40,13 +42,10 @@ fn build_clang_cmd(bc_path: &Path, exe_path: PathBuf) -> Command {
     cmd.arg("-o");
     cmd.arg(exe_path.clone());
     cmd.arg(bc_path.to_path_buf());
-    //cmd.arg(from_shiika_root("builtin/builtin.bc"));
-    let skc_runtime = if cfg!(target_os = "windows") {
-        "skc_runtime.lib"
-    } else {
-        "libskc_runtime.a"
-    };
-    cmd.arg(cargo_target_path().join("debug").join(skc_runtime));
+
+    for dep in deps {
+        cmd.arg(dep);
+    }
 
     if cfg!(target_os = "windows") {
         cmd.arg("-luser32");
@@ -78,20 +77,4 @@ fn add_args_from_env(cmd: &mut Command, key: &str) {
     {
         cmd.arg(arg);
     }
-}
-
-fn cargo_target_path() -> PathBuf {
-    if let Ok(s) = env::var("SHIIKA_CARGO_TARGET") {
-        PathBuf::from(s)
-    } else {
-        from_shiika_root("target")
-    }
-}
-
-fn from_shiika_root(s: &str) -> PathBuf {
-    shiika_root().join(s)
-}
-
-fn shiika_root() -> PathBuf {
-    PathBuf::from(env::var("SHIIKA_ROOT").unwrap_or_else(|_| ".".to_string()))
 }

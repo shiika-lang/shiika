@@ -1,0 +1,5 @@
+{
+  name: "core",
+  version: "0.1.0",
+  rust_libs: ["ext"],
+}
