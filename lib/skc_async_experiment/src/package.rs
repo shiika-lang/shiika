@@ -77,7 +77,7 @@ fn load_spec(path: &PathBuf) -> Result<(PathBuf, PackageSpec)> {
 }
 
 fn load_package_json5(path: &PathBuf) -> Result<PackageSpec> {
-    let mut f = std::fs::File::open(path)?;
+    let mut f = std::fs::File::open(path).context(format!("{} not found", path.display()))?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .context(format!("failed to read {}", path.display()))?;
