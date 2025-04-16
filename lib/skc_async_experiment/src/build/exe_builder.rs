@@ -9,7 +9,7 @@ use std::path::PathBuf;
 pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
     let deps = vec![Package::load_core(cli)?];
     let out_dir = entry_point.parent().unwrap();
-    let bc_path = build::compiler::compile(cli, entry_point, out_dir, &deps)?;
+    let bc_path = build::compiler::compile(cli, entry_point, out_dir, &deps, true)?;
     let artifacts = deps
         .iter()
         .flat_map(|pkg| pkg.artifacts.clone())

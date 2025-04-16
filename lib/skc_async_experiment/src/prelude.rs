@@ -44,7 +44,7 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     .collect()
 }
 
-pub fn funcs() -> Vec<mir::Function> {
+pub fn main_funcs() -> Vec<mir::Function> {
     vec![
         mir::Function {
             name: FunctionName::mangled("main"),

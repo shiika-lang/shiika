@@ -1,12 +1,13 @@
 mod collect_allocs;
 use crate::names::FunctionName;
 use crate::{hir, mir};
+use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 use skc_mir::LibraryExports;
 use std::collections::HashSet;
 
-pub fn run(hir: hir::CompilationUnit) -> mir::CompilationUnit {
+pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUnit> {
     log::debug!("Start");
     let classes = convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
@@ -19,12 +20,18 @@ pub fn run(hir: hir::CompilationUnit) -> mir::CompilationUnit {
         .map(convert_method)
         .collect();
     log::debug!("User functions converted");
-    funcs.push(create_user_main(
-        hir.program.top_exprs,
-        hir.program.constants,
-    ));
+    if is_bin {
+        funcs.push(create_user_main(
+            hir.program.top_exprs,
+            hir.program.constants,
+        ));
+    } else {
+        if hir.program.top_exprs.len() > 0 {
+            panic!("Top level expressions are not allowed in library");
+        }
+    }
     let program = mir::Program::new(classes, externs, funcs);
-    mir::CompilationUnit { program, vtables }
+    Ok(mir::CompilationUnit { program, vtables })
 }
 
 fn convert_classes(hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {

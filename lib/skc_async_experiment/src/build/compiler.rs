@@ -15,16 +15,19 @@ pub fn compile(
     entry_point: &Path,
     out_dir: &Path,
     deps: &[package::Package],
+    is_bin: bool,
 ) -> Result<PathBuf> {
     let txt = std::fs::read_to_string(entry_point)
         .context(format!("failed to read {}", &entry_point.to_string_lossy()))?;
     let src = SourceFile::new(entry_point.to_path_buf(), txt);
-    let mut mir = generate_mir(cli, src, &deps)?;
+    let mut mir = generate_mir(cli, src, &deps, is_bin)?;
 
     for (name, fun_ty) in prelude::core_externs() {
         mir.program.externs.push(mir::Extern { name, fun_ty });
     }
-    mir.program.funcs.append(&mut prelude::funcs());
+    if is_bin {
+        mir.program.funcs.append(&mut prelude::main_funcs());
+    }
 
     cli.log(&format!("# -- verifier input --\n{}\n", mir.program));
     mir::verifier::run(&mir.program)?;
@@ -46,6 +49,7 @@ fn generate_mir(
     cli: &mut cli::Cli,
     src: SourceFile,
     deps: &[package::Package],
+    is_bin: bool,
 ) -> Result<mir::CompilationUnit> {
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(&[src])?;
@@ -77,7 +81,7 @@ fn generate_mir(
         }
     };
     log::info!("Creating mir");
-    let mut mir = hir_to_mir::run(hir);
+    let mut mir = hir_to_mir::run(hir, is_bin)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
     mir.program = mir_lowering::asyncness_check::run(mir.program);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
