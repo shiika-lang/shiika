@@ -1,5 +1,5 @@
 use crate::names::FunctionName;
-use crate::{cli, hir, hir_building, hir_to_mir, mir, mir_lowering, package, codegen, prelude};
+use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::method_fullname_raw;
 use shiika_core::names::type_fullname;
@@ -7,16 +7,18 @@ use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub fn compile(
     cli: &mut cli::Cli,
-    entry_point: &PathBuf,
+    entry_point: &Path,
+    out_dir: &Path,
     deps: &[package::Package],
 ) -> Result<PathBuf> {
     let txt = std::fs::read_to_string(entry_point)
         .context(format!("failed to read {}", &entry_point.to_string_lossy()))?;
-    let src = SourceFile::new(entry_point.clone(), txt);
+    let src = SourceFile::new(entry_point.to_path_buf(), txt);
     let mut mir = generate_mir(cli, src, &deps)?;
 
     for (name, fun_ty) in prelude::core_externs() {
@@ -27,10 +29,17 @@ pub fn compile(
     cli.log(&format!("# -- verifier input --\n{}\n", mir.program));
     mir::verifier::run(&mir.program)?;
 
-    let bc_path = entry_point.with_extension("bc");
-    let ll_path = entry_point.with_extension("ll");
+    fs::create_dir_all(out_dir).context(format!("failed to create {}", out_dir.display()))?;
+    let bc_path = out_path(out_dir, entry_point, "bc");
+    let ll_path = out_path(out_dir, entry_point, "ll");
     codegen::run(&bc_path, Some(&ll_path), mir)?;
     Ok(bc_path)
+}
+
+fn out_path(out_dir: &Path, entry_point: &Path, ext: &str) -> PathBuf {
+    out_dir
+        .join(entry_point.file_stem().unwrap())
+        .with_extension(ext)
 }
 
 fn generate_mir(

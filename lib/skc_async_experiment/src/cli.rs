@@ -50,6 +50,7 @@ impl Cli {
     pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
         let p = package::Package::new(&self, filepath)?;
         build::cargo_builder::run(self, &p)?;
+        build::lib_builder::build(self, &p)?;
         Ok(())
     }
 
@@ -67,11 +68,18 @@ impl Cli {
         Ok(())
     }
 
+    pub fn lib_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.package_work_dir(spec).join("lib")
+    }
+
     pub fn cargo_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.package_work_dir(spec).join("cargo_target")
+    }
+
+    pub fn package_work_dir(&self, spec: &package::PackageSpec) -> PathBuf {
         self.shiika_work
             .join("packages")
             .join(format!("{}-{}", &spec.name, &spec.version))
-            .join("cargo_target")
     }
 
     pub fn rust_artifact_path(&self, spec: &package::PackageSpec, _rust_lib: &str) -> PathBuf {

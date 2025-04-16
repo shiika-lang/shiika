@@ -16,8 +16,10 @@ pub struct Package {
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct PackageSpec {
     pub name: String,
-    pub version: String, // TODO: parse it
+    pub version: String, // TODO: parse
     pub rust_libs: Option<Vec<String>>,
+    //#[serde(default)]
+    //pub deps: Vec<String>, // TODO: parse
 }
 
 impl Package {
@@ -45,6 +47,10 @@ impl Package {
     /// Load the `core` package in $SHIIKA_ROOT.
     pub fn load_core(cli: &Cli) -> Result<Self> {
         Self::new(cli, &cli.shiika_root.clone().join("packages").join("core"))
+    }
+
+    pub fn entry_point(&self) -> PathBuf {
+        self.dir.join("index.sk")
     }
 
     pub fn export_files(&self) -> Vec<PathBuf> {

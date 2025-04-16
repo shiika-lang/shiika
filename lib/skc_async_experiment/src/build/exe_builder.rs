@@ -1,6 +1,6 @@
+use crate::build;
 use crate::cli::Cli;
 use crate::package::Package;
-use crate::build;
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -8,7 +8,8 @@ use std::path::PathBuf;
 /// Returns the path to the generated executable.
 pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
     let deps = vec![Package::load_core(cli)?];
-    let bc_path = build::compiler::compile(cli, entry_point, &deps)?;
+    let out_dir = entry_point.parent().unwrap();
+    let bc_path = build::compiler::compile(cli, entry_point, out_dir, &deps)?;
     let artifacts = deps
         .iter()
         .flat_map(|pkg| pkg.artifacts.clone())
