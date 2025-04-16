@@ -1,7 +1,7 @@
 use crate::mir::{self, FunTy, Ty};
 use crate::names::FunctionName;
 
-/// Functions that are called by the generated code
+/// Functions defined as Shiika runtime (in packages/core/ext)
 pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Void")], Ty::RustFuture);
     let spawnee = FunTy::lowered(
@@ -37,6 +37,22 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         (
             "chiika_start_tokio",
             FunTy::lowered(vec![], Ty::raw("Void")),
+        ),
+    ]
+    .into_iter()
+    .map(|(name, ty)| (FunctionName::mangled(name), ty))
+    .collect()
+}
+
+pub fn intrinsic_externs() -> Vec<(FunctionName, FunTy)> {
+    vec![
+        (
+            "shiika_intrinsic_box_int",
+            FunTy::lowered(vec![Ty::Int64], Ty::raw("Int")),
+        ),
+        (
+            "shiika_intrinsic_box_bool",
+            FunTy::lowered(vec![Ty::I1], Ty::raw("Bool")),
         ),
     ]
     .into_iter()

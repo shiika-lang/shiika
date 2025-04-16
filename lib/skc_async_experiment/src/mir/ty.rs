@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Any,   // Corresponds to `ptr` in llvm
+    I1,    // Corresponds to `i1` in llvm
     Int64, // Corresponds to `i64` in llvm
     ChiikaEnv,
     RustFuture,

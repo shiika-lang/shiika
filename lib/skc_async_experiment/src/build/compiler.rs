@@ -22,11 +22,18 @@ pub fn compile(
     let src = SourceFile::new(entry_point.to_path_buf(), txt);
     let mut mir = generate_mir(cli, src, &deps, is_bin)?;
 
-    for (name, fun_ty) in prelude::core_externs() {
-        mir.program.externs.push(mir::Extern { name, fun_ty });
-    }
     if is_bin {
         mir.program.funcs.append(&mut prelude::main_funcs());
+    } else {
+        if mir.program.funcs.len() > 0 {
+            panic!("Top level expressions are not allowed in library");
+        }
+        for (name, fun_ty) in prelude::intrinsic_externs() {
+            mir.program.externs.push(mir::Extern { name, fun_ty });
+        }
+    }
+    for (name, fun_ty) in prelude::core_externs() {
+        mir.program.externs.push(mir::Extern { name, fun_ty });
     }
 
     cli.log(&format!("# -- verifier input --\n{}\n", mir.program));
