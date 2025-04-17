@@ -1,3 +1,4 @@
+use crate::build::loader;
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
@@ -17,17 +18,12 @@ pub fn compile(
     deps: &[package::Package],
     is_bin: bool,
 ) -> Result<PathBuf> {
-    let txt = std::fs::read_to_string(entry_point)
-        .context(format!("failed to read {}", &entry_point.to_string_lossy()))?;
-    let src = SourceFile::new(entry_point.to_path_buf(), txt);
-    let mut mir = generate_mir(cli, src, &deps, is_bin)?;
+    let src = loader::load(entry_point)?;
+    let mut mir = generate_mir(cli, &src, &deps, is_bin)?;
 
     if is_bin {
         mir.program.funcs.append(&mut prelude::main_funcs());
     } else {
-        if mir.program.funcs.len() > 0 {
-            panic!("Top level expressions are not allowed in library");
-        }
         for (name, fun_ty) in prelude::intrinsic_externs() {
             mir.program.externs.push(mir::Extern { name, fun_ty });
         }
@@ -54,12 +50,12 @@ fn out_path(out_dir: &Path, entry_point: &Path, ext: &str) -> PathBuf {
 
 fn generate_mir(
     cli: &mut cli::Cli,
-    src: SourceFile,
+    src: &[SourceFile],
     deps: &[package::Package],
     is_bin: bool,
 ) -> Result<mir::CompilationUnit> {
     log::info!("Creating ast");
-    let ast = shiika_parser::Parser::parse_files(&[src])?;
+    let ast = shiika_parser::Parser::parse_files(src)?;
 
     let hir = {
         let mut imports = create_imports();
