@@ -23,6 +23,7 @@ pub fn run<P: AsRef<Path>>(
     bc_path: P,
     opt_ll_path: Option<P>,
     mir: mir::CompilationUnit,
+    is_bin: bool,
 ) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
@@ -36,7 +37,9 @@ pub fn run<P: AsRef<Path>>(
     c.compile_externs(mir.program.externs);
     c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
     llvm_struct::define(&mut c, &mir.program.classes);
-    intrinsics::define(&mut c);
+    if is_bin {
+        intrinsics::define(&mut c);
+    }
     c.compile_program(mir.program.funcs);
     vtables::define(&mut c, &mir.vtables);
 

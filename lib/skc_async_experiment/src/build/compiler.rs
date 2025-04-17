@@ -42,7 +42,7 @@ pub fn compile(
     fs::create_dir_all(out_dir).context(format!("failed to create {}", out_dir.display()))?;
     let bc_path = out_path(out_dir, entry_point, "bc");
     let ll_path = out_path(out_dir, entry_point, "ll");
-    codegen::run(&bc_path, Some(&ll_path), mir)?;
+    codegen::run(&bc_path, Some(&ll_path), mir, is_bin)?;
     Ok(bc_path)
 }
 
