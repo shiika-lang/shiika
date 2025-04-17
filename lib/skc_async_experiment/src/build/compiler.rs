@@ -9,6 +9,7 @@ use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 pub fn compile(
@@ -36,6 +37,14 @@ pub fn compile(
     mir::verifier::run(&mir.program)?;
 
     fs::create_dir_all(out_dir).context(format!("failed to create {}", out_dir.display()))?;
+    if !is_bin {
+        let exports = LibraryExports {
+            sk_types: mir.sk_types.clone(),
+            vtables: mir.vtables.clone(),
+            constants: Default::default(), //TODO
+        };
+        write_exports_json(out_dir, &exports)?;
+    }
     let bc_path = out_path(out_dir, entry_point, "bc");
     let ll_path = out_path(out_dir, entry_point, "ll");
     codegen::run(&bc_path, Some(&ll_path), mir, is_bin)?;
@@ -118,6 +127,16 @@ pub fn load_externs(
 fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
     let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
     Ok(hir::untyped::compile_signature(type_name, &ast_sig))
+}
+
+pub fn write_exports_json(
+    out_dir: &std::path::Path,
+    exports: &skc_mir::LibraryExports,
+) -> Result<()> {
+    let json = serde_json::to_string_pretty(exports)?;
+    let mut f = std::fs::File::create(out_dir.join("exports.json"))?;
+    f.write_all(json.as_bytes())?;
+    Ok(())
 }
 
 // TODO: should be built from ./buitlin

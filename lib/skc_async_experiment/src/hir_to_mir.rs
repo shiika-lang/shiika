@@ -31,7 +31,11 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
         }
     }
     let program = mir::Program::new(classes, externs, funcs);
-    Ok(mir::CompilationUnit { program, vtables })
+    Ok(mir::CompilationUnit {
+        program,
+        sk_types: hir.sk_types,
+        vtables,
+    })
 }
 
 fn convert_classes(hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
