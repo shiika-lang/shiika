@@ -5,7 +5,7 @@ mod wtable;
 use crate::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
-use shiika_core::ty::{self, *};
+use shiika_core::ty::*;
 pub use sk_class::SkClass;
 pub use sk_module::SkModule;
 pub use sk_type_base::SkTypeBase;
@@ -60,6 +60,20 @@ impl SkTypes {
             .get_mut(type_name)
             .unwrap_or_else(|| panic!("type '{}' not found", type_name));
         sk_type.base_mut().method_sigs.insert(method_sig);
+    }
+
+    /// Merges(copies) `other` into `self`.
+    pub fn merge(&mut self, other: &SkTypes) {
+        for (name, sk_type) in &other.0 {
+            if let Some(existing) = self.0.get_mut(&name) {
+                existing
+                    .base_mut()
+                    .method_sigs
+                    .append(sk_type.base().method_sigs.clone());
+            } else {
+                self.0.insert(name.clone(), sk_type.clone());
+            }
+        }
     }
 }
 
@@ -122,8 +136,7 @@ impl SkType {
 
     // eg. TermTy(Array<T>), TermTy(Dict<K, V>)
     pub fn term_ty(&self) -> TermTy {
-        let type_args = ty::typarams_to_tyargs(&self.base().typarams);
-        ty::spe(self.fullname().0, type_args)
+        self.base().term_ty()
     }
 
     pub fn const_is_obj(&self) -> bool {

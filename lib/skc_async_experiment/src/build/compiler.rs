@@ -9,7 +9,7 @@ use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub fn compile(
@@ -68,7 +68,7 @@ fn generate_mir(
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(src)?;
 
-    let hir = generate_hir(&ast, deps)?;
+    let hir = generate_hir(cli, &ast, deps)?;
     log::info!("Creating mir");
     let mut mir = hir_to_mir::run(hir, is_bin)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
@@ -83,6 +83,7 @@ fn generate_mir(
 }
 
 fn generate_hir(
+    cli: &mut cli::Cli,
     ast: &shiika_ast::Program,
     deps: &[package::Package],
 ) -> Result<hir::CompilationUnit> {
@@ -92,11 +93,12 @@ fn generate_hir(
         for exp in package.export_files() {
             imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
         }
+        let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
+        imports.sk_types.merge(&exp.sk_types);
     }
 
     let defs = ast.defs();
-    let type_index =
-        skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
+    let type_index = skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
     let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
     log::info!("Type checking");
@@ -112,8 +114,8 @@ fn generate_hir(
     })
 }
 
-/// Functions that are called by the user code
-/// Returns hir::FunTy because type checker needs it
+/// Load exports.json5 (i.e. Rust func definitions)
+/// Also returns hir::FunTy because type checker needs it
 pub fn load_externs(
     exports_json5: &PathBuf,
     imports: &mut LibraryExports,
@@ -136,6 +138,7 @@ fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
     Ok(hir::untyped::compile_signature(type_name, &ast_sig))
 }
 
+/// Serialize LibraryExports into exports.json
 pub fn write_exports_json(
     out_path: &std::path::Path,
     exports: &skc_mir::LibraryExports,
@@ -144,6 +147,17 @@ pub fn write_exports_json(
     let mut f = std::fs::File::create(out_path)?;
     f.write_all(json.as_bytes())?;
     Ok(())
+}
+
+/// Deserialize exports.json into LibraryExports
+fn load_exports_json(path: &Path) -> Result<LibraryExports> {
+    let mut f = fs::File::open(&path).context(format!("{} not found", path.display()))?;
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .context(format!("failed to read {}", path.display()))?;
+    let exports: LibraryExports =
+        serde_json::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
+    Ok(exports)
 }
 
 // TODO: should be built from ./buitlin
