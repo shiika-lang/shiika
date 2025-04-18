@@ -32,7 +32,12 @@ impl Package {
             .as_ref()
             .map(|libs| {
                 libs.iter()
-                    .map(|lib| cli.rust_artifact_path(&spec, lib))
+                    .flat_map(|lib| {
+                        vec![
+                            cli.rust_artifact_path(&spec, lib),
+                            cli.lib_artifact_path(&spec),
+                        ]
+                    })
                     .collect()
             })
             .unwrap_or_default();

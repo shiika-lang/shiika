@@ -72,6 +72,10 @@ impl Cli {
         self.lib_target_dir(spec).join("exports.json")
     }
 
+    pub fn lib_artifact_path(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.lib_target_dir(spec).join("index.bc")
+    }
+
     pub fn lib_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
         self.package_work_dir(spec).join("lib")
     }
