@@ -68,32 +68,7 @@ fn generate_mir(
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(src)?;
 
-    let hir = {
-        let mut imports = create_imports();
-        let mut imported_asyncs = vec![];
-        for package in deps {
-            for exp in package.export_files() {
-                imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
-            }
-        }
-
-        let defs = ast.defs();
-        let type_index =
-            skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
-        let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
-
-        log::info!("Type checking");
-        let mut hir = hir::untyped::create(&ast)?;
-        hir_building::define_new::run(&mut hir, &mut class_dict);
-        let hir = hir::typing::run(hir, &class_dict)?;
-        let sk_types = class_dict.sk_types;
-        hir::CompilationUnit {
-            imports,
-            imported_asyncs,
-            program: hir,
-            sk_types,
-        }
-    };
+    let hir = generate_hir(&ast, deps)?;
     log::info!("Creating mir");
     let mut mir = hir_to_mir::run(hir, is_bin)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
@@ -105,6 +80,36 @@ fn generate_mir(
     cli.log(format!("# -- async_splitter output --\n{}\n", mir.program));
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
     Ok(mir)
+}
+
+fn generate_hir(
+    ast: &shiika_ast::Program,
+    deps: &[package::Package],
+) -> Result<hir::CompilationUnit> {
+    let mut imports = create_imports();
+    let mut imported_asyncs = vec![];
+    for package in deps {
+        for exp in package.export_files() {
+            imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
+        }
+    }
+
+    let defs = ast.defs();
+    let type_index =
+        skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
+    let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+
+    log::info!("Type checking");
+    let mut hir = hir::untyped::create(&ast)?;
+    hir_building::define_new::run(&mut hir, &mut class_dict);
+    let hir = hir::typing::run(hir, &class_dict)?;
+    let sk_types = class_dict.sk_types;
+    Ok(hir::CompilationUnit {
+        imports,
+        imported_asyncs,
+        program: hir,
+        sk_types,
+    })
 }
 
 /// Functions that are called by the user code
