@@ -23,6 +23,7 @@ pub fn run<P: AsRef<Path>>(
     bc_path: P,
     opt_ll_path: Option<P>,
     mir: mir::CompilationUnit,
+    is_bin: bool,
 ) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
@@ -34,9 +35,11 @@ pub fn run<P: AsRef<Path>>(
         builder: &builder,
     };
     c.compile_externs(mir.program.externs);
-    c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
+    c.declare_const_globals(&mir_analysis::list_constants::run(&mir.program.funcs));
     llvm_struct::define(&mut c, &mir.program.classes);
-    intrinsics::define(&mut c);
+    if is_bin {
+        intrinsics::define(&mut c);
+    }
     c.compile_program(mir.program.funcs);
     vtables::define(&mut c, &mir.vtables);
 
@@ -76,8 +79,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
-    fn declare_const_globals(&self, mut consts: Vec<(String, mir::Ty)>) {
-        consts.push(("::Main".to_string(), mir::Ty::Raw("Meta:Main".to_string())));
+    fn declare_const_globals(&self, consts: &[(String, mir::Ty)]) {
         for (name, ty) in consts {
             debug_assert!(matches!(ty, mir::Ty::Raw(_)));
             let global = self.module.add_global(self.ptr_type(), None, &name);
@@ -429,6 +431,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Ty::Any => self.ptr_type().into(),
             mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Fun(_) => self.ptr_type().into(),
+            mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
             mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),

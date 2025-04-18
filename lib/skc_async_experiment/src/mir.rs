@@ -5,6 +5,7 @@ pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
+use skc_hir::SkTypes;
 use skc_mir::VTables;
 use std::fmt;
 pub use ty::{FunTy, Ty};
@@ -16,6 +17,7 @@ pub fn main_function_name() -> FunctionName {
 #[derive(Debug)]
 pub struct CompilationUnit {
     pub program: Program,
+    pub sk_types: SkTypes,
     pub vtables: VTables,
 }
 
