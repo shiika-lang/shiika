@@ -20,6 +20,12 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
         .map(convert_method)
         .collect();
     log::debug!("User functions converted");
+    let constants = hir
+        .program
+        .constants
+        .iter()
+        .map(|(name, expr)| (name.clone(), expr.1.clone()))
+        .collect();
     if is_bin {
         funcs.push(create_user_main(
             hir.program.top_exprs,
@@ -30,7 +36,7 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
             panic!("Top level expressions are not allowed in library");
         }
     }
-    let program = mir::Program::new(classes, externs, funcs);
+    let program = mir::Program::new(classes, externs, funcs, constants);
     Ok(mir::CompilationUnit {
         program,
         sk_types: hir.sk_types,

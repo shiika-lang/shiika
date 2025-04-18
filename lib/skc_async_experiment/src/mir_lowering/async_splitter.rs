@@ -61,7 +61,12 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
         let mut split_funcs = c.compile_func(body_stmts)?;
         funcs.append(&mut split_funcs);
     }
-    Ok(mir::Program::new(mir.classes, externs, funcs))
+    Ok(mir::Program::new(
+        mir.classes,
+        externs,
+        funcs,
+        mir.constants,
+    ))
 }
 
 #[derive(Debug)]

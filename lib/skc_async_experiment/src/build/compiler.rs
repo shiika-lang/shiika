@@ -8,6 +8,7 @@ use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -39,10 +40,14 @@ pub fn compile(
 
     fs::create_dir_all(out_dir).context(format!("failed to create {}", out_dir.display()))?;
     if !is_bin {
+        let mut constants = HashMap::new();
+        for (name, ty) in &mir.program.constants {
+            constants.insert(name.clone(), ty.clone());
+        }
         let exports = LibraryExports {
             sk_types: mir.sk_types.clone(),
             vtables: mir.vtables.clone(),
-            constants: Default::default(), //TODO
+            constants,
         };
         let out_path = cli.lib_exports_path(&package.unwrap().spec);
         write_exports_json(&out_path, &exports)?;
