@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 pub fn compile(
     cli: &mut cli::Cli,
+    package: Option<&package::Package>,
     entry_point: &Path,
     out_dir: &Path,
     deps: &[package::Package],
@@ -43,7 +44,8 @@ pub fn compile(
             vtables: mir.vtables.clone(),
             constants: Default::default(), //TODO
         };
-        write_exports_json(out_dir, &exports)?;
+        let out_path = cli.lib_exports_path(&package.unwrap().spec);
+        write_exports_json(&out_path, &exports)?;
     }
     let bc_path = out_path(out_dir, entry_point, "bc");
     let ll_path = out_path(out_dir, entry_point, "ll");
@@ -130,11 +132,11 @@ fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
 }
 
 pub fn write_exports_json(
-    out_dir: &std::path::Path,
+    out_path: &std::path::Path,
     exports: &skc_mir::LibraryExports,
 ) -> Result<()> {
     let json = serde_json::to_string_pretty(exports)?;
-    let mut f = std::fs::File::create(out_dir.join("exports.json"))?;
+    let mut f = std::fs::File::create(out_path)?;
     f.write_all(json.as_bytes())?;
     Ok(())
 }

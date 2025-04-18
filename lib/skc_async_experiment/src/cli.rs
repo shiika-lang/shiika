@@ -68,18 +68,12 @@ impl Cli {
         Ok(())
     }
 
+    pub fn lib_exports_path(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.lib_target_dir(spec).join("exports.json")
+    }
+
     pub fn lib_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
         self.package_work_dir(spec).join("lib")
-    }
-
-    pub fn cargo_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
-        self.package_work_dir(spec).join("cargo_target")
-    }
-
-    pub fn package_work_dir(&self, spec: &package::PackageSpec) -> PathBuf {
-        self.shiika_work
-            .join("packages")
-            .join(format!("{}-{}", &spec.name, &spec.version))
     }
 
     pub fn rust_artifact_path(&self, spec: &package::PackageSpec, _rust_lib: &str) -> PathBuf {
@@ -91,6 +85,16 @@ impl Cli {
             } else {
                 format!("lib{}.a", name)
             })
+    }
+
+    pub fn cargo_target_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.package_work_dir(spec).join("cargo_target")
+    }
+
+    pub fn package_work_dir(&self, spec: &package::PackageSpec) -> PathBuf {
+        self.shiika_work
+            .join("packages")
+            .join(format!("{}-{}", &spec.name, &spec.version))
     }
 
     pub fn log(&mut self, s: impl AsRef<str>) {
