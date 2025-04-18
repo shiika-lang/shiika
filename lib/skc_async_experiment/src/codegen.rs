@@ -35,7 +35,7 @@ pub fn run<P: AsRef<Path>>(
         builder: &builder,
     };
     c.compile_externs(mir.program.externs);
-    c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
+    c.declare_const_globals(&mir_analysis::list_constants::run(&mir.program.funcs));
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut c);
@@ -79,8 +79,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.module.add_function(&f.name.mangle(), func_type, None);
     }
 
-    fn declare_const_globals(&self, mut consts: Vec<(String, mir::Ty)>) {
-        consts.push(("::Main".to_string(), mir::Ty::Raw("Meta:Main".to_string())));
+    fn declare_const_globals(&self, consts: &[(String, mir::Ty)]) {
         for (name, ty) in consts {
             debug_assert!(matches!(ty, mir::Ty::Raw(_)));
             let global = self.module.add_global(self.ptr_type(), None, &name);
