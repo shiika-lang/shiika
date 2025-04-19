@@ -100,6 +100,7 @@ fn generate_hir(
         }
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
+        imports.constants.extend(exp.constants);
     }
 
     let defs = ast.defs();
@@ -107,9 +108,9 @@ fn generate_hir(
     let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
     log::info!("Type checking");
-    let mut hir = hir::untyped::create(&ast)?;
+    let mut hir = hir::untyped::create(&ast, &imports.constants)?;
     hir_building::define_new::run(&mut hir, &mut class_dict);
-    let hir = hir::typing::run(hir, &class_dict)?;
+    let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
         imports,
