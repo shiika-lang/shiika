@@ -4,7 +4,6 @@ mod constants;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
-mod mir_analysis;
 mod value;
 mod vtables;
 use crate::mir;
@@ -37,10 +36,7 @@ pub fn run<P: AsRef<Path>>(
     };
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
-    constants::declare_const_globals(
-        &mut c,
-        &mir_analysis::list_constants::run(&mir.program.funcs),
-    );
+    constants::declare_const_globals(&mut c, &mir.program.constants);
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut c);

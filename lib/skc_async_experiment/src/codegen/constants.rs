@@ -15,9 +15,9 @@ pub fn declare_extern_consts(gen: &mut CodeGen, constants: Vec<(ConstFullname, T
     }
 }
 
-pub fn declare_const_globals(gen: &mut CodeGen, consts: &[(String, mir::Ty)]) {
-    for (name, ty) in consts {
-        debug_assert!(matches!(ty, mir::Ty::Raw(_)));
+pub fn declare_const_globals(gen: &mut CodeGen, consts: &[(ConstFullname, TermTy)]) {
+    for (fullname, _) in consts {
+        let name = mir::mir_const_name(fullname.clone());
         let global = gen.module.add_global(gen.ptr_type(), None, &name);
         global.set_initializer(&gen.ptr_type().const_null());
     }
