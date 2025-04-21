@@ -15,11 +15,16 @@ pub fn main_function_name() -> FunctionName {
     FunctionName::unmangled("chiika_main")
 }
 
+pub fn mir_const_name(name: ConstFullname) -> String {
+    name.0
+}
+
 #[derive(Debug)]
 pub struct CompilationUnit {
     pub program: Program,
     pub sk_types: SkTypes,
     pub vtables: VTables,
+    pub imported_constants: Vec<(ConstFullname, TermTy)>,
 }
 
 #[derive(Debug, Clone)]

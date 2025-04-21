@@ -1,5 +1,6 @@
 use crate::names::FunctionName;
 mod codegen_context;
+mod constants;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
@@ -34,8 +35,12 @@ pub fn run<P: AsRef<Path>>(
         module: &module,
         builder: &builder,
     };
-    c.compile_externs(mir.program.externs);
-    c.declare_const_globals(&mir_analysis::list_constants::run(&mir.program.funcs));
+    c.compile_extern_funcs(mir.program.externs);
+    constants::declare_extern_consts(&mut c, mir.imported_constants);
+    constants::declare_const_globals(
+        &mut c,
+        &mir_analysis::list_constants::run(&mir.program.funcs),
+    );
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut c);
@@ -53,7 +58,7 @@ pub fn run<P: AsRef<Path>>(
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
-    fn compile_externs(&mut self, externs: Vec<mir::Extern>) {
+    fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
         for e in externs {
             self.compile_extern(e);
         }
@@ -77,14 +82,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn declare_func(&self, f: &mir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
         self.module.add_function(&f.name.mangle(), func_type, None);
-    }
-
-    fn declare_const_globals(&self, consts: &[(String, mir::Ty)]) {
-        for (name, ty) in consts {
-            debug_assert!(matches!(ty, mir::Ty::Raw(_)));
-            let global = self.module.add_global(self.ptr_type(), None, &name);
-            global.set_initializer(&self.ptr_type().const_null());
-        }
     }
 
     fn compile_func(&mut self, f: mir::Function) {

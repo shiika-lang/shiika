@@ -4,7 +4,7 @@ use crate::{hir, mir};
 use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
-use skc_mir::LibraryExports;
+use skc_hir::SkTypes;
 use std::collections::HashSet;
 
 pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUnit> {
@@ -12,7 +12,7 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
     let classes = convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     log::debug!("VTables built");
-    let externs = convert_externs(hir.imports, hir.imported_asyncs);
+    let externs = convert_externs(hir.imports.sk_types, hir.imported_asyncs);
     let mut funcs: Vec<_> = hir
         .program
         .methods
@@ -41,6 +41,7 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
         program,
         sk_types: hir.sk_types,
         vtables,
+        imported_constants: hir.imports.constants.into_iter().collect(),
     })
 }
 
@@ -74,13 +75,9 @@ fn convert_classes(hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
     v
 }
 
-fn convert_externs(
-    imports: LibraryExports,
-    imported_asyncs: Vec<FunctionName>,
-) -> Vec<mir::Extern> {
+fn convert_externs(imports: SkTypes, imported_asyncs: Vec<FunctionName>) -> Vec<mir::Extern> {
     let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
     imports
-        .sk_types
         .0
         .values()
         .flat_map(|sk_type| {
@@ -186,7 +183,7 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
             mir::Expr::ArgRef(i + 1, s)
         }
         hir::Expr::ConstRef(resolved_const_name) => {
-            mir::Expr::ConstRef(mir_const_name(resolved_const_name))
+            mir::Expr::ConstRef(mir::mir_const_name(resolved_const_name))
         }
         hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
         hir::Expr::FunCall(f, a) => {
@@ -205,7 +202,7 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
         hir::Expr::LVarDecl(s, rhs) => mir::Expr::Assign(s, Box::new(convert_texpr(*rhs))),
         hir::Expr::Assign(s, v) => mir::Expr::Assign(s, Box::new(convert_texpr(*v))),
         hir::Expr::ConstSet(name, v) => {
-            mir::Expr::ConstSet(mir_const_name(name), Box::new(convert_texpr(*v)))
+            mir::Expr::ConstSet(mir::mir_const_name(name), Box::new(convert_texpr(*v)))
         }
         hir::Expr::Return(v) => mir::Expr::Return(Box::new(convert_texpr(*v))),
         hir::Expr::Exprs(b) => mir::Expr::Exprs(convert_texpr_vec(b)),
@@ -226,7 +223,7 @@ fn create_user_main(
     body_stmts.extend(
         constants
             .into_iter()
-            .map(|(name, rhs)| mir::Expr::const_set(mir_const_name(name), convert_texpr(rhs))),
+            .map(|(name, rhs)| mir::Expr::const_set(mir::mir_const_name(name), convert_texpr(rhs))),
     );
     body_stmts.extend(top_exprs.into_iter().map(convert_texpr));
     body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
@@ -237,8 +234,4 @@ fn create_user_main(
         ret_ty: mir::Ty::Raw("Int".to_string()),
         body_stmts: mir::Expr::exprs(body_stmts),
     }
-}
-
-fn mir_const_name(name: ConstFullname) -> String {
-    name.0
 }
