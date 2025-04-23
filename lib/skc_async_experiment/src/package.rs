@@ -13,7 +13,7 @@ pub struct Package {
     pub artifacts: Vec<PathBuf>,
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct PackageSpec {
     pub name: String,
     pub version: String, // TODO: parse

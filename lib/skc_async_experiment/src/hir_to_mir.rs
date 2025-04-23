@@ -13,6 +13,12 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     log::debug!("VTables built");
     let externs = convert_externs(hir.imports.sk_types, hir.imported_asyncs);
+    let const_list = hir
+        .program
+        .constants
+        .iter()
+        .map(|(name, rhs)| (name.clone(), rhs.1.clone()))
+        .collect::<Vec<_>>();
     let mut funcs: Vec<_> = hir
         .program
         .methods
@@ -20,23 +26,18 @@ pub fn run(hir: hir::CompilationUnit, is_bin: bool) -> Result<mir::CompilationUn
         .map(convert_method)
         .collect();
     log::debug!("User functions converted");
-    let constants = hir
-        .program
-        .constants
-        .iter()
-        .map(|(name, expr)| (name.clone(), expr.1.clone()))
-        .collect();
+    funcs.push(create_const_inits(
+        hir.package_name.as_ref(),
+        hir.program.constants,
+    ));
     if is_bin {
-        funcs.push(create_user_main(
-            hir.program.top_exprs,
-            hir.program.constants,
-        ));
+        funcs.push(create_user_main(hir.program.top_exprs));
     } else {
         if hir.program.top_exprs.len() > 0 {
             panic!("Top level expressions are not allowed in library");
         }
     }
-    let program = mir::Program::new(classes, externs, funcs, constants);
+    let program = mir::Program::new(classes, externs, funcs, const_list);
     Ok(mir::CompilationUnit {
         program,
         sk_types: hir.sk_types,
@@ -215,16 +216,26 @@ fn convert_expr(expr: hir::Expr<TermTy>) -> mir::Expr {
     }
 }
 
-fn create_user_main(
-    top_exprs: Vec<hir::TypedExpr<TermTy>>,
+fn create_const_inits(
+    package: Option<&String>,
     constants: Vec<(ConstFullname, hir::TypedExpr<TermTy>)>,
 ) -> mir::Function {
+    let mut body_stmts: Vec<_> = constants
+        .into_iter()
+        .map(|(name, rhs)| mir::Expr::const_set(mir::mir_const_name(name), convert_texpr(rhs)))
+        .collect();
+    body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+    mir::Function {
+        asyncness: mir::Asyncness::Unknown,
+        name: FunctionName::mangled(package_const_init_name(package)),
+        params: vec![],
+        ret_ty: mir::Ty::Raw("Int".to_string()),
+        body_stmts: mir::Expr::exprs(body_stmts),
+    }
+}
+
+fn create_user_main(top_exprs: Vec<hir::TypedExpr<TermTy>>) -> mir::Function {
     let mut body_stmts = vec![];
-    body_stmts.extend(
-        constants
-            .into_iter()
-            .map(|(name, rhs)| mir::Expr::const_set(mir::mir_const_name(name), convert_texpr(rhs))),
-    );
     body_stmts.extend(top_exprs.into_iter().map(convert_texpr));
     body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
     mir::Function {
@@ -234,4 +245,13 @@ fn create_user_main(
         ret_ty: mir::Ty::Raw("Int".to_string()),
         body_stmts: mir::Expr::exprs(body_stmts),
     }
+}
+
+fn package_const_init_name(package_name: Option<&String>) -> String {
+    let suffix = if let Some(pkg) = package_name {
+        format!("_{}", pkg)
+    } else {
+        String::new()
+    };
+    format!("shiika_init_const_{}", suffix)
 }

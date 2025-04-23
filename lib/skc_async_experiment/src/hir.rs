@@ -14,6 +14,7 @@ pub use ty::FunTy;
 
 #[derive(Debug)]
 pub struct CompilationUnit {
+    pub package_name: Option<String>,
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
     pub program: Program<TermTy>,

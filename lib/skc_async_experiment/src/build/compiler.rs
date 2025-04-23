@@ -21,8 +21,9 @@ pub fn compile(
     deps: &[package::Package],
     is_bin: bool,
 ) -> Result<PathBuf> {
+    let package_name = package.map(|p| p.spec.name.clone());
     let src = loader::load(entry_point)?;
-    let mut mir = generate_mir(cli, &src, &deps, is_bin)?;
+    let mut mir = generate_mir(cli, &src, package_name, &deps, is_bin)?;
 
     if is_bin {
         mir.program.funcs.append(&mut prelude::main_funcs());
@@ -67,13 +68,14 @@ fn out_path(out_dir: &Path, entry_point: &Path, ext: &str) -> PathBuf {
 fn generate_mir(
     cli: &mut cli::Cli,
     src: &[SourceFile],
+    package_name: Option<String>,
     deps: &[package::Package],
     is_bin: bool,
 ) -> Result<mir::CompilationUnit> {
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(src)?;
 
-    let hir = generate_hir(cli, &ast, deps)?;
+    let hir = generate_hir(cli, &ast, package_name, deps)?;
     log::info!("Creating mir");
     let mut mir = hir_to_mir::run(hir, is_bin)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
@@ -90,6 +92,7 @@ fn generate_mir(
 fn generate_hir(
     cli: &mut cli::Cli,
     ast: &shiika_ast::Program,
+    package_name: Option<String>,
     deps: &[package::Package],
 ) -> Result<hir::CompilationUnit> {
     let mut imports = create_imports();
@@ -113,6 +116,7 @@ fn generate_hir(
     let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
+        package_name,
         imports,
         imported_asyncs,
         program: hir,
