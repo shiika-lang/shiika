@@ -8,8 +8,18 @@ use std::path::PathBuf;
 /// Returns the path to the generated executable.
 pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
     let deps = vec![Package::load_core(cli)?]; //TODO: load dependencies
+    let total_deps = deps.iter().map(|x| x.spec.name.clone()).collect();
     let out_dir = entry_point.parent().unwrap();
-    let bc_path = build::compiler::compile(cli, None, entry_point, out_dir, &deps, true)?;
+    let target = build::CompileTarget {
+        entry_point,
+        out_dir: &out_dir,
+        deps: &deps,
+        detail: build::CompileTargetDetail::Bin {
+            package: None,
+            total_deps,
+        },
+    };
+    let bc_path = build::compiler::compile(cli, &target)?;
     let artifacts = deps
         .iter()
         .flat_map(|pkg| pkg.artifacts.clone())

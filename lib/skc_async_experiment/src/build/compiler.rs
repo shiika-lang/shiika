@@ -1,4 +1,4 @@
-use crate::build::loader;
+use crate::build::{loader, CompileTarget, CompileTargetDetail};
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
@@ -13,19 +13,11 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-pub fn compile(
-    cli: &mut cli::Cli,
-    package: Option<&package::Package>,
-    entry_point: &Path,
-    out_dir: &Path,
-    deps: &[package::Package],
-    is_bin: bool,
-) -> Result<PathBuf> {
-    let package_name = package.map(|p| p.spec.name.clone());
-    let src = loader::load(entry_point)?;
-    let mut mir = generate_mir(cli, &src, package_name, &deps, is_bin)?;
+pub fn compile(cli: &mut cli::Cli, target: &CompileTarget) -> Result<PathBuf> {
+    let src = loader::load(target.entry_point)?;
+    let mut mir = generate_mir(cli, &src, target)?;
 
-    if is_bin {
+    if target.is_bin() {
         mir.program.funcs.append(&mut prelude::main_funcs());
     } else {
         for (name, fun_ty) in prelude::intrinsic_externs() {
@@ -39,8 +31,9 @@ pub fn compile(
     cli.log(&format!("# -- verifier input --\n{}\n", mir.program));
     mir::verifier::run(&mir.program)?;
 
-    fs::create_dir_all(out_dir).context(format!("failed to create {}", out_dir.display()))?;
-    if !is_bin {
+    fs::create_dir_all(target.out_dir)
+        .context(format!("failed to create {}", target.out_dir.display()))?;
+    if let CompileTargetDetail::Lib { package } = &target.detail {
         let mut constants = HashMap::new();
         for (name, ty) in &mir.program.constants {
             constants.insert(name.clone(), ty.clone());
@@ -50,12 +43,12 @@ pub fn compile(
             vtables: mir.vtables.clone(),
             constants,
         };
-        let out_path = cli.lib_exports_path(&package.unwrap().spec);
+        let out_path = cli.lib_exports_path(&package.spec);
         write_exports_json(&out_path, &exports)?;
     }
-    let bc_path = out_path(out_dir, entry_point, "bc");
-    let ll_path = out_path(out_dir, entry_point, "ll");
-    codegen::run(&bc_path, Some(&ll_path), mir, is_bin)?;
+    let bc_path = out_path(target.out_dir, target.entry_point, "bc");
+    let ll_path = out_path(target.out_dir, target.entry_point, "ll");
+    codegen::run(&bc_path, Some(&ll_path), mir, target.is_bin())?;
     Ok(bc_path)
 }
 
@@ -68,16 +61,14 @@ fn out_path(out_dir: &Path, entry_point: &Path, ext: &str) -> PathBuf {
 fn generate_mir(
     cli: &mut cli::Cli,
     src: &[SourceFile],
-    package_name: Option<String>,
-    deps: &[package::Package],
-    is_bin: bool,
+    target: &CompileTarget,
 ) -> Result<mir::CompilationUnit> {
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(src)?;
 
-    let hir = generate_hir(cli, &ast, package_name, deps)?;
+    let hir = generate_hir(cli, &ast, target)?;
     log::info!("Creating mir");
-    let mut mir = hir_to_mir::run(hir, is_bin)?;
+    let mut mir = hir_to_mir::run(hir, target.is_bin())?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
     mir.program = mir_lowering::asyncness_check::run(mir.program);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
@@ -92,12 +83,11 @@ fn generate_mir(
 fn generate_hir(
     cli: &mut cli::Cli,
     ast: &shiika_ast::Program,
-    package_name: Option<String>,
-    deps: &[package::Package],
+    target: &CompileTarget,
 ) -> Result<hir::CompilationUnit> {
     let mut imports = create_imports();
     let mut imported_asyncs = vec![];
-    for package in deps {
+    for package in target.deps {
         for exp in package.export_files() {
             imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
         }
@@ -116,7 +106,7 @@ fn generate_hir(
     let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
-        package_name,
+        package_name: target.package_name(),
         imports,
         imported_asyncs,
         program: hir,
