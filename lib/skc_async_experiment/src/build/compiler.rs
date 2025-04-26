@@ -68,7 +68,7 @@ fn generate_mir(
 
     let hir = generate_hir(cli, &ast, target)?;
     log::info!("Creating mir");
-    let mut mir = hir_to_mir::run(hir, target.is_bin())?;
+    let mut mir = hir_to_mir::run(hir, target)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
     mir.program = mir_lowering::asyncness_check::run(mir.program);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));

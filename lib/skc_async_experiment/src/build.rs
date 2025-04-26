@@ -10,13 +10,13 @@ use std::path::Path;
 /// Represents what to compile. (an executable or a library)
 pub struct CompileTarget<'a> {
     /// Path to the first .sk file to read
-    entry_point: &'a Path,
+    pub entry_point: &'a Path,
     /// Directory to create the artifact
-    out_dir: &'a Path,
+    pub out_dir: &'a Path,
     /// Direct dependencies
-    deps: &'a [Package],
+    pub deps: &'a [Package],
     /// Lib or Bin specific information
-    detail: CompileTargetDetail<'a>,
+    pub detail: CompileTargetDetail<'a>,
 }
 
 pub enum CompileTargetDetail<'a> {

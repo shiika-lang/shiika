@@ -10,12 +10,12 @@ pub trait MirVisitor {
     //    Ok(())
     //}
 
-    fn walk_funcs(&mut self, funcs: &[mir::Function]) -> Result<()> {
-        for f in funcs {
-            self.walk_expr(&f.body_stmts)?;
-        }
-        Ok(())
-    }
+    //fn walk_funcs(&mut self, funcs: &[mir::Function]) -> Result<()> {
+    //    for f in funcs {
+    //        self.walk_expr(&f.body_stmts)?;
+    //    }
+    //    Ok(())
+    //}
 
     fn walk_exprs(&mut self, exprs: &[mir::TypedExpr]) -> Result<()> {
         for expr in exprs {
