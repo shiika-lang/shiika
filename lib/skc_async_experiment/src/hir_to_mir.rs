@@ -15,7 +15,10 @@ pub fn run(
     let classes = convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     log::debug!("VTables built");
-    let externs = convert_externs(hir.imports.sk_types, hir.imported_asyncs);
+    let mut externs = convert_externs(hir.imports.sk_types, hir.imported_asyncs);
+    if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
+        externs.extend(constants::const_init_externs(total_deps));
+    }
     let const_list = hir
         .program
         .constants
@@ -29,7 +32,7 @@ pub fn run(
         .map(convert_method)
         .collect();
     log::debug!("User functions converted");
-    funcs.push(constants::create_const_inits(
+    funcs.push(constants::create_const_init_func(
         hir.package_name.as_ref(),
         hir.program
             .constants
