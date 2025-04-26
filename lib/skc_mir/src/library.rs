@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub struct LibraryExports {
     pub sk_types: SkTypes,
     pub vtables: VTables,
+    // TODO: This should be Vec because initialize order matters
     pub constants: HashMap<ConstFullname, TermTy>,
 }
 

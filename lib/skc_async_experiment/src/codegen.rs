@@ -1,9 +1,9 @@
 use crate::names::FunctionName;
 mod codegen_context;
+mod constants;
 mod instance;
 mod intrinsics;
 mod llvm_struct;
-mod mir_analysis;
 mod value;
 mod vtables;
 use crate::mir;
@@ -23,6 +23,7 @@ pub fn run<P: AsRef<Path>>(
     bc_path: P,
     opt_ll_path: Option<P>,
     mir: mir::CompilationUnit,
+    is_bin: bool,
 ) -> Result<()> {
     let context = inkwell::context::Context::create();
     let module = context.create_module("main");
@@ -33,10 +34,13 @@ pub fn run<P: AsRef<Path>>(
         module: &module,
         builder: &builder,
     };
-    c.compile_externs(mir.program.externs);
-    c.declare_const_globals(mir_analysis::list_constants::run(&mir.program.funcs));
+    c.compile_extern_funcs(mir.program.externs);
+    constants::declare_extern_consts(&mut c, mir.imported_constants);
+    constants::declare_const_globals(&mut c, &mir.program.constants);
     llvm_struct::define(&mut c, &mir.program.classes);
-    intrinsics::define(&mut c);
+    if is_bin {
+        intrinsics::define(&mut c);
+    }
     c.compile_program(mir.program.funcs);
     vtables::define(&mut c, &mir.vtables);
 
@@ -50,7 +54,7 @@ pub fn run<P: AsRef<Path>>(
 }
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
-    fn compile_externs(&mut self, externs: Vec<mir::Extern>) {
+    fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
         for e in externs {
             self.compile_extern(e);
         }
@@ -74,15 +78,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn declare_func(&self, f: &mir::Function) {
         let func_type = self.llvm_function_type(&f.fun_ty());
         self.module.add_function(&f.name.mangle(), func_type, None);
-    }
-
-    fn declare_const_globals(&self, mut consts: Vec<(String, mir::Ty)>) {
-        consts.push(("::Main".to_string(), mir::Ty::Raw("Meta:Main".to_string())));
-        for (name, ty) in consts {
-            debug_assert!(matches!(ty, mir::Ty::Raw(_)));
-            let global = self.module.add_global(self.ptr_type(), None, &name);
-            global.set_initializer(&self.ptr_type().const_null());
-        }
     }
 
     fn compile_func(&mut self, f: mir::Function) {
@@ -429,6 +424,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Ty::Any => self.ptr_type().into(),
             mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Fun(_) => self.ptr_type().into(),
+            mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
             mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),

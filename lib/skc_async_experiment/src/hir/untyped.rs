@@ -7,11 +7,16 @@ use shiika_ast::{self, AstExpression, AstVisitor};
 use shiika_core::names::{method_firstname, method_fullname_raw, ConstFullname, Namespace};
 use shiika_core::ty::{self, TermTy};
 use skc_hir::{MethodParam, MethodSignature};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-/// Create untyped HIR (i.e. contains Ty::Unknown) from AST
-pub fn create(ast: &shiika_ast::Program) -> Result<hir::Program<()>> {
-    let mut v = Visitor::new();
+/// Create untyped HIR (i.e. contains Ty::Unknown) from AST.
+/// Also, resolve const names to ConstFullname (returns error if
+/// there is no such const).
+pub fn create(
+    ast: &shiika_ast::Program,
+    imported_constants: &HashMap<ConstFullname, TermTy>,
+) -> Result<hir::Program<()>> {
+    let mut v = Visitor::new(imported_constants);
     v.walk_program(ast)?;
 
     Ok(hir::Program {
@@ -28,10 +33,10 @@ struct Visitor {
     top_exprs: Vec<hir::TypedExpr<()>>,
 }
 impl Visitor {
-    fn new() -> Self {
+    fn new(imported_constants: &HashMap<ConstFullname, TermTy>) -> Self {
         Visitor {
             methods: vec![],
-            known_consts: HashSet::new(),
+            known_consts: imported_constants.keys().cloned().collect(),
             constants: vec![],
             top_exprs: vec![],
         }

@@ -5,6 +5,8 @@ pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
+use shiika_core::{names::ConstFullname, ty::TermTy};
+use skc_hir::SkTypes;
 use skc_mir::VTables;
 use std::fmt;
 pub use ty::{FunTy, Ty};
@@ -13,10 +15,16 @@ pub fn main_function_name() -> FunctionName {
     FunctionName::unmangled("chiika_main")
 }
 
+pub fn mir_const_name(name: ConstFullname) -> String {
+    name.0
+}
+
 #[derive(Debug)]
 pub struct CompilationUnit {
     pub program: Program,
+    pub sk_types: SkTypes,
     pub vtables: VTables,
+    pub imported_constants: Vec<(ConstFullname, TermTy)>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +32,7 @@ pub struct Program {
     pub classes: Vec<MirClass>,
     pub externs: Vec<Extern>,
     pub funcs: Vec<Function>,
+    pub constants: Vec<(ConstFullname, TermTy)>,
 }
 
 impl fmt::Display for Program {
@@ -39,11 +48,17 @@ impl fmt::Display for Program {
 }
 
 impl Program {
-    pub fn new(classes: Vec<MirClass>, externs: Vec<Extern>, funcs: Vec<Function>) -> Self {
+    pub fn new(
+        classes: Vec<MirClass>,
+        externs: Vec<Extern>,
+        funcs: Vec<Function>,
+        constants: Vec<(ConstFullname, TermTy)>,
+    ) -> Self {
         Self {
             classes,
             externs,
             funcs,
+            constants,
         }
     }
 }

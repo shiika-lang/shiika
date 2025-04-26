@@ -10,14 +10,18 @@ use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
 /// Create typed HIR from untyped HIR.
-pub fn run(hir: hir::Program<()>, class_dict: &ClassDict) -> Result<hir::Program<TermTy>> {
+pub fn run(
+    hir: hir::Program<()>,
+    class_dict: &ClassDict,
+    imported_constants: &HashMap<ConstFullname, TermTy>,
+) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
         sigs.insert(f.name.clone(), f.fun_ty());
     }
 
     let mut new_constants = vec![];
-    let mut known_consts = HashMap::new();
+    let mut known_consts = imported_constants.clone();
     for (name, rhs) in hir.constants {
         let mut c = Typing {
             class_dict,
