@@ -75,7 +75,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
             .collect(),
         ret_ty: instance_ty.clone(),
         body_stmts: untyped(hir::Expr::Exprs(exprs)),
-        self_ty: Some(instance_ty.meta_ty()),
+        self_ty: instance_ty.meta_ty(),
     };
     let sig = MethodSignature {
         fullname: method_name,

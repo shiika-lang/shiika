@@ -37,14 +37,18 @@ pub fn run(
     let methods = hir
         .methods
         .into_iter()
-        .map(|f| {
+        .map(|mut f| {
+            // Extract body_stmts
+            let mut body_stmts = (hir::Expr::Number(0), ());
+            std::mem::swap(&mut body_stmts, &mut f.body_stmts);
+
             let mut c = Typing {
                 class_dict,
                 sigs: &mut sigs,
                 known_consts: &known_consts,
-                current_func: Some((&f.name, &f.params, &f.ret_ty)),
+                current_func: Some(&f),
             };
-            let new_body_stmts = c.compile_func(f.body_stmts)?;
+            let new_body_stmts = c.compile_func(body_stmts)?;
             Ok(hir::Method {
                 name: f.name,
                 params: f.params,
@@ -80,7 +84,7 @@ struct Typing<'f> {
     class_dict: &'f ClassDict<'f>,
     sigs: &'f mut HashMap<FunctionName, hir::FunTy>,
     known_consts: &'f HashMap<ConstFullname, TermTy>,
-    current_func: Option<(&'f FunctionName, &'f [hir::Param], &'f TermTy)>,
+    current_func: Option<&'f hir::Method<()>>,
 }
 
 impl<'f> Typing<'f> {
@@ -98,8 +102,10 @@ impl<'f> Typing<'f> {
             hir::Expr::Number(n) => hir::Expr::number(n),
             hir::Expr::PseudoVar(p) => {
                 if p == mir::PseudoVar::SelfRef {
-                    // TODO: get the actual type of `self`
-                    let ty = ty::meta("Main");
+                    let ty = match &self.current_func {
+                        Some(f) => f.self_ty.clone(),
+                        _ => ty::raw("Object"),
+                    };
                     hir::Expr::self_ref(ty)
                 } else {
                     hir::Expr::pseudo_var(p)
@@ -113,7 +119,7 @@ impl<'f> Typing<'f> {
                 }
             }
             hir::Expr::ArgRef(i, s) => {
-                let current_func_params = self.current_func.as_ref().unwrap().1;
+                let current_func_params = &self.current_func.as_ref().unwrap().params;
                 let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
@@ -228,12 +234,12 @@ impl<'f> Typing<'f> {
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
                 match &self.current_func {
-                    Some((fname, _, ret_ty)) => {
-                        if !valid_return_type(ret_ty, &new_val.1) {
+                    Some(f) => {
+                        if !valid_return_type(&f.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
-                                fname,
-                                ret_ty,
+                                &f.name,
+                                &f.ret_ty,
                                 new_val.1
                             ));
                         }
