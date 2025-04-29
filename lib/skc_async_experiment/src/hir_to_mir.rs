@@ -121,15 +121,13 @@ fn convert_method(method: hir::Method<TermTy>) -> mir::Function {
         .into_iter()
         .map(|x| convert_param(x))
         .collect::<Vec<_>>();
-    if let Some(self_ty) = method.self_ty {
-        params.insert(
-            0,
-            mir::Param {
-                ty: convert_ty(self_ty),
-                name: "self".to_string(),
-            },
-        );
-    }
+    params.insert(
+        0,
+        mir::Param {
+            ty: convert_ty(method.self_ty),
+            name: "self".to_string(),
+        },
+    );
     let allocs = collect_allocs::run(&method.body_stmts);
     let body_stmts = insert_allocs(allocs, convert_texpr(method.body_stmts));
     mir::Function {

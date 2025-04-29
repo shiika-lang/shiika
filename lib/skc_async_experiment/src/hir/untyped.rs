@@ -77,7 +77,7 @@ impl AstVisitor for Visitor {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             params,
             ret_ty,
-            self_ty: Some(self_ty),
+            self_ty,
             body_stmts,
         };
         self.methods.push(m);
