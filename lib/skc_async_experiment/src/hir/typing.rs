@@ -176,11 +176,11 @@ impl<'f> Typing<'f> {
                     .into_iter()
                     .map(|e| self.compile_expr(lvars, e))
                     .collect::<Result<Vec<_>>>()?;
-                let cast_recv = if found.call_type == CallType::Virtual {
-                    hir::Expr::upcast(new_recv, found.sig.fullname.type_name.to_ty())
-                } else {
-                    new_recv
-                };
+                let cast_recv = upcast_if(
+                    found.call_type == CallType::Virtual,
+                    new_recv,
+                    found.sig.fullname.type_name.to_ty(),
+                );
                 new_arg_exprs.insert(0, cast_recv);
 
                 // TODO: method call via vtable/wtable
@@ -234,9 +234,9 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
-                match &self.current_func {
+                let wanted_ty = match &self.current_func {
                     Some(f) => {
-                        if !valid_return_type(&f.ret_ty, &new_val.1) {
+                        if !valid_return_type(&self.class_dict, &f.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
                                 &f.name,
@@ -244,12 +244,14 @@ impl<'f> Typing<'f> {
                                 new_val.1
                             ));
                         }
+                        f.ret_ty.clone()
                     }
                     None => {
                         return Err(anyhow!("return outside of method"));
                     }
-                }
-                hir::Expr::return_(new_val)
+                };
+                let cast_val = upcast_if(new_val.1 != wanted_ty, new_val, wanted_ty);
+                hir::Expr::return_(cast_val)
             }
             hir::Expr::Exprs(exprs) => {
                 let new_exprs = exprs
@@ -266,11 +268,15 @@ impl<'f> Typing<'f> {
     }
 }
 
-fn valid_return_type(expected: &TermTy, actual: &TermTy) -> bool {
-    if actual == &ty::raw("Never") {
-        true
+fn valid_return_type(class_dict: &ClassDict, expected: &TermTy, actual: &TermTy) -> bool {
+    class_dict.conforms(actual, expected)
+}
+
+fn upcast_if(cond: bool, expr: hir::TypedExpr<TermTy>, ty: TermTy) -> hir::TypedExpr<TermTy> {
+    if cond {
+        hir::Expr::upcast(expr, ty)
     } else {
-        expected == actual
+        expr
     }
 }
 
