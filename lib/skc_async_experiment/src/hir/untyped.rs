@@ -186,7 +186,11 @@ impl<'a> Compiler<'a> {
                     hir::Expr::PseudoVar(mir::PseudoVar::Void)
                 } else {
                     let receiver = untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef));
-                    hir::Expr::MethodCall(Box::new(receiver), method_firstname(name), vec![])
+                    hir::Expr::UnresolvedMethodCall(
+                        Box::new(receiver),
+                        method_firstname(name),
+                        vec![],
+                    )
                 }
             }
             shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
@@ -206,7 +210,7 @@ impl<'a> Compiler<'a> {
                     untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef))
                 };
                 let name = method_firstname(method_name);
-                hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
+                hir::Expr::UnresolvedMethodCall(Box::new(receiver), name, arg_hirs)
             }
             shiika_ast::AstExpressionBody::If {
                 cond_expr,

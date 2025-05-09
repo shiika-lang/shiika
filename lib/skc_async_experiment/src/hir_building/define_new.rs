@@ -51,7 +51,8 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
             .enumerate()
             .map(|(i, param)| untyped(hir::Expr::ArgRef(i, param.name.clone())))
             .collect();
-        exprs.push(untyped(hir::Expr::MethodCall(
+        exprs.push(untyped(hir::Expr::ResolvedMethodCall(
+            hir::expr::MethodCallType::Direct,
             Box::new(untyped(hir::Expr::LVarRef(tmp_name.to_string()))),
             method_firstname("initialize"),
             args,
@@ -59,6 +60,19 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
         params = initialize.sig.params.clone();
         typarams = initialize.sig.typarams.clone();
     }
+    //    let args = initialize
+    //        .sig
+    //        .params
+    //        .iter()
+    //        .enumerate()
+    //        .map(|(i, param)| untyped(hir::Expr::ArgRef(i, param.name.clone())))
+    //        .collect();
+    //    exprs.push(untyped(hir::Expr::UnresolvedMethodCall(
+    //        Box::new(untyped(hir::Expr::LVarRef(tmp_name.to_string()))),
+    //        method_firstname("initialize"),
+    //        args,
+    //    )));
+    //>>>>>>> 5b52bf1d (Add ResolvedMethodCall, VTableRef)
 
     // - Return it
     exprs.push(untyped(hir::Expr::Return(Box::new(untyped(

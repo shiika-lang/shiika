@@ -16,6 +16,8 @@ pub enum Expr {
     ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
+    VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    // WTableRef(String, usize),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
@@ -95,6 +97,18 @@ impl Expr {
             _ => panic!("[BUG] not a function: {:?}", func),
         };
         (Expr::FunCall(Box::new(func), args), result_ty)
+    }
+
+    pub fn vtable_ref(
+        receiver: TypedExpr,
+        idx: usize,
+        name: impl Into<String>,
+        fun_ty: FunTy,
+    ) -> TypedExpr {
+        (
+            Expr::VTableRef(Box::new(receiver), idx, name.into()),
+            fun_ty.into(),
+        )
     }
 
     pub fn if_(cond: TypedExpr, then: TypedExpr, else_: TypedExpr) -> TypedExpr {
@@ -242,6 +256,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                     .join(", ")
                     .as_str()
                 + ")"
+        }
+        Expr::VTableRef(receiver, idx, name) => {
+            format!("{}%{}@{}", receiver.0.pretty_print(0, false), name, idx)
         }
         Expr::If(cond, then, else_) => {
             format!("if {}\n", cond.0.pretty_print(0, false))

@@ -219,7 +219,6 @@ impl HirToMir {
                 Box::new(self.convert_texpr(*t)),
                 Box::new(self.convert_texpr(*e)),
             ),
-            hir::Expr::MethodCall(_, _, _) => todo!(),
             hir::Expr::While(c, b) => mir::Expr::While(
                 Box::new(self.convert_texpr(*c)),
                 Box::new(self.convert_texpr(*b)),

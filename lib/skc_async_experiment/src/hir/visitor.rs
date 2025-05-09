@@ -31,7 +31,13 @@ pub trait HirVisitor<T> {
                 self.walk_expr(then_exprs)?;
                 self.walk_expr(else_exprs)?;
             }
-            hir::Expr::MethodCall(receiver_expr, _, arg_exprs) => {
+            hir::Expr::UnresolvedMethodCall(receiver_expr, _, arg_exprs) => {
+                self.walk_expr(receiver_expr)?;
+                for arg in arg_exprs {
+                    self.walk_expr(arg)?;
+                }
+            }
+            hir::Expr::ResolvedMethodCall(_, receiver_expr, _, arg_exprs) => {
                 self.walk_expr(receiver_expr)?;
                 for arg in arg_exprs {
                     self.walk_expr(arg)?;

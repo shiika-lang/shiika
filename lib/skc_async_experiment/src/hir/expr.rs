@@ -1,7 +1,9 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ClassFullname, ConstFullname, MethodFirstname, TypeFullname};
+use shiika_core::names::{
+    ClassFullname, ConstFullname, MethodFirstname, ModuleFullname, TypeFullname,
+};
 use shiika_core::ty::{self, TermTy};
 
 pub type TypedExpr<T> = (Expr<T>, T);
@@ -16,7 +18,13 @@ pub enum Expr<T> {
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
-    MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
+    UnresolvedMethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
+    ResolvedMethodCall(
+        MethodCallType,
+        Box<TypedExpr<T>>,
+        MethodFirstname,
+        Vec<TypedExpr<T>>,
+    ),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
     LVarDecl(String, Box<TypedExpr<T>>),
@@ -27,6 +35,13 @@ pub enum Expr<T> {
     Upcast(Box<TypedExpr<T>>, T),
     CreateObject(ClassFullname),
     CreateTypeObject(TypeFullname), // TODO: Can be merged with CreateObject?
+}
+
+#[derive(Debug)]
+pub enum MethodCallType {
+    Direct,
+    Virtual(usize),
+    Module(ModuleFullname, usize),
 }
 
 impl Expr<TermTy> {

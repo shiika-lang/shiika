@@ -156,7 +156,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::fun_call(new_fexpr, new_arg_exprs)
             }
-            hir::Expr::MethodCall(recv, method_name, arg_exprs) => {
+            hir::Expr::UnresolvedMethodCall(recv, method_name, arg_exprs) => {
                 let new_recv = self.compile_expr(lvars, *recv)?;
                 let found = self.class_dict.lookup_method(
                     &new_recv.1,
@@ -185,6 +185,9 @@ impl<'f> Typing<'f> {
 
                 // TODO: method call via vtable/wtable
                 hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
+            }
+            hir::Expr::ResolvedMethodCall(_, _, _, _) => {
+                unreachable!()
             }
             hir::Expr::If(cond, then, els) => {
                 let new_cond = self.compile_expr(lvars, *cond)?;
