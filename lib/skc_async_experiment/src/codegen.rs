@@ -5,7 +5,7 @@ mod instance;
 mod intrinsics;
 mod llvm_struct;
 mod value;
-mod vtables;
+mod vtable;
 use crate::mir;
 use anyhow::{anyhow, Result};
 use codegen_context::CodeGenContext;
@@ -42,7 +42,7 @@ pub fn run<P: AsRef<Path>>(
         intrinsics::define(&mut c);
     }
     c.compile_program(mir.program.funcs);
-    vtables::define(&mut c, &mir.vtables);
+    vtable::define(&mut c, &mir.vtables);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
