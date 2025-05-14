@@ -1,11 +1,11 @@
-use crate::codegen::{llvm_struct, value::SkObj, CodeGen};
+use crate::codegen::{llvm_struct, value::SkObj, vtable, CodeGen};
 use crate::names::FunctionName;
 use inkwell::values::BasicValue;
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
-//const OBJ_VTABLE_IDX: usize = 0;
+const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
 //const OBJ_CLASS_IDX: usize = 1;
 
@@ -47,12 +47,26 @@ pub fn build_ivar_store_raw<'run>(
     llvm_struct::build_llvm_value_store(gen, struct_type, ptr, i, value, name);
 }
 
-pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, name: &str) -> SkObj<'run> {
+/// Set `vtable` to `object`
+pub fn set_vtable<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    object: &SkObj<'run>,
+    vtable: vtable::OpaqueVTableRef<'run>,
+) {
+    let v = vtable.ptr.as_basic_value_enum();
+    let s = llvm_struct::get(gen, "Object");
+    llvm_struct::build_llvm_value_store(gen, &s, object.0, OBJ_VTABLE_IDX, v, "vtable");
+}
+
+pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, class_name: &str) -> SkObj<'run> {
     let t = gen
         .context
-        .get_struct_type(name)
-        .expect(&format!("struct type not found: {}", name));
-    SkObj(allocate_mem(gen, &t))
+        .get_struct_type(class_name)
+        .expect(&format!("struct type not found: {}", class_name));
+    let obj = SkObj(allocate_mem(gen, &t));
+    let vtable = vtable::get(gen, class_name);
+    set_vtable(gen, &obj, vtable);
+    obj
 }
 
 /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.
