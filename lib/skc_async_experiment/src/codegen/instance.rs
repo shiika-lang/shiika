@@ -2,6 +2,13 @@ use crate::codegen::{llvm_struct, value::SkObj, CodeGen};
 use crate::names::FunctionName;
 use inkwell::values::BasicValue;
 
+/// Number of elements before ivars
+const OBJ_HEADER_SIZE: usize = 2;
+/// 0th: reference to the vtable
+//const OBJ_VTABLE_IDX: usize = 0;
+/// 1st: reference to the class object
+//const OBJ_CLASS_IDX: usize = 1;
+
 pub fn build_ivar_load_raw<'run>(
     gen: &mut CodeGen<'run, '_>,
     sk_obj: SkObj<'run>,
@@ -10,7 +17,7 @@ pub fn build_ivar_load_raw<'run>(
     idx: usize,
     name: &str,
 ) -> inkwell::values::BasicValueEnum<'run> {
-    let i = llvm_struct::OBJ_HEADER_SIZE + idx;
+    let i = OBJ_HEADER_SIZE + idx;
     let ptr = sk_obj.0;
     llvm_struct::build_llvm_value_load(gen, struct_type, ptr, item_type, i, name)
 }
@@ -35,7 +42,7 @@ pub fn build_ivar_store_raw<'run>(
     value: inkwell::values::BasicValueEnum,
     name: &str,
 ) {
-    let i = llvm_struct::OBJ_HEADER_SIZE + idx;
+    let i = OBJ_HEADER_SIZE + idx;
     let ptr = sk_obj.0;
     llvm_struct::build_llvm_value_store(gen, struct_type, ptr, i, value, name);
 }

@@ -2,13 +2,6 @@ use crate::codegen::CodeGen;
 use crate::mir::MirClass;
 use inkwell::types::BasicType;
 
-/// Number of elements before ivars
-pub const OBJ_HEADER_SIZE: usize = 2;
-/// 0th: reference to the vtable
-//const OBJ_VTABLE_IDX: usize = 0;
-/// 1st: reference to the class object
-//const OBJ_CLASS_IDX: usize = 1;
-
 pub fn define(gen: &mut CodeGen, classes: &[MirClass]) {
     for class in classes {
         define_class_struct(gen, class);
