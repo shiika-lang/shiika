@@ -373,7 +373,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &mut self,
         type_name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        // TODO: set vtable and type object
         let obj = instance::allocate_sk_obj(self, type_name);
         Some(obj.0.into())
     }

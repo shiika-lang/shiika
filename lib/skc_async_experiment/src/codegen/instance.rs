@@ -1,13 +1,18 @@
-use crate::codegen::{llvm_struct, value::SkObj, vtable, CodeGen};
+use crate::codegen::{
+    llvm_struct,
+    value::{SkClassObj, SkObj},
+    vtable, CodeGen,
+};
 use crate::names::FunctionName;
 use inkwell::values::BasicValue;
+use shiika_core::names::class_fullname;
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
 /// 0th: reference to the vtable
 const OBJ_VTABLE_IDX: usize = 0;
 /// 1st: reference to the class object
-//const OBJ_CLASS_IDX: usize = 1;
+const OBJ_CLASS_IDX: usize = 1;
 
 pub fn build_ivar_load_raw<'run>(
     gen: &mut CodeGen<'run, '_>,
@@ -48,7 +53,7 @@ pub fn build_ivar_store_raw<'run>(
 }
 
 /// Set `vtable` to `object`
-pub fn set_vtable<'run>(
+fn set_vtable<'run>(
     gen: &mut CodeGen<'run, '_>,
     object: &SkObj<'run>,
     vtable: vtable::OpaqueVTableRef<'run>,
@@ -58,14 +63,34 @@ pub fn set_vtable<'run>(
     llvm_struct::build_llvm_value_store(gen, &s, object.0, OBJ_VTABLE_IDX, v, "vtable");
 }
 
+/// Set `class_obj` to the class object field of `object`
+fn set_class_obj<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    object: &SkObj<'run>,
+    class_obj: SkClassObj<'run>,
+) {
+    let s = llvm_struct::get(gen, "Object");
+    llvm_struct::build_llvm_value_store(
+        gen,
+        &s,
+        object.0,
+        OBJ_CLASS_IDX,
+        class_obj.0.as_basic_value_enum(),
+        "my_class",
+    );
+}
+
 pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, class_name: &str) -> SkObj<'run> {
-    let t = gen
-        .context
-        .get_struct_type(class_name)
-        .expect(&format!("struct type not found: {}", class_name));
+    let class_name_ = class_fullname(class_name);
+    let t = llvm_struct::get(gen, &class_name);
     let obj = SkObj(allocate_mem(gen, &t));
-    let vtable = vtable::get(gen, class_name);
+
+    let vtable = vtable::get(gen, &class_name_);
     set_vtable(gen, &obj, vtable);
+
+    let class_obj = SkClassObj::load(gen, &class_name_);
+    set_class_obj(gen, &obj, class_obj);
+
     obj
 }
 
