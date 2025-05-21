@@ -1,5 +1,6 @@
 use crate::codegen::CodeGen;
 use shiika_core::names::ClassFullname;
+use skc_hir::SkTypes;
 use skc_mir;
 
 /// Declare vtable constants
@@ -7,8 +8,8 @@ pub fn define(gen: &mut CodeGen, vtables: &skc_mir::VTables) {
     for (class_fullname, vtable) in vtables.iter() {
         let method_names = vtable.to_vec();
         let ary_type = gen.ptr_type().array_type(method_names.len() as u32);
-        let tmp = llvm_vtable_const_name(class_fullname);
-        let global = gen.module.add_global(ary_type, None, &tmp);
+        let const_name = llvm_vtable_const_name(class_fullname);
+        let global = gen.module.add_global(ary_type, None, &const_name);
         global.set_constant(true);
         let func_ptrs = method_names
             .iter()
@@ -24,6 +25,17 @@ pub fn define(gen: &mut CodeGen, vtables: &skc_mir::VTables) {
             .collect::<Vec<_>>();
         global.set_initializer(&gen.ptr_type().const_array(&func_ptrs));
     }
+}
+
+/// Declare imported vtable constants
+pub fn import(gen: &mut CodeGen, imported_types: &SkTypes) {
+    imported_types.0.values().for_each(|sk_type| {
+        let n_methods = sk_type.base().method_sigs.len();
+        let ary_type = gen.ptr_type().array_type(n_methods as u32);
+        let vtable_const_name = llvm_vtable_const_name(&sk_type.fullname().as_class_fullname());
+        let global = gen.module.add_global(ary_type, None, &vtable_const_name);
+        global.set_constant(true);
+    });
 }
 
 /// Get vtable of the class of the given name

@@ -37,12 +37,13 @@ pub fn run<P: AsRef<Path>>(
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
     constants::declare_const_globals(&mut c, &mir.program.constants);
+    vtable::import(&mut c, &mir.imported_types);
+    vtable::define(&mut c, &mir.vtables);
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut c);
     }
     c.compile_program(mir.program.funcs);
-    vtable::define(&mut c, &mir.vtables);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {

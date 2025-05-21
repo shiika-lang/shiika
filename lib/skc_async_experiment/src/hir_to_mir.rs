@@ -15,7 +15,7 @@ pub fn run(
     let classes = convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     log::debug!("VTables built");
-    let mut externs = convert_externs(hir.imports.sk_types, hir.imported_asyncs);
+    let mut externs = convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
     }
@@ -53,6 +53,7 @@ pub fn run(
         sk_types: hir.sk_types,
         vtables,
         imported_constants: hir.imports.constants.into_iter().collect(),
+        imported_types: hir.imports.sk_types,
     })
 }
 
@@ -86,7 +87,7 @@ fn convert_classes(hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
     v
 }
 
-fn convert_externs(imports: SkTypes, imported_asyncs: Vec<FunctionName>) -> Vec<mir::Extern> {
+fn convert_externs(imports: &SkTypes, imported_asyncs: Vec<FunctionName>) -> Vec<mir::Extern> {
     let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
     imports
         .0

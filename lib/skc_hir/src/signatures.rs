@@ -23,6 +23,10 @@ impl MethodSignatures {
         self.0.get(name)
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// Returns if the name is contained
     pub fn contains_key(&self, name: &MethodFirstname) -> bool {
         self.0.contains_key(name)
