@@ -1,1 +1,2 @@
-#require "./lib/int.sk"
+require "./lib/bool.sk"
+require "./lib/int.sk"

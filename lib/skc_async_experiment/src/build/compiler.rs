@@ -2,9 +2,8 @@ use crate::build::{loader, CompileTarget, CompileTargetDetail};
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
-use shiika_core::names::method_fullname_raw;
-use shiika_core::names::type_fullname;
-use shiika_core::ty::{self, Erasure};
+use shiika_core::names::{method_fullname_raw, type_fullname, ConstFullname};
+use shiika_core::ty::{self, Erasure, TermTy};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
@@ -94,6 +93,7 @@ fn generate_hir(
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
         imports.constants.extend(exp.constants);
+        imports.constants.extend(type_consts(&exp.sk_types));
     }
 
     let defs = ast.defs();
@@ -160,7 +160,19 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     Ok(exports)
 }
 
-// TODO: should be built from ./buitlin
+fn type_consts(sk_types: &skc_hir::SkTypes) -> HashMap<ConstFullname, TermTy> {
+    let mut consts = HashMap::new();
+    for sk_type in sk_types.0.values() {
+        consts.insert(
+            sk_type.fullname().to_const_fullname(),
+            sk_type.term_ty().meta_ty(),
+        );
+    }
+    dbg!(&consts);
+    consts
+}
+
+// TODO: some of them should be built from ./packages/core
 fn create_imports() -> skc_mir::LibraryExports {
     let object_initialize = MethodSignature {
         fullname: method_fullname_raw("Object", "initialize"),
