@@ -189,24 +189,6 @@ fn create_imports() -> skc_mir::LibraryExports {
         };
         skc_hir::SkClass::nonmeta(base, None)
     };
-    let class_bool = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Bool"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
-    };
-    let class_int = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Int"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
-    };
     let class_void = {
         let base = SkTypeBase {
             erasure: Erasure::nonmeta("Void"),
@@ -238,8 +220,6 @@ fn create_imports() -> skc_mir::LibraryExports {
     let sk_types = skc_hir::SkTypes::from_iterator(
         vec![
             class_object.into(),
-            class_bool.into(),
-            class_int.into(),
             class_void.into(),
             class_metaclass.into(),
             class_class.into(),

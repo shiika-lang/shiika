@@ -9,10 +9,6 @@ pub fn declare_extern_consts(gen: &mut CodeGen, constants: Vec<(ConstFullname, T
         let name = mir::mir_const_name(fullname);
         let global = gen.module.add_global(gen.ptr_type(), None, &name);
         global.set_linkage(inkwell::module::Linkage::External);
-        // @init_::XX
-        //let fn_type = gen.context.void_type().fn_type(&[], false);
-        //gen.module
-        //    .add_function(&const_initialize_func_name(fullname), fn_type, None);
     }
 }
 

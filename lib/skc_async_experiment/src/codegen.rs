@@ -3,6 +3,7 @@ mod codegen_context;
 mod constants;
 mod instance;
 mod intrinsics;
+mod item;
 mod llvm_struct;
 mod value;
 mod vtable;
@@ -43,7 +44,8 @@ pub fn run<P: AsRef<Path>>(
     if is_bin {
         intrinsics::define(&mut c);
     }
-    c.compile_program(mir.program.funcs);
+    let method_funcs = c.compile_program(mir.program.funcs);
+    vtable::define_body(&mut c, &mir.vtables, method_funcs);
 
     c.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
@@ -61,13 +63,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         }
     }
 
-    fn compile_program(&mut self, funcs: Vec<mir::Function>) {
+    fn compile_program(&mut self, funcs: Vec<mir::Function>) -> item::MethodFuncs {
         for f in &funcs {
             self.declare_func(f);
         }
         for f in funcs {
             self.compile_func(f);
         }
+        item::MethodFuncs()
     }
 
     fn compile_extern(&self, ext: mir::Extern) {
@@ -456,8 +459,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn get_llvm_func(&self, name: &FunctionName) -> inkwell::values::FunctionValue<'run> {
+        let mangled = name.mangle();
         self.module
-            .get_function(&name.mangle())
-            .unwrap_or_else(|| panic!("function `{:?}' not found", name))
+            .get_function(&mangled)
+            .unwrap_or_else(|| panic!("function `{:?}' not found", mangled))
     }
 }
