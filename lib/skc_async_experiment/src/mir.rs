@@ -19,7 +19,7 @@ pub fn mir_const_name(name: ConstFullname) -> String {
     name.0
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompilationUnit {
     pub program: Program,
     pub sk_types: SkTypes,

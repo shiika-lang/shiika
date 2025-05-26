@@ -19,7 +19,7 @@ pub fn run(cli: &mut Cli, entry_point: &PathBuf) -> Result<PathBuf> {
             total_deps,
         },
     };
-    let bc_path = build::compiler::compile(cli, &target)?;
+    let (bc_path, _) = build::compiler::compile(cli, &target)?;
     let artifacts = deps
         .iter()
         .flat_map(|pkg| pkg.artifacts.clone())

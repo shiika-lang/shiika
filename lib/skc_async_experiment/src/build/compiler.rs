@@ -1,4 +1,4 @@
-use crate::build::{loader, CompileTarget, CompileTargetDetail};
+use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
@@ -9,10 +9,13 @@ use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
-pub fn compile(cli: &mut cli::Cli, target: &CompileTarget) -> Result<PathBuf> {
+pub fn compile(
+    cli: &mut cli::Cli,
+    target: &CompileTarget,
+) -> Result<(PathBuf, mir::CompilationUnit)> {
     let src = loader::load(target.entry_point)?;
     let mut mir = generate_mir(cli, &src, target)?;
 
@@ -32,23 +35,10 @@ pub fn compile(cli: &mut cli::Cli, target: &CompileTarget) -> Result<PathBuf> {
 
     fs::create_dir_all(target.out_dir)
         .context(format!("failed to create {}", target.out_dir.display()))?;
-    if let CompileTargetDetail::Lib { package } = &target.detail {
-        let mut constants = HashMap::new();
-        for (name, ty) in &mir.program.constants {
-            constants.insert(name.clone(), ty.clone());
-        }
-        let exports = LibraryExports {
-            sk_types: mir.sk_types.clone(),
-            vtables: mir.vtables.clone(),
-            constants,
-        };
-        let out_path = cli.lib_exports_path(&package.spec);
-        write_exports_json(&out_path, &exports)?;
-    }
     let bc_path = out_path(target.out_dir, target.entry_point, "bc");
     let ll_path = out_path(target.out_dir, target.entry_point, "ll");
-    codegen::run(&bc_path, Some(&ll_path), mir, target.is_bin())?;
-    Ok(bc_path)
+    codegen::run(&bc_path, Some(&ll_path), mir.clone(), target.is_bin())?;
+    Ok((bc_path, mir))
 }
 
 fn out_path(out_dir: &Path, entry_point: &Path, ext: &str) -> PathBuf {
@@ -136,17 +126,6 @@ pub fn load_externs(
 fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
     let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
     Ok(hir::untyped::compile_signature(type_name, &ast_sig))
-}
-
-/// Serialize LibraryExports into exports.json
-pub fn write_exports_json(
-    out_path: &std::path::Path,
-    exports: &skc_mir::LibraryExports,
-) -> Result<()> {
-    let json = serde_json::to_string_pretty(exports)?;
-    let mut f = std::fs::File::create(out_path)?;
-    f.write_all(json.as_bytes())?;
-    Ok(())
 }
 
 /// Deserialize exports.json into LibraryExports
