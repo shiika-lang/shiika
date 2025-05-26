@@ -27,6 +27,12 @@ fn create_exports(mir: &mir::CompilationUnit) -> LibraryExports {
     for (name, ty) in &mir.program.constants {
         constants.insert(name.clone(), ty.clone());
     }
+    for sk_type in mir.sk_types.0.values() {
+        constants.insert(
+            sk_type.fullname().to_const_fullname(),
+            sk_type.term_ty().meta_ty(),
+        );
+    }
     LibraryExports {
         sk_types: mir.sk_types.clone(),
         vtables: mir.vtables.clone(),
