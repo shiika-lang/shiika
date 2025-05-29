@@ -11,6 +11,7 @@ pub struct MethodSignature {
     pub ret_ty: TermTy,
     pub params: Vec<MethodParam>,
     pub typarams: Vec<TyParam>,
+    pub asyncness: Asyncness,
 }
 
 impl fmt::Display for MethodSignature {
@@ -61,6 +62,7 @@ impl MethodSignature {
                 .map(|param| param.substitute(class_tyargs, method_tyargs))
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
+            asyncness: self.asyncness.clone(),
         }
     }
 
@@ -127,7 +129,8 @@ impl MethodSignature {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "<{}>{}({}){}",
+            "{}<{}>{}({}){}",
+            self.asyncness,
             typarams,
             &self.fullname,
             params,
@@ -137,6 +140,7 @@ impl MethodSignature {
 
     /// nom parser for MethodSignature
     pub fn deserialize(s: &str) -> IResult<&str, MethodSignature> {
+        let (s, asyncness) = Asyncness::deserialize(s)?;
         let parse_typarams = nom::multi::separated_list0(tag(","), TyParam::deserialize);
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
 
@@ -153,6 +157,7 @@ impl MethodSignature {
                 ret_ty,
                 params,
                 typarams,
+                asyncness,
             },
         ))
     }
@@ -213,6 +218,47 @@ pub fn find_param<'a>(params: &'a [MethodParam], name: &str) -> Option<(usize, &
         .find(|(_, param)| param.name == name)
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Asyncness {
+    Sync,
+    Async,
+    Unknown,
+}
+
+impl fmt::Display for Asyncness {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Asyncness::Sync => "Sync",
+                Asyncness::Async => "Async",
+                Asyncness::Unknown => "Unknown",
+            }
+        )
+    }
+}
+
+impl Asyncness {
+    pub fn serialize(&self) -> String {
+        self.to_string()
+    }
+
+    pub fn deserialize(s: &str) -> IResult<&str, Asyncness> {
+        let (s, asyncness) = nom::branch::alt((
+            tag("Unknown"),
+            nom::branch::alt((tag("Async"), tag("Sync"))),
+        ))(s)?;
+        let asyncness = match &asyncness[..] {
+            "Async" => Asyncness::Async,
+            "Sync" => Asyncness::Sync,
+            "Unknown" => Asyncness::Unknown,
+            _ => unreachable!(),
+        };
+        Ok((s, asyncness))
+    }
+}
+
 /// Create a signature of a `new` method
 /// eg. Given this Pair#initialize,
 ///     def initialize(@fst: A, @snd: B)
@@ -243,6 +289,7 @@ pub fn signature_of_new(
         ret_ty,
         params,
         typarams,
+        asyncness: Asyncness::Unknown,
     }
 }
 
@@ -256,6 +303,7 @@ pub fn signature_of_initialize(
         ret_ty: ty::raw("Void"),
         params,
         typarams: vec![],
+        asyncness: Asyncness::Unknown,
     }
 }
 
