@@ -4,6 +4,7 @@ pub mod exe_builder;
 pub mod lib_builder;
 pub mod linker;
 pub mod loader;
+pub mod package_builder;
 use crate::package::Package;
 use std::path::Path;
 
