@@ -549,9 +549,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             method_sigs: instance_methods,
             foreign: false,
         };
+        let supercls = if fullname.0 == "Object" {
+            None
+        } else {
+            Some(superclass)
+        };
         self.add_type(SkClass {
             base,
-            superclass: Some(superclass),
+            superclass: supercls,
             includes,
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
