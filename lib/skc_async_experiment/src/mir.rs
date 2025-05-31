@@ -6,7 +6,7 @@ pub mod visitor;
 use crate::names::FunctionName;
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use shiika_core::{names::ConstFullname, ty::TermTy};
-use skc_hir::SkTypes;
+use skc_hir::{MethodSignature, SkTypes};
 use skc_mir::VTables;
 use std::fmt;
 pub use ty::{FunTy, Ty};
@@ -99,6 +99,7 @@ pub struct Function {
     pub params: Vec<Param>,
     pub ret_ty: Ty,
     pub body_stmts: Typed<Expr>,
+    pub sig: Option<MethodSignature>,
 }
 
 impl fmt::Display for Function {

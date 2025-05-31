@@ -70,6 +70,7 @@ pub fn main_funcs() -> Vec<mir::Function> {
             params: vec![],
             ret_ty: Ty::Int64,
             body_stmts: main_body(),
+            sig: None,
         },
         mir::Function {
             name: FunctionName::mangled("chiika_start_user"),
@@ -86,6 +87,7 @@ pub fn main_funcs() -> Vec<mir::Function> {
             ],
             ret_ty: Ty::RustFuture,
             body_stmts: chiika_start_user_body(),
+            sig: None,
         },
     ]
 }

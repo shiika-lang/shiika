@@ -137,6 +137,7 @@ fn convert_method(method: hir::Method<TermTy>) -> mir::Function {
         params,
         ret_ty: convert_ty(method.ret_ty),
         body_stmts,
+        sig: Some(method.sig),
     }
 }
 
@@ -239,5 +240,6 @@ fn create_user_main(
         params: vec![],
         ret_ty: mir::Ty::Raw("Int".to_string()),
         body_stmts: mir::Expr::exprs(body_stmts),
+        sig: None,
     }
 }

@@ -17,17 +17,16 @@ pub fn run(prog: &mut hir::Program<()>, class_dict: &mut ClassDict) {
             continue;
         }
 
-        let (new, new_sig) = create_new(class_dict, &lit_ty);
+        let new = create_new(class_dict, &lit_ty);
+        adds.push((sk_class.fullname().clone(), new.sig.clone()));
         prog.methods.push(new);
-
-        adds.push((sk_class.fullname().clone(), new_sig.clone()));
     }
     for (class_name, new_sig) in adds {
         class_dict.add_method(&class_name, new_sig);
     }
 }
 
-fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, MethodSignature) {
+fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
     let instance_ty = meta_ty.instance_ty().to_term_ty();
     let initialize = find_initialize(class_dict, &instance_ty);
     let tmp_name = "tmp";
@@ -61,8 +60,16 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
     )))));
 
     let method_name = method_fullname(meta_ty.to_term_ty().fullname.clone(), "new");
-    let m = hir::Method {
+    let sig = MethodSignature {
+        fullname: method_name.clone(),
+        ret_ty: instance_ty.clone(),
+        params: initialize.sig.params.clone(),
+        typarams: initialize.sig.typarams.clone(),
+        asyncness: skc_hir::Asyncness::Unknown,
+    };
+    hir::Method {
         name: method_name.clone().into(),
+        sig,
         params: initialize
             .sig
             .params
@@ -76,14 +83,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> (hir::Method<()>, Meth
         ret_ty: instance_ty.clone(),
         body_stmts: untyped(hir::Expr::Exprs(exprs)),
         self_ty: instance_ty.meta_ty(),
-    };
-    let sig = MethodSignature {
-        fullname: method_name,
-        ret_ty: instance_ty.clone(),
-        params: initialize.sig.params.clone(),
-        typarams: initialize.sig.typarams.clone(),
-    };
-    (m, sig)
+    }
 }
 
 /// Returns the `initialize` method of the class (if none, its ancestor's)
