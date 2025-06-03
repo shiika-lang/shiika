@@ -1,8 +1,8 @@
 use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
-use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
+use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, prelude};
 use anyhow::{Context, Result};
-use shiika_core::names::{method_fullname_raw, type_fullname};
+use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
@@ -74,23 +74,32 @@ fn generate_hir(
     target: &CompileTarget,
 ) -> Result<hir::CompilationUnit> {
     let mut imports = create_imports();
+
     let mut imported_asyncs = vec![];
+
     for package in target.deps {
-        for exp in package.export_files() {
-            imported_asyncs.append(&mut load_externs(&exp, &mut imports)?);
-        }
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
         imports.constants.extend(exp.constants);
+        // TODO: refer .asyncness directly
+        for sk_type in imports.sk_types.0.values() {
+            for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
+                if sig.asyncness == skc_hir::Asyncness::Async {
+                    imported_asyncs.push(FunctionName::from_sig(sig));
+                }
+            }
+        }
     }
 
     let defs = ast.defs();
     let type_index = skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
     let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
 
-    log::info!("Type checking");
+    log::debug!("Create untyped AST");
     let mut hir = hir::untyped::create(&ast, &imports.constants)?;
+    log::info!("Create `new`");
     hir_building::define_new::run(&mut hir, &mut class_dict);
+    log::info!("Type checking");
     let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
@@ -100,30 +109,6 @@ fn generate_hir(
         program: hir,
         sk_types,
     })
-}
-
-/// Load exports.json5 (i.e. Rust func definitions)
-/// Also returns hir::FunTy because type checker needs it
-pub fn load_externs(
-    exports_json5: &PathBuf,
-    imports: &mut LibraryExports,
-) -> Result<Vec<FunctionName>> {
-    let mut imported_asyncs = vec![];
-    for (type_name, sig_str, is_async) in package::load_exports_json5(exports_json5)? {
-        let sig = parse_sig(type_name.clone(), sig_str)?;
-        if is_async {
-            imported_asyncs.push(FunctionName::from_sig(&sig));
-        }
-        imports
-            .sk_types
-            .define_method(&type_fullname(type_name), sig);
-    }
-    Ok(imported_asyncs)
-}
-
-fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
-    let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
-    Ok(hir::untyped::compile_signature(type_name, &ast_sig))
 }
 
 /// Deserialize exports.json into LibraryExports
@@ -144,6 +129,7 @@ fn create_imports() -> skc_mir::LibraryExports {
         ret_ty: ty::raw("Object"),
         params: vec![],
         typarams: vec![],
+        asyncness: skc_hir::Asyncness::Sync,
     };
     let class_object = {
         let base = SkTypeBase {

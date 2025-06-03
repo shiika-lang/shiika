@@ -23,6 +23,10 @@ impl MethodSignatures {
         self.0.get(name)
     }
 
+    pub fn get_mut(&mut self, name: &MethodFirstname) -> Option<&mut (MethodSignature, usize)> {
+        self.0.get_mut(name)
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
