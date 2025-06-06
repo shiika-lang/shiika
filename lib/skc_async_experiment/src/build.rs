@@ -43,6 +43,10 @@ impl<'a> CompileTarget<'a> {
         }
     }
 
+    fn is_core_package(&self) -> bool {
+        self.package().map_or(false, |pkg| pkg.is_core())
+    }
+
     pub fn package_name(&self) -> Option<String> {
         self.package().map(|x| x.spec.name.clone())
     }

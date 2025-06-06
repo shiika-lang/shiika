@@ -1,12 +1,9 @@
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ContFuture};
-use shiika_ffi::core_class::{SkInt, SkObject};
+use shiika_ffi::core_class::SkInt;
 use shiika_ffi_macro::shiika_method;
 use std::future::{poll_fn, Future};
 use std::task::Poll;
 use std::time::Duration;
-
-#[shiika_method("Object#initialize")]
-pub extern "C" fn object_initialize(_receiver: SkObject) {}
 
 #[shiika_method("Object#print")]
 pub extern "C" fn print(_receiver: SkInt, n: SkInt) {

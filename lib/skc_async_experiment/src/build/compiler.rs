@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use shiika_core::names::method_fullname_raw;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
+use skc_ast2hir::class_dict::ClassDict;
 use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
@@ -93,7 +94,11 @@ fn generate_hir(
 
     let defs = ast.defs();
     let type_index = skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
-    let mut class_dict = skc_ast2hir::class_dict::create(&defs, type_index, &imports.sk_types)?;
+    let mut class_dict = skc_ast2hir::class_dict::new(type_index, &imports.sk_types);
+    if target.is_core_package() {
+        bootstrap_classes(&mut class_dict);
+    }
+    class_dict.index_program(&defs)?;
 
     log::debug!("Create untyped AST");
     let mut hir = hir::untyped::create(&ast, &imports.constants)?;
@@ -120,6 +125,24 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     let exports: LibraryExports =
         serde_json::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
     Ok(exports)
+}
+
+fn bootstrap_classes(class_dict: &mut ClassDict) {
+    class_dict.add_type(skc_hir::SkClass::nonmeta(
+        SkTypeBase {
+            erasure: Erasure::nonmeta("Object"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::new(),
+            foreign: false,
+        },
+        None,
+    ));
+    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
+        erasure: Erasure::meta("Object"),
+        typarams: Default::default(),
+        method_sigs: MethodSignatures::new(),
+        foreign: false,
+    }));
 }
 
 // TODO: some of them should be built from ./packages/core
@@ -170,10 +193,10 @@ fn create_imports() -> skc_mir::LibraryExports {
 
     let sk_types = skc_hir::SkTypes::from_iterator(
         vec![
-            class_object.into(),
-            class_void.into(),
-            class_metaclass.into(),
-            class_class.into(),
+            //class_object.into(),
+            //class_void.into(),
+            //class_metaclass.into(),
+            //class_class.into(),
         ]
         .into_iter(),
     );
