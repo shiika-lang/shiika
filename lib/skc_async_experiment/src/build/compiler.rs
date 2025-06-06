@@ -2,11 +2,10 @@ use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, prelude};
 use anyhow::{Context, Result};
-use shiika_core::names::method_fullname_raw;
-use shiika_core::ty::{self, Erasure};
+use shiika_core::ty::Erasure;
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
-use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, Supertype};
+use skc_hir::{MethodSignatures, SkTypeBase};
 use skc_mir::LibraryExports;
 use std::fs;
 use std::io::Read;
@@ -74,10 +73,8 @@ fn generate_hir(
     ast: &shiika_ast::Program,
     target: &CompileTarget,
 ) -> Result<hir::CompilationUnit> {
-    let mut imports = create_imports();
-
+    let mut imports = LibraryExports::empty();
     let mut imported_asyncs = vec![];
-
     for package in target.deps {
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
@@ -143,68 +140,4 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
         method_sigs: MethodSignatures::new(),
         foreign: false,
     }));
-}
-
-// TODO: some of them should be built from ./packages/core
-fn create_imports() -> skc_mir::LibraryExports {
-    let object_initialize = MethodSignature {
-        fullname: method_fullname_raw("Object", "initialize"),
-        ret_ty: ty::raw("Object"),
-        params: vec![],
-        typarams: vec![],
-        asyncness: skc_hir::Asyncness::Sync,
-    };
-    let class_object = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Object"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![object_initialize].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, None)
-    };
-    let class_void = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Void"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
-    };
-    let class_metaclass = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Metaclass"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Object")))
-    };
-    let class_class = {
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta("Class"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::from_iterator(vec![].into_iter()),
-            foreign: false,
-        };
-        skc_hir::SkClass::nonmeta(base, Some(Supertype::simple("Metaclass")))
-    };
-
-    let sk_types = skc_hir::SkTypes::from_iterator(
-        vec![
-            //class_object.into(),
-            //class_void.into(),
-            //class_metaclass.into(),
-            //class_class.into(),
-        ]
-        .into_iter(),
-    );
-
-    let vtables = skc_mir::VTables::build(&sk_types, &Default::default());
-    skc_mir::LibraryExports {
-        sk_types,
-        vtables,
-        constants: Default::default(),
-    }
 }
