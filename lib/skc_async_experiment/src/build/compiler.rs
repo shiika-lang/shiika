@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use shiika_core::ty::Erasure;
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
-use skc_hir::{MethodSignatures, SkTypeBase};
+use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
 use std::io::Read;
@@ -126,6 +126,7 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {
+    // Add `Object` (the only class without superclass)
     class_dict.add_type(skc_hir::SkClass::nonmeta(
         SkTypeBase {
             erasure: Erasure::nonmeta("Object"),
@@ -137,6 +138,24 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
     ));
     class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
         erasure: Erasure::meta("Object"),
+        typarams: Default::default(),
+        method_sigs: MethodSignatures::new(),
+        foreign: false,
+    }));
+    // Add `Void` (the only non-enum class whose const_is_obj=true)
+    let mut void = skc_hir::SkClass::nonmeta(
+        SkTypeBase {
+            erasure: Erasure::nonmeta("Void"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::new(),
+            foreign: false,
+        },
+        Some(Supertype::simple("Object")),
+    );
+    void.const_is_obj = true;
+    class_dict.add_type(void);
+    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
+        erasure: Erasure::meta("Void"),
         typarams: Default::default(),
         method_sigs: MethodSignatures::new(),
         foreign: false,
