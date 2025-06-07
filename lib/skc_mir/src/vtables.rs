@@ -68,4 +68,9 @@ impl VTables {
     pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
         self.vtables.iter()
     }
+
+    /// Merge other into self destructively
+    pub fn merge(&mut self, other: VTables) {
+        self.vtables.extend(other.vtables);
+    }
 }

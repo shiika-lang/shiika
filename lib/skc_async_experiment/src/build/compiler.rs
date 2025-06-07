@@ -79,6 +79,7 @@ fn generate_hir(
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
         imports.constants.extend(exp.constants);
+        imports.vtables.merge(exp.vtables);
         // TODO: refer .asyncness directly
         for sk_type in imports.sk_types.0.values() {
             for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
