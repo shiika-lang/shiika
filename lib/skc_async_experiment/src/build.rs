@@ -4,6 +4,7 @@ pub mod exe_builder;
 pub mod lib_builder;
 pub mod linker;
 pub mod loader;
+pub mod package_builder;
 use crate::package::Package;
 use std::path::Path;
 
@@ -40,6 +41,10 @@ impl<'a> CompileTarget<'a> {
             CompileTargetDetail::Lib { package } => Some(package),
             CompileTargetDetail::Bin { package, .. } => package.clone(),
         }
+    }
+
+    fn is_core_package(&self) -> bool {
+        self.package().map_or(false, |pkg| pkg.is_core())
     }
 
     pub fn package_name(&self) -> Option<String> {

@@ -49,8 +49,7 @@ impl Cli {
     /// Build a package.
     pub fn build(&mut self, filepath: &PathBuf) -> Result<()> {
         let p = package::Package::new(&self, filepath)?;
-        build::cargo_builder::run(self, &p)?;
-        build::lib_builder::build(self, &p)?;
+        build::package_builder::run(self, &p)?;
         Ok(())
     }
 

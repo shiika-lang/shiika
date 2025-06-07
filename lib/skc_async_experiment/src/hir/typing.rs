@@ -51,6 +51,7 @@ pub fn run(
             let new_body_stmts = c.compile_func(body_stmts)?;
             Ok(hir::Method {
                 name: f.name,
+                sig: f.sig,
                 params: f.params,
                 self_ty: f.self_ty,
                 ret_ty: f.ret_ty,

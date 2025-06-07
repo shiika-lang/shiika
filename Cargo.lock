@@ -1812,6 +1812,7 @@ dependencies = [
 name = "skc_mir"
 version = "0.1.0"
 dependencies = [
+ "log",
  "serde",
  "shiika_core",
  "skc_hir",

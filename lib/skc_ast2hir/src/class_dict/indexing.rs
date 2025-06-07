@@ -73,13 +73,28 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
         let metaclass_fullname = fullname.meta_name();
-        let (superclass, includes) = self._resolve_supers(namespace, &typarams, supers)?;
+        let (superclass, includes) = if fullname.0 == "Object" {
+            (None, vec![])
+        } else {
+            let (supercls, includes) = self._resolve_supers(namespace, &typarams, supers)?;
+            (Some(supercls), includes)
+        };
         let new_sig = if fullname.0 == "Never" {
             None
         } else {
+            let params = if fullname.0 == "Object" {
+                vec![]
+            } else {
+                self._initializer_params(
+                    &inner_namespace,
+                    &typarams,
+                    &superclass.as_ref().unwrap(),
+                    defs,
+                )?
+            };
             Some(signature::signature_of_new(
                 &metaclass_fullname,
-                self._initializer_params(&inner_namespace, &typarams, &superclass, defs)?,
+                params,
                 typarams.clone(),
             ))
         };
@@ -310,7 +325,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_new_class(
             &fullname,
             &typarams,
-            Supertype::simple("Object"),
+            Some(Supertype::simple("Object")),
             Default::default(),
             None,
             instance_methods,
@@ -343,7 +358,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.add_new_class(
             &fullname,
             &case_typarams,
-            superclass,
+            Some(superclass),
             Default::default(),
             Some(new_sig),
             instance_methods,
@@ -514,6 +529,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 ret_ty: hir_param.ty.clone(),
                 params: Default::default(),
                 typarams: Default::default(),
+                asyncness: Asyncness::Sync,
             };
             instance_methods.insert(sig);
         }
@@ -526,7 +542,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &mut self,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
-        superclass: Supertype,
+        superclass: Option<Supertype>,
         includes: Vec<Supertype>,
         new_sig: Option<MethodSignature>,
         mut instance_methods: MethodSignatures,
@@ -550,7 +566,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         self.add_type(SkClass {
             base,
-            superclass: Some(superclass),
+            superclass,
             includes,
             ivars: HashMap::new(), // will be set when processing `#initialize`
             is_final,
@@ -651,6 +667,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &method_typarams,
             )?,
             typarams: method_typarams,
+            asyncness: Asyncness::Unknown,
         })
     }
 
@@ -775,6 +792,7 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         ret_ty: ivar.ty.clone(),
         params: Default::default(),
         typarams: Default::default(),
+        asyncness: Asyncness::Unknown,
     });
     MethodSignatures::from_iterator(iter)
 }

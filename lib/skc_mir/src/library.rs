@@ -13,6 +13,14 @@ pub struct LibraryExports {
 }
 
 impl LibraryExports {
+    pub fn empty() -> LibraryExports {
+        LibraryExports {
+            sk_types: SkTypes::default(),
+            vtables: VTables::default(),
+            constants: HashMap::new(),
+        }
+    }
+
     pub fn new(mir: &Mir) -> LibraryExports {
         LibraryExports {
             // PERF: how to generate json without cloning?

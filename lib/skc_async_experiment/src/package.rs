@@ -54,6 +54,11 @@ impl Package {
         Self::new(cli, &cli.shiika_root.clone().join("packages").join("core"))
     }
 
+    /// True if this package is the `core` package.
+    pub fn is_core(&self) -> bool {
+        self.spec.name == "core"
+    }
+
     pub fn entry_point(&self) -> PathBuf {
         self.dir.join("index.sk")
     }

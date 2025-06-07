@@ -26,6 +26,18 @@ pub struct ClassDict<'hir_maker> {
     rust_methods: RustMethods,
 }
 
+pub fn new<'hir_maker>(
+    type_index: TypeIndex,
+    imported_classes: &'hir_maker SkTypes,
+) -> ClassDict<'hir_maker> {
+    ClassDict {
+        type_index,
+        sk_types: Default::default(),
+        imported_classes,
+        rust_methods: Default::default(),
+    }
+}
+
 pub fn create<'hir_maker>(
     defs: &[&shiika_ast::Definition],
     type_index: TypeIndex,

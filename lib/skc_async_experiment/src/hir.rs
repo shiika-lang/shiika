@@ -8,7 +8,7 @@ use crate::names::FunctionName;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
-use skc_hir::SkTypes;
+use skc_hir::{MethodSignature, SkTypes};
 use skc_mir::LibraryExports;
 pub use ty::FunTy;
 
@@ -32,6 +32,7 @@ pub struct Program<T> {
 #[derive(Debug)]
 pub struct Method<T> {
     pub name: FunctionName,
+    pub sig: MethodSignature, // TODO: remove params, self_ty, ret_ty
     pub params: Vec<Param>,
     pub self_ty: TermTy,
     pub ret_ty: TermTy,

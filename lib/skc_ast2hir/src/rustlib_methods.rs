@@ -58,6 +58,7 @@ fn make_hir_sig(
         params,
         // TODO: Fix this when a rustlib method has method typaram
         typarams: Default::default(),
+        asyncness: Asyncness::Unknown,
     }
 }
 

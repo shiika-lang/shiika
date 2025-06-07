@@ -18,6 +18,7 @@ pub fn create_const_init_func(
         params: vec![],
         ret_ty: mir::Ty::Raw("Int".to_string()),
         body_stmts: mir::Expr::exprs(body_stmts),
+        sig: None,
     }
 }
 

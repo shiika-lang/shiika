@@ -73,8 +73,24 @@ impl AstVisitor for Visitor {
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
+        let hir_sig = MethodSignature {
+            fullname: method_fullname_raw(namespace.string(), &sig.name.0),
+            ret_ty: ret_ty.clone(),
+            params: params
+                .iter()
+                .map(|p| skc_hir::MethodParam {
+                    name: p.name.clone(),
+                    ty: p.ty.clone(),
+                    has_default: false,
+                })
+                .collect(),
+            typarams: vec![],
+            asyncness: skc_hir::Asyncness::Unknown, // TODO: handle async methods
+        };
+
         let m = hir::Method {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
+            sig: hir_sig,
             params,
             ret_ty,
             self_ty,
@@ -317,6 +333,7 @@ pub fn compile_signature(
         ret_ty,
         params,
         typarams: vec![],
+        asyncness: skc_hir::Asyncness::Unknown,
     }
 }
 

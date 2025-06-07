@@ -19,6 +19,7 @@
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
+use skc_hir::MethodSignature;
 use std::collections::VecDeque;
 
 /// Splits asynchronous Milika func into multiple funcs.
@@ -114,6 +115,7 @@ impl<'a> Compiler<'a> {
     fn _serialize_chapter(&self, chap: Chapter) -> mir::Function {
         mir::Function {
             asyncness: mir::Asyncness::Lowered,
+            sig: chap.sig,
             name: FunctionName::unmangled(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
@@ -594,6 +596,8 @@ struct Chapter {
     name: String,
     params: Vec<mir::Param>,
     ret_ty: mir::Ty,
+    // Only for the first chapter of each Shiika method
+    sig: Option<MethodSignature>,
 }
 
 impl Chapter {
@@ -609,15 +613,30 @@ impl Chapter {
                 }),
                 "$cont",
             ));
-            Self::new(f.name.to_string(), params, mir::Ty::RustFuture)
+            Self::new(
+                f.name.to_string(),
+                params,
+                mir::Ty::RustFuture,
+                f.sig.clone(),
+            )
         } else {
-            Self::new(f.name.to_string(), f.params.clone(), f.ret_ty.clone())
+            Self::new(
+                f.name.to_string(),
+                f.params.clone(),
+                f.ret_ty.clone(),
+                f.sig.clone(),
+            )
         }
     }
 
     fn new_async_if_clause(name: String, suffix: &str) -> Chapter {
         let params = vec![mir::Param::new(mir::Ty::ChiikaEnv, "$env")];
-        Self::new(format!("{}'{}", name, suffix), params, mir::Ty::RustFuture)
+        Self::new(
+            format!("{}'{}", name, suffix),
+            params,
+            mir::Ty::RustFuture,
+            None,
+        )
     }
 
     fn new_async_end_if(name: String, suffix: &str, if_ty: mir::Ty) -> Chapter {
@@ -625,7 +644,12 @@ impl Chapter {
             mir::Param::new(mir::Ty::ChiikaEnv, "$env"),
             mir::Param::new(if_ty, "$ifResult"),
         ];
-        Self::new(format!("{}'{}", name, suffix), params, mir::Ty::RustFuture)
+        Self::new(
+            format!("{}'{}", name, suffix),
+            params,
+            mir::Ty::RustFuture,
+            None,
+        )
     }
 
     fn new_async_call_receiver(name: FunctionName, async_result_ty: mir::Ty) -> Chapter {
@@ -633,7 +657,7 @@ impl Chapter {
             mir::Param::new(mir::Ty::ChiikaEnv, "$env"),
             mir::Param::new(async_result_ty.clone(), "$async_result"),
         ];
-        Self::new(name.to_string(), params, mir::Ty::RustFuture)
+        Self::new(name.to_string(), params, mir::Ty::RustFuture, None)
     }
 
     fn new_beginwhile_clause(name: String) -> Chapter {
@@ -641,6 +665,7 @@ impl Chapter {
             format!("{}'w", name),
             vec![env_param()],
             mir::Ty::RustFuture,
+            None,
         )
     }
 
@@ -649,6 +674,7 @@ impl Chapter {
             format!("{}'h", name),
             vec![env_param()],
             mir::Ty::RustFuture,
+            None,
         )
     }
 
@@ -657,16 +683,23 @@ impl Chapter {
             format!("{}'q", name),
             vec![env_param()],
             mir::Ty::RustFuture,
+            None,
         )
     }
 
-    fn new(name: String, params: Vec<mir::Param>, ret_ty: mir::Ty) -> Chapter {
+    fn new(
+        name: String,
+        params: Vec<mir::Param>,
+        ret_ty: mir::Ty,
+        sig: Option<MethodSignature>,
+    ) -> Chapter {
         Chapter {
             stmts: vec![],
             async_result_ty: None,
             name,
             params,
             ret_ty,
+            sig,
         }
     }
 

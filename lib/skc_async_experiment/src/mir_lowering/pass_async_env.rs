@@ -73,6 +73,7 @@ fn compile_func(orig_func: mir::Function) -> mir::Function {
         params: new_params,
         ret_ty: orig_func.ret_ty,
         body_stmts: new_body_stmts,
+        sig: orig_func.sig,
     }
 }
 
