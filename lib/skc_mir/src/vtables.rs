@@ -20,6 +20,7 @@ impl VTables {
         let null_vtable = VTable::null();
         while !queue.is_empty() {
             let name = queue.pop_front().unwrap();
+            log::debug!("Processing vtable for {}", name);
             // Check if already processed
             if vtables.contains_key(&name) || imports.sk_types.0.contains_key(&name.clone().into())
             {
@@ -43,6 +44,7 @@ impl VTables {
                 super_vtable = &null_vtable;
             }
             let vtable = VTable::build(super_vtable, sk_class);
+            log::debug!("Built vtable for {}", name);
             vtables.insert(sk_class.fullname(), vtable);
         }
         VTables { vtables }
