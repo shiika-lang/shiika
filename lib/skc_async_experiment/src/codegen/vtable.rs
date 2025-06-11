@@ -1,4 +1,5 @@
 use crate::codegen::{item, CodeGen};
+use inkwell::values::BasicValue;
 use shiika_core::names::ClassFullname;
 use skc_hir::SkTypes;
 use skc_mir;
@@ -13,6 +14,7 @@ pub fn define(gen: &mut CodeGen, vtables: &skc_mir::VTables) {
     }
 }
 
+/// Insert method pointers into vtable constants
 pub fn define_body(gen: &mut CodeGen, vtables: &skc_mir::VTables, _: item::MethodFuncs) {
     for (class_fullname, vtable) in vtables.iter() {
         let method_names = vtable.to_vec();
@@ -58,6 +60,22 @@ pub fn get<'run>(gen: &mut CodeGen<'run, '_>, classname: &ClassFullname) -> Opaq
         .unwrap_or_else(|| panic!("global `{}' not found", &vtable_const_name))
         .as_pointer_value();
     OpaqueVTableRef::new(llvm_ary_ptr)
+}
+
+/// Get the function pointer at the given index in the vtable.
+pub fn get_function<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    vtable: OpaqueVTableRef<'run>,
+    idx: usize,
+) -> inkwell::values::PointerValue<'run> {
+    gen.builder
+        .build_extract_value(
+            vtable.ptr.as_basic_value_enum().into_array_value(),
+            idx as u32,
+            "func_raw",
+        )
+        .unwrap()
+        .into_pointer_value()
 }
 
 /// Reference to vtable where its length is unknown.

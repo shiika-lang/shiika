@@ -125,6 +125,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
+            mir::Expr::VTableRef(receiver, idx, _name) => {
+                self.compile_vtable_ref(ctx, receiver, *idx)
+            }
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
@@ -229,6 +232,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             "calltmp",
         );
         Some(ret.try_as_basic_value().left().unwrap())
+    }
+
+    fn compile_vtable_ref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        receiver: &mir::TypedExpr,
+        idx: usize,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let obj = self.compile_value_expr(ctx, receiver);
+        let vtable = instance::get_vtable(self, &SkObj::from_basic_value_enum(obj));
+        let method_ptr = vtable::get_function(self, vtable, idx);
+        Some(method_ptr.into())
     }
 
     /// Compile a sync if

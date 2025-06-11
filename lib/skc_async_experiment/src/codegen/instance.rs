@@ -52,6 +52,19 @@ pub fn build_ivar_store_raw<'run>(
     llvm_struct::build_llvm_value_store(gen, struct_type, ptr, i, value, name);
 }
 
+/// Get the vtable of a Shiika object.
+pub fn get_vtable<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    obj: &SkObj<'run>,
+) -> vtable::OpaqueVTableRef<'run> {
+    let s = llvm_struct::get(gen, "Object");
+    let ty = gen.ptr_type();
+    let v = llvm_struct::build_llvm_value_load(gen, s, obj.0, ty.into(), OBJ_VTABLE_IDX, "vtable");
+    vtable::OpaqueVTableRef {
+        ptr: v.into_pointer_value(),
+    }
+}
+
 /// Set `vtable` to `object`
 fn set_vtable<'run>(
     gen: &mut CodeGen<'run, '_>,
