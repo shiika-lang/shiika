@@ -83,26 +83,15 @@ impl Expr<TermTy> {
         (Expr::FunCall(Box::new(func), args), result_ty)
     }
 
-    pub fn direct_method_call(
+    pub fn resolved_method_call(
+        method_call_type: MethodCallType,
         obj: TypedExpr<TermTy>,
         method_name: MethodFirstname,
         args: Vec<TypedExpr<TermTy>>,
         result_ty: TermTy,
     ) -> TypedExpr<TermTy> {
         (
-            Expr::ResolvedMethodCall(MethodCallType::Direct, Box::new(obj), method_name, args),
-            result_ty,
-        )
-    }
-
-    pub fn virtual_method_call(
-        obj: TypedExpr<TermTy>,
-        method_name: MethodFirstname,
-        args: Vec<TypedExpr<TermTy>>,
-        result_ty: TermTy,
-    ) -> TypedExpr<TermTy> {
-        (
-            Expr::ResolvedMethodCall(MethodCallType::Virtual, Box::new(obj), method_name, args),
+            Expr::ResolvedMethodCall(method_call_type, Box::new(obj), method_name, args),
             result_ty,
         )
     }

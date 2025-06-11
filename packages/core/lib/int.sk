@@ -1,2 +1,5 @@
 class Int
+  def tmp -> Int
+    123
+  end
 end

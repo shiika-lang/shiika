@@ -1,5 +1,6 @@
 use crate::mir::Asyncness;
 use std::fmt;
+use skc_hir::MethodSignature;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
@@ -129,6 +130,14 @@ impl FunTy {
 
     pub fn lowered(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
         Self::new(Asyncness::Lowered, param_tys, ret_ty)
+    }
+
+    pub fn from_method_signature(sig: &MethodSignature) -> Self {
+        Self::new(
+            sig.asyncness,
+            sig.param_tys.iter().map(|ty| ty.clone().into()).collect(),
+            sig.ret_ty.clone().into(),
+        )
     }
 
     /// Returns true if the two function types are the same except for asyncness.

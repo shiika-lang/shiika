@@ -4,7 +4,7 @@ use crate::names::FunctionName;
 use crate::{build, hir, mir};
 use anyhow::Result;
 use shiika_core::ty::TermTy;
-use skc_hir::SkTypes;
+use skc_hir::{MethodSignature, SkTypes};
 use std::collections::HashSet;
 
 pub fn run(
@@ -225,7 +225,7 @@ impl<'a> HirToMir<'a> {
             hir::Expr::ResolvedMethodCall(call_type, receiver, method_name, args) => {
                 let func_ref = match call_type {
                     hir::expr::MethodCallType::Direct => {
-                        todo!();
+                        method_func_ref(&found.sig)
                     }
                     hir::expr::MethodCallType::Virtual => {
                         let method_idx = self
@@ -293,4 +293,16 @@ impl<'a> HirToMir<'a> {
             sig: None,
         }
     }
+}
+
+fn method_func_ref(sig: &MethodSignature) -> mir::TypedExpr {
+    let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
+    param_tys.insert(0, sig.fullname.type_name.to_ty());
+    let fun_ty = mir::FunTy {
+        asyncness: sig.asyncness.clone(),
+        param_tys,
+        ret_ty: sig.ret_ty.clone(),
+    };
+    mir::Expr::func_ref(fname, fun_ty)
 }
