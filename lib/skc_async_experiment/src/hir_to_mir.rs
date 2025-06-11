@@ -11,11 +11,11 @@ pub fn run(
     hir: hir::CompilationUnit,
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
-    let c = HirToMir();
-
     log::debug!("Start");
-    let classes = c.convert_classes(&hir);
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
+    let c = HirToMir { vtables: &vtables };
+
+    let classes = c.convert_classes(&hir);
     log::debug!("VTables built");
     let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
@@ -59,9 +59,11 @@ pub fn run(
     })
 }
 
-struct HirToMir();
+struct HirToMir<'a> {
+    vtables: &'a skc_mir::VTables,
+}
 
-impl HirToMir {
+impl<'a> HirToMir<'a> {
     fn convert_classes(&self, hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
         let mut v: Vec<_> = hir
             .sk_types
@@ -191,14 +193,17 @@ impl HirToMir {
     }
 
     fn convert_texpr(&self, texpr: hir::TypedExpr<TermTy>) -> mir::TypedExpr {
-        (self.convert_expr(texpr.0), self.convert_ty(texpr.1))
+        (
+            self.convert_expr(texpr.0, &texpr.1),
+            self.convert_ty(texpr.1),
+        )
     }
 
     fn convert_texpr_vec(&self, exprs: Vec<hir::TypedExpr<TermTy>>) -> Vec<mir::TypedExpr> {
         exprs.into_iter().map(|x| self.convert_texpr(x)).collect()
     }
 
-    fn convert_expr(&self, expr: hir::Expr<TermTy>) -> mir::Expr {
+    fn convert_expr(&self, expr: hir::Expr<TermTy>, ty: &TermTy) -> mir::Expr {
         match expr {
             hir::Expr::Number(i) => mir::Expr::Number(i),
             hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
@@ -213,6 +218,36 @@ impl HirToMir {
             hir::Expr::FuncRef(n) => mir::Expr::FuncRef(n),
             hir::Expr::FunCall(f, a) => {
                 mir::Expr::FunCall(Box::new(self.convert_texpr(*f)), self.convert_texpr_vec(a))
+            }
+            hir::Expr::UnresolvedMethodCall(_, _, _) => {
+                unreachable!("UnresolvedMethodCall should be resolved before this")
+            }
+            hir::Expr::ResolvedMethodCall(call_type, receiver, method_name, args) => {
+                let func_ref = match call_type {
+                    hir::expr::MethodCallType::Direct => {
+                        todo!();
+                    }
+                    hir::expr::MethodCallType::Virtual => {
+                        let method_idx = self
+                            .vtables
+                            .method_idx(&receiver.1, &method_name)
+                            .expect("Method not found in vtable")
+                            .0;
+                        mir::Expr::VTableRef(
+                            Box::new(self.convert_texpr(*receiver)),
+                            *method_idx,
+                            method_name.0,
+                        )
+                    }
+                    _ => todo!(),
+                };
+                let func_ty = mir::Ty::Fun(mir::FunTy {
+                    asyncness: mir::Asyncness::Unknown,
+                    param_tys: args.iter().map(|x| self.convert_ty(x.1.clone())).collect(),
+                    ret_ty: Box::new(self.convert_ty(ty.clone())),
+                });
+                let func_ref_t = (func_ref, func_ty);
+                mir::Expr::FunCall(Box::new(func_ref_t), self.convert_texpr_vec(args))
             }
             hir::Expr::If(c, t, e) => mir::Expr::If(
                 Box::new(self.convert_texpr(*c)),

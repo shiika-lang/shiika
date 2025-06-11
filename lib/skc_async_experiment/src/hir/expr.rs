@@ -17,7 +17,6 @@ pub enum Expr<T> {
     ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
-    If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     UnresolvedMethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     ResolvedMethodCall(
         MethodCallType,
@@ -25,6 +24,7 @@ pub enum Expr<T> {
         MethodFirstname,
         Vec<TypedExpr<T>>,
     ),
+    If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
     LVarDecl(String, Box<TypedExpr<T>>),
@@ -40,7 +40,7 @@ pub enum Expr<T> {
 #[derive(Debug)]
 pub enum MethodCallType {
     Direct,
-    Virtual(usize),
+    Virtual,
     Module(ModuleFullname, usize),
 }
 
@@ -81,6 +81,30 @@ impl Expr<TermTy> {
     pub fn fun_call(func: TypedExpr<TermTy>, args: Vec<TypedExpr<TermTy>>) -> TypedExpr<TermTy> {
         let result_ty = func.1.fn_x_info().unwrap().last().unwrap().clone();
         (Expr::FunCall(Box::new(func), args), result_ty)
+    }
+
+    pub fn direct_method_call(
+        obj: TypedExpr<TermTy>,
+        method_name: MethodFirstname,
+        args: Vec<TypedExpr<TermTy>>,
+        result_ty: TermTy,
+    ) -> TypedExpr<TermTy> {
+        (
+            Expr::ResolvedMethodCall(MethodCallType::Direct, Box::new(obj), method_name, args),
+            result_ty,
+        )
+    }
+
+    pub fn virtual_method_call(
+        obj: TypedExpr<TermTy>,
+        method_name: MethodFirstname,
+        args: Vec<TypedExpr<TermTy>>,
+        result_ty: TermTy,
+    ) -> TypedExpr<TermTy> {
+        (
+            Expr::ResolvedMethodCall(MethodCallType::Virtual, Box::new(obj), method_name, args),
+            result_ty,
+        )
     }
 
     pub fn if_(

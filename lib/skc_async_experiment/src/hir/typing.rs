@@ -183,8 +183,25 @@ impl<'f> Typing<'f> {
                 );
                 new_arg_exprs.insert(0, cast_recv);
 
+                let result_ty = found.sig.ret_ty.clone();
+                match found.call_type {
+                    CallType::Direct => hir::Expr::direct_method_call(
+                        new_arg_exprs.remove(0),
+                        method_name,
+                        new_arg_exprs,
+                        result_ty,
+                    ),
+                    CallType::Virtual => hir::Expr::virtual_method_call(
+                        new_arg_exprs.remove(0),
+                        method_name,
+                        new_arg_exprs,
+                        result_ty,
+                    ),
+                    _ => todo!("handle other call types"),
+                }
+
                 // TODO: method call via vtable/wtable
-                hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
+                //hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
             }
             hir::Expr::ResolvedMethodCall(_, _, _, _) => {
                 unreachable!()

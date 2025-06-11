@@ -124,9 +124,11 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_value_expr(&mut self, e: mir::TypedExpr, on_return: bool) -> Result<mir::TypedExpr> {
+        let tmp = e.clone();
         if let Some(expr) = self.compile_expr(e, on_return)? {
             Ok(expr)
         } else {
+            println!("{:?}", &tmp);
             Err(anyhow!("Got None in compile_value_expr (async call?)"))
         }
     }

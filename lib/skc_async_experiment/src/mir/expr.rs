@@ -258,7 +258,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + ")"
         }
         Expr::VTableRef(receiver, idx, name) => {
-            format!("{}%{}@{}", receiver.0.pretty_print(0, false), name, idx)
+            format!(
+                "%VTableRef({}, {}, {})",
+                receiver.0.pretty_print(0, false),
+                idx,
+                name
+            )
         }
         Expr::If(cond, then, else_) => {
             format!("if {}\n", cond.0.pretty_print(0, false))
@@ -290,11 +295,11 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             pretty_print(&e.0, lv, false),
             cast_type.result_ty()
         ),
-        Expr::CreateObject(name) => format!("%create_object('{}')", name),
-        Expr::CreateTypeObject(name) => format!("%create_type_object('{}')", name),
-        Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
+        Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
+        Expr::CreateTypeObject(name) => format!("%CreateTypeObject('{}')", name),
+        Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
-        Expr::Nop => "%nop".to_string(),
+        Expr::Nop => "%Nop".to_string(),
         //_ => todo!("{:?}", self),
     };
     if indent {
