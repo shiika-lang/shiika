@@ -21,6 +21,10 @@ impl fmt::Display for MethodSignature {
 }
 
 impl MethodSignature {
+    pub fn receiver_ty(&self) -> TermTy {
+        self.fullname.type_name.to_ty()
+    }
+
     pub fn param_tys(&self) -> Vec<TermTy> {
         self.params.iter().map(|p| p.ty.clone()).collect()
     }

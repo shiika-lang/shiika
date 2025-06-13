@@ -5,6 +5,7 @@ use shiika_core::names::{
     ClassFullname, ConstFullname, MethodFirstname, ModuleFullname, TypeFullname,
 };
 use shiika_core::ty::{self, TermTy};
+use skc_hir::MethodSignature;
 
 pub type TypedExpr<T> = (Expr<T>, T);
 
@@ -21,7 +22,7 @@ pub enum Expr<T> {
     ResolvedMethodCall(
         MethodCallType,
         Box<TypedExpr<T>>,
-        MethodFirstname,
+        MethodSignature,
         Vec<TypedExpr<T>>,
     ),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
@@ -83,26 +84,15 @@ impl Expr<TermTy> {
         (Expr::FunCall(Box::new(func), args), result_ty)
     }
 
-    pub fn direct_method_call(
+    pub fn resolved_method_call(
+        method_call_type: MethodCallType,
         obj: TypedExpr<TermTy>,
-        method_name: MethodFirstname,
+        sig: MethodSignature,
         args: Vec<TypedExpr<TermTy>>,
         result_ty: TermTy,
     ) -> TypedExpr<TermTy> {
         (
-            Expr::ResolvedMethodCall(MethodCallType::Direct, Box::new(obj), method_name, args),
-            result_ty,
-        )
-    }
-
-    pub fn virtual_method_call(
-        obj: TypedExpr<TermTy>,
-        method_name: MethodFirstname,
-        args: Vec<TypedExpr<TermTy>>,
-        result_ty: TermTy,
-    ) -> TypedExpr<TermTy> {
-        (
-            Expr::ResolvedMethodCall(MethodCallType::Virtual, Box::new(obj), method_name, args),
+            Expr::ResolvedMethodCall(method_call_type, Box::new(obj), sig, args),
             result_ty,
         )
     }

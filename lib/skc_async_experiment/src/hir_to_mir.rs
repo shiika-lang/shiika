@@ -4,7 +4,7 @@ use crate::names::FunctionName;
 use crate::{build, hir, mir};
 use anyhow::Result;
 use shiika_core::ty::TermTy;
-use skc_hir::SkTypes;
+use skc_hir::{MethodSignature, SkTypes};
 use std::collections::HashSet;
 
 pub fn run(
@@ -193,17 +193,14 @@ impl<'a> HirToMir<'a> {
     }
 
     fn convert_texpr(&self, texpr: hir::TypedExpr<TermTy>) -> mir::TypedExpr {
-        (
-            self.convert_expr(texpr.0, &texpr.1),
-            self.convert_ty(texpr.1),
-        )
+        (self.convert_expr(texpr.0), self.convert_ty(texpr.1))
     }
 
     fn convert_texpr_vec(&self, exprs: Vec<hir::TypedExpr<TermTy>>) -> Vec<mir::TypedExpr> {
         exprs.into_iter().map(|x| self.convert_texpr(x)).collect()
     }
 
-    fn convert_expr(&self, expr: hir::Expr<TermTy>, ty: &TermTy) -> mir::Expr {
+    fn convert_expr(&self, expr: hir::Expr<TermTy>) -> mir::Expr {
         match expr {
             hir::Expr::Number(i) => mir::Expr::Number(i),
             hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
@@ -222,32 +219,30 @@ impl<'a> HirToMir<'a> {
             hir::Expr::UnresolvedMethodCall(_, _, _) => {
                 unreachable!("UnresolvedMethodCall should be resolved before this")
             }
-            hir::Expr::ResolvedMethodCall(call_type, receiver, method_name, args) => {
+            hir::Expr::ResolvedMethodCall(call_type, receiver, sig, args) => {
+                let receiver_ty = receiver.1.clone();
+                let mir_receiver = self.convert_texpr(*receiver);
                 let func_ref = match call_type {
-                    hir::expr::MethodCallType::Direct => {
-                        todo!();
-                    }
+                    hir::expr::MethodCallType::Direct => method_func_ref(sig),
                     hir::expr::MethodCallType::Virtual => {
                         let method_idx = self
                             .vtables
-                            .method_idx(&receiver.1, &method_name)
+                            .method_idx(&receiver_ty, &sig.fullname.first_name)
                             .expect("Method not found in vtable")
                             .0;
-                        mir::Expr::VTableRef(
-                            Box::new(self.convert_texpr(*receiver)),
+
+                        mir::Expr::vtable_ref(
+                            mir_receiver.clone(),
                             *method_idx,
-                            method_name.0,
+                            sig.fullname.first_name.0.clone(),
+                            mir::FunTy::from_method_signature(sig),
                         )
                     }
                     _ => todo!(),
                 };
-                let func_ty = mir::Ty::Fun(mir::FunTy {
-                    asyncness: mir::Asyncness::Unknown,
-                    param_tys: args.iter().map(|x| self.convert_ty(x.1.clone())).collect(),
-                    ret_ty: Box::new(self.convert_ty(ty.clone())),
-                });
-                let func_ref_t = (func_ref, func_ty);
-                mir::Expr::FunCall(Box::new(func_ref_t), self.convert_texpr_vec(args))
+                let mut mir_args = self.convert_texpr_vec(args);
+                mir_args.insert(0, mir_receiver);
+                mir::Expr::FunCall(Box::new(func_ref), mir_args)
             }
             hir::Expr::If(c, t, e) => mir::Expr::If(
                 Box::new(self.convert_texpr(*c)),
@@ -293,4 +288,12 @@ impl<'a> HirToMir<'a> {
             sig: None,
         }
     }
+}
+
+fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
+    let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
+    param_tys.insert(0, sig.fullname.type_name.to_ty());
+    let fun_ty = mir::FunTy::from_method_signature(sig.clone());
+    mir::Expr::func_ref(fname, fun_ty)
 }

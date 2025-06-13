@@ -180,6 +180,16 @@ impl From<bool> for Asyncness {
     }
 }
 
+impl From<skc_hir::Asyncness> for Asyncness {
+    fn from(x: skc_hir::Asyncness) -> Self {
+        match x {
+            skc_hir::Asyncness::Unknown => Asyncness::Unknown,
+            skc_hir::Asyncness::Sync => Asyncness::Sync,
+            skc_hir::Asyncness::Async => Asyncness::Async,
+        }
+    }
+}
+
 impl Asyncness {
     /// Returns true for Asyncness::Async. Panics if not applicable
     pub fn is_async(&self) -> bool {

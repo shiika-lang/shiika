@@ -6,7 +6,6 @@ use shiika_ast::LocationSpan;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
-use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
 /// Create typed HIR from untyped HIR.
@@ -184,24 +183,19 @@ impl<'f> Typing<'f> {
                 new_arg_exprs.insert(0, cast_recv);
 
                 let result_ty = found.sig.ret_ty.clone();
-                match found.call_type {
-                    CallType::Direct => hir::Expr::direct_method_call(
-                        new_arg_exprs.remove(0),
-                        method_name,
-                        new_arg_exprs,
-                        result_ty,
-                    ),
-                    CallType::Virtual => hir::Expr::virtual_method_call(
-                        new_arg_exprs.remove(0),
-                        method_name,
-                        new_arg_exprs,
-                        result_ty,
-                    ),
+                let call_type = match found.call_type {
+                    CallType::Direct => hir::expr::MethodCallType::Direct,
+                    CallType::Virtual => hir::expr::MethodCallType::Virtual,
                     _ => todo!("handle other call types"),
-                }
+                };
 
-                // TODO: method call via vtable/wtable
-                //hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
+                hir::Expr::resolved_method_call(
+                    call_type,
+                    new_arg_exprs.remove(0),
+                    found.sig,
+                    new_arg_exprs,
+                    result_ty,
+                )
             }
             hir::Expr::ResolvedMethodCall(_, _, _, _) => {
                 unreachable!()
@@ -298,16 +292,4 @@ fn upcast_if(cond: bool, expr: hir::TypedExpr<TermTy>, ty: TermTy) -> hir::Typed
     } else {
         expr
     }
-}
-
-fn method_func_ref(sig: &MethodSignature) -> hir::TypedExpr<TermTy> {
-    let fname = FunctionName::unmangled(&sig.fullname.full_name);
-    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
-    param_tys.insert(0, sig.fullname.type_name.to_ty());
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Unknown,
-        param_tys,
-        ret_ty: sig.ret_ty.clone(),
-    };
-    hir::Expr::func_ref(fname, fun_ty)
 }
