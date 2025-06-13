@@ -1,5 +1,4 @@
 use crate::codegen::{item, CodeGen};
-use inkwell::values::BasicValue;
 use shiika_core::names::ClassFullname;
 use skc_hir::SkTypes;
 use skc_mir;
@@ -69,11 +68,7 @@ pub fn get_function<'run>(
     idx: usize,
 ) -> inkwell::values::PointerValue<'run> {
     gen.builder
-        .build_extract_value(
-            vtable.ptr.as_basic_value_enum().into_array_value(),
-            idx as u32,
-            "func_raw",
-        )
+        .build_extract_value(vtable.load(gen, idx), idx as u32, "func_raw")
         .unwrap()
         .into_pointer_value()
 }
@@ -87,6 +82,14 @@ pub struct OpaqueVTableRef<'run> {
 impl<'run> OpaqueVTableRef<'run> {
     pub fn new(ptr: inkwell::values::PointerValue<'run>) -> OpaqueVTableRef<'run> {
         OpaqueVTableRef { ptr }
+    }
+
+    fn load(&self, gen: &CodeGen<'run, '_>, idx: usize) -> inkwell::values::ArrayValue<'run> {
+        let len = idx + 1; // It has at least `idx` elements.
+        let ary_type = gen.ptr_type().array_type(len as u32);
+        gen.builder
+            .build_load(ary_type, self.ptr.clone(), "vtable")
+            .into_array_value()
     }
 }
 
