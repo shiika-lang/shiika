@@ -31,27 +31,6 @@ pub fn build(cli: &mut Cli, package: &Package) -> Result<()> {
 
 fn create_exports(mir: &mir::CompilationUnit, package: &Package) -> Result<LibraryExports> {
     let mut sk_types = mir.sk_types.clone();
-    // Write back asyncness to SkType (REFACTOR: do this during mir generation?)
-    for func in &mir.program.funcs {
-        if let Some(sig) = &func.sig {
-            let asyncness = match func.asyncness {
-                mir::Asyncness::Sync => skc_hir::Asyncness::Sync,
-                mir::Asyncness::Async => skc_hir::Asyncness::Async,
-                mir::Asyncness::Unknown => unreachable!(),
-                mir::Asyncness::Lowered => unreachable!(),
-            };
-            let sk_type = sk_types
-                .0
-                .get_mut(&sig.fullname.type_name)
-                .expect("Function type not found in sk_types");
-            let (sig2, _) = sk_type
-                .base_mut()
-                .method_sigs
-                .get_mut(&sig.fullname.first_name)
-                .expect("Function signature not found in sk_types");
-            sig2.asyncness = asyncness;
-        }
-    }
     // Convert constants to HashMap
     let mut constants = HashMap::new();
     for (name, ty) in &mir.program.constants {

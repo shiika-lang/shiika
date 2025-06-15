@@ -64,4 +64,19 @@ impl FunctionName {
             FunctionName::Mangled(name) => name.clone(),
         }
     }
+
+    pub fn split(&self) -> Option<(&str, &str)> {
+        match self {
+            FunctionName::Unmangled(name) => {
+                let parts: Vec<&str> = name.split('#').collect();
+                if parts.len() == 2 {
+                    Some((parts[0], parts[1]))
+                } else {
+                    // eg. shiika_init_const_core
+                    None
+                }
+            }
+            FunctionName::Mangled(name) => panic!("Cannot split mangled function name: {}", name),
+        }
+    }
 }
