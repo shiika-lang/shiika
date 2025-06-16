@@ -22,14 +22,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         sk_type: &SkType,
         method_name: &MethodFirstname,
-        call_type: CallType,
+        _call_type: CallType,
     ) -> Option<FoundMethod> {
         match sk_type {
-            SkType::Class(sk_class) => sk_class
-                .base
-                .method_sigs
-                .get(method_name)
-                .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone(), call_type)),
+            SkType::Class(sk_class) => {
+                let call_type = if sk_class.is_final == Some(true) {
+                    CallType::Direct
+                } else {
+                    // Method calls on non-final classes are potentially virtual
+                    CallType::Virtual
+                };
+                sk_class
+                    .base
+                    .method_sigs
+                    .get(method_name)
+                    .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone(), call_type))
+            }
             SkType::Module(sk_module) => sk_module
                 .base
                 .method_sigs
