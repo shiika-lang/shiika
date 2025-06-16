@@ -64,6 +64,12 @@ impl VTables {
         })
     }
 
+    pub fn find(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> Option<usize> {
+        self.vtables
+            .get(&obj_ty.vtable_name())
+            .and_then(|vtable| vtable.get(method_name).cloned())
+    }
+
     /// Returns iterator over each vtable
     pub fn iter(&self) -> std::collections::hash_map::Iter<'_, ClassFullname, VTable> {
         self.vtables.iter()

@@ -233,12 +233,11 @@ impl<'a> HirToMir<'a> {
                     hir::expr::MethodCallType::Virtual => {
                         let method_idx = self
                             .lookup_vtable(&receiver_ty, &sig.fullname.first_name)
-                            .unwrap_or_else(|| panic!("Method not found in vtable: {}", sig))
-                            .0;
+                            .unwrap_or_else(|| panic!("Method not found in vtable: {}", sig));
 
                         mir::Expr::vtable_ref(
                             mir_receiver.clone(),
-                            *method_idx,
+                            method_idx,
                             sig.fullname.first_name.0.clone(),
                             mir::FunTy::from_method_signature(sig),
                         )
@@ -275,10 +274,10 @@ impl<'a> HirToMir<'a> {
         }
     }
 
-    fn lookup_vtable(&self, ty: &TermTy, method_name: &MethodFirstname) -> Option<(&usize, usize)> {
+    fn lookup_vtable(&self, ty: &TermTy, method_name: &MethodFirstname) -> Option<usize> {
         self.vtables
-            .method_idx(ty, method_name)
-            .or_else(|| self.imported_vtables.method_idx(ty, method_name))
+            .find(ty, method_name)
+            .or_else(|| self.imported_vtables.find(ty, method_name))
     }
 
     fn create_user_main(
