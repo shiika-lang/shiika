@@ -3,6 +3,7 @@ mod constants;
 use crate::names::FunctionName;
 use crate::{build, hir, mir};
 use anyhow::Result;
+use shiika_core::names::MethodFirstname;
 use shiika_core::ty::TermTy;
 use skc_hir::{MethodSignature, SkTypes};
 use std::collections::HashSet;
@@ -13,7 +14,10 @@ pub fn run(
 ) -> Result<mir::CompilationUnit> {
     log::debug!("Start");
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
-    let c = HirToMir { vtables: &vtables };
+    let c = HirToMir {
+        vtables: &vtables,
+        imported_vtables: &hir.imports.vtables,
+    };
 
     let classes = c.convert_classes(&hir);
     log::debug!("VTables built");
@@ -61,6 +65,7 @@ pub fn run(
 
 struct HirToMir<'a> {
     vtables: &'a skc_mir::VTables,
+    imported_vtables: &'a skc_mir::VTables,
 }
 
 impl<'a> HirToMir<'a> {
@@ -226,9 +231,8 @@ impl<'a> HirToMir<'a> {
                     hir::expr::MethodCallType::Direct => method_func_ref(sig),
                     hir::expr::MethodCallType::Virtual => {
                         let method_idx = self
-                            .vtables
-                            .method_idx(&receiver_ty, &sig.fullname.first_name)
-                            .expect("Method not found in vtable")
+                            .lookup_vtable(&receiver_ty, &sig.fullname.first_name)
+                            .unwrap_or_else(|| panic!("Method not found in vtable: {}", sig))
                             .0;
 
                         mir::Expr::vtable_ref(
@@ -268,6 +272,12 @@ impl<'a> HirToMir<'a> {
             hir::Expr::CreateObject(class_name) => mir::Expr::CreateObject(class_name.0),
             hir::Expr::CreateTypeObject(type_name) => mir::Expr::CreateTypeObject(type_name.0),
         }
+    }
+
+    fn lookup_vtable(&self, ty: &TermTy, method_name: &MethodFirstname) -> Option<(&usize, usize)> {
+        self.vtables
+            .method_idx(ty, method_name)
+            .or_else(|| self.imported_vtables.method_idx(ty, method_name))
     }
 
     fn create_user_main(
