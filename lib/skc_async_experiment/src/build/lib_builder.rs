@@ -3,10 +3,9 @@ use crate::build;
 use crate::cli::Cli;
 use crate::hir;
 use crate::mir;
-use crate::package::{self, Package};
+use crate::package::Package;
 use anyhow::Result;
-use shiika_core::names::type_fullname;
-use skc_hir::{MethodSignature, SkTypes};
+use skc_hir::MethodSignature;
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
 use std::io::Write;
@@ -22,15 +21,11 @@ pub fn build(cli: &mut Cli, package: &Package) -> Result<()> {
     };
     let (_, mir) = build::compiler::compile(cli, &target)?;
 
-    write_exports_json(
-        &cli.lib_exports_path(&package.spec),
-        &create_exports(&mir, package)?,
-    )?;
+    write_exports_json(&cli.lib_exports_path(&package.spec), &create_exports(&mir)?)?;
     Ok(())
 }
 
-fn create_exports(mir: &mir::CompilationUnit, package: &Package) -> Result<LibraryExports> {
-    let mut sk_types = mir.sk_types.clone();
+fn create_exports(mir: &mir::CompilationUnit) -> Result<LibraryExports> {
     // Convert constants to HashMap
     let mut constants = HashMap::new();
     for (name, ty) in &mir.program.constants {
@@ -43,33 +38,11 @@ fn create_exports(mir: &mir::CompilationUnit, package: &Package) -> Result<Libra
             sk_type.term_ty().meta_ty(),
         );
     }
-    // Merge rustlib methods
-    merge_rustlib_methods(&mut sk_types, package)?;
     Ok(LibraryExports {
-        sk_types,
+        sk_types: mir.sk_types.clone(),
         vtables: mir.vtables.clone(),
         constants,
     })
-}
-
-fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &Package) -> Result<()> {
-    for exp in p.export_files() {
-        for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
-            let mut sig = parse_sig(type_name.clone(), sig_str)?;
-            sig.asyncness = if is_async {
-                skc_hir::Asyncness::Async
-            } else {
-                skc_hir::Asyncness::Sync
-            };
-            sk_types.define_method(&type_fullname(type_name), sig);
-        }
-    }
-    Ok(())
-}
-
-fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
-    let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
-    Ok(hir::untyped::compile_signature(type_name, &ast_sig))
 }
 
 /// Serialize LibraryExports into exports.json

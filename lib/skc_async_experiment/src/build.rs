@@ -36,14 +36,14 @@ impl<'a> CompileTarget<'a> {
         matches!(self.detail, CompileTargetDetail::Bin { .. })
     }
 
-    fn package(&self) -> Option<&'a Package> {
+    pub fn package(&self) -> Option<&'a Package> {
         match &self.detail {
             CompileTargetDetail::Lib { package } => Some(package),
             CompileTargetDetail::Bin { package, .. } => package.clone(),
         }
     }
 
-    fn is_core_package(&self) -> bool {
+    pub fn is_core_package(&self) -> bool {
         self.package().map_or(false, |pkg| pkg.is_core())
     }
 

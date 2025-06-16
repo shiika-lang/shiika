@@ -1,11 +1,12 @@
 use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
-use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, prelude};
+use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
+use shiika_core::names::type_fullname;
 use shiika_core::ty::Erasure;
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
-use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
+use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, SkTypes, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
 use std::io::Read;
@@ -97,6 +98,9 @@ fn generate_hir(
         bootstrap_classes(&mut class_dict);
     }
     class_dict.index_program(&defs)?;
+    if let Some(pkg) = target.package() {
+        merge_rustlib_methods(&mut class_dict.sk_types, pkg)?;
+    }
 
     log::debug!("Create untyped AST");
     let mut hir = hir::untyped::create(&ast, &imports.constants)?;
@@ -123,6 +127,26 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     let exports: LibraryExports =
         serde_json::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
     Ok(exports)
+}
+
+fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &package::Package) -> Result<()> {
+    for exp in p.export_files() {
+        for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
+            let mut sig = parse_sig(type_name.clone(), sig_str)?;
+            sig.asyncness = if is_async {
+                skc_hir::Asyncness::Async
+            } else {
+                skc_hir::Asyncness::Sync
+            };
+            sk_types.define_method(&type_fullname(type_name), sig);
+        }
+    }
+    Ok(())
+}
+
+fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
+    let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+    Ok(hir::untyped::compile_signature(type_name, &ast_sig))
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {
