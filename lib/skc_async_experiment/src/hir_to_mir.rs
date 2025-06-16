@@ -12,15 +12,15 @@ pub fn run(
     hir: hir::CompilationUnit,
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
-    log::debug!("Start");
+    log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
     let c = HirToMir {
         vtables: &vtables,
         imported_vtables: &hir.imports.vtables,
     };
 
+    log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
-    log::debug!("VTables built");
     let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
@@ -37,7 +37,7 @@ pub fn run(
         .into_iter()
         .map(|method| c.convert_method(method))
         .collect();
-    log::debug!("User functions converted");
+
     funcs.push(constants::create_const_init_func(
         hir.package_name.as_ref(),
         hir.program
@@ -46,6 +46,7 @@ pub fn run(
             .map(|(name, rhs)| (name, c.convert_texpr(rhs)))
             .collect(),
     ));
+    log::debug!("Converting top exprs");
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         funcs.push(c.create_user_main(hir.program.top_exprs, total_deps));
     } else {
