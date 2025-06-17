@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::io::Read;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone)]
 pub struct Package {
     pub dir: PathBuf,
     /// Path to the package.json5 file

@@ -5,6 +5,7 @@ pub mod untyped;
 pub mod visitor;
 use crate::hir;
 use crate::names::FunctionName;
+use crate::package::Package;
 pub use expr::{Expr, TypedExpr};
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
@@ -14,7 +15,7 @@ pub use ty::FunTy;
 
 #[derive(Debug)]
 pub struct CompilationUnit {
-    pub package_name: Option<String>,
+    pub package: Option<Package>,
     pub imports: LibraryExports,
     pub imported_asyncs: Vec<FunctionName>,
     pub program: Program<TermTy>,

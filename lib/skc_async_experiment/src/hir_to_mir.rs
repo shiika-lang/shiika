@@ -21,7 +21,10 @@ pub fn run(
 
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
-    let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
+
+    let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs.clone());
+
+    // Constants
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
     }
@@ -37,15 +40,15 @@ pub fn run(
         .into_iter()
         .map(|method| c.convert_method(method))
         .collect();
-
     funcs.push(constants::create_const_init_func(
-        hir.package_name.as_ref(),
+        hir.package.as_ref().map(|p| &p.spec.name),
         hir.program
             .constants
             .into_iter()
             .map(|(name, rhs)| (name, c.convert_texpr(rhs)))
             .collect(),
     ));
+
     log::debug!("Converting top exprs");
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         funcs.push(c.create_user_main(hir.program.top_exprs, total_deps));
