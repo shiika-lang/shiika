@@ -110,7 +110,7 @@ fn generate_hir(
     let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
-        package: target.package().cloned(),
+        package_name: target.package_name(),
         imports,
         imported_asyncs,
         program: hir,
