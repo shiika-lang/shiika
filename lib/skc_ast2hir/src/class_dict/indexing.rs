@@ -15,7 +15,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
     pub fn add_type(&mut self, sk_type_: impl Into<SkType>) {
         let sk_type = sk_type_.into();
-        self.sk_types.0.insert(sk_type.fullname(), sk_type);
+        self.sk_types.types.insert(sk_type.fullname(), sk_type);
     }
 
     /// Add a method
@@ -23,7 +23,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
         let sk_class = self
             .sk_types
-            .0
+            .types
             .get_mut(&clsname.to_type_fullname())
             .unwrap();
         sk_class.base_mut().method_sigs.insert(sig);
@@ -103,7 +103,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
 
         let wtable = build_wtable(self, &instance_methods, &includes)?;
-        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
+        match self.sk_types.types.get_mut(&fullname.to_type_fullname()) {
             Some(sk_type) => {
                 // This class is predefined in skc_corelib.
                 // Inject `includes`
@@ -120,7 +120,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 // Inject class methods
                 let metaclass = self
                     .sk_types
-                    .0
+                    .types
                     .get_mut(&metaclass_fullname.to_type_fullname())
                     .unwrap_or_else(|| {
                         panic!(
@@ -242,7 +242,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs)?;
         let metaclass_fullname = fullname.meta_name();
 
-        match self.sk_types.0.get_mut(&fullname.to_type_fullname()) {
+        match self.sk_types.types.get_mut(&fullname.to_type_fullname()) {
             Some(sk_type) => {
                 // This module is predefined in skc_corelib.
                 // Inject instance methods
@@ -254,7 +254,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 // Inject class methods
                 let metaclass = self
                     .sk_types
-                    .0
+                    .types
                     .get_mut(&metaclass_fullname.to_type_fullname())
                     .unwrap_or_else(|| {
                         panic!(

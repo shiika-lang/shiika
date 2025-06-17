@@ -84,7 +84,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let nonmeta = self
             .class_dict
             .sk_types
-            .0
+            .types
             .iter()
             .filter(|(_, sk_type)| !sk_type.fullname().is_meta());
         let v = nonmeta

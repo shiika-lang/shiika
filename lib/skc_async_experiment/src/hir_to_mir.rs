@@ -107,7 +107,7 @@ impl<'a> HirToMir<'a> {
     ) -> Vec<mir::Extern> {
         let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
         imports
-            .0
+            .types
             .values()
             .flat_map(|sk_type| {
                 sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {

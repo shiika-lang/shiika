@@ -41,7 +41,7 @@ pub fn define_body(gen: &mut CodeGen, vtables: &skc_mir::VTables, _: item::Metho
 
 /// Declare imported vtable constants
 pub fn import(gen: &mut CodeGen, imported_types: &SkTypes) {
-    imported_types.0.values().for_each(|sk_type| {
+    imported_types.types.values().for_each(|sk_type| {
         let n_methods = sk_type.base().method_sigs.len();
         let ary_type = gen.ptr_type().array_type(n_methods as u32);
         let vtable_const_name = llvm_vtable_const_name(&sk_type.fullname().as_class_fullname());

@@ -82,7 +82,7 @@ fn generate_hir(
         imports.constants.extend(exp.constants);
         imports.vtables.merge(exp.vtables);
         // TODO: refer .asyncness directly
-        for sk_type in imports.sk_types.0.values() {
+        for sk_type in imports.sk_types.types.values() {
             for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
                 if sig.asyncness == skc_hir::Asyncness::Async {
                     imported_asyncs.push(FunctionName::from_sig(sig));

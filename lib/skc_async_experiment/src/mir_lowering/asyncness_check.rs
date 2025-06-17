@@ -64,7 +64,7 @@ pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
         let Some((type_name, method_name)) = name.split() else {
             continue;
         };
-        if let Some(sk_type) = sk_types.0.get_mut(&type_fullname(type_name)) {
+        if let Some(sk_type) = sk_types.types.get_mut(&type_fullname(type_name)) {
             if let Some((sig, _)) = sk_type
                 .base_mut()
                 .method_sigs

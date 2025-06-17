@@ -30,7 +30,7 @@ fn create_exports(mir: &mir::CompilationUnit) -> Result<LibraryExports> {
         constants.insert(name.clone(), ty.clone());
     }
     // Add type obj constants
-    for sk_type in mir.sk_types.0.values() {
+    for sk_type in mir.sk_types.types.values() {
         constants.insert(
             sk_type.fullname().to_const_fullname(),
             sk_type.term_ty().meta_ty(),

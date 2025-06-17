@@ -22,7 +22,8 @@ impl VTables {
             let name = queue.pop_front().unwrap();
             log::debug!("Processing vtable for {}", name);
             // Check if already processed
-            if vtables.contains_key(&name) || imports.sk_types.0.contains_key(&name.clone().into())
+            if vtables.contains_key(&name)
+                || imports.sk_types.types.contains_key(&name.clone().into())
             {
                 continue;
             }
