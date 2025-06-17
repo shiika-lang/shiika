@@ -15,11 +15,15 @@ pub use wtable::WTable;
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct SkTypes {
     pub types: HashMap<TypeFullname, SkType>,
+    pub rustlib_methods: Vec<MethodSignature>,
 }
 
 impl SkTypes {
     pub fn new(h: HashMap<TypeFullname, SkType>) -> SkTypes {
-        SkTypes { types: h }
+        SkTypes {
+            types: h,
+            rustlib_methods: Vec::new(),
+        }
     }
 
     pub fn from_iterator(iter: impl Iterator<Item = SkType>) -> SkTypes {
@@ -27,7 +31,10 @@ impl SkTypes {
         iter.for_each(|t| {
             tt.insert(t.fullname(), t);
         });
-        SkTypes { types: tt }
+        SkTypes {
+            types: tt,
+            rustlib_methods: Vec::new(),
+        }
     }
 
     pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {

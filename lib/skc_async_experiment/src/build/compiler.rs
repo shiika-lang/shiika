@@ -138,6 +138,7 @@ fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &package::Package) -> Result
             } else {
                 skc_hir::Asyncness::Sync
             };
+            sk_types.rustlib_methods.push(sig.clone());
             sk_types.define_method(&type_fullname(type_name), sig);
         }
     }

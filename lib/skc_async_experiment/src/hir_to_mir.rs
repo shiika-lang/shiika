@@ -22,9 +22,17 @@ pub fn run(
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
     let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
+    for sig in &hir.sk_types.rustlib_methods {
+        externs.push(mir::Extern {
+            name: FunctionName::from_sig(sig),
+            fun_ty: mir::FunTy::from_method_signature(sig.clone()),
+        });
+    }
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
     }
+
+    // Constants
     let const_list = hir
         .program
         .constants
@@ -37,7 +45,6 @@ pub fn run(
         .into_iter()
         .map(|method| c.convert_method(method))
         .collect();
-
     funcs.push(constants::create_const_init_func(
         hir.package_name.as_ref(),
         hir.program
@@ -46,6 +53,7 @@ pub fn run(
             .map(|(name, rhs)| (name, c.convert_texpr(rhs)))
             .collect(),
     ));
+
     log::debug!("Converting top exprs");
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         funcs.push(c.create_user_main(hir.program.top_exprs, total_deps));
