@@ -1,11 +1,9 @@
 //! Compiles the Shiika code in a package into single .bc.
 use crate::build;
 use crate::cli::Cli;
-use crate::hir;
 use crate::mir;
 use crate::package::Package;
 use anyhow::Result;
-use skc_hir::MethodSignature;
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
 use std::io::Write;
