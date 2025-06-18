@@ -17,7 +17,6 @@
   ["Int", ">=(other: Int) -> Bool", false],
   ["Int", "==(other: Int) -> Bool", false],
   //["Int", "to_f -> Float", false],
-  ["Object", "initialize", false],
   ["Object", "sleep_sec(sec: Int)", true],
   ["Object", "print(n: Int)", false],
 ]
