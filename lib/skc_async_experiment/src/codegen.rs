@@ -230,12 +230,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .iter()
             .map(|x| self.compile_value_expr(ctx, x).into())
             .collect::<Vec<_>>();
-        let ret = self.builder.build_indirect_call(
-            func_type,
-            func.into_pointer_value(),
-            &args,
-            "calltmp",
-        );
+        let ret =
+            self.builder
+                .build_indirect_call(func_type, func.into_pointer_value(), &args, "result");
         Some(ret.try_as_basic_value().left().unwrap())
     }
 
