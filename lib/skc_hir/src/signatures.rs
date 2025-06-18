@@ -76,4 +76,11 @@ impl MethodSignatures {
     pub fn unordered_iter(&self) -> impl Iterator<Item = &(MethodSignature, usize)> {
         self.0.values()
     }
+
+    /// Applies f to each signature.
+    pub fn update(&mut self, mut f: impl FnMut(&mut MethodSignature) -> ()) {
+        for (sig, _) in self.0.values_mut() {
+            f(sig);
+        }
+    }
 }

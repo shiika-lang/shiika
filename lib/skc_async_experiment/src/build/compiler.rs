@@ -3,10 +3,10 @@ use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
-use shiika_core::ty::Erasure;
+use shiika_core::ty::{Erasure, TermTy};
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
-use skc_hir::{MethodSignature, MethodSignatures, SkTypeBase, SkTypes, Supertype};
+use skc_hir::{MethodSignature, MethodSignatures, SkType, SkTypeBase, SkTypes, Supertype};
 use skc_mir::LibraryExports;
 use std::fs;
 use std::io::Read;
@@ -107,7 +107,8 @@ fn generate_hir(
     log::info!("Create `new`");
     hir_building::define_new::run(&mut hir, &mut class_dict);
     log::info!("Type checking");
-    let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
+    let mut hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
+    set_asyncness(&mut class_dict.sk_types, &mut hir);
     let sk_types = class_dict.sk_types;
     Ok(hir::CompilationUnit {
         package_name: target.package_name(),
@@ -148,6 +149,24 @@ fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &package::Package) -> Result
 fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
     let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
     Ok(hir::untyped::compile_signature(type_name, &ast_sig))
+}
+
+fn set_asyncness(sk_types: &mut SkTypes, hir_program: &mut hir::Program<TermTy>) {
+    for sk_type in sk_types.types.values_mut() {
+        if let SkType::Class(sk_class) = sk_type {
+            if sk_class.is_final == Some(false) {
+                // Overridable methods are potentially async
+                sk_type.base_mut().method_sigs.update(|sig| {
+                    sig.asyncness = skc_hir::Asyncness::Async;
+                });
+                for method in hir_program.methods.iter_mut() {
+                    if method.self_ty == sk_type.base().erasure.to_term_ty() {
+                        method.sig.asyncness = skc_hir::Asyncness::Async;
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {

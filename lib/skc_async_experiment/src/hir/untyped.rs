@@ -85,7 +85,7 @@ impl AstVisitor for Visitor {
                 })
                 .collect(),
             typarams: vec![],
-            asyncness: skc_hir::Asyncness::Unknown, // TODO: handle async methods
+            asyncness: skc_hir::Asyncness::Unknown,
         };
 
         let m = hir::Method {
