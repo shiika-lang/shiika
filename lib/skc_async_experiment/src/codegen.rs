@@ -156,7 +156,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         idx: &usize,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = ctx.function.get_nth_param(*idx as u32).unwrap();
+        let v = ctx.function.get_nth_param(*idx as u32).unwrap_or_else(|| {
+            panic!(
+                "argument at index {} not found in function {:?}",
+                idx, ctx.function
+            )
+        });
         Some(v)
     }
 
