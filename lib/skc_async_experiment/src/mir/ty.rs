@@ -94,13 +94,13 @@ impl fmt::Display for FunTy {
             .map(|p| p.to_string())
             .collect::<Vec<_>>()
             .join(",");
-        write!(f, "({})->{}", para, &self.ret_ty)
+        write!(f, "{}({})->{}", self.asyncness, para, &self.ret_ty)
     }
 }
 
 impl fmt::Debug for FunTy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self}")
+        write!(f, "{}", self.to_string())
     }
 }
 

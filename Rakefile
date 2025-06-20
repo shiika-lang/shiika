@@ -173,3 +173,7 @@ task :async_integration_test do
     sh "diff #{name}.actual_out #{name}.expected_out"
   end
 end
+
+task :tmp do
+  sh "clang-16 -target x86_64-pc-linux-gnu -lm -o /home/yhara/shiika/a.out a.bc /home/yhara/.shiika/packages/core-0.1.0/cargo_target/debug/libext.a /home/yhara/.shiika/packages/core-0.1.0/lib/index.bc -ldl -lpthread"
+end

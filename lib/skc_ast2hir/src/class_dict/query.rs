@@ -26,7 +26,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Option<FoundMethod> {
         match sk_type {
             SkType::Class(sk_class) => {
-                let call_type = if sk_class.is_final == Some(true) {
+                let call_type = if sk_class.is_final == Some(true) || sk_class.is_meta() {
                     CallType::Direct
                 } else {
                     // Method calls on non-final classes are potentially virtual

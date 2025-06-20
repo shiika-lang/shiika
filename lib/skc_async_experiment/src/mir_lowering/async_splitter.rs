@@ -154,6 +154,7 @@ impl<'a> Compiler<'a> {
             mir::Expr::FuncRef(_) => e,
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 let new_fexpr = self.compile_value_expr(*fexpr, false)?;
+                //dbg!(&new_fexpr);
                 let new_args = arg_exprs
                     .into_iter()
                     .map(|x| self.compile_value_expr(x, false))

@@ -309,6 +309,7 @@ impl<'a> HirToMir<'a> {
 }
 
 fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
+    dbg!(&sig);
     let fname = FunctionName::unmangled(&sig.fullname.full_name);
     let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
     param_tys.insert(0, sig.fullname.type_name.to_ty());

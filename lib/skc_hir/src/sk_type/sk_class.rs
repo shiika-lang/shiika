@@ -54,6 +54,10 @@ impl SkClass {
         self.base.erasure.to_lit_ty()
     }
 
+    pub fn is_meta(&self) -> bool {
+        self.lit_ty().is_meta
+    }
+
     pub fn ivars(mut self, x: SkIVars) -> Self {
         self.ivars = x;
         self
