@@ -68,7 +68,7 @@ pub fn run(
         sk_types: hir.sk_types,
         vtables,
         imported_constants: hir.imports.constants.into_iter().collect(),
-        imported_types: hir.imports.sk_types,
+        imported_vtables: hir.imports.vtables,
     })
 }
 

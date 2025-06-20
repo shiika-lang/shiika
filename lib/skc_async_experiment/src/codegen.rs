@@ -38,7 +38,7 @@ pub fn run<P: AsRef<Path>>(
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
     constants::declare_const_globals(&mut c, &mir.program.constants);
-    vtable::import(&mut c, &mir.imported_types);
+    vtable::import(&mut c, &mir.imported_vtables);
     vtable::define(&mut c, &mir.vtables);
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
