@@ -29,6 +29,7 @@ pub enum Expr {
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
     CreateTypeObject(String),
+    // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
