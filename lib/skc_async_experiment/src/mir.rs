@@ -165,7 +165,7 @@ impl fmt::Display for Asyncness {
             Asyncness::Unknown => write!(f, "[?]"),
             Asyncness::Sync => write!(f, "[+]"),
             Asyncness::Async => write!(f, "[*]"),
-            Asyncness::Lowered => write!(f, ""), // "[.]"
+            Asyncness::Lowered => write!(f, "[.]"),
         }
     }
 }
