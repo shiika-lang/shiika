@@ -163,7 +163,7 @@ fn parse_sig(type_name: String, sig_str: String) -> Result<MethodSignature> {
 fn set_asyncness(sk_types: &mut SkTypes, hir_program: &mut hir::Program<TermTy>) {
     for sk_type in sk_types.types.values_mut() {
         if let SkType::Class(sk_class) = sk_type {
-            if sk_class.is_final == Some(false) {
+            if sk_class.is_final == Some(false) && !sk_class.is_meta() {
                 // Overridable methods are potentially async
                 sk_type.base_mut().method_sigs.update(|sig| {
                     sig.asyncness = skc_hir::Asyncness::Async;
