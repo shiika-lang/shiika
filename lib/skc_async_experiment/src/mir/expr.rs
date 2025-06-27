@@ -204,13 +204,6 @@ impl Expr {
         (Expr::Nop, Ty::raw("Void"))
     }
 
-    pub fn is_async_fun_call(&self) -> bool {
-        match self {
-            Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun().unwrap(),
-            _ => false,
-        }
-    }
-
     pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
         pretty_print(self, lv, as_stmt)
     }
