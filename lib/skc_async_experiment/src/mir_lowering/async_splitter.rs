@@ -380,14 +380,8 @@ impl<'a> Compiler<'a> {
         };
         let ret = match new_expr {
             (mir::Expr::FunCall(fexpr, args), _) if fexpr.1.is_async_fun().unwrap() => {
-                self.continue_with_func(*fexpr, args, env_pop, None)
+                self.continue_with_func(*fexpr, args, env_pop)
             }
-            (mir::Expr::Cast(_, castee), cast_ty) => match castee.0 {
-                mir::Expr::FunCall(fexpr, args) if fexpr.1.is_async_fun().unwrap() => {
-                    self.continue_with_func(*fexpr, args, env_pop, Some(cast_ty))
-                }
-                _ => self.continue_with_value(*castee, env_pop),
-            },
             _ => self.continue_with_value(new_expr, env_pop),
         };
         Ok(Some(ret))
@@ -401,10 +395,9 @@ impl<'a> Compiler<'a> {
         fexpr: mir::TypedExpr,
         mut args: Vec<mir::TypedExpr>,
         env_pop: mir::TypedExpr,
-        cast_ty: Option<mir::Ty>,
     ) -> mir::TypedExpr {
         args.push(env_pop);
-        let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty(), cast_ty).into());
+        let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty()).into());
         mir::Expr::return_(mir::Expr::fun_call(new_fexpr, args))
     }
 
@@ -445,14 +438,9 @@ impl<'a> Compiler<'a> {
 }
 
 // Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((ChiikaEnv, Y)->RustFuture))->RustFuture)`
-fn async_fun_ty(orig_fun_ty: &mir::FunTy, cast_ty: Option<mir::Ty>) -> mir::FunTy {
+fn async_fun_ty(orig_fun_ty: &mir::FunTy) -> mir::FunTy {
     let mut param_tys = orig_fun_ty.param_tys.clone();
-    let orig_ret_ty = if let Some(cast_ty) = cast_ty {
-        // If the return type is casted, use the casted type
-        cast_ty
-    } else {
-        orig_fun_ty.ret_ty.as_ref().clone()
-    };
+    let orig_ret_ty = orig_fun_ty.ret_ty.as_ref().clone();
     param_tys.push(mir::Ty::Fun(mir::FunTy {
         asyncness: mir::Asyncness::Lowered,
         param_tys: vec![mir::Ty::ChiikaEnv, orig_ret_ty],
@@ -483,7 +471,7 @@ fn modify_async_call(
         mir::Expr::func_ref(next_chapter_name, next_chapter_ty)
     };
     args.push(next_chapter);
-    let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty(), None).into());
+    let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty()).into());
     mir::Expr::fun_call(new_fexpr, args)
 }
 
