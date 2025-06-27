@@ -59,11 +59,6 @@ impl SkClass {
         self.is_final == Some(false) && !self.base.erasure.is_meta
     }
 
-    pub fn is_meta(&self) -> bool {
-        //self.base.erasure.is_meta
-        self.lit_ty().is_meta
-    }
-
     pub fn ivars(mut self, x: SkIVars) -> Self {
         self.ivars = x;
         self
