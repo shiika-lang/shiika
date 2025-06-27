@@ -159,11 +159,11 @@ impl<'a> Compiler<'a> {
                     .map(|x| self.compile_value_expr(x, false))
                     .collect::<Result<Vec<_>>>()?;
                 let fun_ty = new_fexpr.1.as_fun_ty();
-                // No need to create a new chapter if on_return is true.
-                // In that case the args are modified later (see mir::Expr::Return)
                 if fun_ty.asyncness.is_async() && !on_return {
                     self.compile_async_call(new_fexpr, new_args, e.1)?
                 } else {
+                    // No need to create a new chapter if on_return is true.
+                    // In that case the args are modified later (see compile_return)
                     mir::Expr::fun_call(new_fexpr, new_args)
                 }
             }
