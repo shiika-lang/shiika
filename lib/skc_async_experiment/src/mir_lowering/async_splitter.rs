@@ -129,7 +129,7 @@ impl<'a> Compiler<'a> {
             Ok(expr)
         } else {
             println!("{:?}", &tmp);
-            Err(anyhow!("Got None in compile_value_expr (async call?)"))
+            panic!("Got None in compile_value_expr (async call?)")
         }
     }
 
@@ -140,6 +140,7 @@ impl<'a> Compiler<'a> {
         e: mir::TypedExpr,
         on_return: bool,
     ) -> Result<Option<mir::TypedExpr>> {
+        dbg!(&e.0);
         let new_e = match e.0 {
             mir::Expr::Number(_) => e,
             mir::Expr::PseudoVar(_) => e,
