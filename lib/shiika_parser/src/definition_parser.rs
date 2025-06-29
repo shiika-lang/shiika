@@ -60,7 +60,6 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
-        dbg!(&name, &base_seen);
 
         // Type parameters (optional)
         let typarams = self.parse_opt_typarams()?;
