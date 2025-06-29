@@ -7,16 +7,24 @@ use shiika_core::names::*;
 impl<'a> Parser<'a> {
     pub fn parse_definitions(&mut self) -> Result<Vec<shiika_ast::Definition>, Error> {
         let mut defs = vec![];
-        while let Some(def) = self.parse_definition()? {
+        while let Some(def) = self.parse_definition(false)? {
             defs.push(def);
             self.skip_wsn()?;
         }
         Ok(defs)
     }
 
-    fn parse_definition(&mut self) -> Result<Option<shiika_ast::Definition>, Error> {
+    fn parse_definition(
+        &mut self,
+        base_seen: bool,
+    ) -> Result<Option<shiika_ast::Definition>, Error> {
         match self.current_token() {
-            Token::KwClass => Ok(Some(self.parse_class_definition()?)),
+            Token::KwBase => {
+                self.consume(Token::KwBase)?;
+                self.skip_ws()?;
+                self.parse_definition(true)
+            }
+            Token::KwClass => Ok(Some(self.parse_class_definition(base_seen)?)),
             Token::KwModule => Ok(Some(self.parse_module_definition()?)),
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
@@ -26,7 +34,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_class_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+    pub fn parse_class_definition(
+        &mut self,
+        base_seen: bool,
+    ) -> Result<shiika_ast::Definition, Error> {
         self.debug_log("parse_class_definition");
         self.lv += 1;
         let name;
@@ -49,6 +60,7 @@ impl<'a> Parser<'a> {
                 ))
             }
         }
+        dbg!(&name, &base_seen);
 
         // Type parameters (optional)
         let typarams = self.parse_opt_typarams()?;
@@ -85,6 +97,7 @@ impl<'a> Parser<'a> {
 
         self.lv -= 1;
         Ok(shiika_ast::Definition::ClassDefinition {
+            inheritable: base_seen,
             name,
             typarams,
             supers,

@@ -72,6 +72,7 @@ pub enum Token {
     Specialize,   //  <> (used internally)
     // Keywords
     KwRequire,
+    KwBase,
     KwClass,
     KwModule,
     KwRequirement,
@@ -200,6 +201,7 @@ impl Token {
             Token::Specialize => false,   //  <>
             // Keywords
             Token::KwRequire => false,
+            Token::KwBase => false,
             Token::KwClass => false,
             Token::KwModule => false,
             Token::KwRequirement => false,
