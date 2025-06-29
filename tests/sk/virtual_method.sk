@@ -1,4 +1,4 @@
-class A
+base class A
   def foo -> Int
     1
   end

@@ -16,7 +16,7 @@ end
 
 # Array literal type inference
 [] # Array<Object>
-class B; end
+base class B; end
 class C : B; end
 [B.new, C.new] # Array<B>
 

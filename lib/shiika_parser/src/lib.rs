@@ -85,13 +85,22 @@ impl<'a> Parser<'a> {
 
     fn parse_toplevel_items(&mut self) -> Result<Vec<ast::TopLevelItem>, Error> {
         let mut items = vec![];
+        let mut base_seen = false;
         loop {
             match self.current_token() {
                 Token::KwRequire => {
                     self.skip_require()?;
                 }
+                Token::KwBase => {
+                    self.consume(Token::KwBase)?;
+                    self.skip_ws()?;
+                    base_seen = true;
+                }
                 Token::KwClass => {
-                    items.push(ast::TopLevelItem::Def(self.parse_class_definition()?));
+                    items.push(ast::TopLevelItem::Def(
+                        self.parse_class_definition(base_seen)?,
+                    ));
+                    base_seen = false;
                 }
                 Token::KwModule => {
                     items.push(ast::TopLevelItem::Def(self.parse_module_definition()?));
