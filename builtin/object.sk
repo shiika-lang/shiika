@@ -1,4 +1,4 @@
-class Object
+base class Object
   def initialize
   end
 
