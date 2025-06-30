@@ -129,7 +129,7 @@ impl<'a> Compiler<'a> {
             Ok(expr)
         } else {
             println!("{:?}", &tmp);
-            Err(anyhow!("Got None in compile_value_expr (async call?)"))
+            panic!("Got None in compile_value_expr (async call?)")
         }
     }
 
