@@ -34,11 +34,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         for def in toplevel_defs {
             match def {
                 shiika_ast::Definition::ClassDefinition {
+                    inheritable,
                     name,
                     typarams,
                     supers,
                     defs,
-                } => self.index_class(&namespace, name, parse_typarams(typarams), supers, defs)?,
+                } => self.index_class(
+                    *inheritable,
+                    &namespace,
+                    name,
+                    parse_typarams(typarams),
+                    supers,
+                    defs,
+                )?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
@@ -64,6 +72,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_class(
         &mut self,
+        inheritable: bool,
         namespace: &Namespace,
         firstname: &ClassFirstname,
         typarams: Vec<ty::TyParam>,
@@ -110,6 +119,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 if let SkType::Class(sk_class) = sk_type {
                     sk_class.wtable = wtable;
                     sk_class.includes = includes;
+                    sk_class.is_final = Some(!inheritable);
                 }
                 // Inject instance methods
                 let method_sigs = &mut sk_type.base_mut().method_sigs;
@@ -156,7 +166,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     new_sig,
                     instance_methods,
                     class_methods,
-                    Some(false),
+                    Some(!inheritable),
                     false,
                 )?;
             }
@@ -473,12 +483,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
                 shiika_ast::Definition::ConstDefinition { .. } => (),
                 shiika_ast::Definition::ClassDefinition {
+                    inheritable,
                     name,
                     typarams,
                     supers,
                     defs,
                 } => {
-                    self.index_class(namespace, name, parse_typarams(typarams), supers, defs)?;
+                    self.index_class(
+                        *inheritable,
+                        namespace,
+                        name,
+                        parse_typarams(typarams),
+                        supers,
+                        defs,
+                    )?;
                 }
                 shiika_ast::Definition::ModuleDefinition {
                     name,

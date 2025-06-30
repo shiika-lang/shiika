@@ -42,6 +42,7 @@ pub enum TopLevelItem {
 #[derive(Debug, PartialEq)]
 pub enum Definition {
     ClassDefinition {
+        inheritable: bool,
         name: ClassFirstname,
         typarams: Vec<AstTyParam>,
         supers: Vec<UnresolvedTypeName>,

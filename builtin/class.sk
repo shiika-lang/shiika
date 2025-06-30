@@ -1,4 +1,4 @@
-class Class
+base class Class
   def name -> String
     # Accessors does not defined automatically for classes defined skc_corelib
     @name

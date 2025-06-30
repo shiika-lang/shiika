@@ -1,5 +1,5 @@
 # Inherit methods
-class Base1
+base class Base1
   def foo -> Int
     1
   end
@@ -12,13 +12,13 @@ let sub1 = Sub1.new
 unless sub1.foo == 1 then puts "ng 1" end
 
 # Inherit initializer
-class Base2
+base class Base2
   def initialize
     let @a = 9
   end
 end
 
-class Mid2 : Base2
+base class Mid2 : Base2
 end
 
 class Sub2 : Mid2
@@ -28,7 +28,7 @@ let sub2 = Sub2.new
 unless sub2.a == 9 then puts "ng 2" end
 
 # Inherit ivars
-class Base3
+base class Base3
   def initialize(i: Int)
     let @a = i
   end

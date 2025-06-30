@@ -399,6 +399,7 @@ impl<'a> Lexer<'a> {
         let s = &self.src[begin..next_cur.pos];
         let (token, state) = match s {
             "require" => (Token::KwRequire, LexerState::ExprBegin),
+            "base" => (Token::KwBase, LexerState::ExprBegin),
             "class" => (Token::KwClass, LexerState::ExprBegin),
             "module" => (Token::KwModule, LexerState::ExprBegin),
             "requirement" => (Token::KwRequirement, LexerState::ExprBegin),

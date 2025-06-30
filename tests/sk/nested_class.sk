@@ -1,5 +1,5 @@
 class A
-  class B; end
+  base class B; end
   class C : B
     def foo(b: B) -> Int
       1
