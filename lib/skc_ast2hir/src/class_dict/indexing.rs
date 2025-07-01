@@ -307,16 +307,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         {
             // Has explicit initializer definition
             params::convert_params(self, namespace, &sig.params, typarams, Default::default())
-        } else {
+        } else if let Ok(found) = self.lookup_method(
+            &superclass.to_term_ty(),
+            &method_firstname("initialize"),
+            &LocationSpan::internal(),
+        ) {
             // Inherit #initialize from superclass
-            let found = self
-                .lookup_method(
-                    &superclass.to_term_ty(),
-                    &method_firstname("initialize"),
-                    &LocationSpan::internal(),
-                )
-                .expect("[BUG] initialize not found");
             Ok(specialized_initialize(&found.sig, superclass).params)
+        } else {
+            // No initializer found, return empty params
+            Ok(vec![])
         }
     }
 
