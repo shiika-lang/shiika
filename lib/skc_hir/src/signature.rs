@@ -12,6 +12,9 @@ pub struct MethodSignature {
     pub params: Vec<MethodParam>,
     pub typarams: Vec<TyParam>,
     pub asyncness: Asyncness,
+    /// True if this method is inheritable (i.e. belongs to non-final class) or overrides
+    /// ancestor's. `None` if not known yet.
+    pub polymorphic: Option<bool>,
 }
 
 impl fmt::Display for MethodSignature {
@@ -67,6 +70,7 @@ impl MethodSignature {
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
             asyncness: self.asyncness.clone(),
+            polymorphic: self.polymorphic,
         }
     }
 
@@ -120,6 +124,11 @@ impl MethodSignature {
 
     /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
+        let polymorphic = match self.polymorphic {
+            Some(true) => "polymorphic ",
+            Some(false) => "",
+            None => panic!("MethodSignature::serialize: polymorphic is None"),
+        };
         let typarams = self
             .typarams
             .iter()
@@ -133,7 +142,8 @@ impl MethodSignature {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "{}<{}>{}({}){}",
+            "{}{}<{}>{}({}){}",
+            polymorphic,
             self.asyncness,
             typarams,
             &self.fullname,
@@ -144,6 +154,7 @@ impl MethodSignature {
 
     /// nom parser for MethodSignature
     pub fn deserialize(s: &str) -> IResult<&str, MethodSignature> {
+        let (s, polymorphic) = nom::combinator::opt(tag("polymorphic "))(s)?;
         let (s, asyncness) = Asyncness::deserialize(s)?;
         let parse_typarams = nom::multi::separated_list0(tag(","), TyParam::deserialize);
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
@@ -162,6 +173,7 @@ impl MethodSignature {
                 params,
                 typarams,
                 asyncness,
+                polymorphic: Some(polymorphic.is_some()),
             },
         ))
     }
@@ -294,6 +306,7 @@ pub fn signature_of_new(
         params,
         typarams,
         asyncness: Asyncness::Unknown,
+        polymorphic: None,
     }
 }
 
@@ -308,6 +321,7 @@ pub fn signature_of_initialize(
         params,
         typarams: vec![],
         asyncness: Asyncness::Unknown,
+        polymorphic: None,
     }
 }
 

@@ -86,6 +86,7 @@ impl AstVisitor for Visitor {
                 .collect(),
             typarams: vec![],
             asyncness: skc_hir::Asyncness::Unknown,
+            polymorphic: None,
         };
 
         let m = hir::Method {
@@ -338,6 +339,7 @@ pub fn compile_signature(
         params,
         typarams: vec![],
         asyncness: skc_hir::Asyncness::Unknown,
+        polymorphic: None,
     }
 }
 

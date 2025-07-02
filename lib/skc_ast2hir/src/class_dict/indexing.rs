@@ -548,6 +548,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 params: Default::default(),
                 typarams: Default::default(),
                 asyncness: Asyncness::Sync,
+                polymorphic: None,
             };
             instance_methods.insert(sig);
         }
@@ -686,6 +687,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             )?,
             typarams: method_typarams,
             asyncness: Asyncness::Unknown,
+            polymorphic: None,
         })
     }
 
@@ -811,6 +813,7 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         params: Default::default(),
         typarams: Default::default(),
         asyncness: Asyncness::Unknown,
+        polymorphic: None,
     });
     MethodSignatures::from_iterator(iter)
 }
