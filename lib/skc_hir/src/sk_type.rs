@@ -10,7 +10,6 @@ pub use sk_module::SkModule;
 pub use sk_type_base::SkTypeBase;
 pub use wtable::WTable;
 
-
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum SkType {

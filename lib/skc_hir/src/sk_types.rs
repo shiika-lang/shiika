@@ -1,5 +1,5 @@
-use crate::MethodSignature;
 use crate::sk_type::{SkClass, SkType};
+use crate::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use std::collections::HashMap;
