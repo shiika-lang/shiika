@@ -18,7 +18,7 @@
 //! ```
 use crate::mir;
 use crate::names::FunctionName;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use skc_hir::MethodSignature;
 use std::collections::VecDeque;
 
