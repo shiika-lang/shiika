@@ -1,2 +1,2 @@
-class Object
+base class Object
 end
