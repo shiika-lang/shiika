@@ -22,10 +22,12 @@ pub fn run(
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
     let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
-    for sig in &hir.sk_types.rustlib_methods {
+    for method_name in &hir.sk_types.rustlib_methods {
         externs.push(mir::Extern {
-            name: FunctionName::from_sig(sig),
-            fun_ty: mir::FunTy::from_method_signature(sig.clone()),
+            name: FunctionName::unmangled(&method_name.full_name),
+            fun_ty: mir::FunTy::from_method_signature(
+                hir.sk_types.get_sig(method_name).unwrap().clone(),
+            ),
         });
     }
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {

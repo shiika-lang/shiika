@@ -77,9 +77,23 @@ impl MethodSignatures {
         self.0.values()
     }
 
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut MethodSignature> {
+        self.0.values_mut().map(|(sig, _)| sig)
+    }
+
     /// Applies f to each signature.
     pub fn update(&mut self, mut f: impl FnMut(&mut MethodSignature) -> ()) {
         for (sig, _) in self.0.values_mut() {
+            f(sig);
+        }
+    }
+
+    /// Calls f for each signature.
+    pub fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(&MethodSignature),
+    {
+        for (sig, _) in self.0.values() {
             f(sig);
         }
     }

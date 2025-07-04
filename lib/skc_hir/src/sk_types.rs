@@ -7,7 +7,8 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct SkTypes {
     pub types: HashMap<TypeFullname, SkType>,
-    pub rustlib_methods: Vec<MethodSignature>,
+    /// List of methods that are defined in Rust (= foreign to the main LLVM IR).
+    pub rustlib_methods: Vec<MethodFullname>,
 }
 
 impl SkTypes {
@@ -53,6 +54,14 @@ impl SkTypes {
         } else {
             panic!("{} is module, not a class", name)
         }
+    }
+
+    /// Returns the signature of the method with the given fullname, if it exists.
+    pub fn get_sig(&self, fullname: &MethodFullname) -> Option<&MethodSignature> {
+        self.types
+            .get(&fullname.type_name)
+            .and_then(|sk_type| sk_type.base().method_sigs.get(&fullname.first_name))
+            .map(|(sig, _)| sig)
     }
 
     pub fn define_method(&mut self, type_name: &TypeFullname, method_sig: MethodSignature) {

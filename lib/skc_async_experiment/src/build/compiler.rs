@@ -1,13 +1,14 @@
 use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use shiika_core::names::type_fullname;
 use shiika_core::ty::{Erasure, TermTy};
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
 use skc_hir::{MethodSignature, MethodSignatures, SkType, SkTypeBase, SkTypes, Supertype};
 use skc_mir::LibraryExports;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -110,6 +111,7 @@ fn generate_hir(
     if let Some(pkg) = target.package() {
         merge_rustlib_methods(&mut class_dict.sk_types, pkg)?;
     }
+    set_polymorphic(&mut class_dict)?;
 
     log::debug!("Create untyped AST");
     let mut hir = hir::untyped::create(&ast, &imports.constants)?;
@@ -139,6 +141,7 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     Ok(exports)
 }
 
+/// Insert signatures in exports.json5 (methods written in Rust) into SkTypes.
 fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &package::Package) -> Result<()> {
     for exp in p.export_files() {
         for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
@@ -148,8 +151,49 @@ fn merge_rustlib_methods(sk_types: &mut SkTypes, p: &package::Package) -> Result
             } else {
                 skc_hir::Asyncness::Sync
             };
-            sk_types.rustlib_methods.push(sig.clone());
+            sk_types.rustlib_methods.push(sig.fullname.clone());
             sk_types.define_method(&type_fullname(type_name), sig);
+        }
+    }
+    Ok(())
+}
+
+fn set_polymorphic(class_dict: &mut ClassDict) -> Result<()> {
+    // 2-pass to avoid borrow checker issues
+    let mut updates = HashMap::new();
+    for sk_type in class_dict.sk_types.types.values() {
+        if let SkType::Class(sk_class) = sk_type {
+            if sk_class.inheritable() {
+                ();
+            } else if let Some(supertype) = sk_class.superclass.as_ref() {
+                let super_ty = supertype.to_term_ty();
+                sk_type.base().method_sigs.for_each(|sig| {
+                    let opt_found =
+                        class_dict.try_lookup_method(&super_ty, &sig.fullname.first_name);
+                    updates.insert(sig.fullname.clone(), opt_found.is_some());
+                });
+            }
+        }
+    }
+    for sk_type in class_dict.sk_types.types.values_mut() {
+        if let SkType::Class(sk_class) = sk_type {
+            let inheritable = sk_class.inheritable();
+            for sig in sk_type.base_mut().method_sigs.iter_mut() {
+                let polymorphic = if inheritable {
+                    true
+                } else if let Some(b) = updates.get(&sig.fullname) {
+                    *b
+                } else {
+                    false
+                };
+                if polymorphic && sig.asyncness == skc_hir::Asyncness::Sync {
+                    return Err(anyhow!(
+                        "{} is polymorphic but has sync asyncness",
+                        sig.fullname
+                    ));
+                }
+                sig.polymorphic = Some(polymorphic);
+            }
         }
     }
     Ok(())
@@ -164,6 +208,7 @@ fn set_asyncness(sk_types: &mut SkTypes, hir_program: &mut hir::Program<TermTy>)
     for sk_type in sk_types.types.values_mut() {
         if let SkType::Class(sk_class) = sk_type {
             if sk_class.inheritable() {
+                //|| sk_class.has_non_object_superclass() {
                 // Overridable methods are potentially async
                 sk_type.base_mut().method_sigs.update(|sig| {
                     sig.asyncness = skc_hir::Asyncness::Async;

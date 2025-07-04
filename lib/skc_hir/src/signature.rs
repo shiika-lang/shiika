@@ -14,6 +14,9 @@ pub struct MethodSignature {
     pub asyncness: Asyncness,
     /// True if this method is inheritable (i.e. belongs to non-final class) or overrides
     /// ancestor's. `None` if not known yet.
+    ///
+    /// - Polyhmorphic methods are invoked via vtables.
+    /// - Polyhmorphic methods are always treated as async.
     pub polymorphic: Option<bool>,
 }
 
