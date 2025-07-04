@@ -127,7 +127,10 @@ impl MethodSignature {
         let polymorphic = match self.polymorphic {
             Some(true) => "polymorphic ",
             Some(false) => "",
-            None => panic!("MethodSignature::serialize: polymorphic is None"),
+            None => panic!(
+                "MethodSignature::serialize: polymorphic is None: {:?}",
+                self
+            ),
         };
         let typarams = self
             .typarams
