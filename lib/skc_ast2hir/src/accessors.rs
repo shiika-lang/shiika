@@ -49,7 +49,7 @@ fn create_getter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         params: vec![],
         typarams: vec![],
         asyncness: Asyncness::Sync,
-        polymorphic: None,
+        polymorphic: false,
     };
     SkMethod::simple(
         sig,
@@ -75,7 +75,7 @@ fn create_setter(clsname: &ClassFullname, ivar: &SkIVar) -> SkMethod {
         }],
         typarams: vec![],
         asyncness: Asyncness::Sync,
-        polymorphic: None,
+        polymorphic: false,
     };
     SkMethod::simple(
         sig,

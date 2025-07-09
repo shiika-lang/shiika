@@ -26,17 +26,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Option<FoundMethod> {
         match sk_type {
             SkType::Class(sk_class) => {
-                let call_type = if !sk_class.inheritable() {
-                    CallType::Direct
-                } else {
-                    // Method calls on non-final classes are potentially virtual
-                    CallType::Virtual
-                };
-                sk_class
-                    .base
-                    .method_sigs
-                    .get(method_name)
-                    .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone(), call_type))
+                sk_class.base.method_sigs.get(method_name).map(|(sig, _)| {
+                    let call_type = if sig.polymorphic {
+                        CallType::Virtual
+                    } else {
+                        CallType::Direct
+                    };
+                    FoundMethod::class(sk_type, sig.clone(), call_type)
+                })
             }
             SkType::Module(sk_module) => sk_module
                 .base
@@ -74,6 +71,21 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             CallType::Direct,
             locs,
         )
+    }
+
+    pub fn try_lookup_method(
+        &self,
+        receiver_type: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Option<FoundMethod> {
+        self.lookup_method_(
+            receiver_type,
+            receiver_type,
+            method_name,
+            CallType::Direct,
+            &LocationSpan::todo(),
+        )
+        .ok()
     }
 
     // `receiver_type` is for error message.
@@ -188,6 +200,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a type. Panic if not found
     pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
         self.find_type(fullname)
+            .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
+    }
+
+    /// Find a type. Panic if not found
+    pub fn get_type_mut(&mut self, fullname: &TypeFullname) -> &mut SkType {
+        self.sk_types
+            .types
+            .get_mut(fullname)
             .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
     }
 

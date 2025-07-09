@@ -108,8 +108,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ))
         };
 
-        let (instance_methods, class_methods) =
-            self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
+        let (instance_methods, class_methods) = self.index_defs_in_class(
+            inheritable,
+            &inner_namespace,
+            &fullname,
+            &typarams,
+            &superclass,
+            defs,
+        )?;
 
         let wtable = build_wtable(self, &instance_methods, &includes)?;
         match self.sk_types.types.get_mut(&fullname.to_type_fullname()) {
@@ -331,7 +337,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) =
-            self.index_defs_in_class(&inner_namespace, &fullname, &typarams, defs)?;
+            self.index_defs_in_class(false, &inner_namespace, &fullname, &typarams, &None, defs)?;
         self.add_new_class(
             &fullname,
             &typarams,
@@ -404,15 +410,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn index_defs_in_class(
         &mut self,
+        inheritable: bool,
         namespace: &Namespace,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures)> {
         let (instance_methods, class_methods, _) = self._index_inner_defs(
+            inheritable,
             namespace,
             fullname.to_type_fullname(),
             typarams,
+            superclass,
             defs,
             false,
         )?;
@@ -426,14 +436,24 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
-        self._index_inner_defs(namespace, fullname.to_type_fullname(), typarams, defs, true)
+        self._index_inner_defs(
+            false,
+            namespace,
+            fullname.to_type_fullname(),
+            typarams,
+            &None,
+            defs,
+            true,
+        )
     }
 
     fn _index_inner_defs(
         &mut self,
+        inheritable: bool,
         namespace: &Namespace,
         fullname: TypeFullname,
         typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
         defs: &[shiika_ast::Definition],
         is_module: bool,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
@@ -442,17 +462,21 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut requirements = vec![];
         for def in defs {
             match def {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, .. } => {
-                    let hir_sig =
-                        self.create_signature(namespace, fullname.clone(), sig, typarams)?;
-                    instance_methods.insert(hir_sig);
-                }
-                shiika_ast::Definition::InitializerDefinition(
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+                | shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
-                    let hir_sig =
-                        self.create_signature(namespace, fullname.clone(), sig, typarams)?;
-                    self._index_accessors(&mut instance_methods, sig, &hir_sig);
+                    let hir_sig = self.create_maybe_polymorphic_signature(
+                        inheritable,
+                        namespace,
+                        fullname.clone(),
+                        sig,
+                        typarams,
+                        superclass,
+                    )?;
+                    if sig.name.0 == "initialize" {
+                        self._index_accessors(&mut instance_methods, sig, &hir_sig);
+                    }
                     instance_methods.insert(hir_sig);
                 }
                 shiika_ast::Definition::ClassMethodDefinition { sig, .. } => {
@@ -461,6 +485,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         fullname.meta_name().to_type_fullname(),
                         sig,
                         Default::default(),
+                        false,
                     )?;
                     class_methods.insert(hir_sig);
                 }
@@ -478,6 +503,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         fullname.meta_name().to_type_fullname(),
                         sig,
                         Default::default(),
+                        false,
                     )?;
                     class_methods.insert(hir_sig);
                 }
@@ -507,8 +533,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
                 shiika_ast::Definition::MethodRequirementDefinition { sig } => {
                     if is_module {
-                        let hir_sig =
-                            self.create_signature(namespace, fullname.clone(), sig, typarams)?;
+                        let hir_sig = self.create_signature(
+                            namespace,
+                            fullname.clone(),
+                            sig,
+                            typarams,
+                            false,
+                        )?;
                         requirements.push(hir_sig);
                     } else {
                         return Err(error::syntax_error(&format!(
@@ -548,7 +579,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 params: Default::default(),
                 typarams: Default::default(),
                 asyncness: Asyncness::Sync,
-                polymorphic: None,
+                polymorphic: false,
             };
             instance_methods.insert(sig);
         }
@@ -660,13 +691,36 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         });
     }
 
+    /// Checks if the method is virtual and returns the signature.
+    pub fn create_maybe_polymorphic_signature(
+        &self,
+        inheritable: bool,
+        namespace: &Namespace,
+        fullname: TypeFullname,
+        sig: &shiika_ast::AstMethodSignature,
+        typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
+    ) -> Result<MethodSignature> {
+        let polymorphic = if inheritable {
+            true
+        } else if let Some(superclass) = superclass {
+            self.try_lookup_method(&superclass.to_term_ty(), &sig.name)
+                .is_some()
+        } else {
+            false
+        };
+        self.create_signature(namespace, fullname.clone(), sig, typarams, polymorphic)
+    }
+
     /// Convert AstMethodSignature to MethodSignature
     pub fn create_signature(
         &self,
+        // Used to resolve type names
         namespace: &Namespace,
         type_fullname: TypeFullname,
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
+        polymorphic: bool,
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(type_fullname, &sig.name.0);
@@ -674,6 +728,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
         } else {
             ty::raw("Void") // Default return type.
+        };
+        let asyncness = if polymorphic {
+            Asyncness::Async
+        } else {
+            Asyncness::Unknown
         };
         Ok(MethodSignature {
             fullname,
@@ -686,8 +745,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 &method_typarams,
             )?,
             typarams: method_typarams,
-            asyncness: Asyncness::Unknown,
-            polymorphic: None,
+            asyncness,
+            polymorphic,
         })
     }
 
@@ -813,7 +872,7 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         params: Default::default(),
         typarams: Default::default(),
         asyncness: Asyncness::Unknown,
-        polymorphic: None,
+        polymorphic: false,
     });
     MethodSignatures::from_iterator(iter)
 }

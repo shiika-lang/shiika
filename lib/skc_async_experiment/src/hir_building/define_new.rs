@@ -72,7 +72,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
         params: params.clone(),
         typarams,
         asyncness: skc_hir::Asyncness::Unknown,
-        polymorphic: None,
+        polymorphic: false,
     };
     hir::Method {
         name: method_name.clone().into(),

@@ -4,9 +4,9 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor};
-use shiika_core::names::{method_firstname, method_fullname_raw, ConstFullname, Namespace};
+use shiika_core::names::{method_firstname, ConstFullname, Namespace};
 use shiika_core::ty::{self, TermTy};
-use skc_hir::{MethodParam, MethodSignature};
+use skc_ast2hir::class_dict::{CallType, ClassDict};
 use std::collections::{HashMap, HashSet};
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST.
@@ -14,9 +14,10 @@ use std::collections::{HashMap, HashSet};
 /// there is no such const).
 pub fn create(
     ast: &shiika_ast::Program,
+    class_dict: &ClassDict,
     imported_constants: &HashMap<ConstFullname, TermTy>,
 ) -> Result<hir::Program<()>> {
-    let mut v = Visitor::new(imported_constants);
+    let mut v = Visitor::new(class_dict, imported_constants);
     v.walk_program(ast)?;
 
     Ok(hir::Program {
@@ -26,15 +27,20 @@ pub fn create(
     })
 }
 
-struct Visitor {
+struct Visitor<'a, 'hir_maker> {
+    class_dict: &'a ClassDict<'hir_maker>,
     methods: Vec<hir::Method<()>>,
     known_consts: HashSet<ConstFullname>,
     constants: Vec<(ConstFullname, hir::TypedExpr<()>)>,
     top_exprs: Vec<hir::TypedExpr<()>>,
 }
-impl Visitor {
-    fn new(imported_constants: &HashMap<ConstFullname, TermTy>) -> Self {
+impl<'a, 'hir_maker> Visitor<'a, 'hir_maker> {
+    fn new(
+        class_dict: &'a ClassDict<'hir_maker>,
+        imported_constants: &HashMap<ConstFullname, TermTy>,
+    ) -> Self {
         Visitor {
+            class_dict,
             methods: vec![],
             known_consts: imported_constants.keys().cloned().collect(),
             constants: vec![],
@@ -42,7 +48,7 @@ impl Visitor {
         }
     }
 }
-impl AstVisitor for Visitor {
+impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
     fn visit_method_definition(
         &mut self,
         namespace: &shiika_core::names::Namespace,
@@ -73,21 +79,11 @@ impl AstVisitor for Visitor {
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
-        let hir_sig = MethodSignature {
-            fullname: method_fullname_raw(namespace.string(), &sig.name.0),
-            ret_ty: ret_ty.clone(),
-            params: params
-                .iter()
-                .map(|p| skc_hir::MethodParam {
-                    name: p.name.clone(),
-                    ty: p.ty.clone(),
-                    has_default: false,
-                })
-                .collect(),
-            typarams: vec![],
-            asyncness: skc_hir::Asyncness::Unknown,
-            polymorphic: None,
-        };
+        let hir_sig = self
+            .class_dict
+            .find_method(&namespace.to_type_fullname(), &sig.name, CallType::Direct)
+            .unwrap_or_else(|| panic!("method {} not indexed", &sig.name.0))
+            .sig;
 
         let m = hir::Method {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
@@ -314,33 +310,6 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
         //hir::Ty::Fun(compile_fun_ty(&n.args)?)
     };
     Ok(t)
-}
-
-pub fn compile_signature(
-    type_name: String,
-    sig: &shiika_ast::AstMethodSignature,
-) -> MethodSignature {
-    let ret_ty = match &sig.ret_typ {
-        Some(t) => compile_ty(t).unwrap(),
-        None => ty::raw("Void"),
-    };
-    let params = sig
-        .params
-        .iter()
-        .map(|p| MethodParam {
-            name: p.name.clone(),
-            ty: compile_ty(&p.typ).unwrap(),
-            has_default: false,
-        })
-        .collect();
-    MethodSignature {
-        fullname: method_fullname_raw(type_name, &sig.name.0),
-        ret_ty,
-        params,
-        typarams: vec![],
-        asyncness: skc_hir::Asyncness::Unknown,
-        polymorphic: None,
-    }
 }
 
 fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {

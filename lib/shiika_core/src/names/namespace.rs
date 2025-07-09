@@ -61,6 +61,17 @@ impl Namespace {
         }
     }
 
+    /// Convert this namespace itself into a TypeFullname.
+    /// Panics if called for the root
+    pub fn to_type_fullname(&self) -> TypeFullname {
+        let n = self.string();
+        if n.is_empty() {
+            panic!(".to_type_fullname called for root namespace");
+        } else {
+            type_fullname(n)
+        }
+    }
+
     /// Returns fullname of the constant in this namespace
     pub fn const_fullname(&self, name: &str) -> ConstFullname {
         let n = self.string();

@@ -13,8 +13,10 @@ pub struct MethodSignature {
     pub typarams: Vec<TyParam>,
     pub asyncness: Asyncness,
     /// True if this method is inheritable (i.e. belongs to non-final class) or overrides
-    /// ancestor's. `None` if not known yet.
-    pub polymorphic: Option<bool>,
+    /// ancestor's.
+    /// - Polyhmorphic methods are invoked via vtables.
+    /// - Polyhmorphic methods are always treated as async.
+    pub polymorphic: bool,
 }
 
 impl fmt::Display for MethodSignature {
@@ -124,14 +126,7 @@ impl MethodSignature {
 
     /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
-        let polymorphic = match self.polymorphic {
-            Some(true) => "polymorphic ",
-            Some(false) => "",
-            None => panic!(
-                "MethodSignature::serialize: polymorphic is None: {:?}",
-                self
-            ),
-        };
+        let polymorphic = if self.polymorphic { "polymorphic " } else { "" };
         let typarams = self
             .typarams
             .iter()
@@ -176,7 +171,7 @@ impl MethodSignature {
                 params,
                 typarams,
                 asyncness,
-                polymorphic: Some(polymorphic.is_some()),
+                polymorphic: polymorphic.is_some(),
             },
         ))
     }
@@ -309,7 +304,7 @@ pub fn signature_of_new(
         params,
         typarams,
         asyncness: Asyncness::Unknown,
-        polymorphic: None,
+        polymorphic: false,
     }
 }
 
@@ -324,7 +319,7 @@ pub fn signature_of_initialize(
         params,
         typarams: vec![],
         asyncness: Asyncness::Unknown,
-        polymorphic: None,
+        polymorphic: false,
     }
 }
 
