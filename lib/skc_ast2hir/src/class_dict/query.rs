@@ -27,7 +27,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         match sk_type {
             SkType::Class(sk_class) => {
                 sk_class.base.method_sigs.get(method_name).map(|(sig, _)| {
-                    let call_type = if sig.polymorphic {
+                    let call_type = if sig.is_virtual {
                         CallType::Virtual
                     } else {
                         CallType::Direct

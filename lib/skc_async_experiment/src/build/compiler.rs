@@ -158,7 +158,7 @@ fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Re
             };
             let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
 
-            let mut sig = class_dict.create_maybe_polymorphic_signature(
+            let mut sig = class_dict.create_maybe_virtual_signature(
                 inheritable,
                 &sk_type.base().erasure.namespace(),
                 sk_type.fullname(),

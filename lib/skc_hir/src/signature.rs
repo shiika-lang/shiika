@@ -14,9 +14,9 @@ pub struct MethodSignature {
     pub asyncness: Asyncness,
     /// True if this method is inheritable (i.e. belongs to non-final class) or overrides
     /// ancestor's.
-    /// - Polyhmorphic methods are invoked via vtables.
-    /// - Polyhmorphic methods are always treated as async.
-    pub polymorphic: bool,
+    /// - Virtual methods are invoked via vtables.
+    /// - Virtual methods are always treated as async.
+    pub is_virtual: bool,
 }
 
 impl fmt::Display for MethodSignature {
@@ -72,7 +72,7 @@ impl MethodSignature {
                 .collect(),
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
             asyncness: self.asyncness.clone(),
-            polymorphic: self.polymorphic,
+            is_virtual: self.is_virtual,
         }
     }
 
@@ -126,7 +126,7 @@ impl MethodSignature {
 
     /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
-        let polymorphic = if self.polymorphic { "polymorphic " } else { "" };
+        let is_virtual = if self.is_virtual { "is_virtual " } else { "" };
         let typarams = self
             .typarams
             .iter()
@@ -141,7 +141,7 @@ impl MethodSignature {
             .join(",");
         format!(
             "{}{}<{}>{}({}){}",
-            polymorphic,
+            is_virtual,
             self.asyncness,
             typarams,
             &self.fullname,
@@ -152,7 +152,7 @@ impl MethodSignature {
 
     /// nom parser for MethodSignature
     pub fn deserialize(s: &str) -> IResult<&str, MethodSignature> {
-        let (s, polymorphic) = nom::combinator::opt(tag("polymorphic "))(s)?;
+        let (s, is_virtual) = nom::combinator::opt(tag("is_virtual "))(s)?;
         let (s, asyncness) = Asyncness::deserialize(s)?;
         let parse_typarams = nom::multi::separated_list0(tag(","), TyParam::deserialize);
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
@@ -171,7 +171,7 @@ impl MethodSignature {
                 params,
                 typarams,
                 asyncness,
-                polymorphic: polymorphic.is_some(),
+                is_virtual: is_virtual.is_some(),
             },
         ))
     }
@@ -304,7 +304,7 @@ pub fn signature_of_new(
         params,
         typarams,
         asyncness: Asyncness::Unknown,
-        polymorphic: false,
+        is_virtual: false,
     }
 }
 
@@ -319,7 +319,7 @@ pub fn signature_of_initialize(
         params,
         typarams: vec![],
         asyncness: Asyncness::Unknown,
-        polymorphic: false,
+        is_virtual: false,
     }
 }
 

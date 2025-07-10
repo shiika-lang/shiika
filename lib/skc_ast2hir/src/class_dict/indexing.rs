@@ -466,7 +466,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 | shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
-                    let hir_sig = self.create_maybe_polymorphic_signature(
+                    let hir_sig = self.create_maybe_virtual_signature(
                         inheritable,
                         namespace,
                         fullname.clone(),
@@ -579,7 +579,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 params: Default::default(),
                 typarams: Default::default(),
                 asyncness: Asyncness::Sync,
-                polymorphic: false,
+                is_virtual: false,
             };
             instance_methods.insert(sig);
         }
@@ -692,7 +692,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Checks if the method is virtual and returns the signature.
-    pub fn create_maybe_polymorphic_signature(
+    pub fn create_maybe_virtual_signature(
         &self,
         inheritable: bool,
         namespace: &Namespace,
@@ -701,7 +701,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
     ) -> Result<MethodSignature> {
-        let polymorphic = if inheritable {
+        let is_virtual = if inheritable {
             true
         } else if let Some(superclass) = superclass {
             self.try_lookup_method(&superclass.to_term_ty(), &sig.name)
@@ -709,7 +709,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             false
         };
-        self.create_signature(namespace, fullname.clone(), sig, typarams, polymorphic)
+        self.create_signature(namespace, fullname.clone(), sig, typarams, is_virtual)
     }
 
     /// Convert AstMethodSignature to MethodSignature
@@ -720,7 +720,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         type_fullname: TypeFullname,
         sig: &shiika_ast::AstMethodSignature,
         class_typarams: &[ty::TyParam],
-        polymorphic: bool,
+        is_virtual: bool,
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
         let fullname = method_fullname(type_fullname, &sig.name.0);
@@ -729,7 +729,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             ty::raw("Void") // Default return type.
         };
-        let asyncness = if polymorphic {
+        let asyncness = if is_virtual {
             Asyncness::Async
         } else {
             Asyncness::Unknown
@@ -746,7 +746,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             )?,
             typarams: method_typarams,
             asyncness,
-            polymorphic,
+            is_virtual,
         })
     }
 
@@ -872,7 +872,7 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         params: Default::default(),
         typarams: Default::default(),
         asyncness: Asyncness::Unknown,
-        polymorphic: false,
+        is_virtual: false,
     });
     MethodSignatures::from_iterator(iter)
 }
