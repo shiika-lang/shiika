@@ -79,10 +79,15 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
+        let owner = if is_instance {
+            namespace.to_type_fullname()
+        } else {
+            namespace.to_type_fullname().meta_name().into()
+        };
         let hir_sig = self
             .class_dict
-            .find_method(&namespace.to_type_fullname(), &sig.name, CallType::Direct)
-            .unwrap_or_else(|| panic!("method {} not indexed", &sig.name.0))
+            .find_method(&owner, &sig.name, CallType::Direct)
+            .unwrap_or_else(|| panic!("method {} {} not indexed", namespace, &sig.name.0))
             .sig;
 
         let m = hir::Method {
