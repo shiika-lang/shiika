@@ -317,6 +317,7 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
     Ok(t)
 }
 
+/// Make sure the last expression in the method body is a return statement.
 fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
     match exprs.pop() {
         Some(last_expr) => {

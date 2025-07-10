@@ -264,7 +264,7 @@ impl<'f> Typing<'f> {
                         return Err(anyhow!("return outside of method"));
                     }
                 };
-                let cast_val = upcast_if(new_val.1 != wanted_ty, new_val, wanted_ty);
+                let cast_val = upcast_return(new_val, wanted_ty);
                 hir::Expr::return_(cast_val)
             }
             hir::Expr::Exprs(exprs) => {
@@ -286,9 +286,23 @@ fn valid_return_type(class_dict: &ClassDict, expected: &TermTy, actual: &TermTy)
     class_dict.conforms(actual, expected)
 }
 
-fn upcast_if(cond: bool, expr: hir::TypedExpr<TermTy>, ty: TermTy) -> hir::TypedExpr<TermTy> {
+fn upcast_if(
+    cond: bool,
+    expr: hir::TypedExpr<TermTy>,
+    wanted_ty: TermTy,
+) -> hir::TypedExpr<TermTy> {
     if cond {
-        hir::Expr::upcast(expr, ty)
+        hir::Expr::upcast(expr, wanted_ty)
+    } else {
+        expr
+    }
+}
+
+fn upcast_return(expr: hir::TypedExpr<TermTy>, wanted_ty: TermTy) -> hir::TypedExpr<TermTy> {
+    if expr.1 == ty::raw("Never") {
+        return expr;
+    } else if expr.1 != wanted_ty {
+        hir::Expr::upcast(expr, wanted_ty)
     } else {
         expr
     }
