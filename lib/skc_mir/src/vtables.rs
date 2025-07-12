@@ -22,7 +22,8 @@ impl VTables {
             let name = queue.pop_front().unwrap();
             log::debug!("Processing vtable for {}", name);
             // Check if already processed
-            if vtables.contains_key(&name) || imports.sk_types.0.contains_key(&name.clone().into())
+            if vtables.contains_key(&name)
+                || imports.sk_types.types.contains_key(&name.clone().into())
             {
                 continue;
             }
@@ -62,6 +63,12 @@ impl VTables {
                 .unwrap_or_else(|| panic!("[BUG] `{}' not found in {}", &method_name, &obj_ty));
             (idx, vtable.size())
         })
+    }
+
+    pub fn find(&self, obj_ty: &TermTy, method_name: &MethodFirstname) -> Option<usize> {
+        self.vtables
+            .get(&obj_ty.vtable_name())
+            .and_then(|vtable| vtable.get(method_name).cloned())
     }
 
     /// Returns iterator over each vtable

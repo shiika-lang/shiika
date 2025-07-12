@@ -51,7 +51,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
             .enumerate()
             .map(|(i, param)| untyped(hir::Expr::ArgRef(i, param.name.clone())))
             .collect();
-        exprs.push(untyped(hir::Expr::MethodCall(
+        exprs.push(untyped(hir::Expr::UnresolvedMethodCall(
             Box::new(untyped(hir::Expr::LVarRef(tmp_name.to_string()))),
             method_firstname("initialize"),
             args,
@@ -72,6 +72,7 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
         params: params.clone(),
         typarams,
         asyncness: skc_hir::Asyncness::Unknown,
+        is_virtual: false,
     };
     hir::Method {
         name: method_name.clone().into(),

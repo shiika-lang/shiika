@@ -18,7 +18,7 @@
 //! ```
 use crate::mir;
 use crate::names::FunctionName;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use skc_hir::MethodSignature;
 use std::collections::VecDeque;
 
@@ -124,10 +124,12 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_value_expr(&mut self, e: mir::TypedExpr, on_return: bool) -> Result<mir::TypedExpr> {
+        let tmp = e.clone();
         if let Some(expr) = self.compile_expr(e, on_return)? {
             Ok(expr)
         } else {
-            Err(anyhow!("Got None in compile_value_expr (async call?)"))
+            println!("{:?}", &tmp);
+            panic!("Got None in compile_value_expr (async call?)")
         }
     }
 
@@ -157,13 +159,17 @@ impl<'a> Compiler<'a> {
                     .map(|x| self.compile_value_expr(x, false))
                     .collect::<Result<Vec<_>>>()?;
                 let fun_ty = new_fexpr.1.as_fun_ty();
-                // No need to create a new chapter if on_return is true.
-                // In that case the args are modified later (see mir::Expr::Return)
                 if fun_ty.asyncness.is_async() && !on_return {
                     self.compile_async_call(new_fexpr, new_args, e.1)?
                 } else {
+                    // No need to create a new chapter if on_return is true.
+                    // In that case the args are modified later (see compile_return)
                     mir::Expr::fun_call(new_fexpr, new_args)
                 }
+            }
+            mir::Expr::VTableRef(receiver, idx, name) => {
+                let new_receiver = self.compile_value_expr(*receiver, false)?;
+                mir::Expr::vtable_ref(new_receiver, idx, name, e.1.into_fun_ty())
             }
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
@@ -372,23 +378,40 @@ impl<'a> Compiler<'a> {
             });
             call_chiika_env_pop_frame(self.frame_size(), cont_ty)
         };
-        let value_expr = if new_expr.0.is_async_fun_call() {
-            // Convert `callee($env, args...)`
-            // to `callee($env, args..., env_pop())`
-            let mir::Expr::FunCall(fexpr, mut args) = new_expr.0 else {
-                unreachable!();
-            };
-            args.push(env_pop);
-            let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty()).into());
-            mir::Expr::fun_call(new_fexpr, args)
-        } else {
-            // alloc tmp;    // tmp is needed because
-            // tmp = value   // calculating value may call env_ref
-            // `(env_pop())(env, tmp)`
-            let tmp = self.store_to_tmpvar(new_expr);
-            mir::Expr::fun_call(env_pop, vec![arg_ref_env(), tmp])
+        let ret = match new_expr {
+            (mir::Expr::FunCall(fexpr, args), _) if fexpr.1.is_async_fun().unwrap() => {
+                self.continue_with_func(*fexpr, args, env_pop)
+            }
+            _ => self.continue_with_value(new_expr, env_pop),
         };
-        Ok(Some(mir::Expr::return_(value_expr)))
+        Ok(Some(ret))
+    }
+
+    // Call the async function and pass the result to the continuation.
+    // Convert `callee($env, args...)` to
+    // `callee($env, args..., env_pop())`
+    fn continue_with_func(
+        &mut self,
+        fexpr: mir::TypedExpr,
+        mut args: Vec<mir::TypedExpr>,
+        env_pop: mir::TypedExpr,
+    ) -> mir::TypedExpr {
+        args.push(env_pop);
+        let new_fexpr = (fexpr.0, async_fun_ty(fexpr.1.as_fun_ty()).into());
+        mir::Expr::return_(mir::Expr::fun_call(new_fexpr, args))
+    }
+
+    // Pass the value to the continuation function. Example:
+    //   alloc tmp;    # tmp is needed because calculating value may call env_ref
+    //   tmp = value;
+    //   `(env_pop())(env, tmp)`;
+    fn continue_with_value(
+        &mut self,
+        new_expr: mir::TypedExpr,
+        env_pop: mir::TypedExpr,
+    ) -> mir::TypedExpr {
+        let tmp = self.store_to_tmpvar(new_expr);
+        mir::Expr::return_(mir::Expr::fun_call(env_pop, vec![arg_ref_env(), tmp]))
     }
 
     /// Store the value to a temporary variable and return the varref
@@ -417,9 +440,10 @@ impl<'a> Compiler<'a> {
 // Convert `Fun(ChiikaEnv, (X)->Y)` to `Fun((ChiikaEnv, X, Fun((ChiikaEnv, Y)->RustFuture))->RustFuture)`
 fn async_fun_ty(orig_fun_ty: &mir::FunTy) -> mir::FunTy {
     let mut param_tys = orig_fun_ty.param_tys.clone();
+    let orig_ret_ty = orig_fun_ty.ret_ty.as_ref().clone();
     param_tys.push(mir::Ty::Fun(mir::FunTy {
         asyncness: mir::Asyncness::Lowered,
-        param_tys: vec![mir::Ty::ChiikaEnv, *orig_fun_ty.ret_ty.clone()],
+        param_tys: vec![mir::Ty::ChiikaEnv, orig_ret_ty],
         ret_ty: Box::new(mir::Ty::RustFuture),
     }));
     mir::FunTy {

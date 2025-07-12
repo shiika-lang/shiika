@@ -3,24 +3,38 @@ mod constants;
 use crate::names::FunctionName;
 use crate::{build, hir, mir};
 use anyhow::Result;
+use shiika_core::names::MethodFirstname;
 use shiika_core::ty::TermTy;
-use skc_hir::SkTypes;
+use skc_hir::{MethodSignature, SkTypes};
 use std::collections::HashSet;
 
 pub fn run(
     hir: hir::CompilationUnit,
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
-    let c = HirToMir();
-
-    log::debug!("Start");
-    let classes = c.convert_classes(&hir);
+    log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&hir.sk_types, &hir.imports);
-    log::debug!("VTables built");
+    let c = HirToMir {
+        vtables: &vtables,
+        imported_vtables: &hir.imports.vtables,
+    };
+
+    log::debug!("Converting user functions");
+    let classes = c.convert_classes(&hir);
     let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
+    for method_name in &hir.sk_types.rustlib_methods {
+        externs.push(mir::Extern {
+            name: FunctionName::unmangled(&method_name.full_name),
+            fun_ty: mir::FunTy::from_method_signature(
+                hir.sk_types.get_sig(method_name).unwrap().clone(),
+            ),
+        });
+    }
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
     }
+
+    // Constants
     let const_list = hir
         .program
         .constants
@@ -33,7 +47,6 @@ pub fn run(
         .into_iter()
         .map(|method| c.convert_method(method))
         .collect();
-    log::debug!("User functions converted");
     funcs.push(constants::create_const_init_func(
         hir.package_name.as_ref(),
         hir.program
@@ -42,6 +55,8 @@ pub fn run(
             .map(|(name, rhs)| (name, c.convert_texpr(rhs)))
             .collect(),
     ));
+
+    log::debug!("Converting top exprs");
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         funcs.push(c.create_user_main(hir.program.top_exprs, total_deps));
     } else {
@@ -55,13 +70,16 @@ pub fn run(
         sk_types: hir.sk_types,
         vtables,
         imported_constants: hir.imports.constants.into_iter().collect(),
-        imported_types: hir.imports.sk_types,
+        imported_vtables: hir.imports.vtables,
     })
 }
 
-struct HirToMir();
+struct HirToMir<'a> {
+    vtables: &'a skc_mir::VTables,
+    imported_vtables: &'a skc_mir::VTables,
+}
 
-impl HirToMir {
+impl<'a> HirToMir<'a> {
     fn convert_classes(&self, hir: &hir::CompilationUnit) -> Vec<mir::MirClass> {
         let mut v: Vec<_> = hir
             .sk_types
@@ -99,7 +117,7 @@ impl HirToMir {
     ) -> Vec<mir::Extern> {
         let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
         imports
-            .0
+            .types
             .values()
             .flat_map(|sk_type| {
                 sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
@@ -142,7 +160,7 @@ impl HirToMir {
         let allocs = collect_allocs::run(&method.body_stmts);
         let body_stmts = self.insert_allocs(allocs, self.convert_texpr(method.body_stmts));
         mir::Function {
-            asyncness: mir::Asyncness::Unknown,
+            asyncness: method.sig.asyncness.clone().into(),
             name: method.name,
             params,
             ret_ty: self.convert_ty(method.ret_ty),
@@ -214,12 +232,37 @@ impl HirToMir {
             hir::Expr::FunCall(f, a) => {
                 mir::Expr::FunCall(Box::new(self.convert_texpr(*f)), self.convert_texpr_vec(a))
             }
+            hir::Expr::UnresolvedMethodCall(_, _, _) => {
+                unreachable!("UnresolvedMethodCall should be resolved before this")
+            }
+            hir::Expr::ResolvedMethodCall(call_type, receiver, sig, args) => {
+                let receiver_ty = receiver.1.clone();
+                let mir_receiver = self.convert_texpr(*receiver);
+                let func_ref = match call_type {
+                    hir::expr::MethodCallType::Direct => method_func_ref(sig),
+                    hir::expr::MethodCallType::Virtual => {
+                        let method_idx = self
+                            .lookup_vtable(&receiver_ty, &sig.fullname.first_name)
+                            .unwrap_or_else(|| panic!("Method not found in vtable: {}", sig));
+
+                        mir::Expr::vtable_ref(
+                            mir_receiver.clone(),
+                            method_idx,
+                            sig.fullname.first_name.0.clone(),
+                            mir::FunTy::from_method_signature(sig),
+                        )
+                    }
+                    _ => todo!(),
+                };
+                let mut mir_args = self.convert_texpr_vec(args);
+                mir_args.insert(0, mir_receiver);
+                mir::Expr::FunCall(Box::new(func_ref), mir_args)
+            }
             hir::Expr::If(c, t, e) => mir::Expr::If(
                 Box::new(self.convert_texpr(*c)),
                 Box::new(self.convert_texpr(*t)),
                 Box::new(self.convert_texpr(*e)),
             ),
-            hir::Expr::MethodCall(_, _, _) => todo!(),
             hir::Expr::While(c, b) => mir::Expr::While(
                 Box::new(self.convert_texpr(*c)),
                 Box::new(self.convert_texpr(*b)),
@@ -241,6 +284,12 @@ impl HirToMir {
         }
     }
 
+    fn lookup_vtable(&self, ty: &TermTy, method_name: &MethodFirstname) -> Option<usize> {
+        self.vtables
+            .find(ty, method_name)
+            .or_else(|| self.imported_vtables.find(ty, method_name))
+    }
+
     fn create_user_main(
         &self,
         top_exprs: Vec<hir::TypedExpr<TermTy>>,
@@ -259,4 +308,12 @@ impl HirToMir {
             sig: None,
         }
     }
+}
+
+fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
+    let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
+    param_tys.insert(0, sig.fullname.type_name.to_ty());
+    let fun_ty = mir::FunTy::from_method_signature(sig.clone());
+    mir::Expr::func_ref(fname, fun_ty)
 }

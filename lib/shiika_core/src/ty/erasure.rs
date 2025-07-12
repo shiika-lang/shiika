@@ -1,5 +1,6 @@
 use crate::names::{
-    module_fullname, toplevel_const, ClassFullname, ConstFullname, ModuleFullname, TypeFullname,
+    module_fullname, toplevel_const, ClassFullname, ConstFullname, ModuleFullname, Namespace,
+    TypeFullname,
 };
 use crate::ty::{LitTy, TermTy};
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,17 @@ impl Erasure {
             is_meta_
         };
         Erasure { base_name, is_meta }
+    }
+
+    pub fn namespace(&self) -> Namespace {
+        // The namespace is the base name without the last part
+        // REFACTOR: self.base_name should be `Vec<String>`
+        let parts: Vec<String> = self.base_name.split("::").map(String::from).collect();
+        if parts.len() > 1 {
+            Namespace::new(parts[..parts.len() - 1].to_vec())
+        } else {
+            Namespace::root()
+        }
     }
 
     pub fn to_class_fullname(&self) -> ClassFullname {

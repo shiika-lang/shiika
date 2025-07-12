@@ -38,7 +38,7 @@ pub fn run<P: AsRef<Path>>(
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
     constants::declare_const_globals(&mut c, &mir.program.constants);
-    vtable::import(&mut c, &mir.imported_types);
+    vtable::import(&mut c, &mir.imported_vtables);
     vtable::define(&mut c, &mir.vtables);
     llvm_struct::define(&mut c, &mir.program.classes);
     if is_bin {
@@ -125,6 +125,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
+            mir::Expr::VTableRef(receiver, idx, _name) => {
+                self.compile_vtable_ref(ctx, receiver, *idx)
+            }
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
@@ -153,7 +156,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         idx: &usize,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = ctx.function.get_nth_param(*idx as u32).unwrap();
+        let v = ctx.function.get_nth_param(*idx as u32).unwrap_or_else(|| {
+            panic!(
+                "argument at index {} not found in function {:?}",
+                idx, ctx.function
+            )
+        });
         Some(v)
     }
 
@@ -222,13 +230,22 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .iter()
             .map(|x| self.compile_value_expr(ctx, x).into())
             .collect::<Vec<_>>();
-        let ret = self.builder.build_indirect_call(
-            func_type,
-            func.into_pointer_value(),
-            &args,
-            "calltmp",
-        );
+        let ret =
+            self.builder
+                .build_indirect_call(func_type, func.into_pointer_value(), &args, "result");
         Some(ret.try_as_basic_value().left().unwrap())
+    }
+
+    fn compile_vtable_ref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        receiver: &mir::TypedExpr,
+        idx: usize,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let obj = self.compile_value_expr(ctx, receiver);
+        let vtable = instance::get_vtable(self, &SkObj::from_basic_value_enum(obj));
+        let method_ptr = vtable::get_function(self, vtable, idx);
+        Some(method_ptr.into())
     }
 
     /// Compile a sync if

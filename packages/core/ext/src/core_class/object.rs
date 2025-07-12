@@ -5,9 +5,29 @@ use std::future::{poll_fn, Future};
 use std::task::Poll;
 use std::time::Duration;
 
+//#[shiika_method("Object#print")]
+//pub extern "C" fn print(_receiver: SkInt, n: SkInt) {
+//    println!("{}", n.val());
+//}
+
 #[shiika_method("Object#print")]
-pub extern "C" fn print(_receiver: SkInt, n: SkInt) {
-    println!("{}", n.val());
+#[allow(improper_ctypes_definitions)]
+pub extern "C" fn print(
+    env: &'static mut ChiikaEnv,
+    _receiver: SkInt,
+    nn: SkInt,
+    cont: ChiikaCont,
+) -> ContFuture {
+    async fn print(n: SkInt) {
+        // Hand written part (all the rest will be macro-generated)
+        println!("{}", n.val());
+    }
+    env.cont = Some(cont);
+    let mut future = Box::pin(print(nn));
+    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
+        Poll::Ready(_) => Poll::Ready(0),
+        Poll::Pending => Poll::Pending,
+    }))
 }
 
 #[shiika_method("Object#sleep_sec")]

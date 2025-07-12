@@ -25,7 +25,7 @@ pub struct CompilationUnit {
     pub sk_types: SkTypes,
     pub vtables: VTables,
     pub imported_constants: Vec<(ConstFullname, TermTy)>,
-    pub imported_types: SkTypes,
+    pub imported_vtables: VTables,
 }
 
 #[derive(Debug, Clone)]
@@ -165,7 +165,7 @@ impl fmt::Display for Asyncness {
             Asyncness::Unknown => write!(f, "[?]"),
             Asyncness::Sync => write!(f, "[+]"),
             Asyncness::Async => write!(f, "[*]"),
-            Asyncness::Lowered => write!(f, ""), // "[.]"
+            Asyncness::Lowered => write!(f, "[.]"),
         }
     }
 }
@@ -176,6 +176,16 @@ impl From<bool> for Asyncness {
             Asyncness::Async
         } else {
             Asyncness::Sync
+        }
+    }
+}
+
+impl From<skc_hir::Asyncness> for Asyncness {
+    fn from(x: skc_hir::Asyncness) -> Self {
+        match x {
+            skc_hir::Asyncness::Unknown => Asyncness::Unknown,
+            skc_hir::Asyncness::Sync => Asyncness::Sync,
+            skc_hir::Asyncness::Async => Asyncness::Async,
         }
     }
 }

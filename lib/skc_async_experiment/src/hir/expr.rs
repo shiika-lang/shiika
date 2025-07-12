@@ -1,8 +1,11 @@
 use crate::hir::{FunTy, FunctionName};
 use crate::mir::expr::PseudoVar;
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ClassFullname, ConstFullname, MethodFirstname, TypeFullname};
+use shiika_core::names::{
+    ClassFullname, ConstFullname, MethodFirstname, ModuleFullname, TypeFullname,
+};
 use shiika_core::ty::{self, TermTy};
+use skc_hir::MethodSignature;
 
 pub type TypedExpr<T> = (Expr<T>, T);
 
@@ -15,8 +18,14 @@ pub enum Expr<T> {
     ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<TypedExpr<T>>, Vec<TypedExpr<T>>),
+    UnresolvedMethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
+    ResolvedMethodCall(
+        MethodCallType,
+        Box<TypedExpr<T>>,
+        MethodSignature,
+        Vec<TypedExpr<T>>,
+    ),
     If(Box<TypedExpr<T>>, Box<TypedExpr<T>>, Box<TypedExpr<T>>),
-    MethodCall(Box<TypedExpr<T>>, MethodFirstname, Vec<TypedExpr<T>>),
     While(Box<TypedExpr<T>>, Box<TypedExpr<T>>),
     Spawn(Box<TypedExpr<T>>),
     LVarDecl(String, Box<TypedExpr<T>>),
@@ -27,6 +36,13 @@ pub enum Expr<T> {
     Upcast(Box<TypedExpr<T>>, T),
     CreateObject(ClassFullname),
     CreateTypeObject(TypeFullname), // TODO: Can be merged with CreateObject?
+}
+
+#[derive(Debug)]
+pub enum MethodCallType {
+    Direct,
+    Virtual,
+    Module(ModuleFullname, usize),
 }
 
 impl Expr<TermTy> {
@@ -66,6 +82,19 @@ impl Expr<TermTy> {
     pub fn fun_call(func: TypedExpr<TermTy>, args: Vec<TypedExpr<TermTy>>) -> TypedExpr<TermTy> {
         let result_ty = func.1.fn_x_info().unwrap().last().unwrap().clone();
         (Expr::FunCall(Box::new(func), args), result_ty)
+    }
+
+    pub fn resolved_method_call(
+        method_call_type: MethodCallType,
+        obj: TypedExpr<TermTy>,
+        sig: MethodSignature,
+        args: Vec<TypedExpr<TermTy>>,
+        result_ty: TermTy,
+    ) -> TypedExpr<TermTy> {
+        (
+            Expr::ResolvedMethodCall(method_call_type, Box::new(obj), sig, args),
+            result_ty,
+        )
     }
 
     pub fn if_(

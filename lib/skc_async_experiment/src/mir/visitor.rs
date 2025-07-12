@@ -42,6 +42,9 @@ pub trait MirVisitor {
                     self.walk_expr(arg)?;
                 }
             }
+            mir::Expr::VTableRef(receiver, _, _) => {
+                self.walk_expr(receiver)?;
+            }
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 self.walk_expr(cond_expr)?;
                 self.walk_expr(then_exprs)?;

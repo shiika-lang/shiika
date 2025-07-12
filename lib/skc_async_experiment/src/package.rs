@@ -34,8 +34,9 @@ impl Package {
                 libs.iter()
                     .flat_map(|lib| {
                         vec![
-                            cli.rust_artifact_path(&spec, lib),
+                            // Note: order matters (passed to the linker in this order)
                             cli.lib_artifact_path(&spec),
+                            cli.rust_artifact_path(&spec, lib),
                         ]
                     })
                     .collect()

@@ -21,7 +21,7 @@ pub fn create(
 }
 
 fn index_sk_types(cindex: &mut TypeIndex, sk_types: &SkTypes, create_meta: bool) {
-    for (name, class) in &sk_types.0 {
+    for (name, class) in &sk_types.types {
         cindex.insert(name.clone(), class.base().typarams.clone());
         if create_meta {
             let meta_name = name.meta_name();

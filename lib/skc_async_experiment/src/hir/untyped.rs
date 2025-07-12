@@ -4,9 +4,9 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor};
-use shiika_core::names::{method_firstname, method_fullname_raw, ConstFullname, Namespace};
+use shiika_core::names::{method_firstname, ConstFullname, Namespace};
 use shiika_core::ty::{self, TermTy};
-use skc_hir::{MethodParam, MethodSignature};
+use skc_ast2hir::class_dict::{CallType, ClassDict};
 use std::collections::{HashMap, HashSet};
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST.
@@ -14,9 +14,10 @@ use std::collections::{HashMap, HashSet};
 /// there is no such const).
 pub fn create(
     ast: &shiika_ast::Program,
+    class_dict: &ClassDict,
     imported_constants: &HashMap<ConstFullname, TermTy>,
 ) -> Result<hir::Program<()>> {
-    let mut v = Visitor::new(imported_constants);
+    let mut v = Visitor::new(class_dict, imported_constants);
     v.walk_program(ast)?;
 
     Ok(hir::Program {
@@ -26,15 +27,20 @@ pub fn create(
     })
 }
 
-struct Visitor {
+struct Visitor<'a, 'hir_maker> {
+    class_dict: &'a ClassDict<'hir_maker>,
     methods: Vec<hir::Method<()>>,
     known_consts: HashSet<ConstFullname>,
     constants: Vec<(ConstFullname, hir::TypedExpr<()>)>,
     top_exprs: Vec<hir::TypedExpr<()>>,
 }
-impl Visitor {
-    fn new(imported_constants: &HashMap<ConstFullname, TermTy>) -> Self {
+impl<'a, 'hir_maker> Visitor<'a, 'hir_maker> {
+    fn new(
+        class_dict: &'a ClassDict<'hir_maker>,
+        imported_constants: &HashMap<ConstFullname, TermTy>,
+    ) -> Self {
         Visitor {
+            class_dict,
             methods: vec![],
             known_consts: imported_constants.keys().cloned().collect(),
             constants: vec![],
@@ -42,7 +48,7 @@ impl Visitor {
         }
     }
 }
-impl AstVisitor for Visitor {
+impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
     fn visit_method_definition(
         &mut self,
         namespace: &shiika_core::names::Namespace,
@@ -73,20 +79,16 @@ impl AstVisitor for Visitor {
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
-        let hir_sig = MethodSignature {
-            fullname: method_fullname_raw(namespace.string(), &sig.name.0),
-            ret_ty: ret_ty.clone(),
-            params: params
-                .iter()
-                .map(|p| skc_hir::MethodParam {
-                    name: p.name.clone(),
-                    ty: p.ty.clone(),
-                    has_default: false,
-                })
-                .collect(),
-            typarams: vec![],
-            asyncness: skc_hir::Asyncness::Unknown, // TODO: handle async methods
+        let owner = if is_instance {
+            namespace.to_type_fullname()
+        } else {
+            namespace.to_type_fullname().meta_name().into()
         };
+        let hir_sig = self
+            .class_dict
+            .find_method(&owner, &sig.name, CallType::Direct)
+            .unwrap_or_else(|| panic!("method {} {} not indexed", namespace, &sig.name.0))
+            .sig;
 
         let m = hir::Method {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
@@ -186,7 +188,11 @@ impl<'a> Compiler<'a> {
                     hir::Expr::PseudoVar(mir::PseudoVar::Void)
                 } else {
                     let receiver = untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef));
-                    hir::Expr::MethodCall(Box::new(receiver), method_firstname(name), vec![])
+                    hir::Expr::UnresolvedMethodCall(
+                        Box::new(receiver),
+                        method_firstname(name),
+                        vec![],
+                    )
                 }
             }
             shiika_ast::AstExpressionBody::CapitalizedName(unresolved_const_name) => {
@@ -206,7 +212,7 @@ impl<'a> Compiler<'a> {
                     untyped(hir::Expr::PseudoVar(mir::PseudoVar::SelfRef))
                 };
                 let name = method_firstname(method_name);
-                hir::Expr::MethodCall(Box::new(receiver), name, arg_hirs)
+                hir::Expr::UnresolvedMethodCall(Box::new(receiver), name, arg_hirs)
             }
             shiika_ast::AstExpressionBody::If {
                 cond_expr,
@@ -311,49 +317,35 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
     Ok(t)
 }
 
-pub fn compile_signature(
-    type_name: String,
-    sig: &shiika_ast::AstMethodSignature,
-) -> MethodSignature {
-    let ret_ty = match &sig.ret_typ {
-        Some(t) => compile_ty(t).unwrap(),
-        None => ty::raw("Void"),
-    };
-    let params = sig
-        .params
-        .iter()
-        .map(|p| MethodParam {
-            name: p.name.clone(),
-            ty: compile_ty(&p.typ).unwrap(),
-            has_default: false,
-        })
-        .collect();
-    MethodSignature {
-        fullname: method_fullname_raw(type_name, &sig.name.0),
-        ret_ty,
-        params,
-        typarams: vec![],
-        asyncness: skc_hir::Asyncness::Unknown,
-    }
-}
-
+/// Make sure the last expression in the method body is a return statement.
 fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
+    let void = untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void));
+    let return_void = untyped(hir::Expr::Return(Box::new(void)));
+
     match exprs.pop() {
-        Some(last_expr) => {
-            let needs_return = match &last_expr.0 {
-                hir::Expr::Return(_) => false,
-                _ => true,
-            };
-            if needs_return {
-                exprs.push(untyped(hir::Expr::Return(Box::new(last_expr))));
-            } else {
-                exprs.push(last_expr);
+        Some(last_expr) => match last_expr.0 {
+            hir::Expr::Return(arg) => {
+                match &arg.0 {
+                    // ad-hoc fix for `return while` pattern (appears when the last
+                    // expression in a void func is a while loop)
+                    // Better fix: insert `Void` for Void-valued exprs in value context
+                    hir::Expr::While(_, _) => {
+                        exprs.push(*arg);
+                        exprs.push(return_void);
+                        return;
+                    }
+                    _ => exprs.push(untyped(hir::Expr::Return(Box::new(*arg)))),
+                }
             }
-        }
+            hir::Expr::While(_, _) => {
+                // ditto
+                exprs.push(last_expr);
+                exprs.push(return_void);
+            }
+            _ => exprs.push(untyped(hir::Expr::Return(Box::new(last_expr)))),
+        },
         None => {
-            // Insert `return Void` for empty method
-            let void = untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void));
-            exprs.push(untyped(hir::Expr::Return(Box::new(void))));
+            exprs.push(return_void);
         }
     }
 }

@@ -38,6 +38,7 @@ impl VTable {
         self.index.contains_key(name)
     }
 
+    /// Replace the parent method with the new one.
     fn update(&mut self, name: MethodFullname) {
         let i = self.index.get(&name.first_name).unwrap();
         let elem = self.fullnames.get_mut(*i).unwrap();

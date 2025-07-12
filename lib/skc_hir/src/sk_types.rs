@@ -5,11 +5,18 @@ use shiika_core::names::*;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
-pub struct SkTypes(pub HashMap<TypeFullname, SkType>);
+pub struct SkTypes {
+    pub types: HashMap<TypeFullname, SkType>,
+    /// List of methods that are defined in Rust (= foreign to the main LLVM IR).
+    pub rustlib_methods: Vec<MethodFullname>,
+}
 
 impl SkTypes {
     pub fn new(h: HashMap<TypeFullname, SkType>) -> SkTypes {
-        SkTypes(h)
+        SkTypes {
+            types: h,
+            rustlib_methods: Vec::new(),
+        }
     }
 
     pub fn from_iterator(iter: impl Iterator<Item = SkType>) -> SkTypes {
@@ -17,26 +24,33 @@ impl SkTypes {
         iter.for_each(|t| {
             tt.insert(t.fullname(), t);
         });
-        SkTypes(tt)
+        SkTypes {
+            types: tt,
+            rustlib_methods: Vec::new(),
+        }
     }
 
     pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {
-        self.0.values().filter_map(|sk_type| match sk_type {
+        self.types.values().filter_map(|sk_type| match sk_type {
             SkType::Class(x) => Some(x.fullname()),
             SkType::Module(_) => None,
         })
     }
 
     pub fn sk_classes(&self) -> impl Iterator<Item = &SkClass> + '_ {
-        self.0.values().filter_map(|sk_type| match sk_type {
+        self.types.values().filter_map(|sk_type| match sk_type {
             SkType::Class(x) => Some(x),
             SkType::Module(_) => None,
         })
     }
 
+    pub fn get_type<'hir>(&'hir self, name: &TypeFullname) -> Option<&'hir SkType> {
+        self.types.get(name)
+    }
+
     pub fn get_class<'hir>(&'hir self, name: &ClassFullname) -> &'hir SkClass {
         let sk_type = self
-            .0
+            .types
             .get(&name.to_type_fullname())
             .unwrap_or_else(|| panic!("[BUG] class {} not found", name));
         if let SkType::Class(class) = sk_type {
@@ -46,9 +60,17 @@ impl SkTypes {
         }
     }
 
+    /// Returns the signature of the method with the given fullname, if it exists.
+    pub fn get_sig(&self, fullname: &MethodFullname) -> Option<&MethodSignature> {
+        self.types
+            .get(&fullname.type_name)
+            .and_then(|sk_type| sk_type.base().method_sigs.get(&fullname.first_name))
+            .map(|(sig, _)| sig)
+    }
+
     pub fn define_method(&mut self, type_name: &TypeFullname, method_sig: MethodSignature) {
         let sk_type = self
-            .0
+            .types
             .get_mut(type_name)
             .unwrap_or_else(|| panic!("type '{}' not found", type_name));
         sk_type.base_mut().method_sigs.insert(method_sig);
@@ -56,14 +78,14 @@ impl SkTypes {
 
     /// Merges(copies) `other` into `self`.
     pub fn merge(&mut self, other: &SkTypes) {
-        for (name, sk_type) in &other.0 {
-            if let Some(existing) = self.0.get_mut(&name) {
+        for (name, sk_type) in &other.types {
+            if let Some(existing) = self.types.get_mut(&name) {
                 existing
                     .base_mut()
                     .method_sigs
                     .append(sk_type.base().method_sigs.clone());
             } else {
-                self.0.insert(name.clone(), sk_type.clone());
+                self.types.insert(name.clone(), sk_type.clone());
             }
         }
     }

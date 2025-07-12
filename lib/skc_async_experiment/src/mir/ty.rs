@@ -1,4 +1,6 @@
 use crate::mir::Asyncness;
+use shiika_core::ty::TermTy;
+use skc_hir::MethodSignature;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +20,13 @@ impl fmt::Display for Ty {
             Ty::Fun(fun_ty) => write!(f, "{}", fun_ty),
             _ => write!(f, "{:?}", self),
         }
+    }
+}
+
+impl From<TermTy> for Ty {
+    fn from(ty: TermTy) -> Self {
+        // TODO: typaram ref
+        Ty::Raw(ty.fullname.0)
     }
 }
 
@@ -129,6 +138,18 @@ impl FunTy {
 
     pub fn lowered(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {
         Self::new(Asyncness::Lowered, param_tys, ret_ty)
+    }
+
+    /// Creates a FunTy of a Shiika method compiled into LLVM func.
+    pub fn from_method_signature(sig: MethodSignature) -> Self {
+        let receiver_ty = sig.receiver_ty().into();
+        let mut param_tys = sig
+            .params
+            .into_iter()
+            .map(|p| p.ty.into())
+            .collect::<Vec<_>>();
+        param_tys.insert(0, receiver_ty);
+        Self::new(sig.asyncness.into(), param_tys, sig.ret_ty.into())
     }
 
     /// Returns true if the two function types are the same except for asyncness.

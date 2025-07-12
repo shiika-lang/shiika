@@ -22,14 +22,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         sk_type: &SkType,
         method_name: &MethodFirstname,
-        call_type: CallType,
+        _call_type: CallType,
     ) -> Option<FoundMethod> {
         match sk_type {
-            SkType::Class(sk_class) => sk_class
-                .base
-                .method_sigs
-                .get(method_name)
-                .map(|(sig, _)| FoundMethod::class(sk_type, sig.clone(), call_type)),
+            SkType::Class(sk_class) => {
+                sk_class.base.method_sigs.get(method_name).map(|(sig, _)| {
+                    let call_type = if sig.is_virtual {
+                        CallType::Virtual
+                    } else {
+                        CallType::Direct
+                    };
+                    FoundMethod::class(sk_type, sig.clone(), call_type)
+                })
+            }
             SkType::Module(sk_module) => sk_module
                 .base
                 .method_sigs
@@ -66,6 +71,21 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             CallType::Direct,
             locs,
         )
+    }
+
+    pub fn try_lookup_method(
+        &self,
+        receiver_type: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> Option<FoundMethod> {
+        self.lookup_method_(
+            receiver_type,
+            receiver_type,
+            method_name,
+            CallType::Direct,
+            &LocationSpan::todo(),
+        )
+        .ok()
     }
 
     // `receiver_type` is for error message.
@@ -137,19 +157,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Return the class/module of the specified name, if any
     pub fn find_type(&self, fullname: &TypeFullname) -> Option<&SkType> {
         self.sk_types
-            .0
+            .types
             .get(fullname)
-            .or_else(|| self.imported_classes.0.get(fullname))
+            .or_else(|| self.imported_classes.types.get(fullname))
     }
 
     /// Return the class of the specified name, if any
     pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
         self.sk_types
-            .0
+            .types
             .get(&class_fullname.to_type_fullname())
             .or_else(|| {
                 self.imported_classes
-                    .0
+                    .types
                     .get(&class_fullname.to_type_fullname())
             })
             .and_then(|sk_type| {
@@ -165,9 +185,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn lookup_module(&self, module_fullname: &ModuleFullname) -> Option<&SkModule> {
         let name = module_fullname.to_type_fullname();
         self.sk_types
-            .0
+            .types
             .get(&name)
-            .or_else(|| self.imported_classes.0.get(&name))
+            .or_else(|| self.imported_classes.types.get(&name))
             .and_then(|sk_type| {
                 if let SkType::Module(m) = sk_type {
                     Some(m)
@@ -180,6 +200,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a type. Panic if not found
     pub fn get_type(&self, fullname: &TypeFullname) -> &SkType {
         self.find_type(fullname)
+            .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
+    }
+
+    /// Find a type. Panic if not found
+    pub fn get_type_mut(&mut self, fullname: &TypeFullname) -> &mut SkType {
+        self.sk_types
+            .types
+            .get_mut(fullname)
             .unwrap_or_else(|| panic!("[BUG] class/module `{}' not found", &fullname.0))
     }
 
@@ -197,7 +225,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Find a class. Panic if not found
     pub fn get_class_mut(&mut self, class_fullname: &ClassFullname) -> &mut SkClass {
-        if let Some(sk_type) = self.sk_types.0.get_mut(&class_fullname.to_type_fullname()) {
+        if let Some(sk_type) = self
+            .sk_types
+            .types
+            .get_mut(&class_fullname.to_type_fullname())
+        {
             if let SkType::Class(c) = sk_type {
                 c
             } else {
@@ -205,7 +237,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         } else if self
             .imported_classes
-            .0
+            .types
             .contains_key(&class_fullname.to_type_fullname())
         {
             panic!("[BUG] cannot get_mut imported class `{}'", class_fullname)

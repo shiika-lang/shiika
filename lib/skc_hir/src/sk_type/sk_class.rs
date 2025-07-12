@@ -54,6 +54,11 @@ impl SkClass {
         self.base.erasure.to_lit_ty()
     }
 
+    pub fn inheritable(&self) -> bool {
+        // TODO: Change metaclass.is_final to true and just use `self.is_final`
+        self.is_final == Some(false) && !self.base.erasure.is_meta
+    }
+
     pub fn ivars(mut self, x: SkIVars) -> Self {
         self.ivars = x;
         self

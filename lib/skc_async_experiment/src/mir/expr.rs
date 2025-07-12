@@ -16,6 +16,8 @@ pub enum Expr {
     ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
+    VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    // WTableRef(String, usize),
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
@@ -27,6 +29,7 @@ pub enum Expr {
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
     CreateTypeObject(String),
+    // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
@@ -95,6 +98,18 @@ impl Expr {
             _ => panic!("[BUG] not a function: {:?}", func),
         };
         (Expr::FunCall(Box::new(func), args), result_ty)
+    }
+
+    pub fn vtable_ref(
+        receiver: TypedExpr,
+        idx: usize,
+        name: impl Into<String>,
+        fun_ty: FunTy,
+    ) -> TypedExpr {
+        (
+            Expr::VTableRef(Box::new(receiver), idx, name.into()),
+            fun_ty.into(),
+        )
     }
 
     pub fn if_(cond: TypedExpr, then: TypedExpr, else_: TypedExpr) -> TypedExpr {
@@ -189,13 +204,6 @@ impl Expr {
         (Expr::Nop, Ty::raw("Void"))
     }
 
-    pub fn is_async_fun_call(&self) -> bool {
-        match self {
-            Expr::FunCall(fexpr, _args) => fexpr.1.is_async_fun().unwrap(),
-            _ => false,
-        }
-    }
-
     pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
         pretty_print(self, lv, as_stmt)
     }
@@ -243,6 +251,14 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                     .as_str()
                 + ")"
         }
+        Expr::VTableRef(receiver, idx, name) => {
+            format!(
+                "%VTableRef({}, {}, {})",
+                receiver.0.pretty_print(0, false),
+                idx,
+                name
+            )
+        }
         Expr::If(cond, then, else_) => {
             format!("if {}\n", cond.0.pretty_print(0, false))
                 + then.0.pretty_print(lv + 1, true).as_str()
@@ -273,11 +289,11 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             pretty_print(&e.0, lv, false),
             cast_type.result_ty()
         ),
-        Expr::CreateObject(name) => format!("%create_object('{}')", name),
-        Expr::CreateTypeObject(name) => format!("%create_type_object('{}')", name),
-        Expr::Unbox(e) => format!("unbox {}", pretty_print(&e.0, lv, false)),
+        Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
+        Expr::CreateTypeObject(name) => format!("%CreateTypeObject('{}')", name),
+        Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
-        Expr::Nop => "%nop".to_string(),
+        Expr::Nop => "%Nop".to_string(),
         //_ => todo!("{:?}", self),
     };
     if indent {

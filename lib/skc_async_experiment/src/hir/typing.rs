@@ -6,7 +6,6 @@ use shiika_ast::LocationSpan;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::{self, TermTy};
 use skc_ast2hir::class_dict::{CallType, ClassDict};
-use skc_hir::MethodSignature;
 use std::collections::HashMap;
 
 /// Create typed HIR from untyped HIR.
@@ -156,7 +155,7 @@ impl<'f> Typing<'f> {
                     .collect::<Result<_>>()?;
                 hir::Expr::fun_call(new_fexpr, new_arg_exprs)
             }
-            hir::Expr::MethodCall(recv, method_name, arg_exprs) => {
+            hir::Expr::UnresolvedMethodCall(recv, method_name, arg_exprs) => {
                 let new_recv = self.compile_expr(lvars, *recv)?;
                 let found = self.class_dict.lookup_method(
                     &new_recv.1,
@@ -176,15 +175,30 @@ impl<'f> Typing<'f> {
                     .into_iter()
                     .map(|e| self.compile_expr(lvars, e))
                     .collect::<Result<Vec<_>>>()?;
-                let cast_recv = if found.call_type == CallType::Virtual {
-                    hir::Expr::upcast(new_recv, found.sig.fullname.type_name.to_ty())
-                } else {
-                    new_recv
-                };
+                let cast_recv = upcast_if(
+                    found.call_type == CallType::Virtual,
+                    new_recv,
+                    found.sig.fullname.type_name.to_ty(),
+                );
                 new_arg_exprs.insert(0, cast_recv);
 
-                // TODO: method call via vtable/wtable
-                hir::Expr::fun_call(method_func_ref(&found.sig), new_arg_exprs)
+                let result_ty = found.sig.ret_ty.clone();
+                let call_type = match found.call_type {
+                    CallType::Direct => hir::expr::MethodCallType::Direct,
+                    CallType::Virtual => hir::expr::MethodCallType::Virtual,
+                    _ => todo!("handle other call types"),
+                };
+
+                hir::Expr::resolved_method_call(
+                    call_type,
+                    new_arg_exprs.remove(0),
+                    found.sig,
+                    new_arg_exprs,
+                    result_ty,
+                )
+            }
+            hir::Expr::ResolvedMethodCall(_, _, _, _) => {
+                unreachable!()
             }
             hir::Expr::If(cond, then, els) => {
                 let new_cond = self.compile_expr(lvars, *cond)?;
@@ -234,9 +248,9 @@ impl<'f> Typing<'f> {
             }
             hir::Expr::Return(val) => {
                 let new_val = self.compile_expr(lvars, *val)?;
-                match &self.current_func {
+                let wanted_ty = match &self.current_func {
                     Some(f) => {
-                        if !valid_return_type(&f.ret_ty, &new_val.1) {
+                        if !valid_return_type(&self.class_dict, &f.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
                                 &f.name,
@@ -244,12 +258,14 @@ impl<'f> Typing<'f> {
                                 new_val.1
                             ));
                         }
+                        f.ret_ty.clone()
                     }
                     None => {
                         return Err(anyhow!("return outside of method"));
                     }
-                }
-                hir::Expr::return_(new_val)
+                };
+                let cast_val = upcast_return(new_val, wanted_ty);
+                hir::Expr::return_(cast_val)
             }
             hir::Expr::Exprs(exprs) => {
                 let new_exprs = exprs
@@ -266,22 +282,28 @@ impl<'f> Typing<'f> {
     }
 }
 
-fn valid_return_type(expected: &TermTy, actual: &TermTy) -> bool {
-    if actual == &ty::raw("Never") {
-        true
+fn valid_return_type(class_dict: &ClassDict, expected: &TermTy, actual: &TermTy) -> bool {
+    class_dict.conforms(actual, expected)
+}
+
+fn upcast_if(
+    cond: bool,
+    expr: hir::TypedExpr<TermTy>,
+    wanted_ty: TermTy,
+) -> hir::TypedExpr<TermTy> {
+    if cond {
+        hir::Expr::upcast(expr, wanted_ty)
     } else {
-        expected == actual
+        expr
     }
 }
 
-fn method_func_ref(sig: &MethodSignature) -> hir::TypedExpr<TermTy> {
-    let fname = FunctionName::unmangled(&sig.fullname.full_name);
-    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
-    param_tys.insert(0, sig.fullname.type_name.to_ty());
-    let fun_ty = hir::FunTy {
-        asyncness: hir::Asyncness::Unknown,
-        param_tys,
-        ret_ty: sig.ret_ty.clone(),
-    };
-    hir::Expr::func_ref(fname, fun_ty)
+fn upcast_return(expr: hir::TypedExpr<TermTy>, wanted_ty: TermTy) -> hir::TypedExpr<TermTy> {
+    if expr.1 == ty::raw("Never") {
+        return expr;
+    } else if expr.1 != wanted_ty {
+        hir::Expr::upcast(expr, wanted_ty)
+    } else {
+        expr
+    }
 }

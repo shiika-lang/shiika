@@ -3,19 +3,23 @@ use crate::mir::rewriter::MirRewriter;
 use crate::mir::visitor::MirVisitor;
 use crate::names::FunctionName;
 use anyhow::Result;
+use shiika_core::names::{method_firstname, type_fullname};
+use skc_hir::SkTypes;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-/// Set Function.is_async to true or false.
+/// Set Function.is_async (and asyncness in sk_types) to true or false.
+///
 /// This judgement is conservative because it is (possible, but) hard to
 /// tell if a function is async or not when we support first-class functions.
 /// It is safe to be false-positive (performance penalty aside).
-pub fn run(mut mir: mir::Program) -> mir::Program {
+pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     // Externs are known to be async or not
     let mut known = HashMap::new();
     for e in &mir.externs {
         known.insert(e.name.clone(), e.is_async());
     }
     for f in &mut mir.funcs {
+        // User main needs to be async
         if f.name == FunctionName::unmangled("chiika_main") {
             f.asyncness = mir::Asyncness::Async;
         }
@@ -54,6 +58,26 @@ pub fn run(mut mir: mir::Program) -> mir::Program {
     let mut u = Update { known: &known };
     u.set_func_asyncness(&mut mir);
     let new_mir = u.walk_mir(mir).unwrap();
+
+    // Write back asyncness to SkTypes
+    for (name, is_async) in &known {
+        let Some((type_name, method_name)) = name.split() else {
+            continue;
+        };
+        if let Some(sk_type) = sk_types.types.get_mut(&type_fullname(type_name)) {
+            if let Some((sig, _)) = sk_type
+                .base_mut()
+                .method_sigs
+                .get_mut(&method_firstname(method_name))
+            {
+                sig.asyncness = if *is_async {
+                    skc_hir::Asyncness::Async
+                } else {
+                    skc_hir::Asyncness::Sync
+                };
+            }
+        }
+    }
 
     // Consistency check
     for f in &new_mir.funcs {

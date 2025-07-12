@@ -1,7 +1,8 @@
 use crate::build::{loader, CompileTarget};
 use crate::names::FunctionName;
-use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, prelude};
+use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
+use shiika_core::names::type_fullname;
 use shiika_core::ty::Erasure;
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
@@ -56,14 +57,23 @@ fn generate_mir(
 
     let hir = generate_hir(cli, &ast, target)?;
     log::info!("Creating mir");
+
     let mut mir = hir_to_mir::run(hir, target)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
-    mir.program = mir_lowering::asyncness_check::run(mir.program);
+
+    mir.program = mir_lowering::simplify_return::run(mir.program);
+
+    mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
+
     mir.program = mir_lowering::pass_async_env::run(mir.program);
     cli.log(format!("# -- pass_async_env output --\n{}\n", mir.program));
+
+    mir.program = mir_lowering::splice_exprs::run(mir.program);
+
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
     cli.log(format!("# -- async_splitter output --\n{}\n", mir.program));
+
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
     Ok(mir)
 }
@@ -81,7 +91,7 @@ fn generate_hir(
         imports.constants.extend(exp.constants);
         imports.vtables.merge(exp.vtables);
         // TODO: refer .asyncness directly
-        for sk_type in imports.sk_types.0.values() {
+        for sk_type in imports.sk_types.types.values() {
             for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
                 if sig.asyncness == skc_hir::Asyncness::Async {
                     imported_asyncs.push(FunctionName::from_sig(sig));
@@ -97,11 +107,15 @@ fn generate_hir(
         bootstrap_classes(&mut class_dict);
     }
     class_dict.index_program(&defs)?;
+    if let Some(pkg) = target.package() {
+        merge_rustlib_methods(&mut class_dict, pkg)?;
+    }
 
     log::debug!("Create untyped AST");
-    let mut hir = hir::untyped::create(&ast, &imports.constants)?;
+    let mut hir = hir::untyped::create(&ast, &class_dict, &imports.constants)?;
     log::info!("Create `new`");
     hir_building::define_new::run(&mut hir, &mut class_dict);
+
     log::info!("Type checking");
     let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
     let sk_types = class_dict.sk_types;
@@ -123,6 +137,50 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     let exports: LibraryExports =
         serde_json::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
     Ok(exports)
+}
+
+/// Insert signatures in exports.json5 (methods written in Rust) into SkTypes.
+fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Result<()> {
+    //let mut methods = vec![];
+    for exp in p.export_files() {
+        for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
+            let sk_type = class_dict
+                .sk_types
+                .get_type(&type_fullname(&type_name))
+                .ok_or_else(|| anyhow::anyhow!("Type {} not found", type_name))?;
+            let (inheritable, superclass) = if let skc_hir::SkType::Class(sk_class) = sk_type {
+                (
+                    sk_class.is_final == Some(false),
+                    sk_class.superclass.clone(),
+                )
+            } else {
+                (false, None)
+            };
+            let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+
+            let mut sig = class_dict.create_maybe_virtual_signature(
+                inheritable,
+                &sk_type.base().erasure.namespace(),
+                sk_type.fullname(),
+                &ast_sig,
+                &sk_type.base().typarams,
+                &superclass,
+            )?;
+            sig.asyncness = if is_async {
+                skc_hir::Asyncness::Async
+            } else {
+                skc_hir::Asyncness::Sync
+            };
+            class_dict
+                .sk_types
+                .rustlib_methods
+                .push(sig.fullname.clone());
+            class_dict
+                .sk_types
+                .define_method(&type_fullname(type_name), sig);
+        }
+    }
+    Ok(())
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {

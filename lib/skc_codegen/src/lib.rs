@@ -185,14 +185,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Generate LLVM types and `declare`s for imported class/modules
     fn gen_import_classes(&mut self, imported_types: &SkTypes) {
         // LLVM type
-        for name in imported_types.0.keys() {
+        for name in imported_types.types.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
         self.define_type_struct_fields(imported_types);
 
         // Methods
-        for (typename, sk_type) in &imported_types.0 {
+        for (typename, sk_type) in &imported_types.types {
             for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
                 let func_type = self.method_llvm_func_type(&sk_type.erasure().to_term_ty(), sig);
                 let func_name = typename.method_fullname(&sig.fullname.first_name);
@@ -378,7 +378,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     /// Create llvm struct types for Shiika objects
     fn gen_type_structs(&mut self, sk_types: &SkTypes) {
         // Create all the struct types in advance (because it may be used as other class's ivar)
-        for name in sk_types.0.keys() {
+        for name in sk_types.types.keys() {
             self.llvm_struct_types
                 .insert(name.clone(), self.context.opaque_struct_type(&name.0));
         }
@@ -390,7 +390,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn define_type_struct_fields(&self, sk_types: &SkTypes) {
         let vt = self.llvm_vtable_ref_type().into();
         let ct = self.class_object_ref_type().into();
-        for (name, sk_type) in &sk_types.0 {
+        for (name, sk_type) in &sk_types.types {
             let struct_type = self.llvm_struct_types.get(name).unwrap();
             match sk_type {
                 SkType::Class(class) => match name.0.as_str() {

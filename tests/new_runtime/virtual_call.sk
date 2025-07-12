@@ -1,0 +1,16 @@
+base class A
+  def foo -> Int
+    123
+  end
+end
+class B : A
+  def foo -> Int
+    456
+  end
+end
+class Main
+  def self.bar -> A
+    B.new
+  end
+end
+print Main.bar.foo

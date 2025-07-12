@@ -95,8 +95,9 @@ impl Verifier {
                     .iter()
                     .enumerate()
                     .zip(args.iter())
-                    .try_for_each(|((i, p), a)| assert(&a, &format!("argument {}", i), p))?;
+                    .try_for_each(|((i, p), a)| assert(&a, &format!("argument #{}", i), p))?;
             }
+            mir::Expr::VTableRef(_, _, _) => (),
             mir::Expr::If(cond, then, els) => {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, then)?;
