@@ -1,4 +1,12 @@
 //! Splice mir::Expr::Exprs into its body.
+//!
+//! ## Example
+//!
+//! ```
+//! // Before
+//! Exprs([f(), Exprs[g(), h()]]));
+//! // After
+//! Exprs([f(), g(), h()]);
 use crate::mir;
 use crate::mir::rewriter::MirRewriter;
 use anyhow::Result;
