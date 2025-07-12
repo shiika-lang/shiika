@@ -319,22 +319,33 @@ fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
 
 /// Make sure the last expression in the method body is a return statement.
 fn insert_implicit_return(exprs: &mut Vec<hir::TypedExpr<()>>) {
+    let void = untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void));
+    let return_void = untyped(hir::Expr::Return(Box::new(void)));
+
     match exprs.pop() {
-        Some(last_expr) => {
-            let needs_return = match &last_expr.0 {
-                hir::Expr::Return(_) => false,
-                _ => true,
-            };
-            if needs_return {
-                exprs.push(untyped(hir::Expr::Return(Box::new(last_expr))));
-            } else {
-                exprs.push(last_expr);
+        Some(last_expr) => match last_expr.0 {
+            hir::Expr::Return(arg) => {
+                match &arg.0 {
+                    // ad-hoc fix for `return while` pattern (appears when the last
+                    // expression in a void func is a while loop)
+                    // Better fix: insert `Void` for Void-valued exprs in value context
+                    hir::Expr::While(_, _) => {
+                        exprs.push(*arg);
+                        exprs.push(return_void);
+                        return;
+                    }
+                    _ => exprs.push(untyped(hir::Expr::Return(Box::new(*arg)))),
+                }
             }
-        }
+            hir::Expr::While(_, _) => {
+                // ditto
+                exprs.push(last_expr);
+                exprs.push(return_void);
+            }
+            _ => exprs.push(untyped(hir::Expr::Return(Box::new(last_expr)))),
+        },
         None => {
-            // Insert `return Void` for empty method
-            let void = untyped(hir::Expr::PseudoVar(mir::PseudoVar::Void));
-            exprs.push(untyped(hir::Expr::Return(Box::new(void))));
+            exprs.push(return_void);
         }
     }
 }
