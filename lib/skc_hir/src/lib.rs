@@ -1,13 +1,13 @@
 pub mod method_signature;
+mod method_signatures;
 pub mod pattern_match;
-mod signatures;
 mod sk_method;
 mod sk_type;
 mod sk_types;
 mod supertype;
 pub mod visitor;
 pub use crate::method_signature::*;
-pub use crate::signatures::MethodSignatures;
+pub use crate::method_signatures::MethodSignatures;
 pub use crate::sk_method::{SkMethod, SkMethodBody, SkMethods};
 pub use crate::sk_type::{SkClass, SkModule, SkType, SkTypeBase, WTable};
 pub use crate::sk_types::SkTypes;
