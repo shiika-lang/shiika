@@ -71,11 +71,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
             });
         }
 
-        let ret_ty = match &sig.ret_typ {
-            Some(t) => compile_ty(&t)?,
-            None => ty::raw("Void"),
-        };
-
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
@@ -94,7 +89,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             sig: hir_sig,
             params,
-            ret_ty,
             self_ty,
             body_stmts,
         };

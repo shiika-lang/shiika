@@ -163,7 +163,7 @@ impl<'a> HirToMir<'a> {
             asyncness: method.sig.asyncness.clone().into(),
             name: method.name,
             params,
-            ret_ty: self.convert_ty(method.ret_ty),
+            ret_ty: self.convert_ty(method.sig.ret_ty.clone()),
             body_stmts,
             sig: Some(method.sig),
         }

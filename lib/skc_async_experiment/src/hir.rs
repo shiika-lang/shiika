@@ -35,7 +35,6 @@ pub struct Method<T> {
     pub sig: MethodSignature, // TODO: remove params, self_ty, ret_ty
     pub params: Vec<Param>,
     pub self_ty: TermTy,
-    pub ret_ty: TermTy,
     pub body_stmts: TypedExpr<T>,
 }
 
@@ -44,7 +43,7 @@ impl<T: Clone> Method<T> {
         FunTy {
             asyncness: hir::Asyncness::Unknown,
             param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
-            ret_ty: self.ret_ty.clone(),
+            ret_ty: self.sig.ret_ty.clone(),
         }
     }
 }

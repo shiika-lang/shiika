@@ -53,7 +53,6 @@ pub fn run(
                 sig: f.sig,
                 params: f.params,
                 self_ty: f.self_ty,
-                ret_ty: f.ret_ty,
                 body_stmts: new_body_stmts,
             })
         })
@@ -250,15 +249,15 @@ impl<'f> Typing<'f> {
                 let new_val = self.compile_expr(lvars, *val)?;
                 let wanted_ty = match &self.current_func {
                     Some(f) => {
-                        if !valid_return_type(&self.class_dict, &f.ret_ty, &new_val.1) {
+                        if !valid_return_type(&self.class_dict, &f.sig.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
                                 &f.name,
-                                &f.ret_ty,
+                                &f.sig.ret_ty,
                                 new_val.1
                             ));
                         }
-                        f.ret_ty.clone()
+                        f.sig.ret_ty.clone()
                     }
                     None => {
                         return Err(anyhow!("return outside of method"));
