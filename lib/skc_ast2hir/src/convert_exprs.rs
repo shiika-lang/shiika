@@ -750,7 +750,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     return Ok((Some(lvar_info), None));
                 }
             }
-            if let Some((idx, param)) = signature::find_param(scope.params, name) {
+            if let Some((idx, param)) = find_param(scope.params, name) {
                 if updating {
                     return Err(error::program_error(&format!(
                         "you cannot reassign to argument `{}'",

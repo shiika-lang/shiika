@@ -7,7 +7,7 @@ use anyhow::Result;
 use shiika_ast::{self, LocationSpan, UnresolvedTypeName};
 use shiika_core::{names::*, ty, ty::*};
 use skc_error::{self, Label};
-use skc_hir::signature::*;
+use skc_hir::method_signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
 
@@ -101,7 +101,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     defs,
                 )?
             };
-            Some(signature::signature_of_new(
+            Some(signature_of_new(
                 &metaclass_fullname,
                 params,
                 typarams.clone(),
@@ -859,8 +859,8 @@ fn enum_case_new_sig(
         })
         .collect::<Vec<_>>();
     (
-        signature::signature_of_new(&fullname.meta_name(), params.clone(), typarams.to_vec()),
-        signature::signature_of_initialize(fullname, params),
+        signature_of_new(&fullname.meta_name(), params.clone(), typarams.to_vec()),
+        signature_of_initialize(fullname, params),
     )
 }
 

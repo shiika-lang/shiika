@@ -1,5 +1,5 @@
 use super::SkTypeBase;
-use crate::signature::MethodSignature;
+use crate::method_signature::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ModuleFullname;
 

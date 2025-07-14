@@ -1,4 +1,4 @@
-use super::signature::MethodSignature;
+use super::method_signature::MethodSignature;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::MethodFirstname;
 use std::collections::HashMap;

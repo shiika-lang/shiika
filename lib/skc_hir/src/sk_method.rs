@@ -1,4 +1,4 @@
-use crate::signature::MethodSignature;
+use crate::method_signature::MethodSignature;
 use crate::{HirExpression, HirLVars};
 use shiika_core::names::*;
 use shiika_core::ty::TermTy;
