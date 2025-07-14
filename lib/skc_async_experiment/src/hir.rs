@@ -33,7 +33,6 @@ pub struct Program<T> {
 pub struct Method<T> {
     pub name: FunctionName,
     pub sig: MethodSignature, // TODO: remove params, self_ty, ret_ty
-    pub params: Vec<Param>,
     pub self_ty: TermTy,
     pub body_stmts: TypedExpr<T>,
 }
@@ -42,23 +41,13 @@ impl<T: Clone> Method<T> {
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: hir::Asyncness::Unknown,
-            param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
+            param_tys: self
+                .sig
+                .params
+                .iter()
+                .map(|x| x.ty.clone())
+                .collect::<Vec<_>>(),
             ret_ty: self.sig.ret_ty.clone(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub ty: TermTy,
-    pub name: String,
-}
-
-impl Param {
-    pub fn new(ty: TermTy, name: impl Into<String>) -> Self {
-        Self {
-            ty,
-            name: name.into(),
         }
     }
 }

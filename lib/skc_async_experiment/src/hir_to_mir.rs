@@ -5,7 +5,7 @@ use crate::{build, hir, mir};
 use anyhow::Result;
 use shiika_core::names::MethodFirstname;
 use shiika_core::ty::TermTy;
-use skc_hir::{MethodSignature, SkTypes};
+use skc_hir::{MethodParam, MethodSignature, SkTypes};
 use std::collections::HashSet;
 
 pub fn run(
@@ -146,7 +146,9 @@ impl<'a> HirToMir<'a> {
 
     fn convert_method(&self, method: hir::Method<TermTy>) -> mir::Function {
         let mut params = method
+            .sig
             .params
+            .clone()
             .into_iter()
             .map(|x| self.convert_param(x))
             .collect::<Vec<_>>();
@@ -201,7 +203,7 @@ impl<'a> HirToMir<'a> {
         }
     }
 
-    fn convert_param(&self, param: hir::Param) -> mir::Param {
+    fn convert_param(&self, param: MethodParam) -> mir::Param {
         mir::Param {
             ty: self.convert_ty(param.ty),
             name: param.name,

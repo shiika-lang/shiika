@@ -63,14 +63,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
             ty::meta(namespace.string())
         };
 
-        let mut params = vec![];
-        for p in &sig.params {
-            params.push(hir::Param {
-                name: p.name.clone(),
-                ty: compile_ty(&p.typ)?,
-            });
-        }
-
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
@@ -88,7 +80,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         let m = hir::Method {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             sig: hir_sig,
-            params,
             self_ty,
             body_stmts,
         };
@@ -298,17 +289,6 @@ impl<'a> Compiler<'a> {
         }
         Ok(untyped(hir::Expr::Exprs(es)))
     }
-}
-
-fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
-    let t = if n.args.len() == 0 {
-        let s = n.names.join("::");
-        ty::raw(s)
-    } else {
-        todo!();
-        //hir::Ty::Fun(compile_fun_ty(&n.args)?)
-    };
-    Ok(t)
 }
 
 /// Make sure the last expression in the method body is a return statement.

@@ -51,7 +51,6 @@ pub fn run(
             Ok(hir::Method {
                 name: f.name,
                 sig: f.sig,
-                params: f.params,
                 self_ty: f.self_ty,
                 body_stmts: new_body_stmts,
             })
@@ -118,7 +117,7 @@ impl<'f> Typing<'f> {
                 }
             }
             hir::Expr::ArgRef(i, s) => {
-                let current_func_params = &self.current_func.as_ref().unwrap().params;
+                let current_func_params = &self.current_func.as_ref().unwrap().sig.params;
                 let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
