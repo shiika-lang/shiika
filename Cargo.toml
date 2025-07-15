@@ -25,8 +25,8 @@ skc_async_experiment = { path = "lib/skc_async_experiment/" }
 
 anyhow = "1.0"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
-clap = { version = "3.1.18", features = ["derive"] }
-env_logger = "0.8.2"
+clap = { version = "4.5.35", features = ["derive"] }
+env_logger = "0.11.7"
 log = "0.4.11"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0"
