@@ -78,7 +78,6 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
         name: method_name.clone().into(),
         sig,
         body_stmts: untyped(hir::Expr::Exprs(exprs)),
-        self_ty: instance_ty.meta_ty(),
     }
 }
 

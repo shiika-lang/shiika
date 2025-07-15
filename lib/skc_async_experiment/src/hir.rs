@@ -32,12 +32,15 @@ pub struct Program<T> {
 #[derive(Debug)]
 pub struct Method<T> {
     pub name: FunctionName,
-    pub sig: MethodSignature, // TODO: remove params, self_ty, ret_ty
-    pub self_ty: TermTy,
+    pub sig: MethodSignature,
     pub body_stmts: TypedExpr<T>,
 }
 
 impl<T: Clone> Method<T> {
+    pub fn self_ty(&self) -> TermTy {
+        self.sig.fullname.type_name.to_ty()
+    }
+
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: hir::Asyncness::Unknown,

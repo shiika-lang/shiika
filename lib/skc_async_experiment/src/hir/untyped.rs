@@ -80,7 +80,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         let m = hir::Method {
             name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             sig: hir_sig,
-            self_ty,
             body_stmts,
         };
         self.methods.push(m);

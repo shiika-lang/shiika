@@ -155,7 +155,7 @@ impl<'a> HirToMir<'a> {
         params.insert(
             0,
             mir::Param {
-                ty: self.convert_ty(method.self_ty),
+                ty: self.convert_ty(method.self_ty()),
                 name: "self".to_string(),
             },
         );

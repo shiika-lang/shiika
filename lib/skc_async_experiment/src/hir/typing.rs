@@ -51,7 +51,6 @@ pub fn run(
             Ok(hir::Method {
                 name: f.name,
                 sig: f.sig,
-                self_ty: f.self_ty,
                 body_stmts: new_body_stmts,
             })
         })
@@ -101,7 +100,7 @@ impl<'f> Typing<'f> {
             hir::Expr::PseudoVar(p) => {
                 if p == mir::PseudoVar::SelfRef {
                     let ty = match &self.current_func {
-                        Some(f) => f.self_ty.clone(),
+                        Some(f) => f.self_ty(),
                         _ => ty::raw("Object"),
                     };
                     hir::Expr::self_ref(ty)
