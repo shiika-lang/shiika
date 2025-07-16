@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor};
 use shiika_core::names::{method_firstname, ConstFullname, Namespace};
 use shiika_core::ty::TermTy;
-use skc_ast2hir::class_dict::{CallType, ClassDict};
+use skc_ast2hir::class_dict::ClassDict;
 use std::collections::{HashMap, HashSet};
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST.
@@ -66,7 +66,7 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         };
         let hir_sig = self
             .class_dict
-            .find_method(&owner, &sig.name, CallType::Direct)
+            .find_method(&owner, &sig.name)
             .unwrap_or_else(|| panic!("method {} {} not indexed", namespace, &sig.name.0))
             .sig;
 
