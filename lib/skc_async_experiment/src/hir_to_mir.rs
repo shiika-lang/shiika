@@ -6,7 +6,6 @@ use anyhow::Result;
 use shiika_core::names::MethodFirstname;
 use shiika_core::ty::TermTy;
 use skc_hir::{MethodParam, MethodSignature, SkTypes};
-use std::collections::HashSet;
 
 pub fn run(
     hir: hir::CompilationUnit,
@@ -21,7 +20,7 @@ pub fn run(
 
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
-    let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
+    let mut externs = c.convert_externs(&hir.imports.sk_types);
     for method_name in &hir.sk_types.rustlib_methods {
         externs.push(mir::Extern {
             name: FunctionName::unmangled(&method_name.full_name),
@@ -110,23 +109,14 @@ impl<'a> HirToMir<'a> {
         v
     }
 
-    fn convert_externs(
-        &self,
-        imports: &SkTypes,
-        imported_asyncs: Vec<FunctionName>,
-    ) -> Vec<mir::Extern> {
-        let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
+    fn convert_externs(&self, imports: &SkTypes) -> Vec<mir::Extern> {
         imports
             .types
             .values()
             .flat_map(|sk_type| {
                 sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
                     let fname = FunctionName::from_sig(sig);
-                    let asyncness = if asyncs.contains(&fname) {
-                        mir::Asyncness::Async
-                    } else {
-                        mir::Asyncness::Sync
-                    };
+                    let asyncness = sig.asyncness.clone().into();
                     let mut param_tys = sig
                         .params
                         .iter()

@@ -1,5 +1,4 @@
 use crate::build::{loader, CompileTarget};
-use crate::names::FunctionName;
 use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
@@ -84,20 +83,11 @@ fn generate_hir(
     target: &CompileTarget,
 ) -> Result<hir::CompilationUnit> {
     let mut imports = LibraryExports::empty();
-    let mut imported_asyncs = vec![];
     for package in target.deps {
         let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
         imports.sk_types.merge(&exp.sk_types);
         imports.constants.extend(exp.constants);
         imports.vtables.merge(exp.vtables);
-        // TODO: refer .asyncness directly
-        for sk_type in imports.sk_types.types.values() {
-            for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
-                if sig.asyncness == skc_hir::Asyncness::Async {
-                    imported_asyncs.push(FunctionName::from_sig(sig));
-                }
-            }
-        }
     }
 
     let defs = ast.defs();
@@ -122,7 +112,6 @@ fn generate_hir(
     Ok(hir::CompilationUnit {
         package_name: target.package_name(),
         imports,
-        imported_asyncs,
         program: hir,
         sk_types,
     })
