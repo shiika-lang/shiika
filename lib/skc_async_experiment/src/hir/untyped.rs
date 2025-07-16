@@ -1,11 +1,10 @@
 use crate::hir;
 use crate::hir::expr::untyped;
 use crate::mir;
-use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor};
 use shiika_core::names::{method_firstname, ConstFullname, Namespace};
-use shiika_core::ty::{self, TermTy};
+use shiika_core::ty::TermTy;
 use skc_ast2hir::class_dict::{CallType, ClassDict};
 use std::collections::{HashMap, HashSet};
 
@@ -57,12 +56,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         sig: &shiika_ast::AstMethodSignature,
         body_exprs: &Vec<shiika_ast::AstExpression>,
     ) -> Result<()> {
-        let self_ty = if is_instance {
-            ty::raw(namespace.string())
-        } else {
-            ty::meta(namespace.string())
-        };
-
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
@@ -78,7 +71,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
             .sig;
 
         let m = hir::Method {
-            name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             sig: hir_sig,
             body_stmts,
         };

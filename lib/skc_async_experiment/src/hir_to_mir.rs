@@ -159,11 +159,12 @@ impl<'a> HirToMir<'a> {
                 name: "self".to_string(),
             },
         );
+        let name = method.name();
         let allocs = collect_allocs::run(&method.body_stmts);
         let body_stmts = self.insert_allocs(allocs, self.convert_texpr(method.body_stmts));
         mir::Function {
             asyncness: method.sig.asyncness.clone().into(),
-            name: method.name,
+            name,
             params,
             ret_ty: self.convert_ty(method.sig.ret_ty.clone()),
             body_stmts,

@@ -31,12 +31,15 @@ pub struct Program<T> {
 
 #[derive(Debug)]
 pub struct Method<T> {
-    pub name: FunctionName,
     pub sig: MethodSignature,
     pub body_stmts: TypedExpr<T>,
 }
 
 impl<T: Clone> Method<T> {
+    pub fn name(&self) -> FunctionName {
+        FunctionName::from_sig(&self.sig)
+    }
+
     pub fn self_ty(&self) -> TermTy {
         self.sig.fullname.type_name.to_ty()
     }

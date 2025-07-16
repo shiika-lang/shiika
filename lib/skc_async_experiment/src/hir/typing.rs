@@ -16,7 +16,7 @@ pub fn run(
 ) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
-        sigs.insert(f.name.clone(), f.fun_ty());
+        sigs.insert(f.name(), f.fun_ty());
     }
 
     let mut new_constants = vec![];
@@ -49,7 +49,6 @@ pub fn run(
             };
             let new_body_stmts = c.compile_func(body_stmts)?;
             Ok(hir::Method {
-                name: f.name,
                 sig: f.sig,
                 body_stmts: new_body_stmts,
             })
@@ -250,7 +249,7 @@ impl<'f> Typing<'f> {
                         if !valid_return_type(&self.class_dict, &f.sig.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
-                                &f.name,
+                                &f.name(),
                                 &f.sig.ret_ty,
                                 new_val.1
                             ));
