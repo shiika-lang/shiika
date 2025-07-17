@@ -1,4 +1,4 @@
-use crate::signatures::MethodSignatures;
+use crate::method_signatures::MethodSignatures;
 use serde::{Deserialize, Serialize};
 use shiika_core::names::*;
 use shiika_core::ty::{self, *};

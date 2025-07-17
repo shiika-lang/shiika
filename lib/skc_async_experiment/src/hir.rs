@@ -16,7 +16,6 @@ pub use ty::FunTy;
 pub struct CompilationUnit {
     pub package_name: Option<String>,
     pub imports: LibraryExports,
-    pub imported_asyncs: Vec<FunctionName>,
     pub program: Program<TermTy>,
     pub sk_types: SkTypes,
 }
@@ -31,35 +30,29 @@ pub struct Program<T> {
 
 #[derive(Debug)]
 pub struct Method<T> {
-    pub name: FunctionName,
-    pub sig: MethodSignature, // TODO: remove params, self_ty, ret_ty
-    pub params: Vec<Param>,
-    pub self_ty: TermTy,
-    pub ret_ty: TermTy,
+    pub sig: MethodSignature,
     pub body_stmts: TypedExpr<T>,
 }
 
 impl<T: Clone> Method<T> {
+    pub fn name(&self) -> FunctionName {
+        FunctionName::from_sig(&self.sig)
+    }
+
+    pub fn self_ty(&self) -> TermTy {
+        self.sig.fullname.type_name.to_ty()
+    }
+
     pub fn fun_ty(&self) -> FunTy {
         FunTy {
             asyncness: hir::Asyncness::Unknown,
-            param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
-            ret_ty: self.ret_ty.clone(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub ty: TermTy,
-    pub name: String,
-}
-
-impl Param {
-    pub fn new(ty: TermTy, name: impl Into<String>) -> Self {
-        Self {
-            ty,
-            name: name.into(),
+            param_tys: self
+                .sig
+                .params
+                .iter()
+                .map(|x| x.ty.clone())
+                .collect::<Vec<_>>(),
+            ret_ty: self.sig.ret_ty.clone(),
         }
     }
 }

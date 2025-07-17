@@ -2,7 +2,7 @@
 //! (implementation of `new` is decided from the signature
 //! of `initialize`)
 use crate::hir::expr::untyped;
-use crate::hir::{self, Param};
+use crate::hir::{self};
 use shiika_ast::LocationSpan;
 use shiika_core::names::{method_firstname, method_fullname};
 use shiika_core::ty::{LitTy, TermTy};
@@ -75,18 +75,8 @@ fn create_new(class_dict: &ClassDict, meta_ty: &LitTy) -> hir::Method<()> {
         is_virtual: false,
     };
     hir::Method {
-        name: method_name.clone().into(),
         sig,
-        params: params
-            .iter()
-            .map(|param| Param {
-                ty: param.ty.clone(),
-                name: param.name.clone(),
-            })
-            .collect(),
-        ret_ty: instance_ty.clone(),
         body_stmts: untyped(hir::Expr::Exprs(exprs)),
-        self_ty: instance_ty.meta_ty(),
     }
 }
 

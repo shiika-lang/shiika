@@ -12,18 +12,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         &self,
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
-        call_type: CallType,
     ) -> Option<FoundMethod> {
         self.find_type(fullname)
-            .and_then(|sk_type| self._find_method(sk_type, method_name, call_type))
+            .and_then(|sk_type| self._find_method(sk_type, method_name))
     }
 
-    fn _find_method(
-        &self,
-        sk_type: &SkType,
-        method_name: &MethodFirstname,
-        _call_type: CallType,
-    ) -> Option<FoundMethod> {
+    fn _find_method(&self, sk_type: &SkType, method_name: &MethodFirstname) -> Option<FoundMethod> {
         match sk_type {
             SkType::Class(sk_class) => {
                 sk_class.base.method_sigs.get(method_name).map(|(sig, _)| {
@@ -49,8 +43,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &TypeFullname,
         method_name: &MethodFirstname,
     ) -> Option<MethodSignature> {
-        let whatever = CallType::Direct;
-        self.find_method(fullname, method_name, whatever)
+        self.find_method(fullname, method_name)
             .map(|found| found.sig)
     }
 
@@ -64,13 +57,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // For error messages
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
-        self.lookup_method_(
-            receiver_type,
-            receiver_type,
-            method_name,
-            CallType::Direct,
-            locs,
-        )
+        self.lookup_method_(receiver_type, receiver_type, method_name, locs)
     }
 
     pub fn try_lookup_method(
@@ -82,7 +69,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             receiver_type,
             receiver_type,
             method_name,
-            CallType::Direct,
             &LocationSpan::todo(),
         )
         .ok()
@@ -94,7 +80,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         receiver_type: &TermTy,
         current_type: &TermTy,
         method_name: &MethodFirstname,
-        call_type: CallType,
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
         let (erasure, class_tyargs) = match &current_type.body {
@@ -104,7 +89,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
-        if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name, call_type) {
+        if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
             return Ok(found);
             //return Ok(specialized_version(found, receiver_type, class_tyargs));
         }
@@ -112,11 +97,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             SkType::Class(sk_class) => {
                 // Look up in included modules
                 for modinfo in &sk_class.includes {
-                    if let Some(mut found) = self.find_method(
-                        &modinfo.erasure().to_type_fullname(),
-                        method_name,
-                        CallType::Module,
-                    ) {
+                    if let Some(mut found) =
+                        self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
+                    {
                         let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
                         found.specialize(&mod_tyargs, Default::default());
                         return Ok(found);
@@ -128,7 +111,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         receiver_type,
                         &super_ty.to_term_ty(),
                         method_name,
-                        CallType::Virtual,
                         locs,
                     );
                 }
@@ -136,13 +118,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             SkType::Module(_) => {
                 // TODO: Look up in supermodule, once it's implemented
                 // Lookup in Object (the top type)
-                return self.lookup_method_(
-                    receiver_type,
-                    &ty::raw("Object"),
-                    method_name,
-                    CallType::Virtual,
-                    locs,
-                );
+                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
             }
         }
         Err(error::method_not_found(

@@ -5,8 +5,7 @@ use crate::{build, hir, mir};
 use anyhow::Result;
 use shiika_core::names::MethodFirstname;
 use shiika_core::ty::TermTy;
-use skc_hir::{MethodSignature, SkTypes};
-use std::collections::HashSet;
+use skc_hir::{MethodParam, MethodSignature, SkTypes};
 
 pub fn run(
     hir: hir::CompilationUnit,
@@ -21,7 +20,7 @@ pub fn run(
 
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
-    let mut externs = c.convert_externs(&hir.imports.sk_types, hir.imported_asyncs);
+    let mut externs = c.convert_externs(&hir.imports.sk_types);
     for method_name in &hir.sk_types.rustlib_methods {
         externs.push(mir::Extern {
             name: FunctionName::unmangled(&method_name.full_name),
@@ -110,23 +109,14 @@ impl<'a> HirToMir<'a> {
         v
     }
 
-    fn convert_externs(
-        &self,
-        imports: &SkTypes,
-        imported_asyncs: Vec<FunctionName>,
-    ) -> Vec<mir::Extern> {
-        let asyncs: HashSet<FunctionName> = HashSet::from_iter(imported_asyncs);
+    fn convert_externs(&self, imports: &SkTypes) -> Vec<mir::Extern> {
         imports
             .types
             .values()
             .flat_map(|sk_type| {
                 sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
                     let fname = FunctionName::from_sig(sig);
-                    let asyncness = if asyncs.contains(&fname) {
-                        mir::Asyncness::Async
-                    } else {
-                        mir::Asyncness::Sync
-                    };
+                    let asyncness = sig.asyncness.clone().into();
                     let mut param_tys = sig
                         .params
                         .iter()
@@ -146,24 +136,27 @@ impl<'a> HirToMir<'a> {
 
     fn convert_method(&self, method: hir::Method<TermTy>) -> mir::Function {
         let mut params = method
+            .sig
             .params
+            .clone()
             .into_iter()
             .map(|x| self.convert_param(x))
             .collect::<Vec<_>>();
         params.insert(
             0,
             mir::Param {
-                ty: self.convert_ty(method.self_ty),
+                ty: self.convert_ty(method.self_ty()),
                 name: "self".to_string(),
             },
         );
+        let name = method.name();
         let allocs = collect_allocs::run(&method.body_stmts);
         let body_stmts = self.insert_allocs(allocs, self.convert_texpr(method.body_stmts));
         mir::Function {
             asyncness: method.sig.asyncness.clone().into(),
-            name: method.name,
+            name,
             params,
-            ret_ty: self.convert_ty(method.ret_ty),
+            ret_ty: self.convert_ty(method.sig.ret_ty.clone()),
             body_stmts,
             sig: Some(method.sig),
         }
@@ -201,7 +194,7 @@ impl<'a> HirToMir<'a> {
         }
     }
 
-    fn convert_param(&self, param: hir::Param) -> mir::Param {
+    fn convert_param(&self, param: MethodParam) -> mir::Param {
         mir::Param {
             ty: self.convert_ty(param.ty),
             name: param.name,

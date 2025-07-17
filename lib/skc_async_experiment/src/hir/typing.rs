@@ -16,7 +16,7 @@ pub fn run(
 ) -> Result<hir::Program<TermTy>> {
     let mut sigs = HashMap::new();
     for f in &hir.methods {
-        sigs.insert(f.name.clone(), f.fun_ty());
+        sigs.insert(f.name(), f.fun_ty());
     }
 
     let mut new_constants = vec![];
@@ -49,11 +49,7 @@ pub fn run(
             };
             let new_body_stmts = c.compile_func(body_stmts)?;
             Ok(hir::Method {
-                name: f.name,
                 sig: f.sig,
-                params: f.params,
-                self_ty: f.self_ty,
-                ret_ty: f.ret_ty,
                 body_stmts: new_body_stmts,
             })
         })
@@ -103,7 +99,7 @@ impl<'f> Typing<'f> {
             hir::Expr::PseudoVar(p) => {
                 if p == mir::PseudoVar::SelfRef {
                     let ty = match &self.current_func {
-                        Some(f) => f.self_ty.clone(),
+                        Some(f) => f.self_ty(),
                         _ => ty::raw("Object"),
                     };
                     hir::Expr::self_ref(ty)
@@ -119,7 +115,7 @@ impl<'f> Typing<'f> {
                 }
             }
             hir::Expr::ArgRef(i, s) => {
-                let current_func_params = &self.current_func.as_ref().unwrap().params;
+                let current_func_params = &self.current_func.as_ref().unwrap().sig.params;
                 let ty = current_func_params[i].ty.clone();
                 hir::Expr::arg_ref(i, s, ty)
             }
@@ -250,15 +246,15 @@ impl<'f> Typing<'f> {
                 let new_val = self.compile_expr(lvars, *val)?;
                 let wanted_ty = match &self.current_func {
                     Some(f) => {
-                        if !valid_return_type(&self.class_dict, &f.ret_ty, &new_val.1) {
+                        if !valid_return_type(&self.class_dict, &f.sig.ret_ty, &new_val.1) {
                             return Err(anyhow!(
                                 "return type mismatch: {} should return {:?} but got {:?}",
-                                &f.name,
-                                &f.ret_ty,
+                                &f.name(),
+                                &f.sig.ret_ty,
                                 new_val.1
                             ));
                         }
-                        f.ret_ty.clone()
+                        f.sig.ret_ty.clone()
                     }
                     None => {
                         return Err(anyhow!("return outside of method"));

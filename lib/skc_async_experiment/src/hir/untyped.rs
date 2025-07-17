@@ -1,12 +1,11 @@
 use crate::hir;
 use crate::hir::expr::untyped;
 use crate::mir;
-use crate::names::FunctionName;
 use anyhow::{anyhow, Result};
 use shiika_ast::{self, AstExpression, AstVisitor};
 use shiika_core::names::{method_firstname, ConstFullname, Namespace};
-use shiika_core::ty::{self, TermTy};
-use skc_ast2hir::class_dict::{CallType, ClassDict};
+use shiika_core::ty::TermTy;
+use skc_ast2hir::class_dict::ClassDict;
 use std::collections::{HashMap, HashSet};
 
 /// Create untyped HIR (i.e. contains Ty::Unknown) from AST.
@@ -57,25 +56,6 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         sig: &shiika_ast::AstMethodSignature,
         body_exprs: &Vec<shiika_ast::AstExpression>,
     ) -> Result<()> {
-        let self_ty = if is_instance {
-            ty::raw(namespace.string())
-        } else {
-            ty::meta(namespace.string())
-        };
-
-        let mut params = vec![];
-        for p in &sig.params {
-            params.push(hir::Param {
-                name: p.name.clone(),
-                ty: compile_ty(&p.typ)?,
-            });
-        }
-
-        let ret_ty = match &sig.ret_typ {
-            Some(t) => compile_ty(&t)?,
-            None => ty::raw("Void"),
-        };
-
         let c = Compiler::new(namespace, &self.known_consts);
         let body_stmts = c.compile_body(&sig.params, body_exprs)?;
 
@@ -86,16 +66,12 @@ impl<'a, 'hir_maker> AstVisitor for Visitor<'a, 'hir_maker> {
         };
         let hir_sig = self
             .class_dict
-            .find_method(&owner, &sig.name, CallType::Direct)
+            .find_method(&owner, &sig.name)
             .unwrap_or_else(|| panic!("method {} {} not indexed", namespace, &sig.name.0))
             .sig;
 
         let m = hir::Method {
-            name: FunctionName::method(&self_ty.fullname.0, &sig.name.0),
             sig: hir_sig,
-            params,
-            ret_ty,
-            self_ty,
             body_stmts,
         };
         self.methods.push(m);
@@ -304,17 +280,6 @@ impl<'a> Compiler<'a> {
         }
         Ok(untyped(hir::Expr::Exprs(es)))
     }
-}
-
-fn compile_ty(n: &shiika_ast::UnresolvedTypeName) -> Result<TermTy> {
-    let t = if n.args.len() == 0 {
-        let s = n.names.join("::");
-        ty::raw(s)
-    } else {
-        todo!();
-        //hir::Ty::Fun(compile_fun_ty(&n.args)?)
-    };
-    Ok(t)
 }
 
 /// Make sure the last expression in the method body is a return statement.
