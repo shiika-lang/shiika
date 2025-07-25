@@ -29,7 +29,6 @@ pub fn compile(
         mir.program.externs.push(mir::Extern { name, fun_ty });
     }
 
-    cli.log(&format!("# -- verifier input --\n{}\n", mir.program));
     mir::verifier::run(&mir.program)?;
 
     fs::create_dir_all(target.out_dir)
@@ -61,6 +60,7 @@ fn generate_mir(
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::simplify_return::run(mir.program);
+    cli.log(format!("# -- simplify_return output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
@@ -69,11 +69,14 @@ fn generate_mir(
     cli.log(format!("# -- pass_async_env output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::splice_exprs::run(mir.program);
+    cli.log(format!("# -- splice_exprs output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
     cli.log(format!("# -- async_splitter output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
+    cli.log(format!("# -- resolve_env_op output --\n{}\n", mir.program));
+
     Ok(mir)
 }
 
