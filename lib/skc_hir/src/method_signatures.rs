@@ -76,4 +76,9 @@ impl MethodSignatures {
     pub fn unordered_iter(&self) -> impl Iterator<Item = &(MethodSignature, usize)> {
         self.0.values()
     }
+
+    /// Returns iterator over signatures (not ordered, signature only)
+    pub fn iter(&self) -> impl Iterator<Item = &MethodSignature> {
+        self.0.values().map(|(sig, _)| sig)
+    }
 }
