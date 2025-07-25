@@ -1,7 +1,7 @@
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
 pub fn run(mir: &mir::Program) -> Result<()> {
@@ -15,6 +15,7 @@ pub fn run(mir: &mir::Program) -> Result<()> {
     }
 
     let v = Verifier { sigs };
+    v.verify_externs(&mir.externs)?;
     for f in &mir.funcs {
         v.verify_function(f)?;
     }
@@ -26,6 +27,18 @@ struct Verifier {
 }
 
 impl Verifier {
+    fn verify_externs(&self, externs: &[mir::Extern]) -> Result<()> {
+        // Function names must be unique
+        let mut names = HashSet::new();
+        for e in externs {
+            if names.contains(&e.name) {
+                bail!("duplicate extern function name: {}", e.name);
+            }
+            names.insert(e.name.clone());
+        }
+        Ok(())
+    }
+
     fn verify_function(&self, f: &mir::Function) -> Result<()> {
         for p in &f.params {
             assert_not_never(&p.ty)
