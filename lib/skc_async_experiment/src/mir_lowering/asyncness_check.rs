@@ -60,6 +60,7 @@ pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     let new_mir = u.walk_mir(mir).unwrap();
 
     // Write back asyncness to SkTypes
+    // REFACTOR: better data structure which do not require this
     for (name, is_async) in &known {
         let Some((type_name, method_name)) = name.split() else {
             continue;

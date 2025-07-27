@@ -65,6 +65,8 @@ impl FunctionName {
         }
     }
 
+    /// Break FunctionName into class name and method name.
+    // REFACTOR: FunctionName should hold the original MethodFullname
     pub fn split(&self) -> Option<(&str, &str)> {
         match self {
             FunctionName::Unmangled(name) => {
