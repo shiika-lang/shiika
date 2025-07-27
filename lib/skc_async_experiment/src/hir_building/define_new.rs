@@ -13,16 +13,16 @@ pub fn run(prog: &mut hir::Program<()>, class_dict: &mut ClassDict) {
     let mut adds = vec![];
     for sk_class in class_dict.sk_types.sk_classes() {
         let lit_ty = sk_class.lit_ty();
-        if !sk_class.lit_ty().is_meta {
+        if sk_class.lit_ty().is_meta {
             continue;
         }
 
-        let new = create_new(class_dict, &lit_ty);
-        adds.push((sk_class.fullname().clone(), new.sig.clone()));
+        let new = create_new(class_dict, &lit_ty.meta_ty());
+        adds.push(new.sig.clone());
         prog.methods.push(new);
     }
-    for (class_name, new_sig) in adds {
-        class_dict.add_method(&class_name, new_sig);
+    for new_sig in adds {
+        class_dict.add_method(new_sig);
     }
 }
 

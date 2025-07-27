@@ -20,12 +20,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     /// Add a method
     /// Used to add auto-defined accessors
-    pub fn add_method(&mut self, clsname: &ClassFullname, sig: MethodSignature) {
-        let sk_class = self
-            .sk_types
-            .types
-            .get_mut(&clsname.to_type_fullname())
-            .unwrap();
+    pub fn add_method(&mut self, sig: MethodSignature) {
+        let clsname = &sig.fullname.type_name;
+        let sk_class = self.sk_types.types.get_mut(&clsname).unwrap();
         sk_class.base_mut().method_sigs.insert(sig);
     }
 
