@@ -94,7 +94,7 @@ impl fmt::Display for FunTy {
             .map(|p| p.to_string())
             .collect::<Vec<_>>()
             .join(",");
-        write!(f, "({})->{}", para, &self.ret_ty)
+        write!(f, "{}({})->{}", &self.asyncness, para, &self.ret_ty)
     }
 }
 

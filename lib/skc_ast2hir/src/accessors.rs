@@ -27,7 +27,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let sig = getter.signature.clone();
                 self.method_dict
                     .add_method(clsname.to_type_fullname(), getter);
-                self.class_dict.add_method(clsname, sig);
+                self.class_dict.add_method(sig);
             }
 
             let setter_name = format!("{}=", accessor_name);
@@ -36,7 +36,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 let sig = setter.signature.clone();
                 self.method_dict
                     .add_method(clsname.to_type_fullname(), setter);
-                self.class_dict.add_method(clsname, sig);
+                self.class_dict.add_method(sig);
             }
         }
     }

@@ -36,11 +36,28 @@ fn create_exports(mir: &mir::CompilationUnit) -> Result<LibraryExports> {
             sk_type.term_ty().meta_ty(),
         );
     }
+    debug_assert!(
+        asyncness_is_set(&mir.sk_types),
+        "Asyncness must be set for all methods",
+    );
     Ok(LibraryExports {
         sk_types: mir.sk_types.clone(),
         vtables: mir.vtables.clone(),
         constants,
     })
+}
+
+fn asyncness_is_set(sk_types: &skc_hir::SkTypes) -> bool {
+    // Check if all methods have asyncness set
+    for sk_type in sk_types.types.values() {
+        for sig in sk_type.base().method_sigs.iter() {
+            if sig.asyncness == skc_hir::Asyncness::Unknown {
+                dbg!(sig);
+                return false;
+            }
+        }
+    }
+    true
 }
 
 /// Serialize LibraryExports into exports.json
