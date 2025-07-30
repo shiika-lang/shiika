@@ -19,4 +19,5 @@
   //["Int", "to_f -> Float", false],
   ["Object", "sleep_sec(sec: Int)", true],
   ["Object", "print(n: Int)", true],
+  ["String", "initialize(bytes: Shiika::Internal::Ptr, n_bytes: Shiika::Internal::Int64)", true],
 ]
