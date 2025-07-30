@@ -30,7 +30,7 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         ),
         (
             "chiika_env_ref",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::raw("Int")),
+            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Any),
         ),
         (
             "chiika_spawn",

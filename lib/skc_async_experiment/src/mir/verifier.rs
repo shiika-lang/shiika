@@ -147,9 +147,9 @@ impl Verifier {
                         assert(&val, "castee", &mir::Ty::Any)?;
                         assert(&e, "result", &fun_ty.clone().into())?;
                     }
-                    mir::CastType::AnyToInt => {
+                    mir::CastType::AnyToVal(val_ty) => {
                         assert(&val, "castee", &mir::Ty::Any)?;
-                        assert(&e, "result", &mir::Ty::raw("Int"))?;
+                        assert(&e, "result", val_ty)?;
                     }
                     mir::CastType::RawToAny => {
                         if !matches!(val.1, mir::Ty::Raw(_)) {
