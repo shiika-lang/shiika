@@ -212,6 +212,7 @@ impl<'a> HirToMir<'a> {
     fn convert_expr(&self, expr: hir::Expr<TermTy>) -> mir::Expr {
         match expr {
             hir::Expr::Number(i) => mir::Expr::Number(i),
+            hir::Expr::StringLiteral(s) => mir::Expr::StringLiteral(s),
             hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
             hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
             hir::Expr::ArgRef(i, s) => {

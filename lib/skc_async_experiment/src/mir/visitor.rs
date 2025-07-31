@@ -80,6 +80,7 @@ pub trait MirVisitor {
             }
             mir::Expr::RawI64(_) => {}
             mir::Expr::Nop => {}
+            mir::Expr::StringLiteral(_) => {}
         }
         self.visit_expr(expr)?;
         Ok(())

@@ -96,6 +96,7 @@ impl<'f> Typing<'f> {
     ) -> Result<hir::TypedExpr<TermTy>> {
         let new_e = match e.0 {
             hir::Expr::Number(n) => hir::Expr::number(n),
+            hir::Expr::StringLiteral(s) => hir::Expr::string_literal(s),
             hir::Expr::PseudoVar(p) => {
                 if p == mir::PseudoVar::SelfRef {
                     let ty = match &self.current_func {

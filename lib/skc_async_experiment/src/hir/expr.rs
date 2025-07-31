@@ -13,6 +13,7 @@ pub type TypedExpr<T> = (Expr<T>, T);
 pub enum Expr<T> {
     Number(i64),
     PseudoVar(PseudoVar),
+    StringLiteral(String),
     LVarRef(String),
     ArgRef(usize, String), // (index, debug_name)
     ConstRef(ConstFullname),
@@ -48,6 +49,10 @@ pub enum MethodCallType {
 impl Expr<TermTy> {
     pub fn number(n: i64) -> TypedExpr<TermTy> {
         (Expr::Number(n), ty::raw("Int"))
+    }
+
+    pub fn string_literal(s: impl Into<String>) -> TypedExpr<TermTy> {
+        (Expr::StringLiteral(s.into()), ty::raw("String"))
     }
 
     pub fn pseudo_var(var: PseudoVar) -> TypedExpr<TermTy> {

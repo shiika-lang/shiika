@@ -145,6 +145,9 @@ impl<'a> Compiler<'a> {
         x: &shiika_ast::AstExpression,
     ) -> Result<hir::TypedExpr<()>> {
         let e = match &x.body {
+            shiika_ast::AstExpressionBody::StringLiteral { content } => {
+                hir::Expr::StringLiteral(content.to_string())
+            }
             shiika_ast::AstExpressionBody::DecimalLiteral { value } => hir::Expr::Number(*value),
             shiika_ast::AstExpressionBody::PseudoVariable(token) => match token {
                 shiika_ast::Token::KwTrue => hir::Expr::PseudoVar(mir::PseudoVar::True),

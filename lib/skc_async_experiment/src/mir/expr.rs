@@ -9,6 +9,7 @@ pub type TypedExpr = Typed<Expr>;
 pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
+    StringLiteral(String),
     LVarRef(String),
     ArgRef(usize, String),                   // (index, debug_name)
     EnvRef(usize, String),                   // (index, debug_name)
@@ -288,6 +289,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
+        Expr::StringLiteral(s) => format!("\"{}\"", s),
         //_ => todo!("{:?}", self),
     };
     if indent {

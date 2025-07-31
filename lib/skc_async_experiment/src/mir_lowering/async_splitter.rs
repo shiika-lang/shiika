@@ -199,6 +199,7 @@ impl<'a> Compiler<'a> {
             }
             mir::Expr::CreateObject(_) => e,
             mir::Expr::CreateTypeObject(_) => e,
+            mir::Expr::StringLiteral(_) => e,
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => {
                 panic!("Unexpected expr: {:?}", e.0)
             }

@@ -116,6 +116,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
+            mir::Expr::StringLiteral(s) => todo!("compile string literal: {:?}", s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),

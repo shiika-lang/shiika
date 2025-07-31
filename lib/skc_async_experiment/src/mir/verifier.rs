@@ -171,6 +171,7 @@ impl Verifier {
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
+            mir::Expr::StringLiteral(_) => (),
         }
         Ok(())
     }
