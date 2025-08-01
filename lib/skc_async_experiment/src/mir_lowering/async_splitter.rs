@@ -539,13 +539,8 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: mir::Ty) -> mir::Typ
         let fname = FunctionName::mangled("chiika_env_pop_frame");
         mir::Expr::func_ref(fname, fun_ty)
     };
-    let cast_type = if let mir::Ty::Fun(fun_ty) = &popped_value_ty {
-        mir::CastType::AnyToFun(fun_ty.clone())
-    } else {
-        mir::CastType::AnyToVal(popped_value_ty.clone())
-    };
     mir::Expr::cast(
-        cast_type,
+        mir::CastType::Recover(popped_value_ty.clone()),
         mir::Expr::fun_call(env_pop, vec![arg_ref_env(), n_pop_native]),
     )
 }

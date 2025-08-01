@@ -142,24 +142,12 @@ impl Verifier {
                     mir::CastType::Upcast(ty) => {
                         assert(&e, "result", ty)?;
                     }
-                    mir::CastType::AnyToFun(fun_ty) => {
-                        assert(&e, "cast type", &fun_ty.clone().into())?;
-                        assert(&val, "castee", &mir::Ty::Any)?;
-                        assert(&e, "result", &fun_ty.clone().into())?;
+                    mir::CastType::ToAny => {
+                        assert(&e, "result", &mir::Ty::Any)?;
                     }
-                    mir::CastType::AnyToVal(val_ty) => {
+                    mir::CastType::Recover(val_ty) => {
                         assert(&val, "castee", &mir::Ty::Any)?;
                         assert(&e, "result", val_ty)?;
-                    }
-                    mir::CastType::RawToAny => {
-                        if !matches!(val.1, mir::Ty::Raw(_)) {
-                            bail!("expected Ty::Raw");
-                        }
-                        assert(&e, "result", &mir::Ty::Any)?;
-                    }
-                    mir::CastType::FunToAny => {
-                        assert_fun(&val.1)?;
-                        assert(&e, "result", &mir::Ty::Any)?;
                     }
                 }
             }

@@ -137,7 +137,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
-            mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
             mir::Expr::CreateTypeObject(_) => {
                 self.compile_number(0) // TODO: implement
@@ -385,10 +385,34 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_cast<'a>(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
+        cast_type: &mir::CastType,
         expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let e = self.compile_value_expr(ctx, expr);
-        Some(e)
+        let v1 = self.compile_value_expr(ctx, expr);
+        let v2 = match cast_type {
+            mir::CastType::Upcast(_) => v1,
+            mir::CastType::ToAny => match &expr.1 {
+                mir::Ty::I1 => todo!("ToAny cast for I1"),
+                mir::Ty::Int64 => self
+                    .builder
+                    .build_ptr_to_int(
+                        v1.into_pointer_value(),
+                        self.context.i64_type(),
+                        "to_any_i64",
+                    )
+                    .into(),
+                _ => v1,
+            },
+            mir::CastType::Recover(ty) => match ty {
+                mir::Ty::I1 => todo!("Recover cast for I1"),
+                mir::Ty::Int64 => v1,
+                _ => self
+                    .builder
+                    .build_int_to_ptr(v1.into_int_value(), self.ptr_type(), "recover_i64_to_ptr")
+                    .into(),
+            },
+        };
+        Some(v2)
     }
 
     fn compile_create_object(
@@ -442,15 +466,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_type(&self, ty: &mir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
-            mir::Ty::Any => self.ptr_type().into(),
-            mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
-            mir::Ty::Fun(_) => self.ptr_type().into(),
+            mir::Ty::Ptr => self.ptr_type().into(),
+            mir::Ty::Any => self.context.i64_type().into(),
             mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
+            mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),
                 _ => self.ptr_type().into(),
             },
+            mir::Ty::Fun(_) => self.ptr_type().into(),
         }
     }
 

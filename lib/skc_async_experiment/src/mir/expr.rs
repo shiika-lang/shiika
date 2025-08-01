@@ -47,19 +47,16 @@ pub enum PseudoVar {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CastType {
     Upcast(Ty),
-    AnyToFun(FunTy), // REFACTOR: remove this?
-    AnyToVal(Ty),
-    RawToAny,
-    FunToAny,
+    ToAny,       // Cast the value to llvm `i64`
+    Recover(Ty), // Cast a `Any` value (llvm `i64`) to a specific type
 }
 
 impl CastType {
     pub fn result_ty(&self) -> Ty {
         match self {
             CastType::Upcast(ty) => ty.clone(),
-            CastType::AnyToFun(x) => x.clone().into(),
-            CastType::AnyToVal(ty) => ty.clone(),
-            CastType::RawToAny | CastType::FunToAny => Ty::Any,
+            CastType::ToAny => Ty::Any,
+            CastType::Recover(ty) => ty.clone(),
         }
     }
 }

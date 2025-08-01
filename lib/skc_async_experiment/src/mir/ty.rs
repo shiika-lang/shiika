@@ -6,7 +6,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Ptr,   // Corresponds to `ptr` in llvm
-    Any,   // Also corresponds to `ptr` (opaque Shiika vlalue)
+    Any,   // Opaque value converted to `i64` (to store it in ChiikaEnv)
     I1,    // Corresponds to `i1` in llvm
     Int64, // Corresponds to `i64` in llvm
     ChiikaEnv,
