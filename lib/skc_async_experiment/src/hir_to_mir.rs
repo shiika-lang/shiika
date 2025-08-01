@@ -190,7 +190,11 @@ impl<'a> HirToMir<'a> {
                     ret_ty: Box::new(ret_ty),
                 })
             }
-            _ => mir::Ty::Raw(ty.fullname.0),
+            None => match &ty.fullname.0[..] {
+                "Shiika::Internal::Ptr" => mir::Ty::Ptr,
+                "Shiika::Internal::Int64" => mir::Ty::Int64,
+                _ => mir::Ty::Raw(ty.fullname.0),
+            },
         }
     }
 
@@ -212,7 +216,7 @@ impl<'a> HirToMir<'a> {
     fn convert_expr(&self, expr: hir::Expr<TermTy>) -> mir::Expr {
         match expr {
             hir::Expr::Number(i) => mir::Expr::Number(i),
-            hir::Expr::StringLiteral(s) => mir::Expr::StringRef(s),
+            hir::Expr::StringLiteral(s) => call_string_new(s),
             hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
             hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
             hir::Expr::ArgRef(i, s) => {
@@ -302,6 +306,31 @@ impl<'a> HirToMir<'a> {
             sig: None,
         }
     }
+}
+
+fn call_string_new(s: String) -> mir::Expr {
+    let string_new = mir::Expr::func_ref(
+        FunctionName::unmangled("String#new"),
+        mir::FunTy {
+            asyncness: mir::Asyncness::Unknown,
+            param_tys: vec![
+                mir::Ty::raw("Meta:String#new"),
+                mir::Ty::Ptr,
+                mir::Ty::Int64,
+            ],
+            ret_ty: Box::new(mir::Ty::raw("String")),
+        },
+    );
+    let bytesize = s.len() as i64;
+    mir::Expr::fun_call(
+        string_new,
+        vec![
+            mir::Expr::const_ref("String", mir::Ty::raw("Meta:String")),
+            mir::Expr::string_ref(s),
+            mir::Expr::raw_i64(bytesize),
+        ],
+    )
+    .0
 }
 
 fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {

@@ -5,7 +5,8 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
-    Any,   // Corresponds to `ptr` in llvm
+    Ptr,   // Corresponds to `ptr` in llvm
+    Any,   // Also corresponds to `ptr` (opaque Shiika vlalue)
     I1,    // Corresponds to `i1` in llvm
     Int64, // Corresponds to `i64` in llvm
     ChiikaEnv,
@@ -69,12 +70,14 @@ impl Ty {
 
     pub fn type_id(&self) -> i64 {
         match self {
-            Ty::Raw(_) => 0,
+            Ty::Ptr => 0,
             Ty::Any => 1,
-            Ty::ChiikaEnv => 2,
-            Ty::RustFuture => 3,
-            Ty::Fun(_) => 4,
-            _ => panic!("[BUG] unknown type: {:?}", self),
+            Ty::I1 => 2,
+            Ty::Int64 => 3,
+            Ty::ChiikaEnv => 4,
+            Ty::RustFuture => 5,
+            Ty::Raw(_) => 6,
+            Ty::Fun(_) => 7,
         }
     }
 }

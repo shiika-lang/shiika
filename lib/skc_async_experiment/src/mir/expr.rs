@@ -73,6 +73,10 @@ impl Expr {
         (Expr::PseudoVar(var), ty)
     }
 
+    pub fn string_ref(s: impl Into<String>) -> TypedExpr {
+        (Expr::StringRef(s.into()), Ty::Ptr)
+    }
+
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::LVarRef(name.into()), ty)
     }
@@ -87,6 +91,10 @@ impl Expr {
 
     pub fn env_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
         (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::raw("Void"))
+    }
+
+    pub fn const_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::ConstRef(name.into()), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
