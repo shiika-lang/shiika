@@ -393,7 +393,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::CastType::Upcast(_) => v1,
             mir::CastType::ToAny => match &expr.1 {
                 mir::Ty::I1 => todo!("ToAny cast for I1"),
-                mir::Ty::Int64 => self
+                mir::Ty::Ptr => self
                     .builder
                     .build_ptr_to_int(
                         v1.into_pointer_value(),
