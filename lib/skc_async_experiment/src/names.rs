@@ -17,18 +17,6 @@ impl fmt::Display for FunctionName {
     }
 }
 
-impl From<MethodSignature> for FunctionName {
-    fn from(sig: MethodSignature) -> FunctionName {
-        FunctionName::from_sig(&sig)
-    }
-}
-
-impl From<&MethodSignature> for FunctionName {
-    fn from(sig: &MethodSignature) -> FunctionName {
-        FunctionName::from_sig(sig)
-    }
-}
-
 impl From<MethodFullname> for FunctionName {
     fn from(name: MethodFullname) -> FunctionName {
         FunctionName::Unmangled(name.full_name)
