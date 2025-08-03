@@ -12,7 +12,7 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     );
     vec![
         ("GC_init", FunTy::lowered(vec![], Ty::raw("Void"))),
-        ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Any)),
+        ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Ptr)),
         (
             "chiika_env_push_frame",
             FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::raw("Void")),
