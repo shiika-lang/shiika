@@ -179,13 +179,6 @@ fn assert(v: &mir::TypedExpr, for_: &str, expected: &mir::Ty) -> Result<()> {
     Ok(())
 }
 
-fn assert_fun(ty: &mir::Ty) -> Result<()> {
-    if !matches!(ty, mir::Ty::Fun(_)) {
-        bail!("expected Ty::Fun, but got {:?}", ty);
-    }
-    Ok(())
-}
-
 fn assert_not_never(ty: &mir::Ty) -> Result<()> {
     if *ty == mir::Ty::raw("Never") {
         bail!("must not be Ty::Never here");
