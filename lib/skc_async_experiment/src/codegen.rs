@@ -5,6 +5,7 @@ mod instance;
 mod intrinsics;
 mod item;
 mod llvm_struct;
+mod string_literal;
 mod value;
 mod vtable;
 use crate::mir;
@@ -18,6 +19,7 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
     pub module: &'run inkwell::module::Module<'ictx>,
     pub builder: &'run inkwell::builder::Builder<'ictx>,
+    string_id: usize,
 }
 
 pub fn run<P: AsRef<Path>>(
@@ -34,6 +36,7 @@ pub fn run<P: AsRef<Path>>(
         context: &context,
         module: &module,
         builder: &builder,
+        string_id: 0,
     };
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
@@ -116,7 +119,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
-            mir::Expr::StringLiteral(s) => todo!("compile string literal: {:?}", s),
+            mir::Expr::StringRef(s) => self.compile_string_ref(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
@@ -150,6 +153,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
         Some(intrinsics::box_int(self, n).into())
+    }
+
+    fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(string_literal::define_constant(self, s).into())
     }
 
     fn compile_argref(
