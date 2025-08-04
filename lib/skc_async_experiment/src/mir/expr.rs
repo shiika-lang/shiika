@@ -284,11 +284,14 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 .collect::<Vec<String>>()
                 .join("\n")
         }
-        Expr::Cast(cast_type, e) => format!(
-            "({} as {})",
-            pretty_print(&e.0, lv, false),
-            cast_type.result_ty()
-        ),
+        Expr::Cast(cast_type, e) => {
+            let expr = pretty_print(&e.0, lv, false);
+            match cast_type {
+                CastType::ToAny => format!("%ToAny({}, {})", &e.1, expr),
+                CastType::Upcast(_) => format!("%Upcast({}, {})", expr, cast_type.result_ty()),
+                CastType::Recover(_) => format!("%Recover({}, {})", expr, cast_type.result_ty()),
+            }
+        }
         Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
         Expr::CreateTypeObject(name) => format!("%CreateTypeObject('{}')", name),
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
