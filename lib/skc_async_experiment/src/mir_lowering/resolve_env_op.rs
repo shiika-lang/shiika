@@ -41,7 +41,7 @@ impl MirRewriter for Update {
 
 fn call_chiika_env_ref(idx: usize, val_ty: mir::Ty) -> mir::TypedExpr {
     let idx_native = mir::Expr::raw_i64(idx as i64);
-    let type_id = mir::Expr::raw_i64(mir::Ty::raw("Int").type_id());
+    let type_id = mir::Expr::raw_i64(val_ty.type_id());
     let fun_ty = mir::FunTy {
         asyncness: mir::Asyncness::Lowered,
         param_tys: vec![mir::Ty::ChiikaEnv, mir::Ty::Int64, mir::Ty::Int64],
