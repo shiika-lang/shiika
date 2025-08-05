@@ -400,7 +400,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::CastType::Upcast(_) => v1,
             mir::CastType::ToAny => match &expr.1 {
                 mir::Ty::I1 => todo!("ToAny cast for I1"),
-                mir::Ty::Ptr => self
+                mir::Ty::Int64 => v1,
+                _ => self
                     .builder
                     .build_ptr_to_int(
                         v1.into_pointer_value(),
@@ -408,7 +409,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                         "to_any_i64",
                     )
                     .into(),
-                _ => v1,
             },
             mir::CastType::Recover(ty) => match ty {
                 mir::Ty::I1 => todo!("Recover cast for I1"),
