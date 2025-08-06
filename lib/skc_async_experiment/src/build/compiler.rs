@@ -133,7 +133,6 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
 
 /// Insert signatures in exports.json5 (methods written in Rust) into SkTypes.
 fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Result<()> {
-    //let mut methods = vec![];
     for exp in p.export_files() {
         for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
             let sk_type = class_dict

@@ -31,7 +31,7 @@ impl Update {
 impl MirRewriter for Update {
     fn rewrite_expr(&mut self, texpr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         let new_texpr = match texpr.0 {
-            mir::Expr::EnvRef(idx, _) => call_chiika_env_ref(idx),
+            mir::Expr::EnvRef(idx, _) => call_chiika_env_ref(idx, texpr.1),
             mir::Expr::EnvSet(idx, expr, _) => call_chiika_env_set(idx, *expr),
             _ => texpr,
         };
@@ -39,33 +39,28 @@ impl MirRewriter for Update {
     }
 }
 
-fn call_chiika_env_ref(idx: usize) -> mir::TypedExpr {
+fn call_chiika_env_ref(idx: usize, val_ty: mir::Ty) -> mir::TypedExpr {
     let idx_native = mir::Expr::raw_i64(idx as i64);
-    let type_id = mir::Expr::raw_i64(mir::Ty::raw("Int").type_id());
+    let type_id = mir::Expr::raw_i64(val_ty.type_id());
     let fun_ty = mir::FunTy {
         asyncness: mir::Asyncness::Lowered,
         param_tys: vec![mir::Ty::ChiikaEnv, mir::Ty::Int64, mir::Ty::Int64],
-        // Milika lvars are all int
-        ret_ty: Box::new(mir::Ty::raw("Int")),
+        ret_ty: Box::new(mir::Ty::Any),
     };
     let fname = FunctionName::mangled("chiika_env_ref");
-    mir::Expr::fun_call(
-        mir::Expr::func_ref(fname, fun_ty),
-        vec![arg_ref_env(), idx_native, type_id],
+    mir::Expr::cast(
+        mir::CastType::Recover(val_ty),
+        mir::Expr::fun_call(
+            mir::Expr::func_ref(fname, fun_ty),
+            vec![arg_ref_env(), idx_native, type_id],
+        ),
     )
 }
 
 fn call_chiika_env_set(idx: usize, val: mir::TypedExpr) -> mir::TypedExpr {
     let idx_native = mir::Expr::raw_i64(idx as i64);
     let type_id = mir::Expr::raw_i64(val.1.type_id());
-    let cast_val = {
-        let cast_type = match val.1 {
-            mir::Ty::Raw(_) => mir::CastType::RawToAny,
-            mir::Ty::Fun(_) => mir::CastType::FunToAny,
-            _ => panic!("[BUG] don't know how to cast {:?} to Any", val),
-        };
-        mir::Expr::cast(cast_type, val)
-    };
+    let cast_val = mir::Expr::cast(mir::CastType::ToAny, val);
     let fun_ty = mir::FunTy {
         asyncness: mir::Asyncness::Lowered,
         param_tys: vec![

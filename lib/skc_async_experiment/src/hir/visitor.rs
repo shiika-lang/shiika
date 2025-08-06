@@ -70,6 +70,7 @@ pub trait HirVisitor<T> {
             }
             hir::Expr::CreateObject(_) => {}
             hir::Expr::CreateTypeObject(_) => {}
+            hir::Expr::StringLiteral(_) => {}
         }
         self.visit_expr(expr)?;
         Ok(())

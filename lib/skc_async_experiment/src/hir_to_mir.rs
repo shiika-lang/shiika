@@ -20,14 +20,9 @@ pub fn run(
 
     log::debug!("Converting user functions");
     let classes = c.convert_classes(&hir);
-    let mut externs = c.convert_externs(&hir.imports.sk_types);
+    let mut externs = convert_externs(&hir.imports.sk_types);
     for method_name in &hir.sk_types.rustlib_methods {
-        externs.push(mir::Extern {
-            name: FunctionName::unmangled(&method_name.full_name),
-            fun_ty: mir::FunTy::from_method_signature(
-                hir.sk_types.get_sig(method_name).unwrap().clone(),
-            ),
-        });
+        externs.push(build_extern(&hir.sk_types.get_sig(method_name).unwrap()));
     }
     if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
         externs.extend(constants::const_init_externs(total_deps));
@@ -87,7 +82,7 @@ impl<'a> HirToMir<'a> {
                 let ivars = sk_class
                     .ivars_ordered()
                     .iter()
-                    .map(|ivar| (ivar.name.clone(), self.convert_ty(ivar.ty.clone())))
+                    .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
                     .collect();
                 mir::MirClass {
                     name: sk_class.fullname().0.clone(),
@@ -99,7 +94,7 @@ impl<'a> HirToMir<'a> {
             let ivars = c
                 .ivars_ordered()
                 .iter()
-                .map(|ivar| (ivar.name.clone(), self.convert_ty(ivar.ty.clone())))
+                .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
                 .collect();
             v.push(mir::MirClass {
                 name: c.fullname().0.clone(),
@@ -107,31 +102,6 @@ impl<'a> HirToMir<'a> {
             });
         }
         v
-    }
-
-    fn convert_externs(&self, imports: &SkTypes) -> Vec<mir::Extern> {
-        imports
-            .types
-            .values()
-            .flat_map(|sk_type| {
-                sk_type.base().method_sigs.unordered_iter().map(|(sig, _)| {
-                    let fname = FunctionName::from_sig(sig);
-                    let asyncness = sig.asyncness.clone().into();
-                    let mut param_tys = sig
-                        .params
-                        .iter()
-                        .map(|x| self.convert_ty(x.ty.clone()))
-                        .collect::<Vec<_>>();
-                    param_tys.insert(0, self.convert_ty(sk_type.term_ty()));
-                    let fun_ty =
-                        mir::FunTy::new(asyncness, param_tys, self.convert_ty(sig.ret_ty.clone()));
-                    mir::Extern {
-                        name: fname,
-                        fun_ty,
-                    }
-                })
-            })
-            .collect()
     }
 
     fn convert_method(&self, method: hir::Method<TermTy>) -> mir::Function {
@@ -145,7 +115,7 @@ impl<'a> HirToMir<'a> {
         params.insert(
             0,
             mir::Param {
-                ty: self.convert_ty(method.self_ty()),
+                ty: convert_ty(method.self_ty()),
                 name: "self".to_string(),
             },
         );
@@ -156,7 +126,7 @@ impl<'a> HirToMir<'a> {
             asyncness: method.sig.asyncness.clone().into(),
             name,
             params,
-            ret_ty: self.convert_ty(method.sig.ret_ty.clone()),
+            ret_ty: convert_ty(method.sig.ret_ty.clone()),
             body_stmts,
             sig: Some(method.sig),
         }
@@ -170,39 +140,21 @@ impl<'a> HirToMir<'a> {
         let mut stmts_vec = mir::expr::into_exprs(stmts);
         let mut new_stmts = vec![];
         for (name, ty) in allocs {
-            new_stmts.push(mir::Expr::alloc(name, self.convert_ty(ty)));
+            new_stmts.push(mir::Expr::alloc(name, convert_ty(ty)));
         }
         new_stmts.extend(stmts_vec.drain(..));
         mir::Expr::exprs(new_stmts)
     }
 
-    fn convert_ty(&self, ty: TermTy) -> mir::Ty {
-        match ty.fn_x_info() {
-            Some(tys) => {
-                let mut param_tys = tys
-                    .into_iter()
-                    .map(|x| self.convert_ty(x.clone()))
-                    .collect::<Vec<_>>();
-                let ret_ty = param_tys.pop().unwrap();
-                mir::Ty::Fun(mir::FunTy {
-                    asyncness: mir::Asyncness::Unknown,
-                    param_tys,
-                    ret_ty: Box::new(ret_ty),
-                })
-            }
-            _ => mir::Ty::Raw(ty.fullname.0),
-        }
-    }
-
     fn convert_param(&self, param: MethodParam) -> mir::Param {
         mir::Param {
-            ty: self.convert_ty(param.ty),
+            ty: convert_ty(param.ty),
             name: param.name,
         }
     }
 
     fn convert_texpr(&self, texpr: hir::TypedExpr<TermTy>) -> mir::TypedExpr {
-        (self.convert_expr(texpr.0), self.convert_ty(texpr.1))
+        (self.convert_expr(texpr.0), convert_ty(texpr.1))
     }
 
     fn convert_texpr_vec(&self, exprs: Vec<hir::TypedExpr<TermTy>>) -> Vec<mir::TypedExpr> {
@@ -212,6 +164,7 @@ impl<'a> HirToMir<'a> {
     fn convert_expr(&self, expr: hir::Expr<TermTy>) -> mir::Expr {
         match expr {
             hir::Expr::Number(i) => mir::Expr::Number(i),
+            hir::Expr::StringLiteral(s) => call_string_new(s),
             hir::Expr::PseudoVar(p) => mir::Expr::PseudoVar(p),
             hir::Expr::LVarRef(s) => mir::Expr::LVarRef(s),
             hir::Expr::ArgRef(i, s) => {
@@ -242,7 +195,7 @@ impl<'a> HirToMir<'a> {
                             mir_receiver.clone(),
                             method_idx,
                             sig.fullname.first_name.0.clone(),
-                            mir::FunTy::from_method_signature(sig),
+                            build_fun_ty(&sig),
                         )
                     }
                     _ => todo!(),
@@ -269,7 +222,7 @@ impl<'a> HirToMir<'a> {
             hir::Expr::Return(v) => mir::Expr::Return(Box::new(self.convert_texpr(*v))),
             hir::Expr::Exprs(b) => mir::Expr::Exprs(self.convert_texpr_vec(b)),
             hir::Expr::Upcast(v, t) => mir::Expr::Cast(
-                mir::CastType::Upcast(self.convert_ty(t)),
+                mir::CastType::Upcast(convert_ty(t)),
                 Box::new(self.convert_texpr(*v)),
             ),
             hir::Expr::CreateObject(class_name) => mir::Expr::CreateObject(class_name.0),
@@ -303,10 +256,86 @@ impl<'a> HirToMir<'a> {
     }
 }
 
+fn convert_ty(ty: TermTy) -> mir::Ty {
+    match ty.fn_x_info() {
+        Some(tys) => {
+            let mut param_tys = tys
+                .into_iter()
+                .map(|x| convert_ty(x.clone()))
+                .collect::<Vec<_>>();
+            let ret_ty = param_tys.pop().unwrap();
+            mir::Ty::Fun(mir::FunTy {
+                asyncness: mir::Asyncness::Unknown,
+                param_tys,
+                ret_ty: Box::new(ret_ty),
+            })
+        }
+        None => match &ty.fullname.0[..] {
+            "Shiika::Internal::Ptr" => mir::Ty::Ptr,
+            "Shiika::Internal::Int64" => mir::Ty::Int64,
+            _ => mir::Ty::Raw(ty.fullname.0),
+        },
+    }
+}
+
+fn convert_externs(imports: &SkTypes) -> Vec<mir::Extern> {
+    imports
+        .types
+        .values()
+        .flat_map(|sk_type| {
+            sk_type
+                .base()
+                .method_sigs
+                .unordered_iter()
+                .map(|(sig, _)| build_extern(sig))
+        })
+        .collect()
+}
+
+fn build_extern(sig: &MethodSignature) -> mir::Extern {
+    mir::Extern {
+        name: FunctionName::unmangled(&sig.fullname.full_name),
+        fun_ty: build_fun_ty(sig),
+    }
+}
+
+fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
+    let mut param_tys = sig
+        .params
+        .iter()
+        .map(|x| convert_ty(x.ty.clone()))
+        .collect::<Vec<_>>();
+    param_tys.insert(0, convert_ty(sig.fullname.type_name.to_ty()));
+    mir::FunTy::new(
+        sig.asyncness.clone().into(),
+        param_tys,
+        convert_ty(sig.ret_ty.clone()),
+    )
+}
+
+fn call_string_new(s: String) -> mir::Expr {
+    let string_new = mir::Expr::func_ref(
+        FunctionName::unmangled("Meta:String#new"),
+        mir::FunTy {
+            asyncness: mir::Asyncness::Unknown,
+            param_tys: vec![mir::Ty::raw("Meta:String"), mir::Ty::Ptr, mir::Ty::Int64],
+            ret_ty: Box::new(mir::Ty::raw("String")),
+        },
+    );
+    let bytesize = s.len() as i64;
+    mir::Expr::fun_call(
+        string_new,
+        vec![
+            mir::Expr::const_ref("::String", mir::Ty::raw("Meta:String")),
+            mir::Expr::string_ref(s),
+            mir::Expr::raw_i64(bytesize),
+        ],
+    )
+    .0
+}
+
 fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
     let fname = FunctionName::unmangled(&sig.fullname.full_name);
-    let mut param_tys = sig.params.iter().map(|p| p.ty.clone()).collect::<Vec<_>>();
-    param_tys.insert(0, sig.fullname.type_name.to_ty());
-    let fun_ty = mir::FunTy::from_method_signature(sig.clone());
+    let fun_ty = build_fun_ty(&sig);
     mir::Expr::func_ref(fname, fun_ty)
 }

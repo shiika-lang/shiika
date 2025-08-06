@@ -1,6 +1,17 @@
 require "./lib/object.sk"
 require "./lib/class.sk"
-
 require "./lib/bool.sk"
 require "./lib/int.sk"
+require "./lib/string.sk"
 require "./lib/void.sk"
+
+module Shiika
+  module Internal
+    # These types have special treatment in the type checker
+
+    # LLVM `ptr` type
+    module Ptr; end
+    # LLVM `i64` type
+    module Int64; end
+  end
+end

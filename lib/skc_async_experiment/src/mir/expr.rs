@@ -9,6 +9,7 @@ pub type TypedExpr = Typed<Expr>;
 pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
+    StringRef(String),
     LVarRef(String),
     ArgRef(usize, String),                   // (index, debug_name)
     EnvRef(usize, String),                   // (index, debug_name)
@@ -46,19 +47,16 @@ pub enum PseudoVar {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CastType {
     Upcast(Ty),
-    AnyToFun(FunTy),
-    AnyToInt,
-    RawToAny,
-    FunToAny,
+    ToAny,       // Cast the value to llvm `i64`
+    Recover(Ty), // Cast a `Any` value (llvm `i64`) to a specific type
 }
 
 impl CastType {
     pub fn result_ty(&self) -> Ty {
         match self {
             CastType::Upcast(ty) => ty.clone(),
-            CastType::AnyToFun(x) => x.clone().into(),
-            CastType::AnyToInt => Ty::raw("Int"),
-            CastType::RawToAny | CastType::FunToAny => Ty::Any,
+            CastType::ToAny => Ty::Any,
+            CastType::Recover(ty) => ty.clone(),
         }
     }
 }
@@ -70,6 +68,10 @@ impl Expr {
 
     pub fn pseudo_var(var: PseudoVar, ty: Ty) -> TypedExpr {
         (Expr::PseudoVar(var), ty)
+    }
+
+    pub fn string_ref(s: impl Into<String>) -> TypedExpr {
+        (Expr::StringRef(s.into()), Ty::Ptr)
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -86,6 +88,10 @@ impl Expr {
 
     pub fn env_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
         (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::raw("Void"))
+    }
+
+    pub fn const_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::ConstRef(name.into()), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -179,13 +185,7 @@ impl Expr {
     }
 
     pub fn cast(cast_type: CastType, e: TypedExpr) -> TypedExpr {
-        let ty = match &cast_type {
-            CastType::Upcast(ty) => ty.clone(),
-            CastType::AnyToFun(f) => f.clone().into(),
-            CastType::AnyToInt => Ty::raw("Int"),
-            CastType::RawToAny => Ty::Any,
-            CastType::FunToAny => Ty::Any,
-        };
+        let ty = cast_type.result_ty();
         (Expr::Cast(cast_type, Box::new(e)), ty)
     }
 
@@ -284,16 +284,20 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 .collect::<Vec<String>>()
                 .join("\n")
         }
-        Expr::Cast(cast_type, e) => format!(
-            "({} as {})",
-            pretty_print(&e.0, lv, false),
-            cast_type.result_ty()
-        ),
+        Expr::Cast(cast_type, e) => {
+            let expr = pretty_print(&e.0, lv, false);
+            match cast_type {
+                CastType::ToAny => format!("%ToAny({}, {})", &e.1, expr),
+                CastType::Upcast(_) => format!("%Upcast({}, {})", expr, cast_type.result_ty()),
+                CastType::Recover(_) => format!("%Recover({}, {})", expr, cast_type.result_ty()),
+            }
+        }
         Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
         Expr::CreateTypeObject(name) => format!("%CreateTypeObject('{}')", name),
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
+        Expr::StringRef(s) => format!("\"{}\"", s),
         //_ => todo!("{:?}", self),
     };
     if indent {

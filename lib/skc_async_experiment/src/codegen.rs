@@ -5,6 +5,7 @@ mod instance;
 mod intrinsics;
 mod item;
 mod llvm_struct;
+mod string_literal;
 mod value;
 mod vtable;
 use crate::mir;
@@ -18,6 +19,7 @@ pub struct CodeGen<'run, 'ictx: 'run> {
     pub context: &'ictx inkwell::context::Context,
     pub module: &'run inkwell::module::Module<'ictx>,
     pub builder: &'run inkwell::builder::Builder<'ictx>,
+    string_id: usize,
 }
 
 pub fn run<P: AsRef<Path>>(
@@ -34,6 +36,7 @@ pub fn run<P: AsRef<Path>>(
         context: &context,
         module: &module,
         builder: &builder,
+        string_id: 0,
     };
     c.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut c, mir.imported_constants);
@@ -116,6 +119,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
+            mir::Expr::StringRef(s) => self.compile_string_ref(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
@@ -136,7 +140,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
-            mir::Expr::Cast(_, expr) => self.compile_cast(ctx, expr),
+            mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
             mir::Expr::CreateTypeObject(_) => {
                 self.compile_number(0) // TODO: implement
@@ -149,6 +153,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
         Some(intrinsics::box_int(self, n).into())
+    }
+
+    fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(string_literal::define_constant(self, s).into())
     }
 
     fn compile_argref(
@@ -384,10 +392,34 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_cast<'a>(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
+        cast_type: &mir::CastType,
         expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let e = self.compile_value_expr(ctx, expr);
-        Some(e)
+        let v1 = self.compile_value_expr(ctx, expr);
+        let v2 = match cast_type {
+            mir::CastType::Upcast(_) => v1,
+            mir::CastType::ToAny => match &expr.1 {
+                mir::Ty::I1 => todo!("ToAny cast for I1"),
+                mir::Ty::Int64 => v1,
+                _ => self
+                    .builder
+                    .build_ptr_to_int(
+                        v1.into_pointer_value(),
+                        self.context.i64_type(),
+                        "to_any_i64",
+                    )
+                    .into(),
+            },
+            mir::CastType::Recover(ty) => match ty {
+                mir::Ty::I1 => todo!("Recover cast for I1"),
+                mir::Ty::Int64 => v1,
+                _ => self
+                    .builder
+                    .build_int_to_ptr(v1.into_int_value(), self.ptr_type(), "recover_i64_to_ptr")
+                    .into(),
+            },
+        };
+        Some(v2)
     }
 
     fn compile_create_object(
@@ -441,15 +473,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_type(&self, ty: &mir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
-            mir::Ty::Any => self.ptr_type().into(),
-            mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
-            mir::Ty::Fun(_) => self.ptr_type().into(),
+            mir::Ty::Ptr => self.ptr_type().into(),
+            mir::Ty::Any => self.context.i64_type().into(),
             mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
+            mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),
                 _ => self.ptr_type().into(),
             },
+            mir::Ty::Fun(_) => self.ptr_type().into(),
         }
     }
 
