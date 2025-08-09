@@ -294,7 +294,7 @@ fn convert_externs(imports: &SkTypes) -> Vec<mir::Extern> {
 
 fn build_extern(sig: &MethodSignature) -> mir::Extern {
     mir::Extern {
-        name: FunctionName::unmangled(&sig.fullname.full_name),
+        name: FunctionName::from_sig(&sig),
         fun_ty: build_fun_ty(sig),
     }
 }
@@ -315,7 +315,7 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
 
 fn call_string_new(s: String) -> mir::Expr {
     let string_new = mir::Expr::func_ref(
-        FunctionName::unmangled("Meta:String#new"),
+        FunctionName::method("Meta:String", "new"),
         mir::FunTy {
             asyncness: mir::Asyncness::Unknown,
             param_tys: vec![mir::Ty::raw("Meta:String"), mir::Ty::Ptr, mir::Ty::Int64],
@@ -335,7 +335,7 @@ fn call_string_new(s: String) -> mir::Expr {
 }
 
 fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
-    let fname = FunctionName::unmangled(&sig.fullname.full_name);
+    let fname = FunctionName::from_sig(&sig);
     let fun_ty = build_fun_ty(&sig);
     mir::Expr::func_ref(fname, fun_ty)
 }

@@ -3,7 +3,6 @@ use crate::mir::rewriter::MirRewriter;
 use crate::mir::visitor::MirVisitor;
 use crate::names::FunctionName;
 use anyhow::Result;
-use shiika_core::names::{method_firstname, type_fullname};
 use skc_hir::SkTypes;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -20,7 +19,7 @@ pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     }
     for f in &mut mir.funcs {
         // User main needs to be async
-        if f.name == FunctionName::unmangled("chiika_main") {
+        if f.name == FunctionName::mangled("chiika_main") {
             f.asyncness = mir::Asyncness::Async;
         }
         match f.asyncness {
@@ -62,15 +61,11 @@ pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     // Write back asyncness to SkTypes
     // REFACTOR: better data structure which do not require this
     for (name, is_async) in &known {
-        let Some((type_name, method_name)) = name.split() else {
+        let Some(m) = name.method_name() else {
             continue;
         };
-        if let Some(sk_type) = sk_types.types.get_mut(&type_fullname(type_name)) {
-            if let Some((sig, _)) = sk_type
-                .base_mut()
-                .method_sigs
-                .get_mut(&method_firstname(method_name))
-            {
+        if let Some(sk_type) = sk_types.types.get_mut(&m.type_name) {
+            if let Some((sig, _)) = sk_type.base_mut().method_sigs.get_mut(&m.first_name) {
                 sig.asyncness = if *is_async {
                     skc_hir::Asyncness::Async
                 } else {

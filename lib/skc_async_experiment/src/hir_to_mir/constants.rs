@@ -57,6 +57,5 @@ fn package_const_init_name(package_name: Option<&String>) -> FunctionName {
     } else {
         String::new()
     };
-    // Names of functions which handled by async_splitter should be unmangled.
-    FunctionName::unmangled(format!("shiika_init_const_{}", suffix))
+    FunctionName::mangled(format!("shiika_init_const_{}", suffix))
 }

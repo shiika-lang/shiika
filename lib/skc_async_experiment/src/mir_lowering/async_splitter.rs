@@ -116,7 +116,7 @@ impl<'a> Compiler<'a> {
         mir::Function {
             asyncness: mir::Asyncness::Lowered,
             sig: chap.sig,
-            name: FunctionName::unmangled(chap.name.clone()),
+            name: FunctionName::generated(chap.name.clone()),
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: mir::Expr::exprs(chap.stmts),
@@ -290,7 +290,7 @@ impl<'a> Compiler<'a> {
             let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = mir::Expr::fun_call(
                 mir::Expr::func_ref(
-                    FunctionName::unmangled(endif_chap_name),
+                    FunctionName::generated(endif_chap_name),
                     mir::FunTy {
                         asyncness: mir::Asyncness::Lowered,
                         param_tys: vec![mir::Ty::ChiikaEnv, new_vexpr.1.clone()],
@@ -312,7 +312,7 @@ impl<'a> Compiler<'a> {
             param_tys: vec![mir::Ty::ChiikaEnv],
             ret_ty: Box::new(mir::Ty::RustFuture),
         };
-        let fname = FunctionName::unmangled(chap_name.to_string());
+        let fname = FunctionName::generated(chap_name.to_string());
         mir::Expr::fun_call(mir::Expr::func_ref(fname, chap_fun_ty), args)
     }
 
@@ -355,7 +355,7 @@ impl<'a> Compiler<'a> {
             ret_ty: Box::new(mir::Ty::RustFuture),
         });
         mir::Expr::return_(mir::Expr::fun_call(
-            mir::Expr::func_ref(FunctionName::unmangled(chap_name), chap_func_ty.into()),
+            mir::Expr::func_ref(FunctionName::generated(chap_name), chap_func_ty.into()),
             vec![mir::Expr::arg_ref(0, "$env", mir::Ty::ChiikaEnv)],
         ))
     }
@@ -487,7 +487,7 @@ fn append_async_params(fun_ty: &mir::FunTy) -> Vec<mir::Ty> {
 
 /// Create name of generated function like `foo_1`
 fn chapter_func_name(orig_name: &FunctionName, chapter_idx: usize) -> FunctionName {
-    FunctionName::unmangled(format!("{}_{}", orig_name, chapter_idx))
+    FunctionName::generated(format!("{}_{}", orig_name, chapter_idx))
 }
 
 /// Get the `$env` that is 0-th param of async func
