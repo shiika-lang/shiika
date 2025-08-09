@@ -47,9 +47,8 @@ impl FunctionName {
         FunctionName::Unmangled(method_fullname_raw(class_name.as_ref(), name.as_ref()))
     }
 
-    pub fn generated(name: impl Into<String>) -> FunctionName {
-        let name_str = name.into();
-        FunctionName::Generated(name_str)
+    pub fn suffixed(&self, suffix: impl Into<String>) -> FunctionName {
+        FunctionName::Generated(format!("{}{}", self.to_string(), suffix.into()))
     }
 
     /// Returns the mangled name of the function.
