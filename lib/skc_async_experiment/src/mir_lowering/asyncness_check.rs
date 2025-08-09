@@ -19,7 +19,7 @@ pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     }
     for f in &mut mir.funcs {
         // User main needs to be async
-        if f.name == FunctionName::mangled("chiika_main") {
+        if f.name == mir::main_function_name() {
             f.asyncness = mir::Asyncness::Async;
         }
         match f.asyncness {
