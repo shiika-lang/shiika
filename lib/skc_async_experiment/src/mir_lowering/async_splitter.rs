@@ -116,7 +116,7 @@ impl<'a> Compiler<'a> {
         mir::Function {
             asyncness: mir::Asyncness::Lowered,
             sig: chap.sig,
-            name: FunctionName::unmangled(chap.name.clone()),
+            name: chap.name.clone(),
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: mir::Expr::exprs(chap.stmts),
@@ -245,7 +245,7 @@ impl<'a> Compiler<'a> {
         else_exprs_: mir::TypedExpr,
     ) -> Result<Option<mir::TypedExpr>> {
         let new_cond_expr = self.compile_value_expr(cond_expr, false)?;
-        let func_name = self.chapters.current_name().to_string();
+        let func_name = self.chapters.current_name();
 
         let then_chap = Chapter::new_async_if_clause(func_name.clone(), "t");
         let else_chap = Chapter::new_async_if_clause(func_name.clone(), "f");
@@ -275,7 +275,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn compile_if_clause(&mut self, exprs_: mir::TypedExpr, endif_chap_name: &str) -> Result<()> {
+    fn compile_if_clause(
+        &mut self,
+        exprs_: mir::TypedExpr,
+        endif_chap_name: &FunctionName,
+    ) -> Result<()> {
         let mut exprs = mir::expr::into_exprs(exprs_);
         let e = exprs.pop().unwrap();
         let opt_vexpr = if e.1 == mir::Ty::raw("Never") {
@@ -290,7 +294,7 @@ impl<'a> Compiler<'a> {
             let new_vexpr = self.compile_value_expr(vexpr, false)?;
             let goto_endif = mir::Expr::fun_call(
                 mir::Expr::func_ref(
-                    FunctionName::unmangled(endif_chap_name),
+                    endif_chap_name.clone(),
                     mir::FunTy {
                         asyncness: mir::Asyncness::Lowered,
                         param_tys: vec![mir::Ty::ChiikaEnv, new_vexpr.1.clone()],
@@ -305,15 +309,14 @@ impl<'a> Compiler<'a> {
     }
 
     /// Generate a call to the if-branch function
-    fn branch_call(&self, chap_name: &str) -> mir::TypedExpr {
+    fn branch_call(&self, chap_name: &FunctionName) -> mir::TypedExpr {
         let args = vec![arg_ref_env()];
         let chap_fun_ty = mir::FunTy {
             asyncness: self.orig_func.asyncness.clone(),
             param_tys: vec![mir::Ty::ChiikaEnv],
             ret_ty: Box::new(mir::Ty::RustFuture),
         };
-        let fname = FunctionName::unmangled(chap_name.to_string());
-        mir::Expr::fun_call(mir::Expr::func_ref(fname, chap_fun_ty), args)
+        mir::Expr::fun_call(mir::Expr::func_ref(chap_name.clone(), chap_fun_ty), args)
     }
 
     fn compile_while(
@@ -321,12 +324,12 @@ impl<'a> Compiler<'a> {
         cond_expr: mir::TypedExpr,
         body_expr: mir::TypedExpr,
     ) -> Result<Option<mir::TypedExpr>> {
-        let func_name = self.chapters.current_name().to_string();
+        let func_name = self.chapters.current_name();
 
-        let beginwhile_chap = Chapter::new_beginwhile_clause(func_name.clone());
+        let beginwhile_chap = Chapter::new_beginwhile_clause(func_name);
         let jump_to_beginwhile = self.while_jump(&beginwhile_chap.name);
-        let whilebody_chap = Chapter::new_whilebody_clause(func_name.clone());
-        let endwhile_chap = Chapter::new_endwhile_clause(func_name.clone());
+        let whilebody_chap = Chapter::new_whilebody_clause(func_name);
+        let endwhile_chap = Chapter::new_endwhile_clause(func_name);
 
         self.chapters.add_stmt(jump_to_beginwhile.clone());
         // Create beginwhile chapter
@@ -348,14 +351,14 @@ impl<'a> Compiler<'a> {
         Ok(None)
     }
 
-    fn while_jump(&self, chap_name: &str) -> mir::TypedExpr {
+    fn while_jump(&self, chap_name: &FunctionName) -> mir::TypedExpr {
         let chap_func_ty = mir::Ty::Fun(mir::FunTy {
             asyncness: mir::Asyncness::Async,
             param_tys: vec![mir::Ty::ChiikaEnv],
             ret_ty: Box::new(mir::Ty::RustFuture),
         });
         mir::Expr::return_(mir::Expr::fun_call(
-            mir::Expr::func_ref(FunctionName::unmangled(chap_name), chap_func_ty.into()),
+            mir::Expr::func_ref(chap_name.clone(), chap_func_ty.into()),
             vec![mir::Expr::arg_ref(0, "$env", mir::Ty::ChiikaEnv)],
         ))
     }
@@ -487,7 +490,7 @@ fn append_async_params(fun_ty: &mir::FunTy) -> Vec<mir::Ty> {
 
 /// Create name of generated function like `foo_1`
 fn chapter_func_name(orig_name: &FunctionName, chapter_idx: usize) -> FunctionName {
-    FunctionName::unmangled(format!("{}_{}", orig_name, chapter_idx))
+    orig_name.suffixed(format!("_{}", chapter_idx))
 }
 
 /// Get the `$env` that is 0-th param of async func
@@ -587,7 +590,7 @@ impl Chapters {
     }
 
     /// Returns the name of the last chapter
-    fn current_name(&self) -> &str {
+    fn current_name(&self) -> &FunctionName {
         &self.chaps.last().unwrap().name
     }
 
@@ -609,7 +612,7 @@ struct Chapter {
     stmts: Vec<mir::TypedExpr>,
     // The resulting type of the async function called with the last stmt
     async_result_ty: Option<mir::Ty>,
-    name: String,
+    name: FunctionName,
     params: Vec<mir::Param>,
     ret_ty: mir::Ty,
     // Only for the first chapter of each Shiika method
@@ -629,15 +632,10 @@ impl Chapter {
                 }),
                 "$cont",
             ));
-            Self::new(
-                f.name.to_string(),
-                params,
-                mir::Ty::RustFuture,
-                f.sig.clone(),
-            )
+            Self::new(f.name.clone(), params, mir::Ty::RustFuture, f.sig.clone())
         } else {
             Self::new(
-                f.name.to_string(),
+                f.name.clone(),
                 f.params.clone(),
                 f.ret_ty.clone(),
                 f.sig.clone(),
@@ -645,23 +643,23 @@ impl Chapter {
         }
     }
 
-    fn new_async_if_clause(name: String, suffix: &str) -> Chapter {
+    fn new_async_if_clause(name: FunctionName, suffix: &str) -> Chapter {
         let params = vec![mir::Param::new(mir::Ty::ChiikaEnv, "$env")];
         Self::new(
-            format!("{}'{}", name, suffix),
+            name.suffixed(format!("'{}", suffix)),
             params,
             mir::Ty::RustFuture,
             None,
         )
     }
 
-    fn new_async_end_if(name: String, suffix: &str, if_ty: mir::Ty) -> Chapter {
+    fn new_async_end_if(name: FunctionName, suffix: &str, if_ty: mir::Ty) -> Chapter {
         let params = vec![
             mir::Param::new(mir::Ty::ChiikaEnv, "$env"),
             mir::Param::new(if_ty, "$ifResult"),
         ];
         Self::new(
-            format!("{}'{}", name, suffix),
+            name.suffixed(format!("'{}", suffix)),
             params,
             mir::Ty::RustFuture,
             None,
@@ -673,30 +671,30 @@ impl Chapter {
             mir::Param::new(mir::Ty::ChiikaEnv, "$env"),
             mir::Param::new(async_result_ty.clone(), "$async_result"),
         ];
-        Self::new(name.to_string(), params, mir::Ty::RustFuture, None)
+        Self::new(name, params, mir::Ty::RustFuture, None)
     }
 
-    fn new_beginwhile_clause(name: String) -> Chapter {
+    fn new_beginwhile_clause(name: &FunctionName) -> Chapter {
         Self::new(
-            format!("{}'w", name),
+            name.suffixed("'w"),
             vec![env_param()],
             mir::Ty::RustFuture,
             None,
         )
     }
 
-    fn new_whilebody_clause(name: String) -> Chapter {
+    fn new_whilebody_clause(name: &FunctionName) -> Chapter {
         Self::new(
-            format!("{}'h", name),
+            name.suffixed("'h"),
             vec![env_param()],
             mir::Ty::RustFuture,
             None,
         )
     }
 
-    fn new_endwhile_clause(name: String) -> Chapter {
+    fn new_endwhile_clause(name: &FunctionName) -> Chapter {
         Self::new(
-            format!("{}'q", name),
+            name.suffixed("'q"),
             vec![env_param()],
             mir::Ty::RustFuture,
             None,
@@ -704,7 +702,7 @@ impl Chapter {
     }
 
     fn new(
-        name: String,
+        name: FunctionName,
         params: Vec<mir::Param>,
         ret_ty: mir::Ty,
         sig: Option<MethodSignature>,

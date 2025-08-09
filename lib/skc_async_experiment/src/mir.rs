@@ -12,7 +12,7 @@ use std::fmt;
 pub use ty::{FunTy, Ty};
 
 pub fn main_function_name() -> FunctionName {
-    FunctionName::unmangled("chiika_main")
+    FunctionName::mangled("chiika_main")
 }
 
 pub fn mir_const_name(name: ConstFullname) -> String {

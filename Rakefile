@@ -3,6 +3,13 @@
 #
 # Basically you don't need to run this. Miscellaneous tasks
 
+if File.exist?(".env")
+  File.readlines(".env").each do |line|
+    l, r = line.split("=", 2)
+    ENV[l.strip] = r.strip if l && r
+  end
+end
+
 task :doc do
   chdidr "doc/shg" do
     sh "mdbook build"
@@ -151,6 +158,24 @@ task :a => :async
 #end
 
 #
+# git worktree
+#
+task :worktree_add do
+  name = ENV.fetch("NAME")
+  dir = ",/worktrees/#{name}"
+  sh "git worktree add #{dir} origin/main"
+
+  mkdir "#{dir}/.cargo"
+  File.write("#{dir}/.cargo/config.toml", 
+             "build.target-dir = \"~/tmp/cargo_targets/#{name}\"")
+  File.write("#{dir}/.env", <<~EOD)
+SHIIKA_CARGO_TARGET=~/tmp/cargo_targets/#{name}
+SHIIKA_ROOT=~/proj/shiika/#{dir}
+SHIIKA_WORK=~/.shiika/
+  EOD
+end
+
+#
 # new async runtime
 #
 task :async do
@@ -172,4 +197,16 @@ task :async_integration_test do
     sh "#{name}.out > #{name}.actual_out"
     sh "diff #{name}.actual_out #{name}.expected_out"
   end
+end
+
+#
+# debugging
+#
+
+task :coredump do
+  sh "lldb ./a.out -o run -o bt -o exit > a.dump.txt"
+end
+
+task :tmp do
+  sh "clang-16 -v -target x86_64-pc-linux-gnu -lm -o /home/yhara/shiika/a.out a.bc /home/yhara/.shiika/packages/core-0.1.0/cargo_target/debug/libext.a /home/yhara/.shiika/packages/core-0.1.0/lib/index.bc -ldl -lpthread"
 end
