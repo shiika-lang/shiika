@@ -106,6 +106,13 @@ impl HirExpression {
             _ => panic!("unexpected"),
         }
     }
+
+    pub fn to_expr_vec(&self) -> Vec<HirExpression> {
+        match &self.node {
+            HirExpressionBase::HirParenthesizedExpr { exprs } => exprs.clone(),
+            _ => vec![self.clone()],
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

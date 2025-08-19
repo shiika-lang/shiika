@@ -6,6 +6,7 @@ mod hir_building;
 mod hir_to_mir;
 mod mir;
 pub mod mir_lowering;
+mod mirgen;
 mod names;
 mod package;
 pub mod prelude;
