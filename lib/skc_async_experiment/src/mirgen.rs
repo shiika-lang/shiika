@@ -1,7 +1,7 @@
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirExpressionBody};
+use skc_hir::HirExpression;
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -43,6 +43,7 @@ pub fn run(
                 panic!("Top level expressions are not allowed in library");
             }
         }
+        funcs
     };
 
     let const_list = uni
@@ -69,15 +70,122 @@ struct Compiler<'a> {
 
 impl<'a> Compiler<'a> {
     fn convert_expr(&self, expr: HirExpression) -> mir::TypedExpr {
+        use skc_hir::HirExpressionBase;
         match expr.node {
-            HirExpressionBody::HirStringLiteral { value } => call_string_new(value),
-            HirExpressionBody::HirBooleanLiteral { value } => {
+            HirExpressionBase::HirBooleanLiteral { value } => {
                 let b = if value {
                     mir::PseudoVar::True
                 } else {
                     mir::PseudoVar::False
                 };
                 mir::Expr::pseudo_var(b, mir::Ty::Raw("Bool".to_string()))
+            }
+            HirExpressionBase::HirStringLiteral { idx } => {
+                todo!("Handle string literal with idx: {}", idx)
+            }
+            HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
+            HirExpressionBase::HirFloatLiteral { value } => {
+                todo!("Handle float literal: {}", value)
+            }
+            HirExpressionBase::HirSelfExpression => {
+                // REFACTOR: just get the 0-th arg?
+                mir::Expr::pseudo_var(mir::PseudoVar::SelfRef, convert_ty(expr.ty))
+            }
+            HirExpressionBase::HirLVarRef { name } => {
+                mir::Expr::lvar_ref(name, convert_ty(expr.ty))
+            }
+            HirExpressionBase::HirArgRef { idx } => {
+                // +1 for the receiver
+                // TODO: Add debug name
+                mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
+            }
+            HirExpressionBase::HirIVarRef {
+                name,
+                idx,
+                self_ty: _,
+            } => {
+                todo!("Handle ivar ref: {} at index {}", name, idx)
+            }
+            HirExpressionBase::HirConstRef { fullname } => {
+                todo!("Handle const ref: {:?}", fullname)
+            }
+            HirExpressionBase::HirClassTVarRef {
+                typaram_ref,
+                self_ty: _,
+            } => todo!("Handle class tvar ref: {:?}", typaram_ref),
+            HirExpressionBase::HirMethodTVarRef {
+                typaram_ref,
+                n_params: _,
+            } => {
+                todo!("Handle method tvar ref: {:?}", typaram_ref)
+            }
+            HirExpressionBase::HirLVarAssign { name, .. } => {
+                todo!("Handle lvar assign: {}", name)
+            }
+            HirExpressionBase::HirIVarAssign { name, idx, .. } => {
+                todo!("Handle ivar assign: {} at index {}", name, idx)
+            }
+            HirExpressionBase::HirConstAssign { fullname, .. } => {
+                todo!("Handle const assign: {:?}", fullname)
+            }
+            HirExpressionBase::HirMethodCall {
+                method_fullname, ..
+            } => {
+                todo!("Handle method call: {:?}", method_fullname)
+            }
+            HirExpressionBase::HirModuleMethodCall { method_name, .. } => {
+                todo!("Handle module method call: {:?}", method_name)
+            }
+            HirExpressionBase::HirLambdaInvocation { .. } => {
+                todo!("Handle lambda invocation")
+            }
+            HirExpressionBase::HirLambdaExpr { .. } => {
+                todo!("Handle lambda expr")
+            }
+            HirExpressionBase::HirIfExpression { .. } => {
+                todo!("Handle if expression")
+            }
+            HirExpressionBase::HirMatchExpression { .. } => {
+                todo!("Handle match expression")
+            }
+            HirExpressionBase::HirWhileExpression { .. } => {
+                todo!("Handle while expression")
+            }
+            HirExpressionBase::HirBreakExpression { .. } => {
+                todo!("Handle break expression")
+            }
+            HirExpressionBase::HirReturnExpression { .. } => {
+                todo!("Handle return expression")
+            }
+            HirExpressionBase::HirLogicalNot { .. } => {
+                todo!("Handle logical not")
+            }
+            HirExpressionBase::HirLogicalAnd { .. } => {
+                todo!("Handle logical and")
+            }
+            HirExpressionBase::HirLogicalOr { .. } => {
+                todo!("Handle logical or")
+            }
+            HirExpressionBase::HirLambdaCaptureRef { idx, .. } => {
+                todo!("Handle lambda capture ref: {}", idx)
+            }
+            HirExpressionBase::HirLambdaCaptureWrite { cidx, .. } => {
+                todo!("Handle lambda capture write: {}", cidx)
+            }
+            HirExpressionBase::HirBitCast { .. } => {
+                todo!("Handle bit cast")
+            }
+            HirExpressionBase::HirClassLiteral { fullname, .. } => {
+                todo!("Handle class literal: {:?}", fullname)
+            }
+            HirExpressionBase::HirParenthesizedExpr { exprs } => {
+                todo!("Handle parenthesized expr with {} expressions", exprs.len())
+            }
+            HirExpressionBase::HirDefaultExpr => {
+                todo!("Handle default expr")
+            }
+            HirExpressionBase::HirIsOmittedValue { .. } => {
+                todo!("Handle is omitted value")
             }
         }
     }
