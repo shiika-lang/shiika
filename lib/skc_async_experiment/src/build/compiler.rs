@@ -1,5 +1,5 @@
-use crate::build::{loader, CompileTarget};
-use crate::{cli, codegen, hir, hir_building, hir_to_mir, mir, mir_lowering, package, prelude};
+use crate::build::{self, loader, CompileTarget};
+use crate::{cli, codegen, mir, mir_lowering, mirgen, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
 use shiika_core::ty::Erasure;
@@ -53,10 +53,10 @@ fn generate_mir(
     log::info!("Creating ast");
     let ast = shiika_parser::Parser::parse_files(src)?;
 
-    let hir = generate_hir(cli, &ast, target)?;
+    let uni = generate_hir(cli, ast, target)?;
     log::info!("Creating mir");
 
-    let mut mir = hir_to_mir::run(hir, target)?;
+    let mut mir = mirgen::run(uni, target)?;
     cli.log(format!("# -- typing output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::simplify_return::run(mir.program);
@@ -82,41 +82,46 @@ fn generate_mir(
 
 fn generate_hir(
     cli: &mut cli::Cli,
-    ast: &shiika_ast::Program,
+    ast: shiika_ast::Program,
     target: &CompileTarget,
-) -> Result<hir::CompilationUnit> {
-    let mut imports = LibraryExports::empty();
-    for package in target.deps {
-        let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
-        imports.sk_types.merge(&exp.sk_types);
-        imports.constants.extend(exp.constants);
-        imports.vtables.merge(exp.vtables);
-    }
+) -> Result<build::CompilationUnit> {
+    let imports = {
+        let mut imports = LibraryExports::empty();
+        for package in target.deps {
+            let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
+            imports.sk_types.merge(&exp.sk_types);
+            imports.constants.extend(exp.constants);
+            imports.vtables.merge(exp.vtables);
+        }
+        imports
+    };
 
-    let defs = ast.defs();
-    let type_index = skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
-    let mut class_dict = skc_ast2hir::class_dict::new(type_index, &imports.sk_types);
-    if target.is_core_package() {
-        bootstrap_classes(&mut class_dict);
-    }
-    class_dict.index_program(&defs)?;
-    if let Some(pkg) = target.package() {
-        merge_rustlib_methods(&mut class_dict, pkg)?;
-    }
+    let class_dict = {
+        let defs = ast.defs();
+        let type_index =
+            skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
+        let mut class_dict = skc_ast2hir::class_dict::new(type_index, &imports.sk_types);
+        if target.is_core_package() {
+            bootstrap_classes(&mut class_dict);
+        }
+        class_dict.index_program(&defs)?;
+        if let Some(pkg) = target.package() {
+            merge_rustlib_methods(&mut class_dict, pkg)?;
+        }
+        class_dict
+    };
 
-    log::debug!("Create untyped AST");
-    let mut hir = hir::untyped::create(&ast, &class_dict, &imports.constants)?;
-    log::info!("Create `new`");
-    hir_building::define_new::run(&mut hir, &mut class_dict);
+    let hir = {
+        let mut hir_maker = skc_ast2hir::hir_maker::HirMaker::new(class_dict, &imports.constants);
+        hir_maker.define_class_constants()?;
+        let (main_exprs, main_lvars) = hir_maker.convert_toplevel_items(ast.toplevel_items)?;
+        hir_maker.extract_hir(main_exprs, main_lvars)
+    };
 
-    log::info!("Type checking");
-    let hir = hir::typing::run(hir, &class_dict, &imports.constants)?;
-    let sk_types = class_dict.sk_types;
-    Ok(hir::CompilationUnit {
+    Ok(build::CompilationUnit {
         package_name: target.package_name(),
         imports,
-        program: hir,
-        sk_types,
+        hir,
     })
 }
 

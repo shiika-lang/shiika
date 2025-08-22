@@ -6,7 +6,7 @@ pub mod linker;
 pub mod loader;
 pub mod package_builder;
 use crate::package::Package;
-use skc_hir::{Hir, SkTypes};
+use skc_hir::Hir;
 use skc_mir::LibraryExports;
 use std::path::Path;
 
@@ -15,7 +15,6 @@ pub struct CompilationUnit {
     pub package_name: Option<String>,
     pub imports: LibraryExports,
     pub hir: Hir,
-    pub sk_types: SkTypes,
 }
 
 /// Represents what to compile. (an executable or a library)

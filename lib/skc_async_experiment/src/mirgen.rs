@@ -12,14 +12,16 @@ pub fn run(
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
     log::debug!("Building VTables");
-    let vtables = skc_mir::VTables::build(&uni.sk_types, &uni.imports);
+    let vtables = skc_mir::VTables::build(&uni.hir.sk_types, &uni.imports);
 
     let classes = convert_classes(&uni);
 
     let externs = {
         let mut externs = convert_externs(&uni.imports.sk_types);
-        for method_name in &uni.sk_types.rustlib_methods {
-            externs.push(build_extern(&uni.sk_types.get_sig(method_name).unwrap()));
+        for method_name in &uni.hir.sk_types.rustlib_methods {
+            externs.push(build_extern(
+                &uni.hir.sk_types.get_sig(method_name).unwrap(),
+            ));
         }
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             externs.extend(constants::const_init_externs(total_deps));
@@ -56,7 +58,7 @@ pub fn run(
     let program = mir::Program::new(classes, externs, funcs, const_list);
     Ok(mir::CompilationUnit {
         program,
-        sk_types: uni.sk_types,
+        sk_types: uni.hir.sk_types,
         vtables,
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
@@ -212,6 +214,7 @@ impl<'a> Compiler<'a> {
 
 fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
     let mut v: Vec<_> = uni
+        .hir
         .sk_types
         .sk_classes()
         .map(|sk_class| {
