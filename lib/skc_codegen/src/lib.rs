@@ -619,15 +619,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 SkMethodBody::RustLib => (),
                 SkMethodBody::New {
                     classname,
-                    initialize_name,
-                    init_cls_name,
+                    initializer,
                     arity,
                     const_is_obj,
                 } => self.gen_body_of_new(
                     function.get_params(),
                     classname,
-                    initialize_name,
-                    init_cls_name,
+                    initializer,
                     *arity,
                     *const_is_obj,
                 ),
@@ -765,10 +763,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
-        initialize_name: &MethodFullname,
-        // The class whose `#initialize` should be called from this `.new`
-        // (If the class have its own `#initialize`, this is equal to `class_fullname`)
-        init_cls_name: &ClassFullname,
+        initializer: &Option<MethodFullname>,
         arity: usize,
         _const_is_obj: bool,
     ) {
@@ -777,33 +772,36 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let obj = self._allocate_sk_obj(class_fullname, class_obj);
 
         // Call initialize
-        let addr = if init_cls_name == class_fullname {
-            obj.clone()
-        } else {
-            // `initialize` is defined in an ancestor class. Bitcast is needed
-            // to pass the obj to the `initialize` func
-            let ances_type = self
-                .llvm_struct_types
-                .get(&init_cls_name.to_type_fullname())
-                .expect("ances_type not found")
-                .ptr_type(Default::default());
-            SkObj::new(
-                init_cls_name.to_ty(),
-                self.builder
-                    .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
-            )
+        if let Some(initialize_name) = initializer {
+            let init_cls_name = initialize_name.type_name.to_class_fullname();
+            let addr = if init_cls_name == *class_fullname {
+                obj.clone()
+            } else {
+                // `initialize` is defined in an ancestor class. Bitcast is needed
+                // to pass the obj to the `initialize` func
+                let ances_type = self
+                    .llvm_struct_types
+                    .get(&init_cls_name.to_type_fullname())
+                    .expect("ances_type not found")
+                    .ptr_type(Default::default());
+                SkObj::new(
+                    init_cls_name.to_ty(),
+                    self.builder
+                        .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
+                )
+            };
+            let args = (0..=arity)
+                .map(|i| {
+                    if i == 0 {
+                        addr.0.into()
+                    } else {
+                        llvm_func_args[i].into()
+                    }
+                })
+                .collect::<Vec<_>>();
+            let initialize = self.get_llvm_func(&method_func_name(initialize_name));
+            self.builder.build_direct_call(initialize, &args, "");
         };
-        let args = (0..=arity)
-            .map(|i| {
-                if i == 0 {
-                    addr.0.into()
-                } else {
-                    llvm_func_args[i].into()
-                }
-            })
-            .collect::<Vec<_>>();
-        let initialize = self.get_llvm_func(&method_func_name(initialize_name));
-        self.builder.build_direct_call(initialize, &args, "");
 
         self.build_return(&obj);
     }

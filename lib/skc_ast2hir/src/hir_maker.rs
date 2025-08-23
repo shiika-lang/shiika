@@ -126,15 +126,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<HirExpression> {
         let ty = ty::meta(&name.0);
         let str_idx = self.register_string_literal(&name.0);
-        // These two are for calling class-level initialize.
-        let (initialize_name, init_cls_name) = self._find_initialize(&ty)?;
+        // This is for calling class-level initialize.
+        let initializer = self._find_initialize(&ty);
         Ok(Hir::class_literal(
             ty,
             name.clone(),
             str_idx,
             includes_modules,
-            initialize_name,
-            init_cls_name,
+            initializer,
         ))
     }
 
@@ -374,16 +373,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
-        let (initialize_name, init_cls_name) = self._find_initialize(class_name)?;
         let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
             &LocationSpan::internal(),
         )?;
+        let initializer = self._find_initialize(class_name);
         let new_body = SkMethodBody::New {
             classname: class_name.fullname.to_class_fullname(),
-            initialize_name,
-            init_cls_name,
+            initializer,
             arity: found.sig.params.len(),
             const_is_obj,
         };
@@ -396,17 +394,16 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Find actual `initialize` func to call from `.new`
-    fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
-        let found = self.class_dict.lookup_method(
+    fn _find_initialize(&self, class: &TermTy) -> Option<MethodFullname> {
+        let Ok(found) = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
             &LocationSpan::internal(),
-        )?;
+        ) else {
+            return None;
+        };
         let fullname = found.owner.to_class_fullname();
-        Ok((
-            method_fullname(fullname.clone().into(), "initialize"),
-            fullname,
-        ))
+        Some(method_fullname(fullname.into(), "initialize"))
     }
 
     /// Register a constant defined in the toplevel
