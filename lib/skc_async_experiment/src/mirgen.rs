@@ -37,7 +37,7 @@ pub fn run(
         };
 
         log::debug!("Converting top exprs");
-        let main_exprs = uni.hir.main_exprs.to_expr_vec();
+        let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             funcs.push(c.create_user_main(main_exprs, total_deps));
         } else {

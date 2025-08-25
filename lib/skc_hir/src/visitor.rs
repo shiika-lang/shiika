@@ -20,7 +20,9 @@ pub fn walk_hir<'hir, V: HirVisitor<'hir>>(v: &mut V, hir: &'hir Hir) -> Result<
         walk_expr(v, expr)?;
     }
 
-    walk_expr(v, &hir.main_exprs)?;
+    for expr in &hir.main_exprs {
+        walk_expr(v, expr)?;
+    }
     Ok(())
 }
 

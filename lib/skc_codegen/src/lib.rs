@@ -319,7 +319,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     #[allow(clippy::ptr_arg)]
     fn gen_user_main(
         &mut self,
-        main_exprs: &'hir HirExpression,
+        main_exprs: &'hir Vec<HirExpression>,
         main_lvars: &'hir HirLVars,
     ) -> Result<()> {
         // define void @user_main()
@@ -330,7 +330,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // alloca
         let mut lvars = main_lvars.clone();
-        lvars.append(&mut CollectLVarsVisitor::run(main_exprs)?);
+        for expr in main_exprs {
+            lvars.append(&mut CollectLVarsVisitor::run(expr)?);
+        }
         let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
 
         // CreateMain:
@@ -345,7 +347,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(user_main_block);
 
         let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, lvar_ptrs);
-        self.gen_expr(&mut ctx, main_exprs)?;
+        for expr in main_exprs {
+            let value = self.gen_expr(&mut ctx, expr)?;
+            if value.is_none() {
+                // Found `return`, `panic` or something. The rest of expressions
+                // will never be executed
+                break;
+            }
+        }
         self.builder.build_unconditional_branch(*end_block);
         self.builder.position_at_end(*end_block);
         self.builder.build_return(None);

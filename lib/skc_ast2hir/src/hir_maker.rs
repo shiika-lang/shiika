@@ -52,7 +52,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Destructively convert self to Hir
-    pub fn extract_hir(&mut self, main_exprs: HirExpression, main_lvars: HirLVars) -> Hir {
+    pub fn extract_hir(&mut self, main_exprs: Vec<HirExpression>, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_types = std::mem::take(&mut self.class_dict.sk_types);
         let sk_methods = std::mem::take(&mut self.method_dict.0);
@@ -140,7 +140,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn convert_toplevel_items(
         &mut self,
         items: Vec<shiika_ast::TopLevelItem>,
-    ) -> Result<(HirExpression, HirLVars)> {
+    ) -> Result<(Vec<HirExpression>, HirLVars)> {
         let mut defs = vec![];
         let mut top_exprs = vec![];
         for item in items {
@@ -162,10 +162,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         debug_assert!(self.ctx_stack.len() == 1);
         let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
-        Ok((
-            Hir::expressions(main_exprs),
-            extract_lvars(&mut toplevel_ctx.lvars),
-        ))
+        Ok((main_exprs, extract_lvars(&mut toplevel_ctx.lvars)))
     }
 
     // Process definitions in a class/module or the toplevel.

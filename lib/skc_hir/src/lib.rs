@@ -24,7 +24,7 @@ pub struct Hir {
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
-    pub main_exprs: HirExpression,
+    pub main_exprs: Vec<HirExpression>,
     /// Local variables in `main_exprs`
     pub main_lvars: HirLVars,
 }
