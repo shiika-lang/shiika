@@ -1144,7 +1144,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
         includes_modules: &bool,
-        initializer: &Option<MethodFullname>,
+        initializer: &Option<MethodSignature>,
     ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
@@ -1204,13 +1204,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn call_class_level_initialize(
         &'run self,
         receiver: SkObj,
-        initializer: &Option<MethodFullname>,
+        initializer: &Option<MethodSignature>,
     ) {
-        if let Some(initialize_name) = initializer {
-            let init_cls_name = initialize_name.type_name.to_class_fullname();
+        if let Some(initialize_sig) = initializer {
+            let init_cls_name = initialize_sig.fullname.type_name.to_class_fullname();
             let addr = self.bitcast(receiver, &init_cls_name.to_ty(), "obj_as_super");
             let args = vec![addr.0.into()];
-            let initialize = self.get_llvm_func(&method_func_name(initialize_name));
+            let initialize = self.get_llvm_func(&method_func_name(&initialize_sig.fullname));
             self.builder.build_direct_call(initialize, &args, "");
         }
     }

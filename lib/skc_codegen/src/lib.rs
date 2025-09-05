@@ -772,7 +772,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         llvm_func_args: Vec<inkwell::values::BasicValueEnum>,
         class_fullname: &ClassFullname,
-        initializer: &Option<MethodFullname>,
+        initializer: &Option<MethodSignature>,
         arity: usize,
         _const_is_obj: bool,
     ) {
@@ -781,8 +781,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let obj = self._allocate_sk_obj(class_fullname, class_obj);
 
         // Call initialize
-        if let Some(initialize_name) = initializer {
-            let init_cls_name = initialize_name.type_name.to_class_fullname();
+        if let Some(initialize_sig) = initializer {
+            let init_cls_name = initialize_sig.fullname.type_name.to_class_fullname();
             let addr = if init_cls_name == *class_fullname {
                 obj.clone()
             } else {
@@ -808,7 +808,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     }
                 })
                 .collect::<Vec<_>>();
-            let initialize = self.get_llvm_func(&method_func_name(initialize_name));
+            let initialize = self.get_llvm_func(&method_func_name(&initialize_sig.fullname));
             self.builder.build_direct_call(initialize, &args, "");
         };
 

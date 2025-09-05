@@ -391,7 +391,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Find actual `initialize` func to call from `.new`
-    fn _find_initialize(&self, class: &TermTy) -> Option<MethodFullname> {
+    fn _find_initialize(&self, class: &TermTy) -> Option<MethodSignature> {
         let Ok(found) = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
@@ -399,8 +399,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ) else {
             return None;
         };
-        let fullname = found.owner.to_class_fullname();
-        Some(method_fullname(fullname.into(), "initialize"))
+        Some(found.sig)
     }
 
     /// Register a constant defined in the toplevel

@@ -257,7 +257,7 @@ pub enum HirExpressionBase {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
-        initializer: Option<MethodFullname>,
+        initializer: Option<MethodSignature>,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -713,7 +713,7 @@ impl Hir {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
-        initializer: Option<MethodFullname>,
+        initializer: Option<MethodSignature>,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {

@@ -22,7 +22,7 @@ pub enum SkMethodBody {
     /// The method .new
     New {
         classname: ClassFullname,
-        initializer: Option<MethodFullname>,
+        initializer: Option<MethodSignature>,
         arity: usize,
         const_is_obj: bool,
     },
