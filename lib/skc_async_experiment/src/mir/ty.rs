@@ -1,5 +1,6 @@
 use crate::mir::Asyncness;
 use shiika_core::ty::TermTy;
+use skc_hir::MethodSignature;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,6 +129,11 @@ impl FunTy {
             param_tys,
             ret_ty: Box::new(ret_ty),
         }
+    }
+
+    pub fn from_sig(sig: MethodSignature) -> Self {
+        let param_tys = sig.param_tys().into_iter().map(|x| x.into()).collect();
+        Self::new(sig.asyncness.into(), param_tys, sig.ret_ty.into())
     }
 
     pub fn sync(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {

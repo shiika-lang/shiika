@@ -1,6 +1,7 @@
 use crate::mir::FunctionName;
 use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
+use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
@@ -187,6 +188,13 @@ impl Expr {
     pub fn cast(cast_type: CastType, e: TypedExpr) -> TypedExpr {
         let ty = cast_type.result_ty();
         (Expr::Cast(cast_type, Box::new(e)), ty)
+    }
+
+    pub fn create_object(ty: TermTy) -> TypedExpr {
+        (
+            Expr::CreateObject(ty.fullname.to_class_fullname().0),
+            ty.into(),
+        )
     }
 
     pub fn unbox(e: TypedExpr) -> TypedExpr {

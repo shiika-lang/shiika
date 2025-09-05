@@ -1,11 +1,11 @@
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
-use skc_hir::HirExpression;
+use skc_hir::{HirExpression, SkMethod};
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
-use skc_hir::{MethodSignature, SkTypes};
+use skc_hir::{MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
     uni: build::CompilationUnit,
@@ -36,6 +36,13 @@ pub fn run(
             imported_vtables: &uni.imports.vtables,
         };
 
+        for (_, ms) in uni.hir.sk_methods {
+            for m in ms {
+                log::debug!("Converting method: {}", &m.signature);
+                funcs.push(c.convert_method(m));
+            }
+        }
+
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
@@ -45,6 +52,7 @@ pub fn run(
                 panic!("Top level expressions are not allowed in library");
             }
         }
+
         funcs
     };
 
@@ -71,6 +79,69 @@ struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
+    fn convert_method(&self, method: SkMethod) -> mir::Function {
+        let mut params = method
+            .signature
+            .params
+            .clone()
+            .into_iter()
+            .map(|x| convert_param(x))
+            .collect::<Vec<_>>();
+        params.insert(
+            0,
+            mir::Param {
+                ty: convert_ty(method.signature.receiver_ty()),
+                name: "self".to_string(),
+            },
+        );
+        //        let allocs = collect_allocs::run(&method.body_stmts);
+        //        let body_stmts = self.insert_allocs(allocs, self.convert_expr(method.body_stmts));
+        mir::Function {
+            asyncness: method.signature.asyncness.clone().into(),
+            name: method.signature.fullname.clone().into(),
+            params,
+            ret_ty: convert_ty(method.signature.ret_ty.clone()),
+            body_stmts: self.convert_method_body(method.body),
+            sig: Some(method.signature),
+        }
+    }
+
+    fn convert_method_body(&self, body: SkMethodBody) -> mir::TypedExpr {
+        match body {
+            SkMethodBody::Normal { exprs } => self.convert_expr(exprs),
+            SkMethodBody::RustLib => {
+                panic!("RustLib method cannot be converted to MIR")
+            }
+            SkMethodBody::New {
+                classname,
+                initializer,
+                arity: _,
+                const_is_obj: _,
+            } => self.create_new_body(classname.to_ty(), initializer),
+            SkMethodBody::Getter {
+                idx,
+                name: _,
+                ty,
+                self_ty: _,
+            } => {
+                todo!();
+                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
+                //mir::Expr::ivar_ref(self_expr, idx, convert_ty(ty))
+            }
+            SkMethodBody::Setter {
+                idx,
+                name: _,
+                ty,
+                self_ty: _,
+            } => {
+                todo!();
+                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
+                //let value_expr = mir::Expr::arg_ref(1, "?", convert_ty(ty.clone()));
+                //mir::Expr::ivar_set(self_expr, idx, value_expr, convert_ty(ty))
+            }
+        }
+    }
+
     fn convert_expr(&self, expr: HirExpression) -> mir::TypedExpr {
         use skc_hir::HirExpressionBase;
         match expr.node {
@@ -192,6 +263,41 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    fn create_new_body(
+        &self,
+        instance_ty: TermTy,
+        initializer: Option<MethodSignature>,
+    ) -> mir::TypedExpr {
+        let mut exprs = vec![];
+        let tmp_name = "tmp";
+        exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
+        exprs.push(mir::Expr::assign(
+            tmp_name,
+            mir::Expr::create_object(instance_ty),
+        ));
+        if let Some(ini_sig) = initializer {
+            let call_initialize = {
+                let args = ini_sig
+                    .clone()
+                    .params
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, param)| mir::Expr::arg_ref(i, param.name, param.ty.into()))
+                    .collect();
+                mir::Expr::fun_call(
+                    mir::Expr::func_ref(
+                        ini_sig.fullname.clone().into(),
+                        mir::FunTy::from_sig(ini_sig),
+                    ),
+                    args,
+                )
+            };
+            exprs.push(call_initialize);
+        }
+
+        mir::Expr::exprs(exprs)
+    }
+
     fn create_user_main(
         &self,
         top_exprs: Vec<HirExpression>,
@@ -241,6 +347,13 @@ fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
         });
     }
     v
+}
+
+fn convert_param(param: MethodParam) -> mir::Param {
+    mir::Param {
+        ty: convert_ty(param.ty),
+        name: param.name,
+    }
 }
 
 fn convert_ty(ty: TermTy) -> mir::Ty {
