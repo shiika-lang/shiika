@@ -357,25 +357,7 @@ fn convert_param(param: MethodParam) -> mir::Param {
 }
 
 fn convert_ty(ty: TermTy) -> mir::Ty {
-    match ty.fn_x_info() {
-        Some(tys) => {
-            let mut param_tys = tys
-                .into_iter()
-                .map(|x| convert_ty(x.clone()))
-                .collect::<Vec<_>>();
-            let ret_ty = param_tys.pop().unwrap();
-            mir::Ty::Fun(mir::FunTy {
-                asyncness: mir::Asyncness::Unknown,
-                param_tys,
-                ret_ty: Box::new(ret_ty),
-            })
-        }
-        None => match &ty.fullname.0[..] {
-            "Shiika::Internal::Ptr" => mir::Ty::Ptr,
-            "Shiika::Internal::Int64" => mir::Ty::Int64,
-            _ => mir::Ty::Raw(ty.fullname.0),
-        },
-    }
+    ty.into()
 }
 
 fn convert_externs(imports: &SkTypes) -> Vec<mir::Extern> {
