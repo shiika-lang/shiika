@@ -80,10 +80,17 @@ struct Compiler<'a> {
 
 impl<'a> Compiler<'a> {
     fn convert_method(&self, method: SkMethod) -> mir::Function {
-        let mut params = method
-            .signature
-            .params
-            .clone()
+        let orig_params = if let SkMethodBody::New { initializer, .. } = &method.body {
+            // REFACTOR: method.signature.params should be available for this case too
+            if let Some(ini) = initializer {
+                ini.params.clone()
+            } else {
+                vec![]
+            }
+        } else {
+            method.signature.params.clone()
+        };
+        let mut params = orig_params
             .into_iter()
             .map(|x| convert_param(x))
             .collect::<Vec<_>>();
@@ -273,24 +280,24 @@ impl<'a> Compiler<'a> {
         exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
         exprs.push(mir::Expr::assign(
             tmp_name,
-            mir::Expr::create_object(instance_ty),
+            mir::Expr::create_object(instance_ty.clone()),
         ));
         if let Some(ini_sig) = initializer {
             let call_initialize = {
-                let args = ini_sig
+                let mut args: Vec<_> = ini_sig
                     .clone()
                     .params
                     .into_iter()
                     .enumerate()
-                    .map(|(i, param)| mir::Expr::arg_ref(i, param.name, param.ty.into()))
+                    .map(|(i, param)| mir::Expr::arg_ref(i + 1, param.name, param.ty.into()))
                     .collect();
-                mir::Expr::fun_call(
-                    mir::Expr::func_ref(
-                        ini_sig.fullname.clone().into(),
-                        mir::FunTy::from_sig(ini_sig),
-                    ),
-                    args,
-                )
+                args.insert(
+                    0,
+                    mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into()),
+                );
+                let ini_func =
+                    mir::Expr::func_ref(ini_sig.fullname.clone().into(), build_fun_ty(&ini_sig));
+                mir::Expr::fun_call(ini_func, args)
             };
             exprs.push(call_initialize);
         }
