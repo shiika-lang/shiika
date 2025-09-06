@@ -196,6 +196,24 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
         method_sigs: MethodSignatures::new(),
         foreign: false,
     }));
+
+    // Add `Class`
+    class_dict.add_type(skc_hir::SkClass::nonmeta(
+        SkTypeBase {
+            erasure: Erasure::nonmeta("Class"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::new(),
+            foreign: false,
+        },
+        Some(Supertype::simple("Object")),
+    ));
+    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
+        erasure: Erasure::meta("Class"),
+        typarams: Default::default(),
+        method_sigs: MethodSignatures::new(),
+        foreign: false,
+    }));
+
     // Add `Void` (the only non-enum class whose const_is_obj=true)
     let mut void = skc_hir::SkClass::nonmeta(
         SkTypeBase {
