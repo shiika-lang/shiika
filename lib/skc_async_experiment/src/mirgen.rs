@@ -294,6 +294,10 @@ impl<'a> Compiler<'a> {
             };
             exprs.push(call_initialize);
         }
+        exprs.push(mir::Expr::return_(mir::Expr::lvar_ref(
+            tmp_name.to_string(),
+            instance_ty.into(),
+        )));
 
         mir::Expr::exprs(exprs)
     }
