@@ -64,7 +64,11 @@ impl Verifier {
             mir::Expr::LVarRef(_) => (),
             mir::Expr::ArgRef(idx, name) => {
                 if *idx >= f.params.len() {
-                    bail!("argument index out of range: {}", idx);
+                    bail!(
+                        "argument index out of range: {} > {}",
+                        idx,
+                        f.params.len() - 1
+                    );
                 }
                 let param = &f.params[*idx];
                 if param.name != *name {
