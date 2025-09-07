@@ -267,7 +267,7 @@ impl<'a> Compiler<'a> {
                 todo!("Handle bit cast")
             }
             HirExpressionBase::HirClassLiteral { fullname, .. } => {
-                todo!("Handle class literal: {:?}", fullname)
+                mir::Expr::create_type_object(fullname.to_ty())
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 todo!("Handle parenthesized expr with {} expressions", exprs.len())

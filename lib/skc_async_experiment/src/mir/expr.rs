@@ -197,6 +197,13 @@ impl Expr {
         )
     }
 
+    pub fn create_type_object(ty: TermTy) -> TypedExpr {
+        (
+            Expr::CreateTypeObject(ty.fullname.to_class_fullname().0),
+            ty.meta_ty().into(),
+        )
+    }
+
     pub fn unbox(e: TypedExpr) -> TypedExpr {
         if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
