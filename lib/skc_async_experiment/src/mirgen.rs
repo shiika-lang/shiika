@@ -5,7 +5,7 @@ use skc_hir::{HirExpression, SkMethod};
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
-use skc_hir::{MethodParam, MethodSignature, SkMethodBody, SkTypes};
+use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
     uni: build::CompilationUnit,
@@ -42,6 +42,17 @@ pub fn run(
                 funcs.push(c.convert_method(m));
             }
         }
+
+        let consts = uni.hir.const_inits.into_iter().map(|e| {
+            let HirExpressionBase::HirConstAssign { fullname, rhs } = e.node else {
+                panic!("Expected HirConstAssign, got {:?}", e);
+            };
+            (fullname, c.convert_expr(*rhs))
+        });
+        funcs.push(constants::create_const_init_func(
+            uni.package_name.as_ref(),
+            consts.collect(),
+        ));
 
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
