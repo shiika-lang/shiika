@@ -951,6 +951,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_fullname_raw("Class", "<>"),
             vec![self.create_array_instance_(arg_exprs, ty::raw("Class"), LocationSpan::todo())],
             Default::default(),
+            true,
         ))
     }
 
@@ -1043,6 +1044,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             method_fullname_raw("Array", "new"),
             vec![],
             Default::default(),
+            false,
         );
         exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
 
@@ -1054,6 +1056,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 method_fullname_raw("Array", "push"),
                 vec![Hir::bit_cast(ty::raw("Object"), item_expr)],
                 Default::default(),
+                false,
             ));
         }
 

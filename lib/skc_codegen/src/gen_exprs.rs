@@ -67,6 +67,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_fullname,
                 arg_exprs,
                 tyarg_exprs,
+                ..
             } => self.gen_method_call(
                 ctx,
                 method_fullname,

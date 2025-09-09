@@ -1,4 +1,4 @@
-use crate::class_dict::FoundMethod;
+use crate::class_dict::{CallType, FoundMethod};
 use crate::convert_exprs::{block, block::BlockTaker};
 use crate::error;
 use crate::hir_maker::HirMaker;
@@ -333,6 +333,7 @@ fn build_hir(
             found.sig.fullname.clone(),
             arg_hirs,
             tyarg_hirs,
+            found.call_type == CallType::Virtual,
         ),
         SkType::Module(sk_module) => Hir::module_method_call(
             ret_ty,
@@ -368,6 +369,7 @@ fn call_specialized_new(
         method_fullname(receiver_ty.erasure().to_type_fullname(), "new"),
         arg_hirs,
         tyarg_hirs,
+        false,
     )
 }
 

@@ -110,6 +110,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     method_fullname(metaclass_fullname(&name.0).into(), "new"),
                     vec![],
                     Default::default(),
+                    false,
                 )
             } else {
                 self.create_class_literal(&name, includes_modules)?
@@ -665,6 +666,7 @@ fn get_class_of_obj_const(cls_ty: TermTy, base: HirExpression) -> HirExpression 
         method_fullname_raw("Object", "class"),
         vec![],
         Default::default(),
+        true,
     )
 }
 
@@ -686,6 +688,7 @@ fn call_class_specialize(
             method_fullname_raw("Class", "_specialize1"),
             vec![tyargs.remove(0)],
             Default::default(),
+            true,
         )
     } else {
         Hir::method_call(
@@ -694,6 +697,7 @@ fn call_class_specialize(
             method_fullname_raw("Class", "<>"),
             vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
             Default::default(),
+            true,
         )
     }
 }

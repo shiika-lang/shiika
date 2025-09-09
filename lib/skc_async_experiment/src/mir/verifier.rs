@@ -58,7 +58,7 @@ impl<'a> Verifier<'a> {
     fn verify_expr(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
         use anyhow::bail;
         match &e.0 {
-            mir::Expr::Number(_) => assert(&e, "number", &mir::Ty::Int64)?,
+            mir::Expr::Number(_) => assert(&e, "number", &mir::Ty::raw("Int"))?,
             mir::Expr::PseudoVar(pv) => match pv {
                 mir::PseudoVar::True | mir::PseudoVar::False => {
                     assert(&e, "pseudovar", &mir::Ty::raw("Bool"))?
