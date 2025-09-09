@@ -29,7 +29,7 @@ pub fn compile(
         mir.program.externs.push(mir::Extern { name, fun_ty });
     }
 
-    mir::verifier::run(&mir.program)?;
+    mir::verifier::run(&mir)?;
 
     fs::create_dir_all(target.out_dir)
         .context(format!("failed to create {}", target.out_dir.display()))?;
