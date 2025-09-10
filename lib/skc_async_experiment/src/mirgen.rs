@@ -162,6 +162,7 @@ impl<'a> Compiler<'a> {
 
     fn convert_expr(&self, expr: HirExpression) -> mir::TypedExpr {
         use skc_hir::HirExpressionBase;
+        let result_ty = convert_ty(expr.ty.clone());
         match expr.node {
             HirExpressionBase::HirBooleanLiteral { value } => {
                 let b = if value {
@@ -210,19 +211,60 @@ impl<'a> Compiler<'a> {
             } => {
                 todo!("Handle method tvar ref: {:?}", typaram_ref)
             }
-            HirExpressionBase::HirLVarAssign { name, .. } => {
-                todo!("Handle lvar assign: {}", name)
+            HirExpressionBase::HirLVarAssign { name, rhs } => {
+                let mir_rhs = self.convert_expr(*rhs);
+                (mir::Expr::Assign(name, Box::new(mir_rhs)), result_ty)
             }
             HirExpressionBase::HirIVarAssign { name, idx, .. } => {
-                todo!("Handle ivar assign: {} at index {}", name, idx)
+                todo!("Handle ivar assign: {} at index {} with rhs", name, idx)
             }
             HirExpressionBase::HirConstAssign { fullname, .. } => {
-                todo!("Handle const assign: {:?}", fullname)
+                todo!("Handle const assign: {:?} with rhs", fullname)
             }
             HirExpressionBase::HirMethodCall {
-                method_fullname, ..
+                receiver_expr,
+                method_fullname,
+                arg_exprs,
+                is_virtual,
+                ..
             } => {
-                todo!("Handle method call: {:?}", method_fullname)
+                let receiver_ty = receiver_expr.ty.clone();
+                let mir_receiver = self.convert_expr(*receiver_expr);
+                let method_name = &method_fullname.first_name;
+
+                let fun_ty = {
+                    let mut param_tys = arg_exprs
+                        .iter()
+                        .map(|e| e.ty.clone().into())
+                        .collect::<Vec<_>>();
+                    param_tys.insert(0, convert_ty(method_fullname.type_name.to_ty()));
+                    mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
+                };
+
+                let func_ref = if is_virtual {
+                    // For now, assume all method calls are virtual calls
+                    let method_idx = self
+                        .lookup_vtable(&receiver_ty, method_name)
+                        .unwrap_or_else(|| {
+                            panic!("Method not found in vtable: {}", method_fullname)
+                        });
+
+                    mir::Expr::vtable_ref(
+                        mir_receiver.clone(),
+                        method_idx,
+                        method_name.0.clone(),
+                        fun_ty,
+                    )
+                } else {
+                    mir::Expr::func_ref(method_fullname.into(), fun_ty)
+                };
+                let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
+                    .into_iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect();
+                mir_args.insert(0, mir_receiver);
+
+                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
             HirExpressionBase::HirModuleMethodCall { method_name, .. } => {
                 todo!("Handle module method call: {:?}", method_name)
@@ -338,6 +380,16 @@ impl<'a> Compiler<'a> {
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
         }
+    }
+
+    fn lookup_vtable(
+        &self,
+        ty: &TermTy,
+        method_name: &shiika_core::names::MethodFirstname,
+    ) -> Option<usize> {
+        self.vtables
+            .find(ty, method_name)
+            .or_else(|| self.imported_vtables.find(ty, method_name))
     }
 }
 
