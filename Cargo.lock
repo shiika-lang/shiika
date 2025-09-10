@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "bdwgc-alloc"
-version = "0.6.9"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd8c59b30259eba8e7f790732bf550206d4e860ba2e401f0f1678a3ecbc291cb"
+checksum = "d2a7bedba761d287afafa83421b4c359addac6f3ee69932fcac83cbe6ac22afc"
 dependencies = [
  "cmake",
  "libc",
