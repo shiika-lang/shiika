@@ -47,6 +47,7 @@ pub enum PseudoVar {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CastType {
+    Force(Ty), // Converted from old HirBitCast. Some of them may be Upcast
     Upcast(Ty),
     ToAny,       // Cast the value to llvm `i64`
     Recover(Ty), // Cast a `Any` value (llvm `i64`) to a specific type
@@ -55,6 +56,7 @@ pub enum CastType {
 impl CastType {
     pub fn result_ty(&self) -> Ty {
         match self {
+            CastType::Force(ty) => ty.clone(),
             CastType::Upcast(ty) => ty.clone(),
             CastType::ToAny => Ty::Any,
             CastType::Recover(ty) => ty.clone(),
@@ -303,8 +305,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Cast(cast_type, e) => {
             let expr = pretty_print(&e.0, lv, false);
             match cast_type {
-                CastType::ToAny => format!("%ToAny({}, {})", &e.1, expr),
+                CastType::Force(_) => format!("%Force({}, {})", expr, cast_type.result_ty()),
                 CastType::Upcast(_) => format!("%Upcast({}, {})", expr, cast_type.result_ty()),
+                CastType::ToAny => format!("%ToAny({}, {})", &e.1, expr),
                 CastType::Recover(_) => format!("%Recover({}, {})", expr, cast_type.result_ty()),
             }
         }

@@ -137,9 +137,9 @@ impl<'a> Compiler<'a> {
                 const_is_obj: _,
             } => self.create_new_body(classname.to_ty(), initializer),
             SkMethodBody::Getter {
-                idx,
+                idx: _,
                 name: _,
-                ty,
+                ty: _,
                 self_ty: _,
             } => {
                 todo!();
@@ -147,9 +147,9 @@ impl<'a> Compiler<'a> {
                 //mir::Expr::ivar_ref(self_expr, idx, convert_ty(ty))
             }
             SkMethodBody::Setter {
-                idx,
+                idx: _,
                 name: _,
-                ty,
+                ty: _,
                 self_ty: _,
             } => {
                 todo!();
@@ -263,9 +263,10 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLambdaCaptureWrite { cidx, .. } => {
                 todo!("Handle lambda capture write: {}", cidx)
             }
-            HirExpressionBase::HirBitCast { .. } => {
-                todo!("Handle bit cast")
-            }
+            HirExpressionBase::HirBitCast { expr: e } => mir::Expr::cast(
+                mir::expr::CastType::Force(expr.ty.into()),
+                self.convert_expr(*e),
+            ),
             HirExpressionBase::HirClassLiteral { fullname, .. } => {
                 mir::Expr::create_type_object(fullname.to_ty())
             }

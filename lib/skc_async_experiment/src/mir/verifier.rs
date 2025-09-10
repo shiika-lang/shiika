@@ -102,7 +102,9 @@ impl<'a> Verifier<'a> {
                     bail!("receiver not Shiika value");
                 };
                 let class_fullname = shiika_core::names::ClassFullname(class_name.clone());
-                let vtable = self.vtables.get(&class_fullname).unwrap();
+                let Some(vtable) = self.vtables.get(&class_fullname) else {
+                    bail!("vtable of {class_fullname} not found")
+                };
                 if let Some(method_fullname) = vtable.to_vec().get(*idx) {
                     if method_fullname.first_name.0 != *debug_name {
                         bail!("debug_name not match");
@@ -157,6 +159,9 @@ impl<'a> Verifier<'a> {
             mir::Expr::Cast(cast_type, val) => {
                 self.verify_expr(f, val)?;
                 match cast_type {
+                    mir::CastType::Force(ty) => {
+                        assert(&e, "result", ty)?;
+                    }
                     mir::CastType::Upcast(ty) => {
                         assert(&e, "result", ty)?;
                     }
