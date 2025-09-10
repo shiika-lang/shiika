@@ -5,6 +5,9 @@ use std::collections::{HashMap, HashSet};
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
 pub fn run(mir: &mir::CompilationUnit) -> Result<()> {
+    run_(mir).context("MIR verifier failed")
+}
+pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
     let program = &mir.program;
     let mut sigs: HashMap<_, _> = program
         .funcs
@@ -51,11 +54,15 @@ impl<'a> Verifier<'a> {
                 .context(format!("in function {:?}", f.name))?;
         }
 
-        self.verify_expr(f, &f.body_stmts)?;
+        self.verify_expr(f, &f.body_stmts)
+            .context(format!("in function {:?}", f.name))?;
         Ok(())
     }
 
     fn verify_expr(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
+        self.verify_expr_(f, e).context(format!("in expr {:?}", e))
+    }
+    fn verify_expr_(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
         use anyhow::bail;
         match &e.0 {
             mir::Expr::Number(_) => assert(&e, "number", &mir::Ty::raw("Int"))?,
