@@ -63,6 +63,7 @@ impl CastType {
 }
 
 impl Expr {
+    // A Shiika number (boxed int)
     pub fn number(n: i64) -> TypedExpr {
         (Expr::Number(n), Ty::raw("Int"))
     }
