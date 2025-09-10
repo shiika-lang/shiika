@@ -371,7 +371,7 @@ fn extract_props(
             method_fullname(pat_ty.base_class_name().into(), name),
             vec![],
             Default::default(),
-            todo!("check whether virtual or not"),
+            false, // todo!("check whether virtual or not"),
         );
         components.append(&mut convert_match(mk, &ivar_ref, &patterns[i])?);
     }
