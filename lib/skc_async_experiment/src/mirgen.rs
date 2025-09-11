@@ -302,8 +302,8 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirBreakExpression { .. } => {
                 todo!("Handle break expression")
             }
-            HirExpressionBase::HirReturnExpression { .. } => {
-                todo!("Handle return expression")
+            HirExpressionBase::HirReturnExpression { arg, .. } => {
+                mir::Expr::return_(self.convert_expr(*arg))
             }
             HirExpressionBase::HirLogicalNot { .. } => {
                 todo!("Handle logical not")
