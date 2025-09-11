@@ -291,9 +291,14 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirMatchExpression { .. } => {
                 todo!("Handle match expression")
             }
-            HirExpressionBase::HirWhileExpression { .. } => {
-                todo!("Handle while expression")
-            }
+            HirExpressionBase::HirWhileExpression {
+                cond_expr,
+                body_exprs,
+                ..
+            } => mir::Expr::while_(
+                self.convert_expr(*cond_expr),
+                self.convert_expr(*body_exprs),
+            ),
             HirExpressionBase::HirBreakExpression { .. } => {
                 todo!("Handle break expression")
             }
