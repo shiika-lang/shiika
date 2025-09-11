@@ -278,9 +278,16 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLambdaExpr { .. } => {
                 todo!("Handle lambda expr")
             }
-            HirExpressionBase::HirIfExpression { .. } => {
-                todo!("Handle if expression")
-            }
+            HirExpressionBase::HirIfExpression {
+                cond_expr,
+                then_exprs,
+                else_exprs,
+                ..
+            } => mir::Expr::if_(
+                self.convert_expr(*cond_expr),
+                self.convert_expr(*then_exprs),
+                self.convert_expr(*else_exprs),
+            ),
             HirExpressionBase::HirMatchExpression { .. } => {
                 todo!("Handle match expression")
             }
