@@ -206,8 +206,13 @@ impl<'a> Verifier<'a> {
 }
 
 fn assert(v: &mir::TypedExpr, for_: &str, expected: &mir::Ty) -> Result<()> {
-    if v.1 != *expected {
-        bail!("expected {:?} for {for_}, but got {:?}", expected, v);
+    if !v.1.same(expected) {
+        bail!(
+            "expected {:?} for {for_}, but got {:?} which is {:?}",
+            expected,
+            v.0,
+            v.1
+        );
     }
     Ok(())
 }
