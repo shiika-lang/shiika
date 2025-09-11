@@ -202,7 +202,7 @@ impl<'a> Compiler<'a> {
                 todo!("Handle ivar ref: {} at index {}", name, idx)
             }
             HirExpressionBase::HirConstRef { fullname } => {
-                todo!("Handle const ref: {:?}", fullname)
+                mir::Expr::const_ref(mir::mir_const_name(fullname), convert_ty(expr.ty))
             }
             HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
@@ -221,8 +221,8 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirIVarAssign { name, idx, .. } => {
                 todo!("Handle ivar assign: {} at index {} with rhs", name, idx)
             }
-            HirExpressionBase::HirConstAssign { fullname, .. } => {
-                todo!("Handle const assign: {:?} with rhs", fullname)
+            HirExpressionBase::HirConstAssign { fullname, rhs } => {
+                mir::Expr::const_set(mir::mir_const_name(fullname), self.convert_expr(*rhs))
             }
             HirExpressionBase::HirMethodCall {
                 receiver_expr,
@@ -507,10 +507,4 @@ fn call_string_new(s: String) -> mir::TypedExpr {
             mir::Expr::raw_i64(bytesize),
         ],
     )
-}
-
-fn method_func_ref(sig: MethodSignature) -> mir::TypedExpr {
-    let fname = FunctionName::from_sig(&sig);
-    let fun_ty = build_fun_ty(&sig);
-    mir::Expr::func_ref(fname, fun_ty)
 }
