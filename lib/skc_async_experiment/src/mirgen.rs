@@ -328,7 +328,11 @@ impl<'a> Compiler<'a> {
                 mir::Expr::create_type_object(fullname.to_ty())
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
-                todo!("Handle parenthesized expr with {} expressions", exprs.len())
+                let mir_exprs = exprs
+                    .into_iter()
+                    .map(|expr| self.convert_expr(expr))
+                    .collect();
+                mir::Expr::exprs(mir_exprs)
             }
             HirExpressionBase::HirDefaultExpr => {
                 todo!("Handle default expr")
