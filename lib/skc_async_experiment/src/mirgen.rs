@@ -34,6 +34,7 @@ pub fn run(
         let c = Compiler {
             vtables: &vtables,
             imported_vtables: &uni.imports.vtables,
+            str_literals: &uni.hir.str_literals,
         };
 
         for (_, ms) in uni.hir.sk_methods {
@@ -87,6 +88,7 @@ pub fn run(
 struct Compiler<'a> {
     vtables: &'a skc_mir::VTables,
     imported_vtables: &'a skc_mir::VTables,
+    str_literals: &'a Vec<String>,
 }
 
 impl<'a> Compiler<'a> {
@@ -173,7 +175,8 @@ impl<'a> Compiler<'a> {
                 mir::Expr::pseudo_var(b, mir::Ty::Raw("Bool".to_string()))
             }
             HirExpressionBase::HirStringLiteral { idx } => {
-                todo!("Handle string literal with idx: {}", idx)
+                // REFACTOR: embed string directly
+                call_string_new(self.str_literals[idx].clone())
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
             HirExpressionBase::HirFloatLiteral { value } => {
