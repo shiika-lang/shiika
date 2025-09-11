@@ -21,6 +21,7 @@ pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
     let v = Verifier {
         sigs,
         vtables: &mir.vtables,
+        imported_vtables: &mir.imported_vtables,
     };
     v.verify_externs(&program.externs)?;
     for f in &program.funcs {
@@ -32,6 +33,7 @@ pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
 struct Verifier<'a> {
     sigs: HashMap<FunctionName, mir::FunTy>,
     vtables: &'a skc_mir::VTables,
+    imported_vtables: &'a skc_mir::VTables,
 }
 
 impl<'a> Verifier<'a> {
@@ -102,7 +104,11 @@ impl<'a> Verifier<'a> {
                     bail!("receiver not Shiika value");
                 };
                 let class_fullname = shiika_core::names::ClassFullname(class_name.clone());
-                let Some(vtable) = self.vtables.get(&class_fullname) else {
+                let Some(vtable) = self
+                    .vtables
+                    .get(&class_fullname)
+                    .or_else(|| self.imported_vtables.get(&class_fullname))
+                else {
                     bail!("vtable of {class_fullname} not found")
                 };
                 if let Some(method_fullname) = vtable.to_vec().get(*idx) {
