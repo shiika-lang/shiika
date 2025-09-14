@@ -1,3 +1,4 @@
+mod collect_allocs;
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
@@ -114,16 +115,31 @@ impl<'a> Compiler<'a> {
                 name: "self".to_string(),
             },
         );
-        //        let allocs = collect_allocs::run(&method.body_stmts);
-        //        let body_stmts = self.insert_allocs(allocs, self.convert_expr(method.body_stmts));
+        let body_stmts = self.convert_method_body(method.body);
+        let allocs = collect_allocs::run(&body_stmts);
+        let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
             asyncness: method.signature.asyncness.clone().into(),
             name: method.signature.fullname.clone().into(),
             params,
             ret_ty: convert_ty(method.signature.ret_ty.clone()),
-            body_stmts: self.convert_method_body(method.body),
+            body_stmts,
             sig: Some(method.signature),
         }
+    }
+
+    fn insert_allocs(
+        &self,
+        allocs: Vec<(String, mir::Ty)>,
+        stmts: mir::TypedExpr,
+    ) -> mir::TypedExpr {
+        let mut stmts_vec = mir::expr::into_exprs(stmts);
+        let mut new_stmts = vec![];
+        for (name, ty) in allocs {
+            new_stmts.push(mir::Expr::alloc(name, ty));
+        }
+        new_stmts.extend(stmts_vec.drain(..));
+        mir::Expr::exprs(new_stmts)
     }
 
     fn convert_method_body(&self, body: SkMethodBody) -> mir::TypedExpr {
