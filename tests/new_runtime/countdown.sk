@@ -5,7 +5,7 @@ class Main
     if i > 0
       return countdown(i - 1)
     else
-      return null
+      return
     end
   end
   
