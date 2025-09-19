@@ -57,7 +57,7 @@ fn generate_mir(
     log::info!("Creating mir");
 
     let mut mir = mirgen::run(uni, target)?;
-    cli.log(format!("# -- typing output --\n{}\n", mir.program));
+    cli.log(format!("# -- mirgen output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::simplify_return::run(mir.program);
     cli.log(format!("# -- simplify_return output --\n{}\n", mir.program));
