@@ -358,7 +358,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Check if the argument of `return' is valid
-    fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<TermTy> {
+    pub fn _validate_return_type(&self, arg_ty: &TermTy, locs: &LocationSpan) -> Result<TermTy> {
         if self.ctx_stack.lambda_ctx().is_some() {
             // TODO: check arg_ty matches to fn's return type
             Ok(arg_ty.clone())

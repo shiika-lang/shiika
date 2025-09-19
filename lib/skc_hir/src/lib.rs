@@ -79,7 +79,7 @@ pub struct HirLVar {
 }
 
 /// Make a HirExpression to refer `::Void`
-fn void_const_ref() -> HirExpression {
+pub fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
         toplevel_const("Void"),
@@ -96,6 +96,9 @@ pub struct HirExpression {
 
 impl HirExpression {
     pub fn voidify(self) -> HirExpression {
+        if self.ty.is_never_type() {
+            return self;
+        }
         let exprs = vec![self, void_const_ref()];
         Hir::expressions(exprs)
     }

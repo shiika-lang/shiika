@@ -463,16 +463,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     .declare_lvar(&param.name, param.ty.clone(), readonly);
             }
         }
-        let mut hir_exprs = self.convert_exprs(body_exprs)?;
-        if signature.has_default_expr() {
-            let mut exprs = _set_defaults(self, ast_sig)?;
-            exprs.push(hir_exprs);
-            hir_exprs = Hir::expressions(exprs);
-        }
-        // Insert ::Void so that last expr always matches to ret_ty
-        if signature.ret_ty.is_void_type() {
-            hir_exprs = hir_exprs.voidify();
-        }
+        let hir_exprs = {
+            let mut exprs = self.convert_exprs(body_exprs)?.to_expr_vec();
+            if signature.has_default_expr() {
+                let mut defaults = _set_defaults(self, ast_sig)?;
+                defaults.append(&mut exprs);
+                exprs = defaults;
+            }
+            // Insert ::Void so that last expr always matches to ret_ty
+            if signature.ret_ty.is_void_type() {
+                if exprs.is_empty() || !exprs.last().unwrap().ty.is_never_type() {
+                    exprs.push(skc_hir::void_const_ref());
+                }
+            }
+            self._insert_implicit_return(&mut exprs, HirReturnFrom::Method)?;
+            Hir::expressions(exprs)
+        };
         let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs)?;
@@ -483,6 +489,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             lvars,
         };
         Ok((method, method_ctx.iivars))
+    }
+
+    /// Insert implicit return if needed. `exprs` must not be empty.
+    fn _insert_implicit_return(
+        &self,
+        exprs: &mut Vec<HirExpression>,
+        from: HirReturnFrom,
+    ) -> Result<()> {
+        let last_expr = exprs.pop().unwrap();
+        if matches!(
+            last_expr.node,
+            HirExpressionBase::HirReturnExpression { .. }
+        ) {
+            // Already has return
+            exprs.push(last_expr);
+        } else if last_expr.ty.is_never_type() {
+            exprs.push(last_expr);
+        } else {
+            let locs = last_expr.locs.clone();
+            let merge_ty = self._validate_return_type(&last_expr.ty, &locs)?;
+            let cast = Hir::bit_cast(merge_ty, last_expr);
+            exprs.push(Hir::return_expression(from, cast, locs))
+        }
+        Ok(())
     }
 
     /// Process a enum definition
