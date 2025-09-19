@@ -67,6 +67,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 method_fullname,
                 arg_exprs,
                 tyarg_exprs,
+                ..
             } => self.gen_method_call(
                 ctx,
                 method_fullname,
@@ -139,15 +140,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 fullname,
                 str_literal_idx,
                 includes_modules,
-                initialize_name,
-                init_cls_name,
+                initializer,
             } => Ok(Some(self.gen_class_literal(
                 fullname,
                 &expr.ty,
                 str_literal_idx,
                 includes_modules,
-                initialize_name,
-                init_cls_name,
+                initializer,
             ))),
             HirParenthesizedExpr { exprs } => self.gen_parenthesized_expr(ctx, exprs),
             HirDefaultExpr => Ok(Some(self.gen_default_expr(&expr.ty))),
@@ -1146,8 +1145,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         clsobj_ty: &TermTy,
         str_literal_idx: &usize,
         includes_modules: &bool,
-        initialize_name: &MethodFullname,
-        init_cls_name: &ClassFullname,
+        initializer: &Option<MethodSignature>,
     ) -> SkObj<'run> {
         debug_assert!(!fullname.is_meta());
         if fullname.0 == "Metaclass" {
@@ -1198,7 +1196,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let fname = wtable::insert_wtable_func_name(&fullname.clone().to_class_fullname());
                 self.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
             }
-            self.call_class_level_initialize(cls.clone(), initialize_name, init_cls_name);
+            self.call_class_level_initialize(cls.clone(), initializer);
 
             self.bitcast(cls, clsobj_ty, "as")
         }
@@ -1207,13 +1205,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     fn call_class_level_initialize(
         &'run self,
         receiver: SkObj,
-        initialize_name: &MethodFullname,
-        init_cls_name: &ClassFullname,
+        initializer: &Option<MethodSignature>,
     ) {
-        let addr = self.bitcast(receiver, &init_cls_name.to_ty(), "obj_as_super");
-        let args = vec![addr.0.into()];
-        let initialize = self.get_llvm_func(&method_func_name(initialize_name));
-        self.builder.build_direct_call(initialize, &args, "");
+        if let Some(initialize_sig) = initializer {
+            let init_cls_name = initialize_sig.fullname.type_name.to_class_fullname();
+            let addr = self.bitcast(receiver, &init_cls_name.to_ty(), "obj_as_super");
+            let args = vec![addr.0.into()];
+            let initialize = self.get_llvm_func(&method_func_name(&initialize_sig.fullname));
+            self.builder.build_direct_call(initialize, &args, "");
+        }
     }
 
     /// Create the metaclass object `Metaclass`

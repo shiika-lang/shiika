@@ -397,6 +397,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v1 = self.compile_value_expr(ctx, expr);
         let v2 = match cast_type {
+            mir::CastType::Force(_) => v1,
             mir::CastType::Upcast(_) => v1,
             mir::CastType::ToAny => match &expr.1 {
                 mir::Ty::I1 => todo!("ToAny cast for I1"),

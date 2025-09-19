@@ -52,7 +52,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Destructively convert self to Hir
-    pub fn extract_hir(&mut self, main_exprs: HirExpression, main_lvars: HirLVars) -> Hir {
+    pub fn extract_hir(&mut self, main_exprs: Vec<HirExpression>, main_lvars: HirLVars) -> Hir {
         // Extract data from self
         let sk_types = std::mem::take(&mut self.class_dict.sk_types);
         let sk_methods = std::mem::take(&mut self.method_dict.0);
@@ -110,6 +110,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     method_fullname(metaclass_fullname(&name.0).into(), "new"),
                     vec![],
                     Default::default(),
+                    false,
                 )
             } else {
                 self.create_class_literal(&name, includes_modules)?
@@ -126,22 +127,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     ) -> Result<HirExpression> {
         let ty = ty::meta(&name.0);
         let str_idx = self.register_string_literal(&name.0);
-        // These two are for calling class-level initialize.
-        let (initialize_name, init_cls_name) = self._find_initialize(&ty)?;
+        // This is for calling class-level initialize.
+        let initializer = self._find_initialize(&ty);
         Ok(Hir::class_literal(
             ty,
             name.clone(),
             str_idx,
             includes_modules,
-            initialize_name,
-            init_cls_name,
+            initializer,
         ))
     }
 
     pub fn convert_toplevel_items(
         &mut self,
         items: Vec<shiika_ast::TopLevelItem>,
-    ) -> Result<(HirExpression, HirLVars)> {
+    ) -> Result<(Vec<HirExpression>, HirLVars)> {
         let mut defs = vec![];
         let mut top_exprs = vec![];
         for item in items {
@@ -163,10 +163,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         debug_assert!(self.ctx_stack.len() == 1);
         let mut toplevel_ctx = self.ctx_stack.pop_toplevel_ctx();
-        Ok((
-            Hir::expressions(main_exprs),
-            extract_lvars(&mut toplevel_ctx.lvars),
-        ))
+        Ok((main_exprs, extract_lvars(&mut toplevel_ctx.lvars)))
     }
 
     // Process definitions in a class/module or the toplevel.
@@ -374,16 +371,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
     /// Create .new
     fn create_new(&self, class_name: &TermTy, const_is_obj: bool) -> Result<SkMethod> {
-        let (initialize_name, init_cls_name) = self._find_initialize(class_name)?;
         let found = self.class_dict.lookup_method(
             &class_name.meta_ty(),
             &method_firstname("new"),
             &LocationSpan::internal(),
         )?;
+        let initializer = self._find_initialize(class_name);
         let new_body = SkMethodBody::New {
             classname: class_name.fullname.to_class_fullname(),
-            initialize_name,
-            init_cls_name,
+            initializer,
             arity: found.sig.params.len(),
             const_is_obj,
         };
@@ -396,17 +392,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Find actual `initialize` func to call from `.new`
-    fn _find_initialize(&self, class: &TermTy) -> Result<(MethodFullname, ClassFullname)> {
-        let found = self.class_dict.lookup_method(
+    fn _find_initialize(&self, class: &TermTy) -> Option<MethodSignature> {
+        let Ok(found) = self.class_dict.lookup_method(
             class,
             &method_firstname("initialize"),
             &LocationSpan::internal(),
-        )?;
-        let fullname = found.owner.to_class_fullname();
-        Ok((
-            method_fullname(fullname.clone().into(), "initialize"),
-            fullname,
-        ))
+        ) else {
+            return None;
+        };
+        Some(found.sig)
     }
 
     /// Register a constant defined in the toplevel
@@ -469,16 +463,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     .declare_lvar(&param.name, param.ty.clone(), readonly);
             }
         }
-        let mut hir_exprs = self.convert_exprs(body_exprs)?;
-        if signature.has_default_expr() {
-            let mut exprs = _set_defaults(self, ast_sig)?;
-            exprs.push(hir_exprs);
-            hir_exprs = Hir::expressions(exprs);
-        }
-        // Insert ::Void so that last expr always matches to ret_ty
-        if signature.ret_ty.is_void_type() {
-            hir_exprs = hir_exprs.voidify();
-        }
+        let hir_exprs = {
+            let mut exprs = self.convert_exprs(body_exprs)?.to_expr_vec();
+            if signature.has_default_expr() {
+                let mut defaults = _set_defaults(self, ast_sig)?;
+                defaults.append(&mut exprs);
+                exprs = defaults;
+            }
+            // Insert ::Void so that last expr always matches to ret_ty
+            if signature.ret_ty.is_void_type() {
+                if exprs.is_empty() || !exprs.last().unwrap().ty.is_never_type() {
+                    exprs.push(skc_hir::void_const_ref());
+                }
+            }
+            self._insert_implicit_return(&mut exprs, HirReturnFrom::Method)?;
+            Hir::expressions(exprs)
+        };
         let mut method_ctx = self.ctx_stack.pop_method_ctx();
         let lvars = extract_lvars(&mut method_ctx.lvars);
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs)?;
@@ -489,6 +489,30 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             lvars,
         };
         Ok((method, method_ctx.iivars))
+    }
+
+    /// Insert implicit return if needed. `exprs` must not be empty.
+    fn _insert_implicit_return(
+        &self,
+        exprs: &mut Vec<HirExpression>,
+        from: HirReturnFrom,
+    ) -> Result<()> {
+        let last_expr = exprs.pop().unwrap();
+        if matches!(
+            last_expr.node,
+            HirExpressionBase::HirReturnExpression { .. }
+        ) {
+            // Already has return
+            exprs.push(last_expr);
+        } else if last_expr.ty.is_never_type() {
+            exprs.push(last_expr);
+        } else {
+            let locs = last_expr.locs.clone();
+            let merge_ty = self._validate_return_type(&last_expr.ty, &locs)?;
+            let cast = Hir::bit_cast(merge_ty, last_expr);
+            exprs.push(Hir::return_expression(from, cast, locs))
+        }
+        Ok(())
     }
 
     /// Process a enum definition
@@ -672,6 +696,7 @@ fn get_class_of_obj_const(cls_ty: TermTy, base: HirExpression) -> HirExpression 
         method_fullname_raw("Object", "class"),
         vec![],
         Default::default(),
+        true,
     )
 }
 
@@ -693,6 +718,7 @@ fn call_class_specialize(
             method_fullname_raw("Class", "_specialize1"),
             vec![tyargs.remove(0)],
             Default::default(),
+            true,
         )
     } else {
         Hir::method_call(
@@ -701,6 +727,7 @@ fn call_class_specialize(
             method_fullname_raw("Class", "<>"),
             vec![mk.create_array_instance(tyargs, LocationSpan::todo())],
             Default::default(),
+            true,
         )
     }
 }

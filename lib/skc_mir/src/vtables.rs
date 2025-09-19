@@ -76,6 +76,11 @@ impl VTables {
         self.vtables.iter()
     }
 
+    /// Get a vtable by class fullname
+    pub fn get(&self, class_name: &ClassFullname) -> Option<&VTable> {
+        self.vtables.get(class_name)
+    }
+
     /// Merge other into self destructively
     pub fn merge(&mut self, other: VTables) {
         self.vtables.extend(other.vtables);

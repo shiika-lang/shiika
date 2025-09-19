@@ -4,29 +4,39 @@ use anyhow::{bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
-pub fn run(mir: &mir::Program) -> Result<()> {
-    let mut sigs: HashMap<_, _> = mir
+pub fn run(mir: &mir::CompilationUnit) -> Result<()> {
+    run_(mir).context("MIR verifier failed")
+}
+pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
+    let program = &mir.program;
+    let mut sigs: HashMap<_, _> = program
         .funcs
         .iter()
         .map(|f| (f.name.clone(), f.fun_ty().clone()))
         .collect();
-    for e in &mir.externs {
+    for e in &program.externs {
         sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
 
-    let v = Verifier { sigs };
-    v.verify_externs(&mir.externs)?;
-    for f in &mir.funcs {
+    let v = Verifier {
+        sigs,
+        vtables: &mir.vtables,
+        imported_vtables: &mir.imported_vtables,
+    };
+    v.verify_externs(&program.externs)?;
+    for f in &program.funcs {
         v.verify_function(f)?;
     }
     Ok(())
 }
 
-struct Verifier {
+struct Verifier<'a> {
     sigs: HashMap<FunctionName, mir::FunTy>,
+    vtables: &'a skc_mir::VTables,
+    imported_vtables: &'a skc_mir::VTables,
 }
 
-impl Verifier {
+impl<'a> Verifier<'a> {
     fn verify_externs(&self, externs: &[mir::Extern]) -> Result<()> {
         // Function names must be unique
         let mut names = HashSet::new();
@@ -46,54 +56,31 @@ impl Verifier {
                 .context(format!("in function {:?}", f.name))?;
         }
 
-        self.verify_expr(f, &f.body_stmts)?;
+        self.verify_expr(f, &f.body_stmts)
+            .context(format!("in function {:?}", f.name))?;
         Ok(())
     }
 
     fn verify_expr(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
-        self._verify_expr(f, e)
-            .context(format!("in expr {:?}", e.0))
-            .context(format!("in function {:?}", f.name))
-            .context(format!("[BUG] Type verifier failed"))
+        self.verify_expr_(f, e).context(format!("in expr {:?}", e))
     }
-
-    fn _verify_expr(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
+    fn verify_expr_(&self, f: &mir::Function, e: &mir::TypedExpr) -> Result<()> {
+        use anyhow::bail;
         match &e.0 {
             mir::Expr::Number(_) => assert(&e, "number", &mir::Ty::raw("Int"))?,
-            mir::Expr::PseudoVar(_) => (),
+            mir::Expr::PseudoVar(pv) => match pv {
+                mir::PseudoVar::True | mir::PseudoVar::False => {
+                    assert(&e, "pseudovar", &mir::Ty::raw("Bool"))?
+                }
+                mir::PseudoVar::Void => assert(&e, "pseudovar", &mir::Ty::raw("Void"))?,
+                mir::PseudoVar::SelfRef => {
+                    // TODO: Check this is the receiver type
+                }
+            },
             mir::Expr::LVarRef(_) => (),
-            mir::Expr::ArgRef(idx, name) => {
-                if *idx >= f.params.len() {
-                    bail!("argument index out of range: {}", idx);
-                }
-                let param = &f.params[*idx];
-                if param.name != *name {
-                    bail!(
-                        "argument name mismatch: expected {}, but got {}",
-                        param.name,
-                        name
-                    );
-                }
-                assert(&e, "according to the function decalation", &param.ty)?;
-            }
-            mir::Expr::EnvRef(_, _) => bail!("EnvRef should be lowered"),
-            mir::Expr::EnvSet(_, _, _) => bail!("EnvRef should be lowered"),
-            mir::Expr::ConstRef(_name) => (),
-            mir::Expr::FuncRef(name) => {
-                let ty_expected = self
-                    .sigs
-                    .get(name)
-                    .with_context(|| format!("function {} not found", name))?;
-                let ty_given = e.1.as_fun_ty();
-                if !ty_expected.same(&ty_given) {
-                    bail!(
-                        "function reference {} has type {:?}, but declared as {:?}",
-                        name,
-                        ty_given,
-                        ty_expected
-                    );
-                }
-            }
+            mir::Expr::ArgRef(_, _) => (),
+            mir::Expr::ConstRef(_) => (),
+            mir::Expr::FuncRef(_) => (),
             mir::Expr::FunCall(fexpr, args) => {
                 for a in args {
                     assert_not_never(&a.1)?;
@@ -110,7 +97,46 @@ impl Verifier {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument #{}", i), p))?;
             }
-            mir::Expr::VTableRef(_, _, _) => (),
+            mir::Expr::VTableRef(receiver_expr, idx, debug_name) => {
+                self.verify_expr(f, receiver_expr)?;
+
+                let mir::Ty::Raw(class_name) = &receiver_expr.1 else {
+                    bail!("receiver not Shiika value");
+                };
+                let class_fullname = shiika_core::names::ClassFullname(class_name.clone());
+                let Some(vtable) = self
+                    .vtables
+                    .get(&class_fullname)
+                    .or_else(|| self.imported_vtables.get(&class_fullname))
+                else {
+                    bail!("vtable of {class_fullname} not found")
+                };
+                if let Some(method_fullname) = vtable.to_vec().get(*idx) {
+                    if method_fullname.first_name.0 != *debug_name {
+                        bail!("debug_name not match");
+                    }
+                    if let Some(method_sig) = self.sigs.get(&method_fullname.clone().into()) {
+                        let expected_ty = mir::Ty::Fun(method_sig.clone());
+                        assert(
+                            &e,
+                            &format!("vtable_ref({}#{})", class_name, debug_name),
+                            &expected_ty,
+                        )?;
+                    } else {
+                        bail!(
+                            "Method signature not found for {:?} in vtable ref verification",
+                            method_fullname
+                        );
+                    }
+                } else {
+                    bail!(
+                        "Method index {} out of bounds for vtable of {} (size: {})",
+                        idx,
+                        class_name,
+                        vtable.size()
+                    );
+                }
+            }
             mir::Expr::If(cond, then, els) => {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, then)?;
@@ -139,6 +165,9 @@ impl Verifier {
             mir::Expr::Cast(cast_type, val) => {
                 self.verify_expr(f, val)?;
                 match cast_type {
+                    mir::CastType::Force(ty) => {
+                        assert(&e, "result", ty)?;
+                    }
                     mir::CastType::Upcast(ty) => {
                         assert(&e, "result", ty)?;
                     }
@@ -160,6 +189,10 @@ impl Verifier {
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
             mir::Expr::StringRef(_) => (),
+            mir::Expr::EnvRef(_, _) => (),
+            mir::Expr::EnvSet(_, v, _) => {
+                self.verify_expr(f, v)?;
+            }
         }
         Ok(())
     }
@@ -173,8 +206,13 @@ impl Verifier {
 }
 
 fn assert(v: &mir::TypedExpr, for_: &str, expected: &mir::Ty) -> Result<()> {
-    if v.1 != *expected {
-        bail!("expected {:?} for {for_}, but got {:?}", expected, v);
+    if !v.1.same(expected) {
+        bail!(
+            "expected {:?} for {for_}, but got {:?} which is {:?}",
+            expected,
+            v.0,
+            v.1
+        );
     }
     Ok(())
 }

@@ -1,5 +1,6 @@
 use crate::mir::Asyncness;
 use shiika_core::ty::TermTy;
+use skc_hir::MethodSignature;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +27,25 @@ impl fmt::Display for Ty {
 impl From<TermTy> for Ty {
     fn from(ty: TermTy) -> Self {
         // TODO: typaram ref
-        Ty::Raw(ty.fullname.0)
+        match ty.fn_x_info() {
+            Some(tys) => {
+                let mut param_tys = tys
+                    .into_iter()
+                    .map(|x| x.clone().into())
+                    .collect::<Vec<_>>();
+                let ret_ty = param_tys.pop().unwrap();
+                Ty::Fun(FunTy {
+                    asyncness: Asyncness::Unknown,
+                    param_tys,
+                    ret_ty: Box::new(ret_ty),
+                })
+            }
+            None => match &ty.fullname.0[..] {
+                "Shiika::Internal::Ptr" => Ty::Ptr,
+                "Shiika::Internal::Int64" => Ty::Int64,
+                _ => Ty::Raw(ty.fullname.0),
+            },
+        }
     }
 }
 
@@ -128,6 +147,11 @@ impl FunTy {
             param_tys,
             ret_ty: Box::new(ret_ty),
         }
+    }
+
+    pub fn from_sig(sig: MethodSignature) -> Self {
+        let param_tys = sig.param_tys().into_iter().map(|x| x.into()).collect();
+        Self::new(sig.asyncness.into(), param_tys, sig.ret_ty.into())
     }
 
     pub fn sync(param_tys: Vec<Ty>, ret_ty: Ty) -> Self {

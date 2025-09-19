@@ -24,7 +24,7 @@ pub struct Hir {
     pub constants: HashMap<ConstFullname, TermTy>,
     pub str_literals: Vec<String>,
     pub const_inits: Vec<HirExpression>,
-    pub main_exprs: HirExpression,
+    pub main_exprs: Vec<HirExpression>,
     /// Local variables in `main_exprs`
     pub main_lvars: HirLVars,
 }
@@ -79,7 +79,7 @@ pub struct HirLVar {
 }
 
 /// Make a HirExpression to refer `::Void`
-fn void_const_ref() -> HirExpression {
+pub fn void_const_ref() -> HirExpression {
     Hir::const_ref(
         ty::raw("Void"),
         toplevel_const("Void"),
@@ -96,6 +96,9 @@ pub struct HirExpression {
 
 impl HirExpression {
     pub fn voidify(self) -> HirExpression {
+        if self.ty.is_never_type() {
+            return self;
+        }
         let exprs = vec![self, void_const_ref()];
         Hir::expressions(exprs)
     }
@@ -104,6 +107,13 @@ impl HirExpression {
         match &self.node {
             HirExpressionBase::HirParenthesizedExpr { exprs } => exprs.last().unwrap(),
             _ => panic!("unexpected"),
+        }
+    }
+
+    pub fn to_expr_vec(&self) -> Vec<HirExpression> {
+        match &self.node {
+            HirExpressionBase::HirParenthesizedExpr { exprs } => exprs.clone(),
+            _ => vec![self.clone()],
         }
     }
 }
@@ -164,6 +174,7 @@ pub enum HirExpressionBase {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
         tyarg_exprs: Vec<HirExpression>,
+        is_virtual: bool,
     },
     HirModuleMethodCall {
         receiver_expr: Box<HirExpression>,
@@ -250,8 +261,7 @@ pub enum HirExpressionBase {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
-        initialize_name: MethodFullname,
-        init_cls_name: ClassFullname,
+        initializer: Option<MethodSignature>,
     },
     /// Wrap several expressions in to an expression
     HirParenthesizedExpr {
@@ -483,6 +493,7 @@ impl Hir {
         method_fullname: MethodFullname,
         arg_exprs: Vec<HirExpression>,
         tyarg_exprs: Vec<HirExpression>,
+        is_virtual: bool,
     ) -> HirExpression {
         let locs = LocationSpan::merge(
             &receiver_hir.locs,
@@ -499,6 +510,7 @@ impl Hir {
                 method_fullname,
                 arg_exprs,
                 tyarg_exprs,
+                is_virtual,
             },
             locs,
         }
@@ -707,8 +719,7 @@ impl Hir {
         fullname: TypeFullname,
         str_literal_idx: usize,
         includes_modules: bool,
-        initialize_name: MethodFullname,
-        init_cls_name: ClassFullname,
+        initializer: Option<MethodSignature>,
     ) -> HirExpression {
         debug_assert!(ty.is_metaclass());
         HirExpression {
@@ -717,8 +728,7 @@ impl Hir {
                 fullname,
                 str_literal_idx,
                 includes_modules,
-                initialize_name,
-                init_cls_name,
+                initializer,
             },
             locs: LocationSpan::internal(),
         }
