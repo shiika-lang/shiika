@@ -207,6 +207,10 @@ task :coredump do
   sh "lldb ./a.out -o run -o bt -o exit > a.dump.txt"
 end
 
+task :err do
+  sh "rake async_test > err.txt 2>&1"
+end
+
 task :tmp do
   sh "clang-16 -v -target x86_64-pc-linux-gnu -lm -o /home/yhara/shiika/a.out a.bc /home/yhara/.shiika/packages/core-0.1.0/cargo_target/debug/libext.a /home/yhara/.shiika/packages/core-0.1.0/lib/index.bc -ldl -lpthread"
 end
