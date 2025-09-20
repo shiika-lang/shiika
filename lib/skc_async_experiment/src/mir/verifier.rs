@@ -152,6 +152,9 @@ impl<'a> Verifier<'a> {
             mir::Expr::LVarSet(_, v) => {
                 self.verify_expr(f, v)?;
             }
+            mir::Expr::IVarSet(_, v, _) => {
+                self.verify_expr(f, v)?;
+            }
             mir::Expr::ConstSet(_, v) => {
                 self.verify_expr(f, v)?;
             }

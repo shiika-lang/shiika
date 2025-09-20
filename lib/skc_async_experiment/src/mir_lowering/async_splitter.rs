@@ -186,6 +186,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::LVarSet(_, _) => {
                 panic!("LVarSet must be lowered to EnvSet");
             }
+            mir::Expr::IVarSet(idx, rhs, name) => {
+                let new_rhs = self.compile_value_expr(*rhs, false)?;
+                mir::Expr::ivar_set(idx, new_rhs, name)
+            }
             mir::Expr::ConstSet(name, rhs) => {
                 let v = self.compile_value_expr(*rhs, false)?;
                 mir::Expr::const_set(name, v)

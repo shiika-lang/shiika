@@ -138,6 +138,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
             mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
+            mir::Expr::IVarSet(idx, rhs, _) => todo!("implement IVarSet codegen"),
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
