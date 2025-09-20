@@ -50,7 +50,7 @@ impl MirRewriter for Update {
                     let tmp_name = self.gensym();
                     mir::Expr::exprs(vec![
                         mir::Expr::alloc(tmp_name.clone(), ret_ty.clone()),
-                        mir::Expr::assign(tmp_name.clone(), *arg_expr),
+                        mir::Expr::lvar_set(tmp_name.clone(), *arg_expr),
                         mir::Expr::return_(mir::Expr::lvar_ref(tmp_name, ret_ty)),
                     ])
                 }

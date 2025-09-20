@@ -105,7 +105,7 @@ impl MirRewriter for Update {
                 mir::Expr::env_ref(i, varname, texpr.1.clone())
             }
             mir::Expr::ArgRef(idx, name) => mir::Expr::env_ref(idx + 1, name, texpr.1),
-            mir::Expr::Assign(varname, rhs) => {
+            mir::Expr::LVarSet(varname, rhs) => {
                 let i = self.lvar_idx(&varname);
                 mir::Expr::env_set(i, *rhs, varname)
             }

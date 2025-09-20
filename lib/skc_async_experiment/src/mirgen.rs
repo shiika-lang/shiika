@@ -232,7 +232,7 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                (mir::Expr::Assign(name, Box::new(mir_rhs)), result_ty)
+                (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
             }
             HirExpressionBase::HirIVarAssign { name, idx, .. } => {
                 todo!("Handle ivar assign: {} at index {} with rhs", name, idx)
@@ -367,7 +367,7 @@ impl<'a> Compiler<'a> {
         let mut exprs = vec![];
         let tmp_name = "tmp";
         exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
-        exprs.push(mir::Expr::assign(
+        exprs.push(mir::Expr::lvar_set(
             tmp_name,
             mir::Expr::create_object(instance_ty.clone()),
         ));

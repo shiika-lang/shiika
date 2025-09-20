@@ -58,7 +58,7 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::Alloc(_, _) => {}
-            mir::Expr::Assign(_, rhs) => {
+            mir::Expr::LVarSet(_, rhs) => {
                 self.walk_expr(rhs)?;
             }
             mir::Expr::ConstSet(_, rhs) => {

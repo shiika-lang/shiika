@@ -49,7 +49,7 @@ pub trait MirRewriter {
             }
             mir::Expr::Spawn(expr) => mir::Expr::spawn(self.walk_expr(*expr)?),
             mir::Expr::Alloc(_, _) => expr,
-            mir::Expr::Assign(name, rhs) => mir::Expr::assign(name, self.walk_expr(*rhs)?),
+            mir::Expr::LVarSet(name, rhs) => mir::Expr::lvar_set(name, self.walk_expr(*rhs)?),
             mir::Expr::ConstSet(name, rhs) => mir::Expr::const_set(name, self.walk_expr(*rhs)?),
             mir::Expr::Return(expr) => mir::Expr::return_(self.walk_expr(*expr)?),
             mir::Expr::Exprs(exprs) => mir::Expr::exprs(self.walk_exprs(exprs)?),

@@ -24,7 +24,7 @@ pub enum Expr {
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
-    Assign(String, Box<Typed<Expr>>),
+    LVarSet(String, Box<Typed<Expr>>),
     ConstSet(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
@@ -168,8 +168,8 @@ impl Expr {
         (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
     }
 
-    pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
-        (Expr::Assign(name.into(), Box::new(e)), Ty::raw("Void"))
+    pub fn lvar_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
+        (Expr::LVarSet(name.into(), Box::new(e)), Ty::raw("Void"))
     }
 
     pub fn const_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
@@ -291,7 +291,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
-        Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
+        Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
         Expr::Exprs(exprs) => {

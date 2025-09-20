@@ -136,7 +136,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
-            mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
+            mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
@@ -343,7 +343,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         None
     }
 
-    fn compile_assign(
+    fn compile_lvar_set(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
