@@ -26,6 +26,7 @@ pub trait MirRewriter {
             mir::Expr::Number(_) => expr,
             mir::Expr::PseudoVar(_) => expr,
             mir::Expr::LVarRef(_) => expr,
+            mir::Expr::IVarRef(_, _) => expr,
             mir::Expr::ArgRef(_, _) => expr,
             mir::Expr::EnvRef(_, _) => expr,
             mir::Expr::EnvSet(idx, value_expr, name) => {

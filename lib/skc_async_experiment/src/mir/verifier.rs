@@ -78,6 +78,7 @@ impl<'a> Verifier<'a> {
                 }
             },
             mir::Expr::LVarRef(_) => (),
+            mir::Expr::IVarRef(_, _) => (),
             mir::Expr::ArgRef(_, _) => (),
             mir::Expr::ConstRef(_) => (),
             mir::Expr::FuncRef(_) => (),

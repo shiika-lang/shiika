@@ -12,6 +12,7 @@ pub enum Expr {
     PseudoVar(PseudoVar),
     StringRef(String),
     LVarRef(String),
+    IVarRef(usize, String),                  // (index, debug_name)
     ArgRef(usize, String),                   // (index, debug_name)
     EnvRef(usize, String),                   // (index, debug_name)
     EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
@@ -80,6 +81,10 @@ impl Expr {
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::LVarRef(name.into()), ty)
+    }
+
+    pub fn ivar_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::IVarRef(idx, name.into()), ty)
     }
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -244,6 +249,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::SelfRef) => "self".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
+        Expr::IVarRef(_, name) => format!("{}", name),
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {

@@ -29,6 +29,7 @@ pub trait MirVisitor {
             mir::Expr::Number(_) => {}
             mir::Expr::PseudoVar(_) => {}
             mir::Expr::LVarRef(_) => {}
+            mir::Expr::IVarRef(_, _) => {}
             mir::Expr::ArgRef(_, _) => {}
             mir::Expr::EnvRef(_, _) => {}
             mir::Expr::EnvSet(_, value_expr, _) => {

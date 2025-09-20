@@ -144,6 +144,7 @@ impl<'a> Compiler<'a> {
             mir::Expr::Number(_) => e,
             mir::Expr::PseudoVar(_) => e,
             mir::Expr::LVarRef(_) => panic!("LVarRef must be lowered to EnvRef"),
+            mir::Expr::IVarRef(_, _) => e,
             mir::Expr::ArgRef(_, _) => e,
             mir::Expr::EnvRef(_, _) => e,
             mir::Expr::EnvSet(idx, rhs, name) => {
