@@ -73,9 +73,6 @@ impl<'a> Verifier<'a> {
                     assert(&e, "pseudovar", &mir::Ty::raw("Bool"))?
                 }
                 mir::PseudoVar::Void => assert(&e, "pseudovar", &mir::Ty::raw("Void"))?,
-                mir::PseudoVar::SelfRef => {
-                    // TODO: Check this is the receiver type
-                }
             },
             mir::Expr::LVarRef(_) => (),
             mir::Expr::IVarRef(_, _) => (),

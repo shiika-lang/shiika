@@ -204,10 +204,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         match pseudo_var {
             mir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
             mir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
-            mir::PseudoVar::SelfRef => {
-                // TODO: impl. self
-                intrinsics::box_bool(self, true).into()
-            }
             mir::PseudoVar::Void => return self.compile_void(),
         }
     }

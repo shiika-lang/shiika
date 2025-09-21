@@ -199,8 +199,7 @@ impl<'a> Compiler<'a> {
                 todo!("Handle float literal: {}", value)
             }
             HirExpressionBase::HirSelfExpression => {
-                // REFACTOR: just get the 0-th arg?
-                mir::Expr::pseudo_var(mir::PseudoVar::SelfRef, convert_ty(expr.ty))
+                mir::Expr::arg_ref(0, "self", convert_ty(expr.ty))
             }
             HirExpressionBase::HirLVarRef { name } => {
                 mir::Expr::lvar_ref(name, convert_ty(expr.ty))

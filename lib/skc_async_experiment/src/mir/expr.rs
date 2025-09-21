@@ -43,7 +43,6 @@ pub enum Expr {
 pub enum PseudoVar {
     True,
     False,
-    SelfRef,
     Void,
 }
 
@@ -254,7 +253,6 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Number(n) => format!("{}", n),
         Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
-        Expr::PseudoVar(PseudoVar::SelfRef) => "self".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
         Expr::IVarRef(_, name) => format!("{}", name),
