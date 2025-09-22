@@ -97,11 +97,13 @@ impl<'a> Compiler<'a> {
         let arity = self.orig_func.params.len();
         self.chapters
             .add_stmt(call_chiika_env_push_frame(self.frame_size()));
+        // Store $cont to env[0]
         self.chapters.add_stmt(mir::Expr::env_set(
             0,
             arg_ref_cont(arity, self.orig_func.ret_ty.clone()),
             "$cont",
         ));
+        // Store args to env[1..]
         for i in 1..arity {
             let param = &self.orig_func.params[i];
             self.chapters.add_stmt(mir::Expr::env_set(
