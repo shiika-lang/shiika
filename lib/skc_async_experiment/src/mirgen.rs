@@ -6,6 +6,7 @@ use skc_hir::{HirExpression, SkMethod};
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
+use shiika_core::ty;
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -59,7 +60,8 @@ pub fn run(
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
-            funcs.push(c.create_user_main(main_exprs, total_deps));
+            funcs.push(c.create_user_main());
+            funcs.push(c.create_user_main_inner(main_exprs, total_deps));
         } else {
             if main_exprs.len() > 0 {
                 panic!("Top level expressions are not allowed in library");
@@ -397,7 +399,31 @@ impl<'a> Compiler<'a> {
         mir::Expr::exprs(exprs)
     }
 
-    fn create_user_main(
+    fn create_user_main(&self) -> mir::Function {
+        let mut body_stmts = vec![];
+        body_stmts.push(mir::Expr::fun_call(
+            mir::Expr::func_ref(
+                mir::main_function_inner_name(),
+                mir::FunTy::new(
+                    mir::Asyncness::Unknown,
+                    vec![mir::Ty::raw("Object")],
+                    mir::Ty::raw("Int"),
+                ),
+            ),
+            vec![mir::Expr::create_object(ty::raw("Object"))],
+        ));
+        body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+        mir::Function {
+            asyncness: mir::Asyncness::Unknown,
+            name: mir::main_function_name(),
+            params: vec![],
+            ret_ty: mir::Ty::Raw("Int".to_string()),
+            body_stmts: mir::Expr::exprs(body_stmts),
+            sig: None,
+        }
+    }
+
+    fn create_user_main_inner(
         &self,
         top_exprs: Vec<HirExpression>,
         total_deps: &[String],
@@ -408,8 +434,8 @@ impl<'a> Compiler<'a> {
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
         mir::Function {
             asyncness: mir::Asyncness::Unknown,
-            name: mir::main_function_name(),
-            params: vec![],
+            name: mir::main_function_inner_name(),
+            params: vec![mir::Param::new(mir::Ty::raw("Object"), "self")],
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
