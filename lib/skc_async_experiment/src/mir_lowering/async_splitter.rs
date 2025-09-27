@@ -146,7 +146,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::Number(_) => e,
             mir::Expr::PseudoVar(_) => e,
             mir::Expr::LVarRef(_) => panic!("LVarRef must be lowered to EnvRef"),
-            mir::Expr::IVarRef(_, _) => e,
+            mir::Expr::IVarRef(obj_expr, idx, name) => {
+                let new_obj = self.compile_value_expr(*obj_expr, false)?;
+                mir::Expr::ivar_ref(new_obj, idx, name, e.1.clone())
+            }
             mir::Expr::ArgRef(_, _) => e,
             mir::Expr::EnvRef(_, _) => e,
             mir::Expr::EnvSet(idx, rhs, name) => {
@@ -188,9 +191,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::LVarSet(_, _) => {
                 panic!("LVarSet must be lowered to EnvSet");
             }
-            mir::Expr::IVarSet(idx, rhs, name) => {
+            mir::Expr::IVarSet(obj, idx, rhs, name) => {
+                let new_obj = self.compile_value_expr(*obj, false)?;
                 let new_rhs = self.compile_value_expr(*rhs, false)?;
-                mir::Expr::ivar_set(idx, new_rhs, name)
+                mir::Expr::ivar_set(new_obj, idx, new_rhs, name)
             }
             mir::Expr::ConstSet(name, rhs) => {
                 let v = self.compile_value_expr(*rhs, false)?;

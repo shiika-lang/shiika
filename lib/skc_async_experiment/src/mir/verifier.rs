@@ -75,7 +75,9 @@ impl<'a> Verifier<'a> {
                 mir::PseudoVar::Void => assert(&e, "pseudovar", &mir::Ty::raw("Void"))?,
             },
             mir::Expr::LVarRef(_) => (),
-            mir::Expr::IVarRef(_, _) => (),
+            mir::Expr::IVarRef(obj_expr, _, _) => {
+                self.verify_expr(f, obj_expr)?;
+            }
             mir::Expr::ArgRef(_, _) => (),
             mir::Expr::ConstRef(_) => (),
             mir::Expr::FuncRef(_) => (),
@@ -149,7 +151,8 @@ impl<'a> Verifier<'a> {
             mir::Expr::LVarSet(_, v) => {
                 self.verify_expr(f, v)?;
             }
-            mir::Expr::IVarSet(_, v, _) => {
+            mir::Expr::IVarSet(obj_expr, _, v, _) => {
+                self.verify_expr(f, obj_expr)?;
                 self.verify_expr(f, v)?;
             }
             mir::Expr::ConstSet(_, v) => {

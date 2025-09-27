@@ -1,4 +1,5 @@
 use crate::codegen::CodeGen;
+use crate::mir;
 use crate::mir::MirClass;
 use inkwell::types::BasicType;
 
@@ -24,6 +25,15 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     let mut elems = vec![vtable, class_obj];
     elems.extend(ivars);
     struct_type.set_body(&elems, false);
+}
+
+/// Get the LLVM struct type for a given MIR type
+/// Panics if not mir::Ty::Raw
+pub fn get_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'run> {
+    let mir::Ty::Raw(name) = ty else {
+        panic!("get_ty: expected mir::Ty::Raw, got {:?}", ty);
+    };
+    get(gen, name)
 }
 
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {

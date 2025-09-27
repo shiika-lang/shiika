@@ -12,10 +12,10 @@ pub enum Expr {
     PseudoVar(PseudoVar),
     StringRef(String),
     LVarRef(String),
-    IVarRef(usize, String),                  // (index, debug_name)
-    ArgRef(usize, String),                   // (index, debug_name)
-    EnvRef(usize, String),                   // (index, debug_name)
-    EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    IVarRef(Box<Typed<Expr>>, usize, String), // (obj, index, debug_name)
+    ArgRef(usize, String),                    // (index, debug_name)
+    EnvRef(usize, String),                    // (index, debug_name)
+    EnvSet(usize, Box<Typed<Expr>>, String),  // (index, value, debug_name)
     ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
@@ -26,7 +26,7 @@ pub enum Expr {
     Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
     LVarSet(String, Box<Typed<Expr>>),
-    IVarSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
@@ -83,8 +83,8 @@ impl Expr {
         (Expr::LVarRef(name.into()), ty)
     }
 
-    pub fn ivar_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
-        (Expr::IVarRef(idx, name.into()), ty)
+    pub fn ivar_ref(obj_expr: TypedExpr, idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::IVarRef(Box::new(obj_expr), idx, name.into()), ty)
     }
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -177,9 +177,14 @@ impl Expr {
         (Expr::LVarSet(name.into(), Box::new(e)), Ty::raw("Void"))
     }
 
-    pub fn ivar_set(idx: usize, e: TypedExpr, name: impl Into<String>) -> TypedExpr {
+    pub fn ivar_set(
+        obj_expr: TypedExpr,
+        idx: usize,
+        e: TypedExpr,
+        name: impl Into<String>,
+    ) -> TypedExpr {
         (
-            Expr::IVarSet(idx, Box::new(e), name.into()),
+            Expr::IVarSet(Box::new(obj_expr), idx, Box::new(e), name.into()),
             Ty::raw("Void"),
         )
     }
@@ -255,7 +260,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
-        Expr::IVarRef(_, name) => format!("{}", name),
+        Expr::IVarRef(obj_expr, _, name) => {
+            format!("{}.{}", obj_expr.0.pretty_print(0, false), name)
+        }
         Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
@@ -304,8 +311,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
         Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
-        Expr::IVarSet(_idx, e, name) => {
-            format!("{} = {}", name, pretty_print(&e.0, lv, false))
+        Expr::IVarSet(obj_expr, _idx, e, name) => {
+            format!(
+                "{}.{} = {}",
+                obj_expr.0.pretty_print(0, false),
+                name,
+                pretty_print(&e.0, lv, false)
+            )
         }
         Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),

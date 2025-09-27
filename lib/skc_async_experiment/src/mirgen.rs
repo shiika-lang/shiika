@@ -157,25 +157,20 @@ impl<'a> Compiler<'a> {
                 const_is_obj: _,
             } => self.create_new_body(classname.to_ty(), initializer),
             SkMethodBody::Getter {
-                idx: _,
-                name: _,
-                ty: _,
-                self_ty: _,
-            } => {
-                todo!();
-                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
-                //mir::Expr::ivar_ref(self_expr, idx, convert_ty(ty))
-            }
+                idx,
+                name,
+                ty,
+                self_ty,
+            } => mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, ty.into()),
             SkMethodBody::Setter {
-                idx: _,
-                name: _,
-                ty: _,
-                self_ty: _,
+                idx,
+                name,
+                ty,
+                self_ty,
             } => {
-                todo!();
-                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
-                //let value_expr = mir::Expr::arg_ref(1, "?", convert_ty(ty.clone()));
-                //mir::Expr::ivar_set(self_expr, idx, value_expr, convert_ty(ty))
+                let self_expr = self.compile_self_expr(self_ty);
+                let value_expr = mir::Expr::arg_ref(1, "value", ty.into());
+                mir::Expr::ivar_set(self_expr, idx, value_expr, name)
             }
         }
     }
@@ -200,9 +195,7 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirFloatLiteral { value } => {
                 todo!("Handle float literal: {}", value)
             }
-            HirExpressionBase::HirSelfExpression => {
-                mir::Expr::arg_ref(0, "self", convert_ty(expr.ty))
-            }
+            HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
                 mir::Expr::lvar_ref(name, convert_ty(expr.ty))
             }
@@ -211,12 +204,8 @@ impl<'a> Compiler<'a> {
                 // TODO: Add debug name
                 mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
             }
-            HirExpressionBase::HirIVarRef {
-                name,
-                idx,
-                self_ty: _,
-            } => {
-                todo!("Handle ivar ref: {} at index {}", name, idx)
+            HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
+                mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
             }
             HirExpressionBase::HirConstRef { fullname } => {
                 mir::Expr::const_ref(mir::mir_const_name(fullname), convert_ty(expr.ty))
@@ -235,8 +224,16 @@ impl<'a> Compiler<'a> {
                 let mir_rhs = self.convert_expr(*rhs);
                 (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
             }
-            HirExpressionBase::HirIVarAssign { name, idx, .. } => {
-                todo!("Handle ivar assign: {} at index {} with rhs", name, idx)
+            HirExpressionBase::HirIVarAssign {
+                name,
+                idx,
+                rhs,
+                self_ty,
+                ..
+            } => {
+                let self_expr = self.compile_self_expr(self_ty);
+                let mir_rhs = self.convert_expr(*rhs);
+                mir::Expr::ivar_set(self_expr, idx, mir_rhs, name)
             }
             HirExpressionBase::HirConstAssign { fullname, rhs } => {
                 mir::Expr::const_set(mir::mir_const_name(fullname), self.convert_expr(*rhs))
@@ -358,6 +355,11 @@ impl<'a> Compiler<'a> {
                 todo!("Handle is omitted value")
             }
         }
+    }
+
+    fn compile_self_expr(&self, ty: TermTy) -> mir::TypedExpr {
+        // In MIR, 'self' is always the first argument (index 0)
+        mir::Expr::arg_ref(0, "self", convert_ty(ty))
     }
 
     fn create_new_body(
