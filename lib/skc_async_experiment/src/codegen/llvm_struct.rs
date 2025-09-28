@@ -60,8 +60,8 @@ pub fn build_llvm_value_load<'run>(
         )
         .unwrap_or_else(|_| {
             panic!(
-                "build_llvm_value_load: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
-                &idx, &name, &struct_ptr
+                "build_llvm_value_load: elem not found (idx in struct: {}, register name: {}, struct_type: {:?}, struct: {:?})",
+                &idx, &name, &struct_type, &struct_ptr
             )
         });
     gen.builder
@@ -86,8 +86,8 @@ pub fn build_llvm_value_store<'run>(
         )
         .unwrap_or_else(|_| {
             panic!(
-                "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
-                &idx, &name, &struct_ptr
+                "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct_type: {:?}, struct: {:?})",
+                &idx, &name, &struct_type, &struct_ptr
             )
         });
     gen.builder.build_store(ptr, value);
