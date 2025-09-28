@@ -161,7 +161,10 @@ impl<'a> Compiler<'a> {
                 name,
                 ty,
                 self_ty,
-            } => mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, ty.into()),
+            } => {
+                let v = mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, ty.into());
+                mir::Expr::return_(v)
+            }
             SkMethodBody::Setter {
                 idx,
                 name,
@@ -169,8 +172,16 @@ impl<'a> Compiler<'a> {
                 self_ty,
             } => {
                 let self_expr = self.compile_self_expr(self_ty);
-                let value_expr = mir::Expr::arg_ref(1, name.clone(), ty.into());
-                mir::Expr::ivar_set(self_expr, idx, value_expr, name)
+                let value_expr = mir::Expr::arg_ref(1, name.clone(), ty.clone().into());
+                mir::Expr::exprs(vec![
+                    mir::Expr::ivar_set(self_expr.clone(), idx, value_expr.clone(), name.clone()),
+                    mir::Expr::return_(mir::Expr::ivar_ref(
+                        self_expr.clone(),
+                        idx,
+                        name,
+                        ty.into(),
+                    )),
+                ])
             }
         }
     }

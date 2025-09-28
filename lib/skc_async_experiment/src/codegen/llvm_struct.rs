@@ -27,11 +27,11 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     struct_type.set_body(&elems, false);
 }
 
-/// Get the LLVM struct type for a given MIR type
-/// Panics if not mir::Ty::Raw
-pub fn get_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'run> {
+/// Get the LLVM struct type for a given mir::Ty::Raw
+/// Panics if not Ty::Raw
+pub fn of_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'run> {
     let mir::Ty::Raw(name) = ty else {
-        panic!("get_ty: expected mir::Ty::Raw, got {:?}", ty);
+        panic!("expected mir::Ty::Raw, got {:?}", ty);
     };
     get(gen, name)
 }

@@ -235,11 +235,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         idx: usize,
         name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let struct_ty = llvm_struct::of_ty(self, &obj_expr.1);
         let obj = self.compile_value_expr(ctx, obj_expr);
         Some(instance::build_ivar_load_raw(
             self,
             SkObj::from_basic_value_enum(obj),
-            llvm_struct::get(self, "Object"),
+            struct_ty,
             self.ptr_type().into(),
             idx,
             name,
@@ -388,7 +389,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         instance::build_ivar_store_raw(
             self,
             SkObj::from_basic_value_enum(obj),
-            &llvm_struct::get_ty(self, &obj_expr.1),
+            &llvm_struct::of_ty(self, &obj_expr.1),
             idx,
             value,
             name,

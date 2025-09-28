@@ -66,6 +66,10 @@ impl CastType {
 }
 
 impl Expr {
+    pub fn void_const_ref() -> TypedExpr {
+        (Expr::ConstRef("Void".to_string()), Ty::raw("Void"))
+    }
+
     // A Shiika number (boxed int)
     pub fn number(n: i64) -> TypedExpr {
         (Expr::Number(n), Ty::raw("Int"))
