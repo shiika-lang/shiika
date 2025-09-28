@@ -37,10 +37,12 @@ pub fn const_init_externs(deps: &[String]) -> Vec<mir::Extern> {
 }
 
 pub fn call_all_const_inits(total_deps: &[String]) -> Vec<mir::TypedExpr> {
-    total_deps
-        .iter()
+    let mut names: Vec<_> = total_deps.into_iter().map(|name| Some(name)).collect();
+    names.push(None); // None == const_inits for main
+    names
+        .into_iter()
         .map(|name| {
-            let fname = package_const_init_name(Some(name));
+            let fname = package_const_init_name(name);
             let fun_ty = mir::FunTy::new(
                 mir::Asyncness::Unknown,
                 vec![],

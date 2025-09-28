@@ -1,4 +1,5 @@
 use crate::codegen::CodeGen;
+use crate::mir;
 use crate::mir::MirClass;
 use inkwell::types::BasicType;
 
@@ -26,6 +27,15 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     struct_type.set_body(&elems, false);
 }
 
+/// Get the LLVM struct type for a given mir::Ty::Raw
+/// Panics if not Ty::Raw
+pub fn of_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'run> {
+    let mir::Ty::Raw(name) = ty else {
+        panic!("expected mir::Ty::Raw, got {:?}", ty);
+    };
+    get(gen, name)
+}
+
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
     gen.context
         .get_struct_type(name)
@@ -50,8 +60,8 @@ pub fn build_llvm_value_load<'run>(
         )
         .unwrap_or_else(|_| {
             panic!(
-                "build_llvm_value_load: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
-                &idx, &name, &struct_ptr
+                "build_llvm_value_load: elem not found (idx in struct: {}, register name: {}, struct_type: {:?}, struct: {:?})",
+                &idx, &name, &struct_type, &struct_ptr
             )
         });
     gen.builder
@@ -76,8 +86,8 @@ pub fn build_llvm_value_store<'run>(
         )
         .unwrap_or_else(|_| {
             panic!(
-                "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct: {:?})",
-                &idx, &name, &struct_ptr
+                "build_llvm_struct_set: elem not found (idx in struct: {}, register name: {}, struct_type: {:?}, struct: {:?})",
+                &idx, &name, &struct_type, &struct_ptr
             )
         });
     gen.builder.build_store(ptr, value);

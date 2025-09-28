@@ -122,6 +122,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::StringRef(s) => self.compile_string_ref(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
+            mir::Expr::IVarRef(obj_expr, idx, name) => {
+                self.compile_ivarref(ctx, obj_expr, *idx, name)
+            }
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
             mir::Expr::EnvRef(_, _) | mir::Expr::EnvSet(_, _, _) => {
                 panic!("should be lowered before codegen.rs")
@@ -136,7 +139,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
-            mir::Expr::Assign(name, rhs) => self.compile_assign(ctx, name, rhs),
+            mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
+            mir::Expr::IVarSet(obj_expr, idx, rhs, name) => {
+                self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)
+            }
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
             mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
@@ -202,10 +208,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         match pseudo_var {
             mir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
             mir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
-            mir::PseudoVar::SelfRef => {
-                // TODO: impl. self
-                intrinsics::box_bool(self, true).into()
-            }
             mir::PseudoVar::Void => return self.compile_void(),
         }
     }
@@ -224,6 +226,25 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let t = self.ptr_type();
         let v = self.builder.build_load(t, *v, name).into_pointer_value();
         Some(SkObj(v).into())
+    }
+
+    fn compile_ivarref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        obj_expr: &mir::TypedExpr,
+        idx: usize,
+        name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let struct_ty = llvm_struct::of_ty(self, &obj_expr.1);
+        let obj = self.compile_value_expr(ctx, obj_expr);
+        Some(instance::build_ivar_load_raw(
+            self,
+            SkObj::from_basic_value_enum(obj),
+            struct_ty,
+            self.ptr_type().into(),
+            idx,
+            name,
+        ))
     }
 
     fn compile_funcall(
@@ -343,7 +364,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         None
     }
 
-    fn compile_assign(
+    fn compile_lvar_set(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
@@ -353,6 +374,27 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let ptr = ctx.lvars.get(name).unwrap();
         self.builder.build_store(ptr.clone(), v.clone());
         Some(v)
+    }
+
+    fn compile_ivar_set(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        obj_expr: &mir::TypedExpr,
+        idx: usize,
+        rhs: &mir::TypedExpr,
+        name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let obj = self.compile_value_expr(ctx, obj_expr);
+        let value = self.compile_value_expr(ctx, rhs);
+        instance::build_ivar_store_raw(
+            self,
+            SkObj::from_basic_value_enum(obj),
+            &llvm_struct::of_ty(self, &obj_expr.1),
+            idx,
+            value,
+            name,
+        );
+        None
     }
 
     fn compile_const_set(

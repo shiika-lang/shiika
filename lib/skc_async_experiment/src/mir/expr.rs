@@ -12,9 +12,10 @@ pub enum Expr {
     PseudoVar(PseudoVar),
     StringRef(String),
     LVarRef(String),
-    ArgRef(usize, String),                   // (index, debug_name)
-    EnvRef(usize, String),                   // (index, debug_name)
-    EnvSet(usize, Box<Typed<Expr>>, String), // (index, value, debug_name)
+    IVarRef(Box<Typed<Expr>>, usize, String), // (obj, index, debug_name)
+    ArgRef(usize, String),                    // (index, debug_name)
+    EnvRef(usize, String),                    // (index, debug_name)
+    EnvSet(usize, Box<Typed<Expr>>, String),  // (index, value, debug_name)
     ConstRef(String),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
@@ -24,7 +25,8 @@ pub enum Expr {
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
-    Assign(String, Box<Typed<Expr>>),
+    LVarSet(String, Box<Typed<Expr>>),
+    IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(String, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
@@ -41,7 +43,6 @@ pub enum Expr {
 pub enum PseudoVar {
     True,
     False,
-    SelfRef,
     Void,
 }
 
@@ -65,6 +66,10 @@ impl CastType {
 }
 
 impl Expr {
+    pub fn void_const_ref() -> TypedExpr {
+        (Expr::ConstRef("Void".to_string()), Ty::raw("Void"))
+    }
+
     // A Shiika number (boxed int)
     pub fn number(n: i64) -> TypedExpr {
         (Expr::Number(n), Ty::raw("Int"))
@@ -80,6 +85,10 @@ impl Expr {
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::LVarRef(name.into()), ty)
+    }
+
+    pub fn ivar_ref(obj_expr: TypedExpr, idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
+        (Expr::IVarRef(Box::new(obj_expr), idx, name.into()), ty)
     }
 
     pub fn arg_ref(idx: usize, name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -168,8 +177,20 @@ impl Expr {
         (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
     }
 
-    pub fn assign(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
-        (Expr::Assign(name.into(), Box::new(e)), Ty::raw("Void"))
+    pub fn lvar_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
+        (Expr::LVarSet(name.into(), Box::new(e)), Ty::raw("Void"))
+    }
+
+    pub fn ivar_set(
+        obj_expr: TypedExpr,
+        idx: usize,
+        e: TypedExpr,
+        name: impl Into<String>,
+    ) -> TypedExpr {
+        (
+            Expr::IVarSet(Box::new(obj_expr), idx, Box::new(e), name.into()),
+            Ty::raw("Void"),
+        )
     }
 
     pub fn const_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
@@ -241,10 +262,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Number(n) => format!("{}", n),
         Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
-        Expr::PseudoVar(PseudoVar::SelfRef) => "self".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),
         Expr::LVarRef(name) => format!("{}", name),
-        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
+        Expr::IVarRef(obj_expr, _, name) => {
+            format!("{}.{}", obj_expr.0.pretty_print(0, false), name)
+        }
+        Expr::ArgRef(idx, name) => format!("{}^{}", name, idx),
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
             format!(
@@ -291,7 +314,15 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
-        Expr::Assign(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
+        Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
+        Expr::IVarSet(obj_expr, _idx, e, name) => {
+            format!(
+                "{}.{} = {}",
+                obj_expr.0.pretty_print(0, false),
+                name,
+                pretty_print(&e.0, lv, false)
+            )
+        }
         Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
         Expr::Exprs(exprs) => {

@@ -14,6 +14,9 @@ pub use ty::{FunTy, Ty};
 pub fn main_function_name() -> FunctionName {
     FunctionName::mangled("chiika_main")
 }
+pub fn main_function_inner_name() -> FunctionName {
+    FunctionName::mangled("_chiika_main")
+}
 
 pub fn mir_const_name(name: ConstFullname) -> String {
     name.0

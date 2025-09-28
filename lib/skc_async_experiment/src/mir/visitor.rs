@@ -29,6 +29,9 @@ pub trait MirVisitor {
             mir::Expr::Number(_) => {}
             mir::Expr::PseudoVar(_) => {}
             mir::Expr::LVarRef(_) => {}
+            mir::Expr::IVarRef(obj_expr, _, _) => {
+                self.walk_expr(obj_expr)?;
+            }
             mir::Expr::ArgRef(_, _) => {}
             mir::Expr::EnvRef(_, _) => {}
             mir::Expr::EnvSet(_, value_expr, _) => {
@@ -58,7 +61,11 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::Alloc(_, _) => {}
-            mir::Expr::Assign(_, rhs) => {
+            mir::Expr::LVarSet(_, rhs) => {
+                self.walk_expr(rhs)?;
+            }
+            mir::Expr::IVarSet(obj_expr, _, rhs, _) => {
+                self.walk_expr(obj_expr)?;
                 self.walk_expr(rhs)?;
             }
             mir::Expr::ConstSet(_, rhs) => {

@@ -26,6 +26,9 @@ pub trait MirRewriter {
             mir::Expr::Number(_) => expr,
             mir::Expr::PseudoVar(_) => expr,
             mir::Expr::LVarRef(_) => expr,
+            mir::Expr::IVarRef(obj_expr, idx, name) => {
+                mir::Expr::ivar_ref(self.walk_expr(*obj_expr)?, idx, name, expr.1.clone())
+            }
             mir::Expr::ArgRef(_, _) => expr,
             mir::Expr::EnvRef(_, _) => expr,
             mir::Expr::EnvSet(idx, value_expr, name) => {
@@ -49,7 +52,10 @@ pub trait MirRewriter {
             }
             mir::Expr::Spawn(expr) => mir::Expr::spawn(self.walk_expr(*expr)?),
             mir::Expr::Alloc(_, _) => expr,
-            mir::Expr::Assign(name, rhs) => mir::Expr::assign(name, self.walk_expr(*rhs)?),
+            mir::Expr::LVarSet(name, rhs) => mir::Expr::lvar_set(name, self.walk_expr(*rhs)?),
+            mir::Expr::IVarSet(obj, idx, rhs, name) => {
+                mir::Expr::ivar_set(self.walk_expr(*obj)?, idx, self.walk_expr(*rhs)?, name)
+            }
             mir::Expr::ConstSet(name, rhs) => mir::Expr::const_set(name, self.walk_expr(*rhs)?),
             mir::Expr::Return(expr) => mir::Expr::return_(self.walk_expr(*expr)?),
             mir::Expr::Exprs(exprs) => mir::Expr::exprs(self.walk_exprs(exprs)?),

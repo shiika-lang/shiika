@@ -1,6 +1,10 @@
 //! - Convert `LVarRef` to `EnvRef` and `Assign` to `EnvSet`.
 //! - Insert `$env` to the beginning of the async function parameters.
 //! - Insert `$env` to the beginning of the async funcall arguments.
+//! - $env contains (in order):
+//!   - $cont (continuation)
+//!   - original arguments
+//!   - local variables (lvars)
 //!
 //! Example
 //! ```
@@ -104,8 +108,11 @@ impl MirRewriter for Update {
                 let i = self.lvar_idx(varname);
                 mir::Expr::env_ref(i, varname, texpr.1.clone())
             }
-            mir::Expr::ArgRef(idx, name) => mir::Expr::env_ref(idx + 1, name, texpr.1),
-            mir::Expr::Assign(varname, rhs) => {
+            mir::Expr::ArgRef(idx, name) => {
+                // +1 for $cont
+                mir::Expr::env_ref(idx + 1, name, texpr.1)
+            }
+            mir::Expr::LVarSet(varname, rhs) => {
                 let i = self.lvar_idx(&varname);
                 mir::Expr::env_set(i, *rhs, varname)
             }

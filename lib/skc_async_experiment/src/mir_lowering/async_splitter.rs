@@ -97,11 +97,13 @@ impl<'a> Compiler<'a> {
         let arity = self.orig_func.params.len();
         self.chapters
             .add_stmt(call_chiika_env_push_frame(self.frame_size()));
+        // Store $cont to env[0]
         self.chapters.add_stmt(mir::Expr::env_set(
             0,
             arg_ref_cont(arity, self.orig_func.ret_ty.clone()),
             "$cont",
         ));
+        // Store args to env[1..]
         for i in 1..arity {
             let param = &self.orig_func.params[i];
             self.chapters.add_stmt(mir::Expr::env_set(
@@ -144,6 +146,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::Number(_) => e,
             mir::Expr::PseudoVar(_) => e,
             mir::Expr::LVarRef(_) => panic!("LVarRef must be lowered to EnvRef"),
+            mir::Expr::IVarRef(obj_expr, idx, name) => {
+                let new_obj = self.compile_value_expr(*obj_expr, false)?;
+                mir::Expr::ivar_ref(new_obj, idx, name, e.1.clone())
+            }
             mir::Expr::ArgRef(_, _) => e,
             mir::Expr::EnvRef(_, _) => e,
             mir::Expr::EnvSet(idx, rhs, name) => {
@@ -182,8 +188,13 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             mir::Expr::Alloc(_, _) => mir::Expr::nop(),
-            mir::Expr::Assign(_, _) => {
-                panic!("Assign must be lowered to EnvSet");
+            mir::Expr::LVarSet(_, _) => {
+                panic!("LVarSet must be lowered to EnvSet");
+            }
+            mir::Expr::IVarSet(obj, idx, rhs, name) => {
+                let new_obj = self.compile_value_expr(*obj, false)?;
+                let new_rhs = self.compile_value_expr(*rhs, false)?;
+                mir::Expr::ivar_set(new_obj, idx, new_rhs, name)
             }
             mir::Expr::ConstSet(name, rhs) => {
                 let v = self.compile_value_expr(*rhs, false)?;
@@ -422,7 +433,7 @@ impl<'a> Compiler<'a> {
         let varname = self.gensym();
         self.chapters.add_stmts(vec![
             mir::Expr::alloc(varname.clone(), value.1.clone()),
-            mir::Expr::assign(varname.clone(), value),
+            mir::Expr::lvar_set(varname.clone(), value),
         ]);
         mir::Expr::lvar_ref(varname, ty)
     }

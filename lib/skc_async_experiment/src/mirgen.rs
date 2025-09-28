@@ -6,6 +6,7 @@ use skc_hir::{HirExpression, SkMethod};
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
+use shiika_core::ty;
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -59,7 +60,8 @@ pub fn run(
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
-            funcs.push(c.create_user_main(main_exprs, total_deps));
+            funcs.push(c.create_user_main());
+            funcs.push(c.create_user_main_inner(main_exprs, total_deps));
         } else {
             if main_exprs.len() > 0 {
                 panic!("Top level expressions are not allowed in library");
@@ -155,25 +157,31 @@ impl<'a> Compiler<'a> {
                 const_is_obj: _,
             } => self.create_new_body(classname.to_ty(), initializer),
             SkMethodBody::Getter {
-                idx: _,
-                name: _,
-                ty: _,
-                self_ty: _,
+                idx,
+                name,
+                ty,
+                self_ty,
             } => {
-                todo!();
-                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
-                //mir::Expr::ivar_ref(self_expr, idx, convert_ty(ty))
+                let v = mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, ty.into());
+                mir::Expr::return_(v)
             }
             SkMethodBody::Setter {
-                idx: _,
-                name: _,
-                ty: _,
-                self_ty: _,
+                idx,
+                name,
+                ty,
+                self_ty,
             } => {
-                todo!();
-                //let self_expr = mir::Expr::lvar_ref("self", convert_ty(ty.clone()));
-                //let value_expr = mir::Expr::arg_ref(1, "?", convert_ty(ty.clone()));
-                //mir::Expr::ivar_set(self_expr, idx, value_expr, convert_ty(ty))
+                let self_expr = self.compile_self_expr(self_ty);
+                let value_expr = mir::Expr::arg_ref(1, name.clone(), ty.clone().into());
+                mir::Expr::exprs(vec![
+                    mir::Expr::ivar_set(self_expr.clone(), idx, value_expr.clone(), name.clone()),
+                    mir::Expr::return_(mir::Expr::ivar_ref(
+                        self_expr.clone(),
+                        idx,
+                        name,
+                        ty.into(),
+                    )),
+                ])
             }
         }
     }
@@ -198,10 +206,7 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirFloatLiteral { value } => {
                 todo!("Handle float literal: {}", value)
             }
-            HirExpressionBase::HirSelfExpression => {
-                // REFACTOR: just get the 0-th arg?
-                mir::Expr::pseudo_var(mir::PseudoVar::SelfRef, convert_ty(expr.ty))
-            }
+            HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
                 mir::Expr::lvar_ref(name, convert_ty(expr.ty))
             }
@@ -210,12 +215,8 @@ impl<'a> Compiler<'a> {
                 // TODO: Add debug name
                 mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
             }
-            HirExpressionBase::HirIVarRef {
-                name,
-                idx,
-                self_ty: _,
-            } => {
-                todo!("Handle ivar ref: {} at index {}", name, idx)
+            HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
+                mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
             }
             HirExpressionBase::HirConstRef { fullname } => {
                 mir::Expr::const_ref(mir::mir_const_name(fullname), convert_ty(expr.ty))
@@ -232,10 +233,18 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                (mir::Expr::Assign(name, Box::new(mir_rhs)), result_ty)
+                (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
             }
-            HirExpressionBase::HirIVarAssign { name, idx, .. } => {
-                todo!("Handle ivar assign: {} at index {} with rhs", name, idx)
+            HirExpressionBase::HirIVarAssign {
+                name,
+                idx,
+                rhs,
+                self_ty,
+                ..
+            } => {
+                let self_expr = self.compile_self_expr(self_ty);
+                let mir_rhs = self.convert_expr(*rhs);
+                mir::Expr::ivar_set(self_expr, idx, mir_rhs, name)
             }
             HirExpressionBase::HirConstAssign { fullname, rhs } => {
                 mir::Expr::const_set(mir::mir_const_name(fullname), self.convert_expr(*rhs))
@@ -359,6 +368,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    fn compile_self_expr(&self, ty: TermTy) -> mir::TypedExpr {
+        // In MIR, 'self' is always the first argument (index 0)
+        mir::Expr::arg_ref(0, "self", convert_ty(ty))
+    }
+
     fn create_new_body(
         &self,
         instance_ty: TermTy,
@@ -367,7 +381,7 @@ impl<'a> Compiler<'a> {
         let mut exprs = vec![];
         let tmp_name = "tmp";
         exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
-        exprs.push(mir::Expr::assign(
+        exprs.push(mir::Expr::lvar_set(
             tmp_name,
             mir::Expr::create_object(instance_ty.clone()),
         ));
@@ -398,7 +412,31 @@ impl<'a> Compiler<'a> {
         mir::Expr::exprs(exprs)
     }
 
-    fn create_user_main(
+    fn create_user_main(&self) -> mir::Function {
+        let mut body_stmts = vec![];
+        body_stmts.push(mir::Expr::fun_call(
+            mir::Expr::func_ref(
+                mir::main_function_inner_name(),
+                mir::FunTy::new(
+                    mir::Asyncness::Unknown,
+                    vec![mir::Ty::raw("Object")],
+                    mir::Ty::raw("Int"),
+                ),
+            ),
+            vec![mir::Expr::create_object(ty::raw("Object"))],
+        ));
+        body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+        mir::Function {
+            asyncness: mir::Asyncness::Unknown,
+            name: mir::main_function_name(),
+            params: vec![],
+            ret_ty: mir::Ty::Raw("Int".to_string()),
+            body_stmts: mir::Expr::exprs(body_stmts),
+            sig: None,
+        }
+    }
+
+    fn create_user_main_inner(
         &self,
         top_exprs: Vec<HirExpression>,
         total_deps: &[String],
@@ -409,8 +447,8 @@ impl<'a> Compiler<'a> {
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
         mir::Function {
             asyncness: mir::Asyncness::Unknown,
-            name: mir::main_function_name(),
-            params: vec![],
+            name: mir::main_function_inner_name(),
+            params: vec![mir::Param::new(mir::Ty::raw("Object"), "self")],
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
