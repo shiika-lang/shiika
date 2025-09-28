@@ -169,7 +169,7 @@ impl<'a> Compiler<'a> {
                 self_ty,
             } => {
                 let self_expr = self.compile_self_expr(self_ty);
-                let value_expr = mir::Expr::arg_ref(1, "value", ty.into());
+                let value_expr = mir::Expr::arg_ref(1, name.clone(), ty.into());
                 mir::Expr::ivar_set(self_expr, idx, value_expr, name)
             }
         }
