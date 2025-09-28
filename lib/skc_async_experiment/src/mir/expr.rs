@@ -263,7 +263,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::IVarRef(obj_expr, _, name) => {
             format!("{}.{}", obj_expr.0.pretty_print(0, false), name)
         }
-        Expr::ArgRef(idx, name) => format!("{}@{}", name, idx),
+        Expr::ArgRef(idx, name) => format!("{}^{}", name, idx),
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
             format!(
