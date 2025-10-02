@@ -1,5 +1,6 @@
 mod codegen_context;
 mod compile;
+//mod type_object;
 use crate::names::FunctionName;
 mod constants;
 mod instance;
@@ -59,6 +60,10 @@ pub fn run<P: AsRef<Path>>(
 
 // Utilities used by codegen::*
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
+    fn null_ptr(&self) -> inkwell::values::PointerValue {
+        self.ptr_type().const_null()
+    }
+
     fn llvm_type(&self, ty: &mir::Ty) -> inkwell::types::BasicTypeEnum<'ictx> {
         match ty {
             mir::Ty::Ptr => self.ptr_type().into(),

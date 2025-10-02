@@ -1,7 +1,7 @@
 use crate::codegen::CodeGen;
 
 /// Defines a global i8 array for the string literal and returns a pointer to it.
-pub fn define_constant<'run>(
+pub fn add<'run>(
     gen: &mut CodeGen<'run, '_>,
     s: &str,
 ) -> inkwell::values::PointerValue<'run> {

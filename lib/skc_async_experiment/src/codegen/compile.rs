@@ -95,9 +95,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
-            mir::Expr::CreateTypeObject(_) => {
-                self.compile_number(0) // TODO: implement
-            }
+            mir::Expr::CreateTypeObject(type_name) => self.compile_create_type_object(type_name),
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
@@ -109,7 +107,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(string_literal::define_constant(self, s).into())
+        Some(string_literal::add(self, s).into())
     }
 
     fn compile_argref(
@@ -418,6 +416,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let obj = instance::allocate_sk_obj(self, type_name);
         Some(obj.0.into())
+    }
+
+    fn compile_create_type_object(
+        &mut self,
+        type_name: &str,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        todo!();
     }
 
     fn compile_unbox(

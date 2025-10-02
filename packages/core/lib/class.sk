@@ -1,2 +1,4 @@
 class Class
+  def initialize(@name: String)
+  end
 end
