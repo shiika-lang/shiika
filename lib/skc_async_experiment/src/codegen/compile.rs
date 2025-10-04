@@ -109,7 +109,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(string_literal::define_constant(self, s).into())
+        Some(string_literal::declare(self, s).into())
     }
 
     fn compile_argref(
