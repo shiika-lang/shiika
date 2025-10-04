@@ -1,6 +1,6 @@
 mod codegen_context;
 mod compile;
-//mod type_object;
+mod type_object;
 use crate::names::FunctionName;
 mod constants;
 mod instance;

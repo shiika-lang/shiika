@@ -1,4 +1,5 @@
 use crate::codegen::{
+    type_object,
     codegen_context::CodeGenContext, instance, intrinsics, item, llvm_struct, string_literal,
     value::SkObj, vtable, CodeGen,
 };
@@ -107,7 +108,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(string_literal::add(self, s).into())
+        Some(string_literal::declare(self, s).into())
     }
 
     fn compile_argref(
@@ -422,7 +423,15 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &mut self,
         type_name: &str,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        todo!();
+        let type_obj = type_object::create(
+            self,
+            type_fullname(type_name),
+            ty::raw("dummy"),
+            0,
+            false,
+            None,
+        );
+        Some(type_obj)
     }
 
     fn compile_unbox(

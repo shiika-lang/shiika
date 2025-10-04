@@ -1,5 +1,8 @@
-use crate::codegen::{value::SkObj, CodeGen};
-use shiika_core::names::{class_fullname, metaclass_fullname, TypeFullname};
+use crate::codegen::{instance, llvm_struct, string_literal, value::SkObj, CodeGen};
+use crate::mir;
+use crate::prelude;
+use inkwell::values::BasicValue;
+use shiika_core::names::TypeFullname;
 use shiika_core::ty::{self, TermTy};
 use skc_hir::MethodSignature;
 
@@ -7,74 +10,49 @@ pub fn create<'run>(
     gen: &mut CodeGen<'run, '_>,
     fullname: &TypeFullname,
     clsobj_ty: &TermTy,
-    str_literal_idx: &usize,
-    includes_modules: &bool,
-    initializer: &Option<MethodSignature>,
+    _str_literal_idx: &usize,
+    _includes_modules: &bool,
+    _initializer: &Option<MethodSignature>,
 ) -> SkObj<'run> {
+    // REFACTOR: can we do this in MIR level?
+    // this is implemented in codegen because HirClassLiteral appears on the rhs of const
+    // assignment and mir::async_splitter cannot handle `Exprs` in inner position.
+
     debug_assert!(!fullname.is_meta());
     if fullname.0 == "Metaclass" {
-        gen.gen_the_metaclass(str_literal_idx)
+        create_the_metaclass(gen)
     } else {
-        // Create metaclass object (eg. `#<metaclass Int>`) with `Metaclass.new`
-        let the_metaclass = gen.gen_const_ref(&toplevel_const("Metaclass"), &ty::raw("Metaclass"));
-        let receiver = gen.null_ptr();
-        let vtable = gen
-            .get_vtable_of_class(&class_fullname("Metaclass"))
-            .as_object_ptr(gen);
-        let wtable = SkObj::nullptr(gen);
-        let metacls_obj = gen.call_method_func(
-            &method_fullname_raw("Metaclass", "_new"),
-            receiver,
-            &vec![
-                gen.gen_string_literal(str_literal_idx),
-                vtable,
-                wtable,
-                gen.bitcast(the_metaclass, &ty::raw("Metaclass"), "as"),
-                gen.null_ptr(),
-            ],
-            ty::raw("Metaclass"),
-            "meta",
-        );
-
-        // Create the class object (eg. `#<class Int>`, which is the value of `::Int`)
-        let receiver = gen.null_ptr();
-        let vtable = gen
-            .get_vtable_of_class(&fullname.meta_name())
-            .as_object_ptr(gen);
-        let wtable = SkObj::nullptr(gegen);
-        let cls = gen.call_method_func(
-            &method_fullname(metaclass_fullname("Class").into(), "_new"),
-            receiver,
-            &vec![
-                gen.gen_string_literal(str_literal_idx),
-                vtable,
-                wtable,
-                gen.bitcast(metacls_obj, &ty::raw("Metaclass"), "as"),
-                gen.null_ptr(),
-            ],
-            ty::raw("Class"),
-            "cls",
-        );
-        if *includes_modules {
-            let fname = wtable::insert_wtable_func_name(&fullname.clone().to_class_fullname());
-            gen.call_void_llvm_func(&llvm_func_name(fname), &[cls.0.into()], "_");
-        }
-        gen.call_class_level_initialize(cls.clone(), initializer);
-
-        gen.bitcast(cls, clsobj_ty, "as")
+        create_a_class(gen, clsobj_ty)
     }
 }
 
-fn gen_the_metaclass<'run>(gen: &mut CodeGen<'run, '_>, str_literal_idx: &usize) -> SkObj<'run> {
+fn create_the_metaclass<'run>(gen: &mut CodeGen<'run, '_>) -> SkObj<'run> {
     // We need a trick here to achieve `Metaclass.class == Metaclass`.
-    let null = SkClassObj::nullptr(gen);
+    let s = string_literal::declare(gen, "Metaclass").as_basic_value_enum();
     let cls_obj = instance::allocate_sk_obj(gen, "Metaclass");
     instance::build_ivar_store_raw(
         gen,
         cls_obj.clone(),
-        skc_corelib::class::IVAR_NAME_IDX,
+        &llvm_struct::of_ty(gen, &mir::Ty::raw("Metaclass")),
+        prelude::IDX_CLASS_IVAR_NAME,
+        s,
         "@name",
-        gen.gen_string_literal(str_literal_idx),
+    );
+    //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
+    cls_obj
+}
+
+// Create a type object
+fn create_a_class<'run>(gen: &mut CodeGen<'run, '_>, clsobj_ty: &TermTy) -> SkObj<'run> {
+    let s = string_literal::declare(gen, &clsobj_ty.instance_ty().fullname.0).as_basic_value_enum();
+    let cls_obj = instance::allocate_sk_obj(gen, "Class");
+    instance::build_ivar_store_raw(
+        gen,
+        cls_obj.clone(),
+        &llvm_struct::of_ty(gen, &clsobj_ty.clone().into()),
+        prelude::IDX_CLASS_IVAR_NAME,
+        s,
+        "@name",
     );
     //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
     cls_obj
