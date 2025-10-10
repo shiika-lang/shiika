@@ -5,6 +5,7 @@ use crate::codegen::{
 use crate::mir;
 use crate::names::FunctionName;
 use inkwell::types::BasicType;
+use inkwell::values::BasicValueEnum;
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
@@ -37,6 +38,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_func(&mut self, f: mir::Function) {
         log::info!("Compiling function {:?}", f.name);
         let function = self.get_llvm_func(&f.name);
+
+        // Set param names
+        for (i, param) in function.get_param_iter().enumerate() {
+            let name = f.params[i].name.as_str();
+            inkwell_set_name(param, name);
+        }
+
         let basic_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(basic_block);
 
@@ -459,5 +467,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_types(&self, tys: &[mir::Ty]) -> Vec<inkwell::types::BasicMetadataTypeEnum<'ictx>> {
         tys.iter().map(|x| self.llvm_type(x).into()).collect()
+    }
+}
+
+// Question: is there a better way to do this?
+fn inkwell_set_name(val: BasicValueEnum, name: &str) {
+    match val {
+        BasicValueEnum::ArrayValue(v) => v.set_name(name),
+        BasicValueEnum::IntValue(v) => v.set_name(name),
+        BasicValueEnum::FloatValue(v) => v.set_name(name),
+        BasicValueEnum::PointerValue(v) => v.set_name(name),
+        BasicValueEnum::StructValue(v) => v.set_name(name),
+        BasicValueEnum::VectorValue(v) => v.set_name(name),
     }
 }
