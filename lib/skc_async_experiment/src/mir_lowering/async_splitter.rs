@@ -209,7 +209,13 @@ impl<'a> Compiler<'a> {
                 mir::Expr::cast(cast_type, new_expr)
             }
             mir::Expr::CreateObject(_) => e,
-            mir::Expr::CreateTypeObject(_) => e,
+            mir::Expr::CreateTypeObject(ty, name_expr) => {
+                let new_name_expr = self.compile_value_expr(*name_expr, false)?;
+                (
+                    mir::Expr::CreateTypeObject(ty, Box::new(new_name_expr)),
+                    e.1,
+                )
+            }
             mir::Expr::StringRef(_) => e,
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
         };

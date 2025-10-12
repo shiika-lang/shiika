@@ -1,10 +1,7 @@
 use crate::codegen::CodeGen;
 
 /// Defines a global i8 array for the string literal and returns a pointer to it.
-pub fn define_constant<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    s: &str,
-) -> inkwell::values::PointerValue<'run> {
+pub fn declare<'run>(gen: &mut CodeGen<'run, '_>, s: &str) -> inkwell::values::PointerValue<'run> {
     let name = format!("shiika_str{}", gen.string_id);
     gen.string_id += 1;
 

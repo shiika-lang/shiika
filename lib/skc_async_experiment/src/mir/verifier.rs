@@ -185,7 +185,7 @@ impl<'a> Verifier<'a> {
                 }
             }
             mir::Expr::CreateObject(_) => (),
-            mir::Expr::CreateTypeObject(_) => (),
+            mir::Expr::CreateTypeObject(..) => (),
             mir::Expr::Unbox(val) => {
                 assert(&val, "unboxee", &mir::Ty::raw("Int"))?;
                 assert(&e, "result", &mir::Ty::Int64)?;
