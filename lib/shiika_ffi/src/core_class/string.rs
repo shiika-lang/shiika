@@ -9,17 +9,17 @@ unsafe impl Send for SkString {}
 struct ShiikaString {
     vtable: *const u8,
     class_obj: *const u8,
-    value: Vec<u8>,
+    value: *mut Vec<u8>,
 }
 
 impl SkString {
     pub fn value(&self) -> &[u8] {
-        unsafe { &(*self.0).value }
+        unsafe { &*(*self.0).value }
     }
 
-    pub fn set_value(&mut self, bytes: &[u8]) {
+    pub fn set_value(&mut self, bytes: Vec<u8>) {
         unsafe {
-            (*self.0).value = bytes.to_vec();
+            (*self.0).value = Box::into_raw(Box::new(bytes));
         }
     }
 }
