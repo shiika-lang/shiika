@@ -2,11 +2,12 @@ use crate::build::{self, loader, CompileTarget};
 use crate::{cli, codegen, mir, mir_lowering, mirgen, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
-use shiika_core::ty::Erasure;
+use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
 use skc_ast2hir::class_dict::ClassDict;
 use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -180,6 +181,16 @@ fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Re
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {
+    let class_ivars = HashMap::from([(
+        "name".to_string(),
+        skc_hir::SkIVar {
+            name: "name".to_string(),
+            ty: ty::raw("String"),
+            idx: 0,
+            readonly: true,
+        },
+    )]);
+
     // Add `Object` (the only class without superclass)
     class_dict.add_type(skc_hir::SkClass::nonmeta(
         SkTypeBase {
@@ -190,29 +201,38 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
         },
         None,
     ));
-    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
-        erasure: Erasure::meta("Object"),
-        typarams: Default::default(),
-        method_sigs: MethodSignatures::new(),
-        foreign: false,
-    }));
-
-    // Add `Class`
-    class_dict.add_type(skc_hir::SkClass::nonmeta(
-        SkTypeBase {
-            erasure: Erasure::nonmeta("Class"),
+    class_dict.add_type(
+        skc_hir::SkClass::meta(SkTypeBase {
+            erasure: Erasure::meta("Object"),
             typarams: Default::default(),
             method_sigs: MethodSignatures::new(),
             foreign: false,
-        },
-        Some(Supertype::simple("Object")),
-    ));
-    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
-        erasure: Erasure::meta("Class"),
-        typarams: Default::default(),
-        method_sigs: MethodSignatures::new(),
-        foreign: false,
-    }));
+        })
+        .ivars(class_ivars.clone()),
+    );
+
+    // Add `Class`
+    class_dict.add_type(
+        skc_hir::SkClass::nonmeta(
+            SkTypeBase {
+                erasure: Erasure::nonmeta("Class"),
+                typarams: Default::default(),
+                method_sigs: MethodSignatures::new(),
+                foreign: false,
+            },
+            Some(Supertype::simple("Object")),
+        )
+        .ivars(class_ivars.clone()),
+    );
+    class_dict.add_type(
+        skc_hir::SkClass::meta(SkTypeBase {
+            erasure: Erasure::meta("Class"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::new(),
+            foreign: false,
+        })
+        .ivars(class_ivars.clone()),
+    );
 
     // Add `Void` (the only non-enum class whose const_is_obj=true)
     let mut void = skc_hir::SkClass::nonmeta(
@@ -226,10 +246,13 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
     );
     void.const_is_obj = true;
     class_dict.add_type(void);
-    class_dict.add_type(skc_hir::SkClass::meta(SkTypeBase {
-        erasure: Erasure::meta("Void"),
-        typarams: Default::default(),
-        method_sigs: MethodSignatures::new(),
-        foreign: false,
-    }));
+    class_dict.add_type(
+        skc_hir::SkClass::meta(SkTypeBase {
+            erasure: Erasure::meta("Void"),
+            typarams: Default::default(),
+            method_sigs: MethodSignatures::new(),
+            foreign: false,
+        })
+        .ivars(class_ivars.clone()),
+    );
 }

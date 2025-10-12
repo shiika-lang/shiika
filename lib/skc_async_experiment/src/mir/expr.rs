@@ -1,5 +1,5 @@
 use crate::mir::FunctionName;
-use crate::mir::{FunTy, Ty};
+use crate::mir::{Asyncness, FunTy, Ty};
 use anyhow::{anyhow, Result};
 use shiika_core::ty::TermTy;
 
@@ -32,7 +32,7 @@ pub enum Expr {
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
-    CreateTypeObject(String),
+    CreateTypeObject(TermTy, Box<Typed<Expr>>), // (ty, name_expr)
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -222,8 +222,28 @@ impl Expr {
     }
 
     pub fn create_type_object(ty: TermTy) -> TypedExpr {
+        let type_name = &ty.fullname.0;
+        let fun_call_expr = {
+            let string_new = Expr::func_ref(
+                FunctionName::method("Meta:String", "new"),
+                FunTy {
+                    asyncness: Asyncness::Unknown,
+                    param_tys: vec![Ty::raw("Meta:String"), Ty::Ptr, Ty::Int64],
+                    ret_ty: Box::new(Ty::raw("String")),
+                },
+            );
+            let bytesize = type_name.len() as i64;
+            Expr::fun_call(
+                string_new,
+                vec![
+                    Expr::const_ref("::String", Ty::raw("Meta:String")),
+                    Expr::string_ref(type_name),
+                    Expr::raw_i64(bytesize),
+                ],
+            )
+        };
         (
-            Expr::CreateTypeObject(ty.fullname.to_class_fullname().0),
+            Expr::CreateTypeObject(ty.clone(), Box::new(fun_call_expr)),
             ty.meta_ty().into(),
         )
     }
@@ -343,7 +363,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             }
         }
         Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
-        Expr::CreateTypeObject(name) => format!("%CreateTypeObject('{}')", name),
+        Expr::CreateTypeObject(_, name) => {
+            format!("%CreateTypeObject({})", pretty_print(&name.0, lv, false))
+        }
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),

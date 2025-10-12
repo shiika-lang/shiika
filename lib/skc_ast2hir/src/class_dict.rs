@@ -85,14 +85,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let ivars = self.superclass_ivars(classname).unwrap_or_default();
         let class = self.get_class_mut(classname);
-        if !classname.is_meta() && !class.ivars.is_empty() {
-            // The ivars are defined in skc_corelib. Just check that
-            // all the ivars are included
-            for (k, v) in ivars.iter().chain(own_ivars.iter()) {
-                debug_assert!(class.ivars.get(k).unwrap() == v);
-            }
-            return;
-        }
+        // Disabled consistency check (does not work with the new runtime)
+        //if !classname.is_meta() && !class.ivars.is_empty() {
+        //    // The ivars are defined in skc_corelib. Just check that
+        //    // all the ivars are included
+        //    for (k, v) in ivars.iter().chain(own_ivars.iter()) {
+        //        debug_assert!(class.ivars.get(k).unwrap() == v);
+        //    }
+        //    return;
+        //}
         class.ivars = ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
             class.ivars.insert(k, v);

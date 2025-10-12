@@ -1,11 +1,12 @@
 use crate::codegen::{
     codegen_context::CodeGenContext, instance, intrinsics, item, llvm_struct, string_literal,
-    value::SkObj, vtable, CodeGen,
+    type_object, value::SkObj, vtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
 use inkwell::types::BasicType;
 use inkwell::values::BasicValueEnum;
+use shiika_core::ty::TermTy;
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
@@ -67,7 +68,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         }
     }
 
-    fn compile_expr(
+    pub fn compile_expr(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         texpr: &mir::TypedExpr,
@@ -103,8 +104,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
-            mir::Expr::CreateTypeObject(_) => {
-                self.compile_number(0) // TODO: implement
+            mir::Expr::CreateTypeObject(the_ty, name_expr) => {
+                self.compile_create_type_object(ctx, the_ty, name_expr)
             }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
@@ -404,7 +405,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                     .build_ptr_to_int(
                         v1.into_pointer_value(),
                         self.context.i64_type(),
-                        "to_any_i64",
+                        "ptr_as_i64",
                     )
                     .into(),
             },
@@ -426,6 +427,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let obj = instance::allocate_sk_obj(self, type_name);
         Some(obj.0.into())
+    }
+
+    fn compile_create_type_object(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        the_ty: &TermTy,
+        name_expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let gen_name = self.compile_value_expr(ctx, name_expr);
+        let type_obj = type_object::create(self, the_ty, gen_name);
+        Some(type_obj.0.into())
     }
 
     fn compile_unbox(

@@ -3,6 +3,9 @@
 use crate::mir::{self, FunTy, Ty};
 use crate::names::FunctionName;
 
+// Index of ivar @name of Class
+pub const IDX_CLASS_IVAR_NAME: usize = 0;
+
 /// Functions defined as Shiika runtime (in packages/core/ext)
 pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Void")], Ty::RustFuture);
