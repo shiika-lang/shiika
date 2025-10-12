@@ -431,7 +431,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     fn llvm_field_types(
         &self,
         ivars: &HashMap<String, SkIVar>,
-    ) -> Vec<inkwell::types::BasicTypeEnum> {
+    ) -> Vec<inkwell::types::BasicTypeEnum<'_>> {
         let mut values = ivars.values().collect::<Vec<_>>();
         values.sort_by_key(|ivar| ivar.idx);
         let mut types = vec![self.llvm_type(); values.len()];
@@ -758,12 +758,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// LLVM type of a reference to a vtable
-    fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType {
+    fn llvm_vtable_ref_type(&self) -> inkwell::types::PointerType<'_> {
         self.ptr_type
     }
 
     /// LLVM type of a reference to a class object
-    fn class_object_ref_type(&self) -> inkwell::types::PointerType {
+    fn class_object_ref_type(&self) -> inkwell::types::PointerType<'_> {
         self.llvm_type().into_pointer_type()
     }
 

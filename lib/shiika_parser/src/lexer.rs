@@ -117,11 +117,11 @@ enum CharType {
 
 impl<'a> Lexer<'a> {
     /// Create lexer and get the first token
-    pub fn new(src: &str) -> Lexer {
+    pub fn new(src: &'a str) -> Lexer<'a> {
         Lexer::new_with_state(src, LexerState::ExprBegin)
     }
 
-    pub fn new_with_state(src: &str, state: LexerState) -> Lexer {
+    pub fn new_with_state(src: &'a str, state: LexerState) -> Lexer<'a> {
         let mut lexer = Lexer {
             src,
             cur: Cursor::new(),

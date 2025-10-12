@@ -295,7 +295,7 @@ impl CtxStack {
     }
 
     /// Iterates over lvar scopes starting from the current scope
-    pub fn lvar_scopes(&self) -> LVarIter {
+    pub fn lvar_scopes(&self) -> LVarIter<'_> {
         LVarIter::new(self)
     }
 
@@ -309,7 +309,7 @@ impl CtxStack {
     }
 
     /// Iterates over constant scopes starting from the current one
-    pub fn const_scopes(&self) -> NamespaceIter {
+    pub fn const_scopes(&self) -> NamespaceIter<'_> {
         NamespaceIter::new(self)
     }
 }
@@ -322,7 +322,7 @@ pub struct LVarIter<'hir_maker> {
 }
 
 impl<'hir_maker> LVarIter<'hir_maker> {
-    fn new(ctx_stack: &CtxStack) -> LVarIter {
+    fn new(ctx_stack: &CtxStack) -> LVarIter<'_> {
         let mut finished = false;
         let mut cur = ctx_stack.len();
         if cur == 0 {
@@ -435,7 +435,7 @@ pub struct NamespaceIter<'hir_maker> {
 }
 
 impl<'hir_maker> NamespaceIter<'hir_maker> {
-    fn new(ctx_stack: &CtxStack) -> NamespaceIter {
+    fn new(ctx_stack: &CtxStack) -> NamespaceIter<'_> {
         let mut finished = false;
         let mut cur = ctx_stack.len();
         loop {
