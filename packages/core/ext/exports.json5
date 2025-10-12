@@ -21,4 +21,5 @@
   ["Object", "print(n: Int)", true],
   ["Object", "puts(s: String)", true],
   ["String", "initialize(bytes: Shiika::Internal::Ptr, n_bytes: Shiika::Internal::Int64)", false],
+  ["Meta:Shiika::Internal", "p(value: Object, len: Int)", false],
 ]
