@@ -294,8 +294,44 @@ impl<'a> Compiler<'a> {
 
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
-            HirExpressionBase::HirModuleMethodCall { method_name, .. } => {
-                todo!("Handle module method call: {:?}", method_name)
+            HirExpressionBase::HirModuleMethodCall {
+                receiver_expr,
+                module_fullname,
+                method_name,
+                method_idx,
+                arg_exprs,
+                ..
+            } => {
+                let receiver_ty = receiver_expr.ty.clone();
+                let mir_receiver = self.convert_expr(*receiver_expr);
+
+                let func_ref = {
+                    let fun_ty = {
+                        let mut param_tys = arg_exprs
+                            .iter()
+                            .map(|e| e.ty.clone().into())
+                            .collect::<Vec<_>>();
+                        param_tys.insert(0, convert_ty(receiver_ty));
+                        mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
+                    };
+
+                    mir::Expr::wtable_ref(
+                        mir_receiver.clone(),
+                        module_fullname.clone(),
+                        method_idx,
+                        method_name.0.clone(),
+                        fun_ty,
+                    )
+                };
+
+                let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
+                    .into_iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect();
+                mir_args.insert(0, mir_receiver);
+
+                let result_ty = convert_ty(expr.ty.clone());
+                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
             HirExpressionBase::HirLambdaInvocation { .. } => {
                 todo!("Handle lambda invocation")
