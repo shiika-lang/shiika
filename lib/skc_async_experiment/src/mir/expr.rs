@@ -1,6 +1,7 @@
 use crate::mir::FunctionName;
 use crate::mir::{Asyncness, FunTy, Ty};
 use anyhow::{anyhow, Result};
+use shiika_core::names::ModuleFullname;
 use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
@@ -20,7 +21,7 @@ pub enum Expr {
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
-    // WTableRef(String, usize),
+    WTableRef(Box<Typed<Expr>>, ModuleFullname, usize, String), // (receiver, module, index, debug_name)
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
@@ -127,6 +128,19 @@ impl Expr {
     ) -> TypedExpr {
         (
             Expr::VTableRef(Box::new(receiver), idx, name.into()),
+            fun_ty.into(),
+        )
+    }
+
+    pub fn wtable_ref(
+        receiver: TypedExpr,
+        module: ModuleFullname,
+        idx: usize,
+        name: impl Into<String>,
+        fun_ty: FunTy,
+    ) -> TypedExpr {
+        (
+            Expr::WTableRef(Box::new(receiver), module, idx, name.into()),
             fun_ty.into(),
         )
     }
@@ -316,6 +330,15 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             format!(
                 "%VTableRef({}, {}, {})",
                 receiver.0.pretty_print(0, false),
+                idx,
+                name
+            )
+        }
+        Expr::WTableRef(receiver, module, idx, name) => {
+            format!(
+                "%WTableRef({}, {}, {}, {})",
+                receiver.0.pretty_print(0, false),
+                module,
                 idx,
                 name
             )

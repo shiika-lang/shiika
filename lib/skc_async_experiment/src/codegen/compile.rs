@@ -88,8 +88,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
-            mir::Expr::VTableRef(receiver, idx, _name) => {
+            mir::Expr::VTableRef(receiver, idx, _debug_name) => {
                 self.compile_vtable_ref(ctx, receiver, *idx)
+            }
+            mir::Expr::WTableRef(_receiver, _module, _idx, _debug_name) => {
+                todo!("WTableRef compilation will be implemented later")
             }
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),

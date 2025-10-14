@@ -177,6 +177,10 @@ impl<'a> Compiler<'a> {
                 let new_receiver = self.compile_value_expr(*receiver, false)?;
                 mir::Expr::vtable_ref(new_receiver, idx, name, e.1.into_fun_ty())
             }
+            mir::Expr::WTableRef(receiver, module, idx, name) => {
+                let new_receiver = self.compile_value_expr(*receiver, false)?;
+                mir::Expr::wtable_ref(new_receiver, module, idx, name, e.1.into_fun_ty())
+            }
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }

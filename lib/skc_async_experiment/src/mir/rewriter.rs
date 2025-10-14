@@ -42,6 +42,13 @@ pub trait MirRewriter {
             mir::Expr::VTableRef(receiver, idx, name) => {
                 mir::Expr::vtable_ref(self.walk_expr(*receiver)?, idx, name, expr.1.into_fun_ty())
             }
+            mir::Expr::WTableRef(receiver, module, idx, name) => mir::Expr::wtable_ref(
+                self.walk_expr(*receiver)?,
+                module,
+                idx,
+                name,
+                expr.1.into_fun_ty(),
+            ),
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => mir::Expr::if_(
                 self.walk_expr(*cond_expr)?,
                 self.walk_expr(*then_exprs)?,
