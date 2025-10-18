@@ -1,6 +1,6 @@
 use crate::codegen::{
     codegen_context::CodeGenContext, instance, intrinsics, item, llvm_struct, string_literal,
-    type_object, value::SkObj, vtable, CodeGen,
+    type_object, value::SkObj, vtable, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
@@ -91,8 +91,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::VTableRef(receiver, idx, _debug_name) => {
                 self.compile_vtable_ref(ctx, receiver, *idx)
             }
-            mir::Expr::WTableRef(_receiver, _module, _idx, _debug_name) => {
-                todo!("WTableRef compilation will be implemented later")
+            mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
+                self.compile_wtable_ref(ctx, receiver, module, *idx)
             }
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
@@ -234,6 +234,32 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let vtable = instance::get_vtable(self, &SkObj::from_basic_value_enum(obj));
         let method_ptr = vtable::get_function(self, vtable, idx);
         Some(method_ptr.into())
+    }
+
+    fn compile_wtable_ref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        receiver: &mir::TypedExpr,
+        module: &shiika_core::names::ModuleFullname,
+        idx: usize,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let lookup_func = self
+            .module
+            .get_function("shiika_lookup_wtable")
+            .unwrap_or_else(|| panic!("shiika_lookup_wtable function not found"));
+        let args = {
+            let receiver_obj = self.compile_value_expr(ctx, receiver);
+            let key = wtable::get_module_key(self, module);
+            let idx_val = self.context.i64_type().const_int(idx as u64, false);
+            &[receiver_obj.into(), key.into(), idx_val.into()]
+        };
+        let func_ptr = self
+            .builder
+            .build_direct_call(lookup_func, args, "wtable_method")
+            .try_as_basic_value()
+            .left()
+            .unwrap();
+        Some(func_ptr)
     }
 
     /// Compile a sync if

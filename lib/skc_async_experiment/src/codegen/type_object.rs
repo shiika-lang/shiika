@@ -1,5 +1,8 @@
-use crate::codegen::{instance, llvm_struct, value::SkObj, CodeGen};
-use crate::mir;
+use crate::codegen::{
+    instance, llvm_struct,
+    value::{SkClassObj, SkObj},
+    CodeGen,
+};
 use crate::prelude;
 use shiika_core::ty::TermTy;
 
@@ -13,33 +16,18 @@ pub fn create<'run>(
     // assignment and mir::async_splitter cannot handle `Exprs` in inner position.
 
     debug_assert!(!the_ty.fullname.is_meta());
+    let type_obj = create_obj(gen, the_ty, gen_name);
+
     if the_ty.fullname.0 == "Metaclass" {
-        create_the_metaclass(gen, gen_name)
-    } else {
-        create_a_class(gen, the_ty, gen_name)
+        // Overwrite .class to achieve `Metaclass.class == Metaclass`.
+        instance::set_class_obj(gen, &type_obj, SkClassObj(type_obj.0));
     }
+
+    type_obj
 }
 
-fn create_the_metaclass<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    gen_name: inkwell::values::BasicValueEnum<'run>,
-) -> SkObj<'run> {
-    // We need a trick here to achieve `Metaclass.class == Metaclass`.
-    let cls_obj = instance::allocate_sk_obj(gen, "Metaclass");
-    instance::build_ivar_store_raw(
-        gen,
-        cls_obj.clone(),
-        &llvm_struct::of_ty(gen, &mir::Ty::raw("Metaclass")),
-        prelude::IDX_CLASS_IVAR_NAME,
-        gen_name,
-        "@name",
-    );
-    //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
-    cls_obj
-}
-
-// Create a type object
-fn create_a_class<'run>(
+/// Create a type object
+fn create_obj<'run>(
     gen: &mut CodeGen<'run, '_>,
     the_ty: &TermTy,
     gen_name: inkwell::values::BasicValueEnum<'run>,
@@ -53,6 +41,5 @@ fn create_a_class<'run>(
         gen_name,
         "@name",
     );
-    //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
     cls_obj
 }

@@ -4,7 +4,7 @@ pub use witness_table::WitnessTable;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct SkClass(*mut ShiikaClass);
+pub struct SkClass(pub *mut ShiikaClass);
 
 impl SkClass {
     pub fn new(ptr: *mut ShiikaClass) -> SkClass {
@@ -16,11 +16,21 @@ impl SkClass {
     }
 
     pub fn witness_table(&self) -> &WitnessTable {
-        unsafe { (*self.0).witness_table.as_ref().unwrap() }
+        unsafe {
+            (*self.0)
+                .witness_table
+                .as_ref()
+                .unwrap_or_else(|| panic!("[BUG] witness_table is null: {:?}", self))
+        }
     }
 
     pub fn witness_table_mut(&mut self) -> &mut WitnessTable {
-        unsafe { (*self.0).witness_table.as_mut().unwrap() }
+        unsafe {
+            (*self.0)
+                .witness_table
+                .as_mut()
+                .unwrap_or_else(|| panic!("[BUG] witness_table is null: {:?}", self))
+        }
     }
 }
 
