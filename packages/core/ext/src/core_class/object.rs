@@ -1,10 +1,28 @@
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ContFuture};
-use shiika_ffi::core_class::{SkInt, SkObject, SkString};
+use shiika_ffi::core_class::{SkClass, SkInt, SkObject, SkString};
 use shiika_ffi_macro::shiika_method;
 use std::future::{poll_fn, Future};
 use std::task::Poll;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
+
+#[shiika_method("Object#class")]
+#[allow(improper_ctypes_definitions)]
+pub extern "C" fn class(
+    env: &'static mut ChiikaEnv,
+    receiver: SkObject,
+    cont: ChiikaCont,
+) -> ContFuture {
+    async fn class(receiver: SkObject) -> SkClass {
+        receiver.class()
+    }
+    env.cont = Some(cont);
+    let mut future = Box::pin(class(receiver));
+    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
+        Poll::Ready(x) => Poll::Ready(x.0 as u64),
+        Poll::Pending => Poll::Pending,
+    }))
+}
 
 #[shiika_method("Object#print")]
 #[allow(improper_ctypes_definitions)]
