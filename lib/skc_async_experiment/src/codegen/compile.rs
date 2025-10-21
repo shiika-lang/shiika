@@ -77,7 +77,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Number(n) => self.compile_number(*n),
             mir::Expr::StringRef(s) => self.compile_string_ref(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
-            mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
+            mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
                 self.compile_ivarref(ctx, obj_expr, *idx, name)
             }
@@ -97,7 +97,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
-            mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
+            mir::Expr::Alloc(name, ty) => self.compile_alloc(ctx, name, ty),
             mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
             mir::Expr::IVarSet(obj_expr, idx, rhs, name) => {
                 self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)
@@ -180,11 +180,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
+        ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = ctx.lvars.get(name).unwrap();
-        let t = self.ptr_type();
-        let v = self.builder.build_load(t, *v, name).into_pointer_value();
-        Some(SkObj(v).into())
+        let t = self.llvm_type(ty);
+        let v = self.builder.build_load(t, *v, name);
+        Some(v)
     }
 
     fn compile_ivarref(
@@ -343,8 +344,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
+        ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = self.builder.build_alloca(self.ptr_type(), name);
+        let v = self.builder.build_alloca(self.llvm_type(ty), name);
         ctx.lvars.insert(name.to_string(), v);
         None
     }
