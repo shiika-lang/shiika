@@ -52,7 +52,7 @@ pub fn run(
             };
             (fullname, c.convert_expr(*rhs))
         });
-        funcs.push(constants::create_const_init_func(
+        funcs.extend(constants::create_const_init_funcs(
             uni.package_name.as_ref(),
             consts.collect(),
         ));
