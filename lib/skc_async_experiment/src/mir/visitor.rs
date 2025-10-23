@@ -84,9 +84,7 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::CreateObject(_) => {}
-            mir::Expr::CreateTypeObject(_, expr) => {
-                self.walk_expr(expr)?;
-            }
+            mir::Expr::CreateTypeObject(_) => {}
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
             }

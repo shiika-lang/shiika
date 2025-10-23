@@ -107,9 +107,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
-            mir::Expr::CreateTypeObject(the_ty, name_expr) => {
-                self.compile_create_type_object(ctx, the_ty, name_expr)
-            }
+            mir::Expr::CreateTypeObject(the_ty) => self.compile_create_type_object(ctx, the_ty),
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
@@ -462,12 +460,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_create_type_object(
         &mut self,
-        ctx: &mut CodeGenContext<'run>,
+        _ctx: &mut CodeGenContext<'run>,
         the_ty: &TermTy,
-        name_expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let gen_name = self.compile_value_expr(ctx, name_expr);
-        let type_obj = type_object::create(self, the_ty, gen_name);
+        let type_obj = type_object::create(self, the_ty);
         Some(type_obj.0.into())
     }
 
