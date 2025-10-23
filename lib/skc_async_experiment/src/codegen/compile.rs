@@ -75,7 +75,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
-            mir::Expr::StringRef(s) => self.compile_string_ref(s),
+            mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
@@ -120,8 +120,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(intrinsics::box_int(self, n).into())
     }
 
-    fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(string_literal::declare(self, s).into())
+    fn compile_string_literal(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(string_literal::generate(self, s))
     }
 
     fn compile_argref(
@@ -138,7 +138,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(v)
     }
 
-    fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    pub fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let g = self
             .module
             .get_global(name)

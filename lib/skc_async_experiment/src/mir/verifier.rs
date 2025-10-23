@@ -196,7 +196,7 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
-            mir::Expr::StringRef(_) => (),
+            mir::Expr::StringLiteral(_) => (),
             mir::Expr::EnvRef(_, _) => (),
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;

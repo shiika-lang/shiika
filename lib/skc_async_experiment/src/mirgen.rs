@@ -199,8 +199,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::pseudo_var(b, mir::Ty::Raw("Bool".to_string()))
             }
             HirExpressionBase::HirStringLiteral { idx } => {
-                // REFACTOR: embed string directly
-                call_string_new(self.str_literals[idx].clone())
+                mir::Expr::string_literal(self.str_literals[idx].clone())
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
             HirExpressionBase::HirFloatLiteral { value } => {
@@ -576,25 +575,5 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
         sig.asyncness.clone().into(),
         param_tys,
         convert_ty(sig.ret_ty.clone()),
-    )
-}
-
-fn call_string_new(s: String) -> mir::TypedExpr {
-    let string_new = mir::Expr::func_ref(
-        FunctionName::method("Meta:String", "new"),
-        mir::FunTy {
-            asyncness: mir::Asyncness::Unknown,
-            param_tys: vec![mir::Ty::raw("Meta:String"), mir::Ty::Ptr, mir::Ty::Int64],
-            ret_ty: Box::new(mir::Ty::raw("String")),
-        },
-    );
-    let bytesize = s.len() as i64;
-    mir::Expr::fun_call(
-        string_new,
-        vec![
-            mir::Expr::const_ref("::String", mir::Ty::raw("Meta:String")),
-            mir::Expr::string_ref(s),
-            mir::Expr::raw_i64(bytesize),
-        ],
     )
 }

@@ -75,7 +75,7 @@ pub trait MirRewriter {
             mir::Expr::Unbox(e) => mir::Expr::unbox(self.walk_expr(*e)?),
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
-            mir::Expr::StringRef(_) => expr,
+            mir::Expr::StringLiteral(_) => expr,
         };
         self.rewrite_expr(new_expr)
     }

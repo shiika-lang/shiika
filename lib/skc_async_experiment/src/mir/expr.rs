@@ -11,7 +11,7 @@ pub type TypedExpr = Typed<Expr>;
 pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
-    StringRef(String),
+    StringLiteral(String),
     LVarRef(String),
     IVarRef(Box<Typed<Expr>>, usize, String), // (obj, index, debug_name)
     ArgRef(usize, String),                    // (index, debug_name)
@@ -80,8 +80,8 @@ impl Expr {
         (Expr::PseudoVar(var), ty)
     }
 
-    pub fn string_ref(s: impl Into<String>) -> TypedExpr {
-        (Expr::StringRef(s.into()), Ty::Ptr)
+    pub fn string_literal(s: impl Into<String>) -> TypedExpr {
+        (Expr::StringLiteral(s.into()), Ty::raw("String"))
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -251,7 +251,7 @@ impl Expr {
                 string_new,
                 vec![
                     Expr::const_ref("::String", Ty::raw("Meta:String")),
-                    Expr::string_ref(type_name),
+                    Expr::string_literal(type_name),
                     Expr::raw_i64(bytesize),
                 ],
             )
@@ -392,7 +392,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
-        Expr::StringRef(s) => format!("\"{}\"", s),
+        Expr::StringLiteral(s) => format!("\"{}\"", s),
         //_ => todo!("{:?}", self),
     };
     if indent {
