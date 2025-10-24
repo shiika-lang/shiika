@@ -429,10 +429,16 @@ impl<'a> Compiler<'a> {
                     .enumerate()
                     .map(|(i, param)| mir::Expr::arg_ref(i + 1, param.name, param.ty.into()))
                     .collect();
-                args.insert(
-                    0,
-                    mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into()),
-                );
+                let receiver = {
+                    let mut r =
+                        mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into());
+                    let defined_type = ini_sig.fullname.type_name.clone();
+                    if instance_ty.fullname != defined_type {
+                        r = mir::Expr::cast(mir::CastType::Upcast(defined_type.to_ty().into()), r);
+                    }
+                    r
+                };
+                args.insert(0, receiver);
                 let ini_func =
                     mir::Expr::func_ref(ini_sig.fullname.clone().into(), build_fun_ty(&ini_sig));
                 mir::Expr::fun_call(ini_func, args)
