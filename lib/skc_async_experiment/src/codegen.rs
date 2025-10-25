@@ -85,13 +85,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.context.i8_type().ptr_type(Default::default())
     }
 
-    /// Call llvm function (whose return type is not `void`)
+    /// Call llvm function. Returns `None` for void functions.
     fn call_llvm_func(
         &self,
         func_name: &str,
         args: &[inkwell::values::BasicMetadataValueEnum<'run>],
         reg_name: &str,
-    ) -> inkwell::values::BasicValueEnum<'run> {
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let f = self
             .module
             .get_function(&func_name)
@@ -100,7 +100,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_direct_call(f, args, reg_name)
             .try_as_basic_value()
             .left()
-            .unwrap()
     }
 
     fn get_llvm_func(&self, name: &FunctionName) -> inkwell::values::FunctionValue<'run> {

@@ -49,6 +49,7 @@ pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkObj<'run> {
             &[llvm_n.as_basic_value_enum().into()],
             "sk_int",
         )
+        .unwrap()
         .into_pointer_value(),
     )
 }
@@ -71,6 +72,7 @@ pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {
             &[llvm_b.as_basic_value_enum().into()],
             "sk_bool",
         )
+        .unwrap()
         .into_pointer_value(),
     )
 }
