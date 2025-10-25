@@ -3,3 +3,5 @@
 /// LLVM Functions compiled from Shiika methods
 #[derive(Debug, Clone, Copy)]
 pub struct MethodFuncs();
+
+pub struct ConstGlobal();

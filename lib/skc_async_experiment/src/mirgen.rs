@@ -384,9 +384,11 @@ impl<'a> Compiler<'a> {
                 mir::expr::CastType::Force(expr.ty.into()),
                 self.convert_expr(*e),
             ),
-            HirExpressionBase::HirClassLiteral { fullname, .. } => {
-                mir::Expr::create_type_object(fullname.to_ty())
-            }
+            HirExpressionBase::HirClassLiteral {
+                fullname,
+                includes_modules,
+                ..
+            } => mir::Expr::create_type_object(fullname.to_ty(), includes_modules),
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 let mir_exprs = exprs
                     .into_iter()

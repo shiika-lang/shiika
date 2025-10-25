@@ -33,7 +33,7 @@ pub enum Expr {
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
-    CreateTypeObject(TermTy), // (ty)
+    CreateTypeObject(TermTy, bool), // (ty, includes_modules)
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -235,8 +235,11 @@ impl Expr {
         )
     }
 
-    pub fn create_type_object(ty: TermTy) -> TypedExpr {
-        (Expr::CreateTypeObject(ty.clone()), ty.meta_ty().into())
+    pub fn create_type_object(ty: TermTy, includes_modules: bool) -> TypedExpr {
+        (
+            Expr::CreateTypeObject(ty.clone(), includes_modules),
+            ty.meta_ty().into(),
+        )
     }
 
     pub fn unbox(e: TypedExpr) -> TypedExpr {
@@ -363,8 +366,8 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             }
         }
         Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
-        Expr::CreateTypeObject(ty) => {
-            format!("%CreateTypeObject({})", ty.fullname.0)
+        Expr::CreateTypeObject(ty, includes_modules) => {
+            format!("%CreateTypeObject({}, {})", ty.fullname.0, includes_modules)
         }
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),

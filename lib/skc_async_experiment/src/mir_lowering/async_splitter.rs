@@ -213,7 +213,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::cast(cast_type, new_expr)
             }
             mir::Expr::CreateObject(_) => e,
-            mir::Expr::CreateTypeObject(_) => e,
+            mir::Expr::CreateTypeObject(_, _) => e,
             mir::Expr::StringLiteral(_) => e,
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
         };

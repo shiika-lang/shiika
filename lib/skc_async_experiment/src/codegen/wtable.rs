@@ -1,4 +1,4 @@
-use crate::codegen::{self, CodeGen};
+use crate::codegen::{self, item, CodeGen};
 use crate::mir;
 use crate::names::FunctionName;
 use inkwell::values::BasicValue;
@@ -6,13 +6,39 @@ use shiika_core::names::*;
 use skc_hir::SkClass;
 use skc_hir::SkTypes;
 
-/// Define llvm constants like `@shiika_wtable_Array_Enumerable`
-pub fn define_constants(gen: &mut CodeGen, sk_class: &SkClass, _: codegen::item::MethodFuncs) {
+/// Declare llvm constants like `@shiika_wtable_Array_Enumerable`
+pub fn declare_constants(gen: &mut CodeGen, sk_types: &SkTypes) {
+    for sk_class in sk_types.sk_classes() {
+        if !sk_class.wtable.is_empty() {
+            declare_constant(gen, sk_class);
+        }
+    }
+}
+
+fn declare_constant(gen: &mut CodeGen, sk_class: &SkClass) {
     for (mod_name, method_names) in &sk_class.wtable.0 {
         let ary_type = gen.ptr_type().array_type(method_names.len() as u32);
         let cname = llvm_wtable_const_name(&sk_class.fullname(), mod_name);
         let global = gen.module.add_global(ary_type, None, &cname);
         global.set_constant(true);
+    }
+}
+
+/// Set value of llvm constants like `@shiika_wtable_Array_Enumerable`
+pub fn init_constants(gen: &mut CodeGen, sk_types: &SkTypes, _: codegen::item::MethodFuncs) {
+    for sk_class in sk_types.sk_classes() {
+        if !sk_class.wtable.is_empty() {
+            init_constant(gen, sk_class);
+        }
+    }
+}
+
+pub fn init_constant(gen: &mut CodeGen, sk_class: &SkClass) {
+    for (mod_name, method_names) in &sk_class.wtable.0 {
+        let global = gen
+            .module
+            .get_global(&llvm_wtable_const_name(&sk_class.fullname(), mod_name))
+            .unwrap();
         let func_ptrs = method_names
             .iter()
             .map(|name| {
@@ -26,8 +52,19 @@ pub fn define_constants(gen: &mut CodeGen, sk_class: &SkClass, _: codegen::item:
     }
 }
 
+/// Generate a call to inserter like `shiika_insert_wtable_Array(cls_obj)`
+pub fn call_inserter(
+    gen: &mut CodeGen,
+    classname: &ClassFullname,
+    cls_obj: inkwell::values::PointerValue,
+) {
+    let fname = insert_wtable_func_name(classname);
+    let args = &[cls_obj.into()];
+    gen.call_llvm_func(&fname, args, "_");
+}
+
 /// Insert wtable entries for all modules of the class
-pub fn define_inserters(gen: &mut CodeGen, sk_types: &SkTypes) {
+pub fn define_inserters(_const_global: item::ConstGlobal, gen: &mut CodeGen, sk_types: &SkTypes) {
     for sk_class in sk_types.sk_classes() {
         if !sk_class.wtable.is_empty() {
             define_inserter(gen, sk_class);
@@ -35,11 +72,14 @@ pub fn define_inserters(gen: &mut CodeGen, sk_types: &SkTypes) {
     }
 }
 
+/// Define the inserter function like `shiika_insert_wtable_Array(cls_obj)`
 fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) {
-    let fargs = &[gen.ptr_type().into()];
-    let ftype = gen.context.void_type().fn_type(fargs, false);
-    let fname = insert_wtable_func_name(&sk_class.fullname());
-    let function = gen.module.add_function(&fname, ftype, None);
+    let function = {
+        let fargs = &[gen.ptr_type().into()];
+        let ftype = gen.context.void_type().fn_type(fargs, false);
+        let fname = insert_wtable_func_name(&sk_class.fullname());
+        gen.module.add_function(&fname, ftype, None)
+    };
     let basic_block = gen.context.append_basic_block(function, "");
     gen.builder.position_at_end(basic_block);
 
@@ -79,7 +119,7 @@ fn llvm_wtable_const_name(classname: &ClassFullname, modulename: &ModuleFullname
 }
 
 pub fn insert_wtable_func_name(cls: &ClassFullname) -> String {
-    format!("insert_{}_wtables", cls)
+    format!("shiika_insert_wtable_{}", cls)
 }
 
 /// Get the wtable key of a module

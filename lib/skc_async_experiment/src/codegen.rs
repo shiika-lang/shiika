@@ -40,7 +40,9 @@ pub fn run<P: AsRef<Path>>(
     };
     gen.compile_extern_funcs(mir.program.externs);
     constants::declare_extern_consts(&mut gen, mir.imported_constants);
-    constants::declare_const_globals(&mut gen, &mir.program.constants);
+    let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
+    wtable::declare_constants(&mut gen, &mir.sk_types);
+    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types);
     vtable::import(&mut gen, &mir.imported_vtables);
     vtable::define(&mut gen, &mir.vtables);
 
@@ -48,16 +50,10 @@ pub fn run<P: AsRef<Path>>(
     if is_bin {
         intrinsics::define(&mut gen);
     }
-    let method_funcs = gen.compile_program(mir.program.funcs);
 
-    for sk_class in mir.sk_types.sk_classes() {
-        if !sk_class.wtable.is_empty() {
-            wtable::define_constants(&mut gen, sk_class, method_funcs);
-        }
-    }
-
-    vtable::define_body(&mut gen, &mir.vtables, method_funcs);
-    wtable::define_inserters(&mut gen, &mir.sk_types);
+    let _method_funcs_ = gen.compile_program(mir.program.funcs);
+    wtable::init_constants(&mut gen, &mir.sk_types, _method_funcs_);
+    vtable::define_body(&mut gen, &mir.vtables, _method_funcs_);
 
     gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
