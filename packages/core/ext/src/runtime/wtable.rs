@@ -14,5 +14,6 @@ pub extern "C" fn shiika_insert_wtable(
     funcs: *const *const u8,
     n_funcs: usize,
 ) {
+    class.ensure_witness_table();
     class.witness_table_mut().insert(key, funcs, n_funcs);
 }

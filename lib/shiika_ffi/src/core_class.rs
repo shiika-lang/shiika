@@ -4,7 +4,7 @@ mod int;
 mod object;
 mod string;
 pub use bool::SkBool;
-pub use class::SkClass;
+pub use class::{SkClass, WitnessTable};
 pub use int::SkInt;
 pub use object::SkObject;
 pub use string::SkString;
