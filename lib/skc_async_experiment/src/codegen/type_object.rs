@@ -19,7 +19,8 @@ pub fn create<'run>(
         instance::set_class_obj(gen, &type_obj, SkClassObj(type_obj.0));
     } else {
         let meta_type_obj = {
-            let o = create_obj(gen, &the_ty.meta_ty(), includes_modules);
+            let o = create_obj(gen, &the_ty.meta_ty(), false); // Assumes metaclass doesn't include
+                                                               // modules
             let the_metaclass = gen
                 .compile_constref("::Metaclass")
                 .expect("Metaclass class object not found")
