@@ -6,6 +6,7 @@ mod query;
 pub mod type_index;
 use anyhow::Result;
 pub use found_method::{CallType, FoundMethod};
+pub use indexing::RustLibItems;
 use shiika_ast;
 use shiika_core::names::*;
 use skc_hir::*;
@@ -49,7 +50,7 @@ pub fn create<'hir_maker>(
         imported_classes,
         rust_methods: Default::default(),
     };
-    dict.index_program(defs)?;
+    dict.index_program(defs, HashMap::new())?;
     Ok(dict)
 }
 
@@ -66,7 +67,7 @@ pub fn create_for_corelib<'hir_maker>(
         imported_classes,
         rust_methods: index_rust_method_sigs(rust_method_sigs),
     };
-    dict.index_program(defs)?;
+    dict.index_program(defs, HashMap::new())?;
     Ok(dict)
 }
 

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
-use skc_ast2hir::class_dict::ClassDict;
+use skc_ast2hir::class_dict::{ClassDict, RustLibItems};
 use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
@@ -105,10 +105,12 @@ fn generate_hir(
         if target.is_core_package() {
             bootstrap_classes(&mut class_dict);
         }
-        class_dict.index_program(&defs)?;
-        if let Some(pkg) = target.package() {
-            merge_rustlib_methods(&mut class_dict, pkg)?;
-        }
+        let rustlib_methods = if let Some(pkg) = target.package() {
+            list_rustlib_methods(pkg)?
+        } else {
+            Default::default()
+        };
+        class_dict.index_program(&defs, rustlib_methods)?;
         class_dict
     };
 
@@ -137,47 +139,19 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     Ok(exports)
 }
 
-/// Insert signatures in exports.json5 (methods written in Rust) into SkTypes.
-fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Result<()> {
+fn list_rustlib_methods(p: &package::Package) -> Result<RustLibItems> {
+    let mut methods = HashMap::new();
     for exp in p.export_files() {
         for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
-            let sk_type = class_dict
-                .sk_types
-                .get_type(&type_fullname(&type_name))
-                .ok_or_else(|| anyhow::anyhow!("Type {} not found", type_name))?;
-            let (inheritable, superclass) = if let skc_hir::SkType::Class(sk_class) = sk_type {
-                (
-                    sk_class.is_final == Some(false),
-                    sk_class.superclass.clone(),
-                )
-            } else {
-                (false, None)
-            };
-            let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
-
-            let mut sig = class_dict.create_maybe_virtual_signature(
-                inheritable,
-                &sk_type.base().erasure.namespace(),
-                sk_type.fullname(),
-                &ast_sig,
-                &sk_type.base().typarams,
-                &superclass,
-            )?;
-            sig.asyncness = if is_async {
-                skc_hir::Asyncness::Async
-            } else {
-                skc_hir::Asyncness::Sync
-            };
-            class_dict
-                .sk_types
-                .rustlib_methods
-                .push(sig.fullname.clone());
-            class_dict
-                .sk_types
-                .define_method(&type_fullname(type_name), sig);
+            let tname = type_fullname(&type_name);
+            let sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+            if !methods.contains_key(&tname) {
+                methods.insert(tname.clone(), vec![]);
+            }
+            methods.get_mut(&tname).unwrap().push((sig, is_async));
         }
     }
-    Ok(())
+    Ok(methods)
 }
 
 fn bootstrap_classes(class_dict: &mut ClassDict) {

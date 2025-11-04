@@ -112,7 +112,9 @@ impl<'a> Check<'a> {
             unresolved_deps,
         };
         c.checking.insert(fname.clone());
-        let func = funcs.get(fname).unwrap();
+        let func = funcs.get(fname).unwrap_or_else(|| {
+            panic!("Function {} is not found in funcs", fname);
+        });
         c.walk_expr(&func.body_stmts).unwrap();
         if c.depends.is_empty() {
             c.known.insert(fname.clone(), c.is_async);
