@@ -40,6 +40,7 @@ task :compile do
 end
 
 task :test do
+  sh "cargo fmt"
   cd "lib/skc_rustlib" do
     sh "cargo build"
   end

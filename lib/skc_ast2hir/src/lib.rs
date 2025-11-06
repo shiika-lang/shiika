@@ -45,13 +45,8 @@ pub fn make_corelib_hir(
     let type_index = type_index::create(&defs, &corelib.sk_types, &Default::default());
     // they can be referred in the signatures of methods written with Rust.
     let rust_method_sigs = rustlib_methods::create_method_sigs(&type_index);
-    let class_dict = class_dict::create_for_corelib(
-        &defs,
-        &dummy_imports,
-        corelib.sk_types,
-        type_index,
-        &rust_method_sigs,
-    )?;
+    let class_dict =
+        class_dict::create_for_corelib(&defs, &dummy_imports, corelib.sk_types, type_index)?;
 
     let mut hir_maker = HirMaker::new(class_dict, &dummy_constants);
     hir_maker.define_class_constants()?;

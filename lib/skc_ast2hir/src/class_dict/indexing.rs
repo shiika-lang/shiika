@@ -180,6 +180,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         instance_methods.append_vec(rust_method_sigs);
 
         self.add_new_class(
+            namespace,
             &fullname,
             &typarams,
             superclass,
@@ -272,12 +273,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs, rustlib_items)?;
 
         self.add_new_module(
+            namespace,
             &fullname,
             &typarams,
             instance_methods,
             class_methods,
             requirements,
-        );
+        )?;
         Ok(())
     }
 
@@ -330,6 +332,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             rustlib_items,
         )?;
         self.add_new_class(
+            namespace,
             &fullname,
             &typarams,
             Some(Supertype::simple("Object")),
@@ -363,6 +366,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         instance_methods.insert(initialize_sig);
 
         self.add_new_class(
+            namespace,
             &fullname,
             &case_typarams,
             Some(superclass),
@@ -600,6 +604,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     #[allow(clippy::too_many_arguments)]
     fn add_new_class(
         &mut self,
+        namespace: &Namespace,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: Option<Supertype>,
@@ -611,10 +616,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         const_is_obj: bool,
     ) -> Result<()> {
         let fullname_ = fullname.to_type_fullname();
+        instance_methods.append_vec(self.transfer_rust_methods(
+            inheritable,
+            namespace,
+            &fullname_,
+            typarams,
+            &superclass,
+        )?);
         let wtable = build_wtable(self, &instance_methods, &includes)?;
-        if let Some(sigs) = self.rust_methods.remove(&fullname_) {
-            instance_methods.append_vec(sigs);
-        }
 
         let sk_type = {
             if self.known(&fullname_) {
@@ -648,6 +657,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
         // Create metaclass (which is a subclass of `Class`)
         let meta_name = fullname.meta_name().to_type_fullname();
+        class_methods.append_vec(self.transfer_rust_methods(
+            false,
+            namespace,
+            &meta_name,
+            typarams,
+            &Some(Supertype::simple("Class")),
+        )?);
         let meta_type = {
             if self.known(&meta_name) {
                 // predefined as bootstrap
@@ -672,9 +688,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             self.sk_types.types.get_mut(&meta_name).unwrap()
         };
-        if let Some(sigs) = self.rust_methods.remove(&meta_name) {
-            class_methods.append_vec(sigs);
-        }
         // Add `.new` to the metaclass
         if let Some(sig) = new_sig {
             if !meta_type
@@ -692,14 +705,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a module and its metaclass to self
     fn add_new_module(
         &mut self,
+        namespace: &Namespace,
         fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
-    ) {
+    ) -> Result<()> {
         // Register a module
         let fullname_ = fullname.to_type_fullname();
+        instance_methods
+            .append_vec(self.transfer_rust_methods(false, namespace, &fullname_, typarams, &None)?);
         let sk_type = {
             if self.known(&fullname_) {
                 // predefined as bootstrap
@@ -714,13 +730,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             self.sk_types.types.get_mut(&fullname_).unwrap()
         };
-        if let Some(sigs) = self.rust_methods.remove(&fullname_) {
-            instance_methods.append_vec(sigs);
-        }
         sk_type.base_mut().method_sigs.append(instance_methods);
 
         // Register its metaclass
         let meta_name = fullname.meta_name().to_type_fullname();
+        class_methods
+            .append_vec(self.transfer_rust_methods(false, namespace, &meta_name, typarams, &None)?);
         let meta_type = {
             if self.known(&meta_name) {
                 // predefined as bootstrap
@@ -745,10 +760,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             self.sk_types.types.get_mut(&meta_name).unwrap()
         };
-        if let Some(sigs) = self.rust_methods.remove(&meta_name) {
-            class_methods.append_vec(sigs);
-        }
         meta_type.base_mut().method_sigs.append(class_methods);
+        Ok(())
     }
 
     /// Checks if the method is virtual and returns the signature.
@@ -868,6 +881,30 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             r.with_label(Label::new(locs_span).with_message("unknown type"))
         });
         Err(error::name_error(&report))
+    }
+
+    fn transfer_rust_methods(
+        &mut self,
+        inheritable: bool,
+        namespace: &Namespace,
+        typename: &TypeFullname,
+        typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
+    ) -> Result<Vec<MethodSignature>> {
+        let v = self.rust_methods.remove(typename).unwrap_or_default();
+        v.into_iter()
+            .map(|sig| {
+                let is_virtual = if inheritable {
+                    true
+                } else if let Some(superclass) = superclass {
+                    self.try_lookup_method(&superclass.to_term_ty(), &sig.name)
+                        .is_some()
+                } else {
+                    false
+                };
+                self.create_signature(namespace, typename.clone(), &sig, typarams, is_virtual)
+            })
+            .collect()
     }
 
     fn known(&self, fullname: &TypeFullname) -> bool {
