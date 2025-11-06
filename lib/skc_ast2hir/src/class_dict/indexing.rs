@@ -179,66 +179,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         )?;
         instance_methods.append_vec(rust_method_sigs);
 
-        let wtable = build_wtable(self, &instance_methods, &includes)?;
-        match self.sk_types.types.get_mut(&fullname.to_type_fullname()) {
-            Some(sk_type) => {
-                // This class is predefined in skc_corelib.
-                // Inject `includes`
-                if let SkType::Class(sk_class) = sk_type {
-                    sk_class.wtable = wtable;
-                    sk_class.includes = includes;
-                    sk_class.is_final = Some(!inheritable);
-                }
-                // Inject instance methods
-                let method_sigs = &mut sk_type.base_mut().method_sigs;
-                method_sigs.append(instance_methods);
-                if let Some(sigs) = self.rust_methods.remove(&fullname.to_type_fullname()) {
-                    method_sigs.append_vec(sigs);
-                }
-                // Inject class methods
-                let metaclass = self
-                    .sk_types
-                    .types
-                    .get_mut(&metaclass_fullname.to_type_fullname())
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "[BUG] metaclass not found: {} <- {}",
-                            fullname, &metaclass_fullname
-                        )
-                    });
-                let meta_method_sigs = &mut metaclass.base_mut().method_sigs;
-                meta_method_sigs.append(class_methods);
-                if let Some(sigs) = self
-                    .rust_methods
-                    .remove(&metaclass_fullname.to_type_fullname())
-                {
-                    meta_method_sigs.append_vec(sigs);
-                }
-                // Inject `.new` to the metaclass
-                if let Some(sig) = new_sig {
-                    if !metaclass
-                        .base()
-                        .method_sigs
-                        .contains_key(&method_firstname("new"))
-                    {
-                        metaclass.base_mut().method_sigs.insert(sig);
-                    }
-                }
-            }
-            None => {
-                self.add_new_class(
-                    &fullname,
-                    &typarams,
-                    superclass,
-                    includes,
-                    new_sig,
-                    instance_methods,
-                    class_methods,
-                    Some(!inheritable),
-                    false,
-                )?;
-            }
-        }
+        self.add_new_class(
+            &fullname,
+            &typarams,
+            superclass,
+            includes,
+            new_sig,
+            instance_methods,
+            class_methods,
+            Some(!inheritable),
+            false,
+        )?;
         Ok(())
     }
 
@@ -319,45 +270,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs, rustlib_items)?;
-        let metaclass_fullname = fullname.meta_name();
 
-        match self.sk_types.types.get_mut(&fullname.to_type_fullname()) {
-            Some(sk_type) => {
-                // This module is predefined in skc_corelib.
-                // Inject instance methods
-                let method_sigs = &mut sk_type.base_mut().method_sigs;
-                method_sigs.append(instance_methods);
-                if let Some(sigs) = self.rust_methods.remove(&fullname.to_type_fullname()) {
-                    method_sigs.append_vec(sigs);
-                }
-                // Inject class methods
-                let metaclass = self
-                    .sk_types
-                    .types
-                    .get_mut(&metaclass_fullname.to_type_fullname())
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "[BUG] metaclass not found: {} <- {}",
-                            fullname, &metaclass_fullname
-                        )
-                    });
-                let meta_method_sigs = &mut metaclass.base_mut().method_sigs;
-                meta_method_sigs.append(class_methods);
-                if let Some(sigs) = self
-                    .rust_methods
-                    .remove(&metaclass_fullname.to_type_fullname())
-                {
-                    meta_method_sigs.append_vec(sigs);
-                }
-            }
-            None => self.add_new_module(
-                &fullname,
-                &typarams,
-                instance_methods,
-                class_methods,
-                requirements,
-            ),
-        }
+        self.add_new_module(
+            &fullname,
+            &typarams,
+            instance_methods,
+            class_methods,
+            requirements,
+        );
         Ok(())
     }
 
@@ -690,56 +610,86 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         is_final: Option<bool>,
         const_is_obj: bool,
     ) -> Result<()> {
-        self.transfer_rust_method_sigs(&fullname.to_type_fullname(), &mut instance_methods);
-
-        // Add `.new` to the metaclass
-        if let Some(sig) = new_sig {
-            class_methods.insert(sig);
+        let fullname_ = fullname.to_type_fullname();
+        let wtable = build_wtable(self, &instance_methods, &includes)?;
+        if let Some(sigs) = self.rust_methods.remove(&fullname_) {
+            instance_methods.append_vec(sigs);
         }
 
-        let wtable = build_wtable(self, &instance_methods, &includes)?;
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta(&fullname.0),
-            typarams: typarams.to_vec(),
-            method_sigs: instance_methods,
-            foreign: false,
+        let sk_type = {
+            if self.known(&fullname_) {
+                // predefined as bootstrap
+            } else {
+                let base = SkTypeBase {
+                    erasure: Erasure::nonmeta(&fullname.0),
+                    typarams: typarams.to_vec(),
+                    method_sigs: Default::default(),
+                    foreign: false,
+                };
+                self.add_type(SkClass {
+                    base,
+                    superclass,
+                    includes: Default::default(),
+                    ivars: HashMap::new(), // will be set when processing `#initialize`
+                    is_final: Default::default(),
+                    const_is_obj,
+                    wtable: Default::default(),
+                });
+            }
+            self.sk_types.types.get_mut(&fullname_).unwrap()
         };
-        self.add_type(SkClass {
-            base,
-            superclass,
-            includes,
-            ivars: HashMap::new(), // will be set when processing `#initialize`
-            is_final,
-            const_is_obj,
-            wtable,
-        });
+        let SkType::Class(sk_class) = sk_type else {
+            unreachable!()
+        };
+        sk_class.wtable = wtable;
+        sk_class.includes = includes;
+        sk_class.is_final = is_final;
+        sk_type.base_mut().method_sigs.append(instance_methods);
 
         // Create metaclass (which is a subclass of `Class`)
-        self.transfer_rust_method_sigs(
-            &fullname.meta_name().to_type_fullname(),
-            &mut class_methods,
-        );
-        let the_class = self.get_class(&class_fullname("Class"));
-        let meta_ivars = the_class.ivars.clone();
-        let base = SkTypeBase {
-            erasure: Erasure::meta(&fullname.0),
-            typarams: typarams.to_vec(),
-            method_sigs: class_methods,
-            foreign: false,
+        let meta_name = fullname.meta_name().to_type_fullname();
+        let meta_type = {
+            if self.known(&meta_name) {
+                // predefined as bootstrap
+            } else {
+                let the_class = self.get_class(&class_fullname("Class"));
+                let meta_ivars = the_class.ivars.clone();
+                let base = SkTypeBase {
+                    erasure: Erasure::meta(&fullname.0),
+                    typarams: typarams.to_vec(),
+                    method_sigs: Default::default(),
+                    foreign: false,
+                };
+                self.add_type(SkClass {
+                    base,
+                    superclass: Some(Supertype::simple("Class")),
+                    includes: Default::default(),
+                    ivars: meta_ivars,
+                    is_final: None,
+                    const_is_obj: false,
+                    wtable: Default::default(),
+                });
+            }
+            self.sk_types.types.get_mut(&meta_name).unwrap()
         };
-        self.add_type(SkClass {
-            base,
-            superclass: Some(Supertype::simple("Class")),
-            includes: Default::default(),
-            ivars: meta_ivars,
-            is_final: None,
-            const_is_obj: false,
-            wtable: Default::default(),
-        });
+        if let Some(sigs) = self.rust_methods.remove(&meta_name) {
+            class_methods.append_vec(sigs);
+        }
+        // Add `.new` to the metaclass
+        if let Some(sig) = new_sig {
+            if !meta_type
+                .base()
+                .method_sigs
+                .contains_key(&method_firstname("new"))
+            {
+                class_methods.insert(sig);
+            }
+        }
+        meta_type.base_mut().method_sigs.append(class_methods);
         Ok(())
     }
 
-    /// Register a module and its metaclass(metamodule?) to self
+    /// Register a module and its metaclass to self
     fn add_new_module(
         &mut self,
         fullname: &ModuleFullname,
@@ -748,37 +698,57 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         mut class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
     ) {
-        self.transfer_rust_method_sigs(&fullname.to_type_fullname(), &mut instance_methods);
-        let base = SkTypeBase {
-            erasure: Erasure::nonmeta(&fullname.0),
-            typarams: typarams.to_vec(),
-            method_sigs: instance_methods,
-            foreign: false,
+        // Register a module
+        let fullname_ = fullname.to_type_fullname();
+        let sk_type = {
+            if self.known(&fullname_) {
+                // predefined as bootstrap
+            } else {
+                let base = SkTypeBase {
+                    erasure: Erasure::nonmeta(&fullname.0),
+                    typarams: typarams.to_vec(),
+                    method_sigs: Default::default(),
+                    foreign: false,
+                };
+                self.add_type(SkModule::new(base, requirements));
+            }
+            self.sk_types.types.get_mut(&fullname_).unwrap()
         };
-        self.add_type(SkModule::new(base, requirements));
+        if let Some(sigs) = self.rust_methods.remove(&fullname_) {
+            instance_methods.append_vec(sigs);
+        }
+        sk_type.base_mut().method_sigs.append(instance_methods);
 
-        // Create metaclass (which is a subclass of `Class`)
-        self.transfer_rust_method_sigs(
-            &fullname.meta_name().to_type_fullname(),
-            &mut class_methods,
-        );
-        let the_class = self.get_class(&class_fullname("Class"));
-        let meta_ivars = the_class.ivars.clone();
-        let base = SkTypeBase {
-            erasure: Erasure::meta(&fullname.0),
-            typarams: typarams.to_vec(),
-            method_sigs: class_methods,
-            foreign: false,
+        // Register its metaclass
+        let meta_name = fullname.meta_name().to_type_fullname();
+        let meta_type = {
+            if self.known(&meta_name) {
+                // predefined as bootstrap
+            } else {
+                let the_class = self.get_class(&class_fullname("Class"));
+                let meta_ivars = the_class.ivars.clone();
+                let base = SkTypeBase {
+                    erasure: Erasure::meta(&fullname.0),
+                    typarams: typarams.to_vec(),
+                    method_sigs: Default::default(),
+                    foreign: false,
+                };
+                self.add_type(SkClass {
+                    base,
+                    superclass: Some(Supertype::simple("Class")),
+                    includes: Default::default(),
+                    ivars: meta_ivars,
+                    is_final: None,
+                    const_is_obj: false,
+                    wtable: Default::default(),
+                });
+            }
+            self.sk_types.types.get_mut(&meta_name).unwrap()
         };
-        self.add_type(SkClass {
-            base,
-            superclass: Some(Supertype::simple("Class")),
-            includes: Default::default(),
-            ivars: meta_ivars,
-            is_final: None,
-            const_is_obj: false,
-            wtable: Default::default(),
-        });
+        if let Some(sigs) = self.rust_methods.remove(&meta_name) {
+            class_methods.append_vec(sigs);
+        }
+        meta_type.base_mut().method_sigs.append(class_methods);
     }
 
     /// Checks if the method is virtual and returns the signature.
@@ -900,14 +870,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Err(error::name_error(&report))
     }
 
-    fn transfer_rust_method_sigs(
-        &mut self,
-        fullname: &TypeFullname,
-        method_sigs: &mut MethodSignatures,
-    ) {
-        if let Some(sigs) = self.rust_methods.remove(fullname) {
-            method_sigs.append_vec(sigs);
-        }
+    fn known(&self, fullname: &TypeFullname) -> bool {
+        self.sk_types.types.contains_key(fullname)
     }
 }
 
