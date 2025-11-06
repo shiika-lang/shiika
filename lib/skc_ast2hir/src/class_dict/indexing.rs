@@ -11,11 +11,11 @@ use skc_hir::method_signature::*;
 use skc_hir::*;
 use std::collections::HashMap;
 
+pub type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool)>>;
+
 /// Used during indexing.
 /// To register Rust methods, the class must be already indexed, but for #initialize, we want
 /// to index it along with the class.
-pub type RustLibItem = (shiika_ast::AstMethodSignature, bool); //bool = is_async
-pub type RustLibItems = HashMap<TypeFullname, Vec<RustLibItem>>;
 
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Register a class or module
@@ -35,7 +35,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn index_program(
         &mut self,
         toplevel_defs: &[&shiika_ast::Definition],
-        mut rustlib_items: RustLibItems,
+        mut rust_methods: RustMethods,
     ) -> Result<()> {
         let namespace = Namespace::root();
         for def in toplevel_defs {
@@ -53,7 +53,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     parse_typarams(typarams),
                     supers,
                     defs,
-                    &mut rustlib_items,
+                    &mut rust_methods,
                 )?,
                 shiika_ast::Definition::ModuleDefinition {
                     name,
@@ -64,7 +64,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     name,
                     parse_typarams(typarams),
                     defs,
-                    &mut rustlib_items,
+                    &mut rust_methods,
                 )?,
                 shiika_ast::Definition::EnumDefinition {
                     name,
@@ -77,7 +77,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     parse_typarams(typarams),
                     cases,
                     defs,
-                    &mut rustlib_items,
+                    &mut rust_methods,
                 )?,
                 shiika_ast::Definition::ConstDefinition { .. } => (),
                 _ => {
@@ -99,7 +99,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: Vec<ty::TyParam>,
         supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<()> {
         let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
@@ -111,7 +111,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             (Some(supercls), includes)
         };
 
-        let rust_method_hir_sigs = rustlib_items
+        let rust_method_hir_sigs = rust_methods
             .remove(&namespace.type_fullname(&firstname.0))
             .unwrap_or_default();
         let rust_method_sigs = rust_method_hir_sigs
@@ -175,7 +175,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &typarams,
             &superclass,
             defs,
-            rustlib_items,
+            rust_methods,
         )?;
         instance_methods.append_vec(rust_method_sigs);
 
@@ -190,6 +190,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods,
             inheritable,
             false,
+            rust_methods,
         )?;
         Ok(())
     }
@@ -265,12 +266,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         firstname: &ModuleFirstname,
         typarams: Vec<ty::TyParam>,
         defs: &[shiika_ast::Definition],
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<()> {
         let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods, requirements) =
-            self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs, rustlib_items)?;
+            self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs, rust_methods)?;
 
         self.add_new_module(
             namespace,
@@ -279,6 +280,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             instance_methods,
             class_methods,
             requirements,
+            rust_methods,
         )?;
         Ok(())
     }
@@ -318,7 +320,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
@@ -329,7 +331,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &typarams,
             &None,
             defs,
-            rustlib_items,
+            rust_methods,
         )?;
         self.add_new_class(
             namespace,
@@ -342,6 +344,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             class_methods,
             false,
             false,
+            rust_methods,
         )?;
         for case in cases {
             self.index_enum_case(namespace, &fullname, &typarams, case)?;
@@ -376,6 +379,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Default::default(),
             false,
             case.params.is_empty(),
+            &mut Default::default(),
         )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
         self.define_ivars(&fullname, ivars);
@@ -411,7 +415,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
         defs: &[shiika_ast::Definition],
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<(MethodSignatures, MethodSignatures)> {
         let (instance_methods, class_methods, _) = self._index_inner_defs(
             inheritable,
@@ -421,7 +425,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             superclass,
             defs,
             false,
-            rustlib_items,
+            rust_methods,
         )?;
         Ok((instance_methods, class_methods))
     }
@@ -432,7 +436,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
         defs: &[shiika_ast::Definition],
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
         self._index_inner_defs(
             false,
@@ -442,7 +446,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &None,
             defs,
             true,
-            rustlib_items,
+            rust_methods,
         )
     }
 
@@ -455,7 +459,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: &Option<Supertype>,
         defs: &[shiika_ast::Definition],
         is_module: bool,
-        rustlib_items: &mut RustLibItems,
+        rust_methods: &mut RustMethods,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
         let mut instance_methods = MethodSignatures::new();
         let mut class_methods = MethodSignatures::new();
@@ -522,7 +526,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         parse_typarams(typarams),
                         supers,
                         defs,
-                        rustlib_items,
+                        rust_methods,
                     )?;
                 }
                 shiika_ast::Definition::ModuleDefinition {
@@ -535,7 +539,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         name,
                         parse_typarams(typarams),
                         defs,
-                        rustlib_items,
+                        rust_methods,
                     )?;
                 }
                 shiika_ast::Definition::MethodRequirementDefinition { sig } => {
@@ -567,7 +571,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         parse_typarams(typarams),
                         cases,
                         defs,
-                        rustlib_items,
+                        rust_methods,
                     )?;
                 }
             }
@@ -614,6 +618,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         mut class_methods: MethodSignatures,
         inheritable: bool,
         const_is_obj: bool,
+        rust_methods: &mut RustMethods,
     ) -> Result<()> {
         let fullname_ = fullname.to_type_fullname();
         instance_methods.append_vec(self.transfer_rust_methods(
@@ -622,6 +627,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &fullname_,
             typarams,
             &superclass,
+            rust_methods,
         )?);
         let wtable = build_wtable(self, &instance_methods, &includes)?;
 
@@ -663,6 +669,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &meta_name,
             typarams,
             &Some(Supertype::simple("Class")),
+            rust_methods,
         )?);
         let meta_type = {
             if self.known(&meta_name) {
@@ -711,11 +718,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
+        rust_methods: &mut RustMethods,
     ) -> Result<()> {
         // Register a module
         let fullname_ = fullname.to_type_fullname();
-        instance_methods
-            .append_vec(self.transfer_rust_methods(false, namespace, &fullname_, typarams, &None)?);
+        instance_methods.append_vec(self.transfer_rust_methods(
+            false,
+            namespace,
+            &fullname_,
+            typarams,
+            &None,
+            rust_methods,
+        )?);
         let sk_type = {
             if self.known(&fullname_) {
                 // predefined as bootstrap
@@ -734,8 +748,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
         // Register its metaclass
         let meta_name = fullname.meta_name().to_type_fullname();
-        class_methods
-            .append_vec(self.transfer_rust_methods(false, namespace, &meta_name, typarams, &None)?);
+        class_methods.append_vec(self.transfer_rust_methods(
+            false,
+            namespace,
+            &meta_name,
+            typarams,
+            &None,
+            rust_methods,
+        )?);
         let meta_type = {
             if self.known(&meta_name) {
                 // predefined as bootstrap
@@ -890,10 +910,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         typename: &TypeFullname,
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
+        rust_methods: &mut RustMethods,
     ) -> Result<Vec<MethodSignature>> {
-        let v = self.rust_methods.remove(typename).unwrap_or_default();
+        let v = rust_methods.remove(typename).unwrap_or_default();
         v.into_iter()
-            .map(|sig| {
+            .map(|(sig, _)| {
                 let is_virtual = if inheritable {
                     true
                 } else if let Some(superclass) = superclass {

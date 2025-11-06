@@ -6,13 +6,11 @@ mod query;
 pub mod type_index;
 use anyhow::Result;
 pub use found_method::{CallType, FoundMethod};
-pub use indexing::RustLibItems;
+pub use indexing::RustMethods;
 use shiika_ast::{self, AstMethodSignature};
 use shiika_core::names::*;
 use skc_hir::*;
 use type_index::TypeIndex;
-
-type RustMethods = HashMap<TypeFullname, Vec<AstMethodSignature>>;
 
 #[derive(Debug)]
 pub struct ClassDict<'hir_maker> {
@@ -24,7 +22,6 @@ pub struct ClassDict<'hir_maker> {
     pub sk_types: SkTypes,
     /// Imported classes (TODO: Rename to `imported_types`)
     pub imported_classes: &'hir_maker SkTypes,
-    rust_methods: RustMethods,
 }
 
 pub fn new<'hir_maker>(
@@ -35,7 +32,6 @@ pub fn new<'hir_maker>(
         type_index,
         sk_types: Default::default(),
         imported_classes,
-        rust_methods: Default::default(),
     }
 }
 
@@ -48,7 +44,6 @@ pub fn create<'hir_maker>(
         type_index,
         sk_types: Default::default(),
         imported_classes,
-        rust_methods: Default::default(),
     };
     dict.index_program(defs, HashMap::new())?;
     Ok(dict)
@@ -64,18 +59,18 @@ pub fn create_for_corelib<'hir_maker>(
         type_index,
         sk_types,
         imported_classes,
-        rust_methods: index_rust_method_sigs(),
     };
-    dict.index_program(defs, HashMap::new())?;
+    dict.index_program(defs, index_rust_method_sigs())?;
     Ok(dict)
 }
 
-fn index_rust_method_sigs() -> RustMethods {
+fn index_rust_method_sigs() -> indexing::RustMethods {
     let mut rust_methods = HashMap::new();
     let ast_sigs = skc_corelib::rustlib_methods::provided_methods();
     for (classname, ast_sig) in ast_sigs {
-        let v: &mut Vec<AstMethodSignature> = rust_methods.entry(classname.into()).or_default();
-        v.push(ast_sig.clone());
+        let v: &mut Vec<(AstMethodSignature, bool)> =
+            rust_methods.entry(classname.into()).or_default();
+        v.push((ast_sig.clone(), true));
     }
     rust_methods
 }

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
 use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
-use skc_ast2hir::class_dict::{ClassDict, RustLibItems};
+use skc_ast2hir::class_dict::{ClassDict, RustMethods};
 use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
@@ -139,7 +139,7 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     Ok(exports)
 }
 
-fn list_rustlib_methods(p: &package::Package) -> Result<RustLibItems> {
+fn list_rustlib_methods(p: &package::Package) -> Result<RustMethods> {
     let mut methods = HashMap::new();
     for exp in p.export_files() {
         for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
