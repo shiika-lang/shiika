@@ -1,4 +1,4 @@
-class Class
+base class Class
   def initialize(@name: String)
   end
 end

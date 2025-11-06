@@ -166,15 +166,18 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
     )]);
 
     // Add `Object` (the only class without superclass)
-    class_dict.add_type(skc_hir::SkClass::nonmeta(
-        SkTypeBase {
-            erasure: Erasure::nonmeta("Object"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        },
-        None,
-    ));
+    class_dict.add_type(
+        skc_hir::SkClass::nonmeta(
+            SkTypeBase {
+                erasure: Erasure::nonmeta("Object"),
+                typarams: Default::default(),
+                method_sigs: MethodSignatures::new(),
+                foreign: false,
+            },
+            None,
+        )
+        .inheritable(true),
+    );
     class_dict.add_type(
         skc_hir::SkClass::meta(SkTypeBase {
             erasure: Erasure::meta("Object"),
@@ -196,6 +199,7 @@ fn bootstrap_classes(class_dict: &mut ClassDict) {
             },
             Some(Supertype::simple("Object")),
         )
+        .inheritable(true)
         .ivars(class_ivars.clone()),
     );
     class_dict.add_type(

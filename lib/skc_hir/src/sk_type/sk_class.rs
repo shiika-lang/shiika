@@ -57,6 +57,11 @@ impl SkClass {
         self
     }
 
+    pub fn inheritable(mut self, x: bool) -> Self {
+        self.inheritable = x;
+        self
+    }
+
     pub fn const_is_obj(mut self, x: bool) -> Self {
         self.const_is_obj = x;
         self
