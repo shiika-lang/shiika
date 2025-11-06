@@ -187,7 +187,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             new_sig,
             instance_methods,
             class_methods,
-            Some(!inheritable),
+            inheritable,
             false,
         )?;
         Ok(())
@@ -218,7 +218,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             ty
                         )));
                     }
-                    if c.is_final.unwrap() {
+                    if !c.inheritable {
                         return Err(error::program_error(&format!(
                             "inheriting {} is not allowed",
                             ty
@@ -337,7 +337,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             None,
             instance_methods,
             class_methods,
-            Some(true),
+            false,
             false,
         )?;
         for case in cases {
@@ -370,7 +370,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(new_sig),
             instance_methods,
             Default::default(),
-            Some(true),
+            false,
             case.params.is_empty(),
         )?;
         let ivars = ivar_list.into_iter().map(|x| (x.name.clone(), x)).collect();
@@ -607,7 +607,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         new_sig: Option<MethodSignature>,
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
-        is_final: Option<bool>,
+        inheritable: bool,
         const_is_obj: bool,
     ) -> Result<()> {
         let fullname_ = fullname.to_type_fullname();
@@ -631,7 +631,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     includes: Default::default(),
                     ivars: HashMap::new(), // will be set when processing `#initialize`
-                    is_final: Default::default(),
+                    inheritable: Default::default(),
                     const_is_obj,
                     wtable: Default::default(),
                 });
@@ -643,7 +643,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         sk_class.wtable = wtable;
         sk_class.includes = includes;
-        sk_class.is_final = is_final;
+        sk_class.inheritable = inheritable;
         sk_type.base_mut().method_sigs.append(instance_methods);
 
         // Create metaclass (which is a subclass of `Class`)
@@ -665,7 +665,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass: Some(Supertype::simple("Class")),
                     includes: Default::default(),
                     ivars: meta_ivars,
-                    is_final: None,
+                    inheritable: false,
                     const_is_obj: false,
                     wtable: Default::default(),
                 });
@@ -738,7 +738,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass: Some(Supertype::simple("Class")),
                     includes: Default::default(),
                     ivars: meta_ivars,
-                    is_final: None,
+                    inheritable: false,
                     const_is_obj: false,
                     wtable: Default::default(),
                 });
