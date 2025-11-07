@@ -60,6 +60,7 @@ fn make_hir_sig(
         typarams: Default::default(),
         asyncness: Asyncness::Unknown,
         is_virtual: false,
+        is_rust: true,
     }
 }
 

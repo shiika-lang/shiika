@@ -20,10 +20,12 @@ pub fn run(
 
     let externs = {
         let mut externs = convert_externs(&uni.imports.sk_types);
-        for method_name in &uni.hir.sk_types.rustlib_methods {
-            externs.push(build_extern(
-                &uni.hir.sk_types.get_sig(method_name).unwrap(),
-            ));
+        for sk_type in uni.hir.sk_types.types.values() {
+            for sig in sk_type.base().method_sigs.iter() {
+                if sig.is_rust {
+                    externs.push(build_extern(sig));
+                }
+            }
         }
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             externs.extend(constants::const_init_externs(total_deps));

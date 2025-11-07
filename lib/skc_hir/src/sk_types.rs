@@ -7,16 +7,11 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct SkTypes {
     pub types: HashMap<TypeFullname, SkType>,
-    /// List of methods that are defined in Rust (= foreign to the main LLVM IR).
-    pub rustlib_methods: Vec<MethodFullname>,
 }
 
 impl SkTypes {
     pub fn new(h: HashMap<TypeFullname, SkType>) -> SkTypes {
-        SkTypes {
-            types: h,
-            rustlib_methods: Vec::new(),
-        }
+        SkTypes { types: h }
     }
 
     pub fn from_iterator(iter: impl Iterator<Item = SkType>) -> SkTypes {
@@ -24,10 +19,7 @@ impl SkTypes {
         iter.for_each(|t| {
             tt.insert(t.fullname(), t);
         });
-        SkTypes {
-            types: tt,
-            rustlib_methods: Vec::new(),
-        }
+        SkTypes { types: tt }
     }
 
     pub fn class_names(&self) -> impl Iterator<Item = ClassFullname> + '_ {
