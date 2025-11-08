@@ -1,3 +1,4 @@
+mod bootstrap_classes;
 pub mod cargo_builder;
 pub mod compiler;
 pub mod exe_builder;
