@@ -256,8 +256,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     /// Returns instance variables of the superclass of `classname`
-    pub fn superclass_ivars(&self, classname: &ClassFullname) -> Option<SkIVars> {
-        self.get_class(classname).superclass.as_ref().map(|scls| {
+    pub fn superclass_ivars(&self, sup: &Option<Supertype>) -> Option<SkIVars> {
+        sup.as_ref().map(|scls| {
             let ty = scls.ty();
             let ivars = &self.get_class(&ty.erasure().to_class_fullname()).ivars;
             ivars

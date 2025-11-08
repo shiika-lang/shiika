@@ -78,7 +78,8 @@ fn index_rust_method_sigs() -> indexing::RustMethods {
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
-        let ivars = self.superclass_ivars(classname).unwrap_or_default();
+        let superclass = &self.get_class(classname).superclass.clone();
+        let ivars = self.superclass_ivars(superclass).unwrap_or_default();
         let class = self.get_class_mut(classname);
         // Disabled consistency check (does not work with the new runtime)
         //if !classname.is_meta() && !class.ivars.is_empty() {

@@ -360,7 +360,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         sig: &AstMethodSignature,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
-        let super_ivars = self.class_dict.superclass_ivars(class_fullname);
+        let superclass = &self.class_dict.get_class(class_fullname).superclass;
+        let super_ivars = self.class_dict.superclass_ivars(superclass);
         self.convert_method_def_(
             &class_fullname.to_type_fullname(),
             sig,

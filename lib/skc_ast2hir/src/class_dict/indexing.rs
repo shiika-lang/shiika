@@ -591,6 +591,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             if self.known(&fullname_) {
                 // predefined as bootstrap
             } else {
+                let ivars = self.superclass_ivars(&c.superclass).unwrap_or_default();
                 let base = SkTypeBase {
                     erasure: Erasure::nonmeta(&c.fullname.0),
                     typarams: c.typarams.clone(),
@@ -601,7 +602,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     base,
                     superclass: c.superclass.clone(),
                     includes: Default::default(),
-                    ivars: HashMap::new(), // will be set when processing `#initialize`
+                    ivars, // may be overridden when processing `#initialize`
                     inheritable: Default::default(),
                     const_is_obj: c.const_is_obj,
                     wtable: Default::default(),
