@@ -437,7 +437,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
                     let hir_sig = self.create_maybe_virtual_signature(
-                        inheritable,
+                        inheritable || is_module,
                         namespace,
                         fullname.clone(),
                         sig,
@@ -685,7 +685,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // Register a module
         let fullname_ = fullname.to_type_fullname();
         instance_methods.append_vec(self.transfer_rust_methods(
-            false,
+            true,
             namespace,
             &fullname_,
             typarams,
@@ -749,7 +749,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Checks if the method is virtual and returns the signature.
     pub fn create_maybe_virtual_signature(
         &self,
-        inheritable: bool,
+        extendable: bool,
         namespace: &Namespace,
         fullname: TypeFullname,
         sig: &shiika_ast::AstMethodSignature,
@@ -757,7 +757,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: &Option<Supertype>,
         is_rust: bool,
     ) -> Result<MethodSignature> {
-        let is_virtual = if inheritable {
+        let is_virtual = if extendable {
             true
         } else if let Some(superclass) = superclass {
             self.try_lookup_method(&superclass.to_term_ty(), &sig.name)
@@ -877,7 +877,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 
     fn transfer_rust_methods(
         &mut self,
-        inheritable: bool,
+        extendable: bool,
         namespace: &Namespace,
         typename: &TypeFullname,
         typarams: &[ty::TyParam],
@@ -888,7 +888,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         v.into_iter()
             .map(|(sig, is_async)| {
                 let mut hir_sig = self.create_maybe_virtual_signature(
-                    inheritable,
+                    extendable,
                     namespace,
                     typename.clone(),
                     &sig,
