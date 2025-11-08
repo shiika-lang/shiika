@@ -142,7 +142,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 instance_methods,
                 class_methods,
                 inheritable,
-                const_is_obj: false,
+                // `Void` is the only non-enum class whose const_is_obj=true
+                const_is_obj: (fullname.0 == "Void"),
+                // `Never` is the only class which cannot have an instance
                 has_new: (fullname.0 != "Never"),
             },
             rust_methods,

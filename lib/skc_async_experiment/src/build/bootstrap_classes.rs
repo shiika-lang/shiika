@@ -16,7 +16,7 @@ pub fn add_to(class_dict: &mut ClassDict) {
         },
     )]);
 
-    // Add `Object` (the only class without superclass)
+    // Add `Object`
     class_dict.add_type(
         skc_hir::SkClass::nonmeta(
             SkTypeBase {
@@ -56,28 +56,6 @@ pub fn add_to(class_dict: &mut ClassDict) {
     class_dict.add_type(
         skc_hir::SkClass::meta(SkTypeBase {
             erasure: Erasure::meta("Class"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        })
-        .ivars(class_ivars.clone()),
-    );
-
-    // Add `Void` (the only non-enum class whose const_is_obj=true)
-    let mut void = skc_hir::SkClass::nonmeta(
-        SkTypeBase {
-            erasure: Erasure::nonmeta("Void"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        },
-        Some(Supertype::simple("Object")),
-    );
-    void.const_is_obj = true;
-    class_dict.add_type(void);
-    class_dict.add_type(
-        skc_hir::SkClass::meta(SkTypeBase {
-            erasure: Erasure::meta("Void"),
             typarams: Default::default(),
             method_sigs: MethodSignatures::new(),
             foreign: false,
