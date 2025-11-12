@@ -1,4 +1,5 @@
 mod collect_allocs;
+mod prepare_asyncness;
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
@@ -10,9 +11,16 @@ use shiika_core::ty;
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
-    uni: build::CompilationUnit,
+    mut uni: build::CompilationUnit,
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
+    log::debug!("Preparing asyncness");
+    prepare_asyncness::run(
+        &mut uni.hir.sk_types,
+        &mut uni.hir.sk_methods,
+        &uni.imports.sk_types,
+    );
+
     log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&uni.hir.sk_types, &uni.imports);
 

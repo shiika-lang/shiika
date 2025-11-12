@@ -81,4 +81,8 @@ impl MethodSignatures {
     pub fn iter(&self) -> impl Iterator<Item = &MethodSignature> {
         self.0.values().map(|(sig, _)| sig)
     }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut MethodSignature> {
+        self.0.values_mut().map(|(sig, _)| sig)
+    }
 }
