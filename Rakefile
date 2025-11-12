@@ -188,9 +188,7 @@ task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
-  cd "packages/core/ext/" do
-    sh "cargo build"
-  end
+  sh "cargo run --bin exp_shiika -- build packages/core"
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
