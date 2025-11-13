@@ -92,7 +92,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             builder,
             i1_type: context.bool_type(),
             i8_type: context.i8_type(),
-            ptr_type: context.i8_type().ptr_type(Default::default()),
+            ptr_type: context.ptr_type(Default::default()),
             i32_type: context.i32_type(),
             i64_type: context.i64_type(),
             f64_type: context.f64_type(),
@@ -240,7 +240,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         .as_global_value()
                         .as_pointer_value();
                     self.builder
-                        .build_bitcast(func, self.ptr_type, "")
+                        .build_bit_cast(func, self.ptr_type, "")
+                        .unwrap()
                         .into_pointer_value()
                 })
                 .collect::<Vec<_>>();
@@ -702,7 +703,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 let ptrptr = self.allocate_llvm_obj(&obj_ty).into_pointer_value();
                 lvar_ptrs.insert(name.to_string(), ptrptr);
             } else {
-                let ptr = self.builder.build_alloca(obj_ty, name);
+                let ptr = self.builder.build_alloca(obj_ty, name).unwrap();
                 lvar_ptrs.insert(name.to_string(), ptr);
             }
         }
@@ -756,7 +757,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 v = last_value.unwrap();
                 incomings.push((&v.0, b));
             }
-            let phi_node = self.builder.build_phi(self.llvm_type(), "methodResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "methodResult")?;
             phi_node.add_incoming(incomings.as_slice());
             self.builder.build_return(Some(&phi_node.as_basic_value()));
         }
@@ -794,15 +795,12 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             } else {
                 // `initialize` is defined in an ancestor class. Bitcast is needed
                 // to pass the obj to the `initialize` func
-                let ances_type = self
-                    .llvm_struct_types
-                    .get(&init_cls_name.to_type_fullname())
-                    .expect("ances_type not found")
-                    .ptr_type(Default::default());
+                let ances_type = self.context.ptr_type(Default::default());
                 SkObj::new(
                     init_cls_name.to_ty(),
                     self.builder
-                        .build_bitcast(obj.clone().0, ances_type, "obj_as_super"),
+                        .build_bit_cast(obj.clone().0, ances_type, "obj_as_super")
+                        .unwrap(),
                 )
             };
             let args = (0..=arity)
@@ -865,6 +863,7 @@ fn inkwell_set_name(val: BasicValueEnum, name: &str) {
         BasicValueEnum::PointerValue(v) => v.set_name(name),
         BasicValueEnum::StructValue(v) => v.set_name(name),
         BasicValueEnum::VectorValue(v) => v.set_name(name),
+        BasicValueEnum::ScalableVectorValue(v) => v.set_name(name),
     }
 }
 

@@ -22,10 +22,10 @@ pub fn create_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let i8ptr = code_gen.unbox_i8ptr(code_gen.get_nth_param(function, 0));
                 let obj_ptr_type = code_gen.llvm_type(&ty::raw("Object")).into_pointer_type();
-                let obj_ptrptr_type = obj_ptr_type.ptr_type(Default::default());
+                let obj_ptrptr_type = code_gen.context.ptr_type(Default::default());
                 let obj_ptr = code_gen
                     .builder
-                    .build_bitcast(i8ptr.0, obj_ptrptr_type, "")
+                    .build_bit_cast(i8ptr.0, obj_ptrptr_type, "").unwrap()
                     .into_pointer_value();
                 let sk_obj = function.get_params()[1];
                 code_gen.builder.build_store(obj_ptr, sk_obj);
@@ -39,10 +39,10 @@ pub fn create_methods() -> Vec<SkMethod> {
             |code_gen, function| {
                 let i8ptr = code_gen.unbox_i8ptr(code_gen.get_nth_param(function, 0));
                 let obj_ptr_type = code_gen.llvm_type(&ty::raw("Object")).into_pointer_type();
-                let obj_ptrptr_type = obj_ptr_type.ptr_type(Default::default());
+                let obj_ptrptr_type = code_gen.context.ptr_type(Default::default());
                 let obj_ptr = code_gen
                     .builder
-                    .build_bitcast(i8ptr.0, obj_ptrptr_type, "")
+                    .build_bit_cast(i8ptr.0, obj_ptrptr_type, "").unwrap()
                     .into_pointer_value();
                 let loaded = code_gen.builder.build_load(obj_ptr, "object");
                 code_gen.builder.build_return(Some(&loaded));

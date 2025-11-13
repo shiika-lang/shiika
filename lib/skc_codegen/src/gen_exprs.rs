@@ -161,7 +161,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>> {
         if let Some(b) = self.gen_expr(ctx, expr)? {
             let i = self.unbox_bool(b);
-            let b2 = self.builder.build_not(i, "b2");
+            let b2 = self.builder.build_not(i, "b2")?;
             Ok(Some(self.box_bool(b2)))
         } else {
             Ok(None)
@@ -191,7 +191,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // AndEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_type(), "AndResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "AndResult")?;
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, more_block_end),
@@ -222,7 +222,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         // OrEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_type(), "OrResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "OrResult")?;
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, else_block_end),
@@ -273,7 +273,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             (None, else_value) => Ok(else_value),
             (then_value, None) => Ok(then_value),
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.llvm_type(), "ifResult");
+                let phi_node = self.builder.build_phi(self.llvm_type(), "ifResult")?;
                 phi_node
                     .add_incoming(&[(&then_val.0, then_block_end), (&else_val.0, else_block_end)]);
                 Ok(Some(SkObj::new(ty.clone(), phi_node.as_basic_value())))
@@ -331,7 +331,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         } else {
             // MatchEnd:
             self.builder.position_at_end(merge_block);
-            let phi_node = self.builder.build_phi(self.llvm_type(), "matchResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "matchResult")?;
             phi_node.add_incoming(
                 incoming_values
                     .iter()
@@ -567,7 +567,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let vtable = VTableRef::of_sk_obj(self, receiver_value, size);
         let func_raw = vtable.get_func(self, *idx);
         self.builder
-            .build_bitcast(func_raw, func_type.ptr_type(Default::default()), "func")
+            .build_bit_cast(func_raw, self.context.ptr_type(Default::default()), "func")
+            .unwrap()
             .into_pointer_value()
     }
 
@@ -629,7 +630,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func_type = self.llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty);
         let func = self
             .builder
-            .build_bitcast(func_ptr, func_type.ptr_type(Default::default()), "as")
+            .build_bit_cast(func_ptr, self.context.ptr_type(Default::default()), "as")
+            .unwrap()
             .into_pointer_value();
 
         let result = self.indirect_method_function_call(
@@ -704,7 +706,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ));
         let func = self
             .builder
-            .build_bitcast(fnptr.0, fnptype, "")
+            .build_bit_cast(fnptr.0, fnptype, "")
+            .unwrap()
             .into_pointer_value();
 
         // Generate function call
@@ -769,14 +772,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
         let llvm_args = arg_values.iter().map(|x| x.0.into()).collect::<Vec<_>>();
-        match self
+        let call_result = self
             .builder
             .build_indirect_call(func_type, function, &llvm_args, "result")
-            .try_as_basic_value()
-            .left()
-        {
-            Some(result_value) => SkObj::new(result_ty, result_value),
-            None => self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void")),
+            .unwrap();
+        if call_result.try_as_basic_value().is_basic() {
+            let result_value: BasicValueEnum = call_result.as_any_value_enum().try_into().unwrap();
+            SkObj::new(result_ty, result_value)
+        } else {
+            self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void"))
         }
     }
 
@@ -837,7 +841,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
         SkObj::new(
             ty.clone(),
-            self.builder.build_load(self.llvm_type(), *ptr, name),
+            self.builder
+                .build_load(self.llvm_type(), *ptr, name)
+                .unwrap(),
         )
     }
 
@@ -906,7 +912,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkObj::new(
             ty.clone(),
             self.builder
-                .build_load(llvm_type, ptr.as_pointer_value(), &name),
+                .build_load(llvm_type, ptr.as_pointer_value(), &name)
+                .unwrap(),
         )
     }
 
@@ -933,7 +940,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
-        let fnptr_i8 = self.builder.build_bitcast(fnptr, self.ptr_type, "");
+        let fnptr_i8 = self
+            .builder
+            .build_bit_cast(fnptr, self.ptr_type, "")
+            .unwrap();
         let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
         let captured = self._gen_lambda_captures(ctx, name, captures);
@@ -1027,7 +1037,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let i8ptr = self.builder.build_bitcast(byte_ary, self.ptr_type, "i8ptr");
+        let i8ptr = self
+            .builder
+            .build_bit_cast(byte_ary, self.ptr_type, "i8ptr")
+            .unwrap();
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
@@ -1058,7 +1071,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let one = self.i1_type.const_int(1, false);
         let istrue = self
             .builder
-            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
+            .unwrap();
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }
@@ -1265,7 +1279,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let v = self.gen_expr(ctx, expr)?.unwrap();
-        let i1 = self.builder.build_is_null(v.0, "omitted");
+        let i1 = self.builder.build_is_null(v.0, "omitted").unwrap();
         Ok(Some(self.box_bool(i1)))
     }
 }

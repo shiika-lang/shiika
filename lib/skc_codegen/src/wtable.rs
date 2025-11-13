@@ -68,7 +68,8 @@ fn load_wtable_const<'a>(
         });
     code_gen
         .builder
-        .build_bitcast(ptr, code_gen.ptr_type, "ary")
+        .build_bit_cast(ptr, code_gen.ptr_type, "ary")
+        .unwrap()
 }
 
 /// Name of llvm constant of a wtable

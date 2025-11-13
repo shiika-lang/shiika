@@ -2,7 +2,7 @@ use crate::values::*;
 use crate::vtable::OpaqueVTableRef;
 use crate::CodeGen;
 use inkwell::types::*;
-use inkwell::values::BasicValue;
+use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
 use shiika_core::{names::*, ty, ty::*};
 use shiika_ffi::{mangle_const, mangle_method};
 
@@ -179,7 +179,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     &idx, &name, &struct_ptr
                 )
             });
-        self.builder.build_load(item_ty, ptr, name)
+        self.builder.build_load(item_ty, ptr, name).unwrap()
     }
 
     /// Set the value the nth element of llvm struct of a Shiika object
@@ -240,6 +240,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkClassObj(
             self.builder
                 .build_load(t, class_obj_addr, "class_obj")
+                .unwrap()
                 .into_pointer_value(),
         )
     }
@@ -274,14 +275,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Call `shiika_malloc`
     pub fn shiika_malloc(&self, size: inkwell::values::IntValue<'run>) -> I8Ptr<'run> {
         let func = self.get_llvm_func(&llvm_func_name("shiika_malloc"));
-        I8Ptr(
-            self.builder
+        I8Ptr({
+            let call_result: BasicValueEnum = self
+                .builder
                 .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
-                .try_as_basic_value()
-                .left()
                 .unwrap()
-                .into_pointer_value(),
-        )
+                .as_any_value_enum()
+                .try_into()
+                .unwrap();
+            call_result.into_pointer_value()
+        })
     }
 
     /// Call llvm function which corresponds to a Shiika method
@@ -312,11 +315,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .module
             .get_function(&func_name.0)
             .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
-        self.builder
-            .build_direct_call(f, args, reg_name)
-            .try_as_basic_value()
-            .left()
-            .unwrap()
+        let call_result = self.builder.build_direct_call(f, args, reg_name).unwrap();
+        call_result.as_any_value_enum().try_into().unwrap()
     }
 
     /// Call llvm function which returns `void`
@@ -349,7 +349,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkObj::new(
             ty.clone(),
             self.builder
-                .build_bitcast(obj.0, self.llvm_type(), reg_name),
+                .build_bit_cast(obj.0, self.llvm_type(), reg_name)
+                .unwrap(),
         )
     }
 

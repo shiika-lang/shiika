@@ -24,7 +24,7 @@ skc_codegen = { path = "lib/skc_codegen/" }
 skc_async_experiment = { path = "lib/skc_async_experiment/" }
 
 anyhow = "1.0"
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
+inkwell = { version = "0.7.0", features = ["llvm18-1"] }
 clap = { version = "4.5.35", features = ["derive"] }
 env_logger = "0.11.7"
 log = "0.4.11"

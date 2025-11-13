@@ -5,7 +5,7 @@ use crate::codegen::{
 use crate::mir;
 use crate::names::FunctionName;
 use inkwell::types::BasicType;
-use inkwell::values::BasicValueEnum;
+use inkwell::values::{AnyValue, BasicValueEnum};
 use shiika_core::ty::TermTy;
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
@@ -145,7 +145,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .unwrap_or_else(|| panic!("global variable `{:?}' not found", name));
         let v = self
             .builder
-            .build_load(self.ptr_type(), g.as_pointer_value(), name);
+            .build_load(self.ptr_type(), g.as_pointer_value(), name)
+            .unwrap();
         Some(v.into())
     }
 
@@ -184,7 +185,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = ctx.lvars.get(name).unwrap();
         let t = self.llvm_type(ty);
-        let v = self.builder.build_load(t, *v, name);
+        let v = self.builder.build_load(t, *v, name).unwrap();
         Some(v)
     }
 
@@ -219,10 +220,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .iter()
             .map(|x| self.compile_value_expr(ctx, x).into())
             .collect::<Vec<_>>();
-        let ret =
+        Some(
             self.builder
-                .build_indirect_call(func_type, func.into_pointer_value(), &args, "result");
-        Some(ret.try_as_basic_value().left().unwrap())
+                .build_indirect_call(func_type, func.into_pointer_value(), &args, "result")
+                .unwrap()
+                .as_any_value_enum()
+                .try_into()
+                .unwrap(),
+        )
     }
 
     fn compile_vtable_ref(
@@ -254,13 +259,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             let idx_val = self.context.i64_type().const_int(idx as u64, false);
             &[receiver_obj.into(), key.into(), idx_val.into()]
         };
-        let func_ptr = self
-            .builder
-            .build_direct_call(lookup_func, args, "wtable_method")
-            .try_as_basic_value()
-            .left()
-            .unwrap();
-        Some(func_ptr)
+        Some(
+            self.builder
+                .build_direct_call(lookup_func, args, "wtable_method")
+                .unwrap()
+                .as_any_value_enum()
+                .try_into()
+                .unwrap(),
+        )
     }
 
     /// Compile a sync if
@@ -306,7 +312,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             (None, else_value) => else_value,
             (then_value, None) => then_value,
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.ptr_type(), "ifResult");
+                let phi_node = self.builder.build_phi(self.ptr_type(), "ifResult").unwrap();
                 phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Some(phi_node.as_basic_value())
             }
@@ -346,7 +352,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         name: &str,
         ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = self.builder.build_alloca(self.llvm_type(ty), name);
+        let v = self.builder.build_alloca(self.llvm_type(ty), name).unwrap();
         ctx.lvars.insert(name.to_string(), v);
         None
     }
@@ -438,6 +444,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                         self.context.i64_type(),
                         "ptr_as_i64",
                     )
+                    .unwrap()
                     .into(),
             },
             mir::CastType::Recover(ty) => match ty {
@@ -446,6 +453,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                 _ => self
                     .builder
                     .build_int_to_ptr(v1.into_int_value(), self.ptr_type(), "recover_i64_to_ptr")
+                    .unwrap()
                     .into(),
             },
         };
@@ -496,7 +504,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let one = self.context.bool_type().const_int(1, false);
         let istrue = self
             .builder
-            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
+            .unwrap();
         self.builder
             .build_conditional_branch(istrue, then_block, else_block);
     }
@@ -521,5 +530,6 @@ fn inkwell_set_name(val: BasicValueEnum, name: &str) {
         BasicValueEnum::PointerValue(v) => v.set_name(name),
         BasicValueEnum::StructValue(v) => v.set_name(name),
         BasicValueEnum::VectorValue(v) => v.set_name(name),
+        BasicValueEnum::ScalableVectorValue(v) => v.set_name(name),
     }
 }

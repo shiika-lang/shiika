@@ -66,6 +66,7 @@ pub fn build_llvm_value_load<'run>(
         });
     gen.builder
         .build_load(item_type, ptr, &format!("load_{}", name))
+        .unwrap()
 }
 
 pub fn build_llvm_value_store<'run>(

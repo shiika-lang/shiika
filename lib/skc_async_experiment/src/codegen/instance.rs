@@ -4,7 +4,7 @@ use crate::codegen::{
     vtable, CodeGen,
 };
 use crate::names::FunctionName;
-use inkwell::values::BasicValue;
+use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
 use shiika_core::names::class_fullname;
 
 /// Number of elements before ivars
@@ -122,10 +122,10 @@ fn shiika_malloc<'run>(
     size: inkwell::values::IntValue<'run>,
 ) -> inkwell::values::PointerValue<'run> {
     let func = gen.get_llvm_func(&FunctionName::mangled("shiika_malloc"));
-    gen.builder
+    let call_result = gen
+        .builder
         .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
-        .try_as_basic_value()
-        .left()
-        .unwrap()
-        .into_pointer_value()
+        .unwrap();
+    let basic_value: BasicValueEnum = call_result.as_any_value_enum().try_into().unwrap();
+    basic_value.into_pointer_value()
 }

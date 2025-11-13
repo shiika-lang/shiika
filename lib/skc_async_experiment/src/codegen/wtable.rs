@@ -110,7 +110,9 @@ fn load_wtable_const<'a>(
             llvm_const_name
         )
     });
-    gen.builder.build_bitcast(ptr, gen.ptr_type(), "ary")
+    gen.builder
+        .build_bit_cast(ptr, gen.ptr_type(), "ary")
+        .unwrap()
 }
 
 /// Name of llvm constant of a wtable
@@ -134,9 +136,11 @@ pub fn get_module_key<'run>(
         .get_global(&const_name)
         .unwrap_or_else(|| panic!("global `{}' not found", const_name));
 
-    gen.builder.build_ptr_to_int(
-        global.as_pointer_value(),
-        gen.context.i64_type(),
-        "const_addr",
-    )
+    gen.builder
+        .build_ptr_to_int(
+            global.as_pointer_value(),
+            gen.context.i64_type(),
+            "const_addr",
+        )
+        .unwrap()
 }

@@ -27,8 +27,11 @@ impl<'run> LambdaCapture<'run> {
             .unwrap()
     }
 
-    pub fn struct_ptr_type<'ictx>(gen: &CodeGen, name: &str) -> inkwell::types::PointerType<'ictx> {
-        Self::get_struct_type(gen, name).ptr_type(Default::default())
+    pub fn struct_ptr_type<'ictx>(
+        gen: &CodeGen<'_, '_, 'ictx>,
+        _name: &str,
+    ) -> inkwell::types::PointerType<'ictx> {
+        gen.context.ptr_type(Default::default())
     }
 
     fn new(
@@ -136,7 +139,7 @@ impl<'run> LambdaCapture<'run> {
                 )
                 .into_pointer_value();
             let pointee_ty = gen.llvm_type().as_basic_type_enum();
-            gen.builder.build_load(pointee_ty, addr, "deref")
+            gen.builder.build_load(pointee_ty, addr, "deref").unwrap()
         } else {
             gen.build_llvm_struct_ref(&self.struct_type(gen), self.to_struct_ptr(), idx, "load")
         };

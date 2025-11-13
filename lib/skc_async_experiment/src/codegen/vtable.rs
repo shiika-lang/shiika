@@ -30,7 +30,8 @@ pub fn define_body(gen: &mut CodeGen, vtables: &skc_mir::VTables, _: item::Metho
                     .as_global_value()
                     .as_pointer_value();
                 gen.builder
-                    .build_bitcast(func, gen.ptr_type(), "")
+                    .build_bit_cast(func, gen.ptr_type(), "")
+                    .unwrap()
                     .into_pointer_value()
             })
             .collect::<Vec<_>>();
@@ -90,6 +91,7 @@ impl<'run> OpaqueVTableRef<'run> {
         let ary_type = gen.ptr_type().array_type(len as u32);
         gen.builder
             .build_load(ary_type, self.ptr.clone(), "vtable")
+            .unwrap()
             .into_array_value()
     }
 }
