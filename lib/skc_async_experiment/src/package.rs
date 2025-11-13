@@ -64,6 +64,7 @@ impl Package {
         self.dir.join("index.sk")
     }
 
+    /// Returns the paths of exports.json5 files of Rust libraries in this package.
     pub fn export_files(&self) -> Vec<PathBuf> {
         let mut v: Vec<PathBuf> = vec![];
         if let Some(libs) = self.spec.rust_libs.as_ref() {

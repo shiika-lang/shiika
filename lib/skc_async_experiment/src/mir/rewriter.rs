@@ -42,6 +42,13 @@ pub trait MirRewriter {
             mir::Expr::VTableRef(receiver, idx, name) => {
                 mir::Expr::vtable_ref(self.walk_expr(*receiver)?, idx, name, expr.1.into_fun_ty())
             }
+            mir::Expr::WTableRef(receiver, module, idx, name) => mir::Expr::wtable_ref(
+                self.walk_expr(*receiver)?,
+                module,
+                idx,
+                name,
+                expr.1.into_fun_ty(),
+            ),
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => mir::Expr::if_(
                 self.walk_expr(*cond_expr)?,
                 self.walk_expr(*then_exprs)?,
@@ -61,14 +68,11 @@ pub trait MirRewriter {
             mir::Expr::Exprs(exprs) => mir::Expr::exprs(self.walk_exprs(exprs)?),
             mir::Expr::Cast(cast_type, expr) => mir::Expr::cast(cast_type, self.walk_expr(*expr)?),
             mir::Expr::CreateObject(_) => expr,
-            mir::Expr::CreateTypeObject(ty, name_expr) => (
-                mir::Expr::CreateTypeObject(ty, Box::new(self.walk_expr(*name_expr)?)),
-                expr.1,
-            ),
+            mir::Expr::CreateTypeObject(_, _) => expr,
             mir::Expr::Unbox(e) => mir::Expr::unbox(self.walk_expr(*e)?),
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
-            mir::Expr::StringRef(_) => expr,
+            mir::Expr::StringLiteral(_) => expr,
         };
         self.rewrite_expr(new_expr)
     }

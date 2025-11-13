@@ -77,7 +77,7 @@ fn set_vtable<'run>(
 }
 
 /// Set `class_obj` to the class object field of `object`
-fn set_class_obj<'run>(
+pub fn set_class_obj<'run>(
     gen: &mut CodeGen<'run, '_>,
     object: &SkObj<'run>,
     class_obj: SkClassObj<'run>,

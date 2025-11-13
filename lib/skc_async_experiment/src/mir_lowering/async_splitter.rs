@@ -177,6 +177,10 @@ impl<'a> Compiler<'a> {
                 let new_receiver = self.compile_value_expr(*receiver, false)?;
                 mir::Expr::vtable_ref(new_receiver, idx, name, e.1.into_fun_ty())
             }
+            mir::Expr::WTableRef(receiver, module, idx, name) => {
+                let new_receiver = self.compile_value_expr(*receiver, false)?;
+                mir::Expr::wtable_ref(new_receiver, module, idx, name, e.1.into_fun_ty())
+            }
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 return self.compile_if(&e.1, *cond_expr, *then_exprs, *else_exprs);
             }
@@ -209,14 +213,8 @@ impl<'a> Compiler<'a> {
                 mir::Expr::cast(cast_type, new_expr)
             }
             mir::Expr::CreateObject(_) => e,
-            mir::Expr::CreateTypeObject(ty, name_expr) => {
-                let new_name_expr = self.compile_value_expr(*name_expr, false)?;
-                (
-                    mir::Expr::CreateTypeObject(ty, Box::new(new_name_expr)),
-                    e.1,
-                )
-            }
-            mir::Expr::StringRef(_) => e,
+            mir::Expr::CreateTypeObject(_, _) => e,
+            mir::Expr::StringLiteral(_) => e,
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
         };
         Ok(Some(new_e))

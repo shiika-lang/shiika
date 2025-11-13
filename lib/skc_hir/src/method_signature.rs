@@ -17,6 +17,9 @@ pub struct MethodSignature {
     /// - Virtual methods are invoked via vtables.
     /// - Virtual methods are always treated as async.
     pub is_virtual: bool,
+    /// True if this method is written in Rust and thus requires
+    /// `declare` in LLVM IR.
+    pub is_rust: bool,
 }
 
 impl fmt::Display for MethodSignature {
@@ -73,6 +76,7 @@ impl MethodSignature {
             typarams: self.typarams.clone(), // eg. Array<T>#map<U>(f: Fn1<T, U>) -> Array<Int>#map<U>(f: Fn1<Int, U>)
             asyncness: self.asyncness.clone(),
             is_virtual: self.is_virtual,
+            is_rust: self.is_rust,
         }
     }
 
@@ -127,6 +131,7 @@ impl MethodSignature {
     /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
         let is_virtual = if self.is_virtual { "is_virtual " } else { "" };
+        let is_rust = if self.is_rust { "is_rust " } else { "" };
         let typarams = self
             .typarams
             .iter()
@@ -140,8 +145,9 @@ impl MethodSignature {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "{}{}<{}>{}({}){}",
+            "{}{}{}<{}>{}({}){}",
             is_virtual,
+            is_rust,
             self.asyncness,
             typarams,
             &self.fullname,
@@ -153,6 +159,7 @@ impl MethodSignature {
     /// nom parser for MethodSignature
     pub fn deserialize(s: &str) -> IResult<&str, MethodSignature> {
         let (s, is_virtual) = nom::combinator::opt(tag("is_virtual "))(s)?;
+        let (s, is_rust) = nom::combinator::opt(tag("is_rust "))(s)?;
         let (s, asyncness) = Asyncness::deserialize(s)?;
         let parse_typarams = nom::multi::separated_list0(tag(","), TyParam::deserialize);
         let (s, typarams) = nom::sequence::delimited(tag("<"), parse_typarams, tag(">"))(s)?;
@@ -172,6 +179,7 @@ impl MethodSignature {
                 typarams,
                 asyncness,
                 is_virtual: is_virtual.is_some(),
+                is_rust: is_rust.is_some(),
             },
         ))
     }
@@ -305,11 +313,12 @@ pub fn signature_of_new(
         typarams,
         asyncness: Asyncness::Unknown,
         is_virtual: false,
+        is_rust: false,
     }
 }
 
 /// Create a signature of a `initialize` method
-pub fn signature_of_initialize(
+pub fn signature_of_enum_initialize(
     class_fullname: &ClassFullname,
     params: Vec<MethodParam>,
 ) -> MethodSignature {
@@ -320,6 +329,7 @@ pub fn signature_of_initialize(
         typarams: vec![],
         asyncness: Asyncness::Unknown,
         is_virtual: false,
+        is_rust: false,
     }
 }
 

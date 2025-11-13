@@ -14,10 +14,8 @@ pub struct SkClass {
     /// Included modules
     pub includes: Vec<Supertype>,
     pub ivars: HashMap<String, SkIVar>,
-    /// true if this class cannot be a explicit superclass.
-    /// None if not applicable (eg. metaclasses cannot be a explicit superclass because there is no
-    /// such syntax)
-    pub is_final: Option<bool>,
+    /// true if this class is declared as base class.
+    pub inheritable: bool,
     /// True if the constant of the class name holds the only instance instead
     /// of the class object. (eg. `Void`, `None`)
     pub const_is_obj: bool,
@@ -32,7 +30,7 @@ impl SkClass {
             superclass,
             includes: Default::default(),
             ivars: Default::default(),
-            is_final: Some(false),
+            inheritable: Default::default(),
             const_is_obj: false,
             wtable: Default::default(),
         }
@@ -44,7 +42,7 @@ impl SkClass {
             superclass: Some(Supertype::simple("Class")),
             includes: Default::default(),
             ivars: Default::default(),
-            is_final: Some(false),
+            inheritable: Default::default(),
             const_is_obj: false,
             wtable: Default::default(),
         }
@@ -54,13 +52,13 @@ impl SkClass {
         self.base.erasure.to_lit_ty()
     }
 
-    pub fn inheritable(&self) -> bool {
-        // TODO: Change metaclass.is_final to true and just use `self.is_final`
-        self.is_final == Some(false) && !self.base.erasure.is_meta
-    }
-
     pub fn ivars(mut self, x: SkIVars) -> Self {
         self.ivars = x;
+        self
+    }
+
+    pub fn inheritable(mut self, x: bool) -> Self {
+        self.inheritable = x;
         self
     }
 

@@ -1,4 +1,6 @@
 mod allocator;
+mod wtable;
+
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ChiikaValue, ContFuture};
 use std::future::{poll_fn, Future};
 use std::pin::Pin;

@@ -48,6 +48,9 @@ pub trait MirVisitor {
             mir::Expr::VTableRef(receiver, _, _) => {
                 self.walk_expr(receiver)?;
             }
+            mir::Expr::WTableRef(receiver, _, _, _) => {
+                self.walk_expr(receiver)?;
+            }
             mir::Expr::If(cond_expr, then_exprs, else_exprs) => {
                 self.walk_expr(cond_expr)?;
                 self.walk_expr(then_exprs)?;
@@ -81,15 +84,13 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::CreateObject(_) => {}
-            mir::Expr::CreateTypeObject(_, expr) => {
-                self.walk_expr(expr)?;
-            }
+            mir::Expr::CreateTypeObject(_, _) => {}
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
             }
             mir::Expr::RawI64(_) => {}
             mir::Expr::Nop => {}
-            mir::Expr::StringRef(_) => {}
+            mir::Expr::StringLiteral(_) => {}
         }
         self.visit_expr(expr)?;
         Ok(())

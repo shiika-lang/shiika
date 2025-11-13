@@ -1,58 +1,64 @@
-use crate::codegen::{instance, llvm_struct, value::SkObj, CodeGen};
-use crate::mir;
+use crate::codegen::{
+    instance, llvm_struct, string_literal,
+    value::{SkClassObj, SkObj},
+    wtable, CodeGen,
+};
 use crate::prelude;
 use shiika_core::ty::TermTy;
 
 pub fn create<'run>(
     gen: &mut CodeGen<'run, '_>,
     the_ty: &TermTy,
-    gen_name: inkwell::values::BasicValueEnum<'run>,
+    includes_modules: bool,
 ) -> SkObj<'run> {
-    // REFACTOR: can we do this in MIR level?
-    // this is implemented in codegen because HirClassLiteral appears on the rhs of const
-    // assignment and mir::async_splitter cannot handle `Exprs` in inner position.
-
     debug_assert!(!the_ty.fullname.is_meta());
+    let type_obj = create_obj(gen, the_ty, includes_modules);
+
     if the_ty.fullname.0 == "Metaclass" {
-        create_the_metaclass(gen, gen_name)
+        // Overwrite .class to achieve `Metaclass.class == Metaclass`.
+        instance::set_class_obj(gen, &type_obj, SkClassObj(type_obj.0));
     } else {
-        create_a_class(gen, the_ty, gen_name)
+        let meta_type_obj = {
+            let o = create_obj(gen, &the_ty.meta_ty(), false); // Assumes metaclass doesn't include
+                                                               // modules
+            let the_metaclass = gen
+                .compile_constref("::Metaclass")
+                .expect("Metaclass class object not found")
+                .into_pointer_value();
+            instance::set_class_obj(gen, &o, SkClassObj(the_metaclass));
+            o
+        };
+        instance::set_class_obj(gen, &type_obj, SkClassObj(meta_type_obj.0));
     }
+
+    type_obj
 }
 
-fn create_the_metaclass<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    gen_name: inkwell::values::BasicValueEnum<'run>,
-) -> SkObj<'run> {
-    // We need a trick here to achieve `Metaclass.class == Metaclass`.
-    let cls_obj = instance::allocate_sk_obj(gen, "Metaclass");
-    instance::build_ivar_store_raw(
-        gen,
-        cls_obj.clone(),
-        &llvm_struct::of_ty(gen, &mir::Ty::raw("Metaclass")),
-        prelude::IDX_CLASS_IVAR_NAME,
-        gen_name,
-        "@name",
-    );
-    //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
-    cls_obj
-}
-
-// Create a type object
-fn create_a_class<'run>(
+/// Create a type object
+fn create_obj<'run>(
     gen: &mut CodeGen<'run, '_>,
     the_ty: &TermTy,
-    gen_name: inkwell::values::BasicValueEnum<'run>,
+    includes_modules: bool,
 ) -> SkObj<'run> {
-    let cls_obj = instance::allocate_sk_obj(gen, "Class");
+    let name_str = string_literal::generate(gen, &the_ty.fullname.0);
+    let cls_obj = instance::allocate_sk_obj(
+        gen,
+        if the_ty.is_metaclass() {
+            "Metaclass"
+        } else {
+            "Class"
+        },
+    );
     instance::build_ivar_store_raw(
         gen,
         cls_obj.clone(),
         &llvm_struct::of_ty(gen, &the_ty.meta_ty().into()),
         prelude::IDX_CLASS_IVAR_NAME,
-        gen_name,
+        name_str,
         "@name",
     );
-    //todo gen.set_class_of_obj(&cls_obj, SkClassObj(cls_obj.0));
+    if includes_modules {
+        wtable::call_inserter(gen, &the_ty.fullname.to_class_fullname(), cls_obj.0.clone());
+    }
     cls_obj
 }

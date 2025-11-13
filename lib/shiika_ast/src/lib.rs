@@ -111,7 +111,7 @@ impl EnumCase {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AstMethodSignature {
     pub name: MethodFirstname,
     pub typarams: Vec<AstTyParam>,

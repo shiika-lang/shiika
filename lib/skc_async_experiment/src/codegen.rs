@@ -10,6 +10,7 @@ mod llvm_struct;
 mod string_literal;
 mod value;
 mod vtable;
+mod wtable;
 use crate::mir;
 use anyhow::{anyhow, Result};
 use std::path::Path;
@@ -31,27 +32,32 @@ pub fn run<P: AsRef<Path>>(
     let module = context.create_module("main");
     let builder = context.create_builder();
 
-    let mut c = CodeGen {
+    let mut gen = CodeGen {
         context: &context,
         module: &module,
         builder: &builder,
         string_id: 0,
     };
-    c.compile_extern_funcs(mir.program.externs);
-    constants::declare_extern_consts(&mut c, mir.imported_constants);
-    constants::declare_const_globals(&mut c, &mir.program.constants);
-    vtable::import(&mut c, &mir.imported_vtables);
-    vtable::define(&mut c, &mir.vtables);
-    llvm_struct::define(&mut c, &mir.program.classes);
-    if is_bin {
-        intrinsics::define(&mut c);
-    }
-    let method_funcs = c.compile_program(mir.program.funcs);
-    vtable::define_body(&mut c, &mir.vtables, method_funcs);
+    gen.compile_extern_funcs(mir.program.externs);
+    constants::declare_extern_consts(&mut gen, mir.imported_constants);
+    let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
+    wtable::declare_constants(&mut gen, &mir.sk_types);
+    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types);
+    vtable::import(&mut gen, &mir.imported_vtables);
+    vtable::define(&mut gen, &mir.vtables);
 
-    c.module.write_bitcode_to_path(bc_path.as_ref());
+    llvm_struct::define(&mut gen, &mir.program.classes);
+    if is_bin {
+        intrinsics::define(&mut gen);
+    }
+
+    let _method_funcs_ = gen.compile_program(mir.program.funcs);
+    wtable::init_constants(&mut gen, &mir.sk_types, _method_funcs_);
+    vtable::define_body(&mut gen, &mir.vtables, _method_funcs_);
+
+    gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {
-        c.module
+        gen.module
             .print_to_file(ll_path)
             .map_err(|llvm_str| anyhow!("{}", llvm_str.to_string()))?;
     }
@@ -79,13 +85,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         self.context.i8_type().ptr_type(Default::default())
     }
 
-    /// Call llvm function (whose return type is not `void`)
+    /// Call llvm function. Returns `None` for void functions.
     fn call_llvm_func(
         &self,
         func_name: &str,
         args: &[inkwell::values::BasicMetadataValueEnum<'run>],
         reg_name: &str,
-    ) -> inkwell::values::BasicValueEnum<'run> {
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let f = self
             .module
             .get_function(&func_name)
@@ -94,7 +100,6 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_direct_call(f, args, reg_name)
             .try_as_basic_value()
             .left()
-            .unwrap()
     }
 
     fn get_llvm_func(&self, name: &FunctionName) -> inkwell::values::FunctionValue<'run> {

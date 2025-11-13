@@ -1,3 +1,4 @@
+use crate::codegen::item;
 use crate::codegen::value::SkObj;
 use crate::codegen::CodeGen;
 use crate::mir;
@@ -12,12 +13,16 @@ pub fn declare_extern_consts(gen: &mut CodeGen, constants: Vec<(ConstFullname, T
     }
 }
 
-pub fn declare_const_globals(gen: &mut CodeGen, consts: &[(ConstFullname, TermTy)]) {
+pub fn declare_const_globals(
+    gen: &mut CodeGen,
+    consts: &[(ConstFullname, TermTy)],
+) -> item::ConstGlobal {
     for (fullname, _) in consts {
         let name = mir::mir_const_name(fullname.clone());
         let global = gen.module.add_global(gen.ptr_type(), None, &name);
         global.set_initializer(&gen.ptr_type().const_null());
     }
+    item::ConstGlobal()
 }
 
 pub fn load<'run>(gen: &mut CodeGen<'run, '_>, name: &ConstFullname) -> SkObj<'run> {

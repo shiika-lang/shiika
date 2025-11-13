@@ -1,6 +1,6 @@
 use crate::codegen::{
     codegen_context::CodeGenContext, instance, intrinsics, item, llvm_struct, string_literal,
-    type_object, value::SkObj, vtable, CodeGen,
+    type_object, value::SkObj, vtable, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
@@ -75,9 +75,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
-            mir::Expr::StringRef(s) => self.compile_string_ref(s),
+            mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
-            mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name),
+            mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
                 self.compile_ivarref(ctx, obj_expr, *idx, name)
             }
@@ -88,13 +88,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
-            mir::Expr::VTableRef(receiver, idx, _name) => {
+            mir::Expr::VTableRef(receiver, idx, _debug_name) => {
                 self.compile_vtable_ref(ctx, receiver, *idx)
+            }
+            mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
+                self.compile_wtable_ref(ctx, receiver, module, *idx)
             }
             mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
             mir::Expr::Spawn(_) => todo!(),
-            mir::Expr::Alloc(name, _ty) => self.compile_alloc(ctx, name),
+            mir::Expr::Alloc(name, ty) => self.compile_alloc(ctx, name, ty),
             mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
             mir::Expr::IVarSet(obj_expr, idx, rhs, name) => {
                 self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)
@@ -104,8 +107,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
-            mir::Expr::CreateTypeObject(the_ty, name_expr) => {
-                self.compile_create_type_object(ctx, the_ty, name_expr)
+            mir::Expr::CreateTypeObject(the_ty, includes_modules) => {
+                self.compile_create_type_object(ctx, the_ty, *includes_modules)
             }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
@@ -117,8 +120,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(intrinsics::box_int(self, n).into())
     }
 
-    fn compile_string_ref(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(string_literal::declare(self, s).into())
+    fn compile_string_literal(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(string_literal::generate(self, s))
     }
 
     fn compile_argref(
@@ -135,7 +138,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(v)
     }
 
-    fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    pub fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let g = self
             .module
             .get_global(name)
@@ -177,11 +180,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
+        ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = ctx.lvars.get(name).unwrap();
-        let t = self.ptr_type();
-        let v = self.builder.build_load(t, *v, name).into_pointer_value();
-        Some(SkObj(v).into())
+        let t = self.llvm_type(ty);
+        let v = self.builder.build_load(t, *v, name);
+        Some(v)
     }
 
     fn compile_ivarref(
@@ -231,6 +235,32 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let vtable = instance::get_vtable(self, &SkObj::from_basic_value_enum(obj));
         let method_ptr = vtable::get_function(self, vtable, idx);
         Some(method_ptr.into())
+    }
+
+    fn compile_wtable_ref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        receiver: &mir::TypedExpr,
+        module: &shiika_core::names::ModuleFullname,
+        idx: usize,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let lookup_func = self
+            .module
+            .get_function("shiika_lookup_wtable")
+            .unwrap_or_else(|| panic!("shiika_lookup_wtable function not found"));
+        let args = {
+            let receiver_obj = self.compile_value_expr(ctx, receiver);
+            let key = wtable::get_module_key(self, module);
+            let idx_val = self.context.i64_type().const_int(idx as u64, false);
+            &[receiver_obj.into(), key.into(), idx_val.into()]
+        };
+        let func_ptr = self
+            .builder
+            .build_direct_call(lookup_func, args, "wtable_method")
+            .try_as_basic_value()
+            .left()
+            .unwrap();
+        Some(func_ptr)
     }
 
     /// Compile a sync if
@@ -314,8 +344,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &self,
         ctx: &mut CodeGenContext<'run>,
         name: &str,
+        ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let v = self.builder.build_alloca(self.ptr_type(), name);
+        let v = self.builder.build_alloca(self.llvm_type(ty), name);
         ctx.lvars.insert(name.to_string(), v);
         None
     }
@@ -431,12 +462,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_create_type_object(
         &mut self,
-        ctx: &mut CodeGenContext<'run>,
+        _ctx: &mut CodeGenContext<'run>,
         the_ty: &TermTy,
-        name_expr: &mir::TypedExpr,
+        includes_modules: bool,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let gen_name = self.compile_value_expr(ctx, name_expr);
-        let type_obj = type_object::create(self, the_ty, gen_name);
+        let type_obj = type_object::create(self, the_ty, includes_modules);
         Some(type_obj.0.into())
     }
 

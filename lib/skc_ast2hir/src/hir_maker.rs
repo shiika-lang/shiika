@@ -360,7 +360,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         sig: &AstMethodSignature,
         body_exprs: &[AstExpression],
     ) -> Result<(SkMethod, SkIVars)> {
-        let super_ivars = self.class_dict.superclass_ivars(class_fullname);
+        let superclass = &self.class_dict.get_class(class_fullname).superclass;
+        let super_ivars = self.class_dict.superclass_ivars(superclass);
         self.convert_method_def_(
             &class_fullname.to_type_fullname(),
             sig,
@@ -388,7 +389,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 "sorry, #initialize cannot have default expr (yet.)",
             ));
         }
-        Ok(SkMethod::simple(found.sig, new_body))
+        Ok(SkMethod::simple(found.sig.fullname.clone(), new_body))
     }
 
     /// Find actual `initialize` func to call from `.new`
@@ -484,7 +485,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs)?;
 
         let method = SkMethod {
-            signature,
+            fullname: signature.fullname.clone(),
             body: SkMethodBody::Normal { exprs: hir_exprs },
             lvars,
         };
@@ -572,7 +573,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ));
         }
         let initialize = SkMethod::simple(
-            signature,
+            signature.fullname.clone(),
             SkMethodBody::Normal {
                 exprs: Hir::expressions(exprs),
             },

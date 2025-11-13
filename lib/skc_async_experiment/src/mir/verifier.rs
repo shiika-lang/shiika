@@ -137,6 +137,10 @@ impl<'a> Verifier<'a> {
                     );
                 }
             }
+            mir::Expr::WTableRef(receiver_expr, _module, _idx, _debug_name) => {
+                // TODO: Implement wtable verification similar to vtable
+                self.verify_expr(f, receiver_expr)?;
+            }
             mir::Expr::If(cond, then, els) => {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, then)?;
@@ -192,7 +196,7 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
-            mir::Expr::StringRef(_) => (),
+            mir::Expr::StringLiteral(_) => (),
             mir::Expr::EnvRef(_, _) => (),
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;

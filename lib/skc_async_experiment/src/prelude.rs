@@ -17,6 +17,14 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         ("GC_init", FunTy::lowered(vec![], Ty::raw("Void"))),
         ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Ptr)),
         (
+            "shiika_lookup_wtable",
+            FunTy::lowered(vec![Ty::Ptr, Ty::Int64, Ty::Int64], Ty::Ptr),
+        ),
+        (
+            "shiika_insert_wtable",
+            FunTy::lowered(vec![Ty::Ptr, Ty::Int64, Ty::Ptr, Ty::Int64], Ty::Ptr),
+        ),
+        (
             "chiika_env_push_frame",
             FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::raw("Void")),
         ),

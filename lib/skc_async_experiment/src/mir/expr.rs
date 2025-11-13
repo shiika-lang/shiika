@@ -1,6 +1,7 @@
 use crate::mir::FunctionName;
-use crate::mir::{Asyncness, FunTy, Ty};
+use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
+use shiika_core::names::ModuleFullname;
 use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
@@ -10,7 +11,7 @@ pub type TypedExpr = Typed<Expr>;
 pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
-    StringRef(String),
+    StringLiteral(String),
     LVarRef(String),
     IVarRef(Box<Typed<Expr>>, usize, String), // (obj, index, debug_name)
     ArgRef(usize, String),                    // (index, debug_name)
@@ -20,7 +21,7 @@ pub enum Expr {
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
-    // WTableRef(String, usize),
+    WTableRef(Box<Typed<Expr>>, ModuleFullname, usize, String), // (receiver, module, index, debug_name)
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
@@ -32,7 +33,7 @@ pub enum Expr {
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
-    CreateTypeObject(TermTy, Box<Typed<Expr>>), // (ty, name_expr)
+    CreateTypeObject(TermTy, bool), // (ty, includes_modules)
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -79,8 +80,8 @@ impl Expr {
         (Expr::PseudoVar(var), ty)
     }
 
-    pub fn string_ref(s: impl Into<String>) -> TypedExpr {
-        (Expr::StringRef(s.into()), Ty::Ptr)
+    pub fn string_literal(s: impl Into<String>) -> TypedExpr {
+        (Expr::StringLiteral(s.into()), Ty::raw("String"))
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -127,6 +128,19 @@ impl Expr {
     ) -> TypedExpr {
         (
             Expr::VTableRef(Box::new(receiver), idx, name.into()),
+            fun_ty.into(),
+        )
+    }
+
+    pub fn wtable_ref(
+        receiver: TypedExpr,
+        module: ModuleFullname,
+        idx: usize,
+        name: impl Into<String>,
+        fun_ty: FunTy,
+    ) -> TypedExpr {
+        (
+            Expr::WTableRef(Box::new(receiver), module, idx, name.into()),
             fun_ty.into(),
         )
     }
@@ -221,29 +235,9 @@ impl Expr {
         )
     }
 
-    pub fn create_type_object(ty: TermTy) -> TypedExpr {
-        let type_name = &ty.fullname.0;
-        let fun_call_expr = {
-            let string_new = Expr::func_ref(
-                FunctionName::method("Meta:String", "new"),
-                FunTy {
-                    asyncness: Asyncness::Unknown,
-                    param_tys: vec![Ty::raw("Meta:String"), Ty::Ptr, Ty::Int64],
-                    ret_ty: Box::new(Ty::raw("String")),
-                },
-            );
-            let bytesize = type_name.len() as i64;
-            Expr::fun_call(
-                string_new,
-                vec![
-                    Expr::const_ref("::String", Ty::raw("Meta:String")),
-                    Expr::string_ref(type_name),
-                    Expr::raw_i64(bytesize),
-                ],
-            )
-        };
+    pub fn create_type_object(ty: TermTy, includes_modules: bool) -> TypedExpr {
         (
-            Expr::CreateTypeObject(ty.clone(), Box::new(fun_call_expr)),
+            Expr::CreateTypeObject(ty.clone(), includes_modules),
             ty.meta_ty().into(),
         )
     }
@@ -320,6 +314,15 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 name
             )
         }
+        Expr::WTableRef(receiver, module, idx, name) => {
+            format!(
+                "%WTableRef({}, {}, {}, {})",
+                receiver.0.pretty_print(0, false),
+                module,
+                idx,
+                name
+            )
+        }
         Expr::If(cond, then, else_) => {
             format!("if {}\n", cond.0.pretty_print(0, false))
                 + then.0.pretty_print(lv + 1, true).as_str()
@@ -363,13 +366,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             }
         }
         Expr::CreateObject(name) => format!("%CreateObject('{}')", name),
-        Expr::CreateTypeObject(_, name) => {
-            format!("%CreateTypeObject({})", pretty_print(&name.0, lv, false))
+        Expr::CreateTypeObject(ty, includes_modules) => {
+            format!("%CreateTypeObject({}, {})", ty.fullname.0, includes_modules)
         }
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
-        Expr::StringRef(s) => format!("\"{}\"", s),
+        Expr::StringLiteral(s) => format!("\"{}\"", s),
         //_ => todo!("{:?}", self),
     };
     if indent {

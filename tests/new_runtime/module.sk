@@ -1,0 +1,13 @@
+module M
+  requirement foo -> Int
+end
+class A : M
+  def foo -> Int
+    42
+  end
+
+  def self.bar -> M
+    A.new
+  end
+end
+print A.bar.foo

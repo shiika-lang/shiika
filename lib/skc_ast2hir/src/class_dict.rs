@@ -6,14 +6,13 @@ mod query;
 pub mod type_index;
 use anyhow::Result;
 pub use found_method::{CallType, FoundMethod};
-use shiika_ast;
+pub use indexing::RustMethods;
+use shiika_ast::{self, AstMethodSignature};
 use shiika_core::names::*;
 use skc_hir::*;
 use type_index::TypeIndex;
 
-type RustMethods = HashMap<TypeFullname, Vec<MethodSignature>>;
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct ClassDict<'hir_maker> {
     /// List of classes (without method) collected prior to sk_types
     type_index: type_index::TypeIndex,
@@ -23,7 +22,6 @@ pub struct ClassDict<'hir_maker> {
     pub sk_types: SkTypes,
     /// Imported classes (TODO: Rename to `imported_types`)
     pub imported_classes: &'hir_maker SkTypes,
-    rust_methods: RustMethods,
 }
 
 pub fn new<'hir_maker>(
@@ -34,7 +32,6 @@ pub fn new<'hir_maker>(
         type_index,
         sk_types: Default::default(),
         imported_classes,
-        rust_methods: Default::default(),
     }
 }
 
@@ -47,9 +44,8 @@ pub fn create<'hir_maker>(
         type_index,
         sk_types: Default::default(),
         imported_classes,
-        rust_methods: Default::default(),
     };
-    dict.index_program(defs)?;
+    dict.index_program(defs, HashMap::new())?;
     Ok(dict)
 }
 
@@ -58,24 +54,23 @@ pub fn create_for_corelib<'hir_maker>(
     imported_classes: &'hir_maker SkTypes,
     sk_types: SkTypes,
     type_index: TypeIndex,
-    rust_method_sigs: &[MethodSignature],
 ) -> Result<ClassDict<'hir_maker>> {
     let mut dict = ClassDict {
         type_index,
         sk_types,
         imported_classes,
-        rust_methods: index_rust_method_sigs(rust_method_sigs),
     };
-    dict.index_program(defs)?;
+    dict.index_program(defs, index_rust_method_sigs())?;
     Ok(dict)
 }
 
-fn index_rust_method_sigs(rust_method_sigs: &[MethodSignature]) -> RustMethods {
+fn index_rust_method_sigs() -> indexing::RustMethods {
     let mut rust_methods = HashMap::new();
-    for sig in rust_method_sigs {
-        let typename = sig.fullname.type_name.clone();
-        let v: &mut Vec<MethodSignature> = rust_methods.entry(typename).or_default();
-        v.push(sig.clone());
+    let ast_sigs = skc_corelib::rustlib_methods::provided_methods();
+    for (classname, ast_sig) in ast_sigs {
+        let v: &mut Vec<(AstMethodSignature, bool)> =
+            rust_methods.entry(classname.into()).or_default();
+        v.push((ast_sig.clone(), true));
     }
     rust_methods
 }
@@ -83,7 +78,8 @@ fn index_rust_method_sigs(rust_method_sigs: &[MethodSignature]) -> RustMethods {
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
-        let ivars = self.superclass_ivars(classname).unwrap_or_default();
+        let superclass = &self.get_class(classname).superclass.clone();
+        let ivars = self.superclass_ivars(superclass).unwrap_or_default();
         let class = self.get_class_mut(classname);
         // Disabled consistency check (does not work with the new runtime)
         //if !classname.is_meta() && !class.ivars.is_empty() {

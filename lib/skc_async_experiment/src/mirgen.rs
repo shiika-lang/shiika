@@ -1,4 +1,5 @@
 mod collect_allocs;
+mod prepare_asyncness;
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
@@ -10,9 +11,16 @@ use shiika_core::ty;
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
-    uni: build::CompilationUnit,
+    mut uni: build::CompilationUnit,
     target: &build::CompileTarget,
 ) -> Result<mir::CompilationUnit> {
+    log::debug!("Preparing asyncness");
+    prepare_asyncness::run(
+        &mut uni.hir.sk_types,
+        &mut uni.hir.sk_methods,
+        &uni.imports.sk_types,
+    );
+
     log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&uni.hir.sk_types, &uni.imports);
 
@@ -20,10 +28,12 @@ pub fn run(
 
     let externs = {
         let mut externs = convert_externs(&uni.imports.sk_types);
-        for method_name in &uni.hir.sk_types.rustlib_methods {
-            externs.push(build_extern(
-                &uni.hir.sk_types.get_sig(method_name).unwrap(),
-            ));
+        for sk_type in uni.hir.sk_types.types.values() {
+            for sig in sk_type.base().method_sigs.iter() {
+                if sig.is_rust {
+                    externs.push(build_extern(sig));
+                }
+            }
         }
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             externs.extend(constants::const_init_externs(total_deps));
@@ -41,8 +51,9 @@ pub fn run(
 
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {
-                log::debug!("Converting method: {}", &m.signature);
-                funcs.push(c.convert_method(m));
+                let signature = uni.hir.sk_types.get_sig(&m.fullname).unwrap();
+                log::debug!("Converting method: {}", signature);
+                funcs.push(c.convert_method(m, &uni.hir.sk_types));
             }
         }
 
@@ -52,7 +63,7 @@ pub fn run(
             };
             (fullname, c.convert_expr(*rhs))
         });
-        funcs.push(constants::create_const_init_func(
+        funcs.extend(constants::create_const_init_funcs(
             uni.package_name.as_ref(),
             consts.collect(),
         ));
@@ -95,7 +106,8 @@ struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn convert_method(&self, method: SkMethod) -> mir::Function {
+    fn convert_method(&self, method: SkMethod, sk_types: &SkTypes) -> mir::Function {
+        let signature = sk_types.get_sig(&method.fullname).unwrap();
         let orig_params = if let SkMethodBody::New { initializer, .. } = &method.body {
             // REFACTOR: method.signature.params should be available for this case too
             if let Some(ini) = initializer {
@@ -104,7 +116,7 @@ impl<'a> Compiler<'a> {
                 vec![]
             }
         } else {
-            method.signature.params.clone()
+            signature.params.clone()
         };
         let mut params = orig_params
             .into_iter()
@@ -113,7 +125,7 @@ impl<'a> Compiler<'a> {
         params.insert(
             0,
             mir::Param {
-                ty: convert_ty(method.signature.receiver_ty()),
+                ty: convert_ty(signature.receiver_ty()),
                 name: "self".to_string(),
             },
         );
@@ -121,12 +133,12 @@ impl<'a> Compiler<'a> {
         let allocs = collect_allocs::run(&body_stmts);
         let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
-            asyncness: method.signature.asyncness.clone().into(),
-            name: method.signature.fullname.clone().into(),
+            asyncness: signature.asyncness.clone().into(),
+            name: method.fullname.clone().into(),
             params,
-            ret_ty: convert_ty(method.signature.ret_ty.clone()),
+            ret_ty: convert_ty(signature.ret_ty.clone()),
             body_stmts,
-            sig: Some(method.signature),
+            sig: Some(signature.clone()),
         }
     }
 
@@ -199,8 +211,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::pseudo_var(b, mir::Ty::Raw("Bool".to_string()))
             }
             HirExpressionBase::HirStringLiteral { idx } => {
-                // REFACTOR: embed string directly
-                call_string_new(self.str_literals[idx].clone())
+                mir::Expr::string_literal(self.str_literals[idx].clone())
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
             HirExpressionBase::HirFloatLiteral { value } => {
@@ -294,8 +305,44 @@ impl<'a> Compiler<'a> {
 
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
-            HirExpressionBase::HirModuleMethodCall { method_name, .. } => {
-                todo!("Handle module method call: {:?}", method_name)
+            HirExpressionBase::HirModuleMethodCall {
+                receiver_expr,
+                module_fullname,
+                method_name,
+                method_idx,
+                arg_exprs,
+                ..
+            } => {
+                let receiver_ty = receiver_expr.ty.clone();
+                let mir_receiver = self.convert_expr(*receiver_expr);
+
+                let func_ref = {
+                    let fun_ty = {
+                        let mut param_tys = arg_exprs
+                            .iter()
+                            .map(|e| e.ty.clone().into())
+                            .collect::<Vec<_>>();
+                        param_tys.insert(0, convert_ty(receiver_ty));
+                        mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
+                    };
+
+                    mir::Expr::wtable_ref(
+                        mir_receiver.clone(),
+                        module_fullname.clone(),
+                        method_idx,
+                        method_name.0.clone(),
+                        fun_ty,
+                    )
+                };
+
+                let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
+                    .into_iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect();
+                mir_args.insert(0, mir_receiver);
+
+                let result_ty = convert_ty(expr.ty.clone());
+                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
             HirExpressionBase::HirLambdaInvocation { .. } => {
                 todo!("Handle lambda invocation")
@@ -349,9 +396,11 @@ impl<'a> Compiler<'a> {
                 mir::expr::CastType::Force(expr.ty.into()),
                 self.convert_expr(*e),
             ),
-            HirExpressionBase::HirClassLiteral { fullname, .. } => {
-                mir::Expr::create_type_object(fullname.to_ty())
-            }
+            HirExpressionBase::HirClassLiteral {
+                fullname,
+                includes_modules,
+                ..
+            } => mir::Expr::create_type_object(fullname.to_ty(), includes_modules),
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 let mir_exprs = exprs
                     .into_iter()
@@ -394,10 +443,16 @@ impl<'a> Compiler<'a> {
                     .enumerate()
                     .map(|(i, param)| mir::Expr::arg_ref(i + 1, param.name, param.ty.into()))
                     .collect();
-                args.insert(
-                    0,
-                    mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into()),
-                );
+                let receiver = {
+                    let mut r =
+                        mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into());
+                    let defined_type = ini_sig.fullname.type_name.clone();
+                    if instance_ty.fullname != defined_type {
+                        r = mir::Expr::cast(mir::CastType::Upcast(defined_type.to_ty().into()), r);
+                    }
+                    r
+                };
+                args.insert(0, receiver);
                 let ini_func =
                     mir::Expr::func_ref(ini_sig.fullname.clone().into(), build_fun_ty(&ini_sig));
                 mir::Expr::fun_call(ini_func, args)
@@ -540,25 +595,5 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
         sig.asyncness.clone().into(),
         param_tys,
         convert_ty(sig.ret_ty.clone()),
-    )
-}
-
-fn call_string_new(s: String) -> mir::TypedExpr {
-    let string_new = mir::Expr::func_ref(
-        FunctionName::method("Meta:String", "new"),
-        mir::FunTy {
-            asyncness: mir::Asyncness::Unknown,
-            param_tys: vec![mir::Ty::raw("Meta:String"), mir::Ty::Ptr, mir::Ty::Int64],
-            ret_ty: Box::new(mir::Ty::raw("String")),
-        },
-    );
-    let bytesize = s.len() as i64;
-    mir::Expr::fun_call(
-        string_new,
-        vec![
-            mir::Expr::const_ref("::String", mir::Ty::raw("Meta:String")),
-            mir::Expr::string_ref(s),
-            mir::Expr::raw_i64(bytesize),
-        ],
     )
 }

@@ -22,4 +22,10 @@ impl SkString {
             (*self.0).value = Box::into_raw(Box::new(bytes));
         }
     }
+
+    /// Returns &str
+    /// Panics if the content is invalid as utf-8
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(self.value()).unwrap()
+    }
 }

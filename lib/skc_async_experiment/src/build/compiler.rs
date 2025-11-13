@@ -1,11 +1,9 @@
-use crate::build::{self, loader, CompileTarget};
+use crate::build::{self, bootstrap_classes, loader, CompileTarget};
 use crate::{cli, codegen, mir, mir_lowering, mirgen, package, prelude};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
-use shiika_core::ty::{self, Erasure};
 use shiika_parser::SourceFile;
-use skc_ast2hir::class_dict::ClassDict;
-use skc_hir::{MethodSignatures, SkTypeBase, Supertype};
+use skc_ast2hir::class_dict::RustMethods;
 use skc_mir::LibraryExports;
 use std::collections::HashMap;
 use std::fs;
@@ -103,12 +101,14 @@ fn generate_hir(
             skc_ast2hir::type_index::create(&defs, &Default::default(), &imports.sk_types);
         let mut class_dict = skc_ast2hir::class_dict::new(type_index, &imports.sk_types);
         if target.is_core_package() {
-            bootstrap_classes(&mut class_dict);
+            bootstrap_classes::add_to(&mut class_dict);
         }
-        class_dict.index_program(&defs)?;
-        if let Some(pkg) = target.package() {
-            merge_rustlib_methods(&mut class_dict, pkg)?;
-        }
+        let rustlib_methods = if let Some(pkg) = target.package() {
+            list_rustlib_methods(pkg)?
+        } else {
+            Default::default()
+        };
+        class_dict.index_program(&defs, rustlib_methods)?;
         class_dict
     };
 
@@ -137,122 +137,17 @@ fn load_exports_json(path: &Path) -> Result<LibraryExports> {
     Ok(exports)
 }
 
-/// Insert signatures in exports.json5 (methods written in Rust) into SkTypes.
-fn merge_rustlib_methods(class_dict: &mut ClassDict, p: &package::Package) -> Result<()> {
+fn list_rustlib_methods(p: &package::Package) -> Result<RustMethods> {
+    let mut methods = HashMap::new();
     for exp in p.export_files() {
         for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
-            let sk_type = class_dict
-                .sk_types
-                .get_type(&type_fullname(&type_name))
-                .ok_or_else(|| anyhow::anyhow!("Type {} not found", type_name))?;
-            let (inheritable, superclass) = if let skc_hir::SkType::Class(sk_class) = sk_type {
-                (
-                    sk_class.is_final == Some(false),
-                    sk_class.superclass.clone(),
-                )
-            } else {
-                (false, None)
-            };
-            let ast_sig = shiika_parser::Parser::parse_signature(&sig_str)?;
-
-            let mut sig = class_dict.create_maybe_virtual_signature(
-                inheritable,
-                &sk_type.base().erasure.namespace(),
-                sk_type.fullname(),
-                &ast_sig,
-                &sk_type.base().typarams,
-                &superclass,
-            )?;
-            sig.asyncness = if is_async {
-                skc_hir::Asyncness::Async
-            } else {
-                skc_hir::Asyncness::Sync
-            };
-            class_dict
-                .sk_types
-                .rustlib_methods
-                .push(sig.fullname.clone());
-            class_dict
-                .sk_types
-                .define_method(&type_fullname(type_name), sig);
+            let tname = type_fullname(&type_name);
+            let sig = shiika_parser::Parser::parse_signature(&sig_str)?;
+            if !methods.contains_key(&tname) {
+                methods.insert(tname.clone(), vec![]);
+            }
+            methods.get_mut(&tname).unwrap().push((sig, is_async));
         }
     }
-    Ok(())
-}
-
-fn bootstrap_classes(class_dict: &mut ClassDict) {
-    let class_ivars = HashMap::from([(
-        "name".to_string(),
-        skc_hir::SkIVar {
-            name: "name".to_string(),
-            ty: ty::raw("String"),
-            idx: 0,
-            readonly: true,
-        },
-    )]);
-
-    // Add `Object` (the only class without superclass)
-    class_dict.add_type(skc_hir::SkClass::nonmeta(
-        SkTypeBase {
-            erasure: Erasure::nonmeta("Object"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        },
-        None,
-    ));
-    class_dict.add_type(
-        skc_hir::SkClass::meta(SkTypeBase {
-            erasure: Erasure::meta("Object"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        })
-        .ivars(class_ivars.clone()),
-    );
-
-    // Add `Class`
-    class_dict.add_type(
-        skc_hir::SkClass::nonmeta(
-            SkTypeBase {
-                erasure: Erasure::nonmeta("Class"),
-                typarams: Default::default(),
-                method_sigs: MethodSignatures::new(),
-                foreign: false,
-            },
-            Some(Supertype::simple("Object")),
-        )
-        .ivars(class_ivars.clone()),
-    );
-    class_dict.add_type(
-        skc_hir::SkClass::meta(SkTypeBase {
-            erasure: Erasure::meta("Class"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        })
-        .ivars(class_ivars.clone()),
-    );
-
-    // Add `Void` (the only non-enum class whose const_is_obj=true)
-    let mut void = skc_hir::SkClass::nonmeta(
-        SkTypeBase {
-            erasure: Erasure::nonmeta("Void"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        },
-        Some(Supertype::simple("Object")),
-    );
-    void.const_is_obj = true;
-    class_dict.add_type(void);
-    class_dict.add_type(
-        skc_hir::SkClass::meta(SkTypeBase {
-            erasure: Erasure::meta("Void"),
-            typarams: Default::default(),
-            method_sigs: MethodSignatures::new(),
-            foreign: false,
-        })
-        .ivars(class_ivars.clone()),
-    );
+    Ok(methods)
 }
