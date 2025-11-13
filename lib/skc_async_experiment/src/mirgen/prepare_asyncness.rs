@@ -4,7 +4,7 @@ use skc_hir::{SkMethods, SkTypes};
 /// - Methods of base classes
 /// - Methods of modules
 /// - Methods that override inherited methods
-pub fn run(sk_types: &mut SkTypes, sk_methods: &mut SkMethods, imported_types: &SkTypes) {
+pub fn run(sk_types: &mut SkTypes, _sk_methods: &mut SkMethods, imported_types: &SkTypes) {
     // Buffer changes to avoid borrow checker issues
     let mut fix_types = vec![];
     let mut fix_methods = vec![];
@@ -75,23 +75,5 @@ pub fn run(sk_types: &mut SkTypes, sk_methods: &mut SkMethods, imported_types: &
         let sk_type = sk_types.types.get_mut(type_fullname).unwrap();
         let (sig, _) = sk_type.base_mut().method_sigs.get_mut(method_name).unwrap();
         sig.asyncness = skc_hir::Asyncness::Async;
-    }
-
-    // Also update asyncness in sk_methods
-    for type_fullname in &fix_types {
-        if let Some(methods) = sk_methods.get_mut(type_fullname) {
-            for method in methods {
-                method.signature.asyncness = skc_hir::Asyncness::Async;
-            }
-        }
-    }
-    for (type_fullname, method_name) in &fix_methods {
-        if let Some(methods) = sk_methods.get_mut(type_fullname) {
-            for method in methods {
-                if &method.signature.fullname.first_name == method_name {
-                    method.signature.asyncness = skc_hir::Asyncness::Async;
-                }
-            }
-        }
     }
 }

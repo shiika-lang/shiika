@@ -114,11 +114,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_string_literals(&hir.str_literals);
         self.gen_constant_ptrs(&hir.constants);
         self.gen_boxing_funcs();
-        self.gen_method_funcs(&hir.sk_methods);
+        self.gen_method_funcs(&hir.sk_methods, &hir.sk_types);
         self.gen_vtables();
         self.gen_wtables(&hir.sk_types);
         self.gen_insert_wtables(&hir.sk_types);
-        self.gen_methods(&hir.sk_methods)?;
+        self.gen_methods(&hir.sk_methods, &hir.sk_types)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
             self.gen_init_constants(&hir.const_inits, true);
@@ -498,12 +498,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Create inkwell functions
-    fn gen_method_funcs(&self, methods: &HashMap<TypeFullname, Vec<SkMethod>>) {
+    fn gen_method_funcs(&self, methods: &HashMap<TypeFullname, Vec<SkMethod>>, sk_types: &SkTypes) {
         methods.iter().for_each(|(tname, sk_methods)| {
             sk_methods.iter().for_each(|method| {
                 let self_ty = tname.to_ty();
-                let func_type = self.method_llvm_func_type(&self_ty, &method.signature);
-                let func_name = method_func_name(&method.signature.fullname);
+                let signature = sk_types.get_sig(&method.fullname).unwrap();
+                let func_type = self.method_llvm_func_type(&self_ty, signature);
+                let func_name = method_func_name(&method.fullname);
                 self.module.add_function(&func_name.0, func_type, None);
             })
         })
@@ -555,27 +556,32 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         }
     }
 
-    fn gen_methods(&self, methods: &'hir HashMap<TypeFullname, Vec<SkMethod>>) -> Result<()> {
+    fn gen_methods(
+        &self,
+        methods: &'hir HashMap<TypeFullname, Vec<SkMethod>>,
+        sk_types: &'hir SkTypes,
+    ) -> Result<()> {
         methods.values().try_for_each(|sk_methods| {
             sk_methods
                 .iter()
-                .try_for_each(|method| self.gen_method(method))
+                .try_for_each(|method| self.gen_method(method, sk_types))
         })
     }
 
-    fn gen_method(&self, method: &'hir SkMethod) -> Result<()> {
-        log::trace!("method {}", &method.signature);
+    fn gen_method(&self, method: &'hir SkMethod, sk_types: &'hir SkTypes) -> Result<()> {
+        let signature = sk_types.get_sig(&method.fullname).unwrap();
+        log::trace!("method {}", signature);
         if method.is_rustlib() {
             return Ok(());
         }
-        let func_name = method_func_name(&method.signature.fullname);
+        let func_name = method_func_name(&method.fullname);
         self.gen_llvm_func_body(
             &func_name,
-            &method.signature.params,
-            &method.signature.typarams,
+            &signature.params,
+            &signature.typarams,
             Left(&method.body),
             &method.lvars,
-            &method.signature.ret_ty,
+            &signature.ret_ty,
             None,
         )
     }

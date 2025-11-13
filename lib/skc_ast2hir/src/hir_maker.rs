@@ -389,7 +389,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 "sorry, #initialize cannot have default expr (yet.)",
             ));
         }
-        Ok(SkMethod::simple(found.sig, new_body))
+        Ok(SkMethod::simple(found.sig.fullname.clone(), new_body))
     }
 
     /// Find actual `initialize` func to call from `.new`
@@ -485,7 +485,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         type_checking::check_return_value(&self.class_dict, &signature, &hir_exprs)?;
 
         let method = SkMethod {
-            signature,
+            fullname: signature.fullname.clone(),
             body: SkMethodBody::Normal { exprs: hir_exprs },
             lvars,
         };
@@ -573,7 +573,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             ));
         }
         let initialize = SkMethod::simple(
-            signature,
+            signature.fullname.clone(),
             SkMethodBody::Normal {
                 exprs: Hir::expressions(exprs),
             },

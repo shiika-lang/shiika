@@ -11,7 +11,8 @@ pub fn make_sk_methods(sigs: Vec<MethodSignature>) -> SkMethods {
     let mut sk_methods = HashMap::new();
     for signature in sigs {
         let typename = signature.fullname.type_name.clone();
-        let method = SkMethod::simple(signature, SkMethodBody::RustLib);
+        let fullname = signature.fullname.clone();
+        let method = SkMethod::simple(fullname, SkMethodBody::RustLib);
         let v: &mut Vec<SkMethod> = sk_methods.entry(typename).or_default();
         v.push(method);
     }

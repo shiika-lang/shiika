@@ -51,8 +51,9 @@ pub fn run(
 
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {
-                log::debug!("Converting method: {}", &m.signature);
-                funcs.push(c.convert_method(m));
+                let signature = uni.hir.sk_types.get_sig(&m.fullname).unwrap();
+                log::debug!("Converting method: {}", signature);
+                funcs.push(c.convert_method(m, &uni.hir.sk_types));
             }
         }
 
@@ -105,7 +106,8 @@ struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn convert_method(&self, method: SkMethod) -> mir::Function {
+    fn convert_method(&self, method: SkMethod, sk_types: &SkTypes) -> mir::Function {
+        let signature = sk_types.get_sig(&method.fullname).unwrap();
         let orig_params = if let SkMethodBody::New { initializer, .. } = &method.body {
             // REFACTOR: method.signature.params should be available for this case too
             if let Some(ini) = initializer {
@@ -114,7 +116,7 @@ impl<'a> Compiler<'a> {
                 vec![]
             }
         } else {
-            method.signature.params.clone()
+            signature.params.clone()
         };
         let mut params = orig_params
             .into_iter()
@@ -123,7 +125,7 @@ impl<'a> Compiler<'a> {
         params.insert(
             0,
             mir::Param {
-                ty: convert_ty(method.signature.receiver_ty()),
+                ty: convert_ty(signature.receiver_ty()),
                 name: "self".to_string(),
             },
         );
@@ -131,12 +133,12 @@ impl<'a> Compiler<'a> {
         let allocs = collect_allocs::run(&body_stmts);
         let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
-            asyncness: method.signature.asyncness.clone().into(),
-            name: method.signature.fullname.clone().into(),
+            asyncness: signature.asyncness.clone().into(),
+            name: method.fullname.clone().into(),
             params,
-            ret_ty: convert_ty(method.signature.ret_ty.clone()),
+            ret_ty: convert_ty(signature.ret_ty.clone()),
             body_stmts,
-            sig: Some(method.signature),
+            sig: Some(signature.clone()),
         }
     }
 

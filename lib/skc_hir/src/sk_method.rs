@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct SkMethod {
-    pub signature: MethodSignature,
+    pub fullname: MethodFullname,
     pub body: SkMethodBody,
     pub lvars: HirLVars,
 }
@@ -44,9 +44,9 @@ pub enum SkMethodBody {
 
 impl SkMethod {
     /// Create a SkMethod which does not use lvar at all.
-    pub fn simple(signature: MethodSignature, body: SkMethodBody) -> SkMethod {
+    pub fn simple(fullname: MethodFullname, body: SkMethodBody) -> SkMethod {
         SkMethod {
-            signature,
+            fullname,
             body,
             lvars: Default::default(),
         }
