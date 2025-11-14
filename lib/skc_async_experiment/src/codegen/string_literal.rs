@@ -1,5 +1,6 @@
 use crate::codegen::CodeGen;
 use crate::names::FunctionName;
+use inkwell::values::AnyValue;
 
 /// Generates a Shiika String object from a string literal.
 /// This creates the string data and calls String.new to create the proper Shiika String object.
@@ -16,15 +17,15 @@ pub fn generate<'run>(
             byte_size.into(),
         ]
     };
-    gen.builder
+    let call_result = gen
+        .builder
         .build_direct_call(
             gen.get_llvm_func(&FunctionName::method("Meta:String", "new")),
             &args,
             "string_new_result",
         )
-        .try_as_basic_value()
-        .left()
-        .unwrap()
+        .unwrap();
+    call_result.as_any_value_enum().try_into().unwrap()
 }
 
 /// Defines a global i8 array for the string literal and returns a pointer to it.

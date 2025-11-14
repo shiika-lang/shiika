@@ -12,7 +12,7 @@ skc_ast2hir = { path = "../skc_ast2hir" }
 skc_hir = { path = "../skc_hir" }
 skc_mir = { path = "../skc_mir" }
 
-inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm16-0"], rev = "4030f76" }
+inkwell = { version = "0.7.0", features = ["llvm18-1"] }
 nom = "7.1.3"
 peg = "0.8.2"
 ariadne = "0.3.0"

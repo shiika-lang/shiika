@@ -36,6 +36,7 @@ pub fn load<'run>(gen: &mut CodeGen<'run, '_>, name: &ConstFullname) -> SkObj<'r
     SkObj(
         gen.builder
             .build_load(t, class_obj_addr, "class_obj")
+            .unwrap()
             .into_pointer_value(),
     )
 }

@@ -13,6 +13,7 @@ mod vtable;
 mod wtable;
 use crate::mir;
 use anyhow::{anyhow, Result};
+use inkwell::values::AnyValue;
 use std::path::Path;
 
 pub struct CodeGen<'run, 'ictx: 'run> {
@@ -42,13 +43,13 @@ pub fn run<P: AsRef<Path>>(
     constants::declare_extern_consts(&mut gen, mir.imported_constants);
     let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
     wtable::declare_constants(&mut gen, &mir.sk_types);
-    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types);
+    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     vtable::import(&mut gen, &mir.imported_vtables);
     vtable::define(&mut gen, &mir.vtables);
 
     llvm_struct::define(&mut gen, &mir.program.classes);
     if is_bin {
-        intrinsics::define(&mut gen);
+        intrinsics::define(&mut gen)?;
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);
@@ -82,7 +83,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn ptr_type(&self) -> inkwell::types::PointerType<'ictx> {
-        self.context.i8_type().ptr_type(Default::default())
+        self.context.ptr_type(Default::default())
     }
 
     /// Call llvm function. Returns `None` for void functions.
@@ -96,10 +97,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .module
             .get_function(&func_name)
             .unwrap_or_else(|| panic!("llvm function {:?} not found", func_name));
-        self.builder
-            .build_direct_call(f, args, reg_name)
-            .try_as_basic_value()
-            .left()
+        let call_result = self.builder.build_direct_call(f, args, reg_name).unwrap();
+        if call_result.try_as_basic_value().is_basic() {
+            Some(call_result.as_any_value_enum().try_into().unwrap())
+        } else {
+            None
+        }
     }
 
     fn get_llvm_func(&self, name: &FunctionName) -> inkwell::values::FunctionValue<'run> {

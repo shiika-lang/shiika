@@ -1,6 +1,7 @@
 use crate::codegen::{self, item, CodeGen};
 use crate::mir;
 use crate::names::FunctionName;
+use anyhow::Result;
 use inkwell::values::BasicValue;
 use shiika_core::names::*;
 use skc_hir::SkClass;
@@ -64,16 +65,21 @@ pub fn call_inserter(
 }
 
 /// Insert wtable entries for all modules of the class
-pub fn define_inserters(_const_global: item::ConstGlobal, gen: &mut CodeGen, sk_types: &SkTypes) {
+pub fn define_inserters(
+    _const_global: item::ConstGlobal,
+    gen: &mut CodeGen,
+    sk_types: &SkTypes,
+) -> Result<()> {
     for sk_class in sk_types.sk_classes() {
         if !sk_class.wtable.is_empty() {
-            define_inserter(gen, sk_class);
+            define_inserter(gen, sk_class)?;
         }
     }
+    Ok(())
 }
 
 /// Define the inserter function like `shiika_insert_wtable_Array(cls_obj)`
-fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) {
+fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) -> Result<()> {
     let function = {
         let fargs = &[gen.ptr_type().into()];
         let ftype = gen.context.void_type().fn_type(fargs, false);
@@ -96,7 +102,8 @@ fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) {
         ];
         gen.call_llvm_func("shiika_insert_wtable", args, "_");
     }
-    gen.builder.build_return(None);
+    gen.builder.build_return(None)?;
+    Ok(())
 }
 
 /// Get the llvm constant like `@shiika_wtable_Array_Enumerable` as i8*
@@ -110,7 +117,9 @@ fn load_wtable_const<'a>(
             llvm_const_name
         )
     });
-    gen.builder.build_bitcast(ptr, gen.ptr_type(), "ary")
+    gen.builder
+        .build_bit_cast(ptr, gen.ptr_type(), "ary")
+        .unwrap()
 }
 
 /// Name of llvm constant of a wtable
@@ -134,9 +143,11 @@ pub fn get_module_key<'run>(
         .get_global(&const_name)
         .unwrap_or_else(|| panic!("global `{}' not found", const_name));
 
-    gen.builder.build_ptr_to_int(
-        global.as_pointer_value(),
-        gen.context.i64_type(),
-        "const_addr",
-    )
+    gen.builder
+        .build_ptr_to_int(
+            global.as_pointer_value(),
+            gen.context.i64_type(),
+            "const_addr",
+        )
+        .unwrap()
 }

@@ -123,7 +123,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ret_ty,
                 ..
             } => Ok(Some(
-                self.gen_lambda_expr(ctx, name, params, captures, ret_ty),
+                self.gen_lambda_expr(ctx, name, params, captures, ret_ty)?,
             )),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
@@ -132,7 +132,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             HirBooleanLiteral { value } => Ok(Some(self.gen_boolean_literal(*value))),
 
             HirLambdaCaptureRef { idx, readonly } => Ok(Some(
-                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty),
+                self.gen_lambda_capture_ref(ctx, idx, !readonly, &expr.ty)?,
             )),
             HirLambdaCaptureWrite { cidx, rhs } => self.gen_lambda_capture_write(ctx, cidx, rhs),
             HirBitCast { expr: target } => self.gen_bitcast(ctx, target),
@@ -161,7 +161,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     ) -> Result<Option<SkObj<'run>>> {
         if let Some(b) = self.gen_expr(ctx, expr)? {
             let i = self.unbox_bool(b);
-            let b2 = self.builder.build_not(i, "b2");
+            let b2 = self.builder.build_not(i, "b2")?;
             Ok(Some(self.box_bool(b2)))
         } else {
             Ok(None)
@@ -178,20 +178,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let more_block = self.context.append_basic_block(ctx.function, "AndMore");
         let merge_block = self.context.append_basic_block(ctx.function, "AndEnd");
         // AndBegin:
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.unwrap();
-        self.gen_conditional_branch(left_value.clone(), more_block, merge_block);
+        self.gen_conditional_branch(left_value.clone(), more_block, merge_block)?;
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // AndMore:
         self.builder.position_at_end(more_block);
         let right_value = self.gen_expr(ctx, right)?.unwrap();
-        self.builder.build_unconditional_branch(merge_block);
+        self.builder.build_unconditional_branch(merge_block)?;
         let more_block_end = self.builder.get_insert_block().unwrap();
         // AndEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_type(), "AndResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "AndResult")?;
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, more_block_end),
@@ -209,20 +209,20 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let else_block = self.context.append_basic_block(ctx.function, "OrElse");
         let merge_block = self.context.append_basic_block(ctx.function, "OrEnd");
         // OrBegin:
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         self.builder.position_at_end(begin_block);
         let left_value = self.gen_expr(ctx, left)?.unwrap();
-        self.gen_conditional_branch(left_value.clone(), merge_block, else_block);
+        self.gen_conditional_branch(left_value.clone(), merge_block, else_block)?;
         let begin_block_end = self.builder.get_insert_block().unwrap();
         // OrElse:
         self.builder.position_at_end(else_block);
         let right_value = self.gen_expr(ctx, right)?.unwrap();
-        self.builder.build_unconditional_branch(merge_block);
+        self.builder.build_unconditional_branch(merge_block)?;
         let else_block_end = self.builder.get_insert_block().unwrap();
         // OrEnd:
         self.builder.position_at_end(merge_block);
 
-        let phi_node = self.builder.build_phi(self.llvm_type(), "OrResult");
+        let phi_node = self.builder.build_phi(self.llvm_type(), "OrResult")?;
         phi_node.add_incoming(&[
             (&left_value.0, begin_block_end),
             (&right_value.0, else_block_end),
@@ -244,22 +244,22 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
 
         // IfBegin:
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         self.builder.position_at_end(begin_block);
         let cond_value = self.gen_expr(ctx, cond_expr)?.unwrap();
-        self.gen_conditional_branch(cond_value, then_block, else_block);
+        self.gen_conditional_branch(cond_value, then_block, else_block)?;
         // IfThen:
         self.builder.position_at_end(then_block);
         let then_value = self.gen_expr(ctx, then_exprs)?;
         if then_value.is_some() {
-            self.builder.build_unconditional_branch(merge_block);
+            self.builder.build_unconditional_branch(merge_block)?;
         }
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
         let else_value = self.gen_expr(ctx, else_exprs)?;
         if else_value.is_some() {
-            self.builder.build_unconditional_branch(merge_block);
+            self.builder.build_unconditional_branch(merge_block)?;
         }
         let else_block_end = self.builder.get_insert_block().unwrap();
 
@@ -267,13 +267,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         self.builder.position_at_end(merge_block);
         match (then_value, else_value) {
             (None, None) => {
-                self.builder.build_unreachable();
+                self.builder.build_unreachable()?;
                 Ok(None)
             }
             (None, else_value) => Ok(else_value),
             (then_value, None) => Ok(then_value),
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.llvm_type(), "ifResult");
+                let phi_node = self.builder.build_phi(self.llvm_type(), "ifResult")?;
                 phi_node
                     .add_incoming(&[(&then_val.0, then_block_end), (&else_val.0, else_block_end)]);
                 Ok(Some(SkObj::new(ty.clone(), phi_node.as_basic_value())))
@@ -298,10 +298,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .collect::<Vec<_>>();
         let merge_block = self.context.append_basic_block(ctx.function, "MatchEnd");
         // MatchBegin:
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         self.builder.position_at_end(begin_block);
         self.gen_expr(ctx, cond_assign_expr)?;
-        self.builder.build_unconditional_branch(clause_blocks[0]);
+        self.builder.build_unconditional_branch(clause_blocks[0])?;
 
         // MatchClauseX:
         let mut incoming_values = vec![];
@@ -319,19 +319,19 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let last_block = self.builder.get_insert_block().unwrap();
                 incoming_values.push(val.0);
                 incoming_blocks.push(last_block);
-                self.builder.build_unconditional_branch(merge_block);
+                self.builder.build_unconditional_branch(merge_block)?;
             }
         }
 
         if incoming_blocks.is_empty() {
             // All the clauses ends with a jump; no merge block needed
             self.builder.position_at_end(merge_block);
-            self.builder.build_unreachable();
+            self.builder.build_unreachable()?;
             Ok(None)
         } else {
             // MatchEnd:
             self.builder.position_at_end(merge_block);
-            let phi_node = self.builder.build_phi(self.llvm_type(), "matchResult");
+            let phi_node = self.builder.build_phi(self.llvm_type(), "matchResult")?;
             phi_node.add_incoming(
                 incoming_values
                     .iter()
@@ -354,14 +354,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         skip_block: inkwell::basic_block::BasicBlock,
         result_ty: &TermTy,
     ) -> Result<Option<SkObj<'run>>> {
-        let lvar_ptrs = self.gen_alloca_lvars(ctx.function, &clause.lvars);
+        let lvar_ptrs = self.gen_alloca_lvars(ctx.function, &clause.lvars)?;
         let orig_lvars = ctx.inject_lvars(lvar_ptrs);
         for component in &clause.components {
             match component {
                 pattern_match::Component::Test(expr) => {
                     let v = self.gen_expr(ctx, expr)?.unwrap();
                     let cont_block = self.context.append_basic_block(ctx.function, "Matching");
-                    self.gen_conditional_branch(v, cont_block, skip_block);
+                    self.gen_conditional_branch(v, cont_block, skip_block)?;
                     // Continue processing this clause
                     self.builder.position_at_end(cont_block);
                 }
@@ -384,13 +384,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         body_exprs: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "WhileBegin");
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         // WhileBegin:
         self.builder.position_at_end(begin_block);
         let cond_value = self.gen_expr(ctx, cond_expr)?.unwrap();
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
         let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
-        self.gen_conditional_branch(cond_value, body_block, end_block);
+        self.gen_conditional_branch(cond_value, body_block, end_block)?;
         // WhileBody:
         self.builder.position_at_end(body_block);
         let rc1 = Rc::new(end_block);
@@ -399,7 +399,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx.current_loop_end = Some(rc1);
         self.gen_expr(ctx, body_exprs)?;
         ctx.current_loop_end = orig_loop_end;
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
 
         // WhileEnd:
         self.builder.position_at_end(*rc2);
@@ -416,7 +416,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         match from {
             HirBreakFrom::While => match &ctx.current_loop_end {
                 Some(b) => {
-                    self.builder.build_unconditional_branch(*Rc::clone(b));
+                    self.builder.build_unconditional_branch(*Rc::clone(b))?;
                     Ok(None)
                 }
                 None => panic!("[BUG] break outside of a loop"),
@@ -430,7 +430,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
                 // Jump to the end of the llvm func
                 self.builder
-                    .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+                    .build_unconditional_branch(*Rc::clone(&ctx.current_func_end))?;
                 Ok(None)
             }
         }
@@ -444,7 +444,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let value = self.gen_expr(ctx, arg)?.unwrap();
         // Jump to the end of the llvm func
         self.builder
-            .build_unconditional_branch(*Rc::clone(&ctx.current_func_end));
+            .build_unconditional_branch(*Rc::clone(&ctx.current_func_end))?;
         let block_end = self.builder.get_insert_block().unwrap();
         ctx.returns.push((value, block_end));
         Ok(None)
@@ -461,7 +461,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .lvars
             .get(name)
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
-        self.builder.build_store(*ptr, value.0);
+        self.builder.build_store(*ptr, value.0)?;
         Ok(Some(value))
     }
 
@@ -492,7 +492,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&name)
             .unwrap_or_else(|| panic!("[BUG] global for Constant `{}' not created", fullname.0))
             .as_pointer_value();
-        self.builder.build_store(ptr, value.0);
+        self.builder.build_store(ptr, value.0)?;
         Ok(Some(value))
     }
 
@@ -523,7 +523,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let start_block = self
             .context
             .append_basic_block(ctx.function, &format!("Invoke_{}", method_fullname));
-        self.builder.build_unconditional_branch(start_block);
+        self.builder.build_unconditional_branch(start_block)?;
         self.builder.position_at_end(start_block);
 
         // Get the llvm function from vtable of the class of the object
@@ -543,13 +543,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             &arg_values,
         );
         if ret_ty.is_never_type() {
-            self.builder.build_unreachable();
+            self.builder.build_unreachable()?;
             Ok(None)
         } else {
             let end_block = self
                 .context
                 .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_fullname));
-            self.builder.build_unconditional_branch(end_block);
+            self.builder.build_unconditional_branch(end_block)?;
             self.builder.position_at_end(end_block);
             Ok(Some(result))
         }
@@ -561,13 +561,14 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         method_name: &MethodFirstname,
         receiver_ty: &TermTy,
         receiver_value: SkObj<'run>,
-        func_type: inkwell::types::FunctionType<'ictx>,
+        _func_type: inkwell::types::FunctionType<'ictx>,
     ) -> inkwell::values::PointerValue<'run> {
         let (idx, size) = self.__lookup_vtable(receiver_ty, method_name);
         let vtable = VTableRef::of_sk_obj(self, receiver_value, size);
         let func_raw = vtable.get_func(self, *idx);
         self.builder
-            .build_bitcast(func_raw, func_type.ptr_type(Default::default()), "func")
+            .build_bit_cast(func_raw, self.context.ptr_type(Default::default()), "func")
+            .unwrap()
             .into_pointer_value()
     }
 
@@ -612,7 +613,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let start_block = self
             .context
             .append_basic_block(ctx.function, &format!("Invoke_{}", method_name));
-        self.builder.build_unconditional_branch(start_block);
+        self.builder.build_unconditional_branch(start_block)?;
         self.builder.position_at_end(start_block);
 
         // Get the llvm function via wtable
@@ -629,7 +630,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let func_type = self.llvm_func_type(Some(&receiver_expr.ty), &arg_tys, ret_ty);
         let func = self
             .builder
-            .build_bitcast(func_ptr, func_type.ptr_type(Default::default()), "as")
+            .build_bit_cast(func_ptr, self.context.ptr_type(Default::default()), "as")
+            .unwrap()
             .into_pointer_value();
 
         let result = self.indirect_method_function_call(
@@ -640,13 +642,13 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             &arg_values,
         );
         if ret_ty.is_never_type() {
-            self.builder.build_unreachable();
+            self.builder.build_unreachable()?;
             Ok(None)
         } else {
             let end_block = self
                 .context
                 .append_basic_block(ctx.function, &format!("Invoke_{}_end", method_name));
-            self.builder.build_unconditional_branch(end_block);
+            self.builder.build_unconditional_branch(end_block)?;
             self.builder.position_at_end(end_block);
             Ok(Some(result))
         }
@@ -683,7 +685,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let start_block = self
             .context
             .append_basic_block(ctx.function, "Invoke_lambda");
-        self.builder.build_unconditional_branch(start_block);
+        self.builder.build_unconditional_branch(start_block)?;
         self.builder.position_at_end(start_block);
         let end_block = self
             .context
@@ -704,7 +706,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ));
         let func = self
             .builder
-            .build_bitcast(fnptr.0, fnptype, "")
+            .build_bit_cast(fnptr.0, fnptype, "")
+            .unwrap()
             .into_pointer_value();
 
         // Generate function call
@@ -726,7 +729,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 ty::raw("Bool"),
                 "eq",
             );
-            self.gen_conditional_branch(eq, broke_block, end_block);
+            self.gen_conditional_branch(eq, broke_block, end_block)?;
 
             // If `break` happened...
             self.builder.position_at_end(broke_block);
@@ -736,11 +739,12 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 let i = self.box_int(&self.i64_type.const_int(EXIT_BREAK, false));
                 self.build_ivar_store(fn_x, fn_x::IVAR_EXIT_STATUS_IDX, "@exit_status", i);
             }
-            self.builder
+            let _ = self
+                .builder
                 .build_unconditional_branch(*ctx.current_func_end);
         } else {
             // No check is needed because `break` is not allowed if the lambda has a return type.
-            self.builder.build_unconditional_branch(end_block);
+            self.builder.build_unconditional_branch(end_block)?;
         }
         self.builder.position_at_end(end_block);
         Ok(Some(result))
@@ -769,14 +773,15 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         arg_values: Vec<SkObj<'run>>,
     ) -> SkObj<'run> {
         let llvm_args = arg_values.iter().map(|x| x.0.into()).collect::<Vec<_>>();
-        match self
+        let call_result = self
             .builder
             .build_indirect_call(func_type, function, &llvm_args, "result")
-            .try_as_basic_value()
-            .left()
-        {
-            Some(result_value) => SkObj::new(result_ty, result_value),
-            None => self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void")),
+            .unwrap();
+        if call_result.try_as_basic_value().is_basic() {
+            let result_value: BasicValueEnum = call_result.as_any_value_enum().try_into().unwrap();
+            SkObj::new(result_ty, result_value)
+        } else {
+            self.gen_const_ref(&toplevel_const("Void"), &ty::raw("Void"))
         }
     }
 
@@ -837,7 +842,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .unwrap_or_else(|| panic!("[BUG] lvar `{}' not found in ctx.lvars", name));
         SkObj::new(
             ty.clone(),
-            self.builder.build_load(self.llvm_type(), *ptr, name),
+            self.builder
+                .build_load(self.llvm_type(), *ptr, name)
+                .unwrap(),
         )
     }
 
@@ -906,7 +913,8 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         SkObj::new(
             ty.clone(),
             self.builder
-                .build_load(llvm_type, ptr.as_pointer_value(), &name),
+                .build_load(llvm_type, ptr.as_pointer_value(), &name)
+                .unwrap(),
         )
     }
 
@@ -917,7 +925,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         params: &[MethodParam],
         captures: &'hir [HirLambdaCapture],
         ret_ty: &TermTy,
-    ) -> SkObj<'run> {
+    ) -> Result<SkObj<'run>> {
         let func_name = LlvmFuncName(name.to_string());
         let fn_x_type = &ty::raw(&format!("Fn{}", params.len()));
         let obj_type = ty::raw("Object");
@@ -933,18 +941,21 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_llvm_func(&func_name)
             .as_global_value()
             .as_basic_value_enum();
-        let fnptr_i8 = self.builder.build_bitcast(fnptr, self.ptr_type, "");
+        let fnptr_i8 = self
+            .builder
+            .build_bit_cast(fnptr, self.ptr_type, "")
+            .unwrap();
         let sk_ptr = self.box_i8ptr(fnptr_i8);
         let the_self = self.gen_self_expression(ctx, &ty::raw("Object"));
-        let captured = self._gen_lambda_captures(ctx, name, captures);
+        let captured = self._gen_lambda_captures(ctx, name, captures)?;
         let arg_values = vec![sk_ptr, the_self, captured.boxed(self)];
-        self.call_method_func(
+        Ok(self.call_method_func(
             &method_fullname(metaclass_fullname(cls_name).into(), "new"),
             meta,
             &arg_values,
             fn_x_type.clone(),
             "lambda",
-        )
+        ))
     }
 
     fn _gen_lambda_captures(
@@ -952,7 +963,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         ctx: &mut CodeGenContext<'hir, 'run>,
         name: &str,
         captures: &'hir [HirLambdaCapture],
-    ) -> LambdaCapture<'run> {
+    ) -> Result<LambdaCapture<'run>> {
         let struct_type = LambdaCapture::get_struct_type(self, name);
         let mem = self.allocate_mem(&struct_type.as_basic_type_enum());
         let lambda_capture = LambdaCapture::from_void_ptr(self, mem, name);
@@ -973,7 +984,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 }
                 HirLambdaCaptureDetail::CaptureFwd { cidx, .. } => {
                     let deref = false;
-                    self.gen_lambda_capture_ref(ctx, cidx, deref, &cap.ty)
+                    self.gen_lambda_capture_ref(ctx, cidx, deref, &cap.ty)?
                 }
                 HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
                     // Method-wise type arguments are passed as llvm function parameter.
@@ -985,7 +996,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             }
             lambda_capture.store(self, i, item);
         }
-        lambda_capture
+        Ok(lambda_capture)
     }
 
     /// Get the object referred by `self`
@@ -1027,7 +1038,10 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .get_global(&format!("str_{}", idx))
             .unwrap_or_else(|| panic!("[BUG] global for str_{} not created", idx))
             .as_pointer_value();
-        let i8ptr = self.builder.build_bitcast(byte_ary, self.ptr_type, "i8ptr");
+        let i8ptr = self
+            .builder
+            .build_bit_cast(byte_ary, self.ptr_type, "i8ptr")
+            .unwrap();
         let bytesize = self
             .i64_type
             .const_int(self.str_literals[*idx].len() as u64, false);
@@ -1053,14 +1067,16 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         cond: SkObj,
         then_block: inkwell::basic_block::BasicBlock,
         else_block: inkwell::basic_block::BasicBlock,
-    ) {
+    ) -> Result<()> {
         let i = self.unbox_bool(cond);
         let one = self.i1_type.const_int(1, false);
         let istrue = self
             .builder
-            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue");
+            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
+            .unwrap();
         self.builder
-            .build_conditional_branch(istrue, then_block, else_block);
+            .build_conditional_branch(istrue, then_block, else_block)?;
+        Ok(())
     }
 
     /// Get an object from `captures`
@@ -1070,11 +1086,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         idx_in_captures: &usize,
         deref: bool,
         ty: &TermTy,
-    ) -> SkObj<'run> {
+    ) -> Result<SkObj<'run>> {
         let block = self
             .context
             .append_basic_block(ctx.function, &format!("CaptureRef_{}th", idx_in_captures));
-        self.builder.build_unconditional_branch(block);
+        self.builder.build_unconditional_branch(block)?;
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
@@ -1083,9 +1099,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             ctx.function,
             &format!("CaptureRef_{}th_end", idx_in_captures),
         );
-        self.builder.build_unconditional_branch(block);
+        self.builder.build_unconditional_branch(block)?;
         self.builder.position_at_end(block);
-        ret
+        Ok(ret)
     }
 
     fn gen_lambda_capture_write(
@@ -1097,18 +1113,18 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         let block = self
             .context
             .append_basic_block(ctx.function, &format!("CaptureWrite_{}th", idx_in_captures));
-        self.builder.build_unconditional_branch(block);
+        self.builder.build_unconditional_branch(block)?;
         self.builder.position_at_end(block);
 
         let captures = self._gen_get_lambda_captures(ctx);
         let value = self.gen_expr(ctx, rhs)?.unwrap();
-        captures.reassign(self, *idx_in_captures, value.clone());
+        captures.reassign(self, *idx_in_captures, value.clone())?;
 
         let block = self.context.append_basic_block(
             ctx.function,
             &format!("CaptureWrite_{}th_end", idx_in_captures),
         );
-        self.builder.build_unconditional_branch(block);
+        self.builder.build_unconditional_branch(block)?;
         self.builder.position_at_end(block);
         Ok(Some(value))
     }
@@ -1212,7 +1228,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             let addr = self.bitcast(receiver, &init_cls_name.to_ty(), "obj_as_super");
             let args = vec![addr.0.into()];
             let initialize = self.get_llvm_func(&method_func_name(&initialize_sig.fullname));
-            self.builder.build_direct_call(initialize, &args, "");
+            let _ = self.builder.build_direct_call(initialize, &args, "");
         }
     }
 
@@ -1265,7 +1281,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
         expr: &'hir HirExpression,
     ) -> Result<Option<SkObj<'run>>> {
         let v = self.gen_expr(ctx, expr)?.unwrap();
-        let i1 = self.builder.build_is_null(v.0, "omitted");
+        let i1 = self.builder.build_is_null(v.0, "omitted").unwrap();
         Ok(Some(self.box_bool(i1)))
     }
 }
