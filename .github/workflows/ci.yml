@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -eux
-          sudo apt install -y libgc-dev
+          sudo apt install -y libgc-dev libtinfo5
 
       - name: Cache LLVM and Clang on Linux
         id: cache-llvm
