@@ -3,6 +3,8 @@
 #
 # Basically you don't need to run this. Miscellaneous tasks
 
+require "timeout"
+
 if File.exist?(".env")
   File.readlines(".env").each do |line|
     l, r = line.split("=", 2)
@@ -192,8 +194,12 @@ task :async_integration_test do
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
-    sh "cargo run --bin exp_shiika -- run #{name}.sk"
-    sh "#{name}.out > #{name}.actual_out"
+    sh "cargo run --bin exp_shiika -- compile #{name}.sk"
+    puts "--"
+    Timeout.timeout(5) do
+      sh "#{name}.out > #{name}.actual_out 2>&1"
+    end
+    puts "---"
     sh "diff #{name}.actual_out #{name}.expected_out"
   end
 end
