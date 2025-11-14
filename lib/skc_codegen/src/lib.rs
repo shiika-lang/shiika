@@ -239,10 +239,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                         .get_llvm_func(&method_func_name(name))
                         .as_global_value()
                         .as_pointer_value();
-                    self.builder
-                        .build_bit_cast(func, self.ptr_type, "")
-                        .unwrap()
-                        .into_pointer_value()
+                    func.const_cast(self.ptr_type)
                 })
                 .collect::<Vec<_>>();
             global.set_initializer(&self.ptr_type.const_array(&func_ptrs));
