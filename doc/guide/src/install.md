@@ -13,26 +13,26 @@ See [develop-in-docker.md](./develop-in-docker.md) for details.
 
 1. Install [Git](https://git-scm.com/)
 1. Install [Rust](https://www.rust-lang.org/). Use latest stable version.
-2. Install LLVM 16
-  - eg. `brew install llvm@16` on Mac
-  - eg. `sudo apt install llvm-16 clang-16` on Ubuntu
-    - Try https://apt.llvm.org/ if llvm-16 not available
+2. Install LLVM 18
+  - eg. `brew install llvm@18` on Mac
+  - eg. `sudo apt install llvm-18 clang-18` on Ubuntu
+    - Try https://apt.llvm.org/ if llvm-18 not available
 - You may need `sudo apt install cmake` on Ubuntu
 - (TODO) `apt install libgc-dev` needed on Ubuntu?
 
 You may need to setup some environment variables. For example, on Mac:
 
 ```
-export PATH="$(brew --prefix)/opt/llvm@16/bin":$PATH
-export LDFLAGS="-L$(brew --prefix)/opt/llvm@16/lib"
-export CPPFLAGS="-I$(brew --prefix)/opt/llvm@16/include"
+export PATH="$(brew --prefix)/opt/llvm@18/bin":$PATH
+export LDFLAGS="-L$(brew --prefix)/opt/llvm@18/lib"
+export CPPFLAGS="-I$(brew --prefix)/opt/llvm@18/include"
 ```
 
 and on Ubuntu:
 
 ```
-export LLC=llc-16
-export CLANG=clang-16
+export LLC=llc-18
+export CLANG=clang-18
 ```
 
 ### Compiling core library
@@ -89,7 +89,7 @@ error: could not find native static library `Polly`, perhaps an -L flag is missi
 error: could not compile `llvm-sys` due to previous error
 ```
 
-=> `sudo apt install libpolly-16-dev`
+=> `sudo apt install libpolly-18-dev`
 
 This may happen when you install llvm from https://apt.llvm.org/ .
 
