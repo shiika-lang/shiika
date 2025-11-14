@@ -147,11 +147,12 @@ impl<'run> LambdaCapture<'run> {
     }
 
     /// Given there is a pointer stored at `idx`, update its value.
-    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) {
+    pub fn reassign(&self, gen: &CodeGen<'_, 'run, '_>, idx: usize, value: SkObj) -> Result<()> {
         let ptr = gen
             .build_llvm_struct_ref(&self.struct_type(gen), self.to_struct_ptr(), idx, "load")
             .into_pointer_value();
-        gen.builder.build_store(ptr, value.0);
+        gen.builder.build_store(ptr, value.0)?;
+        Ok(())
     }
 }
 

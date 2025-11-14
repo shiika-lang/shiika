@@ -1,6 +1,7 @@
 use crate::codegen::CodeGen;
 use crate::mir;
 use crate::mir::MirClass;
+use anyhow::Result;
 use inkwell::types::BasicType;
 
 pub fn define(gen: &mut CodeGen, classes: &[MirClass]) {
@@ -76,7 +77,7 @@ pub fn build_llvm_value_store<'run>(
     idx: usize,
     value: inkwell::values::BasicValueEnum,
     name: &str,
-) {
+) -> Result<()> {
     let ptr = gen
         .builder
         .build_struct_gep(
@@ -91,5 +92,6 @@ pub fn build_llvm_value_store<'run>(
                 &idx, &name, &struct_type, &struct_ptr
             )
         });
-    gen.builder.build_store(ptr, value);
+    gen.builder.build_store(ptr, value)?;
+    Ok(())
 }

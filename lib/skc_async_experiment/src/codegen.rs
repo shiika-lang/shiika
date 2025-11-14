@@ -43,13 +43,13 @@ pub fn run<P: AsRef<Path>>(
     constants::declare_extern_consts(&mut gen, mir.imported_constants);
     let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
     wtable::declare_constants(&mut gen, &mir.sk_types);
-    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types);
+    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     vtable::import(&mut gen, &mir.imported_vtables);
     vtable::define(&mut gen, &mir.vtables);
 
     llvm_struct::define(&mut gen, &mir.program.classes);
     if is_bin {
-        intrinsics::define(&mut gen);
+        intrinsics::define(&mut gen)?;
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);

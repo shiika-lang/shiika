@@ -1,13 +1,15 @@
 //! Intrinsics are functions defined directly by the compiler.
 use crate::codegen::{instance, llvm_struct, value::SkObj, CodeGen};
+use anyhow::Result;
 use inkwell::values::BasicValue;
 
-pub fn define(gen: &mut CodeGen) {
-    define_box_int(gen);
-    define_box_bool(gen);
+pub fn define(gen: &mut CodeGen) -> Result<()> {
+    define_box_int(gen)?;
+    define_box_bool(gen)?;
+    Ok(())
 }
 
-fn define_box_int(gen: &mut CodeGen) {
+fn define_box_int(gen: &mut CodeGen) -> Result<()> {
     let fn_type = gen
         .ptr_type()
         .fn_type(&[gen.context.i64_type().into()], false);
@@ -18,13 +20,14 @@ fn define_box_int(gen: &mut CodeGen) {
     gen.builder.position_at_end(basic_block);
 
     let i64_val = function.get_params()[0];
-    let sk_int = instance::allocate_sk_obj(gen, "Int");
+    let sk_int = instance::allocate_sk_obj(gen, "Int")?;
     let struct_type = llvm_struct::get(gen, "Int");
-    instance::build_ivar_store_raw(gen, sk_int.clone(), &struct_type, 0, i64_val, "llvm_int");
-    gen.builder.build_return(Some(&sk_int.0));
+    instance::build_ivar_store_raw(gen, sk_int.clone(), &struct_type, 0, i64_val, "llvm_int")?;
+    gen.builder.build_return(Some(&sk_int.0))?;
+    Ok(())
 }
 
-fn define_box_bool(gen: &mut CodeGen) {
+fn define_box_bool(gen: &mut CodeGen) -> Result<()> {
     let fn_type = gen
         .ptr_type()
         .fn_type(&[gen.context.bool_type().into()], false);
@@ -35,10 +38,11 @@ fn define_box_bool(gen: &mut CodeGen) {
     gen.builder.position_at_end(basic_block);
 
     let bool_val = function.get_params()[0];
-    let sk_bool = instance::allocate_sk_obj(gen, "Bool");
+    let sk_bool = instance::allocate_sk_obj(gen, "Bool")?;
     let struct_type = llvm_struct::get(gen, "Bool");
-    instance::build_ivar_store_raw(gen, sk_bool.clone(), &struct_type, 0, bool_val, "llvm_bool");
-    gen.builder.build_return(Some(&sk_bool.0));
+    instance::build_ivar_store_raw(gen, sk_bool.clone(), &struct_type, 0, bool_val, "llvm_bool")?;
+    gen.builder.build_return(Some(&sk_bool.0))?;
+    Ok(())
 }
 
 pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkObj<'run> {

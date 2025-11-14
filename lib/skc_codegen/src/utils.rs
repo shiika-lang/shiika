@@ -23,7 +23,7 @@ pub fn llvm_func_name(name: impl Into<String>) -> LlvmFuncName {
 impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     /// Build IR to return Shiika object
     pub fn build_return(&self, obj: &SkObj<'run>) {
-        self.builder.build_return(Some(&obj.0));
+        let _ = self.builder.build_return(Some(&obj.0));
     }
 
     /// Build IR to return ::Void
@@ -218,7 +218,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     &idx, &name, &struct_ptr
                 )
             });
-        self.builder.build_store(ptr, value);
+        let _ = self.builder.build_store(ptr, value);
     }
 
     /// Generate call of malloc and returns a ptr to Shiika object
@@ -330,7 +330,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             .module
             .get_function(&func_name.0)
             .unwrap_or_else(|| panic!("[BUG] llvm function {:?} not found", func_name));
-        self.builder.build_direct_call(f, args, reg_name);
+        let _ = self.builder.build_direct_call(f, args, reg_name);
     }
 
     /// Get nth parameter of llvm func as SkObj

@@ -1,6 +1,7 @@
 use crate::utils::llvm_func_name;
 use crate::values::*;
 use crate::CodeGen;
+use anyhow::Result;
 use inkwell::types::*;
 use inkwell::values::BasicValue;
 use shiika_core::{names::*, ty};
@@ -32,7 +33,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate body of llvm funcs about boxing
-    pub fn impl_boxing_funcs(&self) {
+    pub fn impl_boxing_funcs(&self) -> Result<()> {
         // box_bool
         let function = self.module.get_function("box_bool").unwrap();
         let basic_block = self.context.append_basic_block(function, "");
@@ -50,7 +51,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
 
         let sk_bool = SkObj::new(ty::raw("Bool"), function.get_params()[0]);
         let i1_val = self.build_ivar_load_raw(sk_bool, self.i1_type.into(), 0, "@llvm_bool");
-        self.builder.build_return(Some(&i1_val));
+        self.builder.build_return(Some(&i1_val))?;
 
         // box_int
         let function = self.module.get_function("box_int").unwrap();
@@ -72,7 +73,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             function.get_params()[0].into_pointer_value(),
         );
         let i64_val = self.build_ivar_load_raw(sk_int, self.i64_type.into(), 0, "@llvm_int");
-        self.builder.build_return(Some(&i64_val));
+        self.builder.build_return(Some(&i64_val))?;
 
         // box_float
         let function = self.module.get_function("box_float").unwrap();
@@ -94,7 +95,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             function.get_params()[0].into_pointer_value(),
         );
         let f64_val = self.build_ivar_load_raw(sk_float, self.f64_type.into(), 0, "@llvm_float");
-        self.builder.build_return(Some(&f64_val));
+        self.builder.build_return(Some(&f64_val))?;
 
         // box_i8ptr
         let function = self.module.get_function("box_i8ptr").unwrap();
@@ -116,10 +117,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             function.get_params()[0].into_pointer_value(),
         );
         let i8ptr = self.build_ivar_load_raw(sk_ptr, self.ptr_type.into(), 0, "@llvm_i8ptr");
-        self.builder.build_return(Some(&i8ptr));
+        self.builder.build_return(Some(&i8ptr))?;
 
         // gen_literal_string
         self.impl_gen_literal_string();
+        Ok(())
     }
 
     fn impl_gen_literal_string(&self) {

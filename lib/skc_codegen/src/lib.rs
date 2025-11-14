@@ -117,17 +117,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         self.gen_method_funcs(&hir.sk_methods, &hir.sk_types);
         self.gen_vtables();
         self.gen_wtables(&hir.sk_types);
-        self.gen_insert_wtables(&hir.sk_types);
+        self.gen_insert_wtables(&hir.sk_types)?;
         self.gen_methods(&hir.sk_methods, &hir.sk_types)?;
         self.gen_const_inits(&hir.const_inits)?;
         if self.generate_main {
-            self.gen_init_constants(&hir.const_inits, true);
+            self.gen_init_constants(&hir.const_inits, true)?;
             self.gen_user_main(&hir.main_exprs, &hir.main_lvars)?;
-            self.gen_main();
+            self.gen_main()?;
         } else {
             // generating builtin
-            self.gen_init_constants(&hir.const_inits, false);
-            self.impl_boxing_funcs();
+            self.gen_init_constants(&hir.const_inits, false)?;
+            self.impl_boxing_funcs()?;
         }
         self.gen_lambda_funcs(hir)?;
         Ok(())
@@ -257,17 +257,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
     }
 
     /// Generate functions to insert wtables
-    fn gen_insert_wtables(&self, sk_types: &SkTypes) {
+    fn gen_insert_wtables(&self, sk_types: &SkTypes) -> Result<()> {
         for sk_class in sk_types.sk_classes() {
             if !sk_class.wtable.is_empty() {
-                wtable::gen_insert_wtable(self, sk_class);
+                wtable::gen_insert_wtable(self, sk_class)?;
             }
         }
+        Ok(())
     }
 
     /// Generate `init_constants()`
     // TODO: imported_constants should be Vec (order matters)
-    fn gen_init_constants(&self, const_inits: &'hir [HirExpression], is_main: bool) {
+    fn gen_init_constants(&self, const_inits: &'hir [HirExpression], is_main: bool) -> Result<()> {
         let package_name = if is_main { "main" } else { "builtin" };
         // define void @xxx_init_constants()
         let fn_type = self.void_type.fn_type(&[], false);
@@ -285,7 +286,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 self.module
                     .add_function(&format!("{}_init_constants", s), fn_type, None);
                 let func = self.get_llvm_func(&llvm_func_name(format!("{}_init_constants", s)));
-                self.builder.build_direct_call(func, &[], "");
+                let _ = self.builder.build_direct_call(func, &[], "");
             }
         }
 
@@ -298,7 +299,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             // These builtin classes must be created first
             for name in &basic_classes {
                 let func = self.get_llvm_func(&llvm_func_name(const_initialize_func_name(name)));
-                self.builder.build_direct_call(func, &[], "");
+                let _ = self.builder.build_direct_call(func, &[], "");
             }
         }
         for expr in const_inits {
@@ -307,14 +308,15 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     if !basic_classes.iter().any(|s| s.0 == fullname.0) {
                         let func = self
                             .get_llvm_func(&llvm_func_name(const_initialize_func_name(fullname)));
-                        self.builder.build_direct_call(func, &[], "");
+                        let _ = self.builder.build_direct_call(func, &[], "");
                     }
                 }
                 _ => panic!("gen_init_constants: Not a HirConstAssign"),
             }
         }
 
-        self.builder.build_return(None);
+        self.builder.build_return(None)?;
+        Ok(())
     }
 
     #[allow(clippy::ptr_arg)]
@@ -334,17 +336,17 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         for expr in main_exprs {
             lvars.append(&mut CollectLVarsVisitor::run(expr)?);
         }
-        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
+        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars)?;
 
         // CreateMain:
         let create_main_block = self.context.append_basic_block(function, "CreateMain");
-        self.builder.build_unconditional_branch(create_main_block);
+        self.builder.build_unconditional_branch(create_main_block)?;
         self.builder.position_at_end(create_main_block);
         self.the_main = Some(self.allocate_sk_obj(&class_fullname("Object")));
 
         // UserMain:
         let user_main_block = self.context.append_basic_block(function, "UserMain");
-        self.builder.build_unconditional_branch(user_main_block);
+        self.builder.build_unconditional_branch(user_main_block)?;
         self.builder.position_at_end(user_main_block);
 
         let (end_block, mut ctx) = self.new_ctx(FunctionOrigin::Other, function, lvar_ptrs);
@@ -356,14 +358,14 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 break;
             }
         }
-        self.builder.build_unconditional_branch(*end_block);
+        self.builder.build_unconditional_branch(*end_block)?;
         self.builder.position_at_end(*end_block);
-        self.builder.build_return(None);
+        self.builder.build_return(None)?;
 
         Ok(())
     }
 
-    fn gen_main(&mut self) {
+    fn gen_main(&mut self) -> Result<()> {
         // define i32 @main() {
         let main_type = self.i32_type.fn_type(&[], false);
         let function = self.module.add_function("main", main_type, None);
@@ -372,17 +374,18 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         // Call GC_init
         let func = self.get_llvm_func(&llvm_func_name("GC_init"));
-        self.builder.build_direct_call(func, &[], "");
+        let _ = self.builder.build_direct_call(func, &[], "");
 
         // Call init_constants, user_main
         let func = self.get_llvm_func(&llvm_func_name("main_init_constants"));
-        self.builder.build_direct_call(func, &[], "");
+        let _ = self.builder.build_direct_call(func, &[], "");
         let func = self.get_llvm_func(&llvm_func_name("user_main"));
-        self.builder.build_direct_call(func, &[], "");
+        let _ = self.builder.build_direct_call(func, &[], "");
 
         // ret i32 0
         self.builder
-            .build_return(Some(&self.i32_type.const_int(0, false)));
+            .build_return(Some(&self.i32_type.const_int(0, false)))?;
+        Ok(())
     }
 
     /// Create llvm struct types for Shiika objects
@@ -487,9 +490,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                     let (end_block, mut ctx) =
                         self.new_ctx(FunctionOrigin::Other, function, HashMap::new());
                     self.gen_expr(&mut ctx, expr)?;
-                    self.builder.build_unconditional_branch(*end_block);
+                    self.builder.build_unconditional_branch(*end_block)?;
                     self.builder.position_at_end(*end_block);
-                    self.builder.build_return(None);
+                    self.builder.build_return(None)?;
                 }
                 _ => panic!("gen_const_inits: Not a HirConstAssign"),
             }
@@ -620,7 +623,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             _ => Default::default(),
         };
         lvars.append(&mut more_lvars);
-        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars);
+        let lvar_ptrs = self.gen_alloca_lvars(function, &lvars)?;
 
         // Method body
         match body {
@@ -688,13 +691,13 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         &self,
         function: inkwell::values::FunctionValue,
         lvars: &[HirLVar],
-    ) -> HashMap<String, inkwell::values::PointerValue<'run>> {
+    ) -> Result<HashMap<String, inkwell::values::PointerValue<'run>>> {
         if lvars.is_empty() {
-            return HashMap::new();
+            return Ok(HashMap::new());
         }
         let mut lvar_ptrs = HashMap::new();
         let alloca_start = self.context.append_basic_block(function, "alloca");
-        self.builder.build_unconditional_branch(alloca_start);
+        self.builder.build_unconditional_branch(alloca_start)?;
         self.builder.position_at_end(alloca_start);
         for HirLVar { name, captured, .. } in lvars {
             let obj_ty = self.llvm_type();
@@ -708,9 +711,9 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             }
         }
         let alloca_end = self.context.append_basic_block(function, "alloca_End");
-        self.builder.build_unconditional_branch(alloca_end);
+        self.builder.build_unconditional_branch(alloca_end)?;
         self.builder.position_at_end(alloca_end);
-        lvar_ptrs
+        Ok(lvar_ptrs)
     }
 
     /// Generate body of llvm function of Shiika method or lambda
@@ -725,10 +728,10 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
         let (end_block, mut ctx) = self.new_ctx(function_origin, function, lvars);
         let (last_value, last_value_block) = if let Some(v) = self.gen_expr(&mut ctx, exprs)? {
             let b = self.context.append_basic_block(ctx.function, "Ret");
-            self.builder.build_unconditional_branch(b);
+            self.builder.build_unconditional_branch(b)?;
             self.builder.position_at_end(b);
             let last_value = self.bitcast(v, ret_ty, "as");
-            self.builder.build_unconditional_branch(*end_block);
+            self.builder.build_unconditional_branch(*end_block)?;
             (Some(last_value), Some(b))
         } else {
             (None, None)
@@ -738,11 +741,11 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
 
         if ret_ty.is_never_type() {
             // `Never` does not have an instance
-            self.builder.build_return(None);
+            self.builder.build_return(None)?;
         } else if last_value.is_none() && ctx.returns.is_empty() {
             // `exprs` ends with `panic` and there is no `return`
             let null = self.llvm_type().into_pointer_type().const_null();
-            self.builder.build_return(Some(&null));
+            self.builder.build_return(Some(&null))?;
         } else if ret_ty.is_void_type() {
             self.build_return_void();
         } else {
@@ -759,7 +762,8 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
             }
             let phi_node = self.builder.build_phi(self.llvm_type(), "methodResult")?;
             phi_node.add_incoming(incomings.as_slice());
-            self.builder.build_return(Some(&phi_node.as_basic_value()));
+            self.builder
+                .build_return(Some(&phi_node.as_basic_value()))?;
         }
         Ok(())
     }
@@ -813,7 +817,7 @@ impl<'hir: 'ictx, 'run, 'ictx: 'run> CodeGen<'hir, 'run, 'ictx> {
                 })
                 .collect::<Vec<_>>();
             let initialize = self.get_llvm_func(&method_func_name(&initialize_sig.fullname));
-            self.builder.build_direct_call(initialize, &args, "");
+            let _ = self.builder.build_direct_call(initialize, &args, "");
         };
 
         self.build_return(&obj);

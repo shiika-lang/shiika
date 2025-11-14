@@ -4,6 +4,7 @@ use crate::codegen::{
 };
 use crate::mir;
 use crate::names::FunctionName;
+use anyhow::Result;
 use inkwell::types::BasicType;
 use inkwell::values::{AnyValue, BasicValueEnum};
 use shiika_core::ty::TermTy;
@@ -54,7 +55,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             lvars: Default::default(),
         };
 
-        self.compile_expr(&mut ctx, &f.body_stmts);
+        let _ = self.compile_expr(&mut ctx, &f.body_stmts).unwrap();
     }
 
     fn compile_value_expr(
@@ -62,7 +63,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         texpr: &mir::TypedExpr,
     ) -> inkwell::values::BasicValueEnum<'run> {
-        match self.compile_expr(ctx, texpr) {
+        match self.compile_expr(ctx, texpr).unwrap() {
             Some(v) => v,
             None => panic!("this expression does not have value"),
         }
@@ -72,8 +73,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         texpr: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        match &texpr.0 {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        Ok(match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
             mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
@@ -94,26 +95,26 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
                 self.compile_wtable_ref(ctx, receiver, module, *idx)
             }
-            mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els),
-            mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs),
+            mir::Expr::If(cond, then, els) => self.compile_if(ctx, cond, then, els)?,
+            mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs)?,
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, ty) => self.compile_alloc(ctx, name, ty),
-            mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs),
+            mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs)?,
             mir::Expr::IVarSet(obj_expr, idx, rhs, name) => {
-                self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)
+                self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)?
             }
-            mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs),
-            mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr),
-            mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs),
+            mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs)?,
+            mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr)?,
+            mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
-            mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name),
+            mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
             mir::Expr::CreateTypeObject(the_ty, includes_modules) => {
-                self.compile_create_type_object(ctx, the_ty, *includes_modules)
+                self.compile_create_type_object(ctx, the_ty, *includes_modules)?
             }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
-        }
+        })
     }
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
@@ -276,37 +277,37 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         cond_expr: &mir::TypedExpr,
         then_exprs: &mir::TypedExpr,
         else_exprs: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let begin_block = self.context.append_basic_block(ctx.function, "IfBegin");
         let then_block = self.context.append_basic_block(ctx.function, "IfThen");
         let else_block = self.context.append_basic_block(ctx.function, "IfElse");
         let merge_block = self.context.append_basic_block(ctx.function, "IfEnd");
 
         // IfBegin:
-        self.builder.build_unconditional_branch(begin_block);
+        self.builder.build_unconditional_branch(begin_block)?;
         self.builder.position_at_end(begin_block);
         let cond_value = self.compile_value_expr(ctx, cond_expr);
         self.gen_conditional_branch(cond_value, then_block, else_block);
         // IfThen:
         self.builder.position_at_end(then_block);
-        let then_value = self.compile_expr(ctx, then_exprs);
+        let then_value = self.compile_expr(ctx, then_exprs)?;
         if then_value.is_some() {
-            self.builder.build_unconditional_branch(merge_block);
+            self.builder.build_unconditional_branch(merge_block)?;
         }
         let then_block_end = self.builder.get_insert_block().unwrap();
         // IfElse:
         self.builder.position_at_end(else_block);
-        let else_value = self.compile_expr(ctx, else_exprs);
+        let else_value = self.compile_expr(ctx, else_exprs)?;
         if else_value.is_some() {
-            self.builder.build_unconditional_branch(merge_block);
+            self.builder.build_unconditional_branch(merge_block)?;
         }
         let else_block_end = self.builder.get_insert_block().unwrap();
 
         // IfEnd:
         self.builder.position_at_end(merge_block);
-        match (then_value, else_value) {
+        Ok(match (then_value, else_value) {
             (None, None) => {
-                self.builder.build_unreachable();
+                self.builder.build_unreachable()?;
                 None
             }
             (None, else_value) => else_value,
@@ -316,7 +317,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                 phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Some(phi_node.as_basic_value())
             }
-        }
+        })
     }
 
     /// Compile a sync while
@@ -325,25 +326,25 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         cond_expr: &mir::TypedExpr,
         body_expr: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let cond_block = self.context.append_basic_block(ctx.function, "WhileCond");
         let body_block = self.context.append_basic_block(ctx.function, "WhileBody");
         let end_block = self.context.append_basic_block(ctx.function, "WhileEnd");
 
         // WhileCond:
-        self.builder.build_unconditional_branch(cond_block);
+        self.builder.build_unconditional_branch(cond_block)?;
         self.builder.position_at_end(cond_block);
         let cond_value = self.compile_value_expr(ctx, cond_expr);
         self.gen_conditional_branch(cond_value, body_block, end_block);
 
         // WhileBody:
         self.builder.position_at_end(body_block);
-        self.compile_expr(ctx, body_expr);
-        self.builder.build_unconditional_branch(cond_block);
+        let _ = self.compile_expr(ctx, body_expr)?;
+        self.builder.build_unconditional_branch(cond_block)?;
 
         // WhileEnd:
         self.builder.position_at_end(end_block);
-        Some(self.compile_void())
+        Ok(Some(self.compile_void()))
     }
 
     fn compile_alloc(
@@ -362,11 +363,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         name: &str,
         rhs: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let v = self.compile_value_expr(ctx, rhs);
         let ptr = ctx.lvars.get(name).unwrap();
-        self.builder.build_store(ptr.clone(), v.clone());
-        Some(v)
+        self.builder.build_store(ptr.clone(), v.clone())?;
+        Ok(Some(v))
     }
 
     fn compile_ivar_set(
@@ -376,7 +377,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         idx: usize,
         rhs: &mir::TypedExpr,
         name: &str,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let obj = self.compile_value_expr(ctx, obj_expr);
         let value = self.compile_value_expr(ctx, rhs);
         instance::build_ivar_store_raw(
@@ -386,8 +387,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             idx,
             value,
             name,
-        );
-        None
+        )?;
+        Ok(None)
     }
 
     fn compile_const_set(
@@ -395,33 +396,33 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         ctx: &mut CodeGenContext<'run>,
         name: &str,
         rhs: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let v = self.compile_value_expr(ctx, rhs);
         let g = self.module.get_global(name).unwrap();
-        self.builder.build_store(g.as_pointer_value(), v);
-        Some(v)
+        self.builder.build_store(g.as_pointer_value(), v)?;
+        Ok(Some(v))
     }
 
     fn compile_return(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         val_expr: &mir::TypedExpr,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let val = self.compile_value_expr(ctx, val_expr);
-        self.builder.build_return(Some(&val));
-        None
+        self.builder.build_return(Some(&val))?;
+        Ok(None)
     }
 
     fn compile_exprs(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         exprs: &[mir::TypedExpr],
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let mut last_val = None;
         for e in exprs {
-            last_val = self.compile_expr(ctx, e);
+            last_val = self.compile_expr(ctx, e)?;
         }
-        last_val
+        Ok(last_val)
     }
 
     fn compile_cast<'a>(
@@ -463,9 +464,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_create_object(
         &mut self,
         type_name: &str,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let obj = instance::allocate_sk_obj(self, type_name);
-        Some(obj.0.into())
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        let obj = instance::allocate_sk_obj(self, type_name)?;
+        Ok(Some(obj.0.into()))
     }
 
     fn compile_create_type_object(
@@ -473,9 +474,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         _ctx: &mut CodeGenContext<'run>,
         the_ty: &TermTy,
         includes_modules: bool,
-    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let type_obj = type_object::create(self, the_ty, includes_modules);
-        Some(type_obj.0.into())
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        let type_obj = type_object::create(self, the_ty, includes_modules)?;
+        Ok(Some(type_obj.0.into()))
     }
 
     fn compile_unbox(
@@ -506,7 +507,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .builder
             .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
             .unwrap();
-        self.builder
+        let _ = self
+            .builder
             .build_conditional_branch(istrue, then_block, else_block);
     }
 
