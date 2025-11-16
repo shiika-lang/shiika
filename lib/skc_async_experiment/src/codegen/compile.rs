@@ -221,14 +221,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .iter()
             .map(|x| self.compile_value_expr(ctx, x).into())
             .collect::<Vec<_>>();
-        Some(
-            self.builder
-                .build_indirect_call(func_type, func.into_pointer_value(), &args, "result")
-                .unwrap()
-                .as_any_value_enum()
-                .try_into()
-                .unwrap(),
-        )
+        let call_result = self
+            .builder
+            .build_indirect_call(func_type, func.into_pointer_value(), &args, "result")
+            .unwrap();
+        call_result.set_tail_call(true);
+        Some(call_result.as_any_value_enum().try_into().unwrap())
     }
 
     fn compile_vtable_ref(
@@ -260,14 +258,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             let idx_val = self.context.i64_type().const_int(idx as u64, false);
             &[receiver_obj.into(), key.into(), idx_val.into()]
         };
-        Some(
-            self.builder
-                .build_direct_call(lookup_func, args, "wtable_method")
-                .unwrap()
-                .as_any_value_enum()
-                .try_into()
-                .unwrap(),
-        )
+        let call_result = self
+            .builder
+            .build_direct_call(lookup_func, args, "wtable_method")
+            .unwrap();
+        call_result.set_tail_call(true);
+        Some(call_result.as_any_value_enum().try_into().unwrap())
     }
 
     /// Compile a sync if

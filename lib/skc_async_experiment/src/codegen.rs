@@ -98,6 +98,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .get_function(&func_name)
             .unwrap_or_else(|| panic!("llvm function {:?} not found", func_name));
         let call_result = self.builder.build_direct_call(f, args, reg_name).unwrap();
+        call_result.set_tail_call(true);
         if call_result.try_as_basic_value().is_basic() {
             Some(call_result.as_any_value_enum().try_into().unwrap())
         } else {
