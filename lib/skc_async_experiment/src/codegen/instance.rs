@@ -130,6 +130,7 @@ fn shiika_malloc<'run>(
         .builder
         .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
         .unwrap();
+    call_result.set_tail_call(true);
     let basic_value: BasicValueEnum = call_result.as_any_value_enum().try_into().unwrap();
     basic_value.into_pointer_value()
 }

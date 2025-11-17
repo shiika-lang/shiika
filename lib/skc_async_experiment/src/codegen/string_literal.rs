@@ -25,6 +25,7 @@ pub fn generate<'run>(
             "string_new_result",
         )
         .unwrap();
+    call_result.set_tail_call(true);
     call_result.as_any_value_enum().try_into().unwrap()
 }
 
