@@ -129,7 +129,7 @@ impl<'a> Compiler<'a> {
                 name: "self".to_string(),
             },
         );
-        let body_stmts = self.convert_method_body(method.body);
+        let body_stmts = self.convert_method_body(method.body, &signature);
         let allocs = collect_allocs::run(&body_stmts);
         let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
@@ -156,18 +156,22 @@ impl<'a> Compiler<'a> {
         mir::Expr::exprs(new_stmts)
     }
 
-    fn convert_method_body(&self, body: SkMethodBody) -> mir::TypedExpr {
+    fn convert_method_body(
+        &self,
+        body: SkMethodBody,
+        signature: &MethodSignature,
+    ) -> mir::TypedExpr {
         match body {
             SkMethodBody::Normal { exprs } => self.convert_expr(exprs),
             SkMethodBody::RustLib => {
                 panic!("RustLib method cannot be converted to MIR")
             }
             SkMethodBody::New {
-                classname,
+                classname: _,
                 initializer,
                 arity: _,
                 const_is_obj: _,
-            } => self.create_new_body(classname.to_ty(), initializer),
+            } => self.create_new_body(signature.ret_ty.clone(), initializer),
             SkMethodBody::Getter {
                 idx,
                 name,
