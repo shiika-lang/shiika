@@ -230,7 +230,7 @@ impl Expr {
 
     pub fn create_object(ty: TermTy) -> TypedExpr {
         (
-            Expr::CreateObject(ty.fullname.to_class_fullname().0),
+            Expr::CreateObject(ty.erasure().to_class_fullname().0),
             ty.into(),
         )
     }
