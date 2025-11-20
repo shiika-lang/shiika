@@ -1,0 +1,6 @@
+enum Maybe<V>
+  case Some(value: V)
+  case None
+end
+Some = Maybe::Some
+None = Maybe::None
