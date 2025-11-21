@@ -1,6 +1,5 @@
 pub mod async_;
 pub mod core_class;
-pub mod wtable;
 
 /// Returns the C-level name of a Shiika method
 /// (eg: `Int#+`, `Meta:Class#new`)
