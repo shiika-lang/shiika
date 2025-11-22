@@ -54,7 +54,7 @@ impl FunctionName {
     /// Returns the mangled name of the function.
     pub fn mangle(&self) -> String {
         match self {
-            FunctionName::Unmangled(name) => shiika_ffi::mangle_method(&name.full_name),
+            FunctionName::Unmangled(name) => shiika_ffi_mangle::mangle_method(&name.full_name),
             FunctionName::Generated(name) => {
                 // Generated funcs are never called directly from Rust, so the name is arbitary
                 name.clone()

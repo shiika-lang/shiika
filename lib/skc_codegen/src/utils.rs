@@ -4,7 +4,7 @@ use crate::CodeGen;
 use inkwell::types::*;
 use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
 use shiika_core::{names::*, ty, ty::*};
-use shiika_ffi::{mangle_const, mangle_method};
+use shiika_ffi_mangle::{mangle_const, mangle_method};
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;

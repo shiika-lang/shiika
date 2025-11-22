@@ -1,9 +1,9 @@
+use shiika_ffi_mangle::mangle_method;
 mod shiika_const_ref;
 mod shiika_method_ref;
 use proc_macro::TokenStream;
 use quote::quote;
 use shiika_const_ref::ShiikaConstRef;
-use shiika_ffi::mangle_method;
 use shiika_method_ref::ShiikaMethodRef;
 use syn::parse_macro_input;
 

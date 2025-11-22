@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span};
-use shiika_ffi::mangle_const;
+use shiika_ffi_mangle::mangle_const;
 use syn::parse::{Parse, ParseStream};
 use syn::{Result, Token};
 

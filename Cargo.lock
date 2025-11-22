@@ -1532,6 +1532,10 @@ dependencies = [
 [[package]]
 name = "shiika_ffi"
 version = "0.1.0"
+dependencies = [
+ "shiika_ffi_macro",
+ "shiika_ffi_mangle",
+]
 
 [[package]]
 name = "shiika_ffi_macro"
@@ -1539,9 +1543,13 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "shiika_ffi",
+ "shiika_ffi_mangle",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "shiika_ffi_mangle"
+version = "0.1.0"
 
 [[package]]
 name = "shiika_parser"
@@ -1617,6 +1625,7 @@ dependencies = [
  "shiika_ast",
  "shiika_core",
  "shiika_ffi",
+ "shiika_ffi_mangle",
  "shiika_parser",
  "skc_ast2hir",
  "skc_hir",
@@ -1635,7 +1644,7 @@ dependencies = [
  "serde_json",
  "shiika_ast",
  "shiika_core",
- "shiika_ffi",
+ "shiika_ffi_mangle",
  "skc_corelib",
  "skc_error",
  "skc_hir",
