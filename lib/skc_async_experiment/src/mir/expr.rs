@@ -1,7 +1,7 @@
 use crate::mir::FunctionName;
 use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
-use shiika_core::names::ModuleFullname;
+use shiika_core::names::{ConstFullname, ModuleFullname};
 use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
@@ -17,7 +17,7 @@ pub enum Expr {
     ArgRef(usize, String),                    // (index, debug_name)
     EnvRef(usize, String),                    // (index, debug_name)
     EnvSet(usize, Box<Typed<Expr>>, String),  // (index, value, debug_name)
-    ConstRef(String),
+    ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
@@ -28,7 +28,7 @@ pub enum Expr {
     Alloc(String, Ty),
     LVarSet(String, Box<Typed<Expr>>),
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
-    ConstSet(String, Box<Typed<Expr>>),
+    ConstSet(ConstFullname, Box<Typed<Expr>>),
     Return(Box<Typed<Expr>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
@@ -68,7 +68,10 @@ impl CastType {
 
 impl Expr {
     pub fn void_const_ref() -> TypedExpr {
-        (Expr::ConstRef("Void".to_string()), Ty::raw("Void"))
+        (
+            Expr::ConstRef(ConstFullname::toplevel("Void")),
+            Ty::raw("Void"),
+        )
     }
 
     // A Shiika number (boxed int)
@@ -104,8 +107,8 @@ impl Expr {
         (Expr::EnvSet(idx, Box::new(e), name.into()), Ty::raw("Void"))
     }
 
-    pub fn const_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
-        (Expr::ConstRef(name.into()), ty)
+    pub fn const_ref(name: ConstFullname, ty: Ty) -> TypedExpr {
+        (Expr::ConstRef(name), ty)
     }
 
     pub fn func_ref(name: FunctionName, fun_ty: FunTy) -> TypedExpr {
@@ -207,8 +210,8 @@ impl Expr {
         )
     }
 
-    pub fn const_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
-        (Expr::ConstSet(name.into(), Box::new(e)), Ty::raw("Void"))
+    pub fn const_set(name: ConstFullname, e: TypedExpr) -> TypedExpr {
+        (Expr::ConstSet(name, Box::new(e)), Ty::raw("Void"))
     }
 
     pub fn return_(e: TypedExpr) -> TypedExpr {
@@ -291,7 +294,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 pretty_print(&e.0, lv, false)
             )
         }
-        Expr::ConstRef(name) => format!("{}", name),
+        Expr::ConstRef(name) => format!("{}", name.0),
         Expr::FuncRef(name) => format!("{}", name),
         Expr::FunCall(func, args) => {
             let Ty::Fun(fun_ty) = &func.1 else {
@@ -346,7 +349,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 pretty_print(&e.0, lv, false)
             )
         }
-        Expr::ConstSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
+        Expr::ConstSet(name, e) => format!("{} = {}", name.0, pretty_print(&e.0, lv, false)),
         Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
         Expr::Exprs(exprs) => {
             indent = false;

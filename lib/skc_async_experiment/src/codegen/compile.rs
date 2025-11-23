@@ -1,6 +1,6 @@
 use crate::codegen::{
-    codegen_context::CodeGenContext, instance, intrinsics, item, llvm_struct, string_literal,
-    type_object, value::SkObj, vtable, wtable, CodeGen,
+    codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
+    string_literal, type_object, value::SkObj, vtable, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
@@ -139,16 +139,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Some(v)
     }
 
-    pub fn compile_constref(&self, name: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let g = self
-            .module
-            .get_global(name)
-            .unwrap_or_else(|| panic!("global variable `{:?}' not found", name));
-        let v = self
-            .builder
-            .build_load(self.ptr_type(), g.as_pointer_value(), name)
-            .unwrap();
-        Some(v.into())
+    pub fn compile_constref(
+        &self,
+        name: &shiika_core::names::ConstFullname,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(constants::load(self, name))
     }
 
     fn compile_funcref(
@@ -390,11 +385,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_const_set(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        name: &str,
+        name: &shiika_core::names::ConstFullname,
         rhs: &mir::TypedExpr,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         let v = self.compile_value_expr(ctx, rhs);
-        let g = self.module.get_global(name).unwrap();
+        let g = constants::get_global(self, name);
         self.builder.build_store(g.as_pointer_value(), v)?;
         Ok(Some(v))
     }

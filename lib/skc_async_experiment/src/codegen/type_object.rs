@@ -5,6 +5,7 @@ use crate::codegen::{
 };
 use crate::prelude;
 use anyhow::Result;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 
 pub fn create<'run>(
@@ -23,8 +24,8 @@ pub fn create<'run>(
             let o = create_obj(gen, &the_ty.meta_ty(), false)?; // Assumes metaclass doesn't include
                                                                 // modules
             let the_metaclass = gen
-                .compile_constref("::Metaclass")
-                .expect("Metaclass class object not found")
+                .compile_constref(&ConstFullname::toplevel("Metaclass"))
+                .unwrap()
                 .into_pointer_value();
             instance::set_class_obj(gen, &o, SkClassObj(the_metaclass))?;
             o

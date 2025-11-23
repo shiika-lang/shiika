@@ -234,7 +234,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
             }
             HirExpressionBase::HirConstRef { fullname } => {
-                mir::Expr::const_ref(mir::mir_const_name(fullname), convert_ty(expr.ty))
+                mir::Expr::const_ref(fullname, convert_ty(expr.ty))
             }
             HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
@@ -262,7 +262,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::ivar_set(self_expr, idx, mir_rhs, name)
             }
             HirExpressionBase::HirConstAssign { fullname, rhs } => {
-                mir::Expr::const_set(mir::mir_const_name(fullname), self.convert_expr(*rhs))
+                mir::Expr::const_set(fullname, self.convert_expr(*rhs))
             }
             HirExpressionBase::HirMethodCall {
                 receiver_expr,

@@ -1,5 +1,4 @@
-use crate::codegen::{self, item, CodeGen};
-use crate::mir;
+use crate::codegen::{self, constants, item, CodeGen};
 use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::values::BasicValue;
@@ -137,15 +136,10 @@ pub fn get_module_key<'run>(
     gen: &CodeGen<'run, '_>,
     fullname: &ModuleFullname,
 ) -> inkwell::values::IntValue<'run> {
-    let const_name = mir::mir_const_name(fullname.clone().to_const_fullname());
-    let global = gen
-        .module
-        .get_global(&const_name)
-        .unwrap_or_else(|| panic!("global `{}' not found", const_name));
-
+    let type_obj = constants::load(gen, &fullname.clone().to_const_fullname());
     gen.builder
         .build_ptr_to_int(
-            global.as_pointer_value(),
+            type_obj.into_pointer_value(),
             gen.context.i64_type(),
             "const_addr",
         )
