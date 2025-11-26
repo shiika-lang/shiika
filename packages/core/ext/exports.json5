@@ -1,6 +1,10 @@
 // List of methods defined in ./ext
 // format: [class_name, method_signature, is_async]
 [
+  ["Class", "<>(tyargs: Array<Class>) -> Class", true],
+  ["Class", "_specialize1(tyargs: Array<Class>) -> Class", true],
+  ["Class", "_type_argument(nth: Int) -> Class", true],
+  ["Class", "erasure_class -> Class", true],
   ["Int", "+(other: Int) -> Int", false],
   ["Int", "-(other: Int) -> Int", false],
   ["Int", "*(other: Int) -> Int", false],
