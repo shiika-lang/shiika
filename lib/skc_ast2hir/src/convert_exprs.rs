@@ -1041,7 +1041,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let call_new = Hir::method_call(
             ary_ty.clone(),
             self.get_class_object(&ary_ty.meta_ty(), &locs),
-            method_fullname_raw("Array", "new"),
+            method_fullname_raw("Meta:Array", "new"),
             vec![],
             Default::default(),
             false,
