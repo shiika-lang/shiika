@@ -1,9 +1,8 @@
-mod collect_allocs;
 mod prepare_asyncness;
 use crate::build;
 use crate::mir;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, SkMethod};
+use skc_hir::{HirExpression, HirLVar, SkMethod};
 mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -72,7 +71,7 @@ pub fn run(
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             funcs.push(c.create_user_main());
-            funcs.push(c.create_user_main_inner(main_exprs, total_deps));
+            funcs.push(c.create_user_main_inner(main_exprs, uni.hir.main_lvars, total_deps));
         } else {
             if main_exprs.len() > 0 {
                 panic!("Top level expressions are not allowed in library");
@@ -130,8 +129,7 @@ impl<'a> Compiler<'a> {
             },
         );
         let body_stmts = self.convert_method_body(method.body, &signature);
-        let allocs = collect_allocs::run(&body_stmts);
-        let body_stmts = self.insert_allocs(allocs, body_stmts);
+        let body_stmts = self.insert_allocs(method.lvars, body_stmts);
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
             name: method.fullname.clone().into(),
@@ -142,15 +140,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn insert_allocs(
-        &self,
-        allocs: Vec<(String, mir::Ty)>,
-        stmts: mir::TypedExpr,
-    ) -> mir::TypedExpr {
+    fn insert_allocs(&self, lvars: Vec<HirLVar>, stmts: mir::TypedExpr) -> mir::TypedExpr {
         let mut stmts_vec = mir::expr::into_exprs(stmts);
         let mut new_stmts = vec![];
-        for (name, ty) in allocs {
-            new_stmts.push(mir::Expr::alloc(name, ty));
+        for lvar in lvars {
+            new_stmts.push(mir::Expr::alloc(lvar.name, lvar.ty.into()));
         }
         new_stmts.extend(stmts_vec.drain(..));
         mir::Expr::exprs(new_stmts)
@@ -471,6 +465,7 @@ impl<'a> Compiler<'a> {
         mir::Expr::exprs(exprs)
     }
 
+    /// Creates the user main function that creates the toplevel main object and calls main_inner
     fn create_user_main(&self) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.push(mir::Expr::fun_call(
@@ -495,13 +490,20 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// Creates the main_inner function that contains top-level expressions
     fn create_user_main_inner(
         &self,
         top_exprs: Vec<HirExpression>,
+        main_lvars: Vec<HirLVar>,
         total_deps: &[String],
     ) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
+        body_stmts.extend(
+            main_lvars
+                .into_iter()
+                .map(|lvar| mir::Expr::alloc(lvar.name, lvar.ty.into())),
+        );
         body_stmts.extend(top_exprs.into_iter().map(|expr| self.convert_expr(expr)));
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
         mir::Function {

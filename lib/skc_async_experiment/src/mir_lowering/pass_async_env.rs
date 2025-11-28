@@ -96,7 +96,7 @@ impl Update {
             .allocs
             .iter()
             .position(|(name, _)| name == varname)
-            .expect("[BUG] lvar not in self.lvars");
+            .unwrap_or_else(|| panic!("lvar '{}' not found in allocs: {:?}", varname, self.allocs));
         // +1 for $cont
         1 + self.orig_arity + i
     }
