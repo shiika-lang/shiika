@@ -1,6 +1,15 @@
 // List of methods defined in ./ext
 // format: [class_name, method_signature, is_async]
 [
+  ["Array", "_initialize_rustlib", false],
+  ["Array", "[](idx: Int) -> T", false],
+  ["Array", "[]=(idx: Int, obj: T)", false],
+  ["Array", "clear", false],
+  ["Array", "length -> Int", false],
+  ["Array", "push(item: T)", false],
+  ["Array", "pop -> T", false],
+  ["Array", "reserve(additional: Int)", false],
+  ["Array", "shift -> Maybe<T>", false],
   ["Class", "<>(tyargs: Array<Class>) -> Class", true],
   ["Class", "_specialize1(tyargs: Array<Class>) -> Class", true],
   ["Class", "_type_argument(nth: Int) -> Class", true],

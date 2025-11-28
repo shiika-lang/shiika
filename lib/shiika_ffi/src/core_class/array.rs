@@ -34,9 +34,9 @@ impl<T> SkArray<T> {
         unsafe { (*self.0).vec.read() }
     }
 
-    ///// Replace the contents with `v`.
-    ///// The original Vec will be free'd by GC.
-    //pub fn set_vec(&self, v: Vec<T>) {
-    //    unsafe { (*self.0).vec = Box::leak(Box::new(v)) }
-    //}
+    /// Replace the contents with `v`.
+    /// The original Vec will be free'd by GC.
+    pub fn set_vec(&self, v: Vec<T>) {
+        unsafe { (*self.0).vec = Box::leak(Box::new(v)) }
+    }
 }
