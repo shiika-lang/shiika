@@ -126,6 +126,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 self.gen_lambda_expr(ctx, name, params, captures, ret_ty)?,
             )),
             HirSelfExpression => Ok(Some(self.gen_self_expression(ctx, &expr.ty))),
+            HirArrayLiteral { .. } => unreachable!("this is for the new runtime"),
             HirFloatLiteral { value } => Ok(Some(self.gen_float_literal(*value))),
             HirDecimalLiteral { value } => Ok(Some(self.gen_decimal_literal(*value))),
             HirStringLiteral { idx } => Ok(Some(self.gen_string_literal(idx))),

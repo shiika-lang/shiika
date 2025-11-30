@@ -223,6 +223,10 @@ pub enum HirExpressionBase {
         has_break: bool,
     },
     HirSelfExpression,
+    /// Array literal (not used in the old system)
+    HirArrayLiteral {
+        elem_exprs: Vec<HirExpression>,
+    },
     HirFloatLiteral {
         value: f64,
     },
@@ -667,6 +671,18 @@ impl Hir {
         HirExpression {
             ty,
             node: HirExpressionBase::HirSelfExpression,
+            locs,
+        }
+    }
+
+    pub fn array_literal(
+        ty: TermTy,
+        elem_exprs: Vec<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
+        HirExpression {
+            ty,
+            node: HirExpressionBase::HirArrayLiteral { elem_exprs },
             locs,
         }
     }

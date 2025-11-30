@@ -12,6 +12,7 @@ members = [
 
 [features]
 mac = []
+new-runtime = ["skc_ast2hir/new-runtime"]
 
 [dependencies]
 shiika_parser = { path = "lib/shiika_parser/" }

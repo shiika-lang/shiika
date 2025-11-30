@@ -183,18 +183,18 @@ end
 #
 task :async do
   sh "cargo fmt"
-  sh "cargo run --bin exp_shiika -- build packages/core"
-  sh "cargo run --bin exp_shiika -- compile a.sk"
+  sh "cargo run --bin exp_shiika --features new-runtime -- build packages/core"
+  sh "cargo run --bin exp_shiika --features new-runtime -- compile a.sk"
 end
 task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
-  sh "cargo run --bin exp_shiika -- build packages/core"
+  sh "cargo run --bin exp_shiika --features new-runtime -- build packages/core"
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
-    sh "cargo run --bin exp_shiika -- compile #{name}.sk"
+    sh "cargo run --bin exp_shiika --features new-runtime -- compile #{name}.sk"
     puts "--"
     Timeout.timeout(5) do
       sh "#{name}.out > #{name}.actual_out 2>&1"

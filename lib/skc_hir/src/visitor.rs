@@ -109,6 +109,11 @@ pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &mut V, expr: &'hir HirExpression
             walk_expr(v, exprs)?;
         }
         HirSelfExpression => (),
+        HirArrayLiteral { elem_exprs } => {
+            for expr in elem_exprs {
+                walk_expr(v, expr)?;
+            }
+        }
         HirFloatLiteral { .. } => (),
         HirDecimalLiteral { .. } => (),
         HirStringLiteral { .. } => (),
