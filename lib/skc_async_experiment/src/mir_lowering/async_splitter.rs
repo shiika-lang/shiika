@@ -206,7 +206,7 @@ impl<'a> Compiler<'a> {
             }
             mir::Expr::Return(expr) => return self.compile_return(*expr),
             mir::Expr::Exprs(_) => {
-                panic!("Exprs must be handled by its parent");
+                panic!("Exprs must be handled by its parent: {:?}", e.0);
             }
             mir::Expr::Cast(cast_type, expr) => {
                 let new_expr = self.compile_value_expr(*expr, on_return)?;
