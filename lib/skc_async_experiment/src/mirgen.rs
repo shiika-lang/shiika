@@ -215,6 +215,13 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirFloatLiteral { value } => {
                 todo!("Handle float literal: {}", value)
             }
+            HirExpressionBase::HirArrayLiteral { elem_exprs } => {
+                let mir_elements: Vec<mir::TypedExpr> = elem_exprs
+                    .into_iter()
+                    .map(|e| self.convert_expr(e))
+                    .collect();
+                mir::Expr::array_literal(mir_elements, result_ty)
+            }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
                 mir::Expr::lvar_ref(name, convert_ty(expr.ty))

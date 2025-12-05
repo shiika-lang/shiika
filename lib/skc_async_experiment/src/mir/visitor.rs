@@ -91,6 +91,11 @@ pub trait MirVisitor {
             mir::Expr::RawI64(_) => {}
             mir::Expr::Nop => {}
             mir::Expr::StringLiteral(_) => {}
+            mir::Expr::ArrayLiteral(elem_exprs) => {
+                for elem in elem_exprs {
+                    self.walk_expr(elem)?;
+                }
+            }
         }
         self.visit_expr(expr)?;
         Ok(())

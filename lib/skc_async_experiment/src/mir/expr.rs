@@ -12,6 +12,7 @@ pub enum Expr {
     Number(i64),
     PseudoVar(PseudoVar),
     StringLiteral(String),
+    ArrayLiteral(Vec<Typed<Expr>>),
     LVarRef(String),
     IVarRef(Box<Typed<Expr>>, usize, String), // (obj, index, debug_name)
     ArgRef(usize, String),                    // (index, debug_name)
@@ -85,6 +86,10 @@ impl Expr {
 
     pub fn string_literal(s: impl Into<String>) -> TypedExpr {
         (Expr::StringLiteral(s.into()), Ty::raw("String"))
+    }
+
+    pub fn array_literal(elements: Vec<TypedExpr>, ty: Ty) -> TypedExpr {
+        (Expr::ArrayLiteral(elements), ty)
     }
 
     pub fn lvar_ref(name: impl Into<String>, ty: Ty) -> TypedExpr {
@@ -376,7 +381,11 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
         Expr::StringLiteral(s) => format!("\"{}\"", s),
-        //_ => todo!("{:?}", self),
+        Expr::ArrayLiteral(elems) => {
+            let elem_strs: Vec<String> =
+                elems.iter().map(|e| pretty_print(&e.0, 0, false)).collect();
+            format!("[{}]", elem_strs.join(", "))
+        } //_ => todo!("{:?}", self),
     };
     if indent {
         format!("{}{}", sp, s)
