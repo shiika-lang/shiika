@@ -1,11 +1,27 @@
 use shiika_ffi::core_class::{SkArray, SkInt, SkObject};
 use shiika_ffi_macro::shiika_method;
 
-/// Called from `Array.new` and initializes internal fields.
-#[shiika_method("Array#_initialize_rustlib")]
-#[allow(non_snake_case)]
-pub extern "C" fn array__initialize_rustlib(receiver: SkArray<SkObject>) {
-    receiver.set_vec(Vec::new());
+/// Creates a new Array instance from raw array data and length
+/// Called from LLVM-generated code for array literals
+#[shiika_method("Array#initialize")]
+pub extern "C" fn array_initialize(
+    receiver: SkArray<SkObject>,
+    raw_array_ptr: *const SkObject,
+    length: u64,
+) {
+    let len = length as usize;
+    let mut vec = Vec::with_capacity(len);
+
+    // Copy elements from the raw array into the Vec
+    for i in 0..len {
+        unsafe {
+            let elem_ptr = raw_array_ptr.add(i);
+            let elem = std::ptr::read(elem_ptr);
+            vec.push(elem);
+        }
+    }
+
+    receiver.set_vec(vec);
 }
 
 #[shiika_method("Array#[]")]
