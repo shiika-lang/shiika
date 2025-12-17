@@ -551,7 +551,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             )
             .unwrap();
         let self_ty = ty::raw(&fullname.0);
-        let exprs = signature
+        let mut exprs = signature
             .params
             .iter()
             .enumerate()
@@ -566,7 +566,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     LocationSpan::todo(),
                 )
             })
-            .collect();
+            .collect::<Vec<_>>();
+        exprs.push(Hir::return_expression(
+            HirReturnFrom::Method,
+            skc_hir::void_const_ref(),
+            LocationSpan::todo(),
+        ));
         if signature.has_default_expr() {
             return Err(error::program_error(
                 "sorry, enums cannot have default expression (yet).",
