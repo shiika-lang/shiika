@@ -1,6 +1,7 @@
 mod prepare_asyncness;
 use crate::build;
 use crate::mir;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 use skc_hir::{HirExpression, HirLVar, SkMethod};
 mod constants;
@@ -220,7 +221,27 @@ impl<'a> Compiler<'a> {
                     .into_iter()
                     .map(|e| self.convert_expr(e))
                     .collect();
-                mir::Expr::array_literal(mir_elements, result_ty)
+                let native_array_expr = (
+                    mir::Expr::CreateNativeArray(mir_elements.clone()),
+                    mir::Ty::Ptr,
+                );
+
+                // Call Meta:Array#new with the native array and element count
+                let element_count = mir_elements.len();
+                let count_expr = mir::Expr::raw_i64(element_count as i64);
+                let func_name = FunctionName::method("Meta:Array", "new");
+                let fun_ty = mir::FunTy::new(
+                    mir::Asyncness::Unknown,
+                    vec![mir::Ty::raw("Meta:Array"), mir::Ty::Ptr, mir::Ty::Int64],
+                    result_ty,
+                );
+                let func_ref = mir::Expr::func_ref(func_name, fun_ty.into());
+                let the_array = mir::Expr::const_ref(
+                    ConstFullname::toplevel("Array"),
+                    mir::Ty::raw("Meta:Array"),
+                );
+
+                mir::Expr::fun_call(func_ref, vec![the_array, native_array_expr, count_expr])
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {

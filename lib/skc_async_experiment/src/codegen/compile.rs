@@ -6,7 +6,7 @@ use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::types::BasicType;
-use inkwell::values::{AnyValue, BasicValueEnum};
+use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
 use shiika_core::ty::TermTy;
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
@@ -77,6 +77,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
             mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
+            mir::Expr::CreateNativeArray(elems) => self.compile_create_native_array(ctx, elems)?,
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
@@ -123,6 +124,39 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_string_literal(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
         Some(string_literal::generate(self, s))
+    }
+
+    fn compile_create_native_array(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        elem_exprs: &[mir::TypedExpr],
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        // Allocate memory for llvm array
+        let element_count = elem_exprs.len();
+        let array_ptr = instance::allocate_llvm_array(
+            self,
+            self.ptr_type().as_basic_type_enum(),
+            element_count as u32,
+        );
+
+        // Insert each element
+        for (i, elem_expr) in elem_exprs.iter().enumerate() {
+            let compiled_elem = self.compile_value_expr(ctx, elem_expr);
+            let idx = self.context.i64_type().const_int(i as u64, false);
+            let elem_ptr = unsafe {
+                self.builder
+                    .build_gep(
+                        self.ptr_type(),
+                        array_ptr,
+                        &[idx],
+                        &format!("elem_ptr_{}", i),
+                    )
+                    .unwrap()
+            };
+            self.builder.build_store(elem_ptr, compiled_elem).unwrap();
+        }
+
+        Ok(Some(array_ptr.as_basic_value_enum()))
     }
 
     fn compile_argref(

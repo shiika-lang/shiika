@@ -73,9 +73,9 @@ pub trait MirRewriter {
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
             mir::Expr::StringLiteral(_) => expr,
-            mir::Expr::ArrayLiteral(elem_exprs) => {
+            mir::Expr::CreateNativeArray(elem_exprs) => {
                 let new_elem_exprs = self.walk_exprs(elem_exprs)?;
-                mir::Expr::array_literal(new_elem_exprs, expr.1.clone())
+                (mir::Expr::CreateNativeArray(new_elem_exprs), expr.1.clone())
             }
         };
         self.rewrite_expr(new_expr)

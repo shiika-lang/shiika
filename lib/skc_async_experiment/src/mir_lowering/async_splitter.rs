@@ -215,13 +215,13 @@ impl<'a> Compiler<'a> {
             mir::Expr::CreateObject(_) => e,
             mir::Expr::CreateTypeObject(_, _) => e,
             mir::Expr::StringLiteral(_) => e,
-            mir::Expr::ArrayLiteral(elem_exprs) => {
+            mir::Expr::CreateNativeArray(elem_exprs) => {
                 // TODO: async in array elements
                 let new_elems = elem_exprs
                     .into_iter()
                     .map(|elem| self.compile_value_expr(elem, false))
                     .collect::<Result<Vec<_>>>()?;
-                mir::Expr::array_literal(new_elems, e.1.clone())
+                (mir::Expr::CreateNativeArray(new_elems), e.1.clone())
             }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
         };
