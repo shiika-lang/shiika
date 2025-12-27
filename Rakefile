@@ -208,7 +208,7 @@ end
 # debugging
 #
 
-task :coredump do
+task :segv do
   sh "lldb ./a.out -o run -o bt -o exit > a.dump.txt"
 end
 
@@ -223,6 +223,10 @@ task :lldb do
     #"-o", "run",
     #"-o", "register read"
     ""
+end
+
+task :lldb_mcp do
+  sh "lldb", "-o", "protocol-server start MCP listen://localhost:59999"
 end
 
 task :tmp do
