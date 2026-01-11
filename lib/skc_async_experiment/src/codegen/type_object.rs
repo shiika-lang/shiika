@@ -1,7 +1,7 @@
 use crate::codegen::{
     instance, llvm_struct, string_literal,
     value::{SkClassObj, SkObj},
-    wtable, CodeGen,
+    CodeGen,
 };
 use crate::prelude;
 use anyhow::Result;
@@ -59,8 +59,5 @@ fn create_obj<'run>(
         name_str,
         "@name",
     )?;
-    if includes_modules {
-        wtable::call_inserter(gen, &the_ty.fullname.to_class_fullname(), cls_obj.0.clone());
-    }
     Ok(cls_obj)
 }

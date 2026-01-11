@@ -1,5 +1,6 @@
 mod prepare_asyncness;
 use crate::build;
+use crate::codegen;
 use crate::mir;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
@@ -527,6 +528,17 @@ impl<'a> Compiler<'a> {
     ) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
+        body_stmts.push(mir::Expr::fun_call(
+            mir::Expr::func_ref(
+                FunctionName::mangled(codegen::wtable::main_inserter_name()),
+                mir::FunTy {
+                    asyncness: mir::Asyncness::Lowered,
+                    param_tys: vec![],
+                    ret_ty: Box::new(mir::Ty::Raw("Void".to_string())),
+                },
+            ),
+            vec![],
+        ));
         body_stmts.extend(
             main_lvars
                 .into_iter()
