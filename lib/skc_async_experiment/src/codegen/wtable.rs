@@ -1,3 +1,4 @@
+//! WTable (Witness Table) code generation for module method dispatch.
 use crate::codegen::{self, constants, item, CodeGen};
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -52,7 +53,7 @@ pub fn init_constant(gen: &mut CodeGen, sk_class: &SkClass) {
     }
 }
 
-/// Generate a call to inserter like `shiika_insert_wtable_Array(cls_obj)`
+/// Generate a call to inserter like `shiika_insert_Array_wtables(cls_obj)`
 pub fn call_inserter(
     gen: &mut CodeGen,
     classname: &ClassFullname,
@@ -77,7 +78,7 @@ pub fn define_inserters(
     Ok(())
 }
 
-/// Define the inserter function like `shiika_insert_wtable_Array(cls_obj)`
+/// Define the inserter function like `shiika_insert_Array_wtables(cls_obj)`
 fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) -> Result<()> {
     let function = {
         let fargs = &[gen.ptr_type().into()];
@@ -127,7 +128,7 @@ fn llvm_wtable_const_name(classname: &ClassFullname, modulename: &ModuleFullname
 }
 
 pub fn insert_wtable_func_name(cls: &ClassFullname) -> String {
-    format!("shiika_insert_wtable_{}", cls)
+    format!("shiika_insert_{}_wtables", cls)
 }
 
 /// Get the wtable key of a module
