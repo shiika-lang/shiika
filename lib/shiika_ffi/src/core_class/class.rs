@@ -56,7 +56,7 @@ impl SkClass {
         unsafe {
             (*self.0).witness_table.as_ref().unwrap_or_else(|| {
                 panic!(
-                    "[BUG] witness_table is null: {:?}, {}",
+                    "[BUG] witness_table(): is null: {:?}, {}",
                     self,
                     self.name().as_str()
                 )
@@ -68,7 +68,7 @@ impl SkClass {
         unsafe {
             (*self.0).witness_table.as_mut().unwrap_or_else(|| {
                 panic!(
-                    "[BUG] witness_table is null: {:?}, {}",
+                    "[BUG] witness_table_mut(): is null: {:?}, {}",
                     self,
                     self.name().as_str()
                 )
