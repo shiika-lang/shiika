@@ -109,9 +109,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
-            mir::Expr::CreateTypeObject(the_ty, includes_modules) => {
-                self.compile_create_type_object(ctx, the_ty, *includes_modules)?
-            }
+            mir::Expr::CreateTypeObject(the_ty) => self.compile_create_type_object(ctx, the_ty)?,
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
@@ -498,9 +496,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         &mut self,
         _ctx: &mut CodeGenContext<'run>,
         the_ty: &TermTy,
-        includes_modules: bool,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
-        let type_obj = type_object::create(self, the_ty, includes_modules)?;
+        let type_obj = type_object::create(self, the_ty)?;
         Ok(Some(type_obj.0.into()))
     }
 

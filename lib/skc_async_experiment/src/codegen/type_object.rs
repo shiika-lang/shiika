@@ -8,21 +8,16 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
 
-pub fn create<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    the_ty: &TermTy,
-    includes_modules: bool,
-) -> Result<SkObj<'run>> {
+pub fn create<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkObj<'run>> {
     debug_assert!(!the_ty.fullname.is_meta());
-    let type_obj = create_obj(gen, the_ty, includes_modules)?;
+    let type_obj = create_obj(gen, the_ty)?;
 
     if the_ty.fullname.0 == "Metaclass" {
         // Overwrite .class to achieve `Metaclass.class == Metaclass`.
         instance::set_class_obj(gen, &type_obj, SkClassObj(type_obj.0))?;
     } else {
         let meta_type_obj = {
-            let o = create_obj(gen, &the_ty.meta_ty(), false)?; // Assumes metaclass doesn't include
-                                                                // modules
+            let o = create_obj(gen, &the_ty.meta_ty())?;
             let the_metaclass = gen
                 .compile_constref(&ConstFullname::toplevel("Metaclass"))
                 .unwrap()
@@ -37,11 +32,7 @@ pub fn create<'run>(
 }
 
 /// Create a type object
-fn create_obj<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    the_ty: &TermTy,
-    includes_modules: bool,
-) -> Result<SkObj<'run>> {
+fn create_obj<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkObj<'run>> {
     let name_str = string_literal::generate(gen, &the_ty.fullname.0);
     let cls_obj = instance::allocate_sk_obj(
         gen,
