@@ -57,6 +57,7 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
     .collect()
 }
 
+/// Functions defined in skc_async_experiment::codegen
 pub fn intrinsic_externs() -> Vec<(FunctionName, FunTy)> {
     vec![
         (
