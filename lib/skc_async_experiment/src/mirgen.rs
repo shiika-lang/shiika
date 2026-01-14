@@ -529,11 +529,7 @@ impl<'a> Compiler<'a> {
         body_stmts.push(mir::Expr::fun_call(
             mir::Expr::func_ref(
                 FunctionName::mangled(codegen::wtable::main_inserter_name()),
-                mir::FunTy {
-                    asyncness: mir::Asyncness::Lowered,
-                    param_tys: vec![],
-                    ret_ty: Box::new(mir::Ty::Raw("Void".to_string())),
-                },
+                mir::FunTy::lowered(vec![], mir::Ty::raw("Void")),
             ),
             vec![],
         ));
