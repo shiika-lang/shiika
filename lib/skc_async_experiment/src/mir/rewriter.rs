@@ -68,11 +68,15 @@ pub trait MirRewriter {
             mir::Expr::Exprs(exprs) => mir::Expr::exprs(self.walk_exprs(exprs)?),
             mir::Expr::Cast(cast_type, expr) => mir::Expr::cast(cast_type, self.walk_expr(*expr)?),
             mir::Expr::CreateObject(_) => expr,
-            mir::Expr::CreateTypeObject(_, _) => expr,
+            mir::Expr::CreateTypeObject(_) => expr,
             mir::Expr::Unbox(e) => mir::Expr::unbox(self.walk_expr(*e)?),
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
             mir::Expr::StringLiteral(_) => expr,
+            mir::Expr::CreateNativeArray(elem_exprs) => {
+                let new_elem_exprs = self.walk_exprs(elem_exprs)?;
+                (mir::Expr::CreateNativeArray(new_elem_exprs), expr.1.clone())
+            }
         };
         self.rewrite_expr(new_expr)
     }

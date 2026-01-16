@@ -3,6 +3,9 @@ name = "skc_ast2hir"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+new-runtime = []
+
 [dependencies]
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }

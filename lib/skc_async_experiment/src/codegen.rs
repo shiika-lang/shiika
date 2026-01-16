@@ -7,10 +7,11 @@ mod instance;
 mod intrinsics;
 mod item;
 mod llvm_struct;
+mod sanity_check;
 mod string_literal;
 mod value;
 mod vtable;
-mod wtable;
+pub mod wtable;
 use crate::mir;
 use anyhow::{anyhow, Result};
 use inkwell::values::AnyValue;
@@ -43,18 +44,20 @@ pub fn run<P: AsRef<Path>>(
     constants::declare_extern_consts(&mut gen, mir.imported_constants);
     let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
     wtable::declare_constants(&mut gen, &mir.sk_types);
-    wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     vtable::import(&mut gen, &mir.imported_vtables);
     vtable::define(&mut gen, &mir.vtables);
 
     llvm_struct::define(&mut gen, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut gen)?;
+        wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);
     wtable::init_constants(&mut gen, &mir.sk_types, _method_funcs_);
     vtable::define_body(&mut gen, &mir.vtables, _method_funcs_);
+
+    sanity_check::run(&gen.module)?;
 
     gen.module.write_bitcode_to_path(bc_path.as_ref());
     if let Some(ll_path) = opt_ll_path {

@@ -1,3 +1,4 @@
+use crate::codegen;
 use crate::mir;
 use crate::mir::rewriter::MirRewriter;
 use crate::mir::visitor::MirVisitor;
@@ -14,6 +15,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 pub fn run(mut mir: mir::Program, sk_types: &mut SkTypes) -> mir::Program {
     // Externs are known to be async or not
     let mut known = HashMap::new();
+
+    // ad-hoc fix (TODO: cleanup this)
+    known.insert(
+        FunctionName::mangled(codegen::wtable::main_inserter_name()),
+        false,
+    );
+
     for e in &mir.externs {
         known.insert(e.name.clone(), e.is_async());
     }

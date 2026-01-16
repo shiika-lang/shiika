@@ -1,5 +1,5 @@
-use crate::codegen::{self, item, CodeGen};
-use crate::mir;
+//! WTable (Witness Table) code generation for module method dispatch.
+use crate::codegen::{self, constants, item, CodeGen};
 use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::values::BasicValue;
@@ -53,33 +53,71 @@ pub fn init_constant(gen: &mut CodeGen, sk_class: &SkClass) {
     }
 }
 
-/// Generate a call to inserter like `shiika_insert_wtable_Array(cls_obj)`
-pub fn call_inserter(
+//pub fn call_main_inserter(
+//    gen: &mut CodeGen,
+//) {
+//    let fname = main_inserter_name();
+//    let args = &[];
+//    gen.call_llvm_func(&fname, args, "_");
+//}
+
+pub fn define_inserters(
+    _const_global: item::ConstGlobal,
     gen: &mut CodeGen,
-    classname: &ClassFullname,
-    cls_obj: inkwell::values::PointerValue,
-) {
+    sk_types: &SkTypes,
+) -> Result<()> {
+    define_class_inserters(_const_global, gen, sk_types)?;
+    define_main_inserter(gen, sk_types)?;
+    Ok(())
+}
+
+fn define_main_inserter(gen: &mut CodeGen, sk_types: &SkTypes) -> Result<()> {
+    let fname = main_inserter_name();
+    let function = {
+        let ftype = gen.context.void_type().fn_type(&[], false);
+        gen.module.add_function(&fname, ftype, None)
+    };
+    let basic_block = gen.context.append_basic_block(function, "");
+    gen.builder.position_at_end(basic_block);
+
+    call_all_inserters(gen, sk_types);
+
+    gen.builder.build_return(None)?;
+    Ok(())
+}
+
+fn call_all_inserters(gen: &mut CodeGen, sk_types: &SkTypes) {
+    for sk_class in sk_types.sk_classes() {
+        if !sk_class.wtable.is_empty() {
+            call_inserter(gen, &sk_class.fullname());
+        }
+    }
+}
+
+/// Generate a call to inserter like `shiika_insert_Array_wtables(cls_obj)`
+fn call_inserter(gen: &mut CodeGen, classname: &ClassFullname) {
+    let cls_obj = constants::load(gen, &classname.to_const_fullname());
     let fname = insert_wtable_func_name(classname);
     let args = &[cls_obj.into()];
     gen.call_llvm_func(&fname, args, "_");
 }
 
 /// Insert wtable entries for all modules of the class
-pub fn define_inserters(
+fn define_class_inserters(
     _const_global: item::ConstGlobal,
     gen: &mut CodeGen,
     sk_types: &SkTypes,
 ) -> Result<()> {
     for sk_class in sk_types.sk_classes() {
         if !sk_class.wtable.is_empty() {
-            define_inserter(gen, sk_class)?;
+            define_class_inserter(gen, sk_class)?;
         }
     }
     Ok(())
 }
 
-/// Define the inserter function like `shiika_insert_wtable_Array(cls_obj)`
-fn define_inserter(gen: &mut CodeGen, sk_class: &SkClass) -> Result<()> {
+/// Define the inserter function like `shiika_insert_Array_wtables(cls_obj)`
+fn define_class_inserter(gen: &mut CodeGen, sk_class: &SkClass) -> Result<()> {
     let function = {
         let fargs = &[gen.ptr_type().into()];
         let ftype = gen.context.void_type().fn_type(fargs, false);
@@ -113,7 +151,9 @@ fn load_wtable_const<'a>(
 ) -> inkwell::values::BasicValueEnum<'a> {
     let ptr = gen.module.get_global(llvm_const_name).unwrap_or_else(|| {
         panic!(
-            "[BUG] global for constant `{}' not created",
+            "[BUG] WTable constant `{}` not declared. \
+             Ensure declare_constants() was called before define_inserters(). \
+             Check codegen.rs for correct phase ordering.",
             llvm_const_name
         )
     });
@@ -127,8 +167,12 @@ fn llvm_wtable_const_name(classname: &ClassFullname, modulename: &ModuleFullname
     format!("shiika_wtable_{}_{}", classname.0, modulename.0)
 }
 
-pub fn insert_wtable_func_name(cls: &ClassFullname) -> String {
-    format!("shiika_insert_wtable_{}", cls)
+pub fn main_inserter_name() -> String {
+    "shiika_insert_all_wtables".to_string()
+}
+
+fn insert_wtable_func_name(cls: &ClassFullname) -> String {
+    format!("shiika_insert_{}_wtables", cls)
 }
 
 /// Get the wtable key of a module
@@ -137,15 +181,10 @@ pub fn get_module_key<'run>(
     gen: &CodeGen<'run, '_>,
     fullname: &ModuleFullname,
 ) -> inkwell::values::IntValue<'run> {
-    let const_name = mir::mir_const_name(fullname.clone().to_const_fullname());
-    let global = gen
-        .module
-        .get_global(&const_name)
-        .unwrap_or_else(|| panic!("global `{}' not found", const_name));
-
+    let type_obj = constants::load(gen, &fullname.clone().to_const_fullname());
     gen.builder
         .build_ptr_to_int(
-            global.as_pointer_value(),
+            type_obj.into_pointer_value(),
             gen.context.i64_type(),
             "const_addr",
         )

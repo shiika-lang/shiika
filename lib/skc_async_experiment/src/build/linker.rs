@@ -1,5 +1,5 @@
 use crate::targets;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -17,9 +17,11 @@ pub fn run<P: AsRef<Path>>(bc_path_: P, deps: &[PathBuf]) -> Result<PathBuf> {
     };
     let exe_path = bc_path.canonicalize()?.with_extension(exe_ext);
     let mut cmd = build_clang_cmd(bc_path, exe_path.clone(), deps);
-    if !cmd.status()?.success() {
+    let status = cmd.status().context(format!("calling clang: {:?}", cmd))?;
+    if !status.success() {
         return Err(anyhow!("clang failed: {:?}", cmd));
     }
+
     Ok(exe_path)
 }
 

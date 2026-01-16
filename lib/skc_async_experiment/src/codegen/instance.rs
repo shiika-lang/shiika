@@ -5,6 +5,7 @@ use crate::codegen::{
 };
 use crate::names::FunctionName;
 use anyhow::Result;
+use inkwell::types::BasicType;
 use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
 use shiika_core::names::class_fullname;
 
@@ -111,24 +112,35 @@ pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, class_name: &str) -> R
     Ok(obj)
 }
 
+pub fn allocate_llvm_array<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    elem_type: inkwell::types::BasicTypeEnum<'run>,
+    length: u32,
+) -> inkwell::values::PointerValue<'run> {
+    let array_type = elem_type.array_type(length);
+    let size = array_type.size_of().expect("type has no size");
+    shiika_malloc(gen, size, "ary_mem")
+}
+
 /// Allocate some memory for a value of LLVM type `t`. Returns void ptr.
 fn allocate_mem<'run>(
     gen: &mut CodeGen<'run, '_>,
     t: &inkwell::types::StructType<'run>,
 ) -> inkwell::values::PointerValue<'run> {
     let size = t.size_of().expect("type has no size");
-    shiika_malloc(gen, size)
+    shiika_malloc(gen, size, "mem")
 }
 
 /// Call `shiika_malloc`
 fn shiika_malloc<'run>(
     gen: &mut CodeGen<'run, '_>,
     size: inkwell::values::IntValue<'run>,
+    regname: &str,
 ) -> inkwell::values::PointerValue<'run> {
     let func = gen.get_llvm_func(&FunctionName::mangled("shiika_malloc"));
     let call_result = gen
         .builder
-        .build_direct_call(func, &[size.as_basic_value_enum().into()], "mem")
+        .build_direct_call(func, &[size.as_basic_value_enum().into()], regname)
         .unwrap();
     call_result.set_tail_call(true);
     let basic_value: BasicValueEnum = call_result.as_any_value_enum().try_into().unwrap();

@@ -1,9 +1,11 @@
 require "./lib/metaclass.sk"
 
+require "./lib/array.sk"
 require "./lib/object.sk"
 require "./lib/class.sk"
 require "./lib/bool.sk"
 require "./lib/int.sk"
+require "./lib/maybe.sk"
 require "./lib/string.sk"
 require "./lib/void.sk"
 

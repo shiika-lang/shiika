@@ -1,3 +1,5 @@
+//! TODO: I'm not sure if this should be defined in shiika_ffi because WitnessTable is an implementation
+//! detail rather than an interface.
 use std::collections::HashMap;
 
 #[repr(C)]

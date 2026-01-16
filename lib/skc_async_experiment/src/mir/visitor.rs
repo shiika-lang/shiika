@@ -84,13 +84,18 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::CreateObject(_) => {}
-            mir::Expr::CreateTypeObject(_, _) => {}
+            mir::Expr::CreateTypeObject(_) => {}
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
             }
             mir::Expr::RawI64(_) => {}
             mir::Expr::Nop => {}
             mir::Expr::StringLiteral(_) => {}
+            mir::Expr::CreateNativeArray(elem_exprs) => {
+                for elem in elem_exprs {
+                    self.walk_expr(elem)?;
+                }
+            }
         }
         self.visit_expr(expr)?;
         Ok(())

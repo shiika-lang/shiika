@@ -1,4 +1,8 @@
 base class Class
-  def initialize(@name: String)
+  def initialize(@name: String,
+                 @specialized_classes: Shiika::Internal::Ptr,
+                 @type_args: Shiika::Internal::Ptr,
+                 @witness_table: Shiika::Internal::Ptr,
+                 @erasure_cls: Shiika::Internal::Ptr)
   end
 end

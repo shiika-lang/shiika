@@ -39,7 +39,7 @@ pub fn create_const_init_funcs(
 
 pub fn create_const_init_func(name: ConstFullname, rhs: mir::TypedExpr) -> mir::Function {
     let mut body_stmts = vec![];
-    body_stmts.push(mir::Expr::const_set(mir::mir_const_name(name.clone()), rhs));
+    body_stmts.push(mir::Expr::const_set(name.clone(), rhs));
     body_stmts.push(mir::Expr::return_(mir::Expr::raw_i64(0)));
     mir::Function {
         // PERF: Currently all const init functions are treated as async (safe side)

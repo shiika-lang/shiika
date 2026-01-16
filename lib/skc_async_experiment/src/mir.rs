@@ -18,10 +18,6 @@ pub fn main_function_inner_name() -> FunctionName {
     FunctionName::mangled("_chiika_main")
 }
 
-pub fn mir_const_name(name: ConstFullname) -> String {
-    name.0
-}
-
 #[derive(Debug, Clone)]
 pub struct CompilationUnit {
     pub program: Program,

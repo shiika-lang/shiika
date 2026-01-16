@@ -1,92 +1,30 @@
-use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ContFuture};
 use shiika_ffi::core_class::{SkClass, SkInt, SkObject, SkString};
-use shiika_ffi_macro::shiika_method;
-use std::future::{poll_fn, Future};
-use std::task::Poll;
+use shiika_ffi_macro::async_shiika_method;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
 
-#[shiika_method("Object#class")]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn class(
-    env: &'static mut ChiikaEnv,
-    receiver: SkObject,
-    cont: ChiikaCont,
-) -> ContFuture {
-    async fn class(receiver: SkObject) -> SkClass {
-        receiver.class()
-    }
-    env.cont = Some(cont);
-    let mut future = Box::pin(class(receiver));
-    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
-        Poll::Ready(x) => Poll::Ready(x.0 as u64),
-        Poll::Pending => Poll::Pending,
-    }))
+#[async_shiika_method("Object#class")]
+async fn object_class(receiver: SkObject) -> SkClass {
+    receiver.class()
+}
+#[async_shiika_method("Object#print")]
+async fn object_print(_receiver: SkObject, n: SkInt) {
+    let mut stdout = stdout();
+    let output = format!("{}\n", n.val());
+    stdout.write_all(output.as_bytes()).await.unwrap();
+    stdout.flush().await.unwrap();
 }
 
-#[shiika_method("Object#print")]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn print(
-    env: &'static mut ChiikaEnv,
-    _receiver: SkObject,
-    nn: SkInt,
-    cont: ChiikaCont,
-) -> ContFuture {
-    async fn print(n: SkInt) {
-        // Hand written part (all the rest will be macro-generated)
-        let mut stdout = stdout();
-        let output = format!("{}\n", n.val());
-        stdout.write_all(output.as_bytes()).await.unwrap();
-        stdout.flush().await.unwrap();
-    }
-    env.cont = Some(cont);
-    let mut future = Box::pin(print(nn));
-    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
-        Poll::Ready(_) => Poll::Ready(0),
-        Poll::Pending => Poll::Pending,
-    }))
+#[async_shiika_method("Object#puts")]
+async fn object_puts(_receiver: SkObject, s: SkString) {
+    let mut stdout = stdout();
+    stdout.write_all(s.value()).await.unwrap();
+    stdout.write_all(b"\n").await.unwrap();
+    stdout.flush().await.unwrap();
 }
 
-#[shiika_method("Object#puts")]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn puts(
-    env: &'static mut ChiikaEnv,
-    _receiver: SkObject,
-    ss: SkString,
-    cont: ChiikaCont,
-) -> ContFuture {
-    async fn puts(s: SkString) {
-        // Hand written part (all the rest will be macro-generated)
-        let mut stdout = stdout();
-        stdout.write_all(s.value()).await.unwrap();
-        stdout.write_all(b"\n").await.unwrap();
-        stdout.flush().await.unwrap();
-    }
-    env.cont = Some(cont);
-    let mut future = Box::pin(puts(ss));
-    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
-        Poll::Ready(_) => Poll::Ready(0),
-        Poll::Pending => Poll::Pending,
-    }))
-}
-
-#[shiika_method("Object#sleep_sec")]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn sleep_sec(
-    env: &'static mut ChiikaEnv,
-    _receiver: SkInt,
-    nn: SkInt,
-    cont: ChiikaCont,
-) -> ContFuture {
-    async fn sleep_sec(n: SkInt) {
-        // Hand written part (all the rest will be macro-generated)
-        let sec = n.val() as u64;
-        tokio::time::sleep(Duration::from_secs(sec)).await;
-    }
-    env.cont = Some(cont);
-    let mut future = Box::pin(sleep_sec(nn));
-    Box::new(poll_fn(move |ctx| match future.as_mut().poll(ctx) {
-        Poll::Ready(_) => Poll::Ready(0),
-        Poll::Pending => Poll::Pending,
-    }))
+#[async_shiika_method("Object#sleep_sec")]
+async fn object_sleep_sec(_receiver: SkObject, n: SkInt) {
+    let sec = n.val() as u64;
+    tokio::time::sleep(Duration::from_secs(sec)).await;
 }

@@ -15,6 +15,10 @@ impl ConstFullname {
     pub fn new(names: Vec<String>) -> ConstFullname {
         const_fullname(names.join("::"))
     }
+
+    pub fn toplevel(s_: impl Into<String>) -> ConstFullname {
+        toplevel_const(&s_.into())
+    }
 }
 
 pub fn const_fullname(s_: impl Into<String>) -> ConstFullname {

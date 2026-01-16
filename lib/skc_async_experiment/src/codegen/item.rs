@@ -4,4 +4,6 @@
 #[derive(Debug, Clone, Copy)]
 pub struct MethodFuncs();
 
+/// LLVM Global Constants for Shiika constants
+#[derive(Debug, Clone, Copy)]
 pub struct ConstGlobal();

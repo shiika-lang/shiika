@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 shiika_core = { path = "../shiika_core" }
 shiika_ast = { path = "../shiika_ast" }
-shiika_ffi = { path = "../shiika_ffi" }
+shiika_ffi_mangle = { path = "../shiika_ffi_mangle" }
 skc_corelib = { path = "../skc_corelib" }
 skc_error = { path = "../skc_error" }
 skc_hir = { path = "../skc_hir" }

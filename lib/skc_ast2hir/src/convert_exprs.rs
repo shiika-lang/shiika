@@ -993,7 +993,21 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(self.create_array_instance(item_exprs, locs.clone()))
+
+        #[cfg(feature = "new-runtime")]
+        {
+            let item_ty = self.array_item_ty(&item_exprs);
+            Ok(Hir::array_literal(
+                ty::spe("Array", vec![item_ty]),
+                item_exprs,
+                locs.clone(),
+            ))
+        }
+
+        #[cfg(not(feature = "new-runtime"))]
+        {
+            Ok(self.create_array_instance(item_exprs, locs.clone()))
+        }
     }
 
     pub fn create_array_instance(
@@ -1041,7 +1055,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let call_new = Hir::method_call(
             ary_ty.clone(),
             self.get_class_object(&ary_ty.meta_ty(), &locs),
-            method_fullname_raw("Array", "new"),
+            method_fullname_raw("Meta:Array", "new"),
             vec![],
             Default::default(),
             false,

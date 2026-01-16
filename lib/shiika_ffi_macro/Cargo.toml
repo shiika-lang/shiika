@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-shiika_ffi = { path = "../shiika_ffi" }
+shiika_ffi_mangle = { path = "../shiika_ffi_mangle" }
 syn = { version = "1.0.82", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0.43"

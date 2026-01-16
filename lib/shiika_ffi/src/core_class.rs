@@ -1,10 +1,12 @@
+mod array;
 mod bool;
-mod class;
+pub mod class; // pub for WitnessTable
 mod int;
 mod object;
 mod string;
+pub use array::SkArray;
 pub use bool::SkBool;
-pub use class::{SkClass, WitnessTable};
+pub use class::SkClass;
 pub use int::SkInt;
 pub use object::SkObject;
 pub use string::SkString;

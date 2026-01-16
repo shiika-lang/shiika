@@ -1,8 +1,39 @@
+use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use shiika_ffi::mangle_method;
+use quote::quote;
+use shiika_ffi_mangle::mangle_method;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, Field, Result, Token};
+use syn::{parenthesized, parse_macro_input, Field, Result, Token};
+
+/// Define a wrapper function to call Shiika method.
+///
+/// ## Example
+/// ```rust
+/// shiika_method_ref!(
+///     "Meta:Class#new", // Shiika method name
+///     fn(receiver: *const u8) -> SkAry<SkObj>, // Type of the function
+///     "meta_class_new" // Name of the function
+/// );
+/// ```
+pub fn compile(input: TokenStream) -> TokenStream {
+    let spec = parse_macro_input!(input as ShiikaMethodRef);
+    let mangled_name = spec.mangled_name();
+    let parameters = &spec.parameters;
+    let return_type = &spec.ret_ty;
+    let wrapper_name = spec.wrapper_name();
+    let args = spec.forwaring_args();
+    let gen = quote! {
+        extern "C" {
+            #[allow(improper_ctypes)]
+            fn #mangled_name(#parameters) -> #return_type;
+        }
+        pub fn #wrapper_name(#parameters) -> #return_type {
+            unsafe { #mangled_name(#args) }
+        }
+    };
+    gen.into()
+}
 
 /// Helper struct for `shiika_method_ref` macro
 pub struct ShiikaMethodRef {

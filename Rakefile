@@ -183,18 +183,18 @@ end
 #
 task :async do
   sh "cargo fmt"
-  sh "cargo run --bin exp_shiika -- build packages/core"
-  sh "cargo run --bin exp_shiika -- compile a.sk"
+  sh "cargo run --bin exp_shiika --features new-runtime -- build packages/core"
+  sh "cargo run --bin exp_shiika --features new-runtime -- compile a.sk"
 end
 task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
-  sh "cargo run --bin exp_shiika -- build packages/core"
+  sh "cargo run --bin exp_shiika --features new-runtime -- build packages/core"
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
-    sh "cargo run --bin exp_shiika -- compile #{name}.sk"
+    sh "cargo run --bin exp_shiika --features new-runtime -- compile #{name}.sk"
     puts "--"
     Timeout.timeout(5) do
       sh "#{name}.out > #{name}.actual_out 2>&1"
@@ -208,7 +208,7 @@ end
 # debugging
 #
 
-task :coredump do
+task :segv do
   sh "lldb ./a.out -o run -o bt -o exit > a.dump.txt"
 end
 
@@ -216,6 +216,33 @@ task :err do
   sh "rake async_test > err.txt 2>&1"
 end
 
-task :tmp do
-  sh "clang-16 -v -target x86_64-pc-linux-gnu -lm -o /home/yhara/shiika/a.out a.bc /home/yhara/.shiika/packages/core-0.1.0/cargo_target/debug/libext.a /home/yhara/.shiika/packages/core-0.1.0/lib/index.bc -ldl -lpthread"
+task :lldb do
+  sh "rake tmp"
+  sh "lldb", "a.out",
+    "-o", "breakpoint set -f a.sk -l 1",
+    #"-o", "run",
+    #"-o", "register read"
+    ""
 end
+
+task :lldb_mcp do
+  sh "lldb", "-o", "protocol-server start MCP listen://localhost:59999"
+end
+
+task :tmp do
+  sh "clang-18 -v -lm -o a.out a.ll ~/.shiika/packages/core-0.1.0/cargo_target/debug/libext.a ~/.shiika/packages/core-0.1.0/lib/index.ll -ldl -lpthread"
+end
+=begin
+source_filename = "a.ll"
+!llvm.dbg.cu = !{!0}
+!llvm.module.flags = !{!6}
+!llvm.ident = !{!7}
+!0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "hand-written", isOptimized: false, emissionKind: FullDebug, enums: !2)
+!1 = !DIFile(filename: "a.ll", directory: ".")
+!2 = !{}
+!3 = distinct !DISubprogram(name: "main", file: !1, line: 1, type: !2)
+!4 = !DILocation(line: 77, column: 1, scope: !3)
+!5 = !DILocation(line: 1, column: 1, scope: !3)
+!6 = !{i32 2, !"Debug Info Version", i32 3}
+!7 = !{!"handwritten"}
+=end

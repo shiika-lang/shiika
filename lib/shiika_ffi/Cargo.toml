@@ -2,3 +2,7 @@
 name = "shiika_ffi"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+shiika_ffi_mangle = { path = "../shiika_ffi_mangle" }
+shiika_ffi_macro = { path = "../shiika_ffi_macro" }
