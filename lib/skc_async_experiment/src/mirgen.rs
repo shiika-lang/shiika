@@ -1,3 +1,4 @@
+mod collect_allocs;
 mod prepare_asyncness;
 use crate::build;
 use crate::codegen;
@@ -131,7 +132,8 @@ impl<'a> Compiler<'a> {
             },
         );
         let body_stmts = self.convert_method_body(method.body, &signature);
-        let body_stmts = self.insert_allocs(method.lvars, body_stmts);
+        let allocs = collect_allocs::run(&body_stmts);
+        let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
             name: method.fullname.clone().into(),
@@ -142,11 +144,15 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn insert_allocs(&self, lvars: Vec<HirLVar>, stmts: mir::TypedExpr) -> mir::TypedExpr {
+    fn insert_allocs(
+        &self,
+        allocs: Vec<(String, mir::Ty)>,
+        stmts: mir::TypedExpr,
+    ) -> mir::TypedExpr {
         let mut stmts_vec = mir::expr::into_exprs(stmts);
         let mut new_stmts = vec![];
-        for lvar in lvars {
-            new_stmts.push(mir::Expr::alloc(lvar.name, lvar.ty.into()));
+        for (name, ty) in allocs {
+            new_stmts.push(mir::Expr::alloc(name, ty));
         }
         new_stmts.extend(stmts_vec.drain(..));
         mir::Expr::exprs(new_stmts)
