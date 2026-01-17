@@ -51,6 +51,8 @@ pub fn run(
             str_literals: &uni.hir.str_literals,
         };
 
+        funcs.extend(const_init_funcs(&uni, &c));
+
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {
                 let signature = uni.hir.sk_types.get_sig(&m.fullname).unwrap();
@@ -58,17 +60,6 @@ pub fn run(
                 funcs.push(c.convert_method(m, &uni.hir.sk_types));
             }
         }
-
-        let consts = uni.hir.const_inits.into_iter().map(|e| {
-            let HirExpressionBase::HirConstAssign { fullname, rhs } = e.node else {
-                panic!("Expected HirConstAssign, got {:?}", e);
-            };
-            (fullname, c.convert_expr(*rhs))
-        });
-        funcs.extend(constants::create_const_init_funcs(
-            uni.package_name.as_ref(),
-            consts.collect(),
-        ));
 
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
@@ -99,6 +90,17 @@ pub fn run(
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
     })
+}
+
+fn const_init_funcs(uni: &build::CompilationUnit, c: &Compiler) -> Vec<mir::Function> {
+    let consts = uni.hir.const_inits.iter().map(|e| {
+        let HirExpressionBase::HirConstAssign { fullname, rhs } = &e.node else {
+            panic!("Expected HirConstAssign, got {:?}", e);
+        };
+        (fullname.clone(), c.convert_expr(rhs.as_ref().clone()))
+    });
+
+    constants::create_const_init_funcs(uni.package_name.as_ref(), consts.collect())
 }
 
 struct Compiler<'a> {
