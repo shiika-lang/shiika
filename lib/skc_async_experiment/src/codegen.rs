@@ -1,5 +1,6 @@
 mod codegen_context;
 mod compile;
+pub mod prelude;
 mod type_object;
 use crate::names::FunctionName;
 mod constants;

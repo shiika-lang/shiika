@@ -6,6 +6,5 @@ pub mod mir_lowering;
 mod mirgen;
 mod names;
 mod package;
-pub mod prelude;
 pub mod run;
 mod targets;

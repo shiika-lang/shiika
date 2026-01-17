@@ -1,5 +1,6 @@
 use crate::build::{self, bootstrap_classes, loader, CompileTarget};
-use crate::{cli, codegen, mir, mir_lowering, mirgen, package, prelude};
+use crate::codegen::prelude;
+use crate::{cli, codegen, mir, mir_lowering, mirgen, package};
 use anyhow::{Context, Result};
 use shiika_core::names::type_fullname;
 use shiika_parser::SourceFile;
