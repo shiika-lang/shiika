@@ -253,7 +253,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_indirect_call(func_type, func.into_pointer_value(), &args, "result")
             .unwrap();
         call_result.set_tail_call(true);
-        Some(call_result.as_any_value_enum().try_into().unwrap())
+
+        call_result.as_any_value_enum().try_into().ok()
     }
 
     fn compile_vtable_ref(
@@ -536,8 +537,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_function_type(&self, fun_ty: &mir::FunTy) -> inkwell::types::FunctionType<'ictx> {
         let param_tys = self.llvm_types(&fun_ty.param_tys);
-        let ret_ty = self.llvm_type(&fun_ty.ret_ty);
-        ret_ty.fn_type(&param_tys, false)
+        if *fun_ty.ret_ty == mir::Ty::CVoid {
+            self.context.void_type().fn_type(&param_tys, false)
+        } else {
+            let ret_ty = self.llvm_type(&fun_ty.ret_ty);
+            ret_ty.fn_type(&param_tys, false)
+        }
     }
 
     fn llvm_types(&self, tys: &[mir::Ty]) -> Vec<inkwell::types::BasicMetadataTypeEnum<'ictx>> {

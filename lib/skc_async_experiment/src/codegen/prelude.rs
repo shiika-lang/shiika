@@ -8,13 +8,13 @@ pub const IDX_CLASS_IVAR_NAME: usize = 0;
 
 /// Functions defined as Shiika runtime (in packages/core/ext)
 pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
-    let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::raw("Void")], Ty::RustFuture);
+    let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::CVoid], Ty::RustFuture);
     let spawnee = FunTy::lowered(
         vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
         Ty::RustFuture,
     );
     vec![
-        ("GC_init", FunTy::lowered(vec![], Ty::raw("Void"))),
+        ("GC_init", FunTy::lowered(vec![], Ty::CVoid)),
         ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Ptr)),
         (
             "shiika_lookup_wtable",
@@ -26,13 +26,13 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         ),
         (
             "chiika_env_push_frame",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::raw("Void")),
+            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::CVoid),
         ),
         (
             "chiika_env_set",
             FunTy::lowered(
                 vec![Ty::ChiikaEnv, Ty::Int64, Ty::Any, Ty::Int64],
-                Ty::raw("Void"),
+                Ty::CVoid,
             ),
         ),
         (
@@ -45,12 +45,9 @@ pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
         ),
         (
             "chiika_spawn",
-            FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::raw("Void")),
+            FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::CVoid),
         ),
-        (
-            "chiika_start_tokio",
-            FunTy::lowered(vec![], Ty::raw("Void")),
-        ),
+        ("chiika_start_tokio", FunTy::lowered(vec![], Ty::CVoid)),
     ]
     .into_iter()
     .map(|(name, ty)| (FunctionName::mangled(name), ty))
@@ -105,7 +102,7 @@ pub fn main_funcs() -> Vec<mir::Function> {
 }
 
 fn main_body() -> mir::TypedExpr {
-    let t = FunTy::lowered(vec![], Ty::raw("Void"));
+    let t = FunTy::lowered(vec![], Ty::CVoid);
     let chiika_start_tokio = mir::Expr::func_ref(FunctionName::mangled("chiika_start_tokio"), t);
     mir::Expr::exprs(vec![
         mir::Expr::fun_call(chiika_start_tokio, vec![]),

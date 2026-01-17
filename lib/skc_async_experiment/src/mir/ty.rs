@@ -9,6 +9,7 @@ pub enum Ty {
     Any,   // Opaque value converted to `i64` (to store it in ChiikaEnv)
     I1,    // Corresponds to `i1` in llvm
     Int64, // Corresponds to `i64` in llvm
+    CVoid, // Corresponds to `void` in llvm
     ChiikaEnv,
     RustFuture,
     Raw(String),
@@ -92,6 +93,7 @@ impl Ty {
             Ty::Any => 1,
             Ty::I1 => 2,
             Ty::Int64 => 3,
+            Ty::CVoid => panic!("CVoid has no value"),
             Ty::ChiikaEnv => 4,
             Ty::RustFuture => 5,
             Ty::Raw(_) => 6,
