@@ -53,14 +53,6 @@ pub fn init_constant(gen: &mut CodeGen, sk_class: &SkClass) {
     }
 }
 
-//pub fn call_main_inserter(
-//    gen: &mut CodeGen,
-//) {
-//    let fname = main_inserter_name();
-//    let args = &[];
-//    gen.call_llvm_func(&fname, args, "_");
-//}
-
 pub fn define_inserters(
     _const_global: item::ConstGlobal,
     gen: &mut CodeGen,
@@ -145,10 +137,10 @@ fn define_class_inserter(gen: &mut CodeGen, sk_class: &SkClass) -> Result<()> {
 }
 
 /// Get the llvm constant like `@shiika_wtable_Array_Enumerable` as i8*
-fn load_wtable_const<'a>(
-    gen: &'a CodeGen,
+pub fn load_wtable_const<'run, 'ictx>(
+    gen: &CodeGen<'run, 'ictx>,
     llvm_const_name: &str,
-) -> inkwell::values::BasicValueEnum<'a> {
+) -> inkwell::values::BasicValueEnum<'run> {
     let ptr = gen.module.get_global(llvm_const_name).unwrap_or_else(|| {
         panic!(
             "[BUG] WTable constant `{}` not declared. \
@@ -163,7 +155,7 @@ fn load_wtable_const<'a>(
 }
 
 /// Name of llvm constant of a wtable
-fn llvm_wtable_const_name(classname: &ClassFullname, modulename: &ModuleFullname) -> String {
+pub fn llvm_wtable_const_name(classname: &ClassFullname, modulename: &ModuleFullname) -> String {
     format!("shiika_wtable_{}_{}", classname.0, modulename.0)
 }
 

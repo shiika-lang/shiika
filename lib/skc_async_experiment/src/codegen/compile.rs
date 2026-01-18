@@ -93,6 +93,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::VTableRef(receiver, idx, _debug_name) => {
                 self.compile_vtable_ref(ctx, receiver, *idx)
             }
+            mir::Expr::WTableKey(modname) => self.compile_wtable_key(modname),
+            mir::Expr::WTableRow(classname, modname) => self.compile_wtable_row(classname, modname),
             mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
                 self.compile_wtable_ref(ctx, receiver, module, *idx)
             }
@@ -292,6 +294,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .unwrap();
         call_result.set_tail_call(true);
         Some(call_result.as_any_value_enum().try_into().unwrap())
+    }
+
+    fn compile_wtable_key(
+        &mut self,
+        modname: &shiika_core::names::ModuleFullname,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let key = wtable::get_module_key(self, modname);
+        Some(key.into())
+    }
+
+    fn compile_wtable_row(
+        &mut self,
+        classname: &shiika_core::names::ClassFullname,
+        modname: &shiika_core::names::ModuleFullname,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let funcs =
+            wtable::load_wtable_const(self, &wtable::llvm_wtable_const_name(&classname, modname));
+        Some(funcs.into())
     }
 
     /// Compile a sync if
