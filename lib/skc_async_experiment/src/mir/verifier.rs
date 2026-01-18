@@ -206,6 +206,8 @@ impl<'a> Verifier<'a> {
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;
             }
+            mir::Expr::WTableKey(_) => (),
+            mir::Expr::WTableRow(_, _) => (),
         }
         Ok(())
     }

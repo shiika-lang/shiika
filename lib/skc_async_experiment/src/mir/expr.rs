@@ -1,7 +1,7 @@
 use crate::mir::FunctionName;
 use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ConstFullname, ModuleFullname};
+use shiika_core::names::{ClassFullname, ConstFullname, ModuleFullname};
 use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
@@ -21,6 +21,11 @@ pub enum Expr {
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    // Get the key of the wtable (i.e. address of module object)
+    WTableKey(ModuleFullname),
+    // Get the llvm array of functions
+    WTableRow(ClassFullname, ModuleFullname),
+    // Lookup a method from wtable
     WTableRef(Box<Typed<Expr>>, ModuleFullname, usize, String), // (receiver, module, index, debug_name)
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -258,6 +263,14 @@ impl Expr {
         (Expr::Nop, Ty::raw("Void"))
     }
 
+    pub fn wtable_key(module: ModuleFullname) -> TypedExpr {
+        (Expr::WTableKey(module), Ty::Int64)
+    }
+
+    pub fn wtable_row(classname: ClassFullname, module: ModuleFullname) -> TypedExpr {
+        (Expr::WTableRow(classname, module), Ty::Ptr)
+    }
+
     pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
         pretty_print(self, lv, as_stmt)
     }
@@ -378,6 +391,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             let elem_strs: Vec<String> =
                 elems.iter().map(|e| pretty_print(&e.0, 0, false)).collect();
             format!("%CreateNativeArray[{}]", elem_strs.join(", "))
+        }
+        Expr::WTableKey(module) => {
+            format!("%WTableKey({})", module.0)
+        }
+        Expr::WTableRow(classname, module) => {
+            format!("%WTableRow({}, {})", classname.0, module.0)
         }
     };
     if indent {

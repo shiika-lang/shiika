@@ -224,6 +224,7 @@ impl<'a> Compiler<'a> {
                 (mir::Expr::CreateNativeArray(new_elems), e.1.clone())
             }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
+            mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
         };
         Ok(Some(new_e))
     }
