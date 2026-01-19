@@ -1,15 +1,15 @@
 mod collect_allocs;
-mod prepare_asyncness;
-use crate::build;
-use crate::codegen;
-use crate::mir;
-use shiika_core::names::ConstFullname;
-use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirLVar, SkMethod};
 mod constants;
+mod prepare_asyncness;
+mod wtables;
+use crate::build;
+use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty;
+use shiika_core::ty::TermTy;
+use skc_hir::{HirExpression, HirLVar, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -52,6 +52,7 @@ pub fn run(
         };
 
         funcs.extend(const_init_funcs(&uni, &c));
+        funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
 
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {
@@ -534,13 +535,7 @@ impl<'a> Compiler<'a> {
     ) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
-        body_stmts.push(mir::Expr::fun_call(
-            mir::Expr::func_ref(
-                FunctionName::mangled(codegen::wtable::main_inserter_name()),
-                mir::FunTy::lowered(vec![], mir::Ty::raw("Void")),
-            ),
-            vec![],
-        ));
+        body_stmts.push(wtables::call_main_inserter());
         body_stmts.extend(
             main_lvars
                 .into_iter()

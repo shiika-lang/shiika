@@ -51,7 +51,6 @@ pub fn run<P: AsRef<Path>>(
     llvm_struct::define(&mut gen, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut gen)?;
-        wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);
