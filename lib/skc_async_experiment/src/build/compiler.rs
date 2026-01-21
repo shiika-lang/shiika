@@ -25,9 +25,6 @@ pub fn compile(
             mir.program.externs.push(mir::Extern { name, fun_ty });
         }
     }
-    for (name, fun_ty) in prelude::core_externs() {
-        mir.program.externs.push(mir::Extern { name, fun_ty });
-    }
 
     mir::verifier::run(&mir)?;
 

@@ -7,50 +7,53 @@ use crate::names::FunctionName;
 pub const IDX_CLASS_IVAR_NAME: usize = 0;
 
 /// Functions defined as Shiika runtime (in packages/core/ext)
-pub fn core_externs() -> Vec<(FunctionName, FunTy)> {
+pub fn core_externs() -> Vec<mir::Extern> {
     let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::CVoid], Ty::RustFuture);
     let spawnee = FunTy::lowered(
         vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
         Ty::RustFuture,
     );
     vec![
-        ("GC_init", FunTy::lowered(vec![], Ty::CVoid)),
-        ("shiika_malloc", FunTy::lowered(vec![Ty::Int64], Ty::Ptr)),
+        ("GC_init", FunTy::sync(vec![], Ty::CVoid)),
+        ("shiika_malloc", FunTy::sync(vec![Ty::Int64], Ty::Ptr)),
         (
             "shiika_lookup_wtable",
-            FunTy::lowered(vec![Ty::Ptr, Ty::Int64, Ty::Int64], Ty::Ptr),
+            FunTy::sync(vec![Ty::Ptr, Ty::Int64, Ty::Int64], Ty::Ptr),
         ),
         (
             "shiika_insert_wtable",
-            FunTy::lowered(vec![Ty::Ptr, Ty::Int64, Ty::Ptr, Ty::Int64], Ty::Ptr),
+            FunTy::sync(vec![Ty::Ptr, Ty::Int64, Ty::Ptr, Ty::Int64], Ty::Ptr),
         ),
         (
             "chiika_env_push_frame",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::CVoid),
+            FunTy::sync(vec![Ty::ChiikaEnv, Ty::Int64], Ty::CVoid),
         ),
         (
             "chiika_env_set",
-            FunTy::lowered(
+            FunTy::sync(
                 vec![Ty::ChiikaEnv, Ty::Int64, Ty::Any, Ty::Int64],
                 Ty::CVoid,
             ),
         ),
         (
             "chiika_env_pop_frame",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64], Ty::Any),
+            FunTy::sync(vec![Ty::ChiikaEnv, Ty::Int64], Ty::Any),
         ),
         (
             "chiika_env_ref",
-            FunTy::lowered(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Any),
+            FunTy::sync(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Any),
         ),
         (
             "chiika_spawn",
-            FunTy::lowered(vec![spawnee.into(), Ty::RustFuture], Ty::CVoid),
+            FunTy::sync(vec![spawnee.into(), Ty::RustFuture], Ty::CVoid),
         ),
-        ("chiika_start_tokio", FunTy::lowered(vec![], Ty::CVoid)),
+        ("chiika_start_tokio", FunTy::sync(vec![], Ty::CVoid)),
     ]
     .into_iter()
-    .map(|(name, ty)| (FunctionName::mangled(name), ty))
+    .map(|(name, ty)| mir::Extern {
+        name: FunctionName::mangled(name),
+        fun_ty: ty,
+    })
     .collect()
 }
 

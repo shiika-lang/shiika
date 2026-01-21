@@ -309,8 +309,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         classname: &shiika_core::names::ClassFullname,
         modname: &shiika_core::names::ModuleFullname,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        let funcs =
-            wtable::load_wtable_const(self, &wtable::llvm_wtable_const_name(&classname, modname));
+        let funcs = wtable::load_wtable_const(self, classname, modname);
         Some(funcs.into())
     }
 

@@ -3,6 +3,7 @@ mod constants;
 mod prepare_asyncness;
 mod wtables;
 use crate::build;
+use crate::codegen;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -29,7 +30,8 @@ pub fn run(
     let classes = convert_classes(&uni);
 
     let externs = {
-        let mut externs = convert_externs(&uni.imports.sk_types);
+        let mut externs = codegen::prelude::core_externs();
+        externs.extend(convert_externs(&uni.imports.sk_types));
         for sk_type in uni.hir.sk_types.types.values() {
             for sig in sk_type.base().method_sigs.iter() {
                 if sig.is_rust {
@@ -52,7 +54,9 @@ pub fn run(
         };
 
         funcs.extend(const_init_funcs(&uni, &c));
-        funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
+        if target.is_bin() {
+            funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
+        }
 
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {

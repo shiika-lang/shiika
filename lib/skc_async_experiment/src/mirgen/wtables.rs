@@ -34,12 +34,13 @@ fn inserter_func(sk_class: &skc_hir::SkClass) -> mir::Function {
             ],
         ));
     }
+    body_stmts.push(mir::Expr::return_(mir::Expr::raw_i64(0)));
     let func_name = insert_wtable_func_name(&sk_class.fullname());
     mir::Function {
         asyncness: mir::Asyncness::Sync,
         name: FunctionName::mangled(func_name),
         params: vec![],
-        ret_ty: mir::Ty::CVoid,
+        ret_ty: mir::Ty::Int64,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
     }
@@ -69,11 +70,12 @@ fn main_inserter(sk_types: &SkTypes) -> mir::Function {
             ));
         }
     }
+    body_stmts.push(mir::Expr::return_(mir::Expr::raw_i64(0)));
     mir::Function {
         asyncness: mir::Asyncness::Sync,
         name: main_inserter_name(),
         params: vec![],
-        ret_ty: mir::Ty::CVoid,
+        ret_ty: mir::Ty::Int64,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
     }
