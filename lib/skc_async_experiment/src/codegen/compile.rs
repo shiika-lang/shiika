@@ -107,7 +107,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                 self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)?
             }
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs)?,
-            mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr)?,
+            mir::Expr::Return(val_expr) => {
+                self.compile_return(ctx, val_expr.as_ref().map(|v| &**v))?
+            }
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
@@ -449,10 +451,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_return(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        val_expr: &mir::TypedExpr,
+        val_expr: Option<&mir::TypedExpr>,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
-        let val = self.compile_value_expr(ctx, val_expr);
-        self.builder.build_return(Some(&val))?;
+        let return_val = val_expr.map(|expr| self.compile_value_expr(ctx, expr));
+        self.builder.build_return(
+            return_val
+                .as_ref()
+                .map(|v| v as &dyn inkwell::values::BasicValue),
+        )?;
         Ok(None)
     }
 

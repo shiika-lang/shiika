@@ -75,7 +75,9 @@ pub trait MirVisitor {
                 self.walk_expr(rhs)?;
             }
             mir::Expr::Return(expr) => {
-                self.walk_expr(expr)?;
+                if let Some(e) = expr {
+                    self.walk_expr(e)?;
+                }
             }
             mir::Expr::Exprs(exprs) => {
                 self.walk_exprs(exprs)?;

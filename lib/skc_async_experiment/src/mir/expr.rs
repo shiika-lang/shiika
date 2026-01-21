@@ -34,7 +34,7 @@ pub enum Expr {
     LVarSet(String, Box<Typed<Expr>>),
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(ConstFullname, Box<Typed<Expr>>),
-    Return(Box<Typed<Expr>>),
+    Return(Option<Box<Typed<Expr>>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
@@ -221,7 +221,11 @@ impl Expr {
     }
 
     pub fn return_(e: TypedExpr) -> TypedExpr {
-        (Expr::Return(Box::new(e)), Ty::raw("Never"))
+        (Expr::Return(Some(Box::new(e))), Ty::raw("Never"))
+    }
+
+    pub fn return_cvoid() -> TypedExpr {
+        (Expr::Return(None), Ty::raw("Never"))
     }
 
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
@@ -361,7 +365,10 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             )
         }
         Expr::ConstSet(name, e) => format!("{} = {}", name.0, pretty_print(&e.0, lv, false)),
-        Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
+        Expr::Return(e) => match e {
+            Some(expr) => format!("return {} # {}", pretty_print(&expr.0, lv, false), expr.1),
+            None => "return".to_string(),
+        },
         Expr::Exprs(exprs) => {
             indent = false;
             exprs

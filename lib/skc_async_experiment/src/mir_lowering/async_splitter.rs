@@ -204,7 +204,17 @@ impl<'a> Compiler<'a> {
                 let v = self.compile_value_expr(*rhs, false)?;
                 mir::Expr::const_set(name, v)
             }
-            mir::Expr::Return(expr) => return self.compile_return(*expr),
+            mir::Expr::Return(expr) => {
+                if let Some(e) = expr {
+                    return self.compile_return(*e);
+                } else {
+                    debug_assert!(
+                        self.orig_func.asyncness.is_sync(),
+                        "CVoid return only allowed in sync functions"
+                    );
+                    return Ok(Some(mir::Expr::return_cvoid()));
+                }
+            }
             mir::Expr::Exprs(_) => {
                 panic!("Exprs must be handled by its parent: {:?}", e.0);
             }

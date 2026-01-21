@@ -44,18 +44,25 @@ impl Update {
 impl MirRewriter for Update {
     fn rewrite_expr(&mut self, texpr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         let new_texpr = match texpr.0 {
-            mir::Expr::Return(arg_expr) => match &arg_expr.0 {
-                mir::Expr::Cast(_, _) | mir::Expr::FunCall(_, _) => {
-                    let ret_ty = arg_expr.1.clone();
-                    let tmp_name = self.gensym();
-                    mir::Expr::exprs(vec![
-                        mir::Expr::alloc(tmp_name.clone(), ret_ty.clone()),
-                        mir::Expr::lvar_set(tmp_name.clone(), *arg_expr),
-                        mir::Expr::return_(mir::Expr::lvar_ref(tmp_name, ret_ty)),
-                    ])
+            mir::Expr::Return(arg_expr) => {
+                if let Some(expr) = arg_expr {
+                    match &expr.0 {
+                        mir::Expr::Cast(_, _) | mir::Expr::FunCall(_, _) => {
+                            let ret_ty = expr.1.clone();
+                            let tmp_name = self.gensym();
+                            mir::Expr::exprs(vec![
+                                mir::Expr::alloc(tmp_name.clone(), ret_ty.clone()),
+                                mir::Expr::lvar_set(tmp_name.clone(), *expr),
+                                mir::Expr::return_(mir::Expr::lvar_ref(tmp_name, ret_ty)),
+                            ])
+                        }
+                        _ => mir::Expr::return_(*expr),
+                    }
+                } else {
+                    // No need of conversion when there is no arg
+                    mir::Expr::return_cvoid()
                 }
-                _ => mir::Expr::return_(*arg_expr),
-            },
+            }
             _ => texpr,
         };
         Ok(new_texpr)
