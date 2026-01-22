@@ -93,6 +93,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::VTableRef(receiver, idx, _debug_name) => {
                 self.compile_vtable_ref(ctx, receiver, *idx)
             }
+            mir::Expr::WTableKey(modname) => self.compile_wtable_key(modname),
+            mir::Expr::WTableRow(classname, modname) => self.compile_wtable_row(classname, modname),
             mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
                 self.compile_wtable_ref(ctx, receiver, module, *idx)
             }
@@ -105,7 +107,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
                 self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)?
             }
             mir::Expr::ConstSet(name, rhs) => self.compile_const_set(ctx, name, rhs)?,
-            mir::Expr::Return(val_expr) => self.compile_return(ctx, val_expr)?,
+            mir::Expr::Return(val_expr) => {
+                self.compile_return(ctx, val_expr.as_ref().map(|v| &**v))?
+            }
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
@@ -253,7 +257,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_indirect_call(func_type, func.into_pointer_value(), &args, "result")
             .unwrap();
         call_result.set_tail_call(true);
-        Some(call_result.as_any_value_enum().try_into().unwrap())
+
+        call_result.as_any_value_enum().try_into().ok()
     }
 
     fn compile_vtable_ref(
@@ -291,6 +296,23 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .unwrap();
         call_result.set_tail_call(true);
         Some(call_result.as_any_value_enum().try_into().unwrap())
+    }
+
+    fn compile_wtable_key(
+        &mut self,
+        modname: &shiika_core::names::ModuleFullname,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let key = wtable::get_module_key(self, modname);
+        Some(key.into())
+    }
+
+    fn compile_wtable_row(
+        &mut self,
+        classname: &shiika_core::names::ClassFullname,
+        modname: &shiika_core::names::ModuleFullname,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let funcs = wtable::load_wtable_const(self, classname, modname);
+        Some(funcs.into())
     }
 
     /// Compile a sync if
@@ -429,10 +451,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_return(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
-        val_expr: &mir::TypedExpr,
+        val_expr: Option<&mir::TypedExpr>,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
-        let val = self.compile_value_expr(ctx, val_expr);
-        self.builder.build_return(Some(&val))?;
+        let return_val = val_expr.map(|expr| self.compile_value_expr(ctx, expr));
+        self.builder.build_return(
+            return_val
+                .as_ref()
+                .map(|v| v as &dyn inkwell::values::BasicValue),
+        )?;
         Ok(None)
     }
 
@@ -536,8 +562,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn llvm_function_type(&self, fun_ty: &mir::FunTy) -> inkwell::types::FunctionType<'ictx> {
         let param_tys = self.llvm_types(&fun_ty.param_tys);
-        let ret_ty = self.llvm_type(&fun_ty.ret_ty);
-        ret_ty.fn_type(&param_tys, false)
+        if *fun_ty.ret_ty == mir::Ty::CVoid {
+            self.context.void_type().fn_type(&param_tys, false)
+        } else {
+            let ret_ty = self.llvm_type(&fun_ty.ret_ty);
+            ret_ty.fn_type(&param_tys, false)
+        }
     }
 
     fn llvm_types(&self, tys: &[mir::Ty]) -> Vec<inkwell::types::BasicMetadataTypeEnum<'ictx>> {

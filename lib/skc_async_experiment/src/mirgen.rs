@@ -1,15 +1,16 @@
 mod collect_allocs;
+mod constants;
 mod prepare_asyncness;
+mod wtables;
 use crate::build;
 use crate::codegen;
 use crate::mir;
-use shiika_core::names::ConstFullname;
-use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirLVar, SkMethod};
-mod constants;
 use crate::names::FunctionName;
 use anyhow::Result;
+use shiika_core::names::ConstFullname;
 use shiika_core::ty;
+use shiika_core::ty::TermTy;
+use skc_hir::{HirExpression, HirLVar, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -29,7 +30,8 @@ pub fn run(
     let classes = convert_classes(&uni);
 
     let externs = {
-        let mut externs = convert_externs(&uni.imports.sk_types);
+        let mut externs = codegen::prelude::core_externs();
+        externs.extend(convert_externs(&uni.imports.sk_types));
         for sk_type in uni.hir.sk_types.types.values() {
             for sig in sk_type.base().method_sigs.iter() {
                 if sig.is_rust {
@@ -51,6 +53,11 @@ pub fn run(
             str_literals: &uni.hir.str_literals,
         };
 
+        funcs.extend(const_init_funcs(&uni, &c));
+        if target.is_bin() {
+            funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
+        }
+
         for (_, ms) in uni.hir.sk_methods {
             for m in ms {
                 let signature = uni.hir.sk_types.get_sig(&m.fullname).unwrap();
@@ -58,17 +65,6 @@ pub fn run(
                 funcs.push(c.convert_method(m, &uni.hir.sk_types));
             }
         }
-
-        let consts = uni.hir.const_inits.into_iter().map(|e| {
-            let HirExpressionBase::HirConstAssign { fullname, rhs } = e.node else {
-                panic!("Expected HirConstAssign, got {:?}", e);
-            };
-            (fullname, c.convert_expr(*rhs))
-        });
-        funcs.extend(constants::create_const_init_funcs(
-            uni.package_name.as_ref(),
-            consts.collect(),
-        ));
 
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
@@ -99,6 +95,17 @@ pub fn run(
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
     })
+}
+
+fn const_init_funcs(uni: &build::CompilationUnit, c: &Compiler) -> Vec<mir::Function> {
+    let consts = uni.hir.const_inits.iter().map(|e| {
+        let HirExpressionBase::HirConstAssign { fullname, rhs } = &e.node else {
+            panic!("Expected HirConstAssign, got {:?}", e);
+        };
+        (fullname.clone(), c.convert_expr(rhs.as_ref().clone()))
+    });
+
+    constants::create_const_init_funcs(uni.package_name.as_ref(), consts.collect())
 }
 
 struct Compiler<'a> {
@@ -532,13 +539,7 @@ impl<'a> Compiler<'a> {
     ) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
-        body_stmts.push(mir::Expr::fun_call(
-            mir::Expr::func_ref(
-                FunctionName::mangled(codegen::wtable::main_inserter_name()),
-                mir::FunTy::lowered(vec![], mir::Ty::raw("Void")),
-            ),
-            vec![],
-        ));
+        body_stmts.push(wtables::call_main_inserter());
         body_stmts.extend(
             main_lvars
                 .into_iter()

@@ -1,7 +1,7 @@
 use crate::mir::FunctionName;
 use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
-use shiika_core::names::{ConstFullname, ModuleFullname};
+use shiika_core::names::{ClassFullname, ConstFullname, ModuleFullname};
 use shiika_core::ty::TermTy;
 
 pub type Typed<T> = (T, Ty);
@@ -21,6 +21,11 @@ pub enum Expr {
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    // Get the key of the wtable (i.e. address of module object)
+    WTableKey(ModuleFullname),
+    // Get the llvm array of functions
+    WTableRow(ClassFullname, ModuleFullname),
+    // Lookup a method from wtable
     WTableRef(Box<Typed<Expr>>, ModuleFullname, usize, String), // (receiver, module, index, debug_name)
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
@@ -29,7 +34,7 @@ pub enum Expr {
     LVarSet(String, Box<Typed<Expr>>),
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(ConstFullname, Box<Typed<Expr>>),
-    Return(Box<Typed<Expr>>),
+    Return(Option<Box<Typed<Expr>>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     CreateObject(String),
@@ -216,7 +221,11 @@ impl Expr {
     }
 
     pub fn return_(e: TypedExpr) -> TypedExpr {
-        (Expr::Return(Box::new(e)), Ty::raw("Never"))
+        (Expr::Return(Some(Box::new(e))), Ty::raw("Never"))
+    }
+
+    pub fn return_cvoid() -> TypedExpr {
+        (Expr::Return(None), Ty::raw("Never"))
     }
 
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
@@ -256,6 +265,14 @@ impl Expr {
 
     pub fn nop() -> TypedExpr {
         (Expr::Nop, Ty::raw("Void"))
+    }
+
+    pub fn wtable_key(module: ModuleFullname) -> TypedExpr {
+        (Expr::WTableKey(module), Ty::Int64)
+    }
+
+    pub fn wtable_row(classname: ClassFullname, module: ModuleFullname) -> TypedExpr {
+        (Expr::WTableRow(classname, module), Ty::Ptr)
     }
 
     pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
@@ -348,7 +365,10 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             )
         }
         Expr::ConstSet(name, e) => format!("{} = {}", name.0, pretty_print(&e.0, lv, false)),
-        Expr::Return(e) => format!("return {} # {}", pretty_print(&e.0, lv, false), e.1),
+        Expr::Return(e) => match e {
+            Some(expr) => format!("return {} # {}", pretty_print(&expr.0, lv, false), expr.1),
+            None => "return".to_string(),
+        },
         Expr::Exprs(exprs) => {
             indent = false;
             exprs
@@ -378,6 +398,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             let elem_strs: Vec<String> =
                 elems.iter().map(|e| pretty_print(&e.0, 0, false)).collect();
             format!("%CreateNativeArray[{}]", elem_strs.join(", "))
+        }
+        Expr::WTableKey(module) => {
+            format!("%WTableKey({})", module.0)
+        }
+        Expr::WTableRow(classname, module) => {
+            format!("%WTableRow({}, {})", classname.0, module.0)
         }
     };
     if indent {

@@ -1,5 +1,6 @@
 mod codegen_context;
 mod compile;
+pub mod prelude;
 mod type_object;
 use crate::names::FunctionName;
 mod constants;
@@ -50,7 +51,6 @@ pub fn run<P: AsRef<Path>>(
     llvm_struct::define(&mut gen, &mir.program.classes);
     if is_bin {
         intrinsics::define(&mut gen)?;
-        wtable::define_inserters(_const_global_, &mut gen, &mir.sk_types)?;
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);
@@ -76,6 +76,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Ty::Any => self.context.i64_type().into(),
             mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
+            mir::Ty::CVoid => panic!("CVoid is not a BasicTypeEnum"),
             mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Raw(s) => match s.as_str() {
                 "Never" => panic!("Never is unexpected here"),

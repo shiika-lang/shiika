@@ -8,6 +8,13 @@ pub fn run(module: &inkwell::module::Module) -> Result<()> {
     for function in module.get_functions() {
         let fname = format!("{:?}", function.get_name());
         for basic_block in function.get_basic_blocks() {
+            // Check that basic block has a terminator
+            if basic_block.get_terminator().is_none() {
+                errors.push(format!(
+                    "- Basic block in function {fname} does not end with a terminator instruction"
+                ));
+            }
+
             for instruction in basic_block.get_instructions() {
                 if let Ok(call_site) = CallSiteValue::try_from(instruction) {
                     if let Some(callee) = call_site.get_called_fn_value() {

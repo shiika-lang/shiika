@@ -163,8 +163,17 @@ impl<'a> Verifier<'a> {
                 self.verify_expr(f, v)?;
             }
             mir::Expr::Return(v) => {
-                self.verify_expr(f, v)?;
-                assert(&v, "return value", &f.ret_ty)?;
+                if let Some(val) = v {
+                    self.verify_expr(f, val)?;
+                    assert(&val, "return value", &f.ret_ty)?;
+                } else {
+                    if f.ret_ty != mir::Ty::CVoid {
+                        bail!(
+                            "return without value used for non-CVoid function (expected {:?})",
+                            f.ret_ty
+                        );
+                    }
+                }
                 assert(&e, "return itself", &mir::Ty::raw("Never"))?;
             }
             mir::Expr::Exprs(es) => {
@@ -206,6 +215,8 @@ impl<'a> Verifier<'a> {
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;
             }
+            mir::Expr::WTableKey(_) => (),
+            mir::Expr::WTableRow(_, _) => (),
         }
         Ok(())
     }

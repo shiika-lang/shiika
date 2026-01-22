@@ -1,9 +1,9 @@
+use crate::codegen::prelude;
 use crate::codegen::{
     instance, llvm_struct, string_literal,
     value::{SkClassObj, SkObj},
     CodeGen,
 };
-use crate::prelude;
 use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty::TermTy;
