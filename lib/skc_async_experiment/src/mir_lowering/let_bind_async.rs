@@ -1,7 +1,7 @@
 //! Extract async calls into let bindings.
 //!
 //! Before: f(g(), h())  // g and h are async
-//! After:  
+//! After:
 //!   let $a0 = g()
 //!   let $a1 = h()
 //!   f($a0, $a1)
