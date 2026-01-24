@@ -62,6 +62,9 @@ fn generate_mir(
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
 
+    mir.program = mir_lowering::let_bind_async::run(mir.program);
+    cli.log(format!("# -- let_bind_async output --\n{}\n", mir.program));
+
     mir.program = mir_lowering::pass_async_env::run(mir.program);
     cli.log(format!("# -- pass_async_env output --\n{}\n", mir.program));
 
