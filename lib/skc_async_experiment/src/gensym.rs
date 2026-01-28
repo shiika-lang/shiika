@@ -1,5 +1,8 @@
-pub const PREFIX_LET_BIND_ASYNC: &str = "$a";
+//! Utility to generate unique name for auto-generated local variables.
+pub const PREFIX_LET_BIND_ASYNC: &str = "$l";
+pub const PREFIX_ASYNC_SPLITTER: &str = "$a";
 
+#[derive(Debug)]
 pub struct Gensym {
     counter: usize,
     prefix: String,
