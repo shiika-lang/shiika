@@ -348,6 +348,7 @@ pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
 
 fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
     let sp = "  ".repeat(lv);
+    let sp_ = "  ".repeat(if lv > 0 { lv - 1 } else { 0 });
     let mut indent = as_stmt;
     let s = match node {
         Expr::Number(n) => format!("{}", n),
@@ -408,7 +409,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + &format!("\n{}end", sp)
         }
         Expr::While(cond, body) => {
-            format!("while {}\n", cond.0.pretty_print(0, false))
+            format!("while {}", cond.0.pretty_print(0, false))
                 + body.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
@@ -430,11 +431,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         },
         Expr::Exprs(exprs) => {
             indent = false;
-            exprs
-                .iter()
-                .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
-                .collect::<Vec<String>>()
-                .join("\n")
+            "{\n".to_string()
+                + &exprs
+                    .iter()
+                    .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+                + format!("\n{}}}", sp_).as_str()
         }
         Expr::Cast(cast_type, e) => {
             let expr = pretty_print(&e.0, lv, false);
