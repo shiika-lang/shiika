@@ -1,6 +1,7 @@
 mod build;
 mod cli;
 mod codegen;
+mod gensym;
 mod mir;
 pub mod mir_lowering;
 mod mirgen;

@@ -252,6 +252,11 @@ impl Expr {
         (Expr::CreateTypeObject(ty.clone()), ty.meta_ty().into())
     }
 
+    pub fn create_native_array(elems: Vec<TypedExpr>) -> TypedExpr {
+        debug_assert!(!elems.is_empty(), "create_native_array with empty elems");
+        (Expr::CreateNativeArray(elems), Ty::Ptr)
+    }
+
     pub fn unbox(e: TypedExpr) -> TypedExpr {
         if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
@@ -278,8 +283,62 @@ impl Expr {
     pub fn pretty_print(&self, lv: usize, as_stmt: bool) -> String {
         pretty_print(self, lv, as_stmt)
     }
+
+    /// Check if expression contains an async function call
+    pub fn contains_async_call(&self) -> bool {
+        match &self {
+            Expr::Number(_) => false,
+            Expr::PseudoVar(_) => false,
+            Expr::StringLiteral(_) => false,
+            Expr::LVarRef(_) => false,
+            Expr::IVarRef(obj_expr, _, _) => obj_expr.0.contains_async_call(),
+            Expr::ArgRef(_, _) => false,
+            Expr::EnvRef(_, _) => false,
+            Expr::EnvSet(_, value_expr, _) => value_expr.0.contains_async_call(),
+            Expr::ConstRef(_) => false,
+            Expr::FuncRef(_) => false,
+            Expr::FunCall(fexpr, args) => {
+                let Ty::Fun(fun_ty) = &fexpr.1 else {
+                    panic!("[BUG] not a function: {:?}", fexpr);
+                };
+                if fun_ty.asyncness.is_async() {
+                    true
+                } else {
+                    fexpr.0.contains_async_call()
+                        || args.iter().any(|arg| arg.0.contains_async_call())
+                }
+            }
+            Expr::VTableRef(obj_expr, _, _) => obj_expr.0.contains_async_call(),
+            Expr::WTableKey(_) => false,
+            Expr::WTableRow(_, _) => false,
+            Expr::WTableRef(obj_expr, _, _, _) => obj_expr.0.contains_async_call(),
+            Expr::If(cond, then, else_) => {
+                cond.0.contains_async_call()
+                    || then.0.contains_async_call()
+                    || else_.0.contains_async_call()
+            }
+            Expr::While(cond, body) => cond.0.contains_async_call() || body.0.contains_async_call(),
+            Expr::Spawn(e) => e.0.contains_async_call(),
+            Expr::Alloc(_, _) => false,
+            Expr::LVarSet(_, e) => e.0.contains_async_call(),
+            Expr::IVarSet(obj_expr, _, e, _) => {
+                obj_expr.0.contains_async_call() || e.0.contains_async_call()
+            }
+            Expr::ConstSet(_, e) => e.0.contains_async_call(),
+            Expr::Return(e) => e.as_ref().map_or(false, |e| e.0.contains_async_call()),
+            Expr::Exprs(exprs) => exprs.iter().any(|e| e.0.contains_async_call()),
+            Expr::Cast(_, e) => e.0.contains_async_call(),
+            Expr::CreateObject(_) => false,
+            Expr::CreateTypeObject(_) => false,
+            Expr::CreateNativeArray(elems) => elems.iter().any(|e| e.0.contains_async_call()),
+            Expr::Unbox(e) => e.0.contains_async_call(),
+            Expr::RawI64(_) => false,
+            Expr::Nop => false,
+        }
+    }
 }
 
+// TODO: better name (`unwrap_exprs`?)
 pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
     match expr.0 {
         Expr::Exprs(exprs) => exprs,
@@ -289,6 +348,7 @@ pub fn into_exprs(expr: TypedExpr) -> Vec<TypedExpr> {
 
 fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
     let sp = "  ".repeat(lv);
+    let sp_ = "  ".repeat(if lv > 0 { lv - 1 } else { 0 });
     let mut indent = as_stmt;
     let s = match node {
         Expr::Number(n) => format!("{}", n),
@@ -349,7 +409,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + &format!("\n{}end", sp)
         }
         Expr::While(cond, body) => {
-            format!("while {}\n", cond.0.pretty_print(0, false))
+            format!("while {}", cond.0.pretty_print(0, false))
                 + body.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
@@ -371,11 +431,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         },
         Expr::Exprs(exprs) => {
             indent = false;
-            exprs
-                .iter()
-                .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
-                .collect::<Vec<String>>()
-                .join("\n")
+            "{\n".to_string()
+                + &exprs
+                    .iter()
+                    .map(|expr| format!("{}  #-> {}", pretty_print(&expr.0, lv, true), &expr.1))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+                + format!("\n{}}}", sp_).as_str()
         }
         Expr::Cast(cast_type, e) => {
             let expr = pretty_print(&e.0, lv, false);

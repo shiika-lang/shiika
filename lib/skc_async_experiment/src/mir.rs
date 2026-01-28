@@ -112,11 +112,10 @@ impl fmt::Display for Function {
             .join(", ");
         write!(
             f,
-            "fun {}{}({}) -> {} {{\n",
+            "fun {}{}({}) -> {} ",
             self.name, self.asyncness, para, self.ret_ty
         )?;
-        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)?;
-        write!(f, "}}\n")
+        write!(f, "{}\n", &self.body_stmts.0.pretty_print(1, true),)
     }
 }
 

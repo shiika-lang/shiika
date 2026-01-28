@@ -16,6 +16,7 @@
 //!   return chiika_env_pop_frame($env)(42); // Call the original $cont
 //! }
 //! ```
+use crate::gensym;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -57,7 +58,7 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
             orig_func: &mut f,
             allocs,
             chapters: Chapters::new(),
-            gensym_ct: 0,
+            gensym: gensym::Gensym::new(gensym::PREFIX_ASYNC_SPLITTER),
         };
         let mut split_funcs = c.compile_func(body_stmts)?;
         funcs.append(&mut split_funcs);
@@ -75,7 +76,7 @@ struct Compiler<'a> {
     orig_func: &'a mut mir::Function,
     allocs: Vec<(String, mir::Ty)>,
     chapters: Chapters,
-    gensym_ct: usize,
+    gensym: gensym::Gensym,
 }
 
 impl<'a> Compiler<'a> {
@@ -453,18 +454,12 @@ impl<'a> Compiler<'a> {
     /// Store the value to a temporary variable and return the varref
     fn store_to_tmpvar(&mut self, value: mir::TypedExpr) -> mir::TypedExpr {
         let ty = value.1.clone();
-        let varname = self.gensym();
+        let varname = self.gensym.new_name();
         self.chapters.add_stmts(vec![
             mir::Expr::alloc(varname.clone(), value.1.clone()),
             mir::Expr::lvar_set(varname.clone(), value),
         ]);
         mir::Expr::lvar_ref(varname, ty)
-    }
-
-    fn gensym(&mut self) -> String {
-        let n = self.gensym_ct;
-        self.gensym_ct += 1;
-        format!("${n}")
     }
 
     fn frame_size(&self) -> usize {
