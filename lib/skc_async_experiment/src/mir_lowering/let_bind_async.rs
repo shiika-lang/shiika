@@ -11,6 +11,7 @@
 //! This simplifies async_splitter by ensuring only one async call
 //! needs to be handled at a time.
 
+use crate::gensym;
 use crate::mir;
 
 pub fn run(mir: mir::Program) -> mir::Program {
@@ -35,18 +36,14 @@ fn compile_func(c: &mut Compiler, orig_func: mir::Function) -> mir::Function {
 }
 
 struct Compiler {
-    gensym_id: usize,
+    gensym: gensym::Gensym,
 }
 
 impl Compiler {
     fn new() -> Self {
-        Compiler { gensym_id: 0 }
-    }
-
-    fn gensym(&mut self) -> String {
-        let id = self.gensym_id;
-        self.gensym_id += 1;
-        format!("$a{}", id)
+        Compiler {
+            gensym: gensym::Gensym::new(gensym::PREFIX_LET_BIND_ASYNC),
+        }
     }
 
     fn run(&mut self, body_stmts: mir::TypedExpr) -> mir::TypedExpr {
@@ -156,7 +153,7 @@ impl Compiler {
         new_body_stmts: &mut Vec<mir::TypedExpr>,
         expr: mir::TypedExpr,
     ) -> mir::TypedExpr {
-        let name = self.gensym();
+        let name = self.gensym.new_name();
         let ty = expr.1.clone();
         new_body_stmts.push(mir::Expr::alloc(name.clone(), ty.clone()));
         let compiled = self.compile_stmt(new_body_stmts, expr);
