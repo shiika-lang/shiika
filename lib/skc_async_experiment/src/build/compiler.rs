@@ -56,11 +56,11 @@ fn generate_mir(
     let mut mir = mirgen::run(uni, target)?;
     cli.log(format!("# -- mirgen output --\n{}\n", mir.program));
 
-    mir.program = mir_lowering::simplify_return::run(mir.program);
-    cli.log(format!("# -- simplify_return output --\n{}\n", mir.program));
-
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
+
+    mir.program = mir_lowering::let_bind_async::run(mir.program);
+    cli.log(format!("# -- let_bind_async output --\n{}\n", mir.program));
 
     mir.program = mir_lowering::pass_async_env::run(mir.program);
     cli.log(format!("# -- pass_async_env output --\n{}\n", mir.program));
