@@ -11,7 +11,6 @@ use shiika_core::ty;
 use shiika_core::ty::TermTy;
 use skc_hir::{HirExpression, HirLVars, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
-use std::cell::RefCell;
 
 pub fn run(
     mut uni: build::CompilationUnit,
@@ -47,14 +46,14 @@ pub fn run(
 
     let funcs = {
         let mut funcs = vec![];
-        let c = Compiler {
+        let mut c = Compiler {
             vtables: &vtables,
             imported_vtables: &uni.imports.vtables,
             str_literals: &uni.hir.str_literals,
-            lambda_funcs: RefCell::new(vec![]),
+            lambda_funcs: vec![],
         };
 
-        funcs.extend(const_init_funcs(&uni, &c));
+        funcs.extend(const_init_funcs(&uni, &mut c));
         if target.is_bin() {
             funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
         }
@@ -79,7 +78,7 @@ pub fn run(
         }
 
         // Add generated lambda functions
-        funcs.extend(c.lambda_funcs.into_inner());
+        funcs.extend(c.lambda_funcs);
 
         funcs
     };
@@ -101,7 +100,7 @@ pub fn run(
     })
 }
 
-fn const_init_funcs(uni: &build::CompilationUnit, c: &Compiler) -> Vec<mir::Function> {
+fn const_init_funcs(uni: &build::CompilationUnit, c: &mut Compiler) -> Vec<mir::Function> {
     let consts = uni.hir.const_inits.iter().map(|e| {
         let HirExpressionBase::HirConstAssign { fullname, rhs } = &e.node else {
             panic!("Expected HirConstAssign, got {:?}", e);
@@ -117,11 +116,11 @@ struct Compiler<'a> {
     imported_vtables: &'a skc_mir::VTables,
     str_literals: &'a Vec<String>,
     /// Collects generated lambda functions
-    lambda_funcs: RefCell<Vec<mir::Function>>,
+    lambda_funcs: Vec<mir::Function>,
 }
 
 impl<'a> Compiler<'a> {
-    fn convert_method(&self, method: SkMethod, sk_types: &SkTypes) -> mir::Function {
+    fn convert_method(&mut self, method: SkMethod, sk_types: &SkTypes) -> mir::Function {
         let signature = sk_types.get_sig(&method.fullname).unwrap();
         let orig_params = if let SkMethodBody::New { initializer, .. } = &method.body {
             // REFACTOR: method.signature.params should be available for this case too
@@ -157,7 +156,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn convert_method_body(
-        &self,
+        &mut self,
         body: SkMethodBody,
         signature: &MethodSignature,
     ) -> mir::TypedExpr {
@@ -202,7 +201,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn convert_expr(&self, expr: HirExpression) -> mir::TypedExpr {
+    fn convert_expr(&mut self, expr: HirExpression) -> mir::TypedExpr {
         use skc_hir::HirExpressionBase;
         let result_ty = convert_ty(expr.ty.clone());
         match expr.node {
@@ -416,7 +415,7 @@ impl<'a> Compiler<'a> {
                 let lambda_func =
                     self.create_lambda_function(&name, &params, &exprs, &lvars, &ret_ty);
                 let func_name = lambda_func.name.clone();
-                self.lambda_funcs.borrow_mut().push(lambda_func);
+                self.lambda_funcs.push(lambda_func);
 
                 // Build function type (Async for all lambdas)
                 let param_tys: Vec<mir::Ty> =
@@ -497,7 +496,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn create_lambda_function(
-        &self,
+        &mut self,
         name: &str,
         params: &[MethodParam],
         exprs: &HirExpression,
@@ -615,7 +614,7 @@ impl<'a> Compiler<'a> {
 
     /// Creates the main_inner function that contains top-level expressions
     fn create_user_main_inner(
-        &self,
+        &mut self,
         top_exprs: Vec<HirExpression>,
         total_deps: &[String],
     ) -> mir::Function {
