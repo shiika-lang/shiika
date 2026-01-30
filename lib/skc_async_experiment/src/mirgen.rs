@@ -9,8 +9,9 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, SkMethod};
+use skc_hir::{HirExpression, HirLVars, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
+use std::cell::RefCell;
 
 pub fn run(
     mut uni: build::CompilationUnit,
@@ -50,6 +51,7 @@ pub fn run(
             vtables: &vtables,
             imported_vtables: &uni.imports.vtables,
             str_literals: &uni.hir.str_literals,
+            lambda_funcs: RefCell::new(vec![]),
         };
 
         funcs.extend(const_init_funcs(&uni, &c));
@@ -75,6 +77,9 @@ pub fn run(
                 panic!("Top level expressions are not allowed in library");
             }
         }
+
+        // Add generated lambda functions
+        funcs.extend(c.lambda_funcs.into_inner());
 
         funcs
     };
@@ -111,6 +116,8 @@ struct Compiler<'a> {
     vtables: &'a skc_mir::VTables,
     imported_vtables: &'a skc_mir::VTables,
     str_literals: &'a Vec<String>,
+    /// Collects generated lambda functions
+    lambda_funcs: RefCell<Vec<mir::Function>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -245,10 +252,10 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLVarRef { name } => {
                 mir::Expr::lvar_ref(name, convert_ty(expr.ty))
             }
-            HirExpressionBase::HirArgRef { idx } => {
-                // +1 for the receiver
-                // TODO: Add debug name
-                mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
+            HirExpressionBase::HirArgRef { idx, is_lambda } => {
+                // In methods, +1 for the receiver (self). In lambdas, no receiver.
+                let actual_idx = if is_lambda { idx } else { idx + 1 };
+                mir::Expr::arg_ref(actual_idx, "?", convert_ty(expr.ty))
             }
             HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
                 mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
@@ -379,11 +386,47 @@ impl<'a> Compiler<'a> {
                 let result_ty = convert_ty(expr.ty.clone());
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
-            HirExpressionBase::HirLambdaInvocation { .. } => {
-                todo!("Handle lambda invocation")
+            HirExpressionBase::HirLambdaInvocation {
+                lambda_expr,
+                arg_exprs,
+            } => {
+                let mir_lambda = self.convert_expr(*lambda_expr);
+                let mir_args: Vec<mir::TypedExpr> = arg_exprs
+                    .into_iter()
+                    .map(|arg| self.convert_expr(arg))
+                    .collect();
+                mir::Expr::fun_call(mir_lambda, mir_args)
             }
-            HirExpressionBase::HirLambdaExpr { .. } => {
-                todo!("Handle lambda expr")
+            HirExpressionBase::HirLambdaExpr {
+                name,
+                params,
+                exprs,
+                captures,
+                lvars,
+                ret_ty,
+                has_break,
+            } => {
+                // MVP: reject captures and break
+                if !captures.is_empty() {
+                    todo!("Lambda captures not yet supported")
+                }
+                if has_break {
+                    todo!("Lambda break not yet supported")
+                }
+
+                // Generate the lambda function and store it
+                let lambda_func =
+                    self.create_lambda_function(&name, &params, &exprs, &lvars, &ret_ty);
+                let func_name = lambda_func.name.clone();
+                self.lambda_funcs.borrow_mut().push(lambda_func);
+
+                // Build function type (Async for all lambdas)
+                let param_tys: Vec<mir::Ty> =
+                    params.iter().map(|p| convert_ty(p.ty.clone())).collect();
+                let fun_ty = mir::FunTy::new(mir::Asyncness::Async, param_tys, convert_ty(ret_ty));
+
+                // Return FuncRef to the lambda function
+                mir::Expr::func_ref(func_name, fun_ty)
             }
             HirExpressionBase::HirIfExpression {
                 cond_expr,
@@ -453,6 +496,52 @@ impl<'a> Compiler<'a> {
     fn compile_self_expr(&self, ty: TermTy) -> mir::TypedExpr {
         // In MIR, 'self' is always the first argument (index 0)
         mir::Expr::arg_ref(0, "self", convert_ty(ty))
+    }
+
+    fn create_lambda_function(
+        &self,
+        name: &str,
+        params: &[MethodParam],
+        exprs: &HirExpression,
+        lvars: &HirLVars,
+        ret_ty: &TermTy,
+    ) -> mir::Function {
+        // Convert params (NO implicit self)
+        let mir_params: Vec<mir::Param> = params
+            .iter()
+            .map(|p| mir::Param {
+                ty: convert_ty(p.ty.clone()),
+                name: p.name.clone(),
+            })
+            .collect();
+
+        // Convert body
+        let body = self.convert_expr(exprs.clone());
+
+        // Add allocs and return
+        let mut stmts: Vec<mir::TypedExpr> = lvars
+            .iter()
+            .map(|lvar| mir::Expr::alloc(lvar.name.clone(), lvar.ty.clone().into()))
+            .collect();
+
+        let body_with_return = if ret_ty.is_void_type() {
+            mir::Expr::exprs(vec![body, mir::Expr::return_(mir::Expr::void_const_ref())])
+        } else {
+            mir::Expr::return_(body)
+        };
+
+        stmts.extend(mir::expr::into_exprs(body_with_return));
+        let final_body = mir::Expr::exprs(stmts);
+
+        mir::Function {
+            // All lambdas are treated as async now
+            asyncness: mir::Asyncness::Async,
+            name: FunctionName::Generated(name.to_string()),
+            params: mir_params,
+            ret_ty: convert_ty(ret_ty.clone()),
+            body_stmts: final_body,
+            sig: None,
+        }
     }
 
     fn create_new_body(

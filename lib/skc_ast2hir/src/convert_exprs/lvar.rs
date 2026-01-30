@@ -15,7 +15,7 @@ pub(super) enum LVarDetail {
     /// Found in the current scope
     CurrentScope { name: String },
     /// Found in the current method/lambda argument
-    Argument { idx: usize },
+    Argument { idx: usize, is_lambda: bool },
     /// Found in the current method/lambda argument but has default expr
     /// Therefore allocated on the stack and referred by name
     OmittableArgument { name: String },
@@ -34,7 +34,9 @@ impl LVarInfo {
     pub fn ref_expr(self) -> HirExpression {
         match self.detail {
             LVarDetail::CurrentScope { name } => Hir::lvar_ref(self.ty, name, self.locs),
-            LVarDetail::Argument { idx } => Hir::arg_ref(self.ty, idx, self.locs),
+            LVarDetail::Argument { idx, is_lambda } => {
+                Hir::arg_ref(self.ty, idx, is_lambda, self.locs)
+            }
             LVarDetail::OmittableArgument { name } => Hir::lvar_ref(self.ty, name, self.locs),
             LVarDetail::OuterScope { cidx, readonly } => {
                 Hir::lambda_capture_ref(self.ty, cidx, readonly, self.locs)
