@@ -556,7 +556,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .enumerate()
             .map(|(idx, param)| {
-                let argref = Hir::arg_ref(param.ty.clone(), idx, LocationSpan::todo());
+                let argref = Hir::arg_ref(param.ty.clone(), idx, false, LocationSpan::todo());
                 Hir::ivar_assign(
                     &param.name,
                     idx,
@@ -677,7 +677,7 @@ fn _set_default(
 ) -> Result<HirExpression> {
     let value_expr = mk.convert_expr(expr)?;
     let locs = LocationSpan::internal();
-    let arg = Hir::arg_ref(value_expr.ty.clone(), idx, locs.clone());
+    let arg = Hir::arg_ref(value_expr.ty.clone(), idx, false, locs.clone());
     let cond_expr = Hir::is_omitted_value(arg.clone());
 
     let then_exprs = Hir::lvar_assign(name.to_string(), value_expr, locs.clone());
