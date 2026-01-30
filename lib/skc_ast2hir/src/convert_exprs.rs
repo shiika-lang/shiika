@@ -790,7 +790,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                             name: param.name.clone(),
                         }
                     } else {
-                        LVarDetail::Argument { idx }
+                        LVarDetail::Argument {
+                            idx,
+                            is_lambda: scope.is_lambda_scope,
+                        }
                     };
                     let lvar_info = LVarInfo {
                         ty: param.ty.clone(),
