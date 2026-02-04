@@ -4,6 +4,7 @@ mod ty;
 pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
+use anyhow::{bail, Context, Result};
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
 use shiika_core::{names::ConstFullname, ty::TermTy};
 use skc_hir::{MethodSignature, SkTypes};
@@ -88,7 +89,11 @@ impl fmt::Display for Extern {
 
 impl Extern {
     pub fn is_async(&self) -> bool {
-        self.fun_ty.asyncness.is_async()
+        self.fun_ty
+            .asyncness
+            .is_async()
+            .context(format!("{:?}", self))
+            .unwrap()
     }
 }
 
@@ -128,6 +133,18 @@ impl Function {
             param_tys: self.params.iter().map(|x| x.ty.clone()).collect::<Vec<_>>(),
             ret_ty: Box::new(self.ret_ty.clone()),
         }
+    }
+
+    /// Returns true for Asyncness::Async. Panics if not applicable
+    pub fn is_async(&self) -> bool {
+        self.asyncness
+            .is_async()
+            .context(format!("{:?}", self))
+            .unwrap()
+    }
+
+    pub fn is_sync(&self) -> bool {
+        !self.is_async()
     }
 }
 
@@ -192,17 +209,12 @@ impl From<skc_hir::Asyncness> for Asyncness {
 }
 
 impl Asyncness {
-    /// Returns true for Asyncness::Async. Panics if not applicable
-    pub fn is_async(&self) -> bool {
+    pub fn is_async(&self) -> Result<bool> {
         match self {
-            Asyncness::Unknown => panic!("[BUG] asyncness is unknown"),
-            Asyncness::Async => true,
-            Asyncness::Sync => false,
-            Asyncness::Lowered => panic!("[BUG] asyncness is lost"),
+            Asyncness::Unknown => bail!("[BUG] asyncness is unknown".to_string()),
+            Asyncness::Async => Ok(true),
+            Asyncness::Sync => Ok(false),
+            Asyncness::Lowered => bail!("[BUG] asyncness is lost".to_string()),
         }
-    }
-
-    pub fn is_sync(&self) -> bool {
-        !self.is_async()
     }
 }
