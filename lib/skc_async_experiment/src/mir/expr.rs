@@ -310,7 +310,7 @@ impl Expr {
                 let Ty::Fun(fun_ty) = &fexpr.1 else {
                     panic!("[BUG] not a function: {:?}", fexpr);
                 };
-                if fun_ty.asyncness.is_async() {
+                if fun_ty.is_async() {
                     true
                 } else {
                     fexpr.0.contains_async_call()

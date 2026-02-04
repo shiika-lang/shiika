@@ -243,7 +243,7 @@ impl Assert {
 
     fn check_func(&mut self, f: &mir::Function) -> bool {
         self.walk_expr(&f.body_stmts).unwrap();
-        if self.found_async_call && !f.asyncness.is_async() {
+        if self.found_async_call && !f.is_async() {
             panic!(
                 "Function {} is marked as sync, but found async call",
                 f.name
@@ -253,7 +253,7 @@ impl Assert {
     }
 
     fn check_funcall(&mut self, fexpr: &mir::TypedExpr) {
-        self.found_async_call |= fexpr.1.as_fun_ty().asyncness.is_async();
+        self.found_async_call |= fexpr.1.as_fun_ty().is_async();
     }
 }
 impl MirVisitor for Assert {
