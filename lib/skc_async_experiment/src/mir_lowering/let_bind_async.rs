@@ -23,7 +23,7 @@ pub fn run(mir: mir::Program) -> mir::Program {
 }
 
 fn compile_func(c: &mut Compiler, orig_func: mir::Function) -> mir::Function {
-    if orig_func.asyncness.is_sync() {
+    if orig_func.is_sync() {
         return orig_func;
     }
     let new_body_stmts = c.run(orig_func.body_stmts);

@@ -1,4 +1,5 @@
 use crate::mir::Asyncness;
+use anyhow::Context;
 use shiika_core::ty::TermTy;
 use skc_hir::MethodSignature;
 use std::fmt;
@@ -74,7 +75,7 @@ impl Ty {
     /// Returns None if the type is not a function type.
     pub fn is_async_fun(&self) -> Option<bool> {
         match self {
-            Ty::Fun(f) => Some(f.asyncness.is_async()),
+            Ty::Fun(f) => Some(f.is_async()),
             _ => None,
         }
     }
@@ -177,5 +178,12 @@ impl FunTy {
                 .iter()
                 .zip(other.param_tys.iter())
                 .all(|(a, b)| a.same(b))
+    }
+
+    pub fn is_async(&self) -> bool {
+        self.asyncness
+            .is_async()
+            .context(format!("{:?}", self))
+            .unwrap()
     }
 }

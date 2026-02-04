@@ -48,18 +48,13 @@ pub fn run(mir: mir::Program) -> mir::Program {
     let funcs = mir
         .funcs
         .into_iter()
-        .map(|f| {
-            if f.asyncness.is_async() {
-                compile_func(f)
-            } else {
-                f
-            }
-        })
+        .map(|f| if f.is_async() { compile_func(f) } else { f })
         .collect();
     mir::Program::new(mir.classes, externs, funcs, mir.constants)
 }
 
 fn compile_func(orig_func: mir::Function) -> mir::Function {
+    let is_async = orig_func.is_async();
     // Count the number of lvars to store in the env
     let allocs = mir::visitor::LVarDecls::collect(&orig_func.body_stmts);
     let lvar_count = allocs.len();
@@ -69,7 +64,7 @@ fn compile_func(orig_func: mir::Function) -> mir::Function {
         allocs,
     }
     .run(orig_func.body_stmts);
-    let new_params = if orig_func.asyncness.is_async() {
+    let new_params = if is_async {
         insert_env_to_params(orig_func.params)
     } else {
         orig_func.params
@@ -136,7 +131,7 @@ impl MirRewriter for Update {
 }
 
 fn insert_env_to_fun_ty(fun_ty: &mir::FunTy) -> mir::FunTy {
-    debug_assert!(fun_ty.asyncness.is_async());
+    debug_assert!(fun_ty.is_async());
     let mut param_tys = fun_ty.param_tys.clone();
     param_tys.insert(0, mir::Ty::ChiikaEnv);
     mir::FunTy {

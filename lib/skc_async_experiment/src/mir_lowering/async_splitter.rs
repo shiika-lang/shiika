@@ -46,7 +46,7 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
 
     let mut funcs = vec![];
     for mut f in mir.funcs {
-        if f.asyncness.is_sync() {
+        if f.is_sync() {
             funcs.push(f);
             continue;
         }
@@ -80,7 +80,7 @@ impl<'a> Compiler<'a> {
     /// Entry point for each milika function
     fn compile_func(&mut self, body_stmts: mir::TypedExpr) -> Result<Vec<mir::Function>> {
         self.chapters.add(Chapter::new_original(self.orig_func));
-        if self.orig_func.asyncness.is_async() {
+        if self.orig_func.is_async() {
             self._compile_async_intro();
         }
         self.compile_stmts(mir::expr::into_exprs(body_stmts))?;
@@ -164,7 +164,7 @@ impl<'a> Compiler<'a> {
                     .map(|x| self.compile_value_expr(x, false))
                     .collect::<Result<Vec<_>>>()?;
                 let fun_ty = new_fexpr.1.as_fun_ty();
-                if fun_ty.asyncness.is_async() && !on_return {
+                if fun_ty.is_async() && !on_return {
                     self.compile_async_call(new_fexpr, new_args, e.1)?
                 } else {
                     // No need to create a new chapter if on_return is true.
@@ -208,7 +208,7 @@ impl<'a> Compiler<'a> {
                     return self.compile_return(*e);
                 } else {
                     debug_assert!(
-                        self.orig_func.asyncness.is_sync(),
+                        self.orig_func.is_sync(),
                         "CVoid return only allowed in sync functions"
                     );
                     return Ok(Some(mir::Expr::return_cvoid()));
@@ -402,7 +402,7 @@ impl<'a> Compiler<'a> {
             return self.compile_expr(expr, false);
         }
         let new_expr = self.compile_value_expr(expr, true)?;
-        if self.orig_func.asyncness.is_sync() {
+        if self.orig_func.is_sync() {
             return Ok(Some(mir::Expr::return_(new_expr)));
         }
         let env_pop = {
@@ -645,7 +645,7 @@ struct Chapter {
 
 impl Chapter {
     fn new_original(f: &mir::Function) -> Chapter {
-        if f.asyncness.is_async() {
+        if f.is_async() {
             let async_result_ty = f.ret_ty.clone();
             let mut params = f.params.clone();
             params.push(mir::Param::new(
