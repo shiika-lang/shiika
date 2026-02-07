@@ -1,4 +1,5 @@
 mod allocator;
+mod cell;
 mod wtable;
 
 use bdwgc_alloc::Allocator;
