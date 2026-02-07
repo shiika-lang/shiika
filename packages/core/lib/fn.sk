@@ -1,0 +1,39 @@
+# Fn classes for lambda/closure representation
+#
+# - Fn: base class with @func (function pointer) and @captures (llvm array)
+# - Fn0..Fn9: subclasses for different arities with type parameters
+
+base class Fn
+  def initialize(@func: Shiika::Internal::Ptr, @captures: Shiika::Internal::Ptr)
+  end
+end
+
+class Fn0<R> : Fn
+end
+
+class Fn1<A1, R> : Fn
+end
+
+class Fn2<A1, A2, R> : Fn
+end
+
+class Fn3<A1, A2, A3, R> : Fn
+end
+
+class Fn4<A1, A2, A3, A4, R> : Fn
+end
+
+class Fn5<A1, A2, A3, A4, A5, R> : Fn
+end
+
+class Fn6<A1, A2, A3, A4, A5, A6, R> : Fn
+end
+
+class Fn7<A1, A2, A3, A4, A5, A6, A7, R> : Fn
+end
+
+class Fn8<A1, A2, A3, A4, A5, A6, A7, A8, R> : Fn
+end
+
+class Fn9<A1, A2, A3, A4, A5, A6, A7, A8, A9, R> : Fn
+end
