@@ -1,4 +1,5 @@
 mod allocator;
+mod cell;
 mod wtable;
 
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ChiikaValue, ContFuture};
