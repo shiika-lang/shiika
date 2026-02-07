@@ -29,24 +29,10 @@ impl fmt::Display for Ty {
 impl From<TermTy> for Ty {
     fn from(ty: TermTy) -> Self {
         // TODO: typaram ref
-        match ty.fn_x_info() {
-            Some(tys) => {
-                let mut param_tys = tys
-                    .into_iter()
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>();
-                let ret_ty = param_tys.pop().unwrap();
-                Ty::Fun(FunTy {
-                    asyncness: Asyncness::Unknown,
-                    param_tys,
-                    ret_ty: Box::new(ret_ty),
-                })
-            }
-            None => match &ty.fullname.0[..] {
-                "Shiika::Internal::Ptr" => Ty::Ptr,
-                "Shiika::Internal::Int64" => Ty::Int64,
-                _ => Ty::Raw(ty.fullname.0),
-            },
+        match &ty.fullname.0[..] {
+            "Shiika::Internal::Ptr" => Ty::Ptr,
+            "Shiika::Internal::Int64" => Ty::Int64,
+            _ => Ty::Raw(ty.fullname.0),
         }
     }
 }
