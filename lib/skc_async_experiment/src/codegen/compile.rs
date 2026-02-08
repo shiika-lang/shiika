@@ -78,6 +78,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Number(n) => self.compile_number(*n),
             mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
             mir::Expr::CreateNativeArray(elems) => self.compile_create_native_array(ctx, elems)?,
+            mir::Expr::NativeArrayRef(arr, idx) => self.compile_native_array_ref(ctx, arr, *idx)?,
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
@@ -161,6 +162,31 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         }
 
         Ok(Some(array_ptr.as_basic_value_enum()))
+    }
+
+    fn compile_native_array_ref(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        arr_expr: &mir::TypedExpr,
+        idx: usize,
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        let array_ptr = self.compile_value_expr(ctx, arr_expr);
+        let idx_val = self.context.i64_type().const_int(idx as u64, false);
+        let elem_ptr = unsafe {
+            self.builder
+                .build_gep(
+                    self.ptr_type(),
+                    array_ptr.into_pointer_value(),
+                    &[idx_val],
+                    &format!("elem_ptr_{}", idx),
+                )
+                .unwrap()
+        };
+        let elem_val = self
+            .builder
+            .build_load(self.ptr_type(), elem_ptr, &format!("elem_{}", idx))
+            .unwrap();
+        Ok(Some(elem_val))
     }
 
     fn compile_argref(

@@ -101,6 +101,9 @@ pub trait MirVisitor {
                     self.walk_expr(elem)?;
                 }
             }
+            mir::Expr::NativeArrayRef(arr_expr, _) => {
+                self.walk_expr(arr_expr)?;
+            }
             mir::Expr::WTableKey(_) => {}
             mir::Expr::WTableRow(_, _) => {}
         }

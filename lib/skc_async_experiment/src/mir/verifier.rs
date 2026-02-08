@@ -214,6 +214,9 @@ impl<'a> Verifier<'a> {
                     self.verify_expr(f, elem)?;
                 }
             }
+            mir::Expr::NativeArrayRef(arr_expr, _) => {
+                self.verify_expr(f, arr_expr)?;
+            }
             mir::Expr::EnvRef(_, _) => (),
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;
