@@ -86,6 +86,13 @@ pub trait MirRewriter {
                 let new_elem_exprs = self.walk_exprs(elem_exprs)?;
                 (mir::Expr::CreateNativeArray(new_elem_exprs), expr.1.clone())
             }
+            mir::Expr::NativeArrayRef(arr_expr, idx) => {
+                let new_arr = self.walk_expr(*arr_expr)?;
+                (
+                    mir::Expr::NativeArrayRef(Box::new(new_arr), idx),
+                    expr.1.clone(),
+                )
+            }
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
         };
