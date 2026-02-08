@@ -63,18 +63,6 @@ pub fn get<'run>(gen: &mut CodeGen<'run, '_>, classname: &ClassFullname) -> Opaq
     OpaqueVTableRef::new(llvm_ary_ptr)
 }
 
-/// Get the function pointer at the given index in the vtable.
-pub fn get_function<'run>(
-    gen: &mut CodeGen<'run, '_>,
-    vtable: OpaqueVTableRef<'run>,
-    idx: usize,
-) -> inkwell::values::PointerValue<'run> {
-    gen.builder
-        .build_extract_value(vtable.load(gen, idx), idx as u32, "func_raw")
-        .unwrap()
-        .into_pointer_value()
-}
-
 /// Reference to vtable where its length is unknown.
 #[derive(Debug)]
 pub struct OpaqueVTableRef<'run> {
@@ -84,15 +72,6 @@ pub struct OpaqueVTableRef<'run> {
 impl<'run> OpaqueVTableRef<'run> {
     pub fn new(ptr: inkwell::values::PointerValue<'run>) -> OpaqueVTableRef<'run> {
         OpaqueVTableRef { ptr }
-    }
-
-    fn load(&self, gen: &CodeGen<'run, '_>, idx: usize) -> inkwell::values::ArrayValue<'run> {
-        let len = idx + 1; // It has at least `idx` elements.
-        let ary_type = gen.ptr_type().array_type(len as u32);
-        gen.builder
-            .build_load(ary_type, self.ptr.clone(), "vtable")
-            .unwrap()
-            .into_array_value()
     }
 }
 

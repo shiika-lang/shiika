@@ -78,9 +78,9 @@ impl Compiler {
                     .collect();
                 mir::Expr::fun_call(*fexpr, new_args)
             }
-            mir::Expr::VTableRef(obj_expr, idx, name) => {
+            mir::Expr::GetVTable(obj_expr) => {
                 let new_obj = self.let_bind(new_body_stmts, *obj_expr);
-                mir::Expr::vtable_ref(new_obj, idx, name, expr.1.as_fun_ty().clone())
+                mir::Expr::get_vtable(new_obj)
             }
             mir::Expr::WTableRef(obj_expr, module, idx, name) => {
                 let new_obj = self.let_bind(new_body_stmts, *obj_expr);

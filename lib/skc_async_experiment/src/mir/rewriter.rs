@@ -39,9 +39,7 @@ pub trait MirRewriter {
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 mir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
             }
-            mir::Expr::VTableRef(receiver, idx, name) => {
-                mir::Expr::vtable_ref(self.walk_expr(*receiver)?, idx, name, expr.1.into_fun_ty())
-            }
+            mir::Expr::GetVTable(receiver) => mir::Expr::get_vtable(self.walk_expr(*receiver)?),
             mir::Expr::WTableRef(receiver, module, idx, name) => mir::Expr::wtable_ref(
                 self.walk_expr(*receiver)?,
                 module,
