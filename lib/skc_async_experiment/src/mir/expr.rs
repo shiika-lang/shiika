@@ -20,7 +20,8 @@ pub enum Expr {
     ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
-    VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    /// Get vtable pointer from a Shiika object
+    GetVTable(Box<Typed<Expr>>),
     // Get the key of the wtable (i.e. address of module object)
     WTableKey(ModuleFullname),
     // Get the llvm array of functions
@@ -133,16 +134,8 @@ impl Expr {
         (Expr::FunCall(Box::new(func), args), result_ty)
     }
 
-    pub fn vtable_ref(
-        receiver: TypedExpr,
-        idx: usize,
-        name: impl Into<String>,
-        fun_ty: FunTy,
-    ) -> TypedExpr {
-        (
-            Expr::VTableRef(Box::new(receiver), idx, name.into()),
-            fun_ty.into(),
-        )
+    pub fn get_vtable(receiver: TypedExpr) -> TypedExpr {
+        (Expr::GetVTable(Box::new(receiver)), Ty::Ptr)
     }
 
     pub fn wtable_ref(
@@ -323,7 +316,7 @@ impl Expr {
                         || args.iter().any(|arg| arg.0.contains_async_call())
                 }
             }
-            Expr::VTableRef(obj_expr, _, _) => obj_expr.0.contains_async_call(),
+            Expr::GetVTable(obj_expr) => obj_expr.0.contains_async_call(),
             Expr::WTableKey(_) => false,
             Expr::WTableRow(_, _) => false,
             Expr::WTableRef(obj_expr, _, _, _) => obj_expr.0.contains_async_call(),
@@ -401,13 +394,8 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                     .as_str()
                 + ")"
         }
-        Expr::VTableRef(receiver, idx, name) => {
-            format!(
-                "%VTableRef({}, {}, {})",
-                receiver.0.pretty_print(0, false),
-                idx,
-                name
-            )
+        Expr::GetVTable(receiver) => {
+            format!("%GetVTable({})", receiver.0.pretty_print(0, false))
         }
         Expr::WTableRef(receiver, module, idx, name) => {
             format!(

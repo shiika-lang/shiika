@@ -1,7 +1,6 @@
 use crate::mir;
-use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
 pub fn run(mir: &mir::CompilationUnit) -> Result<()> {
@@ -9,20 +8,7 @@ pub fn run(mir: &mir::CompilationUnit) -> Result<()> {
 }
 pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
     let program = &mir.program;
-    let mut sigs: HashMap<_, _> = program
-        .funcs
-        .iter()
-        .map(|f| (f.name.clone(), f.fun_ty().clone()))
-        .collect();
-    for e in &program.externs {
-        sigs.insert(e.name.clone(), e.fun_ty.clone());
-    }
-
-    let v = Verifier {
-        sigs,
-        vtables: &mir.vtables,
-        imported_vtables: &mir.imported_vtables,
-    };
+    let v = Verifier {};
     v.verify_externs(&program.externs)?;
     for f in &program.funcs {
         v.verify_function(f)?;
@@ -30,13 +16,9 @@ pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
     Ok(())
 }
 
-struct Verifier<'a> {
-    sigs: HashMap<FunctionName, mir::FunTy>,
-    vtables: &'a skc_mir::VTables,
-    imported_vtables: &'a skc_mir::VTables,
-}
+struct Verifier {}
 
-impl<'a> Verifier<'a> {
+impl Verifier {
     fn verify_externs(&self, externs: &[mir::Extern]) -> Result<()> {
         // Function names must be unique
         let mut names = HashSet::new();
@@ -97,45 +79,8 @@ impl<'a> Verifier<'a> {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument #{}", i), p))?;
             }
-            mir::Expr::VTableRef(receiver_expr, idx, debug_name) => {
+            mir::Expr::GetVTable(receiver_expr) => {
                 self.verify_expr(f, receiver_expr)?;
-
-                let mir::Ty::Sk(class_name) = &receiver_expr.1 else {
-                    bail!("receiver not Shiika value");
-                };
-                let class_fullname = class_name.base_class_name();
-                let Some(vtable) = self
-                    .vtables
-                    .get(&class_fullname)
-                    .or_else(|| self.imported_vtables.get(&class_fullname))
-                else {
-                    bail!("vtable of {class_fullname} not found")
-                };
-                if let Some(method_fullname) = vtable.to_vec().get(*idx) {
-                    if method_fullname.first_name.0 != *debug_name {
-                        bail!("debug_name not match");
-                    }
-                    if let Some(method_sig) = self.sigs.get(&method_fullname.clone().into()) {
-                        let expected_ty = mir::Ty::Fun(method_sig.clone());
-                        assert(
-                            &e,
-                            &format!("vtable_ref({}#{})", class_name, debug_name),
-                            &expected_ty,
-                        )?;
-                    } else {
-                        bail!(
-                            "Method signature not found for {:?} in vtable ref verification",
-                            method_fullname
-                        );
-                    }
-                } else {
-                    bail!(
-                        "Method index {} out of bounds for vtable of {} (size: {})",
-                        idx,
-                        class_name,
-                        vtable.size()
-                    );
-                }
             }
             mir::Expr::WTableRef(receiver_expr, _module, _idx, _debug_name) => {
                 // TODO: Implement wtable verification similar to vtable
