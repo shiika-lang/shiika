@@ -172,9 +172,9 @@ impl<'a> Compiler<'a> {
                     mir::Expr::fun_call(new_fexpr, new_args)
                 }
             }
-            mir::Expr::VTableRef(receiver, idx, name) => {
+            mir::Expr::GetVTable(receiver) => {
                 let new_receiver = self.compile_value_expr(*receiver, false)?;
-                mir::Expr::vtable_ref(new_receiver, idx, name, e.1.into_fun_ty())
+                mir::Expr::get_vtable(new_receiver)
             }
             mir::Expr::WTableRef(receiver, module, idx, name) => {
                 let new_receiver = self.compile_value_expr(*receiver, false)?;

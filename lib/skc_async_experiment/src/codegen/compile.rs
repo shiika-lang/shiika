@@ -1,6 +1,6 @@
 use crate::codegen::{
     codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
-    string_literal, type_object, value::SkObj, vtable, wtable, CodeGen,
+    string_literal, type_object, value::SkObj, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
@@ -91,9 +91,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::ConstRef(name) => self.compile_constref(name),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
-            mir::Expr::VTableRef(receiver, idx, _debug_name) => {
-                self.compile_vtable_ref(ctx, receiver, *idx)
-            }
+            mir::Expr::GetVTable(receiver) => self.compile_get_vtable(ctx, receiver),
             mir::Expr::WTableKey(modname) => self.compile_wtable_key(modname),
             mir::Expr::WTableRow(classname, modname) => self.compile_wtable_row(classname, modname),
             mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
@@ -289,16 +287,14 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         call_result.as_any_value_enum().try_into().ok()
     }
 
-    fn compile_vtable_ref(
+    fn compile_get_vtable(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         receiver: &mir::TypedExpr,
-        idx: usize,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let obj = self.compile_value_expr(ctx, receiver);
         let vtable = instance::get_vtable(self, &SkObj::from_basic_value_enum(obj));
-        let method_ptr = vtable::get_function(self, vtable, idx);
-        Some(method_ptr.into())
+        Some(vtable.ptr.into())
     }
 
     fn compile_wtable_ref(
