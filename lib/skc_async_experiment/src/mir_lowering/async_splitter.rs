@@ -232,6 +232,13 @@ impl<'a> Compiler<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 (mir::Expr::CreateNativeArray(new_elems), e.1.clone())
             }
+            mir::Expr::NativeArrayRef(arr_expr, idx) => {
+                let new_arr = self.compile_value_expr(*arr_expr, false)?;
+                (
+                    mir::Expr::NativeArrayRef(Box::new(new_arr), idx),
+                    e.1.clone(),
+                )
+            }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
         };

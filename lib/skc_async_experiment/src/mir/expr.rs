@@ -41,6 +41,8 @@ pub enum Expr {
     CreateObject(String),
     CreateTypeObject(TermTy),
     CreateNativeArray(Vec<Typed<Expr>>),
+    /// Read from a native array at a given index
+    NativeArrayRef(Box<Typed<Expr>>, usize),
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -265,6 +267,10 @@ impl Expr {
         (Expr::CreateNativeArray(elems), Ty::Ptr)
     }
 
+    pub fn native_array_ref(array: TypedExpr, idx: usize, elem_ty: Ty) -> TypedExpr {
+        (Expr::NativeArrayRef(Box::new(array), idx), elem_ty)
+    }
+
     pub fn unbox(e: TypedExpr) -> TypedExpr {
         if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
@@ -340,6 +346,7 @@ impl Expr {
             Expr::CreateObject(_) => false,
             Expr::CreateTypeObject(_) => false,
             Expr::CreateNativeArray(elems) => elems.iter().any(|e| e.0.contains_async_call()),
+            Expr::NativeArrayRef(arr, _) => arr.0.contains_async_call(),
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
@@ -473,6 +480,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             let elem_strs: Vec<String> =
                 elems.iter().map(|e| pretty_print(&e.0, 0, false)).collect();
             format!("%CreateNativeArray[{}]", elem_strs.join(", "))
+        }
+        Expr::NativeArrayRef(arr, idx) => {
+            format!(
+                "%NativeArrayRef({})[{}]",
+                pretty_print(&arr.0, 0, false),
+                idx
+            )
         }
         Expr::WTableKey(module) => {
             format!("%WTableKey({})", module.0)

@@ -329,12 +329,8 @@ impl<'a> Compiler<'a> {
                             panic!("Method not found in vtable: {}", method_fullname)
                         });
 
-                    mir::Expr::vtable_ref(
-                        mir_receiver.clone(),
-                        method_idx,
-                        method_name.0.clone(),
-                        fun_ty,
-                    )
+                    let vtable = mir::Expr::get_vtable(mir_receiver.clone());
+                    mir::Expr::native_array_ref(vtable, method_idx, fun_ty.into())
                 } else {
                     mir::Expr::func_ref(method_fullname.into(), fun_ty)
                 };
