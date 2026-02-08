@@ -48,6 +48,9 @@ pub trait MirVisitor {
             mir::Expr::GetVTable(receiver) => {
                 self.walk_expr(receiver)?;
             }
+            mir::Expr::VTableRef(receiver, _, _) => {
+                self.walk_expr(receiver)?;
+            }
             mir::Expr::WTableRef(receiver, _, _, _) => {
                 self.walk_expr(receiver)?;
             }
