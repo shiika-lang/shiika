@@ -78,13 +78,17 @@ fn generate_mir(
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
     cli.write_debug_log("06-async_splitter.mirdump", &mir.program);
 
+    // Lower VTableRef into GetVTable + FunCall
+    mir.program = mir_lowering::lower_vtable_ref::run(mir.program);
+    cli.write_debug_log("07-lower_vtable_ref.mirdump", &mir.program);
+
     // Convert EnvGet/EnvSet to function calls
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
-    cli.write_debug_log("07-resolve_env_op.mirdump", &mir.program);
+    cli.write_debug_log("08-resolve_env_op.mirdump", &mir.program);
 
     // Insert `Alloc`s for each LVarDecl
     mir.program = mir_lowering::insert_allocs::run(mir.program);
-    cli.write_debug_log("08-insert_allocs.mirdump", &mir.program);
+    cli.write_debug_log("09-insert_allocs.mirdump", &mir.program);
 
     Ok(mir)
 }
