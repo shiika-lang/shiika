@@ -92,6 +92,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::GetVTable(receiver) => self.compile_get_vtable(ctx, receiver),
+            mir::Expr::VTableRef(_, _, _) => {
+                panic!("VTableRef should be lowered before codegen")
+            }
             mir::Expr::WTableKey(modname) => self.compile_wtable_key(modname),
             mir::Expr::WTableRow(classname, modname) => self.compile_wtable_row(classname, modname),
             mir::Expr::WTableRef(receiver, module, idx, _debug_name) => {
