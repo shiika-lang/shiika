@@ -1,3 +1,4 @@
+mod cell;
 mod codegen_context;
 mod compile;
 pub mod prelude;

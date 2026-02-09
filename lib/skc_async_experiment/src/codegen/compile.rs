@@ -1,5 +1,5 @@
 use crate::codegen::{
-    codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
+    cell, codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
     string_literal, type_object, value::SkObj, wtable, CodeGen,
 };
 use crate::mir;
@@ -118,6 +118,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
             mir::Expr::CreateTypeObject(the_ty) => self.compile_create_type_object(ctx, the_ty)?,
+            mir::Expr::CellNew(value_expr) => self.compile_cell_new(ctx, value_expr),
+            mir::Expr::CellGet(cell_expr) => self.compile_cell_get(ctx, cell_expr, &texpr.1),
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                self.compile_cell_set(ctx, cell_expr, value_expr)
+            }
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
@@ -511,28 +516,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let v2 = match cast_type {
             mir::CastType::Force(_) => v1,
             mir::CastType::Upcast(_) => v1,
-            mir::CastType::ToAny => match &expr.1 {
-                mir::Ty::I1 => todo!("ToAny cast for I1"),
-                mir::Ty::Int64 => v1,
-                _ => self
-                    .builder
-                    .build_ptr_to_int(
-                        v1.into_pointer_value(),
-                        self.context.i64_type(),
-                        "ptr_as_i64",
-                    )
-                    .unwrap()
-                    .into(),
-            },
-            mir::CastType::Recover(ty) => match ty {
-                mir::Ty::I1 => todo!("Recover cast for I1"),
-                mir::Ty::Int64 => v1,
-                _ => self
-                    .builder
-                    .build_int_to_ptr(v1.into_int_value(), self.ptr_type(), "recover_i64_to_ptr")
-                    .unwrap()
-                    .into(),
-            },
+            mir::CastType::ToAny => self.cast_to_any(v1, &expr.1),
+            mir::CastType::Recover(ty) => self.cast_from_any(v1, ty),
         };
         Some(v2)
     }
@@ -567,6 +552,79 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let llvm_n = self.context.i64_type().const_int(n as u64, false);
         Some(llvm_n.into())
+    }
+
+    fn compile_cell_new(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        value_expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let value = self.compile_value_expr(ctx, value_expr);
+        Some(cell::cell_new(self, value, &value_expr.1))
+    }
+
+    fn compile_cell_get(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        cell_expr: &mir::TypedExpr,
+        result_ty: &mir::Ty,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let cell = self.compile_value_expr(ctx, cell_expr);
+        Some(cell::cell_get(self, cell, result_ty))
+    }
+
+    fn compile_cell_set(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        cell_expr: &mir::TypedExpr,
+        value_expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let cell = self.compile_value_expr(ctx, cell_expr);
+        let value = self.compile_value_expr(ctx, value_expr);
+        cell::cell_set(self, cell, value, &value_expr.1);
+        None
+    }
+
+    /// Cast a value to Any (i64 representation).
+    pub fn cast_to_any(
+        &mut self,
+        value: BasicValueEnum<'run>,
+        from_ty: &mir::Ty,
+    ) -> BasicValueEnum<'run> {
+        match from_ty {
+            mir::Ty::I1 => todo!("cast_to_any for I1"),
+            mir::Ty::Int64 => value,
+            _ => self
+                .builder
+                .build_ptr_to_int(
+                    value.into_pointer_value(),
+                    self.context.i64_type(),
+                    "ptr_as_i64",
+                )
+                .unwrap()
+                .into(),
+        }
+    }
+
+    /// Cast a value from Any (i64) to the target type.
+    pub fn cast_from_any(
+        &mut self,
+        value: BasicValueEnum<'run>,
+        to_ty: &mir::Ty,
+    ) -> BasicValueEnum<'run> {
+        match to_ty {
+            mir::Ty::I1 => todo!("cast_from_any for I1"),
+            mir::Ty::Int64 => value,
+            _ => self
+                .builder
+                .build_int_to_ptr(
+                    value.into_int_value(),
+                    self.ptr_type(),
+                    "recover_i64_to_ptr",
+                )
+                .unwrap()
+                .into(),
+        }
     }
 
     /// Generate conditional branch by Shiika Bool
