@@ -47,6 +47,12 @@ pub enum Expr {
     CreateNativeArray(Vec<Typed<Expr>>),
     /// Read from a native array at a given index
     NativeArrayRef(Box<Typed<Expr>>, usize),
+    /// Allocate a cell: shiika_cell_new(value) -> Ptr
+    CellNew(Box<Typed<Expr>>),
+    /// Read from cell: shiika_cell_get(cell) -> value
+    CellGet(Box<Typed<Expr>>),
+    /// Write to cell: shiika_cell_set(cell, value) -> Void
+    CellSet(Box<Typed<Expr>>, Box<Typed<Expr>>),
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -279,6 +285,21 @@ impl Expr {
         (Expr::NativeArrayRef(Box::new(array), idx), elem_ty)
     }
 
+    pub fn cell_new(value: TypedExpr) -> TypedExpr {
+        (Expr::CellNew(Box::new(value)), Ty::Ptr)
+    }
+
+    pub fn cell_get(cell: TypedExpr, value_ty: Ty) -> TypedExpr {
+        (Expr::CellGet(Box::new(cell)), value_ty)
+    }
+
+    pub fn cell_set(cell: TypedExpr, value: TypedExpr) -> TypedExpr {
+        (
+            Expr::CellSet(Box::new(cell), Box::new(value)),
+            Ty::raw("Void"),
+        )
+    }
+
     pub fn unbox(e: TypedExpr) -> TypedExpr {
         if e.1 != Ty::raw("Int") {
             panic!("[BUG] unbox non-Int: {:?}", e);
@@ -356,6 +377,11 @@ impl Expr {
             Expr::CreateTypeObject(_) => false,
             Expr::CreateNativeArray(elems) => elems.iter().any(|e| e.0.contains_async_call()),
             Expr::NativeArrayRef(arr, _) => arr.0.contains_async_call(),
+            Expr::CellNew(value) => value.0.contains_async_call(),
+            Expr::CellGet(cell) => cell.0.contains_async_call(),
+            Expr::CellSet(cell, value) => {
+                cell.0.contains_async_call() || value.0.contains_async_call()
+            }
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
@@ -498,6 +524,19 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 "%NativeArrayRef({})[{}]",
                 pretty_print(&arr.0, 0, false),
                 idx
+            )
+        }
+        Expr::CellNew(value) => {
+            format!("%CellNew({})", pretty_print(&value.0, 0, false))
+        }
+        Expr::CellGet(cell) => {
+            format!("%CellGet({})", pretty_print(&cell.0, 0, false))
+        }
+        Expr::CellSet(cell, value) => {
+            format!(
+                "%CellSet({}, {})",
+                pretty_print(&cell.0, 0, false),
+                pretty_print(&value.0, 0, false)
             )
         }
         Expr::WTableKey(module) => {

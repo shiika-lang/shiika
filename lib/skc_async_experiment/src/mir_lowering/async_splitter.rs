@@ -243,6 +243,19 @@ impl<'a> Compiler<'a> {
                     e.1.clone(),
                 )
             }
+            mir::Expr::CellNew(value_expr) => {
+                let new_value = self.compile_value_expr(*value_expr, false)?;
+                mir::Expr::cell_new(new_value)
+            }
+            mir::Expr::CellGet(cell_expr) => {
+                let new_cell = self.compile_value_expr(*cell_expr, false)?;
+                mir::Expr::cell_get(new_cell, e.1.clone())
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                let new_cell = self.compile_value_expr(*cell_expr, false)?;
+                let new_value = self.compile_value_expr(*value_expr, false)?;
+                mir::Expr::cell_set(new_cell, new_value)
+            }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
         };

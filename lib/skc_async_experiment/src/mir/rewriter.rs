@@ -94,6 +94,13 @@ pub trait MirRewriter {
                     expr.1.clone(),
                 )
             }
+            mir::Expr::CellNew(value_expr) => mir::Expr::cell_new(self.walk_expr(*value_expr)?),
+            mir::Expr::CellGet(cell_expr) => {
+                mir::Expr::cell_get(self.walk_expr(*cell_expr)?, expr.1.clone())
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                mir::Expr::cell_set(self.walk_expr(*cell_expr)?, self.walk_expr(*value_expr)?)
+            }
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
         };
