@@ -220,6 +220,20 @@ impl<'a> Verifier<'a> {
             mir::Expr::NativeArrayRef(arr_expr, _) => {
                 self.verify_expr(f, arr_expr)?;
             }
+            mir::Expr::CellNew(value_expr) => {
+                self.verify_expr(f, value_expr)?;
+                assert(&e, "cell_new result", &mir::Ty::Ptr)?;
+            }
+            mir::Expr::CellGet(cell_expr) => {
+                self.verify_expr(f, cell_expr)?;
+                assert(&cell_expr, "cell_get arg", &mir::Ty::Ptr)?;
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                self.verify_expr(f, cell_expr)?;
+                self.verify_expr(f, value_expr)?;
+                assert(&cell_expr, "cell_set cell", &mir::Ty::Ptr)?;
+                assert(&e, "cell_set result", &mir::Ty::raw("Void"))?;
+            }
             mir::Expr::EnvRef(_, _) => (),
             mir::Expr::EnvSet(_, v, _) => {
                 self.verify_expr(f, v)?;
