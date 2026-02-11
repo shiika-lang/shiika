@@ -282,6 +282,14 @@ impl<'a> Compiler<'a> {
             } => {
                 todo!("Handle method tvar ref: {:?}", typaram_ref)
             }
+            HirExpressionBase::HirLVarDecl {
+                name,
+                rhs,
+                readonly: _,
+            } => {
+                let mir_rhs = self.convert_expr(*rhs);
+                (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
+            }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
                 (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)

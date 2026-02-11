@@ -154,6 +154,11 @@ pub enum HirExpressionBase {
         from: HirReturnFrom,
         arg: Box<HirExpression>,
     },
+    HirLVarDecl {
+        name: String,
+        rhs: Box<HirExpression>,
+        readonly: bool,
+    },
     HirLVarAssign {
         name: String,
         rhs: Box<HirExpression>,
@@ -439,6 +444,23 @@ impl Hir {
             node: HirExpressionBase::HirReturnExpression {
                 from,
                 arg: Box::new(arg_expr),
+            },
+            locs,
+        }
+    }
+
+    pub fn lvar_decl(
+        name: String,
+        rhs: HirExpression,
+        readonly: bool,
+        locs: LocationSpan,
+    ) -> HirExpression {
+        HirExpression {
+            ty: rhs.ty.clone(),
+            node: HirExpressionBase::HirLVarDecl {
+                name,
+                rhs: Box::new(rhs),
+                readonly,
             },
             locs,
         }

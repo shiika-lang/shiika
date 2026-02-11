@@ -390,7 +390,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let expr = self.convert_expr(rhs)?;
         self.ctx_stack
             .declare_lvar(name, expr.ty.clone(), *readonly);
-        Ok(Hir::lvar_assign(name.to_string(), expr, locs.clone()))
+        Ok(Hir::lvar_decl(
+            name.to_string(),
+            expr,
+            *readonly,
+            locs.clone(),
+        ))
     }
 
     /// Local variable reassignment (`a = ...`)
