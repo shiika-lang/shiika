@@ -31,6 +31,7 @@ pub enum Expr {
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
+    LVarDecl(String, Box<Typed<Expr>>, bool), // (name, rhs, writable)
     LVarSet(String, Box<Typed<Expr>>),
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(ConstFullname, Box<Typed<Expr>>),
@@ -198,6 +199,13 @@ impl Expr {
 
     pub fn alloc(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
+    }
+
+    pub fn lvar_decl(name: impl Into<String>, e: TypedExpr, writable: bool) -> TypedExpr {
+        (
+            Expr::LVarDecl(name.into(), Box::new(e), writable),
+            Ty::raw("Void"),
+        )
     }
 
     pub fn lvar_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
@@ -415,6 +423,10 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
+        Expr::LVarDecl(name, e, writable) => {
+            let kw = if *writable { "var" } else { "let" };
+            format!("{} {} = {}", kw, name, pretty_print(&e.0, lv, false))
+        }
         Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::IVarSet(obj_expr, _idx, e, name) => {
             format!(

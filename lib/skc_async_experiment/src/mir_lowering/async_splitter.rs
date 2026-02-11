@@ -193,8 +193,8 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             mir::Expr::Alloc(_, _) => mir::Expr::nop(),
-            mir::Expr::LVarSet(_, _) => {
-                panic!("LVarSet must be lowered to EnvSet");
+            mir::Expr::LVarDecl(_, _, _) | mir::Expr::LVarSet(_, _) => {
+                panic!("LVarDecl/LVarSet must be lowered to EnvSet");
             }
             mir::Expr::IVarSet(obj, idx, rhs, name) => {
                 let new_obj = self.compile_value_expr(*obj, false)?;

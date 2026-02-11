@@ -18,7 +18,7 @@ impl Allocs {
 impl MirVisitor for Allocs {
     fn visit_expr(&mut self, texpr: &mir::TypedExpr) -> Result<()> {
         match texpr {
-            (mir::Expr::LVarSet(name, rhs), _) => {
+            (mir::Expr::LVarDecl(name, rhs, _), _) | (mir::Expr::LVarSet(name, rhs), _) => {
                 self.0.push((name.clone(), rhs.1.clone()));
             }
             _ => {}

@@ -59,6 +59,9 @@ pub trait MirRewriter {
             }
             mir::Expr::Spawn(expr) => mir::Expr::spawn(self.walk_expr(*expr)?),
             mir::Expr::Alloc(_, _) => expr,
+            mir::Expr::LVarDecl(name, rhs, writable) => {
+                mir::Expr::lvar_decl(name, self.walk_expr(*rhs)?, writable)
+            }
             mir::Expr::LVarSet(name, rhs) => mir::Expr::lvar_set(name, self.walk_expr(*rhs)?),
             mir::Expr::IVarSet(obj, idx, rhs, name) => {
                 mir::Expr::ivar_set(self.walk_expr(*obj)?, idx, self.walk_expr(*rhs)?, name)

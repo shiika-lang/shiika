@@ -152,6 +152,9 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(_, _) => (),
+            mir::Expr::LVarDecl(_, v, _) => {
+                self.verify_expr(f, v)?;
+            }
             mir::Expr::LVarSet(_, v) => {
                 self.verify_expr(f, v)?;
             }

@@ -112,7 +112,7 @@ impl MirRewriter for Update {
                 // +1 for $cont
                 mir::Expr::env_ref(idx + 1, name, texpr.1)
             }
-            mir::Expr::LVarSet(varname, rhs) => {
+            mir::Expr::LVarDecl(varname, rhs, _) | mir::Expr::LVarSet(varname, rhs) => {
                 let i = self.lvar_idx(&varname);
                 mir::Expr::env_set(i, *rhs, varname)
             }

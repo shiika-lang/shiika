@@ -285,10 +285,13 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLVarDecl {
                 name,
                 rhs,
-                readonly: _,
+                readonly,
             } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
+                (
+                    mir::Expr::LVarDecl(name, Box::new(mir_rhs), !readonly),
+                    result_ty,
+                )
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);

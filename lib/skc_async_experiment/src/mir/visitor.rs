@@ -64,6 +64,9 @@ pub trait MirVisitor {
                 self.walk_expr(expr)?;
             }
             mir::Expr::Alloc(_, _) => {}
+            mir::Expr::LVarDecl(_, rhs, _) => {
+                self.walk_expr(rhs)?;
+            }
             mir::Expr::LVarSet(_, rhs) => {
                 self.walk_expr(rhs)?;
             }

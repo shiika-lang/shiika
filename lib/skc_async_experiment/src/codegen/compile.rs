@@ -102,7 +102,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::While(cond, exprs) => self.compile_while(ctx, cond, exprs)?,
             mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(name, ty) => self.compile_alloc(ctx, name, ty),
-            mir::Expr::LVarSet(name, rhs) => self.compile_lvar_set(ctx, name, rhs)?,
+            mir::Expr::LVarDecl(name, rhs, _) | mir::Expr::LVarSet(name, rhs) => {
+                self.compile_lvar_set(ctx, name, rhs)?
+            }
             mir::Expr::IVarSet(obj_expr, idx, rhs, name) => {
                 self.compile_ivar_set(ctx, obj_expr, *idx, rhs, name)?
             }
