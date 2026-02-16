@@ -328,6 +328,7 @@ impl Expr {
             Expr::While(cond, body) => cond.0.contains_async_call() || body.0.contains_async_call(),
             Expr::Spawn(e) => e.0.contains_async_call(),
             Expr::Alloc(_, _) => false,
+            Expr::LVarDecl(_, e, _) => e.0.contains_async_call(),
             Expr::LVarSet(_, e) => e.0.contains_async_call(),
             Expr::IVarSet(obj_expr, _, e, _) => {
                 obj_expr.0.contains_async_call() || e.0.contains_async_call()
