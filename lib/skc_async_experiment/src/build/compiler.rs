@@ -54,25 +54,25 @@ fn generate_mir(
     log::info!("Creating mir");
 
     let mut mir = mirgen::run(uni, target)?;
-    cli.log(format!("# -- mirgen output --\n{}\n", mir.program));
+    cli.write_debug_log("01-mirgen.mirdump", &mir.program);
 
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
-    cli.log(format!("# -- asyncness_check output --\n{}\n", mir.program));
+    cli.write_debug_log("02-asyncness_check.mirdump", &mir.program);
 
     mir.program = mir_lowering::let_bind_async::run(mir.program);
-    cli.log(format!("# -- let_bind_async output --\n{}\n", mir.program));
+    cli.write_debug_log("03-let_bind_async.mirdump", &mir.program);
 
     mir.program = mir_lowering::pass_async_env::run(mir.program);
-    cli.log(format!("# -- pass_async_env output --\n{}\n", mir.program));
+    cli.write_debug_log("04-pass_async_env.mirdump", &mir.program);
 
     mir.program = mir_lowering::splice_exprs::run(mir.program);
-    cli.log(format!("# -- splice_exprs output --\n{}\n", mir.program));
+    cli.write_debug_log("05-splice_exprs.mirdump", &mir.program);
 
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
-    cli.log(format!("# -- async_splitter output --\n{}\n", mir.program));
+    cli.write_debug_log("06-async_splitter.mirdump", &mir.program);
 
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
-    cli.log(format!("# -- resolve_env_op output --\n{}\n", mir.program));
+    cli.write_debug_log("07-resolve_env_op.mirdump", &mir.program);
 
     Ok(mir)
 }
