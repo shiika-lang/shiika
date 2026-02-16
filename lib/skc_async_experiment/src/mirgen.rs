@@ -9,7 +9,7 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirLVar, SkMethod};
+use skc_hir::{HirExpression, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -69,7 +69,7 @@ pub fn run(
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             funcs.push(c.create_user_main());
-            funcs.push(c.create_user_main_inner(main_exprs, uni.hir.main_lvars, total_deps));
+            funcs.push(c.create_user_main_inner(main_exprs, total_deps));
         } else {
             if main_exprs.len() > 0 {
                 panic!("Top level expressions are not allowed in library");
@@ -530,7 +530,6 @@ impl<'a> Compiler<'a> {
     fn create_user_main_inner(
         &self,
         top_exprs: Vec<HirExpression>,
-        main_lvars: Vec<HirLVar>,
         total_deps: &[String],
     ) -> mir::Function {
         let mut body_stmts = vec![];
