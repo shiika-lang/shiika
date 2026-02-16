@@ -74,6 +74,9 @@ fn generate_mir(
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
     cli.write_debug_log("07-resolve_env_op.mirdump", &mir.program);
 
+    mir.program = mir_lowering::insert_allocs::run(mir.program);
+    cli.log(format!("# -- insert_allocs output --\n{}\n", mir.program));
+
     Ok(mir)
 }
 

@@ -60,7 +60,10 @@ pub fn run(mir: mir::Program) -> mir::Program {
 }
 
 fn compile_func(orig_func: mir::Function) -> mir::Function {
-    let allocs = mir::visitor::Allocs::collect(&orig_func.body_stmts);
+    // Count the number of lvars to store in the env
+    let allocs = mir::visitor::LVarDecls::collect(&orig_func.body_stmts);
+    let lvar_count = allocs.len();
+
     let new_body_stmts = Update {
         orig_arity: orig_func.params.len(),
         allocs,
@@ -78,6 +81,7 @@ fn compile_func(orig_func: mir::Function) -> mir::Function {
         ret_ty: orig_func.ret_ty,
         body_stmts: new_body_stmts,
         sig: orig_func.sig,
+        lvar_count: Some(lvar_count),
     }
 }
 

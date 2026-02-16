@@ -43,6 +43,7 @@ fn inserter_func(sk_class: &skc_hir::SkClass) -> mir::Function {
         ret_ty: mir::Ty::CVoid,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
+        lvar_count: None,
     }
 }
 
@@ -78,6 +79,7 @@ fn main_inserter(sk_types: &SkTypes) -> mir::Function {
         ret_ty: mir::Ty::CVoid,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
+        lvar_count: None,
     }
 }
 

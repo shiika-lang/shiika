@@ -109,22 +109,19 @@ pub trait MirVisitor {
     }
 }
 
-pub struct Allocs(Vec<(String, mir::Ty)>);
-impl Allocs {
-    /// Collects `alloc`ed variable names and their types.
+pub struct LVarDecls(Vec<(String, mir::Ty)>);
+impl LVarDecls {
+    /// Collects local variable declarations (names and types).
     pub fn collect(body_stmts: &mir::TypedExpr) -> Vec<(String, mir::Ty)> {
-        let mut a = Allocs(vec![]);
-        a.walk_expr(body_stmts).unwrap();
-        a.0
+        let mut c = LVarDecls(vec![]);
+        c.walk_expr(body_stmts).unwrap();
+        c.0
     }
 }
-impl MirVisitor for Allocs {
+impl MirVisitor for LVarDecls {
     fn visit_expr(&mut self, texpr: &mir::TypedExpr) -> Result<()> {
-        match texpr {
-            (mir::Expr::Alloc(name, ty), _) => {
-                self.0.push((name.clone(), ty.clone()));
-            }
-            _ => {}
+        if let (mir::Expr::LVarDecl(name, rhs, _), _) = texpr {
+            self.0.push((name.clone(), rhs.1.clone()));
         }
         Ok(())
     }

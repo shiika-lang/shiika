@@ -1,4 +1,3 @@
-mod collect_allocs;
 mod constants;
 mod prepare_asyncness;
 mod wtables;
@@ -139,8 +138,6 @@ impl<'a> Compiler<'a> {
             },
         );
         let body_stmts = self.convert_method_body(method.body, &signature);
-        let allocs = collect_allocs::run(&body_stmts);
-        let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
             name: method.fullname.clone().into(),
@@ -148,21 +145,8 @@ impl<'a> Compiler<'a> {
             ret_ty: convert_ty(signature.ret_ty.clone()),
             body_stmts,
             sig: Some(signature.clone()),
+            lvar_count: None,
         }
-    }
-
-    fn insert_allocs(
-        &self,
-        allocs: Vec<(String, mir::Ty)>,
-        stmts: mir::TypedExpr,
-    ) -> mir::TypedExpr {
-        let mut stmts_vec = mir::expr::into_exprs(stmts);
-        let mut new_stmts = vec![];
-        for (name, ty) in allocs {
-            new_stmts.push(mir::Expr::alloc(name, ty));
-        }
-        new_stmts.extend(stmts_vec.drain(..));
-        mir::Expr::exprs(new_stmts)
     }
 
     fn convert_method_body(
@@ -478,10 +462,10 @@ impl<'a> Compiler<'a> {
     ) -> mir::TypedExpr {
         let mut exprs = vec![];
         let tmp_name = "tmp";
-        exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
-        exprs.push(mir::Expr::lvar_set(
+        exprs.push(mir::Expr::lvar_decl(
             tmp_name,
             mir::Expr::create_object(instance_ty.clone()),
+            false,
         ));
         if let Some(ini_sig) = initializer {
             let call_initialize = {
@@ -538,6 +522,7 @@ impl<'a> Compiler<'a> {
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
+            lvar_count: None,
         }
     }
 
@@ -551,11 +536,6 @@ impl<'a> Compiler<'a> {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
         body_stmts.push(wtables::call_main_inserter());
-        body_stmts.extend(
-            main_lvars
-                .into_iter()
-                .map(|lvar| mir::Expr::alloc(lvar.name, lvar.ty.into())),
-        );
         body_stmts.extend(top_exprs.into_iter().map(|expr| self.convert_expr(expr)));
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
         mir::Function {
@@ -565,6 +545,7 @@ impl<'a> Compiler<'a> {
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
+            lvar_count: None,
         }
     }
 
