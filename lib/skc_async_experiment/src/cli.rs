@@ -39,10 +39,14 @@ pub struct Cli {
 
 impl Cli {
     pub fn init() -> Result<Self> {
+        let shiika_work = shiika_work()?;
+        let log_dir = shiika_work.join("debug_logs");
+        std::fs::create_dir_all(&log_dir)?;
+        let log_file = std::fs::File::create(log_dir.join("log.milikac"))?;
         Ok(Self {
-            log_file: std::fs::File::create("log.milikac").unwrap(),
+            log_file,
             shiika_root: shiika_root()?,
-            shiika_work: shiika_work()?,
+            shiika_work,
         })
     }
 
