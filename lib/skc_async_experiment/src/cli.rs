@@ -3,7 +3,6 @@ use crate::{build, package};
 use anyhow::{bail, Result};
 pub use command_line_options::{Command, CommandLineOptions};
 use std::env;
-use std::io::Write;
 use std::path::PathBuf;
 
 const SHIIKA_ROOT: &str = "SHIIKA_ROOT";
@@ -32,17 +31,23 @@ fn shiika_work() -> Result<PathBuf> {
 }
 
 pub struct Cli {
-    pub log_file: std::fs::File,
+    pub log_dir: PathBuf,
     pub shiika_root: PathBuf,
     pub shiika_work: PathBuf,
 }
 
 impl Cli {
     pub fn init() -> Result<Self> {
+        let shiika_work = shiika_work()?;
+        let log_dir = shiika_work.join("debug_logs");
+        if log_dir.exists() {
+            std::fs::remove_dir_all(&log_dir)?;
+        }
+        std::fs::create_dir_all(&log_dir)?;
         Ok(Self {
-            log_file: std::fs::File::create("log.milikac").unwrap(),
+            log_dir,
             shiika_root: shiika_root()?,
-            shiika_work: shiika_work()?,
+            shiika_work,
         })
     }
 
@@ -100,7 +105,8 @@ impl Cli {
             .join(format!("{}-{}", &spec.name, &spec.version))
     }
 
-    pub fn log(&mut self, s: impl AsRef<str>) {
-        self.log_file.write_all(s.as_ref().as_bytes()).unwrap();
+    pub fn write_debug_log(&self, name: &str, content: impl std::fmt::Display) {
+        let path = self.log_dir.join(name);
+        std::fs::write(&path, format!("{}", content)).unwrap();
     }
 }
