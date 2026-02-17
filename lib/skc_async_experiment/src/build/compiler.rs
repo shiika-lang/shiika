@@ -53,27 +53,36 @@ fn generate_mir(
     let uni = generate_hir(cli, ast, target)?;
     log::info!("Creating mir");
 
+    // Convert HIR to MIR
     let mut mir = mirgen::run(uni, target)?;
     cli.write_debug_log("01-mirgen.mirdump", &mir.program);
 
+    // Set Function::asyncness
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.write_debug_log("02-asyncness_check.mirdump", &mir.program);
 
+    // Simplify nested async calls
     mir.program = mir_lowering::let_bind_async::run(mir.program);
     cli.write_debug_log("03-let_bind_async.mirdump", &mir.program);
 
+    // Add `env` parameter to async functions
+    // Also convert lvars to env access
     mir.program = mir_lowering::pass_async_env::run(mir.program);
     cli.write_debug_log("04-pass_async_env.mirdump", &mir.program);
 
+    // Splice nested Exprs
     mir.program = mir_lowering::splice_exprs::run(mir.program);
     cli.write_debug_log("05-splice_exprs.mirdump", &mir.program);
 
+    // Split async functions into multiple functions
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
     cli.write_debug_log("06-async_splitter.mirdump", &mir.program);
 
+    // Convert EnvGet/EnvSet to function calls
     mir.program = mir_lowering::resolve_env_op::run(mir.program);
     cli.write_debug_log("07-resolve_env_op.mirdump", &mir.program);
 
+    // Insert `Alloc`s for each LVarDecl
     mir.program = mir_lowering::insert_allocs::run(mir.program);
     cli.write_debug_log("08-insert_allocs.mirdump", &mir.program);
 
