@@ -2,10 +2,8 @@
 //!
 //! Before: f(g(), h())  // g and h are async
 //! After:  
-//!   alloc $a0
-//!   $a0 = g()
-//!   alloc $a1
-//!   $a1 = h()
+//!   let $a0 = g()
+//!   let $a1 = h()
 //!   f($a0, $a1)
 //!
 //! This simplifies async_splitter by ensuring only one async call
@@ -155,9 +153,8 @@ impl Compiler {
     ) -> mir::TypedExpr {
         let name = self.gensym.new_name();
         let ty = expr.1.clone();
-        new_body_stmts.push(mir::Expr::alloc(name.clone(), ty.clone()));
         let compiled = self.compile_stmt(new_body_stmts, expr);
-        new_body_stmts.push(mir::Expr::lvar_set(name.clone(), compiled));
+        new_body_stmts.push(mir::Expr::lvar_decl(name.clone(), compiled, false));
         mir::Expr::lvar_ref(name, ty)
     }
 
