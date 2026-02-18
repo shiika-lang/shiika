@@ -67,7 +67,7 @@ pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &mut V, expr: &'hir HirExpression
         }
         HirBreakExpression { .. } => (),
         HirReturnExpression { arg, .. } => walk_expr(v, arg)?,
-        HirLVarAssign { rhs, .. } => walk_expr(v, rhs)?,
+        HirLVarDecl { rhs, .. } | HirLVarAssign { rhs, .. } => walk_expr(v, rhs)?,
         HirIVarAssign { rhs, .. } => walk_expr(v, rhs)?,
         HirConstAssign { rhs, .. } => walk_expr(v, rhs)?,
         HirMethodCall {

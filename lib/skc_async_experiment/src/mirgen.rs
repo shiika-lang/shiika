@@ -1,4 +1,3 @@
-mod collect_allocs;
 mod constants;
 mod prepare_asyncness;
 mod wtables;
@@ -10,7 +9,7 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirLVar, SkMethod};
+use skc_hir::{HirExpression, SkMethod};
 use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
 
 pub fn run(
@@ -70,7 +69,7 @@ pub fn run(
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
             funcs.push(c.create_user_main());
-            funcs.push(c.create_user_main_inner(main_exprs, uni.hir.main_lvars, total_deps));
+            funcs.push(c.create_user_main_inner(main_exprs, total_deps));
         } else {
             if main_exprs.len() > 0 {
                 panic!("Top level expressions are not allowed in library");
@@ -139,8 +138,6 @@ impl<'a> Compiler<'a> {
             },
         );
         let body_stmts = self.convert_method_body(method.body, &signature);
-        let allocs = collect_allocs::run(&body_stmts);
-        let body_stmts = self.insert_allocs(allocs, body_stmts);
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
             name: method.fullname.clone().into(),
@@ -148,21 +145,8 @@ impl<'a> Compiler<'a> {
             ret_ty: convert_ty(signature.ret_ty.clone()),
             body_stmts,
             sig: Some(signature.clone()),
+            lvar_count: None,
         }
-    }
-
-    fn insert_allocs(
-        &self,
-        allocs: Vec<(String, mir::Ty)>,
-        stmts: mir::TypedExpr,
-    ) -> mir::TypedExpr {
-        let mut stmts_vec = mir::expr::into_exprs(stmts);
-        let mut new_stmts = vec![];
-        for (name, ty) in allocs {
-            new_stmts.push(mir::Expr::alloc(name, ty));
-        }
-        new_stmts.extend(stmts_vec.drain(..));
-        mir::Expr::exprs(new_stmts)
     }
 
     fn convert_method_body(
@@ -281,6 +265,17 @@ impl<'a> Compiler<'a> {
                 n_params: _,
             } => {
                 todo!("Handle method tvar ref: {:?}", typaram_ref)
+            }
+            HirExpressionBase::HirLVarDecl {
+                name,
+                rhs,
+                readonly,
+            } => {
+                let mir_rhs = self.convert_expr(*rhs);
+                (
+                    mir::Expr::LVarDecl(name, Box::new(mir_rhs), !readonly),
+                    result_ty,
+                )
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
@@ -467,10 +462,10 @@ impl<'a> Compiler<'a> {
     ) -> mir::TypedExpr {
         let mut exprs = vec![];
         let tmp_name = "tmp";
-        exprs.push(mir::Expr::alloc(tmp_name, instance_ty.clone().into()));
-        exprs.push(mir::Expr::lvar_set(
+        exprs.push(mir::Expr::lvar_decl(
             tmp_name,
             mir::Expr::create_object(instance_ty.clone()),
+            false,
         ));
         if let Some(ini_sig) = initializer {
             let call_initialize = {
@@ -527,6 +522,7 @@ impl<'a> Compiler<'a> {
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
+            lvar_count: None,
         }
     }
 
@@ -534,17 +530,11 @@ impl<'a> Compiler<'a> {
     fn create_user_main_inner(
         &self,
         top_exprs: Vec<HirExpression>,
-        main_lvars: Vec<HirLVar>,
         total_deps: &[String],
     ) -> mir::Function {
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
         body_stmts.push(wtables::call_main_inserter());
-        body_stmts.extend(
-            main_lvars
-                .into_iter()
-                .map(|lvar| mir::Expr::alloc(lvar.name, lvar.ty.into())),
-        );
         body_stmts.extend(top_exprs.into_iter().map(|expr| self.convert_expr(expr)));
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
         mir::Function {
@@ -554,6 +544,7 @@ impl<'a> Compiler<'a> {
             ret_ty: mir::Ty::Raw("Int".to_string()),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
+            lvar_count: None,
         }
     }
 

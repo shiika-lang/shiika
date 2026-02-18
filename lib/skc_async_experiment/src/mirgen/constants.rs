@@ -33,6 +33,7 @@ pub fn create_const_init_funcs(
         ret_ty: mir::Ty::Int64,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
+        lvar_count: None,
     });
     funcs
 }
@@ -49,6 +50,7 @@ pub fn create_const_init_func(name: ConstFullname, rhs: mir::TypedExpr) -> mir::
         ret_ty: mir::Ty::Int64,
         body_stmts: mir::Expr::exprs(body_stmts),
         sig: None,
+        lvar_count: None,
     }
 }
 

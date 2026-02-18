@@ -53,7 +53,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
             } => self.gen_while_expr(ctx, cond_expr, body_exprs),
             HirBreakExpression { from } => self.gen_break_expr(ctx, from),
             HirReturnExpression { arg, .. } => self.gen_return_expr(ctx, arg),
-            HirLVarAssign { name, rhs } => self.gen_lvar_assign(ctx, name, rhs),
+            HirLVarDecl { name, rhs, .. } | HirLVarAssign { name, rhs } => {
+                self.gen_lvar_assign(ctx, name, rhs)
+            }
             HirIVarAssign {
                 name,
                 rhs,

@@ -31,6 +31,7 @@ pub enum Expr {
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
     Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
+    LVarDecl(String, Box<Typed<Expr>>, bool), // (name, rhs, writable)
     LVarSet(String, Box<Typed<Expr>>),
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(ConstFullname, Box<Typed<Expr>>),
@@ -200,6 +201,13 @@ impl Expr {
         (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
     }
 
+    pub fn lvar_decl(name: impl Into<String>, e: TypedExpr, writable: bool) -> TypedExpr {
+        (
+            Expr::LVarDecl(name.into(), Box::new(e), writable),
+            Ty::raw("Void"),
+        )
+    }
+
     pub fn lvar_set(name: impl Into<String>, e: TypedExpr) -> TypedExpr {
         (Expr::LVarSet(name.into(), Box::new(e)), Ty::raw("Void"))
     }
@@ -320,6 +328,7 @@ impl Expr {
             Expr::While(cond, body) => cond.0.contains_async_call() || body.0.contains_async_call(),
             Expr::Spawn(e) => e.0.contains_async_call(),
             Expr::Alloc(_, _) => false,
+            Expr::LVarDecl(_, e, _) => e.0.contains_async_call(),
             Expr::LVarSet(_, e) => e.0.contains_async_call(),
             Expr::IVarSet(obj_expr, _, e, _) => {
                 obj_expr.0.contains_async_call() || e.0.contains_async_call()
@@ -415,6 +424,10 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
+        Expr::LVarDecl(name, e, writable) => {
+            let kw = if *writable { "var" } else { "let" };
+            format!("{} {} = {}", kw, name, pretty_print(&e.0, lv, false))
+        }
         Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::IVarSet(obj_expr, _idx, e, name) => {
             format!(

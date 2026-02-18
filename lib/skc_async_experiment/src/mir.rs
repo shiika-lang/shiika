@@ -100,6 +100,8 @@ pub struct Function {
     pub ret_ty: Ty,
     pub body_stmts: Typed<Expr>,
     pub sig: Option<MethodSignature>,
+    // Number of lvars used in this function. Set by pass_async_env
+    pub lvar_count: Option<usize>,
 }
 
 impl fmt::Display for Function {

@@ -50,13 +50,11 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
             funcs.push(f);
             continue;
         }
-        let allocs = mir::visitor::Allocs::collect(&f.body_stmts);
         // Extract body_stmts from f
         let mut body_stmts = mir::Expr::nop();
         std::mem::swap(&mut f.body_stmts, &mut body_stmts);
         let mut c = Compiler {
             orig_func: &mut f,
-            allocs,
             chapters: Chapters::new(),
             gensym: gensym::Gensym::new(gensym::PREFIX_ASYNC_SPLITTER),
         };
@@ -74,7 +72,6 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
 #[derive(Debug)]
 struct Compiler<'a> {
     orig_func: &'a mut mir::Function,
-    allocs: Vec<(String, mir::Ty)>,
     chapters: Chapters,
     gensym: gensym::Gensym,
 }
@@ -123,6 +120,7 @@ impl<'a> Compiler<'a> {
             params: chap.params,
             ret_ty: chap.ret_ty,
             body_stmts: mir::Expr::exprs(chap.stmts),
+            lvar_count: None,
         }
     }
 
@@ -193,8 +191,8 @@ impl<'a> Compiler<'a> {
                 call_chiika_spawn(new_fexpr)
             }
             mir::Expr::Alloc(_, _) => mir::Expr::nop(),
-            mir::Expr::LVarSet(_, _) => {
-                panic!("LVarSet must be lowered to EnvSet");
+            mir::Expr::LVarDecl(_, _, _) | mir::Expr::LVarSet(_, _) => {
+                panic!("LVarDecl/LVarSet must be lowered to EnvSet");
             }
             mir::Expr::IVarSet(obj, idx, rhs, name) => {
                 let new_obj = self.compile_value_expr(*obj, false)?;
@@ -439,8 +437,7 @@ impl<'a> Compiler<'a> {
     }
 
     // Pass the value to the continuation function. Example:
-    //   alloc tmp;    # tmp is needed because calculating value may call env_ref
-    //   tmp = value;
+    //   let tmp = value;    # tmp is needed because calculating value may call env_ref
     //   `(env_pop())(env, tmp)`;
     fn continue_with_value(
         &mut self,
@@ -455,16 +452,14 @@ impl<'a> Compiler<'a> {
     fn store_to_tmpvar(&mut self, value: mir::TypedExpr) -> mir::TypedExpr {
         let ty = value.1.clone();
         let varname = self.gensym.new_name();
-        self.chapters.add_stmts(vec![
-            mir::Expr::alloc(varname.clone(), value.1.clone()),
-            mir::Expr::lvar_set(varname.clone(), value),
-        ]);
+        self.chapters
+            .add_stmts(vec![mir::Expr::lvar_decl(varname.clone(), value, false)]);
         mir::Expr::lvar_ref(varname, ty)
     }
 
     fn frame_size(&self) -> usize {
-        // +1 for $cont
-        1 + self.orig_func.params.len() + self.allocs.len()
+        // Frame layout: [$cont, arg1, arg2, ..., lvar1, lvar2, ...]
+        1 + (self.orig_func.params.len() - 1) + self.orig_func.lvar_count.unwrap()
     }
 }
 
