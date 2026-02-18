@@ -538,6 +538,7 @@ impl<'a> Compiler<'a> {
             ret_ty: convert_ty(ret_ty.clone()),
             body_stmts: final_body,
             sig: None,
+            lvar_count: None,
         }
     }
 

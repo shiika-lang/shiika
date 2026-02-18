@@ -17,6 +17,7 @@ fn compile_func(orig_func: mir::Function) -> mir::Function {
         ret_ty: orig_func.ret_ty,
         body_stmts: new_body_stmts,
         sig: orig_func.sig,
+        lvar_count: orig_func.lvar_count,
     }
 }
 
