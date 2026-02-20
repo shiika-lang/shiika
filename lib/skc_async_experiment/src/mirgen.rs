@@ -9,8 +9,10 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
-use skc_hir::{HirExpression, HirLVars, SkMethod};
-use skc_hir::{HirExpressionBase, MethodParam, MethodSignature, SkMethodBody, SkTypes};
+use skc_hir::visitor::{walk_expr, HirVisitor};
+use skc_hir::{HirExpression, HirExpressionBase, HirLVars, SkMethod};
+use skc_hir::{HirLambdaCaptureDetail, MethodParam, MethodSignature, SkMethodBody, SkTypes};
+use std::collections::HashSet;
 
 pub fn run(
     mut uni: build::CompilationUnit,
@@ -51,6 +53,7 @@ pub fn run(
             imported_vtables: &uni.imports.vtables,
             str_literals: &uni.hir.str_literals,
             lambda_funcs: vec![],
+            cell_vars: HashSet::new(),
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
@@ -117,6 +120,8 @@ struct Compiler<'a> {
     str_literals: &'a Vec<String>,
     /// Collects generated lambda functions
     lambda_funcs: Vec<mir::Function>,
+    /// Names of local variables that need Cell wrapping (captured as non-readonly)
+    cell_vars: HashSet<String>,
 }
 
 impl<'a> Compiler<'a> {
@@ -143,6 +148,12 @@ impl<'a> Compiler<'a> {
                 name: "self".to_string(),
             },
         );
+        // Pass 1: collect cell vars before converting body
+        self.cell_vars = if let SkMethodBody::Normal { exprs } = &method.body {
+            collect_cell_vars(exprs)
+        } else {
+            HashSet::new()
+        };
         let body_stmts = self.convert_method_body(method.body, &signature);
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
@@ -249,7 +260,12 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
-                mir::Expr::lvar_ref(name, convert_ty(expr.ty))
+                if self.cell_vars.contains(&name) {
+                    let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
+                    mir::Expr::cell_get(cell, convert_ty(expr.ty))
+                } else {
+                    mir::Expr::lvar_ref(name, convert_ty(expr.ty))
+                }
             }
             HirExpressionBase::HirArgRef { idx, is_lambda } => {
                 // In methods, +1 for the receiver (self). In lambdas, no receiver.
@@ -278,14 +294,26 @@ impl<'a> Compiler<'a> {
                 readonly,
             } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                (
-                    mir::Expr::LVarDecl(name, Box::new(mir_rhs), !readonly),
-                    result_ty,
-                )
+                if self.cell_vars.contains(&name) {
+                    // var y = 5 → var y = cell_new(5)
+                    let cell = mir::Expr::cell_new(mir_rhs);
+                    (mir::Expr::LVarDecl(name, Box::new(cell), true), result_ty)
+                } else {
+                    (
+                        mir::Expr::LVarDecl(name, Box::new(mir_rhs), !readonly),
+                        result_ty,
+                    )
+                }
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
+                if self.cell_vars.contains(&name) {
+                    // y = v → cell_set(y, v)
+                    let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
+                    mir::Expr::cell_set(cell, mir_rhs)
+                } else {
+                    (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
+                }
             }
             HirExpressionBase::HirIVarAssign {
                 name,
@@ -621,6 +649,14 @@ impl<'a> Compiler<'a> {
         top_exprs: Vec<HirExpression>,
         total_deps: &[String],
     ) -> mir::Function {
+        // Pass 1: collect cell vars from top-level expressions
+        self.cell_vars = {
+            let mut vars = HashSet::new();
+            for expr in &top_exprs {
+                vars.extend(collect_cell_vars(expr));
+            }
+            vars
+        };
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
         body_stmts.push(wtables::call_main_inserter());
@@ -723,4 +759,27 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
         param_tys,
         convert_ty(sig.ret_ty.clone()),
     )
+}
+
+/// Scan HIR expressions for HirLambdaExpr nodes and collect
+/// lvar names that need Cell wrapping (captured as non-readonly).
+fn collect_cell_vars(expr: &HirExpression) -> HashSet<String> {
+    struct CellVarCollector(HashSet<String>);
+    impl<'hir> HirVisitor<'hir> for CellVarCollector {
+        fn visit_expr(&mut self, expr: &'hir HirExpression) -> anyhow::Result<()> {
+            if let HirExpressionBase::HirLambdaExpr { captures, .. } = &expr.node {
+                for cap in captures {
+                    if !cap.readonly {
+                        if let HirLambdaCaptureDetail::CaptureLVar { name } = &cap.detail {
+                            self.0.insert(name.clone());
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+    let mut collector = CellVarCollector(HashSet::new());
+    walk_expr(&mut collector, expr).unwrap();
+    collector.0
 }
