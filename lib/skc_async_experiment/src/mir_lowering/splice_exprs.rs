@@ -73,8 +73,27 @@ fn splice(exprs: mir::TypedExpr) -> Vec<mir::TypedExpr> {
                     v.extend(splice(ie).into_iter());
                 }
             }
+            // Return(Exprs([stmts..., last])) → stmts..., Return(last)
+            mir::Expr::Return(Some(inner)) if contains_exprs(&inner) => {
+                let mut flattened = flatten_deep(*inner);
+                let last = flattened.pop().expect("[BUG] Return(Exprs([])) is empty");
+                v.extend(flattened);
+                v.push(mir::Expr::return_(last));
+            }
             _ => v.push(e),
         }
     }
     v
+}
+
+fn contains_exprs(expr: &mir::TypedExpr) -> bool {
+    matches!(expr.0, mir::Expr::Exprs(_))
+}
+
+/// Recursively flatten nested Exprs into a flat list
+fn flatten_deep(expr: mir::TypedExpr) -> Vec<mir::TypedExpr> {
+    match expr.0 {
+        mir::Expr::Exprs(exprs) => exprs.into_iter().flat_map(flatten_deep).collect(),
+        _ => vec![expr],
+    }
 }

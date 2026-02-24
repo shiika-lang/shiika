@@ -38,8 +38,14 @@ pub fn of_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'r
 }
 
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
+    // Strip generic type parameters (e.g. "Fn1<Int,Void>" -> "Fn1")
+    // since all generic instantiations share the same LLVM struct layout.
+    let base_name = match name.find('<') {
+        Some(idx) => &name[..idx],
+        None => name,
+    };
     gen.context
-        .get_struct_type(name)
+        .get_struct_type(base_name)
         .expect(&format!("struct type not found: {}", name))
 }
 
