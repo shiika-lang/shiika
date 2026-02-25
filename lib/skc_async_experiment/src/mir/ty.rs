@@ -12,8 +12,8 @@ pub enum Ty {
     CVoid, // Corresponds to `void` in llvm
     ChiikaEnv,
     RustFuture,
-    Raw(String),
-    Fun(FunTy),
+    Sk(TermTy), // A Shiika value
+    Fun(FunTy), // C-level(=llvm-level) function type
 }
 
 impl fmt::Display for Ty {
@@ -44,7 +44,7 @@ impl From<TermTy> for Ty {
             None => match &ty.fullname.0[..] {
                 "Shiika::Internal::Ptr" => Ty::Ptr,
                 "Shiika::Internal::Int64" => Ty::Int64,
-                _ => Ty::Raw(ty.fullname.0),
+                _ => Ty::Sk(ty),
             },
         }
     }
@@ -52,7 +52,11 @@ impl From<TermTy> for Ty {
 
 impl Ty {
     pub fn raw(s: impl Into<String>) -> Self {
-        Ty::Raw(s.into())
+        Ty::Sk(shiika_core::ty::raw(s))
+    }
+
+    pub fn meta(s: impl Into<String>) -> Self {
+        Ty::Sk(shiika_core::ty::meta(s))
     }
 
     pub fn as_fun_ty(&self) -> &FunTy {
@@ -96,7 +100,7 @@ impl Ty {
             Ty::CVoid => panic!("CVoid has no value"),
             Ty::ChiikaEnv => 4,
             Ty::RustFuture => 5,
-            Ty::Raw(_) => 6,
+            Ty::Sk(_) => 6,
             Ty::Fun(_) => 7,
         }
     }
