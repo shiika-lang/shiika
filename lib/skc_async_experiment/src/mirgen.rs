@@ -205,7 +205,7 @@ impl<'a> Compiler<'a> {
                 } else {
                     mir::PseudoVar::False
                 };
-                mir::Expr::pseudo_var(b, mir::Ty::Raw("Bool".to_string()))
+                mir::Expr::pseudo_var(b, mir::Ty::raw("Bool"))
             }
             HirExpressionBase::HirStringLiteral { idx } => {
                 mir::Expr::string_literal(self.str_literals[idx].clone())
@@ -230,14 +230,12 @@ impl<'a> Compiler<'a> {
                 let func_name = FunctionName::method("Meta:Array", "new");
                 let fun_ty = mir::FunTy::new(
                     mir::Asyncness::Unknown,
-                    vec![mir::Ty::raw("Meta:Array"), mir::Ty::Ptr, mir::Ty::Int64],
+                    vec![mir::Ty::meta("Array"), mir::Ty::Ptr, mir::Ty::Int64],
                     result_ty,
                 );
                 let func_ref = mir::Expr::func_ref(func_name, fun_ty.into());
-                let the_array = mir::Expr::const_ref(
-                    ConstFullname::toplevel("Array"),
-                    mir::Ty::raw("Meta:Array"),
-                );
+                let the_array =
+                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
 
                 mir::Expr::fun_call(func_ref, vec![the_array, native_array_expr, count_expr])
             }
@@ -519,7 +517,7 @@ impl<'a> Compiler<'a> {
             asyncness: mir::Asyncness::Unknown,
             name: mir::main_function_name(),
             params: vec![],
-            ret_ty: mir::Ty::Raw("Int".to_string()),
+            ret_ty: mir::Ty::raw("Int"),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
             lvar_count: None,
@@ -541,7 +539,7 @@ impl<'a> Compiler<'a> {
             asyncness: mir::Asyncness::Unknown,
             name: mir::main_function_inner_name(),
             params: vec![mir::Param::new(mir::Ty::raw("Object"), "self")],
-            ret_ty: mir::Ty::Raw("Int".to_string()),
+            ret_ty: mir::Ty::raw("Int"),
             body_stmts: mir::Expr::exprs(body_stmts),
             sig: None,
             lvar_count: None,

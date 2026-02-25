@@ -103,7 +103,7 @@ impl<'a> Verifier<'a> {
                 let mir::Ty::Raw(class_name) = &receiver_expr.1 else {
                     bail!("receiver not Shiika value");
                 };
-                let class_fullname = shiika_core::names::ClassFullname(class_name.clone());
+                let class_fullname = class_name.base_class_name();
                 let Some(vtable) = self
                     .vtables
                     .get(&class_fullname)

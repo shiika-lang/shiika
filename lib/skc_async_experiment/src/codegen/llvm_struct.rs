@@ -34,7 +34,7 @@ pub fn of_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'r
     let mir::Ty::Raw(name) = ty else {
         panic!("expected mir::Ty::Raw, got {:?}", ty);
     };
-    get(gen, name)
+    get(gen, &name.fullname.0)
 }
 
 pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
