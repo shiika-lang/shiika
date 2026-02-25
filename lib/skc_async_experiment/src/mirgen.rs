@@ -12,7 +12,7 @@ use shiika_core::ty::TermTy;
 use skc_hir::visitor::{walk_expr, HirVisitor};
 use skc_hir::{HirExpression, HirExpressionBase, HirLVars, SkMethod};
 use skc_hir::{HirLambdaCaptureDetail, MethodParam, MethodSignature, SkMethodBody, SkTypes};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub fn run(
     mut uni: build::CompilationUnit,
@@ -54,6 +54,7 @@ pub fn run(
             str_literals: &uni.hir.str_literals,
             lambda_funcs: vec![],
             cell_vars: HashSet::new(),
+            current_fn_class: None,
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
@@ -122,6 +123,8 @@ struct Compiler<'a> {
     lambda_funcs: Vec<mir::Function>,
     /// Names of local variables that need Cell wrapping (captured as non-readonly)
     cell_vars: HashSet<String>,
+    /// The Fn class name for the current lambda being compiled (e.g. "Fn1")
+    current_fn_class: Option<String>,
 }
 
 impl<'a> Compiler<'a> {
@@ -265,10 +268,9 @@ impl<'a> Compiler<'a> {
                     mir::Expr::lvar_ref(name, convert_ty(expr.ty))
                 }
             }
-            HirExpressionBase::HirArgRef { idx, is_lambda } => {
-                // In methods, +1 for the receiver (self). In lambdas, no receiver.
-                let actual_idx = if is_lambda { idx } else { idx + 1 };
-                mir::Expr::arg_ref(actual_idx, "?", convert_ty(expr.ty))
+            HirExpressionBase::HirArgRef { idx, is_lambda: _ } => {
+                // +1 for the receiver (self) in methods, or +1 for $fn in lambdas
+                mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
             }
             HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
                 mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
@@ -306,9 +308,13 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
                 if self.cell_vars.contains(&name) {
-                    // y = v → cell_set(y, v)
-                    let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
-                    mir::Expr::cell_set(cell, mir_rhs)
+                    // y = v → cell_set(y, v); cell_get(y)
+                    let cell = mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr);
+                    let cell2 = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
+                    mir::Expr::exprs(vec![
+                        mir::Expr::cell_set(cell, mir_rhs),
+                        mir::Expr::cell_get(cell2, result_ty),
+                    ])
                 } else {
                     (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
                 }
@@ -415,12 +421,29 @@ impl<'a> Compiler<'a> {
                 lambda_expr,
                 arg_exprs,
             } => {
-                let mir_lambda = self.convert_expr(*lambda_expr);
-                let mir_args: Vec<mir::TypedExpr> = arg_exprs
-                    .into_iter()
-                    .map(|arg| self.convert_expr(arg))
-                    .collect();
-                mir::Expr::fun_call(mir_lambda, mir_args)
+                let fn_obj = self.convert_expr(*lambda_expr);
+
+                // Extract @func from Fn object (ivar index 0)
+                // Give it Ty::Fun so that FunCall knows the function signature
+                let param_tys: Vec<mir::Ty> = {
+                    // First param is the Fn object itself, then the explicit args
+                    let mut tys = vec![fn_obj.1.clone()];
+                    tys.extend(arg_exprs.iter().map(|e| convert_ty(e.ty.clone())));
+                    tys
+                };
+                let fun_ty = mir::FunTy::new(mir::Asyncness::Async, param_tys, result_ty.clone());
+                let func_ptr = mir::Expr::ivar_ref(
+                    fn_obj.clone(),
+                    0,
+                    "@func".to_string(),
+                    mir::Ty::Fun(fun_ty),
+                );
+
+                // Build args: [fn_obj, arg0, arg1, ...]
+                let mut mir_args = vec![fn_obj];
+                mir_args.extend(arg_exprs.into_iter().map(|arg| self.convert_expr(arg)));
+
+                mir::Expr::fun_call(func_ptr, mir_args)
             }
             HirExpressionBase::HirLambdaExpr {
                 name,
@@ -431,27 +454,60 @@ impl<'a> Compiler<'a> {
                 ret_ty,
                 has_break,
             } => {
-                // MVP: reject captures and break
-                if !captures.is_empty() {
-                    todo!("Lambda captures not yet supported")
-                }
                 if has_break {
                     todo!("Lambda break not yet supported")
                 }
 
-                // Generate the lambda function and store it
+                // Generate the lambda function (with fn_obj as first param)
                 let lambda_func =
-                    self.create_lambda_function(&name, &params, &exprs, &lvars, &ret_ty);
+                    self.create_lambda_function(&name, &params, &captures, &exprs, &lvars, &ret_ty);
                 let func_name = lambda_func.name.clone();
                 self.lambda_funcs.push(lambda_func);
 
-                // Build function type (Async for all lambdas)
-                let param_tys: Vec<mir::Ty> =
-                    params.iter().map(|p| convert_ty(p.ty.clone())).collect();
-                let fun_ty = mir::FunTy::new(mir::Asyncness::Async, param_tys, convert_ty(ret_ty));
+                // Build captures array
+                let capture_values: Vec<mir::TypedExpr> = captures
+                    .iter()
+                    .map(|cap| self.get_capture_value(cap))
+                    .collect();
+                let captures_ptr = if capture_values.is_empty() {
+                    mir::Expr::raw_i64(0) // null pointer for no captures
+                } else {
+                    mir::Expr::create_native_array(capture_values)
+                };
 
-                // Return FuncRef to the lambda function
-                mir::Expr::func_ref(func_name, fun_ty)
+                // Create Fn object: call Meta:FnN#new(Meta:FnN, func_ptr, captures)
+                let fn_class = format!("Fn{}", params.len());
+                let fn_ty = convert_ty(expr.ty.clone()); // e.g. Fn1<Int, Void>
+
+                // Build function type for the lambda (fn_obj + explicit params)
+                let mut lambda_param_tys: Vec<mir::Ty> = vec![fn_ty.clone()];
+                lambda_param_tys.extend(params.iter().map(|p| convert_ty(p.ty.clone())));
+                let lambda_fun_ty =
+                    mir::FunTy::new(mir::Asyncness::Async, lambda_param_tys, convert_ty(ret_ty));
+
+                // func_ptr: FuncRef with Ty::Fun (as expected by FunCall)
+                let func_ptr = mir::Expr::func_ref(func_name, lambda_fun_ty);
+                // Cast to Ptr for storing in Fn object's @func ivar
+                let func_ptr_as_ptr = mir::Expr::cast(mir::CastType::Force(mir::Ty::Ptr), func_ptr);
+
+                // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr) -> FnN
+                let meta_fn_class = format!("Meta:{}", fn_class);
+                let new_func_name = FunctionName::method(&meta_fn_class, "new");
+                let new_fun_ty = mir::FunTy::new(
+                    mir::Asyncness::Unknown,
+                    vec![mir::Ty::raw(&meta_fn_class), mir::Ty::Ptr, mir::Ty::Ptr],
+                    fn_ty.clone(),
+                );
+                let new_func_ref = mir::Expr::func_ref(new_func_name, new_fun_ty);
+                let meta_fn_obj = mir::Expr::const_ref(
+                    ConstFullname::toplevel(&fn_class),
+                    mir::Ty::raw(&meta_fn_class),
+                );
+
+                mir::Expr::fun_call(
+                    new_func_ref,
+                    vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr],
+                )
             }
             HirExpressionBase::HirIfExpression {
                 cond_expr,
@@ -489,11 +545,49 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLogicalOr { .. } => {
                 todo!("Handle logical or")
             }
-            HirExpressionBase::HirLambdaCaptureRef { idx, .. } => {
-                todo!("Handle lambda capture ref: {}", idx)
+            HirExpressionBase::HirLambdaCaptureRef { idx, readonly } => {
+                // $fn is first arg (index 0)
+                let fn_class = self
+                    .current_fn_class
+                    .as_ref()
+                    .expect("[BUG] HirLambdaCaptureRef outside lambda");
+                let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
+                // @captures is ivar index 1
+                let captures =
+                    mir::Expr::ivar_ref(fn_obj, 1, "@captures".to_string(), mir::Ty::Ptr);
+
+                if !readonly {
+                    // var capture: read through cell
+                    let cell = mir::Expr::native_array_ref(captures, idx, mir::Ty::Ptr);
+                    mir::Expr::cell_get(cell, convert_ty(expr.ty))
+                } else {
+                    // let capture: direct value
+                    mir::Expr::native_array_ref(captures, idx, convert_ty(expr.ty))
+                }
             }
-            HirExpressionBase::HirLambdaCaptureWrite { cidx, .. } => {
-                todo!("Handle lambda capture write: {}", cidx)
+            HirExpressionBase::HirLambdaCaptureWrite { cidx, rhs } => {
+                // $fn is first arg (index 0)
+                let fn_class = self
+                    .current_fn_class
+                    .clone()
+                    .expect("[BUG] HirLambdaCaptureWrite outside lambda");
+                let result_ty = convert_ty(expr.ty);
+                let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
+                // @captures is ivar index 1
+                let captures =
+                    mir::Expr::ivar_ref(fn_obj, 1, "@captures".to_string(), mir::Ty::Ptr);
+                let cell = mir::Expr::native_array_ref(captures, cidx, mir::Ty::Ptr);
+                let value = self.convert_expr(*rhs);
+                // cell_set returns Void, but assignment in Shiika returns the value.
+                // Re-read the cell to produce the assigned value.
+                let fn_obj2 = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
+                let captures2 =
+                    mir::Expr::ivar_ref(fn_obj2, 1, "@captures".to_string(), mir::Ty::Ptr);
+                let cell2 = mir::Expr::native_array_ref(captures2, cidx, mir::Ty::Ptr);
+                mir::Expr::exprs(vec![
+                    mir::Expr::cell_set(cell, value),
+                    mir::Expr::cell_get(cell2, result_ty),
+                ])
             }
             HirExpressionBase::HirBitCast { expr: e } => mir::Expr::cast(
                 mir::expr::CastType::Force(expr.ty.into()),
@@ -523,25 +617,57 @@ impl<'a> Compiler<'a> {
         mir::Expr::arg_ref(0, "self", convert_ty(ty))
     }
 
+    fn get_capture_value(&self, cap: &skc_hir::HirLambdaCapture) -> mir::TypedExpr {
+        match &cap.detail {
+            HirLambdaCaptureDetail::CaptureLVar { name } => {
+                if !cap.readonly {
+                    // var lvar: pass cell pointer (lvar already holds a cell due to cell_vars)
+                    mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr)
+                } else {
+                    // let lvar: pass value directly
+                    mir::Expr::lvar_ref(name.clone(), convert_ty(cap.ty.clone()))
+                }
+            }
+            HirLambdaCaptureDetail::CaptureArg { idx } => {
+                // Args are captured by value (+1 for self receiver)
+                mir::Expr::arg_ref(idx + 1, "captured_arg", convert_ty(cap.ty.clone()))
+            }
+            _ => todo!("Unsupported capture type: {:?}", cap.detail),
+        }
+    }
+
     fn create_lambda_function(
         &mut self,
         name: &str,
         params: &[MethodParam],
+        _captures: &[skc_hir::HirLambdaCapture],
         exprs: &HirExpression,
         lvars: &HirLVars,
         ret_ty: &TermTy,
     ) -> mir::Function {
-        // Convert params (NO implicit self)
-        let mir_params: Vec<mir::Param> = params
-            .iter()
-            .map(|p| mir::Param {
-                ty: convert_ty(p.ty.clone()),
-                name: p.name.clone(),
-            })
-            .collect();
+        // First param is the Fn object
+        let fn_class = format!("Fn{}", params.len());
+        let mut mir_params: Vec<mir::Param> = vec![mir::Param::new(mir::Ty::raw(&fn_class), "$fn")];
+
+        // Then explicit params
+        mir_params.extend(params.iter().map(|p| mir::Param {
+            ty: convert_ty(p.ty.clone()),
+            name: p.name.clone(),
+        }));
+
+        // Save and clear cell_vars for the lambda body (lambda has its own scope)
+        let saved_cell_vars = std::mem::take(&mut self.cell_vars);
+        let saved_fn_class = self.current_fn_class.take();
+        // Collect cell vars for the lambda body (nested lambdas)
+        self.cell_vars = collect_cell_vars(exprs);
+        self.current_fn_class = Some(fn_class.clone());
 
         // Convert body
         let body = self.convert_expr(exprs.clone());
+
+        // Restore cell_vars and current_fn_class
+        self.cell_vars = saved_cell_vars;
+        self.current_fn_class = saved_fn_class;
 
         // Add allocs and return
         let mut stmts: Vec<mir::TypedExpr> = lvars
@@ -683,34 +809,49 @@ impl<'a> Compiler<'a> {
 }
 
 fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
-    let mut v: Vec<_> = uni
+    // Collect all classes with their superclass names
+    let all_sk_classes: Vec<&skc_hir::SkClass> = uni
         .hir
         .sk_types
         .sk_classes()
-        .map(|sk_class| {
-            let ivars = sk_class
-                .ivars_ordered()
-                .iter()
-                .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
-                .collect();
-            mir::MirClass {
-                name: sk_class.fullname().0.clone(),
-                ivars,
-            }
-        })
+        .chain(uni.imports.sk_types.sk_classes())
         .collect();
-    for c in uni.imports.sk_types.sk_classes() {
-        let ivars = c
+
+    // Build name -> ivars map
+    let mut ivar_map: HashMap<String, Vec<(String, mir::Ty)>> = HashMap::new();
+    for sk_class in &all_sk_classes {
+        let ivars = sk_class
             .ivars_ordered()
             .iter()
             .map(|ivar| (ivar.name.clone(), convert_ty(ivar.ty.clone())))
             .collect();
-        v.push(mir::MirClass {
-            name: c.fullname().0.clone(),
-            ivars,
-        });
+        ivar_map.insert(sk_class.fullname().0.clone(), ivars);
     }
-    v
+
+    // Propagate superclass ivars to subclasses that have none
+    for sk_class in &all_sk_classes {
+        let name = sk_class.fullname().0.clone();
+        if ivar_map[&name].is_empty() {
+            if let Some(sup) = &sk_class.superclass {
+                let super_name = sup.base_fullname().0.clone();
+                if let Some(super_ivars) = ivar_map.get(&super_name) {
+                    let super_ivars = super_ivars.clone();
+                    ivar_map.insert(name, super_ivars);
+                }
+            }
+        }
+    }
+
+    all_sk_classes
+        .iter()
+        .map(|sk_class| {
+            let name = sk_class.fullname().0.clone();
+            mir::MirClass {
+                ivars: ivar_map.remove(&name).unwrap_or_default(),
+                name,
+            }
+        })
+        .collect()
 }
 
 fn convert_param(param: MethodParam) -> mir::Param {
