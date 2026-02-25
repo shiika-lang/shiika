@@ -100,7 +100,7 @@ impl<'a> Verifier<'a> {
             mir::Expr::VTableRef(receiver_expr, idx, debug_name) => {
                 self.verify_expr(f, receiver_expr)?;
 
-                let mir::Ty::Raw(class_name) = &receiver_expr.1 else {
+                let mir::Ty::Sk(class_name) = &receiver_expr.1 else {
                     bail!("receiver not Shiika value");
                 };
                 let class_fullname = class_name.base_class_name();
