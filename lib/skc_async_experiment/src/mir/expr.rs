@@ -2,7 +2,7 @@ use crate::mir::FunctionName;
 use crate::mir::{FunTy, Ty};
 use anyhow::{anyhow, Result};
 use shiika_core::names::{ClassFullname, ConstFullname, ModuleFullname};
-use shiika_core::ty::TermTy;
+use shiika_core::ty::{Erasure, TermTy};
 
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
@@ -38,7 +38,8 @@ pub enum Expr {
     Return(Option<Box<Typed<Expr>>>),
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
-    CreateObject(String),
+    // Create a Shiika object. Contains `Erasure`(instance_ty)
+    CreateObject(Erasure),
     CreateTypeObject(TermTy),
     CreateNativeArray(Vec<Typed<Expr>>),
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
@@ -249,10 +250,10 @@ impl Expr {
         (Expr::Cast(cast_type, Box::new(e)), ty)
     }
 
-    pub fn create_object(ty: TermTy) -> TypedExpr {
+    pub fn create_object(instance_ty: TermTy) -> TypedExpr {
         (
-            Expr::CreateObject(ty.erasure().to_class_fullname().0),
-            ty.into(),
+            Expr::CreateObject(instance_ty.erasure()),
+            instance_ty.into(),
         )
     }
 

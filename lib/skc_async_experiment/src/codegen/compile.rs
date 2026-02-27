@@ -7,7 +7,7 @@ use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::types::BasicType;
 use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
-use shiika_core::ty::TermTy;
+use shiika_core::ty::{Erasure, TermTy};
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
@@ -114,7 +114,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             }
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
-            mir::Expr::CreateObject(type_name) => self.compile_create_object(type_name)?,
+            mir::Expr::CreateObject(instance_ty) => self.compile_create_object(instance_ty)?,
             mir::Expr::CreateTypeObject(the_ty) => self.compile_create_type_object(ctx, the_ty)?,
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
@@ -514,9 +514,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_create_object(
         &mut self,
-        type_name: &str,
+        instance_ty: &Erasure,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
-        let obj = instance::allocate_sk_obj(self, type_name)?;
+        let obj = instance::allocate_sk_obj(self, instance_ty)?;
         Ok(Some(obj.0.into()))
     }
 

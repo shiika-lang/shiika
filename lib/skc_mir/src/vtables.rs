@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct VTables {
     // REFACTOR: how about just use `type`
+    // REFACTOR: key should be `Erasure`
     vtables: HashMap<ClassFullname, VTable>,
 }
 
