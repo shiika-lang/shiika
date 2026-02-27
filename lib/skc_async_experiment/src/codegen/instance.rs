@@ -7,7 +7,7 @@ use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::types::BasicType;
 use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
-use shiika_core::names::class_fullname;
+use shiika_core::ty::Erasure;
 
 /// Number of elements before ivars
 const OBJ_HEADER_SIZE: usize = 2;
@@ -60,7 +60,7 @@ pub fn get_vtable<'run>(
     gen: &mut CodeGen<'run, '_>,
     obj: &SkObj<'run>,
 ) -> vtable::OpaqueVTableRef<'run> {
-    let s = llvm_struct::get(gen, "Object");
+    let s = llvm_struct::get(gen, &Erasure::nonmeta("Object"));
     let ty = gen.ptr_type();
     let v = llvm_struct::build_llvm_value_load(gen, s, obj.0, ty.into(), OBJ_VTABLE_IDX, "vtable");
     vtable::OpaqueVTableRef {
@@ -75,7 +75,7 @@ fn set_vtable<'run>(
     vtable: vtable::OpaqueVTableRef<'run>,
 ) -> Result<()> {
     let v = vtable.ptr.as_basic_value_enum();
-    let s = llvm_struct::get(gen, "Object");
+    let s = llvm_struct::get(gen, &Erasure::nonmeta("Object"));
     llvm_struct::build_llvm_value_store(gen, &s, object.0, OBJ_VTABLE_IDX, v, "vtable")?;
     Ok(())
 }
@@ -86,7 +86,7 @@ pub fn set_class_obj<'run>(
     object: &SkObj<'run>,
     class_obj: SkClassObj<'run>,
 ) -> Result<()> {
-    let s = llvm_struct::get(gen, "Object");
+    let s = llvm_struct::get(gen, &Erasure::nonmeta("Object"));
     llvm_struct::build_llvm_value_store(
         gen,
         &s,
@@ -98,15 +98,17 @@ pub fn set_class_obj<'run>(
     Ok(())
 }
 
-pub fn allocate_sk_obj<'run>(gen: &mut CodeGen<'run, '_>, class_name: &str) -> Result<SkObj<'run>> {
-    let class_name_ = class_fullname(class_name);
+pub fn allocate_sk_obj<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    class_name: &Erasure,
+) -> Result<SkObj<'run>> {
     let t = llvm_struct::get(gen, &class_name);
     let obj = SkObj(allocate_mem(gen, &t));
 
-    let vtable = vtable::get(gen, &class_name_);
+    let vtable = vtable::get(gen, &class_name);
     set_vtable(gen, &obj, vtable)?;
 
-    let class_obj = SkClassObj::load(gen, &class_name_);
+    let class_obj = SkClassObj::load(gen, &class_name.meta_erasure());
     set_class_obj(gen, &obj, class_obj)?;
 
     Ok(obj)

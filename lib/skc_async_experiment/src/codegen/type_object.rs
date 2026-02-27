@@ -6,18 +6,18 @@ use crate::codegen::{
 };
 use anyhow::Result;
 use shiika_core::names::ConstFullname;
-use shiika_core::ty::TermTy;
+use shiika_core::ty::{Erasure, TermTy};
 
 pub fn create<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkObj<'run>> {
     debug_assert!(!the_ty.fullname.is_meta());
-    let type_obj = create_obj(gen, the_ty)?;
+    let type_obj = create_type_obj(gen, the_ty)?;
 
     if the_ty.fullname.0 == "Metaclass" {
         // Overwrite .class to achieve `Metaclass.class == Metaclass`.
         instance::set_class_obj(gen, &type_obj, SkClassObj(type_obj.0))?;
     } else {
         let meta_type_obj = {
-            let o = create_obj(gen, &the_ty.meta_ty())?;
+            let o = create_type_obj(gen, &the_ty.meta_ty())?;
             let the_metaclass = gen
                 .compile_constref(&ConstFullname::toplevel("Metaclass"))
                 .unwrap()
@@ -32,16 +32,15 @@ pub fn create<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkOb
 }
 
 /// Create a type object
-fn create_obj<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkObj<'run>> {
+/// When `Meta:Foo` is given, create a metaclass object.
+fn create_type_obj<'run>(gen: &mut CodeGen<'run, '_>, the_ty: &TermTy) -> Result<SkObj<'run>> {
     let name_str = string_literal::generate(gen, &the_ty.fullname.0);
-    let cls_obj = instance::allocate_sk_obj(
-        gen,
-        if the_ty.is_metaclass() {
-            "Metaclass"
-        } else {
-            "Class"
-        },
-    )?;
+    let clsname = if the_ty.is_metaclass() {
+        Erasure::the_metaclass()
+    } else {
+        Erasure::nonmeta("Class")
+    };
+    let cls_obj = instance::allocate_sk_obj(gen, &clsname)?;
     instance::build_ivar_store_raw(
         gen,
         cls_obj.clone(),

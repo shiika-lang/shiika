@@ -1,6 +1,6 @@
 use super::const_name::*;
 use super::type_name::*;
-use crate::ty::TermTy;
+use crate::ty::{Erasure, TermTy};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -86,5 +86,14 @@ impl ClassFullname {
 
     pub fn to_ty(&self) -> TermTy {
         self.to_type_fullname().to_ty()
+    }
+
+    // REFACTOR: Remove this (use TermTy instead of ClassFullname)
+    pub fn erasure(&self) -> Erasure {
+        if self.is_meta() {
+            Erasure::meta(self.0[5..].to_string())
+        } else {
+            Erasure::nonmeta(self.0.clone())
+        }
     }
 }

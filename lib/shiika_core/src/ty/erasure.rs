@@ -12,6 +12,20 @@ pub struct Erasure {
     pub is_meta: bool,
 }
 
+impl std::fmt::Display for Erasure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let meta = if self.base_name == "Metaclass" {
+            // There is no `Meta:Metaclass`
+            ""
+        } else if self.is_meta {
+            "Meta:"
+        } else {
+            ""
+        };
+        write!(f, "{}{}", meta, self.base_name)
+    }
+}
+
 impl From<Erasure> for TypeFullname {
     fn from(x: Erasure) -> Self {
         TypeFullname::new(x.base_name, x.is_meta)
@@ -25,6 +39,14 @@ impl Erasure {
 
     pub fn meta(base_name_: impl Into<String>) -> Erasure {
         Self::new(base_name_.into(), true)
+    }
+
+    pub fn the_metaclass() -> Erasure {
+        Self::new("Metaclass".to_string(), true)
+    }
+
+    pub fn is_the_metaclass(&self) -> bool {
+        self.base_name == "Metaclass"
     }
 
     pub fn new(base_name: String, is_meta_: bool) -> Erasure {
@@ -48,6 +70,14 @@ impl Erasure {
         }
     }
 
+    pub fn meta_erasure(&self) -> Erasure {
+        if self.is_meta {
+            Erasure::the_metaclass()
+        } else {
+            Erasure::meta(self.base_name.clone())
+        }
+    }
+
     pub fn to_class_fullname(&self) -> ClassFullname {
         ClassFullname::new(&self.base_name, self.is_meta)
     }
@@ -62,7 +92,11 @@ impl Erasure {
     }
 
     pub fn to_const_fullname(&self) -> ConstFullname {
-        debug_assert!(self.is_meta);
+        debug_assert!(
+            self.is_meta || self.is_the_metaclass(),
+            "{:?} is not a meta type",
+            self
+        );
         toplevel_const(&self.base_name)
     }
 

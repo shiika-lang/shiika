@@ -1,6 +1,6 @@
 use crate::codegen::constants;
 use crate::codegen::CodeGen;
-use shiika_core::names::ClassFullname;
+use shiika_core::ty::Erasure;
 
 #[derive(Clone)]
 pub struct SkObj<'run>(pub inkwell::values::PointerValue<'run>);
@@ -22,7 +22,7 @@ impl<'run> SkObj<'run> {
 pub struct SkClassObj<'run>(pub inkwell::values::PointerValue<'run>);
 
 impl<'run> SkClassObj<'run> {
-    pub fn load(gen: &mut CodeGen<'run, '_>, name: &ClassFullname) -> Self {
+    pub fn load(gen: &mut CodeGen<'run, '_>, name: &Erasure) -> Self {
         SkClassObj(constants::load(gen, &name.to_const_fullname()).into_pointer_value())
     }
 }

@@ -3,6 +3,7 @@ use crate::mir;
 use crate::mir::MirClass;
 use anyhow::Result;
 use inkwell::types::BasicType;
+use shiika_core::ty::Erasure;
 
 pub fn define(gen: &mut CodeGen, classes: &[MirClass]) {
     for class in classes {
@@ -31,15 +32,15 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
 /// Get the LLVM struct type for a given mir::Ty::Sk
 /// Panics if not Ty::Sk
 pub fn of_ty<'run>(gen: &CodeGen, ty: &mir::Ty) -> inkwell::types::StructType<'run> {
-    let mir::Ty::Sk(name) = ty else {
+    let mir::Ty::Sk(term_ty) = ty else {
         panic!("expected mir::Ty::Sk, got {:?}", ty);
     };
-    get(gen, &name.fullname.0)
+    get(gen, &term_ty.erasure())
 }
 
-pub fn get<'run>(gen: &CodeGen, name: &str) -> inkwell::types::StructType<'run> {
+pub fn get<'run>(gen: &CodeGen, name: &Erasure) -> inkwell::types::StructType<'run> {
     gen.context
-        .get_struct_type(name)
+        .get_struct_type(&llvm_struct_name(name))
         .expect(&format!("struct type not found: {}", name))
 }
 
@@ -94,4 +95,8 @@ pub fn build_llvm_value_store<'run>(
         });
     gen.builder.build_store(ptr, value)?;
     Ok(())
+}
+
+fn llvm_struct_name(erasure: &Erasure) -> String {
+    erasure.to_string()
 }
