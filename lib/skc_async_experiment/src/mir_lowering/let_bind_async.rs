@@ -105,6 +105,10 @@ impl Compiler {
                 let new_e = self.run(*e);
                 mir::Expr::spawn(new_e)
             }
+            mir::Expr::LVarDecl(name, rhs, writable) => {
+                let new_rhs = self.let_bind(new_body_stmts, *rhs);
+                mir::Expr::lvar_decl(name, new_rhs, writable)
+            }
             mir::Expr::LVarSet(name, e) => {
                 let new_e = self.let_bind(new_body_stmts, *e);
                 mir::Expr::lvar_set(name, new_e)

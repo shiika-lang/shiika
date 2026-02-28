@@ -103,10 +103,10 @@ impl<'a> Verifier<'a> {
             mir::Expr::VTableRef(receiver_expr, idx, debug_name) => {
                 self.verify_expr(f, receiver_expr)?;
 
-                let mir::Ty::Raw(class_name) = &receiver_expr.1 else {
+                let mir::Ty::Sk(receiver_ty) = &receiver_expr.1 else {
                     bail!("receiver not Shiika value");
                 };
-                let class_fullname = shiika_core::names::ClassFullname(class_name.clone());
+                let class_fullname = receiver_ty.fullname.to_class_fullname();
                 let Some(vtable) = self
                     .vtables
                     .get(&class_fullname)
@@ -122,7 +122,7 @@ impl<'a> Verifier<'a> {
                         let expected_ty = mir::Ty::Fun(method_sig.clone());
                         assert(
                             &e,
-                            &format!("vtable_ref({}#{})", class_name, debug_name),
+                            &format!("vtable_ref({}#{})", receiver_ty, debug_name),
                             &expected_ty,
                         )?;
                     } else {
@@ -135,7 +135,7 @@ impl<'a> Verifier<'a> {
                     bail!(
                         "Method index {} out of bounds for vtable of {} (size: {})",
                         idx,
-                        class_name,
+                        receiver_ty,
                         vtable.size()
                     );
                 }
