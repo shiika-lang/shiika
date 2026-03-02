@@ -28,36 +28,25 @@ impl fmt::Display for Ty {
 
 impl From<TermTy> for Ty {
     fn from(ty: TermTy) -> Self {
-        // TODO: typaram ref
-        match ty.fn_x_info() {
-            Some(tys) => {
-                let mut param_tys = tys
-                    .into_iter()
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>();
-                let ret_ty = param_tys.pop().unwrap();
-                Ty::Fun(FunTy {
-                    asyncness: Asyncness::Unknown,
-                    param_tys,
-                    ret_ty: Box::new(ret_ty),
-                })
-            }
-            None => match &ty.fullname.0[..] {
-                "Shiika::Internal::Ptr" => Ty::Ptr,
-                "Shiika::Internal::Int64" => Ty::Int64,
-                _ => Ty::Sk(ty),
-            },
-        }
+        Ty::from_term_ty(ty)
     }
 }
 
 impl Ty {
+    pub fn from_term_ty(ty: TermTy) -> Self {
+        match &ty.fullname.0[..] {
+            "Shiika::Internal::Ptr" => Ty::Ptr,
+            "Shiika::Internal::Int64" => Ty::Int64,
+            _ => Ty::Sk(ty),
+        }
+    }
+
     pub fn raw(s: impl Into<String>) -> Self {
-        Ty::Sk(shiika_core::ty::raw(s))
+        shiika_core::ty::raw(s).into()
     }
 
     pub fn meta(s: impl Into<String>) -> Self {
-        Ty::Sk(shiika_core::ty::meta(s))
+        shiika_core::ty::meta(s).into()
     }
 
     pub fn as_fun_ty(&self) -> &FunTy {
