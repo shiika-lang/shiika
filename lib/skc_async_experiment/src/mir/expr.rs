@@ -414,9 +414,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
             format!(
-                "env_set({}%{}, {})",
-                name,
+                "env_set({}(`{}`), {})",
                 idx,
+                name,
                 pretty_print(&e.0, lv, false)
             )
         }
@@ -471,7 +471,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
         Expr::LVarDecl(name, e, writable) => {
             let kw = if *writable { "var" } else { "let" };
-            format!("{} {} = {}", kw, name, pretty_print(&e.0, lv, false))
+            format!(
+                "{} {} = {}  # {}",
+                kw,
+                name,
+                pretty_print(&e.0, lv, false),
+                &e.1
+            )
         }
         Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::IVarSet(obj_expr, _idx, e, name) => {

@@ -20,7 +20,8 @@ pub enum Ty {
 impl fmt::Display for Ty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Ty::Fun(fun_ty) => write!(f, "{}", fun_ty),
+            Ty::Fun(fun_ty) => write!(f, "Fun({})", fun_ty),
+            Ty::Sk(term_ty) => write!(f, "Sk({})", term_ty),
             _ => write!(f, "{:?}", self),
         }
     }

@@ -165,7 +165,7 @@ impl Param {
 
 impl fmt::Display for Param {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.ty, self.name)
+        write!(f, "{}: {}", self.name, self.ty)
     }
 }
 
