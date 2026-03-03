@@ -51,20 +51,14 @@ impl fmt::Debug for MethodFullname {
     }
 }
 
+// DEPRECATED: use MethodFullname::new() instead
 pub fn method_fullname(type_name: TypeFullname, first_name_: impl Into<String>) -> MethodFullname {
-    let first_name = first_name_.into();
-    debug_assert!(!first_name.is_empty());
-    debug_assert!(!first_name.starts_with('@'));
-    let full_name = type_name.0.clone() + "#" + &first_name;
-    MethodFullname {
-        type_name,
-        full_name,
-        first_name: MethodFirstname(first_name),
-    }
+    MethodFullname::new(type_name, first_name_)
 }
 
+// TODO: add MethodFullname::from_raw_parts() and deprecate this function
 pub fn method_fullname_raw(cls: impl Into<String>, method: impl Into<String>) -> MethodFullname {
-    method_fullname(type_fullname(cls), method)
+    MethodFullname::new(type_fullname(cls), method)
 }
 
 impl std::fmt::Display for MethodFullname {
@@ -74,6 +68,18 @@ impl std::fmt::Display for MethodFullname {
 }
 
 impl MethodFullname {
+    pub fn new(type_name: TypeFullname, first_name_: impl Into<String>) -> MethodFullname {
+        let first_name = first_name_.into();
+        debug_assert!(!first_name.is_empty());
+        debug_assert!(!first_name.starts_with('@'));
+        let full_name = type_name.0.clone() + "#" + &first_name;
+        MethodFullname {
+            type_name,
+            full_name,
+            first_name: MethodFirstname(first_name),
+        }
+    }
+
     pub fn parse(v: &str) -> Option<MethodFullname> {
         let parts = v.split('#').collect::<Vec<_>>();
         if parts.len() == 2 {
