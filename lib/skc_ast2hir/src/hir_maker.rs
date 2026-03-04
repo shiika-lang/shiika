@@ -267,10 +267,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register #initialize and ivars
         let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
-        if !own_ivars.is_empty() {
-            // Be careful not to reset ivars of corelib/* by builtin/*
+        #[cfg(feature = "new-runtime")]
+        {
             self.class_dict.define_ivars(&fullname, own_ivars.clone());
             self.define_accessors(&fullname, own_ivars, defs);
+        }
+        #[cfg(not(feature = "new-runtime"))]
+        {
+            if !own_ivars.is_empty() {
+                // Be careful not to reset ivars of corelib/* by builtin/*
+                self.class_dict.define_ivars(&fullname, own_ivars.clone());
+                self.define_accessors(&fullname, own_ivars, defs);
+            }
         }
 
         // Register .new
