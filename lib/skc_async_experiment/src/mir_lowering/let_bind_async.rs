@@ -58,19 +58,23 @@ impl Compiler {
         new_body_stmts: &mut Vec<mir::TypedExpr>,
         expr: mir::TypedExpr,
     ) -> mir::TypedExpr {
-        if !expr.0.contains_async_call() {
-            // No need of modification
-            return expr;
-        }
         match expr.0 {
+            mir::Expr::Number(_) => expr,
+            mir::Expr::PseudoVar(_) => expr,
+            mir::Expr::StringLiteral(_) => expr,
+            mir::Expr::LVarRef(_) => expr,
             mir::Expr::IVarRef(obj_expr, idx, name) => {
                 let new_obj = self.let_bind(new_body_stmts, *obj_expr);
                 mir::Expr::ivar_ref(new_obj, idx, name, expr.1)
             }
+            mir::Expr::ArgRef(_, _) => expr,
+            mir::Expr::EnvRef(_, _) => expr,
             mir::Expr::EnvSet(idx, value_expr, name) => {
                 let new_value = self.let_bind(new_body_stmts, *value_expr);
                 mir::Expr::env_set(idx, new_value, name)
             }
+            mir::Expr::ConstRef(_) => expr,
+            mir::Expr::FuncRef(_) => expr,
             mir::Expr::FunCall(fexpr, args) => {
                 let new_args: Vec<_> = args
                     .into_iter()
@@ -78,14 +82,16 @@ impl Compiler {
                     .collect();
                 mir::Expr::fun_call(*fexpr, new_args)
             }
-            mir::Expr::GetVTable(obj_expr) => {
-                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
-                mir::Expr::get_vtable(new_obj)
-            }
             mir::Expr::VTableRef(obj_expr, idx, name) => {
                 let new_obj = self.let_bind(new_body_stmts, *obj_expr);
                 mir::Expr::vtable_ref(new_obj, idx, name, expr.1.as_fun_ty().clone())
             }
+            mir::Expr::GetVTable(obj_expr) => {
+                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
+                mir::Expr::get_vtable(new_obj)
+            }
+            mir::Expr::WTableKey(_) => expr,
+            mir::Expr::WTableRow(_, _) => expr,
             mir::Expr::WTableRef(obj_expr, module, idx, name) => {
                 let new_obj = self.let_bind(new_body_stmts, *obj_expr);
                 mir::Expr::wtable_ref(new_obj, module, idx, name, expr.1.as_fun_ty().clone())
@@ -105,6 +111,7 @@ impl Compiler {
                 let new_e = self.run(*e);
                 mir::Expr::spawn(new_e)
             }
+            mir::Expr::Alloc(_, _) => expr,
             mir::Expr::LVarDecl(name, rhs, writable) => {
                 let new_rhs = self.let_bind(new_body_stmts, *rhs);
                 mir::Expr::lvar_decl(name, new_rhs, writable)
@@ -139,6 +146,8 @@ impl Compiler {
                 let new_e = self.let_bind(new_body_stmts, *e);
                 mir::Expr::cast(cast_type, new_e)
             }
+            mir::Expr::CreateObject(_) => expr,
+            mir::Expr::CreateTypeObject(_) => expr,
             mir::Expr::CreateNativeArray(elems) => {
                 let new_elems: Vec<_> = elems
                     .into_iter()
@@ -146,11 +155,29 @@ impl Compiler {
                     .collect();
                 mir::Expr::create_native_array(new_elems)
             }
+            mir::Expr::NativeArrayRef(arr_expr, idx) => {
+                let new_arr = self.let_bind(new_body_stmts, *arr_expr);
+                mir::Expr::native_array_ref(new_arr, idx, expr.1)
+            }
+            mir::Expr::CellNew(value_expr) => {
+                let new_value = self.let_bind(new_body_stmts, *value_expr);
+                mir::Expr::cell_new(new_value)
+            }
+            mir::Expr::CellGet(cell_expr) => {
+                let new_cell = self.let_bind(new_body_stmts, *cell_expr);
+                mir::Expr::cell_get(new_cell, expr.1)
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                let new_cell = self.let_bind_if_needed(new_body_stmts, *cell_expr);
+                let new_value = self.let_bind_if_needed(new_body_stmts, *value_expr);
+                mir::Expr::cell_set(new_cell, new_value)
+            }
             mir::Expr::Unbox(e) => {
                 let new_e = self.let_bind(new_body_stmts, *e);
                 mir::Expr::unbox(new_e)
             }
-            _ => unreachable!("extract_async_args: unexpected expr {:?}", expr),
+            mir::Expr::RawI64(_) => expr,
+            mir::Expr::Nop => expr,
         }
     }
 
