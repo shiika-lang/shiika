@@ -277,7 +277,6 @@ impl Expr {
     }
 
     pub fn create_native_array(elems: Vec<TypedExpr>) -> TypedExpr {
-        debug_assert!(!elems.is_empty(), "create_native_array with empty elems");
         (Expr::CreateNativeArray(elems), Ty::Ptr)
     }
 
