@@ -47,13 +47,13 @@ impl Compiler {
     fn run(&mut self, body_stmts: mir::TypedExpr) -> mir::TypedExpr {
         let mut new_body_stmts = vec![];
         for e in mir::expr::into_exprs(body_stmts) {
-            let s = self.compile_stmt(&mut new_body_stmts, e);
+            let s = self.compile_expr(&mut new_body_stmts, e);
             new_body_stmts.push(s);
         }
         mir::Expr::exprs(new_body_stmts)
     }
 
-    fn compile_stmt(
+    fn compile_expr(
         &mut self,
         new_body_stmts: &mut Vec<mir::TypedExpr>,
         expr: mir::TypedExpr,
@@ -64,13 +64,13 @@ impl Compiler {
             mir::Expr::StringLiteral(_) => expr,
             mir::Expr::LVarRef(_) => expr,
             mir::Expr::IVarRef(obj_expr, idx, name) => {
-                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
+                let new_obj = self.let_bind_if_needed(new_body_stmts, *obj_expr);
                 mir::Expr::ivar_ref(new_obj, idx, name, expr.1)
             }
             mir::Expr::ArgRef(_, _) => expr,
             mir::Expr::EnvRef(_, _) => expr,
             mir::Expr::EnvSet(idx, value_expr, name) => {
-                let new_value = self.let_bind(new_body_stmts, *value_expr);
+                let new_value = self.let_bind_if_needed(new_body_stmts, *value_expr);
                 mir::Expr::env_set(idx, new_value, name)
             }
             mir::Expr::ConstRef(_) => expr,
@@ -83,17 +83,17 @@ impl Compiler {
                 mir::Expr::fun_call(*fexpr, new_args)
             }
             mir::Expr::VTableRef(obj_expr, idx, name) => {
-                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
+                let new_obj = self.let_bind_if_needed(new_body_stmts, *obj_expr);
                 mir::Expr::vtable_ref(new_obj, idx, name, expr.1.as_fun_ty().clone())
             }
             mir::Expr::GetVTable(obj_expr) => {
-                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
+                let new_obj = self.let_bind_if_needed(new_body_stmts, *obj_expr);
                 mir::Expr::get_vtable(new_obj)
             }
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
             mir::Expr::WTableRef(obj_expr, module, idx, name) => {
-                let new_obj = self.let_bind(new_body_stmts, *obj_expr);
+                let new_obj = self.let_bind_if_needed(new_body_stmts, *obj_expr);
                 mir::Expr::wtable_ref(new_obj, module, idx, name, expr.1.as_fun_ty().clone())
             }
             mir::Expr::If(cond, then_expr, else_expr) => {
@@ -113,11 +113,11 @@ impl Compiler {
             }
             mir::Expr::Alloc(_, _) => expr,
             mir::Expr::LVarDecl(name, rhs, writable) => {
-                let new_rhs = self.let_bind(new_body_stmts, *rhs);
+                let new_rhs = self.let_bind_if_needed(new_body_stmts, *rhs);
                 mir::Expr::lvar_decl(name, new_rhs, writable)
             }
             mir::Expr::LVarSet(name, e) => {
-                let new_e = self.let_bind(new_body_stmts, *e);
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::lvar_set(name, new_e)
             }
             mir::Expr::IVarSet(obj_expr, idx, value_expr, name) => {
@@ -126,24 +126,19 @@ impl Compiler {
                 mir::Expr::ivar_set(new_obj, idx, new_value, name)
             }
             mir::Expr::ConstSet(name, e) => {
-                let new_e = self.let_bind(new_body_stmts, *e);
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::const_set(name, new_e)
             }
             mir::Expr::Return(Some(e)) => {
-                let new_e = self.let_bind(new_body_stmts, *e);
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::return_(new_e)
             }
             mir::Expr::Return(None) => mir::Expr::return_cvoid(),
             mir::Expr::Exprs(exprs) => {
-                let mut inner_stmts = vec![];
-                for e in exprs {
-                    let s = self.let_bind_if_needed(&mut inner_stmts, e);
-                    inner_stmts.push(s);
-                }
-                mir::Expr::exprs(inner_stmts)
+                panic!("unexpected nested Exprs: {:?}", exprs);
             }
             mir::Expr::Cast(cast_type, e) => {
-                let new_e = self.let_bind(new_body_stmts, *e);
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::cast(cast_type, new_e)
             }
             mir::Expr::CreateObject(_) => expr,
@@ -156,15 +151,15 @@ impl Compiler {
                 mir::Expr::create_native_array(new_elems)
             }
             mir::Expr::NativeArrayRef(arr_expr, idx) => {
-                let new_arr = self.let_bind(new_body_stmts, *arr_expr);
+                let new_arr = self.let_bind_if_needed(new_body_stmts, *arr_expr);
                 mir::Expr::native_array_ref(new_arr, idx, expr.1)
             }
             mir::Expr::CellNew(value_expr) => {
-                let new_value = self.let_bind(new_body_stmts, *value_expr);
+                let new_value = self.let_bind_if_needed(new_body_stmts, *value_expr);
                 mir::Expr::cell_new(new_value)
             }
             mir::Expr::CellGet(cell_expr) => {
-                let new_cell = self.let_bind(new_body_stmts, *cell_expr);
+                let new_cell = self.let_bind_if_needed(new_body_stmts, *cell_expr);
                 mir::Expr::cell_get(new_cell, expr.1)
             }
             mir::Expr::CellSet(cell_expr, value_expr) => {
@@ -173,24 +168,12 @@ impl Compiler {
                 mir::Expr::cell_set(new_cell, new_value)
             }
             mir::Expr::Unbox(e) => {
-                let new_e = self.let_bind(new_body_stmts, *e);
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::unbox(new_e)
             }
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
         }
-    }
-
-    fn let_bind(
-        &mut self,
-        new_body_stmts: &mut Vec<mir::TypedExpr>,
-        expr: mir::TypedExpr,
-    ) -> mir::TypedExpr {
-        let name = self.gensym.new_name();
-        let ty = expr.1.clone();
-        let compiled = self.compile_stmt(new_body_stmts, expr);
-        new_body_stmts.push(mir::Expr::lvar_decl(name.clone(), compiled, false));
-        mir::Expr::lvar_ref(name, ty)
     }
 
     fn let_bind_if_needed(
@@ -199,7 +182,11 @@ impl Compiler {
         expr: mir::TypedExpr,
     ) -> mir::TypedExpr {
         if expr.0.contains_async_call() {
-            self.let_bind(new_body_stmts, expr)
+            let name = self.gensym.new_name();
+            let ty = expr.1.clone();
+            let compiled = self.compile_expr(new_body_stmts, expr);
+            new_body_stmts.push(mir::Expr::lvar_decl(name.clone(), compiled, false));
+            mir::Expr::lvar_ref(name, ty)
         } else {
             expr
         }

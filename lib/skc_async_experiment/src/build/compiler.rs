@@ -61,18 +61,18 @@ fn generate_mir(
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.write_debug_log("02-asyncness_check.mirdump", &mir.program);
 
+    // Splice nested Exprs
+    mir.program = mir_lowering::splice_exprs::run(mir.program);
+    cli.write_debug_log("03-splice_exprs.mirdump", &mir.program);
+
     // Simplify nested async calls
     mir.program = mir_lowering::let_bind_async::run(mir.program);
-    cli.write_debug_log("03-let_bind_async.mirdump", &mir.program);
+    cli.write_debug_log("04-let_bind_async.mirdump", &mir.program);
 
     // Add `env` parameter to async functions
     // Also convert lvars to env access
     mir.program = mir_lowering::pass_async_env::run(mir.program);
-    cli.write_debug_log("04-pass_async_env.mirdump", &mir.program);
-
-    // Splice nested Exprs
-    mir.program = mir_lowering::splice_exprs::run(mir.program);
-    cli.write_debug_log("05-splice_exprs.mirdump", &mir.program);
+    cli.write_debug_log("05-pass_async_env.mirdump", &mir.program);
 
     // Split async functions into multiple functions
     mir.program = mir_lowering::async_splitter::run(mir.program)?;
