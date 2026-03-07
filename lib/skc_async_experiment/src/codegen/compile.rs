@@ -65,7 +65,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> inkwell::values::BasicValueEnum<'run> {
         match self.compile_expr(ctx, texpr).unwrap() {
             Some(v) => v,
-            None => panic!("this expression does not have value"),
+            None => panic!("this expression does not have value: {:?}", texpr),
         }
     }
 
