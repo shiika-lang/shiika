@@ -1,6 +1,7 @@
 mod allocator;
 mod wtable;
 
+use bdwgc_alloc::Allocator;
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ChiikaValue, ContFuture};
 use std::future::{poll_fn, Future};
 use std::pin::Pin;
@@ -12,6 +13,7 @@ type ChiikaThunk = unsafe extern "C" fn(env: *mut ChiikaEnv, cont: ChiikaCont) -
 #[allow(improper_ctypes)]
 extern "C" {
     fn chiika_start_user(env: *mut ChiikaEnv, cont: ChiikaCont) -> ContFuture;
+    fn GC_allow_register_threads();
 }
 
 #[allow(improper_ctypes_definitions)]
@@ -32,15 +34,19 @@ pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn chiika_start_tokio() {
+    unsafe { GC_allow_register_threads() };
     let poller = make_poller(chiika_start_user);
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
+        .on_thread_start(|| {
+            unsafe { Allocator::register_current_thread() }.expect("Failed to register GC thread");
+        })
+        .on_thread_stop(|| {
+            unsafe { Allocator::unregister_current_thread() };
+        })
         .build()
         .unwrap()
         .block_on(poller);
-
-    // Q: Need this?
-    // sleep(Duration::from_millis(50)).await;
 }
 
 fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {
