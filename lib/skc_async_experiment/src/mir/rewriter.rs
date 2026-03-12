@@ -39,6 +39,7 @@ pub trait MirRewriter {
             mir::Expr::FunCall(fexpr, arg_exprs) => {
                 mir::Expr::fun_call(self.walk_expr(*fexpr)?, self.walk_exprs(arg_exprs)?)
             }
+            mir::Expr::GetVTable(receiver) => mir::Expr::get_vtable(self.walk_expr(*receiver)?),
             mir::Expr::VTableRef(receiver, idx, name) => {
                 mir::Expr::vtable_ref(self.walk_expr(*receiver)?, idx, name, expr.1.into_fun_ty())
             }
@@ -85,6 +86,20 @@ pub trait MirRewriter {
             mir::Expr::CreateNativeArray(elem_exprs) => {
                 let new_elem_exprs = self.walk_exprs(elem_exprs)?;
                 (mir::Expr::CreateNativeArray(new_elem_exprs), expr.1.clone())
+            }
+            mir::Expr::NativeArrayRef(arr_expr, idx) => {
+                let new_arr = self.walk_expr(*arr_expr)?;
+                (
+                    mir::Expr::NativeArrayRef(Box::new(new_arr), idx),
+                    expr.1.clone(),
+                )
+            }
+            mir::Expr::CellNew(value_expr) => mir::Expr::cell_new(self.walk_expr(*value_expr)?),
+            mir::Expr::CellGet(cell_expr) => {
+                mir::Expr::cell_get(self.walk_expr(*cell_expr)?, expr.1.clone())
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                mir::Expr::cell_set(self.walk_expr(*cell_expr)?, self.walk_expr(*value_expr)?)
             }
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,

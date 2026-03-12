@@ -16,6 +16,12 @@ pub fn core_externs() -> Vec<mir::Extern> {
     vec![
         ("GC_init", FunTy::sync(vec![], Ty::CVoid)),
         ("shiika_malloc", FunTy::sync(vec![Ty::Int64], Ty::Ptr)),
+        ("shiika_cell_new", FunTy::sync(vec![Ty::Any], Ty::Ptr)),
+        ("shiika_cell_get", FunTy::sync(vec![Ty::Ptr], Ty::Any)),
+        (
+            "shiika_cell_set",
+            FunTy::sync(vec![Ty::Ptr, Ty::Any], Ty::CVoid),
+        ),
         (
             "shiika_lookup_wtable",
             FunTy::sync(vec![Ty::Ptr, Ty::Int64, Ty::Int64], Ty::Ptr),

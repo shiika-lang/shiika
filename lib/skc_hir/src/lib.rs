@@ -195,6 +195,8 @@ pub enum HirExpressionBase {
     },
     HirArgRef {
         idx: usize,
+        /// true if this is a lambda argument (no implicit self receiver)
+        is_lambda: bool,
     },
     HirLVarRef {
         name: String,
@@ -589,10 +591,10 @@ impl Hir {
         }
     }
 
-    pub fn arg_ref(ty: TermTy, idx: usize, locs: LocationSpan) -> HirExpression {
+    pub fn arg_ref(ty: TermTy, idx: usize, is_lambda: bool, locs: LocationSpan) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirArgRef { idx },
+            node: HirExpressionBase::HirArgRef { idx, is_lambda },
             locs,
         }
     }

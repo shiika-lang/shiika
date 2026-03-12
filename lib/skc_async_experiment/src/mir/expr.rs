@@ -20,7 +20,10 @@ pub enum Expr {
     ConstRef(ConstFullname),
     FuncRef(FunctionName),
     FunCall(Box<Typed<Expr>>, Vec<Typed<Expr>>),
+    /// Lookup a method from vtable (lowered to GetVTable + NativeArrayRef)
     VTableRef(Box<Typed<Expr>>, usize, String), // (receiver, index, debug_name)
+    /// Get vtable pointer from a Shiika object (lowered from VTableRef)
+    GetVTable(Box<Typed<Expr>>),
     // Get the key of the wtable (i.e. address of module object)
     WTableKey(ModuleFullname),
     // Get the llvm array of functions
@@ -42,6 +45,14 @@ pub enum Expr {
     CreateObject(Erasure),
     CreateTypeObject(TermTy),
     CreateNativeArray(Vec<Typed<Expr>>),
+    /// Read from a native array at a given index
+    NativeArrayRef(Box<Typed<Expr>>, usize),
+    /// Allocate a cell: shiika_cell_new(value) -> Ptr
+    CellNew(Box<Typed<Expr>>),
+    /// Read from cell: shiika_cell_get(cell) -> value
+    CellGet(Box<Typed<Expr>>),
+    /// Write to cell: shiika_cell_set(cell, value) -> Void
+    CellSet(Box<Typed<Expr>>, Box<Typed<Expr>>),
     // Unbox Shiika's Int to Rust's i64. Only used in `main()`
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
@@ -129,6 +140,10 @@ impl Expr {
             _ => panic!("[BUG] not a function: {:?}", func),
         };
         (Expr::FunCall(Box::new(func), args), result_ty)
+    }
+
+    pub fn get_vtable(receiver: TypedExpr) -> TypedExpr {
+        (Expr::GetVTable(Box::new(receiver)), Ty::Ptr)
     }
 
     pub fn vtable_ref(
@@ -262,8 +277,26 @@ impl Expr {
     }
 
     pub fn create_native_array(elems: Vec<TypedExpr>) -> TypedExpr {
-        debug_assert!(!elems.is_empty(), "create_native_array with empty elems");
         (Expr::CreateNativeArray(elems), Ty::Ptr)
+    }
+
+    pub fn native_array_ref(array: TypedExpr, idx: usize, elem_ty: Ty) -> TypedExpr {
+        (Expr::NativeArrayRef(Box::new(array), idx), elem_ty)
+    }
+
+    pub fn cell_new(value: TypedExpr) -> TypedExpr {
+        (Expr::CellNew(Box::new(value)), Ty::Ptr)
+    }
+
+    pub fn cell_get(cell: TypedExpr, value_ty: Ty) -> TypedExpr {
+        (Expr::CellGet(Box::new(cell)), value_ty)
+    }
+
+    pub fn cell_set(cell: TypedExpr, value: TypedExpr) -> TypedExpr {
+        (
+            Expr::CellSet(Box::new(cell), Box::new(value)),
+            Ty::raw("Void"),
+        )
     }
 
     pub fn unbox(e: TypedExpr) -> TypedExpr {
@@ -310,13 +343,14 @@ impl Expr {
                 let Ty::Fun(fun_ty) = &fexpr.1 else {
                     panic!("[BUG] not a function: {:?}", fexpr);
                 };
-                if fun_ty.asyncness.is_async() {
+                if fun_ty.is_async() {
                     true
                 } else {
                     fexpr.0.contains_async_call()
                         || args.iter().any(|arg| arg.0.contains_async_call())
                 }
             }
+            Expr::GetVTable(obj_expr) => obj_expr.0.contains_async_call(),
             Expr::VTableRef(obj_expr, _, _) => obj_expr.0.contains_async_call(),
             Expr::WTableKey(_) => false,
             Expr::WTableRow(_, _) => false,
@@ -341,6 +375,12 @@ impl Expr {
             Expr::CreateObject(_) => false,
             Expr::CreateTypeObject(_) => false,
             Expr::CreateNativeArray(elems) => elems.iter().any(|e| e.0.contains_async_call()),
+            Expr::NativeArrayRef(arr, _) => arr.0.contains_async_call(),
+            Expr::CellNew(value) => value.0.contains_async_call(),
+            Expr::CellGet(cell) => cell.0.contains_async_call(),
+            Expr::CellSet(cell, value) => {
+                cell.0.contains_async_call() || value.0.contains_async_call()
+            }
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
@@ -373,9 +413,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::EnvRef(idx, name) => format!("{}%{}", name, idx),
         Expr::EnvSet(idx, e, name) => {
             format!(
-                "env_set({}%{}, {})",
-                name,
+                "env_set({}(`{}`), {})",
                 idx,
+                name,
                 pretty_print(&e.0, lv, false)
             )
         }
@@ -393,6 +433,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                     .join(", ")
                     .as_str()
                 + ")"
+        }
+        Expr::GetVTable(receiver) => {
+            format!("%GetVTable({})", receiver.0.pretty_print(0, false))
         }
         Expr::VTableRef(receiver, idx, name) => {
             format!(
@@ -427,7 +470,13 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
         Expr::LVarDecl(name, e, writable) => {
             let kw = if *writable { "var" } else { "let" };
-            format!("{} {} = {}", kw, name, pretty_print(&e.0, lv, false))
+            format!(
+                "{} {} = {}  # {}",
+                kw,
+                name,
+                pretty_print(&e.0, lv, false),
+                &e.1
+            )
         }
         Expr::LVarSet(name, e) => format!("{} = {}", name, pretty_print(&e.0, lv, false)),
         Expr::IVarSet(obj_expr, _idx, e, name) => {
@@ -474,6 +523,26 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             let elem_strs: Vec<String> =
                 elems.iter().map(|e| pretty_print(&e.0, 0, false)).collect();
             format!("%CreateNativeArray[{}]", elem_strs.join(", "))
+        }
+        Expr::NativeArrayRef(arr, idx) => {
+            format!(
+                "%NativeArrayRef({})[{}]",
+                pretty_print(&arr.0, 0, false),
+                idx
+            )
+        }
+        Expr::CellNew(value) => {
+            format!("%CellNew({})", pretty_print(&value.0, 0, false))
+        }
+        Expr::CellGet(cell) => {
+            format!("%CellGet({})", pretty_print(&cell.0, 0, false))
+        }
+        Expr::CellSet(cell, value) => {
+            format!(
+                "%CellSet({}, {})",
+                pretty_print(&cell.0, 0, false),
+                pretty_print(&value.0, 0, false)
+            )
         }
         Expr::WTableKey(module) => {
             format!("%WTableKey({})", module.0)

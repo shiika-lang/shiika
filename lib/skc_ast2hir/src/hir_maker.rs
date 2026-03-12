@@ -267,10 +267,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         // Register #initialize and ivars
         let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
-        if !own_ivars.is_empty() {
-            // Be careful not to reset ivars of corelib/* by builtin/*
+        #[cfg(feature = "new-runtime")]
+        {
             self.class_dict.define_ivars(&fullname, own_ivars.clone());
             self.define_accessors(&fullname, own_ivars, defs);
+        }
+        #[cfg(not(feature = "new-runtime"))]
+        {
+            if !own_ivars.is_empty() {
+                // Be careful not to reset ivars of corelib/* by builtin/*
+                self.class_dict.define_ivars(&fullname, own_ivars.clone());
+                self.define_accessors(&fullname, own_ivars, defs);
+            }
         }
 
         // Register .new
@@ -556,7 +564,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .iter()
             .enumerate()
             .map(|(idx, param)| {
-                let argref = Hir::arg_ref(param.ty.clone(), idx, LocationSpan::todo());
+                let argref = Hir::arg_ref(param.ty.clone(), idx, false, LocationSpan::todo());
                 Hir::ivar_assign(
                     &param.name,
                     idx,
@@ -677,7 +685,7 @@ fn _set_default(
 ) -> Result<HirExpression> {
     let value_expr = mk.convert_expr(expr)?;
     let locs = LocationSpan::internal();
-    let arg = Hir::arg_ref(value_expr.ty.clone(), idx, locs.clone());
+    let arg = Hir::arg_ref(value_expr.ty.clone(), idx, false, locs.clone());
     let cond_expr = Hir::is_omitted_value(arg.clone());
 
     let then_exprs = Hir::lvar_assign(name.to_string(), value_expr, locs.clone());

@@ -8,6 +8,7 @@ require "./lib/int.sk"
 require "./lib/maybe.sk"
 require "./lib/string.sk"
 require "./lib/void.sk"
+require "./lib/fn.sk"
 
 module Shiika
   module Internal

@@ -1,4 +1,5 @@
 use crate::mir::Asyncness;
+use anyhow::Context;
 use shiika_core::ty::TermTy;
 use skc_hir::MethodSignature;
 use std::fmt;
@@ -19,7 +20,8 @@ pub enum Ty {
 impl fmt::Display for Ty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Ty::Fun(fun_ty) => write!(f, "{}", fun_ty),
+            Ty::Fun(fun_ty) => write!(f, "Fun({})", fun_ty),
+            Ty::Sk(term_ty) => write!(f, "Sk({})", term_ty),
             _ => write!(f, "{:?}", self),
         }
     }
@@ -27,36 +29,25 @@ impl fmt::Display for Ty {
 
 impl From<TermTy> for Ty {
     fn from(ty: TermTy) -> Self {
-        // TODO: typaram ref
-        match ty.fn_x_info() {
-            Some(tys) => {
-                let mut param_tys = tys
-                    .into_iter()
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>();
-                let ret_ty = param_tys.pop().unwrap();
-                Ty::Fun(FunTy {
-                    asyncness: Asyncness::Unknown,
-                    param_tys,
-                    ret_ty: Box::new(ret_ty),
-                })
-            }
-            None => match &ty.fullname.0[..] {
-                "Shiika::Internal::Ptr" => Ty::Ptr,
-                "Shiika::Internal::Int64" => Ty::Int64,
-                _ => Ty::Sk(ty),
-            },
-        }
+        Ty::from_term_ty(ty)
     }
 }
 
 impl Ty {
+    pub fn from_term_ty(ty: TermTy) -> Self {
+        match &ty.fullname.0[..] {
+            "Shiika::Internal::Ptr" => Ty::Ptr,
+            "Shiika::Internal::Int64" => Ty::Int64,
+            _ => Ty::Sk(ty),
+        }
+    }
+
     pub fn raw(s: impl Into<String>) -> Self {
-        Ty::Sk(shiika_core::ty::raw(s))
+        shiika_core::ty::raw(s).into()
     }
 
     pub fn meta(s: impl Into<String>) -> Self {
-        Ty::Sk(shiika_core::ty::meta(s))
+        shiika_core::ty::meta(s).into()
     }
 
     pub fn as_fun_ty(&self) -> &FunTy {
@@ -78,7 +69,7 @@ impl Ty {
     /// Returns None if the type is not a function type.
     pub fn is_async_fun(&self) -> Option<bool> {
         match self {
-            Ty::Fun(f) => Some(f.asyncness.is_async()),
+            Ty::Fun(f) => Some(f.is_async()),
             _ => None,
         }
     }
@@ -172,6 +163,19 @@ impl FunTy {
         Self::new(Asyncness::Lowered, param_tys, ret_ty)
     }
 
+    /// Returns the type of llvm function of a lambda.
+    pub fn lambda_fun(lambda_ty: &TermTy) -> Self {
+        let Some(tys_) = lambda_ty.fn_x_info() else {
+            panic!("not a function type: {}", lambda_ty);
+        };
+        let mut tys = tys_.to_vec();
+        let ret_ty = tys.pop().unwrap().into();
+        // Add the fn obj as first parameter
+        tys.insert(0, lambda_ty.clone().into());
+        let param_tys = tys.into_iter().map(|x| x.into()).collect();
+        Self::new(Asyncness::Async, param_tys, ret_ty)
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         self.ret_ty.same(&other.ret_ty)
@@ -181,5 +185,12 @@ impl FunTy {
                 .iter()
                 .zip(other.param_tys.iter())
                 .all(|(a, b)| a.same(b))
+    }
+
+    pub fn is_async(&self) -> bool {
+        self.asyncness
+            .is_async()
+            .context(format!("{:?}", self))
+            .unwrap()
     }
 }

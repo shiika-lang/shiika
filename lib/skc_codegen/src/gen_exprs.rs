@@ -99,7 +99,7 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                 lambda_expr,
                 arg_exprs,
             } => self.gen_lambda_invocation(ctx, lambda_expr, arg_exprs, &expr.ty),
-            HirArgRef { idx } => Ok(Some(self.gen_arg_ref(ctx, idx))),
+            HirArgRef { idx, .. } => Ok(Some(self.gen_arg_ref(ctx, idx))),
             HirLVarRef { name } => Ok(Some(self.gen_lvar_ref(ctx, &expr.ty, name))),
             HirIVarRef {
                 name, self_ty, idx, ..

@@ -97,13 +97,16 @@ impl<'a> Verifier<'a> {
                     .zip(args.iter())
                     .try_for_each(|((i, p), a)| assert(&a, &format!("argument #{}", i), p))?;
             }
+            mir::Expr::GetVTable(receiver_expr) => {
+                self.verify_expr(f, receiver_expr)?;
+            }
             mir::Expr::VTableRef(receiver_expr, idx, debug_name) => {
                 self.verify_expr(f, receiver_expr)?;
 
-                let mir::Ty::Sk(class_name) = &receiver_expr.1 else {
+                let mir::Ty::Sk(receiver_ty) = &receiver_expr.1 else {
                     bail!("receiver not Shiika value");
                 };
-                let class_fullname = class_name.base_class_name();
+                let class_fullname = receiver_ty.fullname.to_class_fullname();
                 let Some(vtable) = self
                     .vtables
                     .get(&class_fullname)
@@ -119,7 +122,7 @@ impl<'a> Verifier<'a> {
                         let expected_ty = mir::Ty::Fun(method_sig.clone());
                         assert(
                             &e,
-                            &format!("vtable_ref({}#{})", class_name, debug_name),
+                            &format!("vtable_ref({}#{})", receiver_ty, debug_name),
                             &expected_ty,
                         )?;
                     } else {
@@ -132,7 +135,7 @@ impl<'a> Verifier<'a> {
                     bail!(
                         "Method index {} out of bounds for vtable of {} (size: {})",
                         idx,
-                        class_name,
+                        receiver_ty,
                         vtable.size()
                     );
                 }
@@ -213,6 +216,23 @@ impl<'a> Verifier<'a> {
                 for elem in elem_exprs {
                     self.verify_expr(f, elem)?;
                 }
+            }
+            mir::Expr::NativeArrayRef(arr_expr, _) => {
+                self.verify_expr(f, arr_expr)?;
+            }
+            mir::Expr::CellNew(value_expr) => {
+                self.verify_expr(f, value_expr)?;
+                assert(&e, "cell_new result", &mir::Ty::Ptr)?;
+            }
+            mir::Expr::CellGet(cell_expr) => {
+                self.verify_expr(f, cell_expr)?;
+                assert(&cell_expr, "cell_get arg", &mir::Ty::Ptr)?;
+            }
+            mir::Expr::CellSet(cell_expr, value_expr) => {
+                self.verify_expr(f, cell_expr)?;
+                self.verify_expr(f, value_expr)?;
+                assert(&cell_expr, "cell_set cell", &mir::Ty::Ptr)?;
+                assert(&e, "cell_set result", &mir::Ty::raw("Void"))?;
             }
             mir::Expr::EnvRef(_, _) => (),
             mir::Expr::EnvSet(_, v, _) => {
