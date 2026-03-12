@@ -163,6 +163,19 @@ impl FunTy {
         Self::new(Asyncness::Lowered, param_tys, ret_ty)
     }
 
+    /// Returns the type of llvm function of a lambda.
+    pub fn lambda_fun(lambda_ty: &TermTy) -> Self {
+        let Some(tys_) = lambda_ty.fn_x_info() else {
+            panic!("not a function type: {}", lambda_ty);
+        };
+        let mut tys = tys_.to_vec();
+        let ret_ty = tys.pop().unwrap().into();
+        // Add the fn obj as first parameter
+        tys.insert(0, lambda_ty.clone().into());
+        let param_tys = tys.into_iter().map(|x| x.into()).collect();
+        Self::new(Asyncness::Async, param_tys, ret_ty)
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         self.ret_ty.same(&other.ret_ty)

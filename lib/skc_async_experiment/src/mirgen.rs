@@ -1,4 +1,5 @@
 mod constants;
+mod lambda;
 mod prepare_asyncness;
 mod wtables;
 use crate::build;
@@ -9,9 +10,8 @@ use anyhow::Result;
 use shiika_core::names::ConstFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
-use skc_hir::visitor::{walk_expr, HirVisitor};
-use skc_hir::{HirExpression, HirExpressionBase, HirLVars, SkMethod};
-use skc_hir::{HirLambdaCaptureDetail, MethodParam, MethodSignature, SkMethodBody, SkTypes};
+use skc_hir::{HirExpression, HirExpressionBase, SkMethod};
+use skc_hir::{MethodParam, MethodSignature, SkMethodBody, SkTypes};
 use std::collections::HashSet;
 
 pub fn run(
@@ -52,8 +52,7 @@ pub fn run(
             vtables: &vtables,
             imported_vtables: &uni.imports.vtables,
             str_literals: &uni.hir.str_literals,
-            lambda_funcs: vec![],
-            cell_vars: HashSet::new(),
+            lambda: lambda::LambdaContext::new(),
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
@@ -81,7 +80,7 @@ pub fn run(
         }
 
         // Add generated lambda functions
-        funcs.extend(c.lambda_funcs);
+        funcs.extend(c.lambda.lambda_funcs);
 
         funcs
     };
@@ -118,10 +117,7 @@ struct Compiler<'a> {
     vtables: &'a skc_mir::VTables,
     imported_vtables: &'a skc_mir::VTables,
     str_literals: &'a Vec<String>,
-    /// Collects generated lambda functions
-    lambda_funcs: Vec<mir::Function>,
-    /// Names of local variables that need Cell wrapping (captured as non-readonly)
-    cell_vars: HashSet<String>,
+    lambda: lambda::LambdaContext,
 }
 
 impl<'a> Compiler<'a> {
@@ -149,8 +145,8 @@ impl<'a> Compiler<'a> {
             },
         );
         // Pass 1: collect cell vars before converting body
-        self.cell_vars = if let SkMethodBody::Normal { exprs } = &method.body {
-            collect_cell_vars(exprs)
+        self.lambda.cell_vars = if let SkMethodBody::Normal { exprs } = &method.body {
+            lambda::collect_cell_vars(exprs)
         } else {
             HashSet::new()
         };
@@ -258,17 +254,16 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
-                if self.cell_vars.contains(&name) {
+                if self.lambda.cell_vars.contains(&name) {
                     let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
                     mir::Expr::cell_get(cell, convert_ty(expr.ty))
                 } else {
                     mir::Expr::lvar_ref(name, convert_ty(expr.ty))
                 }
             }
-            HirExpressionBase::HirArgRef { idx, is_lambda } => {
-                // In methods, +1 for the receiver (self). In lambdas, no receiver.
-                let actual_idx = if is_lambda { idx } else { idx + 1 };
-                mir::Expr::arg_ref(actual_idx, "?", convert_ty(expr.ty))
+            HirExpressionBase::HirArgRef { idx, is_lambda: _ } => {
+                // +1 for the receiver (self) in methods, or +1 for $fn in lambdas
+                mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
             }
             HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
                 mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
@@ -292,7 +287,7 @@ impl<'a> Compiler<'a> {
                 readonly,
             } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                if self.cell_vars.contains(&name) {
+                if self.lambda.cell_vars.contains(&name) {
                     // var y = 5 → var y = cell_new(5)
                     let cell = mir::Expr::cell_new(mir_rhs);
                     (mir::Expr::LVarDecl(name, Box::new(cell), true), result_ty)
@@ -305,10 +300,14 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirLVarAssign { name, rhs } => {
                 let mir_rhs = self.convert_expr(*rhs);
-                if self.cell_vars.contains(&name) {
-                    // y = v → cell_set(y, v)
-                    let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
-                    mir::Expr::cell_set(cell, mir_rhs)
+                if self.lambda.cell_vars.contains(&name) {
+                    // y = v → cell_set(y, v); cell_get(y)
+                    let cell = mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr);
+                    let cell2 = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
+                    mir::Expr::exprs(vec![
+                        mir::Expr::cell_set(cell, mir_rhs),
+                        mir::Expr::cell_get(cell2, result_ty),
+                    ])
                 } else {
                     (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
                 }
@@ -415,12 +414,13 @@ impl<'a> Compiler<'a> {
                 lambda_expr,
                 arg_exprs,
             } => {
-                let mir_lambda = self.convert_expr(*lambda_expr);
-                let mir_args: Vec<mir::TypedExpr> = arg_exprs
+                let lambda_ty = lambda_expr.ty.clone();
+                let fn_obj = self.convert_expr(*lambda_expr);
+                let mir_args: Vec<_> = arg_exprs
                     .into_iter()
-                    .map(|arg| self.convert_expr(arg))
+                    .map(|a| self.convert_expr(a))
                     .collect();
-                mir::Expr::fun_call(mir_lambda, mir_args)
+                lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args)
             }
             HirExpressionBase::HirLambdaExpr {
                 name,
@@ -431,27 +431,38 @@ impl<'a> Compiler<'a> {
                 ret_ty,
                 has_break,
             } => {
-                // MVP: reject captures and break
-                if !captures.is_empty() {
-                    todo!("Lambda captures not yet supported")
-                }
                 if has_break {
                     todo!("Lambda break not yet supported")
                 }
+                let fn_class = format!("Fn{}", params.len());
 
-                // Generate the lambda function and store it
+                // Save state and set up lambda scope
+                let saved_cell_vars = std::mem::take(&mut self.lambda.cell_vars);
+                let saved_fn_class = self.lambda.current_fn_class.take();
+                self.lambda.cell_vars = lambda::collect_cell_vars(&*exprs);
+                self.lambda.current_fn_class = Some(fn_class.clone());
+
+                // Convert body
+                let body = self.convert_expr(*exprs);
+
+                // Restore state
+                self.lambda.cell_vars = saved_cell_vars;
+                self.lambda.current_fn_class = saved_fn_class;
+
+                // Collect capture values
+                let capture_values: Vec<_> = captures
+                    .iter()
+                    .map(|cap| lambda::get_capture_value(cap))
+                    .collect();
+
+                // Build the lambda function and push it
                 let lambda_func =
-                    self.create_lambda_function(&name, &params, &exprs, &lvars, &ret_ty);
+                    lambda::build_lambda_function(&name, &params, body, &lvars, &ret_ty, &fn_class);
                 let func_name = lambda_func.name.clone();
-                self.lambda_funcs.push(lambda_func);
+                self.lambda.lambda_funcs.push(lambda_func);
 
-                // Build function type (Async for all lambdas)
-                let param_tys: Vec<mir::Ty> =
-                    params.iter().map(|p| convert_ty(p.ty.clone())).collect();
-                let fun_ty = mir::FunTy::new(mir::Asyncness::Async, param_tys, convert_ty(ret_ty));
-
-                // Return FuncRef to the lambda function
-                mir::Expr::func_ref(func_name, fun_ty)
+                // Build and return the Fn object expression
+                lambda::build_fn_object(func_name, &params, capture_values, ret_ty, expr.ty)
             }
             HirExpressionBase::HirIfExpression {
                 cond_expr,
@@ -489,11 +500,22 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirLogicalOr { .. } => {
                 todo!("Handle logical or")
             }
-            HirExpressionBase::HirLambdaCaptureRef { idx, .. } => {
-                todo!("Handle lambda capture ref: {}", idx)
+            HirExpressionBase::HirLambdaCaptureRef { idx, readonly } => {
+                lambda::compile_lambda_capture_ref(
+                    &self.lambda.current_fn_class,
+                    idx,
+                    readonly,
+                    expr.ty,
+                )
             }
-            HirExpressionBase::HirLambdaCaptureWrite { cidx, .. } => {
-                todo!("Handle lambda capture write: {}", cidx)
+            HirExpressionBase::HirLambdaCaptureWrite { cidx, rhs } => {
+                let fn_class = self
+                    .lambda
+                    .current_fn_class
+                    .clone()
+                    .expect("[BUG] HirLambdaCaptureWrite outside lambda");
+                let value = self.convert_expr(*rhs);
+                lambda::compile_lambda_capture_write(&fn_class, cidx, value, result_ty)
             }
             HirExpressionBase::HirBitCast { expr: e } => mir::Expr::cast(
                 mir::expr::CastType::Force(expr.ty.into()),
@@ -521,53 +543,6 @@ impl<'a> Compiler<'a> {
     fn compile_self_expr(&self, ty: TermTy) -> mir::TypedExpr {
         // In MIR, 'self' is always the first argument (index 0)
         mir::Expr::arg_ref(0, "self", convert_ty(ty))
-    }
-
-    fn create_lambda_function(
-        &mut self,
-        name: &str,
-        params: &[MethodParam],
-        exprs: &HirExpression,
-        lvars: &HirLVars,
-        ret_ty: &TermTy,
-    ) -> mir::Function {
-        // Convert params (NO implicit self)
-        let mir_params: Vec<mir::Param> = params
-            .iter()
-            .map(|p| mir::Param {
-                ty: convert_ty(p.ty.clone()),
-                name: p.name.clone(),
-            })
-            .collect();
-
-        // Convert body
-        let body = self.convert_expr(exprs.clone());
-
-        // Add allocs and return
-        let mut stmts: Vec<mir::TypedExpr> = lvars
-            .iter()
-            .map(|lvar| mir::Expr::alloc(lvar.name.clone(), lvar.ty.clone().into()))
-            .collect();
-
-        let body_with_return = if ret_ty.is_void_type() {
-            mir::Expr::exprs(vec![body, mir::Expr::return_(mir::Expr::void_const_ref())])
-        } else {
-            mir::Expr::return_(body)
-        };
-
-        stmts.extend(mir::expr::into_exprs(body_with_return));
-        let final_body = mir::Expr::exprs(stmts);
-
-        mir::Function {
-            // All lambdas are treated as async now
-            asyncness: mir::Asyncness::Async,
-            name: FunctionName::Generated(name.to_string()),
-            params: mir_params,
-            ret_ty: convert_ty(ret_ty.clone()),
-            body_stmts: final_body,
-            sig: None,
-            lvar_count: None,
-        }
     }
 
     fn create_new_body(
@@ -648,10 +623,10 @@ impl<'a> Compiler<'a> {
         total_deps: &[String],
     ) -> mir::Function {
         // Pass 1: collect cell vars from top-level expressions
-        self.cell_vars = {
+        self.lambda.cell_vars = {
             let mut vars = HashSet::new();
             for expr in &top_exprs {
-                vars.extend(collect_cell_vars(expr));
+                vars.extend(lambda::collect_cell_vars(expr));
             }
             vars
         };
@@ -757,27 +732,4 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
         param_tys,
         convert_ty(sig.ret_ty.clone()),
     )
-}
-
-/// Scan HIR expressions for HirLambdaExpr nodes and collect
-/// lvar names that need Cell wrapping (captured as non-readonly).
-fn collect_cell_vars(expr: &HirExpression) -> HashSet<String> {
-    struct CellVarCollector(HashSet<String>);
-    impl<'hir> HirVisitor<'hir> for CellVarCollector {
-        fn visit_expr(&mut self, expr: &'hir HirExpression) -> anyhow::Result<()> {
-            if let HirExpressionBase::HirLambdaExpr { captures, .. } = &expr.node {
-                for cap in captures {
-                    if !cap.readonly {
-                        if let HirLambdaCaptureDetail::CaptureLVar { name } = &cap.detail {
-                            self.0.insert(name.clone());
-                        }
-                    }
-                }
-            }
-            Ok(())
-        }
-    }
-    let mut collector = CellVarCollector(HashSet::new());
-    walk_expr(&mut collector, expr).unwrap();
-    collector.0
 }
