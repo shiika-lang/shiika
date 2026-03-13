@@ -2,11 +2,17 @@ class Main
   def self.run() -> Int
     var i = 0
     while i < 3
-      print i
+      unless i < 2
+        puts "ng: while_return should exit before i=2"
+      end
       sleep_sec 0
-      return 0 if i == 1
+      if i == 1
+        puts "ok"
+        return 0
+      end
       i += 1
     end
+    puts "ng: while_return should have returned"
     return 0
   end
 end

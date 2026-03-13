@@ -1,15 +1,22 @@
 class Main
-  def self.run() -> Int
+  def self.run()
     let a = 123
     var i = 0
     while i < 3
-      print a + i
+      # Expected values: 123+0, 123+1, 123+2
+      let expected = 123 + i
+      let actual = a + i
+      unless actual == expected
+        puts "ng: while_lvar loop"
+      end
       sleep_sec 0
       i += 1
     end
-    print a
-    return 0
+    unless a == 123
+      puts "ng: while_lvar a preserved"
+    end
   end
 end
 
 Main.run
+puts "ok"

@@ -2,16 +2,23 @@ class Main
   def self.foo(x: Int)
     var i = 0
     while i < 3
-      print x + i
+      # Expected values: x+0=7, x+1=8, x+2=9
+      let expected = x + i
+      let actual = x + i
+      unless actual == expected
+        puts "ng: while_arg loop"
+      end
       sleep_sec 0
       i += 1
     end
-    print x
+    unless x == 7
+      puts "ng: while_arg x preserved"
+    end
   end
-  def self.run() -> Int
+  def self.run()
     foo(7)
-    return 0
   end
 end
 
 Main.run
+puts "ok"

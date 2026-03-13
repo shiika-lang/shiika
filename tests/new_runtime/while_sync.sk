@@ -1,20 +1,27 @@
 class Main
-  def self.foo()
+  def self.foo() -> Int
+    # Sum of i*j where i in [1,2] and j in [2,3]
+    # = 1*2 + 1*3 + 2*2 + 2*3 = 2 + 3 + 4 + 6 = 15
+    var sum = 0
     var i = 1
     while i < 3
       var j = 2
       while j < 4
-        print i * j
+        sum += i * j
         j += 1
       end
       i += 1
     end
+    sum
   end
-  def self.run() -> Int
-    foo()
-    return 0
+
+  def self.run()
+    let result = foo()
+    unless result == 15
+      puts "ng: while_sync"
+    end
   end
 end
 
-
 Main.run
+puts "ok"
