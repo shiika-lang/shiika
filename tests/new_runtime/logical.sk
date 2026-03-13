@@ -1,0 +1,30 @@
+class Main
+  def self.run()
+    # not
+    unless true
+      puts "ng: not true"
+    end
+    if false
+      puts "ng: not false"
+    end
+    # and
+    if true and false
+      puts "ng: true and false"
+    end
+    if false and true
+      puts "ng: false and true"
+    end
+    unless true and true
+      puts "ng: true and true"
+    end
+    # or
+    if false or false
+      puts "ng: false or false"
+    end
+    unless true or false
+      puts "ng: true or false"
+    end
+  end
+end
+Main.run
+puts "ok"

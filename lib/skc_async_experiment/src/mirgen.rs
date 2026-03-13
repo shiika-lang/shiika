@@ -218,7 +218,7 @@ impl<'a> Compiler<'a> {
                 } else {
                     mir::PseudoVar::False
                 };
-                mir::Expr::pseudo_var(b, mir::Ty::raw("Bool"))
+                mir::Expr::pseudo_var(b)
             }
             HirExpressionBase::HirStringLiteral { idx } => {
                 mir::Expr::string_literal(self.str_literals[idx].clone())
@@ -491,15 +491,21 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirReturnExpression { arg, .. } => {
                 mir::Expr::return_(self.convert_expr(*arg))
             }
-            HirExpressionBase::HirLogicalNot { .. } => {
-                todo!("Handle logical not")
-            }
-            HirExpressionBase::HirLogicalAnd { .. } => {
-                todo!("Handle logical and")
-            }
-            HirExpressionBase::HirLogicalOr { .. } => {
-                todo!("Handle logical or")
-            }
+            HirExpressionBase::HirLogicalNot { expr } => mir::Expr::if_(
+                self.convert_expr(*expr),
+                mir::Expr::pseudo_var(mir::PseudoVar::False),
+                mir::Expr::pseudo_var(mir::PseudoVar::True),
+            ),
+            HirExpressionBase::HirLogicalAnd { left, right } => mir::Expr::if_(
+                self.convert_expr(*left),
+                self.convert_expr(*right),
+                mir::Expr::pseudo_var(mir::PseudoVar::False),
+            ),
+            HirExpressionBase::HirLogicalOr { left, right } => mir::Expr::if_(
+                self.convert_expr(*left),
+                mir::Expr::pseudo_var(mir::PseudoVar::True),
+                self.convert_expr(*right),
+            ),
             HirExpressionBase::HirLambdaCaptureRef { idx, readonly } => {
                 lambda::compile_lambda_capture_ref(
                     &self.lambda.current_fn_class,

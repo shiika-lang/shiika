@@ -98,7 +98,11 @@ impl Expr {
         (Expr::Number(n), Ty::raw("Int"))
     }
 
-    pub fn pseudo_var(var: PseudoVar, ty: Ty) -> TypedExpr {
+    pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
+        let ty = match &var {
+            PseudoVar::True | PseudoVar::False => Ty::raw("Bool"),
+            PseudoVar::Void => Ty::raw("Void"),
+        };
         (Expr::PseudoVar(var), ty)
     }
 
@@ -254,7 +258,7 @@ impl Expr {
 
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
         if exprs.is_empty() {
-            exprs.push(Expr::pseudo_var(PseudoVar::Void, Ty::raw("Void")));
+            exprs.push(Expr::pseudo_var(PseudoVar::Void));
         }
         let t = exprs.last().unwrap().1.clone();
         (Expr::Exprs(exprs), t)
