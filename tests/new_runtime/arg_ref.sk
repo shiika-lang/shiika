@@ -1,19 +1,20 @@
 class Main
   def self.foo(a: Int, b: Int) -> Int
     if a < b
-      print(a + b)
       sleep_sec(0)
       return a + b
     else
-      print(a + b)
       sleep_sec(0)
       return a + b
     end
   end
-  
-  def self.run() -> Int
-    print(foo(1, 2))
-    return 0
+
+  def self.run()
+    let result = foo(1, 2)
+    unless result == 3
+      puts "ng: arg_ref foo result"
+    end
   end
 end
 Main.run
+puts "ok"

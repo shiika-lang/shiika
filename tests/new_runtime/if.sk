@@ -1,11 +1,15 @@
 class Main
-  def self.run() -> Int
+  def self.run()
+    var result = 0
     if true
-      print(456)
+      result = 456
     else
-      print(789)
+      result = 789
     end
-    return 0
+    unless result == 456
+      puts "ng: if branch"
+    end
   end
 end
 Main.run
+puts "ok"

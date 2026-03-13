@@ -1,13 +1,14 @@
 class Main
-  def self.run() -> Int
-    print(
-      if true
-        456
-      else
-        789
-      end
-    )
-    return 0
+  def self.run()
+    let result = if true
+      456
+    else
+      789
+    end
+    unless result == 456
+      puts "ng: valued_if"
+    end
   end
 end
 Main.run
+puts "ok"

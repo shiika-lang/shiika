@@ -1,7 +1,10 @@
 class Main
-  def self.run() -> Int
-    print(123)
-    return 0
+  def self.run()
+    let x = 123
+    unless x == 123
+      puts "ng: sync value"
+    end
   end
 end
 Main.run
+puts "ok"

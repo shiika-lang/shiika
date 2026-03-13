@@ -196,11 +196,17 @@ task :async_integration_test do
     name = path.sub(".sk", "")
     sh "cargo run --bin exp_shiika --features new-runtime -- compile #{name}.sk"
     puts "--"
+    output = nil
     Timeout.timeout(5) do
-      sh "#{name}.out > #{name}.actual_out 2>&1"
+      output = `#{name}.out 2>&1`
     end
+    puts output
     puts "---"
-    sh "diff #{name}.actual_out #{name}.expected_out"
+    if output.include?("ng:")
+      raise "Test failed: #{path}\n#{output}"
+    elsif !output.strip.end_with?("ok")
+      raise "Test did not output 'ok': #{path}\n#{output}"
+    end
   end
 end
 
