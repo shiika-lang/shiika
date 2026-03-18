@@ -1068,7 +1068,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Default::default(),
             false,
         );
-        exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
+        exprs.push(Hir::lvar_decl(
+            tmp_name.clone(),
+            call_new,
+            readonly,
+            locs.clone(),
+        ));
 
         // `tmp.push(item)`
         for item_expr in item_exprs {
