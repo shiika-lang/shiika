@@ -949,7 +949,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let sk_type = self
             .class_dict
-            .get_type(&base_expr.ty.instance_ty().fullname);
+            .get_type(&base_expr.ty.instance_ty().base_type_name());
         type_checking::check_class_specialization(sk_type, &arg_exprs, locs)?;
 
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
