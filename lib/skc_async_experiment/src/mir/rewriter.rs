@@ -103,6 +103,8 @@ pub trait MirRewriter {
             }
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
+            mir::Expr::NullPtr => expr,
+            mir::Expr::ClassVTable(_) => expr,
         };
         self.rewrite_expr(new_expr)
     }

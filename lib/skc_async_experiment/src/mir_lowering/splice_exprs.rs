@@ -159,5 +159,7 @@ fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::Typ
         }
         mir::Expr::RawI64(_) => expr,
         mir::Expr::Nop => expr,
+        mir::Expr::NullPtr => expr,
+        mir::Expr::ClassVTable(_) => expr,
     }
 }

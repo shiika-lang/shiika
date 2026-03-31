@@ -173,6 +173,8 @@ impl Compiler {
             }
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
+            mir::Expr::NullPtr => expr,
+            mir::Expr::ClassVTable(_) => expr,
         }
     }
 

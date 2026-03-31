@@ -1,6 +1,6 @@
 use crate::codegen::{
     cell, codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
-    string_literal, type_object, value::SkObj, wtable, CodeGen,
+    string_literal, type_object, value::SkObj, vtable, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
@@ -126,6 +126,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
+            mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
+            mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
 

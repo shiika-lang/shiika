@@ -57,6 +57,11 @@ pub enum Expr {
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
+    /// Null pointer constant (lowered from NullPtr to LLVM null)
+    NullPtr,
+    /// Reference to the global vtable constant for instances of the given class
+    /// (e.g., `@shiika_vtable_Int`). Used as the `vtable` argument in `Meta:Class#_new`.
+    ClassVTable(Erasure),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -318,6 +323,14 @@ impl Expr {
         (Expr::Nop, Ty::raw("Void"))
     }
 
+    pub fn null_ptr() -> TypedExpr {
+        (Expr::NullPtr, Ty::Ptr)
+    }
+
+    pub fn class_vtable(erasure: Erasure) -> TypedExpr {
+        (Expr::ClassVTable(erasure), Ty::Ptr)
+    }
+
     pub fn wtable_key(module: ModuleFullname) -> TypedExpr {
         (Expr::WTableKey(module), Ty::Int64)
     }
@@ -388,6 +401,8 @@ impl Expr {
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
+            Expr::NullPtr => false,
+            Expr::ClassVTable(_) => false,
         }
     }
 }
@@ -553,6 +568,11 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::WTableRow(classname, module) => {
             format!("%WTableRow({}, {})", classname.0, module.0)
+        }
+        Expr::NullPtr => "%NullPtr".to_string(),
+        Expr::ClassVTable(erasure) => {
+            let meta = if erasure.is_meta { "Meta:" } else { "" };
+            format!("%ClassVTable({}{})", meta, erasure.base_name)
         }
     };
     if indent {

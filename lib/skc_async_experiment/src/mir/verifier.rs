@@ -240,6 +240,8 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::WTableKey(_) => (),
             mir::Expr::WTableRow(_, _) => (),
+            mir::Expr::NullPtr => assert(&e, "null_ptr", &mir::Ty::Ptr)?,
+            mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
         }
         Ok(())
     }

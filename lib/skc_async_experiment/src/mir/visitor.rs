@@ -119,6 +119,8 @@ pub trait MirVisitor {
             }
             mir::Expr::WTableKey(_) => {}
             mir::Expr::WTableRow(_, _) => {}
+            mir::Expr::NullPtr => {}
+            mir::Expr::ClassVTable(_) => {}
         }
         self.visit_expr(expr)?;
         Ok(())
