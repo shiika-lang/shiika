@@ -87,7 +87,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .types
             .iter()
             .filter(|(_, sk_type)| !sk_type.fullname().is_meta());
-        let v = nonmeta
+        let mut v = nonmeta
             .map(|(name, sk_type)| {
                 let const_is_obj = sk_type.class().map(|c| c.const_is_obj).unwrap_or(false);
                 let includes_modules = sk_type
@@ -97,6 +97,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 (name.clone(), const_is_obj, includes_modules)
             })
             .collect::<Vec<_>>();
+        // Metaclass must be initialized before all other classes because each class
+        // initialization loads @shiika_const_Metaclass to use as the metaclass_obj.
+        v.sort_by(|(a, _, _), (b, _, _)| {
+            if a.0 == "Metaclass" {
+                std::cmp::Ordering::Less
+            } else if b.0 == "Metaclass" {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        });
         for (name, const_is_obj, includes_modules) in v {
             let expr = if const_is_obj {
                 // Create constant like `Void`, `Maybe::None`.

@@ -40,13 +40,7 @@ impl SkClass {
     //    }
 
     pub fn specialized_classes(&mut self) -> &mut HashMap<String, *mut ShiikaClass> {
-        unsafe {
-            // TODO: guarantee that this is not null by the constructor
-            if (*self.0).specialized_classes.is_null() {
-                (*self.0).specialized_classes = Box::leak(Box::new(HashMap::new()));
-            }
-            (*self.0).specialized_classes.as_mut().unwrap()
-        }
+        unsafe { (*self.0).specialized_classes.as_mut().unwrap() }
     }
 
     pub fn erasure_class(&self) -> SkClass {
@@ -79,14 +73,6 @@ impl SkClass {
                     self.name().as_str()
                 )
             })
-        }
-    }
-
-    pub fn ensure_witness_table(&mut self) {
-        unsafe {
-            if (*self.0).witness_table.is_null() {
-                (*self.0).witness_table = Box::into_raw(Box::new(WitnessTable::new()));
-            }
         }
     }
 }
