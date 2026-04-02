@@ -1,14 +1,26 @@
 class Main
-  def self.run() -> Int
+  def self.foo(log: Array<Int>) -> Int
     var i = 0
     while i < 3
-      print i
+      log.push(i)
       sleep_sec 0
-      return 0 if i == 1
+      if i == 1
+        return 0
+      end
       i += 1
     end
     return 0
   end
+
+  def self.run()
+    let log = Array<Int>.new
+    foo(log)
+    # Expected: [0, 1] (exits early at i==1)
+    unless (log[0] == 0 and log[1] == 1 and log.length == 2)
+      puts "ng: while_return"
+    end
+  end
 end
 
 Main.run
+puts "ok"
