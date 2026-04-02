@@ -1,6 +1,7 @@
 use crate::codegen::{
-    cell, codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
-    string_literal,
+    cell,
+    codegen_context::CodeGenContext,
+    constants, instance, intrinsics, item, llvm_struct, string_literal,
     value::{SkClassObj, SkObj},
     vtable, wtable, CodeGen,
 };

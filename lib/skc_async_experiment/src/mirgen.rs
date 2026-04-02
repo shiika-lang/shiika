@@ -250,10 +250,8 @@ impl<'a> Compiler<'a> {
                     FunctionName::method("Meta:Array", "_from_raw"),
                     from_raw_fun_ty.into(),
                 );
-                let class_obj_expr = mir::Expr::const_ref(
-                    ConstFullname::toplevel("Array"),
-                    mir::Ty::meta("Array"),
-                );
+                let class_obj_expr =
+                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
                 mir::Expr::fun_call(
                     func_ref,
                     vec![class_obj_expr, native_array_expr, count_expr],
@@ -378,7 +376,10 @@ impl<'a> Compiler<'a> {
                 // (the actual receiver may be a more specific generic type).
                 let expected_recv_ty = &fun_ty.param_tys[0];
                 let receiver_for_call = if &mir_receiver.1 != expected_recv_ty {
-                    mir::Expr::cast(mir::CastType::Upcast(expected_recv_ty.clone()), mir_receiver)
+                    mir::Expr::cast(
+                        mir::CastType::Upcast(expected_recv_ty.clone()),
+                        mir_receiver,
+                    )
                 } else {
                     mir_receiver
                 };
