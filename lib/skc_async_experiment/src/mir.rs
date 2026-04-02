@@ -26,6 +26,7 @@ pub struct CompilationUnit {
     pub vtables: VTables,
     pub imported_constants: Vec<(ConstFullname, TermTy)>,
     pub imported_vtables: VTables,
+    pub imported_sk_types: SkTypes,
 }
 
 #[derive(Debug, Clone)]

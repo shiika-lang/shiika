@@ -99,6 +99,7 @@ pub fn run(
         vtables,
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
+        imported_sk_types: uni.imports.sk_types,
     })
 }
 
