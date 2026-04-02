@@ -105,6 +105,11 @@ pub trait MirRewriter {
             mir::Expr::WTableRow(_, _) => expr,
             mir::Expr::NullPtr => expr,
             mir::Expr::ClassVTable(_) => expr,
+            mir::Expr::SetClassObj(obj, class_obj) => {
+                let new_obj = self.walk_expr(*obj)?;
+                let new_class_obj = self.walk_expr(*class_obj)?;
+                mir::Expr::set_class_obj(new_obj, new_class_obj)
+            }
         };
         self.rewrite_expr(new_expr)
     }

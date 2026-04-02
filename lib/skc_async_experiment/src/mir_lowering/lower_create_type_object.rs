@@ -27,7 +27,11 @@ struct Lower;
 impl MirRewriter for Lower {
     fn rewrite_expr(&mut self, texpr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         let new_texpr = match texpr.0 {
-            mir::Expr::CreateTypeObject(ref ty) if ty.fullname.0 != "Metaclass" => {
+            mir::Expr::CreateTypeObject(ref ty) if ty.fullname.0 == "Metaclass" => {
+                let result_ty = texpr.1.clone();
+                self.lower_create_type_object_metaclass(result_ty)
+            }
+            mir::Expr::CreateTypeObject(ref ty) => {
                 let ty = ty.clone();
                 let result_ty = texpr.1.clone();
                 self.lower_create_type_object(ty, result_ty)
@@ -39,6 +43,29 @@ impl MirRewriter for Lower {
 }
 
 impl Lower {
+    /// Lower `CreateTypeObject(Metaclass)` into a `Meta:Class#_new` call followed by
+    /// a `SetClassObj` to achieve `Metaclass.class == Metaclass`.
+    fn lower_create_type_object_metaclass(&self, result_ty: mir::Ty) -> mir::TypedExpr {
+        let create_call = call_meta_class_new(
+            "Metaclass",
+            null_as(mir::Ty::raw("Metaclass")), // will be set to itself by SetClassObj
+        );
+        let lvar_name = "__metaclass";
+        let lvar_ty = mir::Ty::raw("Class");
+        mir::Expr::exprs(vec![
+            mir::Expr::lvar_decl(lvar_name, create_call, false),
+            // Set Metaclass.class to itself
+            mir::Expr::set_class_obj(
+                mir::Expr::lvar_ref(lvar_name, lvar_ty.clone()),
+                mir::Expr::lvar_ref(lvar_name, lvar_ty.clone()),
+            ),
+            mir::Expr::cast(
+                mir::CastType::Force(result_ty),
+                mir::Expr::lvar_ref(lvar_name, lvar_ty),
+            ),
+        ])
+    }
+
     /// Lower `CreateTypeObject(ty)` into a call to `Meta:Class#_new`.
     fn lower_create_type_object(&self, ty: TermTy, result_ty: mir::Ty) -> mir::TypedExpr {
         let metaclass_obj = self.build_metaclass_obj(&ty);
@@ -85,38 +112,38 @@ impl Lower {
         metaclass_obj: mir::TypedExpr,
         result_ty: mir::Ty,
     ) -> mir::TypedExpr {
-        let class_name = ty.fullname.0.clone();
-
-        let fun_ty = mir::FunTy::new(
-            mir::Asyncness::Sync,
-            vec![
-                mir::Ty::meta("Class"),    // receiver (Meta:Class)
-                mir::Ty::raw("String"),    // name
-                mir::Ty::Ptr,              // vtable
-                mir::Ty::Ptr,              // wtable
-                mir::Ty::raw("Metaclass"), // meta_cls
-                mir::Ty::Ptr,              // erasure_cls
-            ],
-            mir::Ty::raw("Class"),
-        );
-
-        let args = vec![
-            null_as(mir::Ty::meta("Class")),
-            mir::Expr::string_literal(class_name),
-            mir::Expr::class_vtable(Erasure::nonmeta("Class")),
-            mir::Expr::null_ptr(),
-            metaclass_obj,
-            mir::Expr::null_ptr(),
-        ];
-
-        let call = mir::Expr::fun_call(
-            mir::Expr::func_ref(FunctionName::method("Meta:Class", "_new"), fun_ty),
-            args,
-        );
-
+        let call = call_meta_class_new(&ty.fullname.0, metaclass_obj);
         // Cast the result from `Class` to the expected meta type (e.g. `Meta:Foo`)
         mir::Expr::cast(mir::CastType::Force(result_ty), call)
     }
+}
+
+/// Call `Meta:Class#_new` with the given class name and meta_cls argument.
+fn call_meta_class_new(name: &str, meta_cls: mir::TypedExpr) -> mir::TypedExpr {
+    let fun_ty = mir::FunTy::new(
+        mir::Asyncness::Sync,
+        vec![
+            mir::Ty::meta("Class"),    // receiver (Meta:Class)
+            mir::Ty::raw("String"),    // name
+            mir::Ty::Ptr,              // vtable
+            mir::Ty::Ptr,              // wtable
+            mir::Ty::raw("Metaclass"), // meta_cls
+            mir::Ty::Ptr,              // erasure_cls
+        ],
+        mir::Ty::raw("Class"),
+    );
+    let args = vec![
+        null_as(mir::Ty::meta("Class")),
+        mir::Expr::string_literal(name),
+        mir::Expr::class_vtable(Erasure::nonmeta("Class")),
+        mir::Expr::null_ptr(),
+        meta_cls,
+        mir::Expr::null_ptr(),
+    ];
+    mir::Expr::fun_call(
+        mir::Expr::func_ref(FunctionName::method("Meta:Class", "_new"), fun_ty),
+        args,
+    )
 }
 
 /// Null pointer cast to `ty`.

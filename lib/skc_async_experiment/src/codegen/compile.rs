@@ -1,13 +1,15 @@
 use crate::codegen::{
     cell, codegen_context::CodeGenContext, constants, instance, intrinsics, item, llvm_struct,
-    string_literal, type_object, value::SkObj, vtable, wtable, CodeGen,
+    string_literal,
+    value::{SkClassObj, SkObj},
+    vtable, wtable, CodeGen,
 };
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
 use inkwell::types::BasicType;
 use inkwell::values::{AnyValue, BasicValue, BasicValueEnum};
-use shiika_core::ty::{Erasure, TermTy};
+use shiika_core::ty::Erasure;
 
 impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_extern_funcs(&mut self, externs: Vec<mir::Extern>) {
@@ -117,7 +119,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(instance_ty) => self.compile_create_object(instance_ty)?,
-            mir::Expr::CreateTypeObject(the_ty) => self.compile_create_type_object(ctx, the_ty)?,
+            mir::Expr::CreateTypeObject(_) => {
+                panic!("CreateTypeObject should be lowered before codegen")
+            }
+            mir::Expr::SetClassObj(obj_expr, class_obj_expr) => {
+                self.compile_set_class_obj(ctx, obj_expr, class_obj_expr)?
+            }
             mir::Expr::CellNew(value_expr) => self.compile_cell_new(ctx, value_expr),
             mir::Expr::CellGet(cell_expr) => self.compile_cell_get(ctx, cell_expr, &texpr.1),
             mir::Expr::CellSet(cell_expr, value_expr) => {
@@ -532,13 +539,20 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(Some(obj.0.into()))
     }
 
-    fn compile_create_type_object(
+    fn compile_set_class_obj(
         &mut self,
-        _ctx: &mut CodeGenContext<'run>,
-        the_ty: &TermTy,
+        ctx: &mut CodeGenContext<'run>,
+        obj_expr: &mir::TypedExpr,
+        class_obj_expr: &mir::TypedExpr,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
-        let type_obj = type_object::create(self, the_ty)?;
-        Ok(Some(type_obj.0.into()))
+        let obj = self.compile_value_expr(ctx, obj_expr);
+        let class_obj = self.compile_value_expr(ctx, class_obj_expr);
+        instance::set_class_obj(
+            self,
+            &SkObj::from_basic_value_enum(obj),
+            SkClassObj(class_obj.into_pointer_value()),
+        )?;
+        Ok(None)
     }
 
     fn compile_unbox(

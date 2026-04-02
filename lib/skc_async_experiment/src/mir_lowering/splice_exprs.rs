@@ -132,6 +132,11 @@ fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::Typ
         }
         mir::Expr::CreateObject(_) => expr,
         mir::Expr::CreateTypeObject(_) => expr,
+        mir::Expr::SetClassObj(obj_expr, class_obj_expr) => {
+            let new_obj = splice(*obj_expr, new_exprs);
+            let new_class_obj = splice(*class_obj_expr, new_exprs);
+            mir::Expr::set_class_obj(new_obj, new_class_obj)
+        }
         mir::Expr::CreateNativeArray(elems) => {
             let new_elems = elems.into_iter().map(|e| splice(e, new_exprs)).collect();
             mir::Expr::create_native_array(new_elems)
