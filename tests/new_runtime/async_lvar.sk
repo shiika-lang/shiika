@@ -1,10 +1,14 @@
 class Main
-  def self.run() -> Int
+  def self.run()
     let x = 3
-    print(x)
+    unless x == 3
+      puts "ng: async_lvar before sleep"
+    end
     sleep_sec(0)
-    print(x)
-    return 0
+    unless x == 3
+      puts "ng: async_lvar after sleep"
+    end
   end
 end
 Main.run
+puts "ok"

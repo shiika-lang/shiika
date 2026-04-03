@@ -227,6 +227,11 @@ impl<'a> Compiler<'a> {
             }
             mir::Expr::CreateObject(_) => e,
             mir::Expr::CreateTypeObject(_) => e,
+            mir::Expr::SetClassObj(obj_expr, class_obj_expr) => {
+                let new_obj = self.compile_value_expr(*obj_expr, false)?;
+                let new_class_obj = self.compile_value_expr(*class_obj_expr, false)?;
+                mir::Expr::set_class_obj(new_obj, new_class_obj)
+            }
             mir::Expr::StringLiteral(_) => e,
             mir::Expr::CreateNativeArray(elem_exprs) => {
                 // TODO: async in array elements
@@ -258,6 +263,7 @@ impl<'a> Compiler<'a> {
             }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
+            mir::Expr::NullPtr | mir::Expr::ClassVTable(_) => e,
         };
         Ok(Some(new_e))
     }

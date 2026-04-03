@@ -75,14 +75,6 @@ impl SkClass {
             })
         }
     }
-
-    pub fn ensure_witness_table(&mut self) {
-        unsafe {
-            if (*self.0).witness_table.is_null() {
-                (*self.0).witness_table = Box::into_raw(Box::new(WitnessTable::new()));
-            }
-        }
-    }
 }
 
 // TODO: Remove `pub` from fields

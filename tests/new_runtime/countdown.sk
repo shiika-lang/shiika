@@ -1,17 +1,21 @@
 class Main
-  def self.countdown(i: Int) -> Void
-    print(i)
+  def self.countdown(i: Int, count: Int) -> Int
     sleep_sec(0)
     if i > 0
-      return countdown(i - 1)
+      # Test explicit return
+      return countdown(i - 1, count + 1)
     else
-      return
+      return count + 1
     end
   end
-  
-  def self.run() -> Int
-    countdown(3)
-    return 0
+
+  def self.run()
+    # countdown from 3 should have 4 steps (3, 2, 1, 0)
+    let total_steps = countdown(3, 0)
+    unless total_steps == 4
+      puts "ng: countdown total steps"
+    end
   end
 end
 Main.run
+puts "ok"

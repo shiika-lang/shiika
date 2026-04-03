@@ -2,12 +2,12 @@ class Main
   def self.run() -> Int
     if true
       sleep_sec(0)
-      print(123)
       return 0
     else
-      print(456)
+      puts "ng: if_return_return wrong branch"
       return 0
     end
   end
 end
 Main.run
+puts "ok"

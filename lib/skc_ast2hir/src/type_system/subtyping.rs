@@ -61,7 +61,10 @@ fn includes(c: &ClassDict, class: &TermTy, module: &LitTy) -> bool {
 #[allow(clippy::if_same_then_else)]
 fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
     let ancestors = ancestor_types(c, ty1);
-    if let Some(t1) = ancestors.iter().find(|t| t.same_base(ty2)) {
+    if ty1.erasure() == ty2.erasure() && !ty2.has_type_args() {
+        // eg. `Array<Int>` conforms to `Array`
+        true
+    } else if let Some(t1) = ancestors.iter().find(|t| t.same_base(ty2)) {
         if t1.equals_to(ty2) {
             true
         } else if t1.tyargs().iter().all(|t| t.is_never_type()) {

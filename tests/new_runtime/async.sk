@@ -1,9 +1,7 @@
 class Main
-  def self.run() -> Int
-    print(123)
+  def self.run()
     sleep_sec(0)
-    print(456)
-    return 0
   end
 end
 Main.run
+puts "ok"

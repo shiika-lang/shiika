@@ -1,18 +1,21 @@
 class Main
-  def self.countdown(i: Int) -> Int
-    print(i)
+  def self.countdown(i: Int, log: Array<Int>)
+    log.push(i)
     sleep_sec(0)
     if i > 0
-      countdown(i - 1)
-    else
-      0
+      countdown(i - 1, log)
     end
   end
-  
-  def self.run() -> Int
-    countdown(3)
-    return 0
+
+  def self.run()
+    let log = Array<Int>.new
+    countdown(3, log)
+    # unless log == [3,2,1,0]
+    unless (log[0] == 3 and log[1] == 2 and log[2] == 1 and log[3] == 0 and log.length == 4)
+      puts "ng: countdown3 total steps"
+    end
   end
 end
 
 Main.run
+puts "ok"

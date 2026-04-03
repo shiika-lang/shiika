@@ -143,6 +143,11 @@ impl Compiler {
             }
             mir::Expr::CreateObject(_) => expr,
             mir::Expr::CreateTypeObject(_) => expr,
+            mir::Expr::SetClassObj(obj_expr, class_obj_expr) => {
+                let new_obj = self.let_bind_if_needed(new_body_stmts, *obj_expr);
+                let new_class_obj = self.let_bind_if_needed(new_body_stmts, *class_obj_expr);
+                mir::Expr::set_class_obj(new_obj, new_class_obj)
+            }
             mir::Expr::CreateNativeArray(elems) => {
                 let new_elems: Vec<_> = elems
                     .into_iter()
@@ -173,6 +178,8 @@ impl Compiler {
             }
             mir::Expr::RawI64(_) => expr,
             mir::Expr::Nop => expr,
+            mir::Expr::NullPtr => expr,
+            mir::Expr::ClassVTable(_) => expr,
         }
     }
 

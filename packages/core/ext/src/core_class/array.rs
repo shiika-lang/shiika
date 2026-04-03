@@ -1,18 +1,24 @@
-use shiika_ffi::core_class::{SkArray, SkInt, SkObject};
+use shiika_ffi::core_class::{SkArray, SkClass, SkInt, SkObject};
 use shiika_ffi_macro::shiika_method;
 
-/// Creates a new Array instance from raw array data and length
-/// Called from LLVM-generated code for array literals
+/// Creates a new empty Array instance (called from user-facing `Array.new`)
 #[shiika_method("Array#initialize")]
-pub extern "C" fn array_initialize(
-    receiver: SkArray<SkObject>,
+pub extern "C" fn array_initialize(receiver: SkArray<SkObject>) {
+    receiver.set_vec(Vec::new());
+}
+
+/// Creates an Array instance from raw array data and length.
+/// Called from LLVM-generated code for array literals.
+/// The receiver is the Array class object (an instance of Meta:Array).
+#[shiika_method("Meta:Array#_from_raw")]
+pub extern "C" fn meta_array_from_raw(
+    receiver: SkClass,
     raw_array_ptr: *const SkObject,
     length: u64,
-) {
+) -> SkArray<SkObject> {
     let len = length as usize;
     let mut vec = Vec::with_capacity(len);
 
-    // Copy elements from the raw array into the Vec
     for i in 0..len {
         unsafe {
             let elem_ptr = raw_array_ptr.add(i);
@@ -21,7 +27,7 @@ pub extern "C" fn array_initialize(
         }
     }
 
-    receiver.set_vec(vec);
+    SkArray::allocate(receiver.vtable(), receiver.0 as *const u8, vec)
 }
 
 #[shiika_method("Array#[]")]

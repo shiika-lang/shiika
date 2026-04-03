@@ -1,14 +1,15 @@
 class Main
-  def self.run() -> Int
-    print(
-      if true
-        sleep_sec(0)
-        456
-      else
-        789
-      end
-    )
-    return 0
+  def self.run()
+    let result = if true
+      sleep_sec(0)
+      456
+    else
+      789
+    end
+    unless result == 456
+      puts "ng: async_valued_if"
+    end
   end
 end
 Main.run
+puts "ok"

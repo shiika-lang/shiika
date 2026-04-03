@@ -1,17 +1,22 @@
 class Main
-  def self.foo(x: Int)
+  def self.foo(x: Int, log: Array<Int>)
     var i = 0
     while i < 3
-      print x + i
+      log.push(x + i)
       sleep_sec 0
       i += 1
     end
-    print x
   end
-  def self.run() -> Int
-    foo(7)
-    return 0
+
+  def self.run()
+    let log = Array<Int>.new
+    foo(7, log)
+    # Expected: [7, 8, 9]
+    unless (log[0] == 7 and log[1] == 8 and log[2] == 9 and log.length == 3)
+      puts "ng: while_arg"
+    end
   end
 end
 
 Main.run
+puts "ok"

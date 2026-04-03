@@ -2,11 +2,11 @@ class Main
   def self.run() -> Int
     if true
       sleep_sec(0)
-      print(123)
       return 0
     end
-    print(456)
+    puts "ng: early_return should not reach here"
     return 0
   end
 end
 Main.run
+puts "ok"

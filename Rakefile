@@ -52,8 +52,9 @@ end
 
 desc "Test if examples/*.sk runs as expected"
 task :release_test do
+  filter = ENV["FILTER"]; filter = nil if filter.to_s.strip.empty?
   Dir["examples/*.expected_out.*"].each do |exp|
-    next if ENV["FILTER"] && !exp.include?(ENV["FILTER"])
+    next if filter && !exp.include?(filter)
     exp =~ %r{examples/(.*)\.expected_out\.(.*)} or raise
     name, ext = $1, $2
     actual = "examples/#{name}.actual.#{ext}"
@@ -196,11 +197,22 @@ task :async_integration_test do
     name = path.sub(".sk", "")
     sh "cargo run --bin exp_shiika --features new-runtime -- compile #{name}.sk"
     puts "--"
+    output = nil
     Timeout.timeout(5) do
-      sh "#{name}.out > #{name}.actual_out 2>&1"
+      output = `#{name}.out 2>&1`
     end
+    exit_status = $?.exitstatus
+    puts output
     puts "---"
-    sh "diff #{name}.actual_out #{name}.expected_out"
+    if output.strip == "ok" && exit_status == 0
+      # pass
+    elsif exit_status != 0
+      raise "Test failed with exit status #{exit_status}: #{path}\n#{output}"
+    elsif output.include?("ng:")
+      raise "Test failed: #{path}\n#{output}"
+    else
+      raise "Test did not output 'ok': #{path}\n#{output}"
+    end
   end
 end
 
@@ -209,7 +221,8 @@ end
 #
 
 task :segv do
-  sh "lldb ./a.out -o run -o bt -o exit > a.dump.txt"
+  bin = ENV["BIN"] || "./a.out"
+  sh "lldb #{bin} -o run -o bt -o exit > a.dump.txt"
 end
 
 task :err do

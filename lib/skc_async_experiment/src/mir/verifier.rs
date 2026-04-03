@@ -1,6 +1,7 @@
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
+use skc_ast2hir::class_dict::ClassDict;
 use std::collections::{HashMap, HashSet};
 
 /// Check type consistency of the HIR to detect bugs in the compiler.
@@ -18,10 +19,14 @@ pub fn run_(mir: &mir::CompilationUnit) -> Result<()> {
         sigs.insert(e.name.clone(), e.fun_ty.clone());
     }
 
+    let mut class_dict = skc_ast2hir::class_dict::new(Default::default(), &mir.imported_sk_types);
+    class_dict.sk_types = mir.sk_types.clone();
+
     let v = Verifier {
         sigs,
         vtables: &mir.vtables,
         imported_vtables: &mir.imported_vtables,
+        class_dict,
     };
     v.verify_externs(&program.externs)?;
     for f in &program.funcs {
@@ -34,6 +39,7 @@ struct Verifier<'a> {
     sigs: HashMap<FunctionName, mir::FunTy>,
     vtables: &'a skc_mir::VTables,
     imported_vtables: &'a skc_mir::VTables,
+    class_dict: ClassDict<'a>,
 }
 
 impl<'a> Verifier<'a> {
@@ -193,6 +199,15 @@ impl<'a> Verifier<'a> {
                     }
                     mir::CastType::Upcast(ty) => {
                         assert(&e, "result", ty)?;
+                        if let (mir::Ty::Sk(from_ty), mir::Ty::Sk(to_ty)) = (&val.1, ty) {
+                            if !skc_ast2hir::type_system::subtyping::conforms(
+                                &self.class_dict,
+                                from_ty,
+                                to_ty,
+                            ) {
+                                bail!("Upcast: {:?} does not conform to {:?}", from_ty, to_ty);
+                            }
+                        }
                     }
                     mir::CastType::ToAny => {
                         assert(&e, "result", &mir::Ty::Any)?;
@@ -240,6 +255,13 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::WTableKey(_) => (),
             mir::Expr::WTableRow(_, _) => (),
+            mir::Expr::NullPtr => assert(&e, "null_ptr", &mir::Ty::Ptr)?,
+            mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
+            mir::Expr::SetClassObj(obj, class_obj) => {
+                self.verify_expr(f, obj)?;
+                self.verify_expr(f, class_obj)?;
+                assert(&e, "set_class_obj result", &mir::Ty::raw("Void"))?;
+            }
         }
         Ok(())
     }

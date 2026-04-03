@@ -99,6 +99,7 @@ pub fn run(
         vtables,
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
+        imported_sk_types: uni.imports.sk_types,
     })
 }
 
@@ -218,7 +219,7 @@ impl<'a> Compiler<'a> {
                 } else {
                     mir::PseudoVar::False
                 };
-                mir::Expr::pseudo_var(b, mir::Ty::raw("Bool"))
+                mir::Expr::pseudo_var(b)
             }
             HirExpressionBase::HirStringLiteral { idx } => {
                 mir::Expr::string_literal(self.str_literals[idx].clone())
@@ -236,21 +237,25 @@ impl<'a> Compiler<'a> {
                     mir::Expr::CreateNativeArray(mir_elements.clone()),
                     mir::Ty::Ptr,
                 );
-
-                // Call Meta:Array#new with the native array and element count
                 let element_count = mir_elements.len();
                 let count_expr = mir::Expr::raw_i64(element_count as i64);
-                let func_name = FunctionName::method("Meta:Array", "new");
-                let fun_ty = mir::FunTy::new(
-                    mir::Asyncness::Unknown,
-                    vec![mir::Ty::meta("Array"), mir::Ty::Ptr, mir::Ty::Int64],
-                    result_ty,
-                );
-                let func_ref = mir::Expr::func_ref(func_name, fun_ty.into());
-                let the_array =
-                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
 
-                mir::Expr::fun_call(func_ref, vec![the_array, native_array_expr, count_expr])
+                // Call Meta:Array#_from_raw(class_obj, ptr, len) -> Array<T>
+                let from_raw_fun_ty = mir::FunTy::new(
+                    mir::Asyncness::Sync,
+                    vec![mir::Ty::meta("Array"), mir::Ty::Ptr, mir::Ty::Int64],
+                    result_ty.clone(),
+                );
+                let func_ref = mir::Expr::func_ref(
+                    FunctionName::method("Meta:Array", "_from_raw"),
+                    from_raw_fun_ty.into(),
+                );
+                let class_obj_expr =
+                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
+                mir::Expr::fun_call(
+                    func_ref,
+                    vec![class_obj_expr, native_array_expr, count_expr],
+                )
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
@@ -358,16 +363,27 @@ impl<'a> Compiler<'a> {
                         mir_receiver.clone(),
                         method_idx,
                         method_name.0.clone(),
-                        fun_ty,
+                        fun_ty.clone(),
                     )
                 } else {
-                    mir::Expr::func_ref(method_fullname.into(), fun_ty)
+                    mir::Expr::func_ref(method_fullname.into(), fun_ty.clone())
                 };
                 let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
                     .into_iter()
                     .map(|arg| self.convert_expr(arg))
                     .collect();
-                mir_args.insert(0, mir_receiver);
+                // Upcast receiver to the method's declared owner type if they differ
+                // (the actual receiver may be a more specific generic type).
+                let expected_recv_ty = &fun_ty.param_tys[0];
+                let receiver_for_call = if &mir_receiver.1 != expected_recv_ty {
+                    mir::Expr::cast(
+                        mir::CastType::Upcast(expected_recv_ty.clone()),
+                        mir_receiver,
+                    )
+                } else {
+                    mir_receiver
+                };
+                mir_args.insert(0, receiver_for_call);
 
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
@@ -491,15 +507,21 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirReturnExpression { arg, .. } => {
                 mir::Expr::return_(self.convert_expr(*arg))
             }
-            HirExpressionBase::HirLogicalNot { .. } => {
-                todo!("Handle logical not")
-            }
-            HirExpressionBase::HirLogicalAnd { .. } => {
-                todo!("Handle logical and")
-            }
-            HirExpressionBase::HirLogicalOr { .. } => {
-                todo!("Handle logical or")
-            }
+            HirExpressionBase::HirLogicalNot { expr } => mir::Expr::if_(
+                self.convert_expr(*expr),
+                mir::Expr::pseudo_var(mir::PseudoVar::False),
+                mir::Expr::pseudo_var(mir::PseudoVar::True),
+            ),
+            HirExpressionBase::HirLogicalAnd { left, right } => mir::Expr::if_(
+                self.convert_expr(*left),
+                self.convert_expr(*right),
+                mir::Expr::pseudo_var(mir::PseudoVar::False),
+            ),
+            HirExpressionBase::HirLogicalOr { left, right } => mir::Expr::if_(
+                self.convert_expr(*left),
+                mir::Expr::pseudo_var(mir::PseudoVar::True),
+                self.convert_expr(*right),
+            ),
             HirExpressionBase::HirLambdaCaptureRef { idx, readonly } => {
                 lambda::compile_lambda_capture_ref(
                     &self.lambda.current_fn_class,

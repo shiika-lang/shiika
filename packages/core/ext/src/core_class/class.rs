@@ -1,13 +1,7 @@
-use shiika_ffi::core_class::class::WitnessTable;
+use shiika_ffi::core_class::class::{ShiikaClass, WitnessTable};
 use shiika_ffi::core_class::{SkArray, SkClass, SkInt, SkString};
-use shiika_ffi_macro::{async_shiika_method, shiika_method, shiika_method_ref};
+use shiika_ffi_macro::{async_shiika_method, shiika_method};
 use std::collections::HashMap;
-
-shiika_method_ref!(
-    "Meta:Class#new",
-    fn(receiver: *const u8) -> SkClass,
-    "meta_class_new"
-);
 
 #[shiika_method("Meta:Class#_new")]
 #[allow(non_snake_case)]
@@ -19,20 +13,21 @@ pub extern "C" fn meta_class__new(
     metaclass_obj: SkClass,
     erasure_cls: SkClass,
 ) -> SkClass {
-    let cls_obj = meta_class_new(std::ptr::null());
-    unsafe {
-        (*cls_obj.0).vtable = vtable;
-        (*cls_obj.0).name = name;
-        (*cls_obj.0).metaclass_obj = metaclass_obj;
-        (*cls_obj.0).erasure_cls = erasure_cls;
-        (*cls_obj.0).specialized_classes = Box::leak(Box::new(HashMap::new()));
-        if witness_table.is_null() {
-            (*cls_obj.0).witness_table = Box::leak(Box::new(WitnessTable::new()));
-        } else {
-            (*cls_obj.0).witness_table = witness_table;
-        }
-    }
-    cls_obj
+    let wt = if witness_table.is_null() {
+        Box::into_raw(Box::new(WitnessTable::new()))
+    } else {
+        witness_table
+    };
+    let shiika_class = ShiikaClass {
+        vtable,
+        metaclass_obj,
+        name,
+        specialized_classes: Box::into_raw(Box::new(HashMap::new())),
+        type_args: std::ptr::null_mut(),
+        witness_table: wt,
+        erasure_cls,
+    };
+    SkClass::new(Box::into_raw(Box::new(shiika_class)))
 }
 
 #[shiika_method("Metaclass#_new")]
@@ -81,11 +76,13 @@ fn class_specialize(mut receiver: SkClass, tyargs: Vec<SkClass>) -> SkClass {
     if let Some(c) = receiver.specialized_classes().get(&name) {
         SkClass::new(*c)
     } else {
-        let spe_meta = if receiver.metaclass_obj().name().as_str() == "Metaclass" {
-            receiver.metaclass_obj()
+        let metaclass_obj = receiver.metaclass_obj();
+        let spe_meta = if metaclass_obj.0.is_null() || metaclass_obj.name().as_str() == "Metaclass"
+        {
+            metaclass_obj
         } else {
             let cloned = tyargs.iter().map(SkClass::dup).collect();
-            class_specialize(receiver.metaclass_obj(), cloned)
+            class_specialize(metaclass_obj, cloned)
         };
         let c = meta_class__new(
             std::ptr::null(),

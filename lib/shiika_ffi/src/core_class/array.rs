@@ -22,6 +22,17 @@ impl<T> SkArray<T> {
     //    SkAry(sk_ary.0 as *mut ShiikaArray<U>)
     //}
 
+    /// Allocate a new SkArray with the given vtable pointer, class object pointer, and contents.
+    /// Used by `Meta:Array#_from_raw` to create array literals.
+    pub fn allocate(vtable: *const u8, class_obj: *const u8, vec: Vec<T>) -> SkArray<T> {
+        let inner = Box::new(ShiikaArray {
+            vtable,
+            class_obj,
+            vec: Box::into_raw(Box::new(vec)),
+        });
+        SkArray(Box::into_raw(inner))
+    }
+
     pub fn as_vec(&self) -> &Vec<T> {
         unsafe { (*self.0).vec.as_ref().unwrap() }
     }

@@ -949,7 +949,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
 
         let sk_type = self
             .class_dict
-            .get_type(&base_expr.ty.instance_ty().fullname);
+            .get_type(&base_expr.ty.instance_ty().base_type_name());
         type_checking::check_class_specialization(sk_type, &arg_exprs, locs)?;
 
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
@@ -1068,7 +1068,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             Default::default(),
             false,
         );
-        exprs.push(Hir::lvar_assign(tmp_name.clone(), call_new, locs.clone()));
+        exprs.push(Hir::lvar_decl(
+            tmp_name.clone(),
+            call_new,
+            readonly,
+            locs.clone(),
+        ));
 
         // `tmp.push(item)`
         for item_expr in item_exprs {

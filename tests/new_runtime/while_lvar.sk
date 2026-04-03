@@ -1,15 +1,19 @@
 class Main
-  def self.run() -> Int
+  def self.run()
     let a = 123
+    let log = Array<Int>.new
     var i = 0
     while i < 3
-      print a + i
+      log.push(a + i)
       sleep_sec 0
       i += 1
     end
-    print a
-    return 0
+    # Expected: [123, 124, 125]
+    unless (log[0] == 123 and log[1] == 124 and log[2] == 125 and log.length == 3)
+      puts "ng: while_lvar"
+    end
   end
 end
 
 Main.run
+puts "ok"

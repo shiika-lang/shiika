@@ -10,4 +10,14 @@ class A : M
     A.new
   end
 end
-print A.bar.foo
+
+class Main
+  def self.run
+    let result = A.bar.foo
+    unless result == 42
+      puts "ng: module"
+    end
+  end
+end
+Main.run
+puts "ok"

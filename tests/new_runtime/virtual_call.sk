@@ -12,5 +12,13 @@ class Main
   def self.bar -> A
     B.new
   end
+
+  def self.run
+    let result = bar.foo
+    unless result == 456
+      puts "ng: virtual_call"
+    end
+  end
 end
-print Main.bar.foo
+Main.run
+puts "ok"

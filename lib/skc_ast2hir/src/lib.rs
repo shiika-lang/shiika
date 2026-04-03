@@ -8,7 +8,7 @@ mod hir_maker_context;
 mod method_dict;
 mod pattern_match;
 mod type_inference;
-mod type_system;
+pub mod type_system;
 pub use crate::class_dict::type_index;
 use crate::hir_maker::HirMaker;
 use anyhow::Result;
