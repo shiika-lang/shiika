@@ -1,2 +1,242 @@
 class String
+  # Note: String.new is not considered as a public API.
+  # Will be removed when `String` is ported to skc_rustlib.
+  def initialize(
+    @ptr: Shiika::Internal::Ptr, 
+    # Number of bytes of the content (does not include the last null)
+    @bytesize: Int
+  )
+  end
+
+  # TODO: I thought these are not necessary anymore but test fails without these
+  def bytesize -> Int; @bytesize; end
+  def ptr -> Shiika::Internal::Ptr; @ptr; end
+
+  # Create a string by concatenating `self` and `other`
+  def +(other: String) -> String
+    let ret = MutableString.new
+    ret.append(self)
+    ret.append(other)
+    ret._unsafe_to_s
+  end
+
+  # Create a string by repeating `self` for `n` times
+  def *(n: Int) -> String
+    let ret = MutableString.new
+    n.times do |_|
+      ret.append(self)
+    end
+    ret._unsafe_to_s
+  end
+
+  # Return true if `self` and `other` has same contents
+  def ==(other: String) -> Bool
+    if @bytesize != other.bytesize
+      false
+    else
+      var ret = true
+      var i = 0; while i < @bytesize
+        if self.nth_byte(i) != other.nth_byte(i)
+          ret = false
+        end
+        i += 1
+      end
+      ret
+    end
+  end
+
+  # Create an array of bytes of `self`
+  def bytes -> Array<Int>
+    let ret = Array<Int>.new
+    each_byte do |b|
+      ret.push(b)
+    end
+    ret
+  end
+
+  # Returns list of characters (more specifically,
+  # grapheme clusters).
+  #def chars -> Array<String>
+
+  # Call `f` for each byte
+  def each_byte(f: Fn1<Int, Void>) 
+    @bytesize.times do |i|
+      f(nth_byte(i))
+    end
+  end
+
+  # Call `f` for each char
+  # TODO: support multibyte
+  def each_char(f: Fn1<String, Void>)
+    @bytesize.times do |i|
+      f(slice_bytes(i, 1))
+    end
+  end
+
+  # Call `f` for each line
+  def each_line(f: Fn1<String, Void>)
+    self.lines.each(f)
+  end
+
+  # Return true if `self` ends with `s`
+  def ends_with?(s: String) -> Bool
+    if s.bytesize > @bytesize
+      false
+    else
+      let from = @bytesize - s.bytesize
+      slice_bytes(from, s.bytesize) == s
+    end
+  end
+
+  # Return string representation of `self` (for debugging)
+  def inspect -> String
+    # TODO: format newline, etc.
+    "\"" + self + "\""
+  end
+
+  # Return true if `self` contains nothing
+  def empty? -> Bool
+    @bytesize == 0
+  end
+
+  # Return an array of lines of `self`. The `\n` of each line is deleted.
+  def lines -> Array<String>
+    split("\n")
+  end
+
+  # Creates a string by putting `padding` to the right of `self` until total length is larger than or
+  # equal to `width`.
+  #
+  # ## Example
+  #
+  #   "hello".ljust(10, "!")  #=> "hello!!!!!"
+  def ljust(width: Int, padding: String) -> String
+    let s = MutableString.new
+    s.append(self)
+    while s.bytesize < width
+      s.append(padding)
+    end
+    s._unsafe_to_s
+  end
+
+  # Return the `n`th byte of `self`
+  def nth_byte(n: Int) -> Int
+    if n < 0
+      panic "[String#nth_byte: index less than zero]"
+    end
+    if n >= @bytesize
+      panic "[String#nth_byte: index too large]"
+    end
+    (@ptr+n).read
+  end
+
+  # Creates a string by putting `padding` to the left of `self` until total length is larger than or
+  # equal to `width`.
+  #
+  # ## Example
+  #
+  #   "hello".rjust(10, ".")  #=> ".....hello"
+  def rjust(width: Int, padding: String) -> String
+    var s = self
+    while s.bytesize < width
+      s = padding + s
+    end
+    s
+  end
+
+  # Create a string which has a partial content of `self`
+  def slice_bytes(from: Int, bytes: Int) -> String
+    if from < 0
+      panic "[String#slice_bytes: `from` is less than zero (from: \{from}, bytes: \{bytes})]"
+    end
+    if from + bytes > @bytesize
+      panic "[String#slice_bytes: `from + bytes` too large (from: \{from}, bytes: \{bytes}, self.bytesize: \{@bytesize})]"
+    end
+    let newptr = Shiika::Internal::Memory.gc_malloc(bytes+1)
+    Shiika::Internal::Memory.memcpy(newptr, @ptr+from, bytes)
+    String.new(newptr, bytes)
+  end
+
+  # Split `self` with separator
+  def split(sep: String) -> Array<String>
+    if sep.bytesize == 0
+      [self]
+    else
+      let ret = Array<String>.new
+      var word_start = 0
+      var sep_cur = 0
+      var i = 0
+      while i < @bytesize
+        if self.nth_byte(i) == sep.nth_byte(sep_cur)
+          sep_cur += 1
+          if sep_cur == sep.bytesize
+            # Found a separator.
+            ret.push(self.slice_bytes(word_start, i - word_start - sep.bytesize + 1))
+            word_start = i + 1
+            sep_cur = 0
+          end
+        else
+          # Not a separator here
+          sep_cur = 0
+        end
+        i += 1
+      end
+      # The last part
+      if word_start < @bytesize
+        ret.push(self.slice_bytes(word_start, @bytesize - word_start))
+      end
+
+      ret
+    end
+  end
+
+  # Return true if `self` starts with `s`
+  def starts_with?(s: String) -> Bool
+    if s.bytesize > @bytesize
+      false
+    else
+      slice_bytes(0, s.bytesize) == s
+    end
+  end
+
+  # Parse `self` as an integer value.
+  # If non-digit character appears, parsing is terminated.
+  def to_i -> Int
+    var minus = false
+    var start = 0
+    if self.nth_byte(0) == "+".nth_byte(0)
+      start = 1
+    elsif self.nth_byte(0) == "-".nth_byte(0)
+      start = 1
+      minus = true
+    end
+
+    var n = 0
+    # TODO: Use each_byte (#177)
+    var i = start; while i < @bytesize
+      let b = self.nth_byte(i)
+      if 48 <= b and b <= 57
+        n *= 10
+        n += b - 48
+      end
+      if b < 48 or b > 57
+        break
+      end
+      i += 1
+    end
+
+    if minus then -n else n end
+  end
+
+  # Create mutable clone of `self`
+  def to_mutable -> MutableString
+    let ret = MutableString.new
+    ret.append(self)
+    ret
+  end
+
+  # Return `self`
+  def to_s -> String
+    self
+  end
 end

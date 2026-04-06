@@ -1,0 +1,16 @@
+class File
+#  extern shiika_file_read(String) -> String
+#  extern shiika_file_write(String, String)
+#
+#  # Reads a file and returns its content as a string.
+#  def self.read(path: String) -> String
+#    File.shiika_file_read(path)
+#  end
+#
+#  # Writes `content` to the file specified with `path`.
+#  def self.write(path: String, content: String)
+#    File.shiika_file_write(path, content)
+#  end
+  def initialize(@path: String, @file: Object)
+  end
+end

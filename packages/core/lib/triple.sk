@@ -1,0 +1,3 @@
+class Triple<A, B, C>
+  def initialize(@fst: A, @snd: B, @thd: C); end
+end

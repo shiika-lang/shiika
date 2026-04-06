@@ -1,0 +1,20 @@
+module Shiika
+  module Internal
+    class Memory
+      # Run GC manually.
+      # def self.force_gc
+
+      # def self.memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void
+
+      # def self.gc_malloc(n_bytes: Int) -> Shiika::Internal::Ptr
+
+      # def self.gc_realloc(ptr: Shiika::Internal::Ptr, n_bytes: Int) -> Shiika::Internal::Ptr
+    end
+
+    class Ptr
+      # Show memory dump beginning from the address of `obj` and continues for
+      # `len`*16 bytes. For debugging memory-related bugs.
+      # def self.p(obj: Object, len: Int)
+    end
+  end
+end

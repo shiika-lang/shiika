@@ -1,2 +1,74 @@
 base class Object
+  def initialize
+  end
+
+  # TODO: These will be removed when `Comparable` is implemented
+  def <(other: Object) -> Bool
+    panic "[`<` is not implemented for class #{self.class}]"
+    false
+  end
+  def >(other: Object) -> Bool
+    other < self
+  end
+  def <=(other: Object) -> Bool
+    self < other or self == other
+  end
+  def >=(other: Object) -> Bool
+    self > other or self == other
+  end
+
+  # Returns the class which this object belongs to.
+  # def class -> Class
+
+  # Terminates the process.
+  # Note: this may be moved to `Process.exit` or somewhere in the future
+  # def exit -> Never
+
+  # Reads a line form stdin.
+  # def gets -> Result<String>
+
+  def hash -> Int
+    0 # TODO: Use the pointer address
+  end
+
+  def inspect -> String
+    self.to_s
+  end
+
+  # Returns the unique id of this object.
+  # def object_id -> Int
+
+  def loop(f: Fn0<Void>)
+    while true
+      f()
+    end
+  end
+
+  def p(obj: Object)
+    puts obj.inspect
+  end
+
+  # Forcefully terminates the process with given error message.
+  # panic(msg: String) -> Never
+
+  # Prints message to stdout.
+  # print(s: String)
+
+  # Prints message and a newline to stdout.
+  # puts(s: String)
+
+  # Stop execution for a while.
+  # sleep(sec: Float)
+
+  def to_s -> String
+    "#<#{self.class.name}:#{self.object_id}>"
+  end
+
+  # Force the compiler to treat this object is an instance of `cls`.
+  # Usually you should not use this method unless to avoid compiler's bug, etc.
+  def unsafe_cast(cls: Class) -> Object
+    # The type checker has special handling rule for this method 
+    # (grep with "unsafe_cast".)
+    self
+  end
 end

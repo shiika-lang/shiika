@@ -1,39 +1,42 @@
-# Fn classes for lambda/closure representation
-#
-# - Fn: base class with @func (function pointer) and @captures (llvm array)
-# - Fn0..Fn9: subclasses for different arities with type parameters
-
 base class Fn
-  def initialize(@func: Shiika::Internal::Ptr, @captures: Shiika::Internal::Ptr)
+  EXIT_NORMAL = 0
+  EXIT_BREAK = 1
+
+  def initialize(
+    @func: Shiika::Internal::Ptr,
+    @the_self: Object,
+    @captures: Shiika::Internal::Ptr,
+  )
+    let @exit_status = EXIT_NORMAL
   end
 end
 
-class Fn0<R> : Fn
+class Fn0<T> : Fn
 end
 
-class Fn1<A1, R> : Fn
+class Fn1<S1, T> : Fn
 end
 
-class Fn2<A1, A2, R> : Fn
+class Fn2<S1, S2, T> : Fn
 end
 
-class Fn3<A1, A2, A3, R> : Fn
+class Fn3<S1, S2, S3, T> : Fn
 end
 
-class Fn4<A1, A2, A3, A4, R> : Fn
+class Fn4<S1, S2, S3, S4, T> : Fn
 end
 
-class Fn5<A1, A2, A3, A4, A5, R> : Fn
+class Fn5<S1, S2, S3, S4, S5, T> : Fn
 end
 
-class Fn6<A1, A2, A3, A4, A5, A6, R> : Fn
+class Fn6<S1, S2, S3, S4, S5, S6, T> : Fn
 end
 
-class Fn7<A1, A2, A3, A4, A5, A6, A7, R> : Fn
+class Fn7<S1, S2, S3, S4, S5, S6, S7, T> : Fn
 end
 
-class Fn8<A1, A2, A3, A4, A5, A6, A7, A8, R> : Fn
+class Fn8<S1, S2, S3, S4, S5, S6, S7, S8, T> : Fn
 end
 
-class Fn9<A1, A2, A3, A4, A5, A6, A7, A8, A9, R> : Fn
+class Fn9<S1, S2, S3, S4, S5, S6, S7, S8, S9, T> : Fn
 end

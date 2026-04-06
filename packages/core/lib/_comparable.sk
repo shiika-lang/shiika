@@ -1,0 +1,15 @@
+#module Comparable<X>
+#  requirement <(other: X) -> Bool
+#
+#  def >(other: X) -> Bool
+#    (self != other) and (!(self < other))
+#  end
+#
+#  def <=(other: X) -> Bool
+#    (self == other) or (self < other)
+#  end
+#
+#  def >=(other: X) -> Bool
+#    (self == other) or (self > other)
+#  end
+#end

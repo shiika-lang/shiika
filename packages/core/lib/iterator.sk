@@ -1,0 +1,17 @@
+require "./enumerable.sk"
+require "./maybe.sk"
+
+module Iterator<E>
+  requirement next -> Maybe<E>
+
+  def each(f: Fn1<E, Void>) -> Void
+    loop do
+      match next
+      when Some(x)
+        f(x)
+      else
+        break
+      end
+    end
+  end
+end

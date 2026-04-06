@@ -1,0 +1,120 @@
+require "./pair.sk"
+
+# TODO: Make this behave as ordered hash (like Ruby's)
+class Dict<K, V> : Enumerable<Pair<K, V>>
+  N_TABLES = 1000
+
+  class Table<KK, VV>
+    def initialize
+      let @pairs = Array<Pair<KK, VV>>.new
+    end
+
+    # Set the value of specified key.
+    def []=(key: KK, value: VV)
+      var done = false
+      @pairs.each do |pair|
+        if pair.fst == key
+          pair.snd = value
+          done = true
+        end
+      end
+      unless done
+        @pairs.push(Pair.new(key, value))
+      end
+    end
+
+    # Get the value of specified key.
+    def [](key: KK) -> Maybe<VV>
+      var ret = None
+      @pairs.each do |pair|
+        if pair.fst == key
+          ret = Some.new(pair.snd)
+        end
+      end
+      ret
+    end
+
+    # Return true if `self` has `key` (compared with `==`)
+    def has_key?(key: KK) -> Bool
+      var ret = false
+      @pairs.each do |pair|
+        if pair.fst == key
+          ret = true
+        end
+      end
+      ret
+    end
+
+    # Return list of the keys
+    def keys -> Array<KK>
+      let ret = Array<KK>.new
+      @pairs.each do |pair|
+        ret.push(pair.fst)
+      end
+      ret
+    end
+
+    # Return list of the values
+    def values -> Array<VV>
+      let ret = Array<VV>.new
+      @pairs.each do |pair|
+        ret.push(pair.snd)
+      end
+      ret
+    end
+
+    def each(f: Fn1<Pair<KK, VV>, Void>)
+      @pairs.each(f)
+    end
+  end
+
+  def initialize
+    let @tables = Array<Dict::Table<K, V>>.new
+    N_TABLES.times{|_| @tables.push(Dict::Table<K, V>.new) }
+  end
+
+  # Return the `Dict::Table` which contains the `key`
+  def _table(key: K) -> Dict::Table<K, V>
+    @tables[key.hash % @tables.length]
+  end
+
+  # Set the value of specified key.
+  def []=(key: K, value: V)
+    _table(key)[key] = value
+  end
+
+  # Get the value of specified key, if any.
+  def [](key: K) -> Maybe<V>
+    _table(key)[key]
+  end
+
+  # Call `f` with each pair of `self`
+  def each(f: Fn1<Pair<K, V>, Void>)
+    @tables.each do |table|
+      table.each(f)
+    end
+  end
+
+  # Return true if `self` has `key` (compared with `==`)
+  def has_key?(key: K) -> Bool
+    _table(key).has_key?(key)
+  end
+
+  # Return list of the keys
+  def keys -> Array<K>
+    let ret = Array<K>.new
+    @tables.each do |table|
+      ret.append(table.keys)
+    end
+    ret
+  end
+
+  # Return list of the values
+  def values -> Array<V>
+    let ret = Array<V>.new
+    @tables.each do |table|
+      ret.append(table.values)
+    end
+    ret
+  end
+end
