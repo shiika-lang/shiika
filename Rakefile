@@ -191,11 +191,13 @@ task async_test: :async do
   sh "./a.out"
 end
 task :async_integration_test do
-  sh "cargo run --bin exp_shiika --features new-runtime -- build packages/core"
+  bin = File.join(CARGO_TARGET, "debug/exp_shiika")
+  sh "cargo build --bin exp_shiika --features new-runtime"
+  sh "#{bin} build packages/core"
   Dir["tests/new_runtime/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
-    sh "cargo run --bin exp_shiika --features new-runtime -- compile #{name}.sk"
+    sh "#{bin} compile #{name}.sk"
     puts "--"
     output = nil
     Timeout.timeout(5) do
@@ -214,6 +216,37 @@ task :async_integration_test do
       raise "Test did not output 'ok': #{path}\n#{output}"
     end
   end
+end
+task :compat do
+  bin = File.join(CARGO_TARGET, "debug/exp_shiika")
+  sh "cargo build --bin exp_shiika --features new-runtime"
+  log = File.open("compat_test.log", "w")
+  filter = ENV["FILTER"]; filter = nil if filter.to_s.strip.empty?
+  Dir["tests/sk/*.sk"].each do |path|
+    $stderr.puts "Testing #{path}..."
+    log.puts "--- Testing #{path} ---"
+    next if filter && !path.include?(filter)
+    name = path.sub(".sk", "")
+    compile_output = `#{bin} #{name}.sk 2>&1`
+    log.puts compile_output
+    next unless $?.success?
+    output = nil
+    Timeout.timeout(5) do
+      output = `#{name}.out 2>&1`
+    end
+    exit_status = $?.exitstatus
+    log.puts output
+    if output.strip == "ok" && exit_status == 0
+      # pass
+    elsif exit_status != 0
+      log.puts "Test failed with exit status #{exit_status}: #{path}\n#{output}"
+    elsif output.include?("ng:")
+      log.puts "Test failed: #{path}\n#{output}"
+    else
+      log.puts "Test did not output 'ok': #{path}\n#{output}"
+    end
+  end
+  log.close
 end
 
 #
