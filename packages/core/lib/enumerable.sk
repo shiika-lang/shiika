@@ -1,3 +1,5 @@
+require "./pair.sk"
+
 module Enumerable<E>
   requirement each(f: Fn1<E, Void>) -> Void
 
