@@ -8,6 +8,12 @@ pub struct SkInt(*const ShiikaInt);
 
 unsafe impl Send for SkInt {}
 
+impl crate::SkValue for SkInt {
+    fn as_raw_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 impl std::fmt::Display for SkInt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.val())

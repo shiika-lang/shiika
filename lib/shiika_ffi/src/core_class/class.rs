@@ -9,6 +9,12 @@ pub struct SkClass(pub *mut ShiikaClass);
 
 unsafe impl Send for SkClass {}
 
+impl crate::SkValue for SkClass {
+    fn as_raw_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 impl SkClass {
     pub fn new(ptr: *mut ShiikaClass) -> SkClass {
         SkClass(ptr)

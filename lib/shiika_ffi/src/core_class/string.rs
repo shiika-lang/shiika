@@ -14,6 +14,12 @@ pub struct SkString(*mut ShiikaString);
 
 unsafe impl Send for SkString {}
 
+impl crate::SkValue for SkString {
+    fn as_raw_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
 struct ShiikaString {
