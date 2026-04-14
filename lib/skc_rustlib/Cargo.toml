@@ -12,7 +12,7 @@ shiika_ffi_macro = { path = "../shiika_ffi_macro" }
 bdwgc-alloc = { version = "0.6.13", default-features=false, features = ["cmake"] }
 plain = "0.2.3"
 # For Random
-rand = "0.8.5"
+rand = "0.9.3"
 # For String#chars
 unicode-segmentation = "1.7.1"
 # For Time
