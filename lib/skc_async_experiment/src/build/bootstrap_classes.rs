@@ -7,9 +7,9 @@ use std::collections::HashMap;
 /// core classes are mutually dependent (eg. Class <-> Object)
 pub fn add_to(class_dict: &mut ClassDict) {
     let class_ivars = HashMap::from([(
-        "name".to_string(),
+        "@name".to_string(),
         skc_hir::SkIVar {
-            name: "name".to_string(),
+            name: "@name".to_string(),
             ty: ty::raw("String"),
             idx: 0,
             readonly: true,
