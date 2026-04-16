@@ -41,6 +41,10 @@ impl SkString {
         meta_string_new(sk_String(), s.as_ptr(), s.len() as u64)
     }
 
+    pub fn from_vec(v: Vec<u8>) -> SkString {
+        meta_string_new(sk_String(), v.as_ptr(), v.len() as u64)
+    }
+
     pub fn value(&self) -> &[u8] {
         unsafe { &*(*self.0).value }
     }
