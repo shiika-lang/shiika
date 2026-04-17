@@ -24,10 +24,6 @@ class Array<T> : Enumerable<T>
     ret
   end
 
-  def initialize
-    _initialize_rustlib
-  end
-
   # Makes an array by concatenating `self` and `other`.
   def +(other: Array<T>) -> Array<T>
     let a = Array<T>.new
