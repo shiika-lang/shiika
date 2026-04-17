@@ -872,10 +872,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 return Ok(Hir::const_ref(ty, full, locs.clone()));
             }
         }
-        Err(error::program_error(&format!(
-            "constant `{:?}' was not found",
-            name.0.join("::")
-        )))
+        let main_msg = format!("constant `{}' was not found", name.0.join("::"));
+        let report = skc_error::build_report(main_msg, locs, |r, locs_span| {
+            r.with_label(skc_error::Label::new(locs_span))
+        });
+        Err(error::program_error(report))
     }
 
     /// Get the value of a class-wise or method-wise type argument.
