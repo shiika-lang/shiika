@@ -75,4 +75,12 @@
   ["Meta:Random", "_without_seed -> Random", false],
   ["Random", "int(from: Int, to: Int) -> Int", false],
   ["Random", "float -> Float", false],
+  ["MutableString", "initialize", false],
+  ["MutableString", "nth_byte(n: Int) -> Int", false],
+  ["MutableString", "append(other: String)", false],
+  ["MutableString", "append_byte(b: Int)", false],
+  ["MutableString", "empty? -> Bool", false],
+  ["MutableString", "to_s -> String", false],
+  ["MutableString", "write_byte(nth: Int, byte: Int)", false],
+  ["MutableString", "_unsafe_to_s -> String", false],
 ]

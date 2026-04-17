@@ -76,9 +76,9 @@ class String
   end
 
   # Create mutable clone of `self`
-  # def to_mutable -> MutableString
-  #   let ret = MutableString.new
-  #   ret.append(self)
-  #   ret
-  # end
+  def to_mutable -> MutableString
+    let ret = MutableString.new
+    ret.append(self)
+    ret
+  end
 end
