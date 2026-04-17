@@ -2,7 +2,7 @@ require "./mutable_string.sk"
 
 class String
   # TODO: I thought these are not necessary anymore but test fails without these
-  def ptr -> Shiika::Internal::Ptr; @ptr; end
+  #def ptr -> Shiika::Internal::Ptr; @ptr; end
 
   # Create an array of bytes of `self`
   def bytes -> Array<Int>
@@ -19,7 +19,7 @@ class String
 
   # Call `f` for each byte
   def each_byte(f: Fn1<Int, Void>)
-    @bytesize.times do |i|
+    bytesize.times do |i|
       f(nth_byte(i))
     end
   end
@@ -27,7 +27,7 @@ class String
   # Call `f` for each char
   # TODO: support multibyte
   def each_char(f: Fn1<String, Void>)
-    @bytesize.times do |i|
+    bytesize.times do |i|
       f(slice_bytes(i, 1))
     end
   end
@@ -51,7 +51,7 @@ class String
       var word_start = 0
       var sep_cur = 0
       var i = 0
-      while i < @bytesize
+      while i < bytesize
         if self.nth_byte(i) == sep.nth_byte(sep_cur)
           sep_cur += 1
           if sep_cur == sep.bytesize
@@ -67,8 +67,8 @@ class String
         i += 1
       end
       # The last part
-      if word_start < @bytesize
-        ret.push(self.slice_bytes(word_start, @bytesize - word_start))
+      if word_start < bytesize
+        ret.push(self.slice_bytes(word_start, bytesize - word_start))
       end
 
       ret
