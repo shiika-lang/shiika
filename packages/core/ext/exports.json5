@@ -54,6 +54,7 @@
   ["Object", "print(n: Int)", true],
   ["Object", "puts(s: String)", true],
   ["Object", "class() -> Class", true],
+  ["Object", "object_id() -> Int", true],
   ["String", "initialize(bytes: Shiika::Internal::Ptr, n_bytes: Shiika::Internal::Int64)", false],
   ["String", "+(other: String) -> String", false],
   ["String", "*(n: Int) -> String", false],

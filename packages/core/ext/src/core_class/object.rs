@@ -34,6 +34,11 @@ async fn object_panic(_receiver: SkObject, msg: SkString) {
     panic!("{}", std::str::from_utf8(msg.value()).unwrap());
 }
 
+#[async_shiika_method("Object#object_id")]
+async fn object_object_id(receiver: SkObject) -> SkInt {
+    (receiver.as_raw_u64() as i64).into()
+}
+
 #[async_shiika_method("Object#sleep_sec")]
 async fn object_sleep_sec(_receiver: SkObject, n: SkInt) {
     let sec = n.val() as u64;
