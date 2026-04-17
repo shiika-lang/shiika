@@ -79,7 +79,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let superclass = &self.get_class(classname).superclass.clone();
-        let ivars = self.superclass_ivars(superclass).unwrap_or_default();
+        let mut ivars = self.superclass_ivars(superclass).unwrap_or_default();
         let class = self.get_class_mut(classname);
         // Disabled consistency check (does not work with the new runtime)
         //if !classname.is_meta() && !class.ivars.is_empty() {
@@ -90,6 +90,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         //    }
         //    return;
         //}
+        // Preserve ivars set by bootstrap that aren't from the superclass
+        for (k, v) in &class.ivars {
+            ivars.entry(k.clone()).or_insert(v.clone());
+        }
         class.ivars = ivars;
         own_ivars.into_iter().for_each(|(k, v)| {
             class.ivars.insert(k, v);
