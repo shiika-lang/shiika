@@ -1,5 +1,6 @@
 use crate::builtin::{SkClass, SkFloat, SkInt};
-use rand::prelude::{Rng, SeedableRng, StdRng};
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use shiika_ffi_macro::shiika_method;
 use shiika_ffi_macro::{shiika_const_ref, shiika_method_ref};
 
@@ -46,7 +47,7 @@ pub extern "C" fn meta_random__without_seed(_receiver: SkClass) -> SkRandom {
     let rnd = meta_random_new(sk_Random(), 0.into());
     // Replace the rng
     unsafe {
-        (*rnd.0).rng = Box::leak(Box::new(SeedableRng::from_entropy()));
+        (*rnd.0).rng = Box::leak(Box::new(rand::make_rng()));
     }
     rnd
 }
@@ -54,7 +55,7 @@ pub extern "C" fn meta_random__without_seed(_receiver: SkClass) -> SkRandom {
 /// Returns a random float between 0.0 and 1.0 (end-exclusive).
 #[shiika_method("Random#float")]
 pub extern "C" fn random_float(mut receiver: SkRandom) -> SkFloat {
-    receiver.rng().gen::<f64>().into()
+    receiver.rng().random::<f64>().into()
 }
 
 /// Returns a random integer (end-exclusive).
@@ -62,5 +63,5 @@ pub extern "C" fn random_float(mut receiver: SkRandom) -> SkFloat {
 pub extern "C" fn random_int(mut receiver: SkRandom, from: SkInt, to: SkInt) -> SkInt {
     let f: i64 = from.into();
     let t: i64 = to.into();
-    receiver.rng().gen_range(f..t).into()
+    receiver.rng().random_range(f..t).into()
 }
