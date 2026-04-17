@@ -71,4 +71,8 @@
   ["String", "ljust(width: Int, padding: String) -> String", false],
   ["String", "rjust(width: Int, padding: String) -> String", false],
   ["Meta:Shiika::Internal", "p(value: Object, len: Int)", false],
+  ["Random", "_initialize_rustlib(seed: Int)", false],
+  ["Meta:Random", "_without_seed -> Random", false],
+  ["Random", "int(from: Int, to: Int) -> Int", false],
+  ["Random", "float -> Float", false],
 ]

@@ -10,4 +10,5 @@ crate-type = ["staticlib"]
 shiika_ffi = { path = "../../../lib/shiika_ffi" }
 shiika_ffi_macro = { path = "../../../lib/shiika_ffi_macro" }
 tokio = { version = "1.43.1", features = ["full"] }
+rand = "0.10.1"
 bdwgc-alloc = { version = "0.6.13", default-features=false, features = ["cmake"] }
