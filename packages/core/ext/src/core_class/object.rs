@@ -29,6 +29,11 @@ async fn object_puts(_receiver: SkObject, s: SkString) {
     stdout.flush().await.unwrap();
 }
 
+#[async_shiika_method("Object#panic")]
+async fn object_panic(_receiver: SkObject, msg: SkString) {
+    panic!("{}", std::str::from_utf8(msg.value()).unwrap());
+}
+
 #[async_shiika_method("Object#sleep_sec")]
 async fn object_sleep_sec(_receiver: SkObject, n: SkInt) {
     let sec = n.val() as u64;
