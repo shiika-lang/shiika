@@ -16,6 +16,7 @@
   ["Class", "_type_argument(nth: Int) -> Class", true],
   ["Class", "erasure_class -> Class", true],
   ["Meta:Class", "_new(name: String, vtable: Object, wtable: Object, meta_cls: Metaclass, erasure_cls: Class) -> Class", false],
+  ["Int", "-@ -> Int", false],
   ["Int", "+(other: Int) -> Int", false],
   ["Int", "-(other: Int) -> Int", false],
   ["Int", "*(other: Int) -> Int", false],

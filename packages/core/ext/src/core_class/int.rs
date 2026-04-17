@@ -1,6 +1,11 @@
 use shiika_ffi::core_class::{SkBool, SkInt};
 use shiika_ffi_macro::{async_shiika_method, shiika_method};
 
+#[shiika_method("Int#-@")]
+pub extern "C" fn int_uminus(receiver: SkInt) -> SkInt {
+    (-receiver.val()).into()
+}
+
 #[shiika_method("Int#+")]
 pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() + other.val()).into()
