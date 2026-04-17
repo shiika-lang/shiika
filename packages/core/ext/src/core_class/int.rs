@@ -73,8 +73,8 @@ async fn int_ge(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() >= other.val()).into()
 }
 
-#[shiika_method("Int#==")]
-pub extern "C" fn int_eq(receiver: SkInt, other: SkInt) -> SkBool {
+#[async_shiika_method("Int#==")]
+async fn int_eq(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() == other.val()).into()
 }
 

@@ -1,11 +1,11 @@
 use shiika_ffi::core_class::{SkBool, SkClass, SkInt, SkObject, SkString};
 use shiika_ffi::SkValue;
-use shiika_ffi_macro::{async_shiika_method, shiika_method};
+use shiika_ffi_macro::async_shiika_method;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
 
-#[shiika_method("Object#==")]
-pub extern "C" fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
+#[async_shiika_method("Object#==")]
+async fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
     (receiver.as_raw_u64() == other.as_raw_u64()).into()
 }
 

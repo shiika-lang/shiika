@@ -27,8 +27,8 @@ pub extern "C" fn string_mul(receiver: SkString, n: SkInt) -> SkString {
     SkString::from_vec(result)
 }
 
-#[shiika_method("String#==")]
-pub extern "C" fn string_eq(receiver: SkString, other: SkString) -> SkBool {
+#[async_shiika_method("String#==")]
+async fn string_eq(receiver: SkString, other: SkString) -> SkBool {
     (receiver.value() == other.value()).into()
 }
 
