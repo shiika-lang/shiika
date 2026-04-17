@@ -538,6 +538,7 @@ name = "ext"
 version = "0.1.0"
 dependencies = [
  "bdwgc-alloc",
+ "chrono",
  "rand 0.10.1",
  "shiika_ffi",
  "shiika_ffi_macro",

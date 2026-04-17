@@ -83,4 +83,6 @@
   ["MutableString", "to_s -> String", false],
   ["MutableString", "write_byte(nth: Int, byte: Int)", false],
   ["MutableString", "_unsafe_to_s -> String", false],
+  ["Meta:Time::Instant", "now -> Time::Instant", false],
+  ["Time", "to_plain -> Time::PlainDateTime", false],
 ]
