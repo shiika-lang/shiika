@@ -4,7 +4,7 @@
 # - Fn0..Fn9: subclasses for different arities with type parameters
 
 base class Fn
-  def initialize(@func: Shiika::Internal::Ptr, @captures: Shiika::Internal::Ptr)
+  def initialize(@func: Shiika::Internal::Ptr, @captures: Shiika::Internal::Ptr, @exit_status: Int)
   end
 end
 

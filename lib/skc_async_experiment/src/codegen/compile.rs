@@ -512,6 +512,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let mut last_val = None;
         for e in exprs {
             last_val = self.compile_expr(ctx, e)?;
+            // Stop if the current block is terminated (e.g., by a return)
+            if e.1.is_never_type() {
+                break;
+            }
         }
         Ok(last_val)
     }

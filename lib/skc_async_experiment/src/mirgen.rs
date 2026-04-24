@@ -7,7 +7,7 @@ use crate::codegen;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
-use shiika_core::names::ConstFullname;
+use shiika_core::names::{ConstFullname, MethodFullname, TypeFullname};
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
 use skc_hir::{HirExpression, HirExpressionBase, SkMethod};
@@ -432,11 +432,41 @@ impl<'a> Compiler<'a> {
             } => {
                 let lambda_ty = lambda_expr.ty.clone();
                 let fn_obj = self.convert_expr(*lambda_expr);
+                let fn_obj_for_check = fn_obj.clone();
                 let mir_args: Vec<_> = arg_exprs
                     .into_iter()
                     .map(|a| self.convert_expr(a))
                     .collect();
-                lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args)
+                let call_result = lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args);
+                // After lambda call, check @exit_status for break support
+                if call_result.1 == mir::Ty::raw("Void") {
+                    let exit_status = mir::Expr::ivar_ref(
+                        fn_obj_for_check,
+                        2,
+                        "@exit_status",
+                        mir::Ty::raw("Int"),
+                    );
+                    // Call Int#==(exit_status, 1) -> Bool
+                    let eq_fun_ty = mir::FunTy::new(
+                        mir::Asyncness::Unknown,
+                        vec![mir::Ty::raw("Int"), mir::Ty::raw("Int")],
+                        mir::Ty::raw("Bool"),
+                    );
+                    let eq_func = mir::Expr::func_ref(
+                        MethodFullname::new(TypeFullname("Int".to_string()), "==").into(),
+                        eq_fun_ty,
+                    );
+                    let is_break =
+                        mir::Expr::fun_call(eq_func, vec![exit_status, mir::Expr::number(1)]);
+                    let check = mir::Expr::if_(
+                        is_break,
+                        mir::Expr::return_(mir::Expr::void_const_ref()),
+                        mir::Expr::pseudo_var(mir::PseudoVar::Void),
+                    );
+                    mir::Expr::exprs(vec![call_result, check])
+                } else {
+                    call_result
+                }
             }
             HirExpressionBase::HirLambdaExpr {
                 name,
@@ -445,11 +475,8 @@ impl<'a> Compiler<'a> {
                 captures,
                 lvars,
                 ret_ty,
-                has_break,
+                has_break: _,
             } => {
-                if has_break {
-                    todo!("Lambda break not yet supported")
-                }
                 let fn_class = format!("Fn{}", params.len());
 
                 // Save state and set up lambda scope
@@ -501,9 +528,23 @@ impl<'a> Compiler<'a> {
                 self.convert_expr(*cond_expr),
                 self.convert_expr(*body_exprs),
             ),
-            HirExpressionBase::HirBreakExpression { .. } => {
-                todo!("Handle break expression")
-            }
+            HirExpressionBase::HirBreakExpression { from } => match from {
+                skc_hir::HirBreakFrom::Block => {
+                    let fn_class = self
+                        .lambda
+                        .current_fn_class
+                        .as_ref()
+                        .expect("[BUG] break from block outside lambda");
+                    let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
+                    let set_exit_status =
+                        mir::Expr::ivar_set(fn_obj, 2, mir::Expr::number(1), "@exit_status");
+                    let return_void = mir::Expr::return_(mir::Expr::void_const_ref());
+                    mir::Expr::exprs(vec![set_exit_status, return_void])
+                }
+                skc_hir::HirBreakFrom::While => {
+                    todo!("Handle break from while")
+                }
+            },
             HirExpressionBase::HirReturnExpression { arg, .. } => {
                 mir::Expr::return_(self.convert_expr(*arg))
             }

@@ -102,7 +102,7 @@ pub fn build_fn_object(
     lambda_param_tys.extend(params.iter().map(|p| p.ty.clone().into()));
     let lambda_fun_ty = mir::FunTy::new(mir::Asyncness::Async, lambda_param_tys, ret_ty.into());
 
-    // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr) -> FnN
+    // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr, Int) -> FnN
     let meta_fn_ty = fn_ty.meta_ty();
     let meta_erasure = meta_fn_ty.erasure();
     let new_func_ref = {
@@ -110,7 +110,12 @@ pub fn build_fn_object(
             MethodFullname::new(meta_erasure.to_type_fullname(), "new").into();
         let new_fun_ty = mir::FunTy::new(
             mir::Asyncness::Unknown,
-            vec![meta_fn_ty.clone().into(), mir::Ty::Ptr, mir::Ty::Ptr],
+            vec![
+                meta_fn_ty.clone().into(),
+                mir::Ty::Ptr,
+                mir::Ty::Ptr,
+                mir::Ty::raw("Int"),
+            ],
             fn_ty.clone().into(),
         );
         mir::Expr::func_ref(new_func_name, new_fun_ty)
@@ -122,9 +127,10 @@ pub fn build_fn_object(
     // Cast to Ptr for storing in Fn object's @func ivar
     let func_ptr_as_ptr = mir::Expr::cast(mir::CastType::Force(mir::Ty::Ptr), func_ptr);
 
+    let zero = mir::Expr::number(0);
     mir::Expr::fun_call(
         new_func_ref,
-        vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr],
+        vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr, zero],
     )
 }
 
