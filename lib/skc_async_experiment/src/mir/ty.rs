@@ -74,6 +74,11 @@ impl Ty {
         }
     }
 
+    /// Returns true if the type is Shiika Never.
+    pub fn is_never_type(&self) -> bool {
+        matches!(self, Ty::Sk(term_ty) if term_ty.is_never_type())
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         match (self, other) {
