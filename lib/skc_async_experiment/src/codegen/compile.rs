@@ -56,6 +56,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let mut ctx = CodeGenContext {
             function,
             lvars: Default::default(),
+            while_end_stack: Vec::new(),
         };
 
         let _ = self.compile_expr(&mut ctx, &f.body_stmts).unwrap();
@@ -117,6 +118,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Return(val_expr) => {
                 self.compile_return(ctx, val_expr.as_ref().map(|v| &**v))?
             }
+            mir::Expr::Break => self.compile_break(ctx)?,
             mir::Expr::Exprs(exprs) => self.compile_exprs(ctx, exprs)?,
             mir::Expr::Cast(cast_type, expr) => self.compile_cast(ctx, cast_type, expr),
             mir::Expr::CreateObject(instance_ty) => self.compile_create_object(instance_ty)?,
@@ -426,12 +428,26 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
         // WhileBody:
         self.builder.position_at_end(body_block);
+        ctx.while_end_stack.push(end_block);
         let _ = self.compile_expr(ctx, body_expr)?;
+        ctx.while_end_stack.pop();
         self.builder.build_unconditional_branch(cond_block)?;
 
         // WhileEnd:
         self.builder.position_at_end(end_block);
         Ok(Some(self.compile_void()))
+    }
+
+    fn compile_break(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+    ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        let end_block = *ctx
+            .while_end_stack
+            .last()
+            .expect("[BUG] break outside a while loop");
+        self.builder.build_unconditional_branch(end_block)?;
+        Ok(None)
     }
 
     fn compile_alloc(

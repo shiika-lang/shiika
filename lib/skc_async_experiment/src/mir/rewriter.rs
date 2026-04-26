@@ -101,6 +101,7 @@ pub trait MirRewriter {
             mir::Expr::CellSet(cell_expr, value_expr) => {
                 mir::Expr::cell_set(self.walk_expr(*cell_expr)?, self.walk_expr(*value_expr)?)
             }
+            mir::Expr::Break => expr,
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
             mir::Expr::NullPtr => expr,

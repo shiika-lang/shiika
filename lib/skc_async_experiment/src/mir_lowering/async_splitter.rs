@@ -57,6 +57,7 @@ pub fn run(mir: mir::Program) -> Result<mir::Program> {
             orig_func: &mut f,
             chapters: Chapters::new(),
             gensym: gensym::Gensym::new(gensym::PREFIX_ASYNC_SPLITTER),
+            while_end_stack: Vec::new(),
         };
         let mut split_funcs = c.compile_func(body_stmts)?;
         funcs.append(&mut split_funcs);
@@ -74,6 +75,8 @@ struct Compiler<'a> {
     orig_func: &'a mut mir::Function,
     chapters: Chapters,
     gensym: gensym::Gensym,
+    /// Stack of `endwhile` chapter names for the enclosing `while` loops; used by `break`.
+    while_end_stack: Vec<FunctionName>,
 }
 
 impl<'a> Compiler<'a> {
@@ -217,6 +220,15 @@ impl<'a> Compiler<'a> {
                     );
                     return Ok(Some(mir::Expr::return_cvoid()));
                 }
+            }
+            mir::Expr::Break => {
+                let endwhile = self
+                    .while_end_stack
+                    .last()
+                    .expect("[BUG] break outside a while loop")
+                    .clone();
+                self.chapters.add_stmt(self.while_jump(&endwhile));
+                return Ok(None);
             }
             mir::Expr::Exprs(_) => {
                 panic!("Exprs must be handled by its parent: {:?}", e.0);
@@ -406,7 +418,9 @@ impl<'a> Compiler<'a> {
 
         // Create whilebody chapter
         self.chapters.add(whilebody_chap);
+        self.while_end_stack.push(endwhile_chap.name.clone());
         self.compile_stmts(mir::expr::into_exprs(body_expr))?;
+        self.while_end_stack.pop();
         self.chapters.add_stmt(jump_to_beginwhile);
 
         // Create endwhile chapter

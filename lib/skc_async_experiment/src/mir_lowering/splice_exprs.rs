@@ -119,6 +119,7 @@ fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::Typ
             }
             None => mir::Expr::return_cvoid(),
         },
+        mir::Expr::Break => mir::Expr::break_(),
         mir::Expr::Exprs(inner_exprs) => {
             for ie in inner_exprs {
                 let new_ie = splice(ie, new_exprs);
