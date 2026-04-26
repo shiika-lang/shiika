@@ -85,6 +85,7 @@ pub trait MirVisitor {
                     self.walk_expr(e)?;
                 }
             }
+            mir::Expr::Break => {}
             mir::Expr::Exprs(exprs) => {
                 self.walk_exprs(exprs)?;
             }

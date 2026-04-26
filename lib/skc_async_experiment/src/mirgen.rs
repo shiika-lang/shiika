@@ -541,9 +541,7 @@ impl<'a> Compiler<'a> {
                     let return_void = mir::Expr::return_(mir::Expr::void_const_ref());
                     mir::Expr::exprs(vec![set_exit_status, return_void])
                 }
-                skc_hir::HirBreakFrom::While => {
-                    todo!("Handle break from while")
-                }
+                skc_hir::HirBreakFrom::While => mir::Expr::break_(),
             },
             HirExpressionBase::HirReturnExpression { arg, .. } => {
                 mir::Expr::return_(self.convert_expr(*arg))
