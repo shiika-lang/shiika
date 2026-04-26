@@ -39,6 +39,8 @@ pub enum Expr {
     IVarSet(Box<Typed<Expr>>, usize, Box<Typed<Expr>>, String), // (obj, index, value, debug_name)
     ConstSet(ConstFullname, Box<Typed<Expr>>),
     Return(Option<Box<Typed<Expr>>>),
+    /// Break out of the enclosing `while` loop.
+    Break,
     Exprs(Vec<Typed<Expr>>),
     Cast(CastType, Box<Typed<Expr>>),
     // Create a Shiika object. Contains `Erasure`(instance_ty)
@@ -264,6 +266,10 @@ impl Expr {
         (Expr::Return(None), Ty::raw("Never"))
     }
 
+    pub fn break_() -> TypedExpr {
+        (Expr::Break, Ty::raw("Never"))
+    }
+
     pub fn exprs(mut exprs: Vec<TypedExpr>) -> TypedExpr {
         if exprs.is_empty() {
             exprs.push(Expr::pseudo_var(PseudoVar::Void));
@@ -397,6 +403,7 @@ impl Expr {
             }
             Expr::ConstSet(_, e) => e.0.contains_async_call(),
             Expr::Return(e) => e.as_ref().map_or(false, |e| e.0.contains_async_call()),
+            Expr::Break => false,
             Expr::Exprs(exprs) => exprs.iter().any(|e| e.0.contains_async_call()),
             Expr::Cast(_, e) => e.0.contains_async_call(),
             Expr::CreateObject(_) => false,
@@ -524,6 +531,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             Some(expr) => format!("return {} # {}", pretty_print(&expr.0, lv, false), expr.1),
             None => "return".to_string(),
         },
+        Expr::Break => "break".to_string(),
         Expr::Exprs(exprs) => {
             indent = false;
             "{\n".to_string()

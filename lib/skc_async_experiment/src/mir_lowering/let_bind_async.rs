@@ -134,6 +134,7 @@ impl Compiler {
                 mir::Expr::return_(new_e)
             }
             mir::Expr::Return(None) => mir::Expr::return_cvoid(),
+            mir::Expr::Break => mir::Expr::break_(),
             mir::Expr::Exprs(exprs) => {
                 panic!("unexpected nested Exprs: {:?}", exprs);
             }

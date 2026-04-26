@@ -188,6 +188,9 @@ impl<'a> Verifier<'a> {
                 }
                 assert(&e, "return itself", &mir::Ty::raw("Never"))?;
             }
+            mir::Expr::Break => {
+                assert(&e, "break itself", &mir::Ty::raw("Never"))?;
+            }
             mir::Expr::Exprs(es) => {
                 self.verify_exprs(f, es)?;
             }

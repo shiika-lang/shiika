@@ -1,0 +1,24 @@
+class Main
+  def self.foo(log: Array<Int>)
+    var i = 0
+    while i < 10
+      if i == 3
+        break
+      end
+      log.push(i)
+      i += 1
+    end
+  end
+
+  def self.run()
+    let log = Array<Int>.new
+    foo(log)
+    # Expected: [0, 1, 2] (break at i==3)
+    unless (log[0] == 0 and log[1] == 1 and log[2] == 2 and log.length == 3)
+      puts "ng: while_break"
+    end
+  end
+end
+
+Main.run
+puts "ok"
