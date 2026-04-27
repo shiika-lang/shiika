@@ -178,7 +178,11 @@ impl<'a> Compiler<'a> {
                 initializer,
                 arity: _,
                 const_is_obj: _,
-            } => self.create_new_body(signature.ret_ty.clone(), signature.receiver_ty(), initializer),
+            } => self.create_new_body(
+                signature.ret_ty.clone(),
+                signature.receiver_ty(),
+                initializer,
+            ),
             SkMethodBody::Getter {
                 idx,
                 name,
