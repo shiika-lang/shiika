@@ -178,7 +178,11 @@ impl<'a> Compiler<'a> {
                 initializer,
                 arity: _,
                 const_is_obj: _,
-            } => self.create_new_body(signature.ret_ty.clone(), initializer),
+            } => self.create_new_body(
+                signature.ret_ty.clone(),
+                signature.receiver_ty(),
+                initializer,
+            ),
             SkMethodBody::Getter {
                 idx,
                 name,
@@ -278,8 +282,42 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
-                self_ty: _,
-            } => todo!("Handle class tvar ref: {:?}", typaram_ref),
+                self_ty,
+            } => {
+                debug_assert!(typaram_ref.kind == shiika_core::ty::TyParamKind::Class);
+
+                let self_expr = self.compile_self_expr(self_ty);
+
+                let object_ty = mir::Ty::raw("Object");
+                let self_as_object = if self_expr.1 != object_ty {
+                    mir::Expr::cast(mir::CastType::Upcast(object_ty.clone()), self_expr)
+                } else {
+                    self_expr
+                };
+
+                let class_ty = mir::Ty::raw("Class");
+                let object_class_fun_ty =
+                    mir::FunTy::new(mir::Asyncness::Unknown, vec![object_ty], class_ty.clone());
+                let object_class_ref = mir::Expr::func_ref(
+                    FunctionName::method("Object", "class"),
+                    object_class_fun_ty.into(),
+                );
+                let class_obj = mir::Expr::fun_call(object_class_ref, vec![self_as_object]);
+
+                let type_arg_fun_ty = mir::FunTy::new(
+                    mir::Asyncness::Unknown,
+                    vec![class_ty.clone(), mir::Ty::raw("Int")],
+                    class_ty.clone(),
+                );
+                let type_arg_ref = mir::Expr::func_ref(
+                    FunctionName::method("Class", "_type_argument"),
+                    type_arg_fun_ty.into(),
+                );
+                let idx_expr = mir::Expr::number(typaram_ref.idx as i64);
+                let tyarg_class = mir::Expr::fun_call(type_arg_ref, vec![class_obj, idx_expr]);
+
+                mir::Expr::cast(mir::CastType::Force(result_ty.clone()), tyarg_class)
+            }
             HirExpressionBase::HirMethodTVarRef {
                 typaram_ref,
                 n_params: _,
@@ -609,6 +647,7 @@ impl<'a> Compiler<'a> {
     fn create_new_body(
         &self,
         instance_ty: TermTy,
+        receiver_ty: TermTy,
         initializer: Option<MethodSignature>,
     ) -> mir::TypedExpr {
         let mut exprs = vec![];
@@ -617,6 +656,10 @@ impl<'a> Compiler<'a> {
             tmp_name,
             mir::Expr::create_object(instance_ty.clone()),
             false,
+        ));
+        exprs.push(mir::Expr::set_class_obj(
+            mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into()),
+            mir::Expr::arg_ref(0, "self", convert_ty(receiver_ty)),
         ));
         if let Some(ini_sig) = initializer {
             let call_initialize = {

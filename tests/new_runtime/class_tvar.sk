@@ -1,0 +1,15 @@
+class Foo<T>
+  def initialize(x: T)
+    let @arr = Array<T>.new
+    @arr.push(x)
+  end
+
+  def first -> T
+    @arr[0]
+  end
+end
+
+let f = Foo<Int>.new(42)
+puts "ng" unless f.first == 42
+
+puts "ok"
