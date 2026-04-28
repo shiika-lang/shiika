@@ -1,7 +1,20 @@
-use shiika_ffi::core_class::{SkClass, SkInt, SkObject, SkString};
+use shiika_ffi::core_class::{SkBool, SkClass, SkInt, SkObject, SkString};
 use shiika_ffi_macro::async_shiika_method;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
+
+#[async_shiika_method("Object#==")]
+async fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
+    (receiver.0 == other.0).into()
+}
+
+#[async_shiika_method("Object#panic")]
+async fn object_panic(_receiver: SkObject, s: SkString) {
+    let bytes = s.value();
+    let msg = std::str::from_utf8(bytes).unwrap_or("<panic: invalid utf-8>");
+    eprintln!("panic: {}", msg);
+    std::process::exit(1);
+}
 
 #[async_shiika_method("Object#class")]
 async fn object_class(receiver: SkObject) -> SkClass {

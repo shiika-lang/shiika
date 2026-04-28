@@ -1,7 +1,12 @@
 use shiika_ffi::core_class::class::{ShiikaClass, WitnessTable};
-use shiika_ffi::core_class::{SkArray, SkClass, SkInt, SkString};
+use shiika_ffi::core_class::{SkArray, SkBool, SkClass, SkInt, SkString};
 use shiika_ffi_macro::{async_shiika_method, shiika_method};
 use std::collections::HashMap;
+
+#[async_shiika_method("Class#==")]
+async fn class_eq(receiver: SkClass, other: SkClass) -> SkBool {
+    (receiver.0 == other.0).into()
+}
 
 #[shiika_method("Meta:Class#_new")]
 #[allow(non_snake_case)]
