@@ -15,6 +15,7 @@
   ["Class", "_specialize1(tyargs: Array<Class>) -> Class", true],
   ["Class", "_type_argument(nth: Int) -> Class", true],
   ["Class", "erasure_class -> Class", true],
+  ["Class", "==(other: Class) -> Bool", true],
   ["Meta:Class", "_new(name: String, vtable: Object, wtable: Object, meta_cls: Metaclass, erasure_cls: Class) -> Class", false],
   ["Int", "-@ -> Int", false],
   ["Int", "+(other: Int) -> Int", false],

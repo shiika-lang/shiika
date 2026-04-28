@@ -1,0 +1,46 @@
+class Main
+  def self.pick(b: Bool) -> Maybe<Int>
+    if b
+      Some.new(7)
+    else
+      None
+    end
+  end
+
+  def self.run()
+    let a = match Main.pick(true)
+            when Some(v) then v
+            when None then 0
+            end
+    unless a == 7
+      puts "ng: match Some"
+    end
+
+    let b = match Main.pick(false)
+            when Some(v) then v
+            when None then 99
+            end
+    unless b == 99
+      puts "ng: match None"
+    end
+
+    let c = match 2
+            when 1 then 100
+            when 2 then 200
+            else 300
+            end
+    unless c == 200
+      puts "ng: match literal"
+    end
+
+    let d = match 5
+            when 1 then 100
+            when x then x + 1
+            end
+    unless d == 6
+      puts "ng: match var"
+    end
+  end
+end
+Main.run
+puts "ok"

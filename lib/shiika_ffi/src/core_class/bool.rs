@@ -4,7 +4,7 @@ extern "C" {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct SkBool(*const ShiikaBool);
+pub struct SkBool(pub *const ShiikaBool);
 
 unsafe impl Send for SkBool {}
 
@@ -16,7 +16,7 @@ impl crate::SkValue for SkBool {
 
 #[repr(C)]
 #[derive(Debug)]
-struct ShiikaBool {
+pub struct ShiikaBool {
     vtable: *const u8,
     class_obj: *const u8,
     value: bool,
