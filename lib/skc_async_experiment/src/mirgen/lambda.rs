@@ -1,7 +1,7 @@
 use crate::mir;
 use crate::names::FunctionName;
 use shiika_core::names::MethodFullname;
-use shiika_core::ty::TermTy;
+use shiika_core::ty::{TermTy, TyBody};
 use skc_hir::visitor::{walk_expr, HirVisitor};
 use skc_hir::{HirExpression, HirExpressionBase, HirLVars, MethodParam};
 use skc_hir::{HirLambdaCapture, HirLambdaCaptureDetail};
@@ -102,22 +102,32 @@ pub fn build_fn_object(
     lambda_param_tys.extend(params.iter().map(|p| p.ty.clone().into()));
     let lambda_fun_ty = mir::FunTy::new(mir::Asyncness::Async, lambda_param_tys, ret_ty.into());
 
-    // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr, Int) -> FnN
+    // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr, Int, [Class...]) -> FnN
+    //
+    // Per `signature_of_new`, `Meta:FnN#new` carries the class typarams of FnN
+    // (e.g. `A1, R` for `Fn1<A1, R>`) as method typarams, and the mirgen pass
+    // for method calls passes them as additional `Class` arguments after the
+    // explicit ones. We must do the same here.
     let meta_fn_ty = fn_ty.meta_ty();
     let meta_erasure = meta_fn_ty.erasure();
+    let tyarg_class_objs: Vec<mir::TypedExpr> = fn_ty
+        .type_args()
+        .iter()
+        .map(build_class_obj_for_tyarg)
+        .collect();
     let new_func_ref = {
         let new_func_name: FunctionName =
             MethodFullname::new(meta_erasure.to_type_fullname(), "new").into();
-        let new_fun_ty = mir::FunTy::new(
-            mir::Asyncness::Unknown,
-            vec![
-                meta_fn_ty.clone().into(),
-                mir::Ty::Ptr,
-                mir::Ty::Ptr,
-                mir::Ty::raw("Int"),
-            ],
-            fn_ty.clone().into(),
-        );
+        let mut param_tys = vec![
+            meta_fn_ty.clone().into(),
+            mir::Ty::Ptr,
+            mir::Ty::Ptr,
+            mir::Ty::raw("Int"),
+        ];
+        for _ in &tyarg_class_objs {
+            param_tys.push(mir::Ty::raw("Class"));
+        }
+        let new_fun_ty = mir::FunTy::new(mir::Asyncness::Unknown, param_tys, fn_ty.clone().into());
         mir::Expr::func_ref(new_func_name, new_fun_ty)
     };
     // Use base_type_name() for const ref too (e.g., "Fn1" instead of "Fn1<Int,Int>")
@@ -128,10 +138,28 @@ pub fn build_fn_object(
     let func_ptr_as_ptr = mir::Expr::cast(mir::CastType::Force(mir::Ty::Ptr), func_ptr);
 
     let zero = mir::Expr::number(0);
-    mir::Expr::fun_call(
-        new_func_ref,
-        vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr, zero],
-    )
+    let mut args = vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr, zero];
+    args.extend(tyarg_class_objs);
+    mir::Expr::fun_call(new_func_ref, args)
+}
+
+/// Build the MIR expression for the `Class` object representing `t`,
+/// used as a method typaram argument for `Meta:FnN#new`.
+fn build_class_obj_for_tyarg(t: &TermTy) -> mir::TypedExpr {
+    match &t.body {
+        TyBody::TyRaw(_) => {
+            if t.has_type_args() {
+                todo!("lambda type arg with generic type: {:?}", t)
+            }
+            let meta_ty = t.meta_ty();
+            let const_name = meta_ty.erasure().to_const_fullname();
+            let cref = mir::Expr::const_ref(const_name, meta_ty.into());
+            mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref)
+        }
+        TyBody::TyPara(_) => {
+            todo!("lambda type arg with typaram: {:?}", t)
+        }
+    }
 }
 
 /// Build the expression that reads a captured variable inside a lambda body.
