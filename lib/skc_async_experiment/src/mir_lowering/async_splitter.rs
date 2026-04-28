@@ -288,15 +288,23 @@ impl<'a> Compiler<'a> {
         args: Vec<mir::TypedExpr>,
         async_result_ty: mir::Ty,
     ) -> Result<mir::TypedExpr> {
+        // If the call never returns (e.g., Object#panic), the continuation
+        // chapter is unreachable. Synthesize one with a placeholder param
+        // type so the verifier (which forbids Never params) is satisfied.
+        let chapter_param_ty = if async_result_ty == mir::Ty::raw("Never") {
+            mir::Ty::raw("Object")
+        } else {
+            async_result_ty.clone()
+        };
         // Change chapter here
         let next_chapter_name = chapter_func_name(&self.orig_func.name, self.chapters.len());
         let last_chapter = self.chapters.last_mut();
         let terminator = mir::Expr::return_(modify_async_call(fexpr, args, next_chapter_name));
         last_chapter.stmts.push(terminator);
-        last_chapter.async_result_ty = Some(async_result_ty.clone());
+        last_chapter.async_result_ty = Some(chapter_param_ty.clone());
         self.chapters.add(Chapter::new_async_call_receiver(
             chapter_func_name(&self.orig_func.name, self.chapters.len()),
-            async_result_ty.clone(),
+            chapter_param_ty,
         ));
 
         Ok(arg_ref_async_result(async_result_ty))

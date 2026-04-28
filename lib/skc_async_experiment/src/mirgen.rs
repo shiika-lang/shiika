@@ -1,5 +1,6 @@
 mod constants;
 mod lambda;
+mod pattern_match;
 mod prepare_asyncness;
 mod wtables;
 use crate::build;
@@ -555,9 +556,10 @@ impl<'a> Compiler<'a> {
                 self.convert_expr(*then_exprs),
                 self.convert_expr(*else_exprs),
             ),
-            HirExpressionBase::HirMatchExpression { .. } => {
-                todo!("Handle match expression")
-            }
+            HirExpressionBase::HirMatchExpression {
+                cond_assign_expr,
+                clauses,
+            } => self.convert_match_expr(*cond_assign_expr, clauses),
             HirExpressionBase::HirWhileExpression {
                 cond_expr,
                 body_exprs,

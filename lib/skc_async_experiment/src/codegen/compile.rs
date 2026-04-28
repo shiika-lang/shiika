@@ -60,6 +60,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         };
 
         let _ = self.compile_expr(&mut ctx, &f.body_stmts).unwrap();
+        // If the function body fell through without a terminator (e.g., a
+        // continuation chapter for a Never-returning async call), emit
+        // `unreachable` so LLVM stays valid.
+        if self
+            .builder
+            .get_insert_block()
+            .and_then(|bb| bb.get_terminator())
+            .is_none()
+        {
+            self.builder.build_unreachable().unwrap();
+        }
     }
 
     fn compile_value_expr(
