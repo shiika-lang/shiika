@@ -181,13 +181,18 @@ impl<'a> Compiler<'a> {
         use shiika_core::ty::{TyBody, TyParamKind};
         match &t.body {
             TyBody::TyRaw(_) => {
+                // Reference the un-specialized class object via const ref.
+                let erasure_meta_ty = t.erasure_ty().meta_ty();
+                let const_name = erasure_meta_ty.erasure().to_const_fullname();
+                let cref = mir::Expr::const_ref(const_name, erasure_meta_ty.into());
+                let class_obj =
+                    mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref);
+
                 if t.has_type_args() {
-                    todo!("lambda type arg with generic type: {:?}", t)
+                    self.build_specialize_call(class_obj, t.type_args())
+                } else {
+                    class_obj
                 }
-                let meta_ty = t.meta_ty();
-                let const_name = meta_ty.erasure().to_const_fullname();
-                let cref = mir::Expr::const_ref(const_name, meta_ty.into());
-                mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref)
             }
             TyBody::TyPara(typaram_ref) => {
                 let sig = self
@@ -205,6 +210,29 @@ impl<'a> Compiler<'a> {
                     }
                 }
             }
+        }
+    }
+
+    /// Build a call to `Class#_specialize1` to produce a specialized class
+    /// object (e.g. `Array<Int>`) from an un-specialized one (e.g. `Array`).
+    fn build_specialize_call(
+        &self,
+        class_obj: mir::TypedExpr,
+        tyargs: &[TermTy],
+    ) -> mir::TypedExpr {
+        if tyargs.len() == 1 {
+            let arg_class_obj = self.build_class_obj_for_tyarg(&tyargs[0]);
+            let class_ty = mir::Ty::raw("Class");
+            let fun_ty = mir::FunTy::new(
+                mir::Asyncness::Unknown,
+                vec![class_ty.clone(), class_ty.clone()],
+                class_ty,
+            );
+            let func_ref =
+                mir::Expr::func_ref(FunctionName::method("Class", "_specialize1"), fun_ty);
+            mir::Expr::fun_call(func_ref, vec![class_obj, arg_class_obj])
+        } else {
+            todo!("lambda type arg with multiple tyargs: {:?}", tyargs)
         }
     }
 

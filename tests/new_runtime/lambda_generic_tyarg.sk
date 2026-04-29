@@ -1,0 +1,12 @@
+class Main
+  def self.run
+    let f = fn(arr: Array<Int>){ arr[0] }
+    let a = Array<Int>.new
+    a.push(42)
+    unless f(a) == 42
+      puts "ng: lambda_generic_tyarg"
+    end
+  end
+end
+Main.run
+puts "ok"
