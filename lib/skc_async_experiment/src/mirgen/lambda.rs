@@ -1,7 +1,7 @@
 use crate::mir;
 use crate::names::FunctionName;
 use shiika_core::names::MethodFullname;
-use shiika_core::ty::{TermTy, TyBody};
+use shiika_core::ty::TermTy;
 use skc_hir::visitor::{walk_expr, HirVisitor};
 use skc_hir::{HirExpression, HirExpressionBase, HirLVars, MethodParam};
 use skc_hir::{HirLambdaCapture, HirLambdaCaptureDetail};
@@ -88,12 +88,16 @@ pub fn build_lambda_function(
 
 /// Build the `Meta:FnN#new(...)` call that creates the Fn object.
 /// `capture_values` are the already-evaluated capture expressions.
+/// `tyarg_class_objs` are runtime `Class` objects for each type argument of `fn_ty`,
+/// pre-computed by the caller (so it can resolve method/class typaram refs using
+/// surrounding-method context).
 pub fn build_fn_object(
     func_name: FunctionName,
     params: &[MethodParam],
     capture_values: Vec<mir::TypedExpr>,
     ret_ty: TermTy,
     fn_ty: TermTy,
+    tyarg_class_objs: Vec<mir::TypedExpr>,
 ) -> mir::TypedExpr {
     let captures_ptr = mir::Expr::create_native_array(capture_values);
 
@@ -110,11 +114,6 @@ pub fn build_fn_object(
     // explicit ones. We must do the same here.
     let meta_fn_ty = fn_ty.meta_ty();
     let meta_erasure = meta_fn_ty.erasure();
-    let tyarg_class_objs: Vec<mir::TypedExpr> = fn_ty
-        .type_args()
-        .iter()
-        .map(build_class_obj_for_tyarg)
-        .collect();
     let new_func_ref = {
         let new_func_name: FunctionName =
             MethodFullname::new(meta_erasure.to_type_fullname(), "new").into();
@@ -141,25 +140,6 @@ pub fn build_fn_object(
     let mut args = vec![meta_fn_obj, func_ptr_as_ptr, captures_ptr, zero];
     args.extend(tyarg_class_objs);
     mir::Expr::fun_call(new_func_ref, args)
-}
-
-/// Build the MIR expression for the `Class` object representing `t`,
-/// used as a method typaram argument for `Meta:FnN#new`.
-fn build_class_obj_for_tyarg(t: &TermTy) -> mir::TypedExpr {
-    match &t.body {
-        TyBody::TyRaw(_) => {
-            if t.has_type_args() {
-                todo!("lambda type arg with generic type: {:?}", t)
-            }
-            let meta_ty = t.meta_ty();
-            let const_name = meta_ty.erasure().to_const_fullname();
-            let cref = mir::Expr::const_ref(const_name, meta_ty.into());
-            mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref)
-        }
-        TyBody::TyPara(_) => {
-            todo!("lambda type arg with typaram: {:?}", t)
-        }
-    }
 }
 
 /// Build the expression that reads a captured variable inside a lambda body.
