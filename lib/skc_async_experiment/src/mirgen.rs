@@ -185,8 +185,7 @@ impl<'a> Compiler<'a> {
                 let erasure_meta_ty = t.erasure_ty().meta_ty();
                 let const_name = erasure_meta_ty.erasure().to_const_fullname();
                 let cref = mir::Expr::const_ref(const_name, erasure_meta_ty.into());
-                let class_obj =
-                    mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref);
+                let class_obj = mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref);
 
                 if t.has_type_args() {
                     self.build_specialize_call(class_obj, t.type_args())
@@ -213,16 +212,17 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    /// Build a call to `Class#_specialize1` to produce a specialized class
-    /// object (e.g. `Array<Int>`) from an un-specialized one (e.g. `Array`).
+    /// Build a call to `Class#_specialize1` (or `Class#<>` for multiple
+    /// tyargs) to produce a specialized class object (e.g. `Array<Int>`)
+    /// from an un-specialized one (e.g. `Array`).
     fn build_specialize_call(
         &self,
         class_obj: mir::TypedExpr,
         tyargs: &[TermTy],
     ) -> mir::TypedExpr {
+        let class_ty = mir::Ty::raw("Class");
         if tyargs.len() == 1 {
             let arg_class_obj = self.build_class_obj_for_tyarg(&tyargs[0]);
-            let class_ty = mir::Ty::raw("Class");
             let fun_ty = mir::FunTy::new(
                 mir::Asyncness::Unknown,
                 vec![class_ty.clone(), class_ty.clone()],
@@ -232,7 +232,38 @@ impl<'a> Compiler<'a> {
                 mir::Expr::func_ref(FunctionName::method("Class", "_specialize1"), fun_ty);
             mir::Expr::fun_call(func_ref, vec![class_obj, arg_class_obj])
         } else {
-            todo!("lambda type arg with multiple tyargs: {:?}", tyargs)
+            let arg_class_objs: Vec<mir::TypedExpr> = tyargs
+                .iter()
+                .map(|t| self.build_class_obj_for_tyarg(t))
+                .collect();
+            let n = arg_class_objs.len();
+            let native_array_expr = (mir::Expr::CreateNativeArray(arg_class_objs), mir::Ty::Ptr);
+            let count_expr = mir::Expr::raw_i64(n as i64);
+            let array_class_ty: mir::Ty = ty::ary(ty::raw("Class")).into();
+            let from_raw_fun_ty = mir::FunTy::new(
+                mir::Asyncness::Sync,
+                vec![mir::Ty::meta("Array"), mir::Ty::Ptr, mir::Ty::Int64],
+                array_class_ty.clone(),
+            );
+            let from_raw_ref = mir::Expr::func_ref(
+                FunctionName::method("Meta:Array", "_from_raw"),
+                from_raw_fun_ty.into(),
+            );
+            let array_class_obj_expr =
+                mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
+            let tyargs_array = mir::Expr::fun_call(
+                from_raw_ref,
+                vec![array_class_obj_expr, native_array_expr, count_expr],
+            );
+
+            let specialize_fun_ty = mir::FunTy::new(
+                mir::Asyncness::Unknown,
+                vec![class_ty.clone(), array_class_ty],
+                class_ty,
+            );
+            let specialize_ref =
+                mir::Expr::func_ref(FunctionName::method("Class", "<>"), specialize_fun_ty);
+            mir::Expr::fun_call(specialize_ref, vec![class_obj, tyargs_array])
         }
     }
 
