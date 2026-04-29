@@ -54,6 +54,7 @@ pub fn run(
             imported_vtables: &uni.imports.vtables,
             str_literals: &uni.hir.str_literals,
             lambda: lambda::LambdaContext::new(),
+            current_method_sig: None,
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
@@ -120,6 +121,7 @@ struct Compiler<'a> {
     imported_vtables: &'a skc_mir::VTables,
     str_literals: &'a Vec<String>,
     lambda: lambda::LambdaContext,
+    current_method_sig: Option<MethodSignature>,
 }
 
 impl<'a> Compiler<'a> {
@@ -159,7 +161,9 @@ impl<'a> Compiler<'a> {
         } else {
             HashSet::new()
         };
+        let saved_sig = self.current_method_sig.replace(signature.clone());
         let body_stmts = self.convert_method_body(method.body, &signature);
+        self.current_method_sig = saved_sig;
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
             name: method.fullname.clone().into(),
@@ -174,7 +178,7 @@ impl<'a> Compiler<'a> {
     /// Build a runtime `Class` object expression for a type used as a tyarg
     /// to `Meta:FnN#new` (i.e. lambda type parameters).
     fn build_class_obj_for_tyarg(&self, t: &TermTy) -> mir::TypedExpr {
-        use shiika_core::ty::TyBody;
+        use shiika_core::ty::{TyBody, TyParamKind};
         match &t.body {
             TyBody::TyRaw(_) => {
                 if t.has_type_args() {
@@ -185,10 +189,57 @@ impl<'a> Compiler<'a> {
                 let cref = mir::Expr::const_ref(const_name, meta_ty.into());
                 mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref)
             }
-            TyBody::TyPara(_) => {
-                todo!("lambda type arg with typaram: {:?}", t)
+            TyBody::TyPara(typaram_ref) => {
+                let sig = self
+                    .current_method_sig
+                    .as_ref()
+                    .expect("[BUG] lambda tyarg references typaram outside method scope");
+                match typaram_ref.kind {
+                    TyParamKind::Method => {
+                        let n_params = sig.params.len();
+                        let idx = 1 + n_params + typaram_ref.idx;
+                        mir::Expr::arg_ref(idx, typaram_ref.name.clone(), mir::Ty::raw("Class"))
+                    }
+                    TyParamKind::Class => {
+                        self.class_tvar_class_obj(sig.receiver_ty(), typaram_ref.idx)
+                    }
+                }
             }
         }
+    }
+
+    /// Build the runtime `Class` object for the i-th class typaram of `self_ty`
+    /// (matches the codegen done for `HirClassTVarRef`).
+    fn class_tvar_class_obj(&self, self_ty: TermTy, idx: usize) -> mir::TypedExpr {
+        let self_expr = self.compile_self_expr(self_ty);
+
+        let object_ty = mir::Ty::raw("Object");
+        let self_as_object = if self_expr.1 != object_ty {
+            mir::Expr::cast(mir::CastType::Upcast(object_ty.clone()), self_expr)
+        } else {
+            self_expr
+        };
+
+        let class_ty = mir::Ty::raw("Class");
+        let object_class_fun_ty =
+            mir::FunTy::new(mir::Asyncness::Unknown, vec![object_ty], class_ty.clone());
+        let object_class_ref = mir::Expr::func_ref(
+            FunctionName::method("Object", "class"),
+            object_class_fun_ty.into(),
+        );
+        let class_obj = mir::Expr::fun_call(object_class_ref, vec![self_as_object]);
+
+        let type_arg_fun_ty = mir::FunTy::new(
+            mir::Asyncness::Unknown,
+            vec![class_ty.clone(), mir::Ty::raw("Int")],
+            class_ty.clone(),
+        );
+        let type_arg_ref = mir::Expr::func_ref(
+            FunctionName::method("Class", "_type_argument"),
+            type_arg_fun_ty.into(),
+        );
+        let idx_expr = mir::Expr::number(idx as i64);
+        mir::Expr::fun_call(type_arg_ref, vec![class_obj, idx_expr])
     }
 
     fn convert_method_body(
