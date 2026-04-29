@@ -1,0 +1,9 @@
+class Main
+  def self.run<T>(x: T) -> T
+    let f = fn(){ x }
+    f()
+  end
+end
+puts "ng" unless Main.run(42) == 42
+
+puts "ok"
