@@ -171,6 +171,26 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// Build a runtime `Class` object expression for a type used as a tyarg
+    /// to `Meta:FnN#new` (i.e. lambda type parameters).
+    fn build_class_obj_for_tyarg(&self, t: &TermTy) -> mir::TypedExpr {
+        use shiika_core::ty::TyBody;
+        match &t.body {
+            TyBody::TyRaw(_) => {
+                if t.has_type_args() {
+                    todo!("lambda type arg with generic type: {:?}", t)
+                }
+                let meta_ty = t.meta_ty();
+                let const_name = meta_ty.erasure().to_const_fullname();
+                let cref = mir::Expr::const_ref(const_name, meta_ty.into());
+                mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref)
+            }
+            TyBody::TyPara(_) => {
+                todo!("lambda type arg with typaram: {:?}", t)
+            }
+        }
+    }
+
     fn convert_method_body(
         &mut self,
         body: SkMethodBody,
@@ -573,8 +593,23 @@ impl<'a> Compiler<'a> {
                 let func_name = lambda_func.name.clone();
                 self.lambda.lambda_funcs.push(lambda_func);
 
+                // Resolve runtime Class objects for the lambda's type args.
+                let tyarg_class_objs: Vec<_> = expr
+                    .ty
+                    .type_args()
+                    .iter()
+                    .map(|t| self.build_class_obj_for_tyarg(t))
+                    .collect();
+
                 // Build and return the Fn object expression
-                lambda::build_fn_object(func_name, &params, capture_values, ret_ty, expr.ty)
+                lambda::build_fn_object(
+                    func_name,
+                    &params,
+                    capture_values,
+                    ret_ty,
+                    expr.ty,
+                    tyarg_class_objs,
+                )
             }
             HirExpressionBase::HirIfExpression {
                 cond_expr,
