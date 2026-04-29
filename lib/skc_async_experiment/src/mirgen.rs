@@ -146,6 +146,13 @@ impl<'a> Compiler<'a> {
                 name: "self".to_string(),
             },
         );
+        // Method type parameters are passed as additional Class arguments
+        for typaram in &signature.typarams {
+            params.push(mir::Param {
+                ty: mir::Ty::raw("Class"),
+                name: typaram.name.clone(),
+            });
+        }
         // Pass 1: collect cell vars before converting body
         self.lambda.cell_vars = if let SkMethodBody::Normal { exprs } = &method.body {
             lambda::collect_cell_vars(exprs)
@@ -321,9 +328,12 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirMethodTVarRef {
                 typaram_ref,
-                n_params: _,
+                n_params,
             } => {
-                todo!("Handle method tvar ref: {:?}", typaram_ref)
+                // Method type parameters are passed as additional Class
+                // arguments after self and explicit params.
+                let idx = 1 + n_params + typaram_ref.idx;
+                mir::Expr::arg_ref(idx, typaram_ref.name.clone(), mir::Ty::raw("Class"))
             }
             HirExpressionBase::HirLVarDecl {
                 name,
@@ -374,6 +384,7 @@ impl<'a> Compiler<'a> {
                 receiver_expr,
                 method_fullname,
                 arg_exprs,
+                tyarg_exprs,
                 is_virtual,
                 ..
             } => {
@@ -387,6 +398,9 @@ impl<'a> Compiler<'a> {
                         .map(|e| e.ty.clone().into())
                         .collect::<Vec<_>>();
                     param_tys.insert(0, convert_ty(method_fullname.type_name.to_ty()));
+                    for _ in &tyarg_exprs {
+                        param_tys.push(mir::Ty::raw("Class"));
+                    }
                     mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
                 };
 
@@ -423,6 +437,12 @@ impl<'a> Compiler<'a> {
                     mir_receiver
                 };
                 mir_args.insert(0, receiver_for_call);
+                for tyarg in tyarg_exprs {
+                    let mir_tyarg = self.convert_expr(tyarg);
+                    let casted =
+                        mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), mir_tyarg);
+                    mir_args.push(casted);
+                }
 
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
             }
@@ -432,6 +452,7 @@ impl<'a> Compiler<'a> {
                 method_name,
                 method_idx,
                 arg_exprs,
+                tyarg_exprs,
                 ..
             } => {
                 let receiver_ty = receiver_expr.ty.clone();
@@ -444,6 +465,9 @@ impl<'a> Compiler<'a> {
                             .map(|e| e.ty.clone().into())
                             .collect::<Vec<_>>();
                         param_tys.insert(0, convert_ty(receiver_ty));
+                        for _ in &tyarg_exprs {
+                            param_tys.push(mir::Ty::raw("Class"));
+                        }
                         mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
                     };
 
@@ -461,6 +485,12 @@ impl<'a> Compiler<'a> {
                     .map(|arg| self.convert_expr(arg))
                     .collect();
                 mir_args.insert(0, mir_receiver);
+                for tyarg in tyarg_exprs {
+                    let mir_tyarg = self.convert_expr(tyarg);
+                    let casted =
+                        mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), mir_tyarg);
+                    mir_args.push(casted);
+                }
 
                 let result_ty = convert_ty(expr.ty.clone());
                 (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
@@ -833,6 +863,10 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
         .map(|x| convert_ty(x.ty.clone()))
         .collect::<Vec<_>>();
     param_tys.insert(0, convert_ty(sig.fullname.type_name.to_ty()));
+    // Method type parameters are passed as additional Class arguments.
+    for _ in &sig.typarams {
+        param_tys.push(mir::Ty::raw("Class"));
+    }
     mir::FunTy::new(
         sig.asyncness.clone().into(),
         param_tys,

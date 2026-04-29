@@ -1,0 +1,11 @@
+class Main
+  def self.foo<T>(x: T) -> Array<T>
+    let a = Array<T>.new()
+    a.push(x)
+    a
+  end
+end
+let ary = Main.foo(1)
+puts "ng" unless ary[0] == 1
+
+puts "ok"
