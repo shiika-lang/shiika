@@ -463,7 +463,8 @@ impl<'a> Compiler<'a> {
                 // Method type parameters are passed as additional Class
                 // arguments after self and explicit params.
                 let idx = 1 + n_params + typaram_ref.idx;
-                mir::Expr::arg_ref(idx, typaram_ref.name.clone(), mir::Ty::raw("Class"))
+                let arg = mir::Expr::arg_ref(idx, typaram_ref.name.clone(), mir::Ty::raw("Class"));
+                mir::Expr::cast(mir::CastType::Force(result_ty.clone()), arg)
             }
             HirExpressionBase::HirLVarDecl {
                 name,
