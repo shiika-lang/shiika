@@ -18,6 +18,7 @@ fn define_class_struct(gen: &mut CodeGen, class: &MirClass) {
     let ivars: Vec<inkwell::types::BasicTypeEnum> = match &class.name[..] {
         "Bool" => vec![gen.context.bool_type().into()],
         "Int" => vec![gen.context.i64_type().into()],
+        "Float" => vec![gen.context.f64_type().into()],
         _ => class
             .ivars
             .iter()
