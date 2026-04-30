@@ -227,7 +227,7 @@ task :compat do
     log.puts "--- Testing #{path} ---"
     next if filter && !path.include?(filter)
     name = path.sub(".sk", "")
-    compile_output = `#{bin} #{name}.sk 2>&1`
+    compile_output = `#{bin} compile #{name}.sk 2>&1`
     log.puts compile_output
     next unless $?.success?
     output = nil
