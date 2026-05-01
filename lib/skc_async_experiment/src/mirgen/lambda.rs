@@ -192,7 +192,12 @@ pub fn compile_lambda_capture_write(
 }
 
 /// Build the expression that evaluates to the captured value at the call site.
-pub fn get_capture_value(cap: &HirLambdaCapture) -> mir::TypedExpr {
+/// `current_fn_class` is the enclosing lambda's Fn class (if any) — needed
+/// for `CaptureFwd`, which forwards from the enclosing lambda's `@captures`.
+pub fn get_capture_value(
+    cap: &HirLambdaCapture,
+    current_fn_class: &Option<String>,
+) -> mir::TypedExpr {
     match &cap.detail {
         HirLambdaCaptureDetail::CaptureLVar { name } => {
             if !cap.readonly {
@@ -216,7 +221,22 @@ pub fn get_capture_value(cap: &HirLambdaCapture) -> mir::TypedExpr {
                 mir::Ty::raw("Class"),
             )
         }
-        _ => todo!("Unsupported capture type: {:?}", cap.detail),
+        HirLambdaCaptureDetail::CaptureFwd { cidx } => {
+            // Forward from the enclosing lambda's @captures: the value is
+            // already stored there in the right form (cell-Ptr for var,
+            // value for let), so pass it through without dereferencing.
+            let fn_class = current_fn_class
+                .as_ref()
+                .expect("[BUG] CaptureFwd outside lambda");
+            let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
+            let captures = mir::Expr::ivar_ref(fn_obj, 1, "@captures".to_string(), mir::Ty::Ptr);
+            let elem_ty: mir::Ty = if cap.readonly {
+                cap.ty.clone().into()
+            } else {
+                mir::Ty::Ptr
+            };
+            mir::Expr::native_array_ref(captures, *cidx, elem_ty)
+        }
     }
 }
 

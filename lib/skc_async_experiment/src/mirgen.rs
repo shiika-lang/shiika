@@ -690,10 +690,12 @@ impl<'a> Compiler<'a> {
                 self.lambda.cell_vars = saved_cell_vars;
                 self.lambda.current_fn_class = saved_fn_class;
 
-                // Collect capture values
+                // Collect capture values. `current_fn_class` was just restored
+                // to the enclosing lambda's class (if any), which is needed
+                // to forward captures from a parent lambda's @captures.
                 let capture_values: Vec<_> = captures
                     .iter()
-                    .map(|cap| lambda::get_capture_value(cap))
+                    .map(|cap| lambda::get_capture_value(cap, &self.lambda.current_fn_class))
                     .collect();
 
                 // Build the lambda function and push it
