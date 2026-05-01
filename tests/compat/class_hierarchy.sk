@@ -1,0 +1,18 @@
+unless Int.name == "Int"; puts "ng Int"; end
+unless Int.class.name == "Meta:Int"; puts "ng Meta:Int"; end
+unless Int.class.class.name == "Metaclass"; puts "ng Int Metaclass"; end
+
+unless Class.name == "Class"; puts "ng Class"; end
+unless Class.class.name == "Meta:Class"; puts "ng Meta:Class"; end
+unless Class.class.class.name == "Metaclass"; puts "ng Class Metaclass"; end
+
+let metaclass = Int.class.class
+unless Metaclass == metaclass; puts "ng Metaclass"; end
+unless metaclass.name == "Metaclass"; puts "ng Metaclass"; end
+unless metaclass.class == Metaclass; puts "ng metaclass.class"; end
+
+unless Array<Int>.new.class == Array<Int>; puts "ng Array<Int>"; end
+unless [1].class == Array<Int>; puts "ng [1].class"; end
+unless Array<Int>.name == "Array<Int>"; puts "ng Array<Int>.name"; end
+
+puts "ok"

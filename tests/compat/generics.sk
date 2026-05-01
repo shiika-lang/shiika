@@ -1,0 +1,28 @@
+class A
+  def self.foo(a: Array<Int>) -> Int
+    a[0]
+  end
+end
+if A.foo([99]) != 99; puts "ng 1"; end
+
+let a = Array<Array<Int>>.new
+unless a.length == 0; puts "ng 2"; end
+
+# Type parameter substitution
+class Foo<T>
+  def bar<W>(f: Fn1<T, W>) -> Int
+    let foo = Foo<W>.new
+    foo.bar<Int>{|arg: W| 0} if false
+    99
+  end
+end
+unless Foo<String>.new.bar<Int>{|arg: String| 0} == 99; puts "ng Type parameter substitution"; end
+
+class Issue422<X>
+  def foo(x: X) -> Array<X>
+    [1,2,3].map<X>{|i| x}
+  end
+end
+unless Issue422<Bool>.new.foo(true) == [true,true,true]; puts "ng #422"; end
+
+puts "ok"
