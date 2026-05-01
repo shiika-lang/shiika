@@ -1,5 +1,10 @@
-use shiika_ffi::core_class::{SkBool, SkInt};
+use shiika_ffi::core_class::{SkBool, SkFloat, SkInt};
 use shiika_ffi_macro::{async_shiika_method, shiika_method};
+
+#[shiika_method("Int#-@")]
+pub extern "C" fn int_uminus(receiver: SkInt) -> SkInt {
+    (-receiver.val()).into()
+}
 
 #[shiika_method("Int#+")]
 pub extern "C" fn int_add(receiver: SkInt, other: SkInt) -> SkInt {
@@ -16,12 +21,12 @@ pub extern "C" fn int_mul(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() * other.val()).into()
 }
 
-//#[shiika_method("Int#/")]
-//pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkFloat {
-//    let a = receiver.val() as f64;
-//    let b = other.val() as f64;
-//    (a / b).into()
-//}
+#[shiika_method("Int#/")]
+pub extern "C" fn int_div(receiver: SkInt, other: SkInt) -> SkFloat {
+    let a = receiver.val() as f64;
+    let b = other.val() as f64;
+    (a / b).into()
+}
 
 #[shiika_method("Int#%")]
 pub extern "C" fn int_mod(receiver: SkInt, other: SkInt) -> SkInt {
@@ -53,23 +58,23 @@ pub extern "C" fn int_rshift(receiver: SkInt, other: SkInt) -> SkInt {
     (receiver.val() >> other.val()).into()
 }
 
-#[shiika_method("Int#<")]
-pub extern "C" fn int_lt(receiver: SkInt, other: SkInt) -> SkBool {
+#[async_shiika_method("Int#<")]
+async fn int_lt(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() < other.val()).into()
 }
 
-#[shiika_method("Int#<=")]
-pub extern "C" fn int_le(receiver: SkInt, other: SkInt) -> SkBool {
+#[async_shiika_method("Int#<=")]
+async fn int_le(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() <= other.val()).into()
 }
 
-#[shiika_method("Int#>")]
-pub extern "C" fn int_gt(receiver: SkInt, other: SkInt) -> SkBool {
+#[async_shiika_method("Int#>")]
+async fn int_gt(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() > other.val()).into()
 }
 
-#[shiika_method("Int#>=")]
-pub extern "C" fn int_ge(receiver: SkInt, other: SkInt) -> SkBool {
+#[async_shiika_method("Int#>=")]
+async fn int_ge(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() >= other.val()).into()
 }
 
@@ -78,7 +83,7 @@ async fn int_eq(receiver: SkInt, other: SkInt) -> SkBool {
     (receiver.val() == other.val()).into()
 }
 
-//#[shiika_method("Int#to_f")]
-//pub extern "C" fn int_to_f(receiver: SkInt) -> SkFloat {
-//    (receiver.val() as f64).into()
-//}
+#[shiika_method("Int#to_f")]
+pub extern "C" fn int_to_f(receiver: SkInt) -> SkFloat {
+    (receiver.val() as f64).into()
+}

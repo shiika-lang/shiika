@@ -1,0 +1,27 @@
+class Random
+  def self.initialize
+    # Cannot do this yet (#455)
+    # let @rand = Random._without_seed
+  end
+
+  # Create an instance of `Random` without explicit seed.
+  # def self._without_seed
+
+  def self.int(from: Int, to: Int) -> Int
+    Random._without_seed.int(from, to)
+  end
+
+  def self.float -> Float
+    Random._without_seed.float
+  end
+
+  def initialize(seed: Int)
+    _initialize_rustlib(seed)
+  end
+
+  # Returns a random integer (end-exclusive).
+  # def int(from: Int, to: Int) -> Int
+
+  # Returns a random float between 0.0 and 1.0 (end-exclusive).
+  # def float -> Float
+end

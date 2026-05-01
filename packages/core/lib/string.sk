@@ -1,2 +1,84 @@
+require "./mutable_string.sk"
+
 class String
+  # TODO: I thought these are not necessary anymore but test fails without these
+  #def ptr -> Shiika::Internal::Ptr; @ptr; end
+
+  # Create an array of bytes of `self`
+  def bytes -> Array<Int>
+    let ret = Array<Int>.new
+    each_byte do |b|
+      ret.push(b)
+    end
+    ret
+  end
+
+  # Returns list of characters (more specifically,
+  # grapheme clusters).
+  #def chars -> Array<String>
+
+  # Call `f` for each byte
+  def each_byte(f: Fn1<Int, Void>)
+    bytesize.times do |i|
+      f(nth_byte(i))
+    end
+  end
+
+  # Call `f` for each char
+  # TODO: support multibyte
+  def each_char(f: Fn1<String, Void>)
+    bytesize.times do |i|
+      f(slice_bytes(i, 1))
+    end
+  end
+
+  # Call `f` for each line
+  def each_line(f: Fn1<String, Void>)
+    self.lines.each(f)
+  end
+
+  # Return an array of lines of `self`. The `\n` of each line is deleted.
+  def lines -> Array<String>
+    split("\n")
+  end
+
+  # Split `self` with separator
+  def split(sep: String) -> Array<String>
+    if sep.bytesize == 0
+      [self]
+    else
+      let ret = Array<String>.new
+      var word_start = 0
+      var sep_cur = 0
+      var i = 0
+      while i < bytesize
+        if self.nth_byte(i) == sep.nth_byte(sep_cur)
+          sep_cur += 1
+          if sep_cur == sep.bytesize
+            # Found a separator.
+            ret.push(self.slice_bytes(word_start, i - word_start - sep.bytesize + 1))
+            word_start = i + 1
+            sep_cur = 0
+          end
+        else
+          # Not a separator here
+          sep_cur = 0
+        end
+        i += 1
+      end
+      # The last part
+      if word_start < bytesize
+        ret.push(self.slice_bytes(word_start, bytesize - word_start))
+      end
+
+      ret
+    end
+  end
+
+  # Create mutable clone of `self`
+  def to_mutable -> MutableString
+    let ret = MutableString.new
+    ret.append(self)
+    ret
+  end
 end

@@ -1,2 +1,263 @@
-class Array<T>
+require "./enumerable.sk"
+require "./maybe.sk"
+
+class Array<T> : Enumerable<T>
+  # Build an array of length `len` by passing index to `f`
+  def self.build<U>(len: Int, f: Fn1<Int, U>) -> Array<U>
+    let ret = Array<U>.new
+    ret.reserve(len)
+    var i=0; while i<len
+      ret.push(f(i))
+      i += 1
+    end
+    ret
+  end
+
+  # Creates an empty array and preallocate memory for `capa` elements.
+  def self.repeat<U>(item: U, len: Int) -> Array<U>
+    let ret = Array<U>.new
+    ret.reserve(len)
+    var i=0; while i<len
+      ret.push(item)
+      i += 1
+    end
+    ret
+  end
+
+  # Makes an array by concatenating `self` and `other`.
+  def +(other: Array<T>) -> Array<T>
+    let a = Array<T>.new
+    a.append(self)
+    a.append(other)
+    a
+  end
+
+  # Return true if `other` has the same elements as `self` (compared by `==`.)
+  def ==(other: Array<T>) -> Bool
+    if self.length != other.length
+      false
+    else
+      var ret = true
+      0.upto(self.length - 1) do |i|
+        if self[i] != other[i]
+          ret = false
+          break
+        end
+      end
+      ret
+    end
+  end
+
+  # Replace the `i`th item with `obj`
+  # Count from the last if `i` is less than zero
+  # Panics if the index is out of range
+  #def []=(i: Int, obj: T)
+
+  # Add elements of `other` to the end of `self`
+  def append(other: Array<T>)
+    other.each do |item|
+      push(item)
+    end
+  end
+
+  # Create shallow clone of `self`
+  def clone -> Array<T>
+    let ret = Array<T>.new
+    each do |item|
+      ret.push(item)
+    end
+    ret
+  end
+
+  # Create an array which contains elements of `self` without first `n` elements.
+  def drop(n: Int) -> Array<T>
+    let ret = Array<T>.new
+    n.upto(length - 1) do |i|
+      ret.push(self[i])
+    end
+    ret
+  end
+
+  # Call `f` with each element of `self`
+  def each(f: Fn1<T, Void>)
+    var i = 0; while i < length
+      f(self[i])
+      i += 1
+    end
+  end
+
+  # Returns the first element, unless `self` is empty.
+  def first -> Maybe<T>
+    if self.empty?
+      None
+    else
+      Some.new(self[0])
+    end
+  end
+
+  # Returns a shallow copy of `self` which has first `n` elements (at most).
+  def first_n(n: Int) -> Array<T>
+    let a = Array<T>.new
+    0.upto(n-1) do |i|
+      break if i >= length
+      a.push(self[i])
+    end
+    a
+  end
+
+  # Return string representation of `self` (for debugging)
+  def inspect -> String
+    var first = true
+    let ret = MutableString.new
+    ret.append("[")
+    each do |item|
+      if first
+        first = false
+      else
+        ret.append(", ")
+      end
+      ret.append(item.inspect)
+    end
+    ret.append("]")
+    ret._unsafe_to_s
+  end
+
+  # Return true if `self` has no elements
+  def empty? -> Bool
+    length == 0
+  end
+
+  # Returns the last item, unless `self` is empty.
+  def last -> Maybe<T>
+    if empty?
+      None
+    else
+      Some.new(self[length - 1])
+    end
+  end
+
+  # Return the number of items
+  #def length -> Int
+
+  # Remove the last element and return it
+  #def pop -> T
+
+  # Push an object to the end of `self`
+  #def push(value: T)
+
+  # Create an array which contains items of `self` for which `f` does not return true
+  def reject(f: Fn1<T, Bool>) -> Array<T>
+    let ret = Array<T>.new
+    each do |item|
+      ret.push(item) unless f(item)
+    end
+    ret
+  end
+
+  # Reserves capacity for at least `additional` elements to be inserted
+  # without reallocation. Does nothing if capacity is already sufficient.
+  #def reserve(additional: Int)
+
+  # Create a new array which has reversed elements of `self`
+  def reverse -> Array<T>
+    let ret = Array<T>.new
+    reverse_each do |item|
+      ret.push(item)
+    end
+    ret
+  end
+
+  # Call `f` with each element of `self` in the reversed order
+  def reverse_each(f: Fn1<T, Void>)
+    var i = length - 1; while i >= 0
+      f(self[i])
+      i -= 1
+    end
+  end
+
+  # Returns a random element of `self`.
+  def sample -> T
+    self[Random.int(0, self.length)]
+  end
+
+  # Removes the first element and returns it.
+  # Panics if `self` is empty
+  #def shift -> Maybe<T>
+
+  # Create sorted version of `self`
+  # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
+  def sort -> Array<T>
+    let ret = self.clone
+    ret.sort_inplace
+    ret
+  end
+
+  # Destructively sort elements of `self`.
+  # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)
+  def sort_inplace()
+    if self.empty?
+      # do nothing
+    else
+      _quicksort(0, length - 1)
+    end
+  end
+  def _quicksort(i: Int, j: Int)
+    if i == j
+      # done
+    else
+      let k = _partition(i, j, self[_choose_pivot(i, j)])
+      _quicksort(i, k-1)
+      _quicksort(k, j)
+    end
+  end
+  def _choose_pivot(i: Int, j: Int) -> Int
+    var k = i + 1
+    while k <= j and self[i] == self[k]
+      k += 1
+    end
+    if k > j
+      -1
+    elsif self[i] >= self[k]
+      i
+    else
+      k
+    end
+  end
+  def _partition(i: Int, j: Int, pivot: T) -> Int
+    var l = i
+    var r = j
+    while l <= r
+      while l <= j and self[l] < pivot
+        l += 1
+      end
+      while r >= i and self[r] >= pivot
+        r -= 1
+      end
+      if l > r
+        #break  # #215
+      else
+        let tmp = self[l]
+        self[l] = self[r]
+        self[r] = tmp
+        l += 1
+        r -= 1
+      end
+    end
+    l
+  end
+
+  # Returns shallow copies of `self`, split at `idx`. The element at `idx` belongs to the latter.
+  # The latter will be empty if `idx` equals to or greater than `self.length`.
+  def split_at(idx: Int) -> Pair<Array<T>, Array<T>>
+    let a = Array<T>.new
+    let b = Array<T>.new
+    0.upto(length-1) do |i|
+      if i >= idx
+        b.push(self[i])
+      else
+        a.push(self[i])
+      end
+    end
+    Pair.new(a, b)
+  end
 end

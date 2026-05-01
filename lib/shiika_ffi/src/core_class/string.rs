@@ -14,6 +14,12 @@ pub struct SkString(*mut ShiikaString);
 
 unsafe impl Send for SkString {}
 
+impl crate::SkValue for SkString {
+    fn as_raw_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
 struct ShiikaString {
@@ -33,6 +39,10 @@ impl SkString {
     pub fn from_rust_string(s_: impl Into<String>) -> SkString {
         let s = s_.into();
         meta_string_new(sk_String(), s.as_ptr(), s.len() as u64)
+    }
+
+    pub fn from_vec(v: Vec<u8>) -> SkString {
+        meta_string_new(sk_String(), v.as_ptr(), v.len() as u64)
     }
 
     pub fn value(&self) -> &[u8] {

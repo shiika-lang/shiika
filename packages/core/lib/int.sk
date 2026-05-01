@@ -1,2 +1,85 @@
 class Int
+  # Returns the absolute value of `self`.
+  def abs -> Int
+    if self >= 0
+      self
+    else
+      -self
+    end
+  end
+
+  # Calls `f` by passing numbers from `self` to `n`.
+  def downto(n: Int, f: Fn1<Int, Void>)
+    var i = self; while i >= n
+      f(i)
+      i -= 1
+    end
+  end
+
+  # Returns true if `self` is even.
+  def even? -> Bool
+    self % 2 == 0
+  end
+
+  # Returns true if `self` is odd.
+  def odd? -> Bool
+    self % 2 != 0
+  end
+
+  # Return the hash value of `self`.
+  def hash -> Int
+    self
+  end
+
+  # Calls `f` for `self` times, passing numbers from zero to `self - 1`.
+  def times(f: Fn1<Int, Void>)
+    var i = 0; while i < self
+      f(i)
+      i += 1
+    end
+  end
+
+  # Returns `self`.
+  def to_i -> Int
+    self
+  end
+
+  # Returns string representation of `self`.
+  def to_s -> String
+    var minus = false
+    var n = self
+    if self < 0
+      minus = true
+      n = -self
+    end
+
+    let a = Array<Int>.new
+    while true
+      a.push((n % 10) + 48)  # 48 = "0"
+      n = (n / 10).to_i
+      if n == 0
+        break
+      end
+    end
+
+    let ret = MutableString.new
+    var i = 0
+    if minus
+      ret.append("-") 
+      i = 1
+    end
+    a.reverse_each do |b|
+      ret.write_byte(i, b)
+      i += 1
+    end
+    ret._unsafe_to_s
+  end
+
+  # Calls `f` by passing numbers from `self` to `n`.
+  def upto(n: Int, f: Fn1<Int, Void>)
+    var i = self; while i <= n
+      f(i)
+      i += 1
+    end
+  end
 end

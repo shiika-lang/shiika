@@ -35,8 +35,8 @@ pub fn compile(args: TokenStream, input: TokenStream) -> TokenStream {
         if returns_unit {
             quote! { Poll::Ready(_) => Poll::Ready(0) }
         } else {
-            // For Shiika values, get the inner ptr and cast to u64
-            quote! { Poll::Ready(x) => Poll::Ready(x.0 as u64) }
+            // For Shiika values, use SkValue trait to convert to u64
+            quote! { Poll::Ready(x) => Poll::Ready(shiika_ffi::SkValue::as_raw_u64(x)) }
         }
     };
 

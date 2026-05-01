@@ -1,0 +1,45 @@
+enum Result<V>
+  case Ok(value: V)
+  case Fail(err: Error)
+
+  def self.fail(msg: String) -> Fail
+    Fail.new(Error.new(msg))
+  end
+
+  def fail? -> Bool
+    match self
+    when Fail(_) then true
+    else false
+    end
+  end
+
+  def ok? -> Bool
+    match self
+    when Ok(_) then true
+    else false
+    end
+  end
+
+  # Special method which returns the `value` if this is `Ok` and otherwise escapes the 
+  # current method like `return self`.
+  def try! # -> V or Never
+    # Call to this method is replaced with a pattern match in
+    # skc_ast2hir.
+  end
+
+  def unwrap -> V
+    match self
+    when Ok(v) then v
+    when Fail(e) then panic(e.msg)
+    end
+  end
+
+  def inspect -> String
+    match self
+    when Ok(v) then "#<Ok(\{v})>"
+    when Fail(e) then "#<Fail(\{e})>"
+    end
+  end
+end
+Ok = Result::Ok
+Fail = Result::Fail

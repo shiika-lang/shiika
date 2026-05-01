@@ -103,7 +103,9 @@ impl Compiler {
                 mir::Expr::if_(new_cond, new_then, new_else)
             }
             mir::Expr::While(cond, body) => {
-                let new_cond = self.let_bind_if_needed(new_body_stmts, *cond);
+                // Don't hoist the cond out of the loop; async_splitter
+                // re-evaluates it on each iteration via the beginwhile chapter.
+                let new_cond = self.compile_expr(new_body_stmts, *cond);
                 let new_body = self.run(*body);
                 mir::Expr::while_(new_cond, new_body)
             }

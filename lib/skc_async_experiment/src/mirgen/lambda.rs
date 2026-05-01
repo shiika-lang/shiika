@@ -207,6 +207,15 @@ pub fn get_capture_value(cap: &HirLambdaCapture) -> mir::TypedExpr {
             // Args are captured by value (+1 for self receiver)
             mir::Expr::arg_ref(idx + 1, "captured_arg", cap.ty.clone().into())
         }
+        HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
+            // Method tyargs are passed as additional Class args after self
+            // and explicit params, matching HirMethodTVarRef in mirgen.rs.
+            mir::Expr::arg_ref(
+                1 + n_params + idx,
+                "captured_method_tyarg",
+                mir::Ty::raw("Class"),
+            )
+        }
         _ => todo!("Unsupported capture type: {:?}", cap.detail),
     }
 }

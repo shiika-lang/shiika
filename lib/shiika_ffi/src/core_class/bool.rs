@@ -8,6 +8,12 @@ pub struct SkBool(pub *const ShiikaBool);
 
 unsafe impl Send for SkBool {}
 
+impl crate::SkValue for SkBool {
+    fn as_raw_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct ShiikaBool {

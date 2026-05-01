@@ -7,6 +7,7 @@ use shiika_core::ty::Erasure;
 pub fn define(gen: &mut CodeGen) -> Result<()> {
     define_box_int(gen)?;
     define_box_bool(gen)?;
+    define_box_float(gen)?;
     Ok(())
 }
 
@@ -43,6 +44,31 @@ fn define_box_bool(gen: &mut CodeGen) -> Result<()> {
     let struct_type = llvm_struct::get(gen, &Erasure::nonmeta("Bool"));
     instance::build_ivar_store_raw(gen, sk_bool.clone(), &struct_type, 0, bool_val, "llvm_bool")?;
     gen.builder.build_return(Some(&sk_bool.0))?;
+    Ok(())
+}
+
+fn define_box_float(gen: &mut CodeGen) -> Result<()> {
+    let fn_type = gen
+        .ptr_type()
+        .fn_type(&[gen.context.f64_type().into()], false);
+    let function = gen
+        .module
+        .add_function("shiika_intrinsic_box_float", fn_type, None);
+    let basic_block = gen.context.append_basic_block(function, "");
+    gen.builder.position_at_end(basic_block);
+
+    let f64_val = function.get_params()[0];
+    let sk_float = instance::allocate_sk_obj(gen, &Erasure::nonmeta("Float"))?;
+    let struct_type = llvm_struct::get(gen, &Erasure::nonmeta("Float"));
+    instance::build_ivar_store_raw(
+        gen,
+        sk_float.clone(),
+        &struct_type,
+        0,
+        f64_val,
+        "llvm_float",
+    )?;
+    gen.builder.build_return(Some(&sk_float.0))?;
     Ok(())
 }
 

@@ -1,19 +1,12 @@
 use shiika_ffi::core_class::{SkBool, SkClass, SkInt, SkObject, SkString};
+use shiika_ffi::SkValue;
 use shiika_ffi_macro::async_shiika_method;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
 
 #[async_shiika_method("Object#==")]
 async fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
-    (receiver.0 == other.0).into()
-}
-
-#[async_shiika_method("Object#panic")]
-async fn object_panic(_receiver: SkObject, s: SkString) {
-    let bytes = s.value();
-    let msg = std::str::from_utf8(bytes).unwrap_or("<panic: invalid utf-8>");
-    eprintln!("panic: {}", msg);
-    std::process::exit(1);
+    (receiver.as_raw_u64() == other.as_raw_u64()).into()
 }
 
 #[async_shiika_method("Object#class")]
@@ -34,6 +27,16 @@ async fn object_puts(_receiver: SkObject, s: SkString) {
     stdout.write_all(s.value()).await.unwrap();
     stdout.write_all(b"\n").await.unwrap();
     stdout.flush().await.unwrap();
+}
+
+#[async_shiika_method("Object#panic")]
+async fn object_panic(_receiver: SkObject, msg: SkString) {
+    panic!("{}", std::str::from_utf8(msg.value()).unwrap());
+}
+
+#[async_shiika_method("Object#object_id")]
+async fn object_object_id(receiver: SkObject) -> SkInt {
+    (receiver.as_raw_u64() as i64).into()
 }
 
 #[async_shiika_method("Object#sleep_sec")]
