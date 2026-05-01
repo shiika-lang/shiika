@@ -10,6 +10,7 @@ pub type TypedExpr = Typed<Expr>;
 #[derive(Debug, Clone)]
 pub enum Expr {
     Number(i64),
+    Float(f64),
     PseudoVar(PseudoVar),
     StringLiteral(String),
     LVarRef(String),
@@ -106,6 +107,11 @@ impl Expr {
     // A Shiika number (boxed int)
     pub fn number(n: i64) -> TypedExpr {
         (Expr::Number(n), Ty::raw("Int"))
+    }
+
+    // A Shiika float (boxed f64)
+    pub fn float(n: f64) -> TypedExpr {
+        (Expr::Float(n), Ty::raw("Float"))
     }
 
     pub fn pseudo_var(var: PseudoVar) -> TypedExpr {
@@ -363,6 +369,7 @@ impl Expr {
     pub fn contains_async_call(&self) -> bool {
         match &self {
             Expr::Number(_) => false,
+            Expr::Float(_) => false,
             Expr::PseudoVar(_) => false,
             Expr::StringLiteral(_) => false,
             Expr::LVarRef(_) => false,
@@ -441,6 +448,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
     let mut indent = as_stmt;
     let s = match node {
         Expr::Number(n) => format!("{}", n),
+        Expr::Float(n) => format!("{:?}", n),
         Expr::PseudoVar(PseudoVar::True) => "true".to_string(),
         Expr::PseudoVar(PseudoVar::False) => "false".to_string(),
         Expr::PseudoVar(PseudoVar::Void) => "Void".to_string(),

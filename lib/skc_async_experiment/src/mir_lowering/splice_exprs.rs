@@ -39,6 +39,7 @@ fn splice_exprs(exprs: mir::TypedExpr) -> mir::TypedExpr {
 fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::TypedExpr {
     match expr.0 {
         mir::Expr::Number(_) => expr,
+        mir::Expr::Float(_) => expr,
         mir::Expr::PseudoVar(_) => expr,
         mir::Expr::StringLiteral(_) => expr,
         mir::Expr::LVarRef(_) => expr,

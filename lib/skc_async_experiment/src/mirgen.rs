@@ -367,9 +367,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::string_literal(self.str_literals[idx].clone())
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
-            HirExpressionBase::HirFloatLiteral { value } => {
-                todo!("Handle float literal: {}", value)
-            }
+            HirExpressionBase::HirFloatLiteral { value } => mir::Expr::float(value),
             HirExpressionBase::HirArrayLiteral { elem_exprs } => {
                 let mir_elements: Vec<mir::TypedExpr> = elem_exprs
                     .into_iter()

@@ -27,6 +27,7 @@ pub trait MirVisitor {
     fn walk_expr(&mut self, expr: &mir::TypedExpr) -> Result<()> {
         match &expr.0 {
             mir::Expr::Number(_) => {}
+            mir::Expr::Float(_) => {}
             mir::Expr::PseudoVar(_) => {}
             mir::Expr::LVarRef(_) => {}
             mir::Expr::IVarRef(obj_expr, _, _) => {

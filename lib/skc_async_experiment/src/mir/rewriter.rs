@@ -24,6 +24,7 @@ pub trait MirRewriter {
     fn walk_expr(&mut self, expr: mir::TypedExpr) -> Result<mir::TypedExpr> {
         let new_expr = match expr.0 {
             mir::Expr::Number(_) => expr,
+            mir::Expr::Float(_) => expr,
             mir::Expr::PseudoVar(_) => expr,
             mir::Expr::LVarRef(_) => expr,
             mir::Expr::IVarRef(obj_expr, idx, name) => {

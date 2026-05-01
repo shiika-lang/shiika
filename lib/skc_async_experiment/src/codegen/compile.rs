@@ -91,6 +91,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
         Ok(match &texpr.0 {
             mir::Expr::Number(n) => self.compile_number(*n),
+            mir::Expr::Float(n) => self.compile_float(*n),
             mir::Expr::StringLiteral(s) => self.compile_string_literal(s),
             mir::Expr::CreateNativeArray(elems) => self.compile_create_native_array(ctx, elems)?,
             mir::Expr::NativeArrayRef(arr, idx) => self.compile_native_array_ref(ctx, arr, *idx)?,
@@ -154,6 +155,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
         Some(intrinsics::box_int(self, n).into())
+    }
+
+    fn compile_float(&mut self, n: f64) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        Some(intrinsics::box_float(self, n).into())
     }
 
     fn compile_string_literal(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {
