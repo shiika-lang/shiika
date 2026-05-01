@@ -59,7 +59,10 @@ pub fn run(
 
         funcs.extend(const_init_funcs(&uni, &mut c));
         if target.is_bin() {
-            funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
+            funcs.extend(wtables::inserter_funcs(
+                &uni.hir.sk_types,
+                &uni.imports.sk_types,
+            ));
         }
 
         for (_, ms) in uni.hir.sk_methods {
