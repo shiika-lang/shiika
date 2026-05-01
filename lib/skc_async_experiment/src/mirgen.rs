@@ -380,6 +380,15 @@ impl<'a> Compiler<'a> {
                 let element_count = mir_elements.len();
                 let count_expr = mir::Expr::raw_i64(element_count as i64);
 
+                // Build the specialized `Array<T>` class object so that the
+                // resulting instance carries a class with non-null type_args
+                // (needed for runtime `Class#_type_argument` lookups).
+                let specialized_class = self.build_class_obj_for_tyarg(&expr.ty);
+                let receiver_expr = mir::Expr::cast(
+                    mir::CastType::Force(mir::Ty::meta("Array")),
+                    specialized_class,
+                );
+
                 // Call Meta:Array#_from_raw(class_obj, ptr, len) -> Array<T>
                 let from_raw_fun_ty = mir::FunTy::new(
                     mir::Asyncness::Sync,
@@ -390,12 +399,7 @@ impl<'a> Compiler<'a> {
                     FunctionName::method("Meta:Array", "_from_raw"),
                     from_raw_fun_ty.into(),
                 );
-                let class_obj_expr =
-                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
-                mir::Expr::fun_call(
-                    func_ref,
-                    vec![class_obj_expr, native_array_expr, count_expr],
-                )
+                mir::Expr::fun_call(func_ref, vec![receiver_expr, native_array_expr, count_expr])
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
