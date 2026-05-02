@@ -15,6 +15,9 @@ pub struct LambdaContext {
     pub cell_vars: HashSet<String>,
     /// The Fn class name for the current lambda being compiled (e.g. "Fn1")
     pub current_fn_class: Option<String>,
+    /// Return type of the function/lambda whose body is currently being compiled.
+    /// Used to decide whether `break`-propagation (`return ::Void`) is well-typed.
+    pub current_ret_ty: Option<mir::Ty>,
 }
 
 impl LambdaContext {
@@ -23,6 +26,7 @@ impl LambdaContext {
             lambda_funcs: vec![],
             cell_vars: HashSet::new(),
             current_fn_class: None,
+            current_ret_ty: None,
         }
     }
 }

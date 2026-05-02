@@ -165,7 +165,12 @@ impl<'a> Compiler<'a> {
             HashSet::new()
         };
         let saved_sig = self.current_method_sig.replace(signature.clone());
+        let saved_ret_ty = self
+            .lambda
+            .current_ret_ty
+            .replace(convert_ty(signature.ret_ty.clone()));
         let body_stmts = self.convert_method_body(method.body, &signature);
+        self.lambda.current_ret_ty = saved_ret_ty;
         self.current_method_sig = saved_sig;
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
@@ -643,8 +648,16 @@ impl<'a> Compiler<'a> {
                     .map(|a| self.convert_expr(a))
                     .collect();
                 let call_result = lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args);
-                // After lambda call, check @exit_status for break support
-                if call_result.1 == mir::Ty::raw("Void") {
+                // After lambda call, check @exit_status for break support.
+                // The check emits `return ::Void`, so only emit it when the
+                // surrounding function's return type is Void; otherwise the
+                // generated MIR would be ill-typed.
+                let in_void_ctx = self
+                    .lambda
+                    .current_ret_ty
+                    .as_ref()
+                    .map_or(false, |t| *t == mir::Ty::raw("Void"));
+                if in_void_ctx && call_result.1 == mir::Ty::raw("Void") {
                     let exit_status = mir::Expr::ivar_ref(
                         fn_obj_for_check,
                         2,
@@ -687,6 +700,10 @@ impl<'a> Compiler<'a> {
                 // Save state and set up lambda scope
                 let saved_cell_vars = std::mem::take(&mut self.lambda.cell_vars);
                 let saved_fn_class = self.lambda.current_fn_class.take();
+                let saved_ret_ty = self
+                    .lambda
+                    .current_ret_ty
+                    .replace(convert_ty(ret_ty.clone()));
                 self.lambda.cell_vars = lambda::collect_cell_vars(&*exprs);
                 self.lambda.current_fn_class = Some(fn_class.clone());
 
@@ -696,6 +713,7 @@ impl<'a> Compiler<'a> {
                 // Restore state
                 self.lambda.cell_vars = saved_cell_vars;
                 self.lambda.current_fn_class = saved_fn_class;
+                self.lambda.current_ret_ty = saved_ret_ty;
 
                 // Collect capture values. `current_fn_class` was just restored
                 // to the enclosing lambda's class (if any), which is needed
@@ -919,11 +937,13 @@ impl<'a> Compiler<'a> {
             }
             vars
         };
+        let saved_ret_ty = self.lambda.current_ret_ty.replace(mir::Ty::raw("Int"));
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
         body_stmts.push(wtables::call_main_inserter());
         body_stmts.extend(top_exprs.into_iter().map(|expr| self.convert_expr(expr)));
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+        self.lambda.current_ret_ty = saved_ret_ty;
         mir::Function {
             asyncness: mir::Asyncness::Unknown,
             name: mir::main_function_inner_name(),
