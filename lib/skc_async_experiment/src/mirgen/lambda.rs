@@ -221,6 +221,10 @@ pub fn get_capture_value(
                 mir::Ty::raw("Class"),
             )
         }
+        HirLambdaCaptureDetail::CaptureSelf => {
+            // The enclosing scope's `self` is `arg_ref(0)` there.
+            mir::Expr::arg_ref(0, "self", cap.ty.clone().into())
+        }
         HirLambdaCaptureDetail::CaptureFwd { cidx } => {
             // Forward from the enclosing lambda's @captures: the value is
             // already stored there in the right form (cell-Ptr for var,

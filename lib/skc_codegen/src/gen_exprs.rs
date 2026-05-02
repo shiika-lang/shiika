@@ -993,6 +993,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     // Method-wise type arguments are passed as llvm function parameter.
                     self.gen_tyarg_ref(ctx, n_params, idx)
                 }
+                HirLambdaCaptureDetail::CaptureSelf => {
+                    panic!("[BUG] CaptureSelf is not supported by the old runtime")
+                }
             };
             if cap.upcast_needed {
                 item = self.bitcast(item, &cap.ty, "upcast_needed");

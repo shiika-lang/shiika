@@ -619,6 +619,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     LambdaCaptureDetail::CapMethodTyArg { idx, n_params } => {
                         HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params }
                     }
+                    LambdaCaptureDetail::CapSelf => HirLambdaCaptureDetail::CaptureSelf,
                 };
                 ret.push(HirLambdaCapture {
                     ty: cap.ty,
@@ -986,7 +987,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_pseudo_variable(&self, token: &Token, locs: &LocationSpan) -> Result<HirExpression> {
+    fn convert_pseudo_variable(
+        &mut self,
+        token: &Token,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         match token {
             Token::KwSelf => Ok(self.convert_self_expr(locs)),
             Token::KwTrue => Ok(Hir::boolean_literal(true, locs.clone())),
@@ -1095,8 +1100,28 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Hir::parenthesized_expression(ary_ty, exprs, locs)
     }
 
-    fn convert_self_expr(&self, locs: &LocationSpan) -> HirExpression {
-        Hir::self_expression(self.ctx_stack.self_ty(), locs.clone())
+    fn convert_self_expr(&mut self, locs: &LocationSpan) -> HirExpression {
+        let self_ty = self.ctx_stack.self_ty();
+        if self.ctx_stack.lambda_ctx().is_none() {
+            return Hir::self_expression(self_ty, locs.clone());
+        }
+        // Inside a lambda: capture `self` from the enclosing method/toplevel
+        // (because the lambda's arg 0 is `$fn`, not `self`).
+        let cap = LambdaCapture {
+            ctx_idx: 0,
+            is_lambda_scope: false,
+            ty: self_ty.clone(),
+            upcast_needed: false,
+            readonly: true,
+            detail: LambdaCaptureDetail::CapSelf,
+        };
+        let lambda_ctx = self.ctx_stack.lambda_ctx_mut().unwrap();
+        let cidx = if let Some(existing) = lambda_ctx.check_already_captured(&cap) {
+            existing
+        } else {
+            lambda_ctx.push_lambda_capture(cap)
+        };
+        Hir::lambda_capture_ref(self_ty, cidx, true, locs.clone())
     }
 
     pub(super) fn convert_string_literal(

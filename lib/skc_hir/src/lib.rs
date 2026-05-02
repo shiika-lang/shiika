@@ -307,6 +307,8 @@ pub enum HirLambdaCaptureDetail {
     CaptureMethodTyArg { idx: usize, n_params: usize },
     /// Variable in the current `captures`
     CaptureFwd { cidx: usize },
+    /// The enclosing method's `self`
+    CaptureSelf,
 }
 
 /// Denotes what a `break` escapes from
