@@ -35,10 +35,19 @@ pub fn compile_lambda_invocation(
     mir_args: Vec<mir::TypedExpr>,
 ) -> mir::TypedExpr {
     let lambda_fun_ty = mir::FunTy::lambda_fun(lambda_ty);
+    // param_tys[0] is the fn_obj itself; the rest are the explicit params.
+    let expected_param_tys: Vec<mir::Ty> = lambda_fun_ty.param_tys[1..].to_vec();
     let func_ptr =
         mir::Expr::ivar_ref(fn_obj.clone(), 0, "@func".to_string(), lambda_fun_ty.into());
     let mut all_args = vec![fn_obj];
-    all_args.extend(mir_args);
+    for (arg, expected_ty) in mir_args.into_iter().zip(expected_param_tys.iter()) {
+        let casted = if arg.1.same(expected_ty) {
+            arg
+        } else {
+            mir::Expr::cast(mir::CastType::Upcast(expected_ty.clone()), arg)
+        };
+        all_args.push(casted);
+    }
     mir::Expr::fun_call(func_ptr, all_args)
 }
 
