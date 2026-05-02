@@ -33,13 +33,20 @@ impl<'a> super::Compiler<'a> {
     }
 
     fn build_match_clauses(&mut self, clauses: Vec<MatchClause>) -> mir::TypedExpr {
-        // skc_ast2hir always appends a final unconditional clause whose body
-        // panics. Recurse so it sits at the innermost else.
         let mut iter = clauses.into_iter();
         let first = iter.next().expect("[BUG] match expression with no clauses");
         if iter.len() == 0 {
-            // Just the panic clause; emit its body unconditionally.
-            return self.convert_expr(first.body_hir);
+            // Last clause — assumed to match unconditionally. Emit any Bind
+            // components before the body (tests, if any, are elided).
+            let mut stmts = vec![];
+            for component in first.components {
+                if let Component::Bind(name, e) = component {
+                    let mir_e = self.convert_expr(e);
+                    stmts.push(mir::Expr::lvar_decl(name, mir_e, false));
+                }
+            }
+            stmts.push(self.convert_expr(first.body_hir));
+            return mir::Expr::exprs(stmts);
         }
         let rest: Vec<_> = iter.collect();
         let cond = self.build_test_chain(first.components);
