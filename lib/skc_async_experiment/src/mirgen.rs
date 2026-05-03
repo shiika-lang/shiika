@@ -636,8 +636,7 @@ impl<'a> Compiler<'a> {
 
                 // Same as virtual dispatch above: avoid evaluating the
                 // receiver twice when looking up via the wtable.
-                let (recv_decl, recv_for_wtable, recv_for_call) =
-                    self.bind_receiver(mir_receiver);
+                let (recv_decl, recv_for_wtable, recv_for_call) = self.bind_receiver(mir_receiver);
 
                 let func_ref = {
                     let fun_ty = {
