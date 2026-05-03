@@ -5,6 +5,7 @@ mod prepare_asyncness;
 mod wtables;
 use crate::build;
 use crate::codegen;
+use crate::gensym;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -55,6 +56,7 @@ pub fn run(
             str_literals: &uni.hir.str_literals,
             lambda: lambda::LambdaContext::new(),
             current_method_sig: None,
+            gensym: gensym::Gensym::new(gensym::PREFIX_MIRGEN_RECV),
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
@@ -125,6 +127,7 @@ struct Compiler<'a> {
     str_literals: &'a Vec<String>,
     lambda: lambda::LambdaContext,
     current_method_sig: Option<MethodSignature>,
+    gensym: gensym::Gensym,
 }
 
 impl<'a> Compiler<'a> {
@@ -181,6 +184,28 @@ impl<'a> Compiler<'a> {
             sig: Some(signature.clone()),
             lvar_count: None,
         }
+    }
+
+    /// Bind `recv` to a fresh local variable so it can be referenced multiple
+    /// times (once for vtable lookup, once as the actual `self` argument)
+    /// without re-evaluating its side effects. Returns the binding statement
+    /// (to be prepended) plus two references to the bound value. If the
+    /// receiver is already a simple lvar/arg/etc. reference, no binding is
+    /// emitted and the receiver is just cloned.
+    fn bind_receiver(
+        &mut self,
+        recv: mir::TypedExpr,
+    ) -> (Option<mir::TypedExpr>, mir::TypedExpr, mir::TypedExpr) {
+        if is_trivial_expr(&recv.0) {
+            let r = recv.clone();
+            return (None, recv, r);
+        }
+        let name = self.gensym.new_name();
+        let ty = recv.1.clone();
+        let decl = mir::Expr::lvar_decl(name.clone(), recv, false);
+        let r1 = mir::Expr::lvar_ref(name.clone(), ty.clone());
+        let r2 = mir::Expr::lvar_ref(name, ty);
+        (Some(decl), r1, r2)
     }
 
     /// Build a runtime `Class` object expression for a type used as a tyarg
@@ -545,6 +570,16 @@ impl<'a> Compiler<'a> {
                     mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
                 };
 
+                // Bind the receiver to a temp lvar when needed; virtual
+                // dispatch evaluates it twice (vtable lookup + self arg) and
+                // duplicating a non-trivial expression breaks scoped lets
+                // inside it (see splice_exprs).
+                let (recv_decl, recv_for_vtable, recv_for_call) = if is_virtual {
+                    self.bind_receiver(mir_receiver)
+                } else {
+                    (None, mir_receiver.clone(), mir_receiver)
+                };
+
                 let func_ref = if is_virtual {
                     // For now, assume all method calls are virtual calls
                     let method_idx = self
@@ -554,7 +589,7 @@ impl<'a> Compiler<'a> {
                         });
 
                     mir::Expr::vtable_ref(
-                        mir_receiver.clone(),
+                        recv_for_vtable,
                         method_idx,
                         method_name.0.clone(),
                         fun_ty.clone(),
@@ -569,13 +604,13 @@ impl<'a> Compiler<'a> {
                 // Upcast receiver to the method's declared owner type if they differ
                 // (the actual receiver may be a more specific generic type).
                 let expected_recv_ty = &fun_ty.param_tys[0];
-                let receiver_for_call = if &mir_receiver.1 != expected_recv_ty {
+                let receiver_for_call = if &recv_for_call.1 != expected_recv_ty {
                     mir::Expr::cast(
                         mir::CastType::Upcast(expected_recv_ty.clone()),
-                        mir_receiver,
+                        recv_for_call,
                     )
                 } else {
-                    mir_receiver
+                    recv_for_call
                 };
                 mir_args.insert(0, receiver_for_call);
                 for tyarg in tyarg_exprs {
@@ -585,7 +620,12 @@ impl<'a> Compiler<'a> {
                     mir_args.push(casted);
                 }
 
-                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
+                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                if let Some(decl) = recv_decl {
+                    mir::Expr::exprs(vec![decl, call])
+                } else {
+                    call
+                }
             }
             HirExpressionBase::HirModuleMethodCall {
                 receiver_expr,
@@ -598,6 +638,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let receiver_ty = receiver_expr.ty.clone();
                 let mir_receiver = self.convert_expr(*receiver_expr);
+
+                // Same as virtual dispatch above: avoid evaluating the
+                // receiver twice when looking up via the wtable.
+                let (recv_decl, recv_for_wtable, recv_for_call) = self.bind_receiver(mir_receiver);
 
                 let func_ref = {
                     let fun_ty = {
@@ -613,7 +657,7 @@ impl<'a> Compiler<'a> {
                     };
 
                     mir::Expr::wtable_ref(
-                        mir_receiver.clone(),
+                        recv_for_wtable,
                         module_fullname.clone(),
                         method_idx,
                         method_name.0.clone(),
@@ -625,7 +669,7 @@ impl<'a> Compiler<'a> {
                     .into_iter()
                     .map(|arg| self.convert_expr(arg))
                     .collect();
-                mir_args.insert(0, mir_receiver);
+                mir_args.insert(0, recv_for_call);
                 for tyarg in tyarg_exprs {
                     let mir_tyarg = self.convert_expr(tyarg);
                     let casted =
@@ -634,7 +678,12 @@ impl<'a> Compiler<'a> {
                 }
 
                 let result_ty = convert_ty(expr.ty.clone());
-                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
+                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                if let Some(decl) = recv_decl {
+                    mir::Expr::exprs(vec![decl, call])
+                } else {
+                    call
+                }
             }
             HirExpressionBase::HirLambdaInvocation {
                 lambda_expr,
@@ -995,6 +1044,27 @@ fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
         });
     }
     v
+}
+
+/// Returns true if `e` is safe to evaluate multiple times (no side effects,
+/// no nested let-bindings).
+fn is_trivial_expr(e: &mir::Expr) -> bool {
+    match e {
+        mir::Expr::Number(_)
+        | mir::Expr::Float(_)
+        | mir::Expr::PseudoVar(_)
+        | mir::Expr::StringLiteral(_)
+        | mir::Expr::LVarRef(_)
+        | mir::Expr::ArgRef(_, _)
+        | mir::Expr::EnvRef(_, _)
+        | mir::Expr::ConstRef(_)
+        | mir::Expr::FuncRef(_)
+        | mir::Expr::RawI64(_)
+        | mir::Expr::Nop
+        | mir::Expr::NullPtr => true,
+        mir::Expr::Cast(_, inner) => is_trivial_expr(&inner.0),
+        _ => false,
+    }
 }
 
 fn convert_param(param: MethodParam) -> mir::Param {
