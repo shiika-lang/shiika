@@ -189,23 +189,17 @@ impl<'a> Compiler<'a> {
     /// Bind `recv` to a fresh local variable so it can be referenced multiple
     /// times (once for vtable lookup, once as the actual `self` argument)
     /// without re-evaluating its side effects. Returns the binding statement
-    /// (to be prepended) plus two references to the bound value. If the
-    /// receiver is already a simple lvar/arg/etc. reference, no binding is
-    /// emitted and the receiver is just cloned.
+    /// (to be prepended) plus two references to the bound value.
     fn bind_receiver(
         &mut self,
         recv: mir::TypedExpr,
-    ) -> (Option<mir::TypedExpr>, mir::TypedExpr, mir::TypedExpr) {
-        if is_trivial_expr(&recv.0) {
-            let r = recv.clone();
-            return (None, recv, r);
-        }
+    ) -> (mir::TypedExpr, mir::TypedExpr, mir::TypedExpr) {
         let name = self.gensym.new_name();
         let ty = recv.1.clone();
         let decl = mir::Expr::lvar_decl(name.clone(), recv, false);
         let r1 = mir::Expr::lvar_ref(name.clone(), ty.clone());
         let r2 = mir::Expr::lvar_ref(name, ty);
-        (Some(decl), r1, r2)
+        (decl, r1, r2)
     }
 
     /// Build a runtime `Class` object expression for a type used as a tyarg
@@ -570,12 +564,13 @@ impl<'a> Compiler<'a> {
                     mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
                 };
 
-                // Bind the receiver to a temp lvar when needed; virtual
+                // Bind the receiver to a temp lvar when virtual; virtual
                 // dispatch evaluates it twice (vtable lookup + self arg) and
-                // duplicating a non-trivial expression breaks scoped lets
-                // inside it (see splice_exprs).
+                // duplicating the expression breaks scoped lets inside it
+                // (see splice_exprs).
                 let (recv_decl, recv_for_vtable, recv_for_call) = if is_virtual {
-                    self.bind_receiver(mir_receiver)
+                    let (d, r1, r2) = self.bind_receiver(mir_receiver);
+                    (Some(d), r1, r2)
                 } else {
                     (None, mir_receiver.clone(), mir_receiver)
                 };
@@ -641,7 +636,8 @@ impl<'a> Compiler<'a> {
 
                 // Same as virtual dispatch above: avoid evaluating the
                 // receiver twice when looking up via the wtable.
-                let (recv_decl, recv_for_wtable, recv_for_call) = self.bind_receiver(mir_receiver);
+                let (recv_decl, recv_for_wtable, recv_for_call) =
+                    self.bind_receiver(mir_receiver);
 
                 let func_ref = {
                     let fun_ty = {
@@ -679,11 +675,7 @@ impl<'a> Compiler<'a> {
 
                 let result_ty = convert_ty(expr.ty.clone());
                 let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
-                if let Some(decl) = recv_decl {
-                    mir::Expr::exprs(vec![decl, call])
-                } else {
-                    call
-                }
+                mir::Expr::exprs(vec![recv_decl, call])
             }
             HirExpressionBase::HirLambdaInvocation {
                 lambda_expr,
@@ -1044,27 +1036,6 @@ fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
         });
     }
     v
-}
-
-/// Returns true if `e` is safe to evaluate multiple times (no side effects,
-/// no nested let-bindings).
-fn is_trivial_expr(e: &mir::Expr) -> bool {
-    match e {
-        mir::Expr::Number(_)
-        | mir::Expr::Float(_)
-        | mir::Expr::PseudoVar(_)
-        | mir::Expr::StringLiteral(_)
-        | mir::Expr::LVarRef(_)
-        | mir::Expr::ArgRef(_, _)
-        | mir::Expr::EnvRef(_, _)
-        | mir::Expr::ConstRef(_)
-        | mir::Expr::FuncRef(_)
-        | mir::Expr::RawI64(_)
-        | mir::Expr::Nop
-        | mir::Expr::NullPtr => true,
-        mir::Expr::Cast(_, inner) => is_trivial_expr(&inner.0),
-        _ => false,
-    }
 }
 
 fn convert_param(param: MethodParam) -> mir::Param {
