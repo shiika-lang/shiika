@@ -145,8 +145,11 @@ fn run_<P: AsRef<Path>>(sk_path_: P, capture_out: bool) -> Result<(String, Strin
         cmd.arg("-lpthread");
     }
 
-    if !cmd.status()?.success() {
-        return Err(anyhow!("clang failed"));
+    let status = cmd
+        .status()
+        .map_err(|err| anyhow!("failed to execute clang command: {}", err))?;
+    if !status.success() {
+        return Err(anyhow!("clang command failed: {:?}", cmd));
     }
 
     fs::remove_file(bc_path)?;
