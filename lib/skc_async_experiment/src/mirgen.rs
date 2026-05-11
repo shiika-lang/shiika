@@ -700,11 +700,11 @@ impl<'a> Compiler<'a> {
                 if in_void_ctx && call_result.1 == mir::Ty::raw("Void") {
                     let exit_status = mir::Expr::ivar_ref(
                         fn_obj_for_check,
-                        2,
+                        lambda::FN_IVAR_EXIT_STATUS,
                         "@exit_status",
                         mir::Ty::raw("Int"),
                     );
-                    // Call Int#==(exit_status, 1) -> Bool
+                    // Call Int#==(exit_status, EXIT_BREAK) -> Bool
                     let eq_fun_ty = mir::FunTy::new(
                         mir::Asyncness::Unknown,
                         vec![mir::Ty::raw("Int"), mir::Ty::raw("Int")],
@@ -714,11 +714,31 @@ impl<'a> Compiler<'a> {
                         MethodFullname::new(TypeFullname("Int".to_string()), "==").into(),
                         eq_fun_ty,
                     );
-                    let is_break =
-                        mir::Expr::fun_call(eq_func, vec![exit_status, mir::Expr::number(1)]);
+                    let is_break = mir::Expr::fun_call(
+                        eq_func,
+                        vec![exit_status, mir::Expr::number(lambda::EXIT_BREAK)],
+                    );
+                    // If we are inside a lambda, propagate the break by also
+                    // setting the surrounding lambda's @exit_status to EXIT_BREAK.
+                    let on_break = if let Some(fn_class) = self.lambda.current_fn_class.clone() {
+                        let outer_fn_obj =
+                            mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
+                        let propagate = mir::Expr::ivar_set(
+                            outer_fn_obj,
+                            lambda::FN_IVAR_EXIT_STATUS,
+                            mir::Expr::number(lambda::EXIT_BREAK),
+                            "@exit_status",
+                        );
+                        mir::Expr::exprs(vec![
+                            propagate,
+                            mir::Expr::return_(mir::Expr::void_const_ref()),
+                        ])
+                    } else {
+                        mir::Expr::return_(mir::Expr::void_const_ref())
+                    };
                     let check = mir::Expr::if_(
                         is_break,
-                        mir::Expr::return_(mir::Expr::void_const_ref()),
+                        on_break,
                         mir::Expr::pseudo_var(mir::PseudoVar::Void),
                     );
                     mir::Expr::exprs(vec![call_result, check])
@@ -817,8 +837,12 @@ impl<'a> Compiler<'a> {
                         .as_ref()
                         .expect("[BUG] break from block outside lambda");
                     let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
-                    let set_exit_status =
-                        mir::Expr::ivar_set(fn_obj, 2, mir::Expr::number(1), "@exit_status");
+                    let set_exit_status = mir::Expr::ivar_set(
+                        fn_obj,
+                        lambda::FN_IVAR_EXIT_STATUS,
+                        mir::Expr::number(lambda::EXIT_BREAK),
+                        "@exit_status",
+                    );
                     let return_void = mir::Expr::return_(mir::Expr::void_const_ref());
                     mir::Expr::exprs(vec![set_exit_status, return_void])
                 }

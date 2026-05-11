@@ -7,6 +7,18 @@ use skc_hir::{HirExpression, HirExpressionBase, HirLVars, MethodParam};
 use skc_hir::{HirLambdaCapture, HirLambdaCaptureDetail};
 use std::collections::HashSet;
 
+// Layout of Fn class instance variables.
+// Must match `packages/core/lib/fn.sk`.
+pub const FN_IVAR_FUNC: usize = 0;
+#[allow(dead_code)]
+pub const FN_IVAR_CAPTURES: usize = 1;
+pub const FN_IVAR_EXIT_STATUS: usize = 2;
+
+// Values of @exit_status. Must match `packages/core/lib/fn.sk`.
+#[allow(dead_code)]
+pub const EXIT_NORMAL: i64 = 0;
+pub const EXIT_BREAK: i64 = 1;
+
 /// Lambda-related state held by the compiler
 pub struct LambdaContext {
     /// Collects generated lambda functions
@@ -41,8 +53,12 @@ pub fn compile_lambda_invocation(
     let lambda_fun_ty = mir::FunTy::lambda_fun(lambda_ty);
     // param_tys[0] is the fn_obj itself; the rest are the explicit params.
     let expected_param_tys: Vec<mir::Ty> = lambda_fun_ty.param_tys[1..].to_vec();
-    let func_ptr =
-        mir::Expr::ivar_ref(fn_obj.clone(), 0, "@func".to_string(), lambda_fun_ty.into());
+    let func_ptr = mir::Expr::ivar_ref(
+        fn_obj.clone(),
+        FN_IVAR_FUNC,
+        "@func".to_string(),
+        lambda_fun_ty.into(),
+    );
     let mut all_args = vec![fn_obj];
     for (arg, expected_ty) in mir_args.into_iter().zip(expected_param_tys.iter()) {
         let casted = if arg.1.same(expected_ty) {
