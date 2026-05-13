@@ -994,7 +994,9 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     self.gen_tyarg_ref(ctx, n_params, idx)
                 }
                 HirLambdaCaptureDetail::CaptureSelf => {
-                    panic!("[BUG] CaptureSelf is not supported by the old runtime")
+                    // `ctx` here is the enclosing scope, so `gen_self_expression`
+                    // reads the enclosing method's `self`.
+                    self.gen_self_expression(ctx, &cap.ty)
                 }
             };
             if cap.upcast_needed {
