@@ -3,10 +3,10 @@ use crate::names::FunctionName;
 use shiika_core::names::ClassFullname;
 use skc_hir::SkTypes;
 
-pub fn inserter_funcs(sk_types: &SkTypes) -> Vec<mir::Function> {
+pub fn inserter_funcs(sk_types: &SkTypes, imported_sk_types: &SkTypes) -> Vec<mir::Function> {
     let mut funcs = vec![];
-    funcs.push(main_inserter(sk_types));
-    for sk_class in sk_types.sk_classes() {
+    funcs.push(main_inserter(sk_types, imported_sk_types));
+    for sk_class in sk_types.sk_classes().chain(imported_sk_types.sk_classes()) {
         if !sk_class.wtable.is_empty() {
             funcs.push(inserter_func(sk_class));
         }
@@ -58,9 +58,9 @@ pub fn call_main_inserter() -> mir::TypedExpr {
     )
 }
 
-fn main_inserter(sk_types: &SkTypes) -> mir::Function {
+fn main_inserter(sk_types: &SkTypes, imported_sk_types: &SkTypes) -> mir::Function {
     let mut body_stmts = vec![];
-    for sk_class in sk_types.sk_classes() {
+    for sk_class in sk_types.sk_classes().chain(imported_sk_types.sk_classes()) {
         if !sk_class.wtable.is_empty() {
             body_stmts.push(mir::Expr::fun_call(
                 mir::Expr::func_ref(

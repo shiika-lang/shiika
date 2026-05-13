@@ -1,0 +1,14 @@
+class A
+  class B
+  end
+
+  # TODO class C : B
+  class C
+    def foo
+      B.new  #=> should be resolved to A::B
+      Array<B>.new
+    end
+  end
+end
+
+puts "ok"

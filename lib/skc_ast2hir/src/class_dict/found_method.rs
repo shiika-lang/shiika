@@ -69,11 +69,14 @@ impl FoundMethod {
         self.sig.fullname.first_name.0 == "new" && receiver_ty.is_metaclass()
     }
 
-    /// Returns if this is of the form `Foo.new<Bar>`
+    /// Returns if this is of the form `Foo.new<Bar>`. Also matches the case
+    /// where the receiver type carries only typaram placeholders (e.g.
+    /// `Meta:Array<T>` for the bare `Array` class), since the runtime
+    /// instance still needs the concrete specialized class object.
     pub fn is_generic_new(&self, receiver_ty: &TermTy) -> bool {
         self.sig.fullname.first_name.0 == "new"
             && receiver_ty.is_metaclass()
-            && !receiver_ty.has_type_args()
+            && !receiver_ty.type_args().iter().any(|t| !t.is_typaram_ref())
             && !self.sig.typarams.is_empty()
     }
 }

@@ -5,6 +5,7 @@ mod prepare_asyncness;
 mod wtables;
 use crate::build;
 use crate::codegen;
+use crate::gensym;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
@@ -55,11 +56,15 @@ pub fn run(
             str_literals: &uni.hir.str_literals,
             lambda: lambda::LambdaContext::new(),
             current_method_sig: None,
+            gensym: gensym::Gensym::new(gensym::PREFIX_MIRGEN_RECV),
         };
 
         funcs.extend(const_init_funcs(&uni, &mut c));
         if target.is_bin() {
-            funcs.extend(wtables::inserter_funcs(&uni.hir.sk_types));
+            funcs.extend(wtables::inserter_funcs(
+                &uni.hir.sk_types,
+                &uni.imports.sk_types,
+            ));
         }
 
         for (_, ms) in uni.hir.sk_methods {
@@ -122,6 +127,7 @@ struct Compiler<'a> {
     str_literals: &'a Vec<String>,
     lambda: lambda::LambdaContext,
     current_method_sig: Option<MethodSignature>,
+    gensym: gensym::Gensym,
 }
 
 impl<'a> Compiler<'a> {
@@ -162,7 +168,12 @@ impl<'a> Compiler<'a> {
             HashSet::new()
         };
         let saved_sig = self.current_method_sig.replace(signature.clone());
+        let saved_ret_ty = self
+            .lambda
+            .current_ret_ty
+            .replace(convert_ty(signature.ret_ty.clone()));
         let body_stmts = self.convert_method_body(method.body, &signature);
+        self.lambda.current_ret_ty = saved_ret_ty;
         self.current_method_sig = saved_sig;
         mir::Function {
             asyncness: signature.asyncness.clone().into(),
@@ -173,6 +184,22 @@ impl<'a> Compiler<'a> {
             sig: Some(signature.clone()),
             lvar_count: None,
         }
+    }
+
+    /// Bind `recv` to a fresh local variable so it can be referenced multiple
+    /// times (once for vtable lookup, once as the actual `self` argument)
+    /// without re-evaluating its side effects. Returns the binding statement
+    /// (to be prepended) plus two references to the bound value.
+    fn bind_receiver(
+        &mut self,
+        recv: mir::TypedExpr,
+    ) -> (mir::TypedExpr, mir::TypedExpr, mir::TypedExpr) {
+        let name = self.gensym.new_name();
+        let ty = recv.1.clone();
+        let decl = mir::Expr::lvar_decl(name.clone(), recv, false);
+        let r1 = mir::Expr::lvar_ref(name.clone(), ty.clone());
+        let r2 = mir::Expr::lvar_ref(name, ty);
+        (decl, r1, r2)
     }
 
     /// Build a runtime `Class` object expression for a type used as a tyarg
@@ -367,9 +394,7 @@ impl<'a> Compiler<'a> {
                 mir::Expr::string_literal(self.str_literals[idx].clone())
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
-            HirExpressionBase::HirFloatLiteral { value } => {
-                todo!("Handle float literal: {}", value)
-            }
+            HirExpressionBase::HirFloatLiteral { value } => mir::Expr::float(value),
             HirExpressionBase::HirArrayLiteral { elem_exprs } => {
                 let mir_elements: Vec<mir::TypedExpr> = elem_exprs
                     .into_iter()
@@ -382,6 +407,15 @@ impl<'a> Compiler<'a> {
                 let element_count = mir_elements.len();
                 let count_expr = mir::Expr::raw_i64(element_count as i64);
 
+                // Build the specialized `Array<T>` class object so that the
+                // resulting instance carries a class with non-null type_args
+                // (needed for runtime `Class#_type_argument` lookups).
+                let specialized_class = self.build_class_obj_for_tyarg(&expr.ty);
+                let receiver_expr = mir::Expr::cast(
+                    mir::CastType::Force(mir::Ty::meta("Array")),
+                    specialized_class,
+                );
+
                 // Call Meta:Array#_from_raw(class_obj, ptr, len) -> Array<T>
                 let from_raw_fun_ty = mir::FunTy::new(
                     mir::Asyncness::Sync,
@@ -392,12 +426,7 @@ impl<'a> Compiler<'a> {
                     FunctionName::method("Meta:Array", "_from_raw"),
                     from_raw_fun_ty.into(),
                 );
-                let class_obj_expr =
-                    mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
-                mir::Expr::fun_call(
-                    func_ref,
-                    vec![class_obj_expr, native_array_expr, count_expr],
-                )
+                mir::Expr::fun_call(func_ref, vec![receiver_expr, native_array_expr, count_expr])
             }
             HirExpressionBase::HirSelfExpression => self.compile_self_expr(expr.ty),
             HirExpressionBase::HirLVarRef { name } => {
@@ -535,6 +564,17 @@ impl<'a> Compiler<'a> {
                     mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
                 };
 
+                // Bind the receiver to a temp lvar when virtual; virtual
+                // dispatch evaluates it twice (vtable lookup + self arg) and
+                // duplicating the expression breaks scoped lets inside it
+                // (see splice_exprs).
+                let (recv_decl, recv_for_vtable, recv_for_call) = if is_virtual {
+                    let (d, r1, r2) = self.bind_receiver(mir_receiver);
+                    (Some(d), r1, r2)
+                } else {
+                    (None, mir_receiver.clone(), mir_receiver)
+                };
+
                 let func_ref = if is_virtual {
                     // For now, assume all method calls are virtual calls
                     let method_idx = self
@@ -544,7 +584,7 @@ impl<'a> Compiler<'a> {
                         });
 
                     mir::Expr::vtable_ref(
-                        mir_receiver.clone(),
+                        recv_for_vtable,
                         method_idx,
                         method_name.0.clone(),
                         fun_ty.clone(),
@@ -559,13 +599,13 @@ impl<'a> Compiler<'a> {
                 // Upcast receiver to the method's declared owner type if they differ
                 // (the actual receiver may be a more specific generic type).
                 let expected_recv_ty = &fun_ty.param_tys[0];
-                let receiver_for_call = if &mir_receiver.1 != expected_recv_ty {
+                let receiver_for_call = if &recv_for_call.1 != expected_recv_ty {
                     mir::Expr::cast(
                         mir::CastType::Upcast(expected_recv_ty.clone()),
-                        mir_receiver,
+                        recv_for_call,
                     )
                 } else {
-                    mir_receiver
+                    recv_for_call
                 };
                 mir_args.insert(0, receiver_for_call);
                 for tyarg in tyarg_exprs {
@@ -575,7 +615,12 @@ impl<'a> Compiler<'a> {
                     mir_args.push(casted);
                 }
 
-                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
+                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                if let Some(decl) = recv_decl {
+                    mir::Expr::exprs(vec![decl, call])
+                } else {
+                    call
+                }
             }
             HirExpressionBase::HirModuleMethodCall {
                 receiver_expr,
@@ -588,6 +633,10 @@ impl<'a> Compiler<'a> {
             } => {
                 let receiver_ty = receiver_expr.ty.clone();
                 let mir_receiver = self.convert_expr(*receiver_expr);
+
+                // Same as virtual dispatch above: avoid evaluating the
+                // receiver twice when looking up via the wtable.
+                let (recv_decl, recv_for_wtable, recv_for_call) = self.bind_receiver(mir_receiver);
 
                 let func_ref = {
                     let fun_ty = {
@@ -603,7 +652,7 @@ impl<'a> Compiler<'a> {
                     };
 
                     mir::Expr::wtable_ref(
-                        mir_receiver.clone(),
+                        recv_for_wtable,
                         module_fullname.clone(),
                         method_idx,
                         method_name.0.clone(),
@@ -615,7 +664,7 @@ impl<'a> Compiler<'a> {
                     .into_iter()
                     .map(|arg| self.convert_expr(arg))
                     .collect();
-                mir_args.insert(0, mir_receiver);
+                mir_args.insert(0, recv_for_call);
                 for tyarg in tyarg_exprs {
                     let mir_tyarg = self.convert_expr(tyarg);
                     let casted =
@@ -624,7 +673,8 @@ impl<'a> Compiler<'a> {
                 }
 
                 let result_ty = convert_ty(expr.ty.clone());
-                (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty)
+                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                mir::Expr::exprs(vec![recv_decl, call])
             }
             HirExpressionBase::HirLambdaInvocation {
                 lambda_expr,
@@ -638,15 +688,23 @@ impl<'a> Compiler<'a> {
                     .map(|a| self.convert_expr(a))
                     .collect();
                 let call_result = lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args);
-                // After lambda call, check @exit_status for break support
-                if call_result.1 == mir::Ty::raw("Void") {
+                // After lambda call, check @exit_status for break support.
+                // The check emits `return ::Void`, so only emit it when the
+                // surrounding function's return type is Void; otherwise the
+                // generated MIR would be ill-typed.
+                let in_void_ctx = self
+                    .lambda
+                    .current_ret_ty
+                    .as_ref()
+                    .map_or(false, |t| *t == mir::Ty::raw("Void"));
+                if in_void_ctx && call_result.1 == mir::Ty::raw("Void") {
                     let exit_status = mir::Expr::ivar_ref(
                         fn_obj_for_check,
-                        2,
+                        lambda::FN_IVAR_EXIT_STATUS,
                         "@exit_status",
                         mir::Ty::raw("Int"),
                     );
-                    // Call Int#==(exit_status, 1) -> Bool
+                    // Call Int#==(exit_status, EXIT_BREAK) -> Bool
                     let eq_fun_ty = mir::FunTy::new(
                         mir::Asyncness::Unknown,
                         vec![mir::Ty::raw("Int"), mir::Ty::raw("Int")],
@@ -656,11 +714,30 @@ impl<'a> Compiler<'a> {
                         MethodFullname::new(TypeFullname("Int".to_string()), "==").into(),
                         eq_fun_ty,
                     );
-                    let is_break =
-                        mir::Expr::fun_call(eq_func, vec![exit_status, mir::Expr::number(1)]);
+                    let is_break = mir::Expr::fun_call(
+                        eq_func,
+                        vec![exit_status, mir::Expr::number(lambda::EXIT_BREAK)],
+                    );
+                    // If we are inside a lambda, propagate the break by also
+                    // setting the surrounding lambda's @exit_status to EXIT_BREAK.
+                    let on_break = if let Some(fn_class) = self.lambda.current_fn_class.clone() {
+                        let outer_fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
+                        let propagate = mir::Expr::ivar_set(
+                            outer_fn_obj,
+                            lambda::FN_IVAR_EXIT_STATUS,
+                            mir::Expr::number(lambda::EXIT_BREAK),
+                            "@exit_status",
+                        );
+                        mir::Expr::exprs(vec![
+                            propagate,
+                            mir::Expr::return_(mir::Expr::void_const_ref()),
+                        ])
+                    } else {
+                        mir::Expr::return_(mir::Expr::void_const_ref())
+                    };
                     let check = mir::Expr::if_(
                         is_break,
-                        mir::Expr::return_(mir::Expr::void_const_ref()),
+                        on_break,
                         mir::Expr::pseudo_var(mir::PseudoVar::Void),
                     );
                     mir::Expr::exprs(vec![call_result, check])
@@ -682,6 +759,10 @@ impl<'a> Compiler<'a> {
                 // Save state and set up lambda scope
                 let saved_cell_vars = std::mem::take(&mut self.lambda.cell_vars);
                 let saved_fn_class = self.lambda.current_fn_class.take();
+                let saved_ret_ty = self
+                    .lambda
+                    .current_ret_ty
+                    .replace(convert_ty(ret_ty.clone()));
                 self.lambda.cell_vars = lambda::collect_cell_vars(&*exprs);
                 self.lambda.current_fn_class = Some(fn_class.clone());
 
@@ -691,11 +772,14 @@ impl<'a> Compiler<'a> {
                 // Restore state
                 self.lambda.cell_vars = saved_cell_vars;
                 self.lambda.current_fn_class = saved_fn_class;
+                self.lambda.current_ret_ty = saved_ret_ty;
 
-                // Collect capture values
+                // Collect capture values. `current_fn_class` was just restored
+                // to the enclosing lambda's class (if any), which is needed
+                // to forward captures from a parent lambda's @captures.
                 let capture_values: Vec<_> = captures
                     .iter()
-                    .map(|cap| lambda::get_capture_value(cap))
+                    .map(|cap| lambda::get_capture_value(cap, &self.lambda.current_fn_class))
                     .collect();
 
                 // Build the lambda function and push it
@@ -752,8 +836,12 @@ impl<'a> Compiler<'a> {
                         .as_ref()
                         .expect("[BUG] break from block outside lambda");
                     let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
-                    let set_exit_status =
-                        mir::Expr::ivar_set(fn_obj, 2, mir::Expr::number(1), "@exit_status");
+                    let set_exit_status = mir::Expr::ivar_set(
+                        fn_obj,
+                        lambda::FN_IVAR_EXIT_STATUS,
+                        mir::Expr::number(lambda::EXIT_BREAK),
+                        "@exit_status",
+                    );
                     let return_void = mir::Expr::return_(mir::Expr::void_const_ref());
                     mir::Expr::exprs(vec![set_exit_status, return_void])
                 }
@@ -912,11 +1000,13 @@ impl<'a> Compiler<'a> {
             }
             vars
         };
+        let saved_ret_ty = self.lambda.current_ret_ty.replace(mir::Ty::raw("Int"));
         let mut body_stmts = vec![];
         body_stmts.extend(constants::call_all_const_inits(total_deps));
         body_stmts.push(wtables::call_main_inserter());
         body_stmts.extend(top_exprs.into_iter().map(|expr| self.convert_expr(expr)));
         body_stmts.push(mir::Expr::return_(mir::Expr::number(0)));
+        self.lambda.current_ret_ty = saved_ret_ty;
         mir::Function {
             asyncness: mir::Asyncness::Unknown,
             name: mir::main_function_inner_name(),

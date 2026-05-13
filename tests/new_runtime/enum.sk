@@ -1,0 +1,30 @@
+let a = Some<Int>.new(1)
+let b = None
+let f = fn(x: Maybe<Int>) { x }
+f(a)
+f(b)
+unless a.value == 1; puts "ng Some#value"; end
+
+let o = Ok<Int>.new(0)
+let e = Fail.new(Error.new("fail"))
+
+# Class method of enum
+enum EnumWithClassMethod
+  def self.foo -> Int
+    1
+  end
+end
+unless EnumWithClassMethod.foo == 1; puts "ng EnumWithClassMethod.foo"; end
+  
+# Inner class of enum
+enum EnumWithInnerClass
+  class InnerClassInEnum
+    def foo -> Int
+      1
+    end
+  end
+end
+let obj = EnumWithInnerClass::InnerClassInEnum.new
+unless obj.foo == 1; puts "ng InnerClassInEnum#foo"; end
+
+puts "ok"

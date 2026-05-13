@@ -1,0 +1,16 @@
+var a = 1
+var b = 1.0
+
+a += 2
+if a != 3 then puts "ng +=" end
+a -= 2
+if a != 1 then puts "ng -=" end
+a *= 60
+if a != 60 then puts "ng *=" end
+b /= 2.0
+if b != 0.5 then puts "ng /=" end
+a = 7
+a %= 5
+if a != 2 then puts "ng %=" end
+
+puts "ok"

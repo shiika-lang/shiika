@@ -45,6 +45,7 @@ pub fn run<P: AsRef<Path>>(
     constants::declare_extern_consts(&mut gen, mir.imported_constants);
     let _const_global_ = constants::declare_const_globals(&mut gen, &mir.program.constants);
     wtable::declare_constants(&mut gen, &mir.sk_types);
+    wtable::declare_constants(&mut gen, &mir.imported_sk_types);
     vtable::import(&mut gen, &mir.imported_vtables);
     vtable::define(&mut gen, &mir.vtables);
 

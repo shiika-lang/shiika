@@ -24,17 +24,22 @@ pub fn build(cli: &mut Cli, package: &Package) -> Result<()> {
 }
 
 fn create_exports(mir: &mir::CompilationUnit) -> Result<LibraryExports> {
-    // Convert constants to HashMap
+    // Add type obj constants (eg. `::Int` -> `Meta:Int`).
+    // Skip `const_is_obj` types (eg. `Void`, `Maybe::None`) — their
+    // constants hold the singleton instance, not the class object, and are
+    // registered via `mir.program.constants` below.
     let mut constants = HashMap::new();
-    for (name, ty) in &mir.program.constants {
-        constants.insert(name.clone(), ty.clone());
-    }
-    // Add type obj constants
     for sk_type in mir.sk_types.types.values() {
+        if sk_type.const_is_obj() {
+            continue;
+        }
         constants.insert(
             sk_type.fullname().to_const_fullname(),
             sk_type.term_ty().meta_ty(),
         );
+    }
+    for (name, ty) in &mir.program.constants {
+        constants.insert(name.clone(), ty.clone());
     }
     debug_assert!(
         asyncness_is_set(&mir.sk_types),

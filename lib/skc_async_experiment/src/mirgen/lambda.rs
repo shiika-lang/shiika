@@ -7,6 +7,18 @@ use skc_hir::{HirExpression, HirExpressionBase, HirLVars, MethodParam};
 use skc_hir::{HirLambdaCapture, HirLambdaCaptureDetail};
 use std::collections::HashSet;
 
+// Layout of Fn class instance variables.
+// Must match `packages/core/lib/fn.sk`.
+pub const FN_IVAR_FUNC: usize = 0;
+#[allow(dead_code)]
+pub const FN_IVAR_CAPTURES: usize = 1;
+pub const FN_IVAR_EXIT_STATUS: usize = 2;
+
+// Values of @exit_status. Must match `packages/core/lib/fn.sk`.
+#[allow(dead_code)]
+pub const EXIT_NORMAL: i64 = 0;
+pub const EXIT_BREAK: i64 = 1;
+
 /// Lambda-related state held by the compiler
 pub struct LambdaContext {
     /// Collects generated lambda functions
@@ -15,6 +27,9 @@ pub struct LambdaContext {
     pub cell_vars: HashSet<String>,
     /// The Fn class name for the current lambda being compiled (e.g. "Fn1")
     pub current_fn_class: Option<String>,
+    /// Return type of the function/lambda whose body is currently being compiled.
+    /// Used to decide whether `break`-propagation (`return ::Void`) is well-typed.
+    pub current_ret_ty: Option<mir::Ty>,
 }
 
 impl LambdaContext {
@@ -23,6 +38,7 @@ impl LambdaContext {
             lambda_funcs: vec![],
             cell_vars: HashSet::new(),
             current_fn_class: None,
+            current_ret_ty: None,
         }
     }
 }
@@ -35,10 +51,23 @@ pub fn compile_lambda_invocation(
     mir_args: Vec<mir::TypedExpr>,
 ) -> mir::TypedExpr {
     let lambda_fun_ty = mir::FunTy::lambda_fun(lambda_ty);
-    let func_ptr =
-        mir::Expr::ivar_ref(fn_obj.clone(), 0, "@func".to_string(), lambda_fun_ty.into());
+    // param_tys[0] is the fn_obj itself; the rest are the explicit params.
+    let expected_param_tys: Vec<mir::Ty> = lambda_fun_ty.param_tys[1..].to_vec();
+    let func_ptr = mir::Expr::ivar_ref(
+        fn_obj.clone(),
+        FN_IVAR_FUNC,
+        "@func".to_string(),
+        lambda_fun_ty.into(),
+    );
     let mut all_args = vec![fn_obj];
-    all_args.extend(mir_args);
+    for (arg, expected_ty) in mir_args.into_iter().zip(expected_param_tys.iter()) {
+        let casted = if arg.1.same(expected_ty) {
+            arg
+        } else {
+            mir::Expr::cast(mir::CastType::Upcast(expected_ty.clone()), arg)
+        };
+        all_args.push(casted);
+    }
     mir::Expr::fun_call(func_ptr, all_args)
 }
 
@@ -192,7 +221,12 @@ pub fn compile_lambda_capture_write(
 }
 
 /// Build the expression that evaluates to the captured value at the call site.
-pub fn get_capture_value(cap: &HirLambdaCapture) -> mir::TypedExpr {
+/// `current_fn_class` is the enclosing lambda's Fn class (if any) — needed
+/// for `CaptureFwd`, which forwards from the enclosing lambda's `@captures`.
+pub fn get_capture_value(
+    cap: &HirLambdaCapture,
+    current_fn_class: &Option<String>,
+) -> mir::TypedExpr {
     match &cap.detail {
         HirLambdaCaptureDetail::CaptureLVar { name } => {
             if !cap.readonly {
@@ -216,7 +250,26 @@ pub fn get_capture_value(cap: &HirLambdaCapture) -> mir::TypedExpr {
                 mir::Ty::raw("Class"),
             )
         }
-        _ => todo!("Unsupported capture type: {:?}", cap.detail),
+        HirLambdaCaptureDetail::CaptureSelf => {
+            // The enclosing scope's `self` is `arg_ref(0)` there.
+            mir::Expr::arg_ref(0, "self", cap.ty.clone().into())
+        }
+        HirLambdaCaptureDetail::CaptureFwd { cidx } => {
+            // Forward from the enclosing lambda's @captures: the value is
+            // already stored there in the right form (cell-Ptr for var,
+            // value for let), so pass it through without dereferencing.
+            let fn_class = current_fn_class
+                .as_ref()
+                .expect("[BUG] CaptureFwd outside lambda");
+            let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
+            let captures = mir::Expr::ivar_ref(fn_obj, 1, "@captures".to_string(), mir::Ty::Ptr);
+            let elem_ty: mir::Ty = if cap.readonly {
+                cap.ty.clone().into()
+            } else {
+                mir::Ty::Ptr
+            };
+            mir::Expr::native_array_ref(captures, *cidx, elem_ty)
+        }
     }
 }
 

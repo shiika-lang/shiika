@@ -146,6 +146,7 @@ impl<'a> Compiler<'a> {
     ) -> Result<Option<mir::TypedExpr>> {
         let new_e = match e.0 {
             mir::Expr::Number(_) => e,
+            mir::Expr::Float(_) => e,
             mir::Expr::PseudoVar(_) => e,
             mir::Expr::LVarRef(_) => panic!("LVarRef must be lowered to EnvRef"),
             mir::Expr::IVarRef(obj_expr, idx, name) => {

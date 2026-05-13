@@ -222,7 +222,7 @@ task :compat do
   sh "cargo build --bin exp_shiika --features new-runtime"
   log = File.open("compat_test.log", "w")
   filter = ENV["FILTER"]; filter = nil if filter.to_s.strip.empty?
-  Dir["tests/sk/*.sk"].each do |path|
+  Dir["tests/compat/*.sk"].each do |path|
     $stderr.puts "Testing #{path}..."
     log.puts "--- Testing #{path} ---"
     next if filter && !path.include?(filter)

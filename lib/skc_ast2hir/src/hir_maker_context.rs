@@ -204,6 +204,8 @@ pub enum LambdaCaptureDetail {
     CapOmittableArg { name: String },
     // Capturing a method-wise type parameter
     CapMethodTyArg { idx: usize, n_params: usize },
+    // Capturing the enclosing method's `self`
+    CapSelf,
 }
 
 impl LambdaCapture {
@@ -229,6 +231,7 @@ impl LambdaCapture {
                 LambdaCaptureDetail::CapOmittableArg { name },
                 LambdaCaptureDetail::CapOmittableArg { name: name2 },
             ) => name == name2,
+            (LambdaCaptureDetail::CapSelf, LambdaCaptureDetail::CapSelf) => true,
             _ => false,
         };
         if equals {

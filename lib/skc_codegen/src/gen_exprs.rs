@@ -993,6 +993,11 @@ impl<'hir, 'run, 'ictx> CodeGen<'hir, 'run, 'ictx> {
                     // Method-wise type arguments are passed as llvm function parameter.
                     self.gen_tyarg_ref(ctx, n_params, idx)
                 }
+                HirLambdaCaptureDetail::CaptureSelf => {
+                    // `ctx` here is the enclosing scope, so `gen_self_expression`
+                    // reads the enclosing method's `self`.
+                    self.gen_self_expression(ctx, &cap.ty)
+                }
             };
             if cap.upcast_needed {
                 item = self.bitcast(item, &cap.ty, "upcast_needed");
