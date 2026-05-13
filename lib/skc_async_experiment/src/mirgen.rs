@@ -721,8 +721,7 @@ impl<'a> Compiler<'a> {
                     // If we are inside a lambda, propagate the break by also
                     // setting the surrounding lambda's @exit_status to EXIT_BREAK.
                     let on_break = if let Some(fn_class) = self.lambda.current_fn_class.clone() {
-                        let outer_fn_obj =
-                            mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
+                        let outer_fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(&fn_class));
                         let propagate = mir::Expr::ivar_set(
                             outer_fn_obj,
                             lambda::FN_IVAR_EXIT_STATUS,
