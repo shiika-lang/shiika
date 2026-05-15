@@ -106,6 +106,7 @@ pub trait MirRewriter {
             mir::Expr::WTableKey(_) => expr,
             mir::Expr::WTableRow(_, _) => expr,
             mir::Expr::NullPtr => expr,
+            mir::Expr::IsNull(inner) => mir::Expr::is_null(self.walk_expr(*inner)?),
             mir::Expr::ClassVTable(_) => expr,
             mir::Expr::SetClassObj(obj, class_obj) => {
                 let new_obj = self.walk_expr(*obj)?;

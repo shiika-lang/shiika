@@ -277,6 +277,10 @@ impl<'a> Compiler<'a> {
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
             mir::Expr::NullPtr | mir::Expr::ClassVTable(_) => e,
+            mir::Expr::IsNull(inner) => {
+                let new_inner = self.compile_value_expr(*inner, false)?;
+                mir::Expr::is_null(new_inner)
+            }
         };
         Ok(Some(new_e))
     }

@@ -260,6 +260,10 @@ impl<'a> Verifier<'a> {
             mir::Expr::WTableKey(_) => (),
             mir::Expr::WTableRow(_, _) => (),
             mir::Expr::NullPtr => assert(&e, "null_ptr", &mir::Ty::Ptr)?,
+            mir::Expr::IsNull(inner) => {
+                self.verify_expr(f, inner)?;
+                assert(&e, "is_null result", &mir::Ty::raw("Bool"))?;
+            }
             mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
             mir::Expr::SetClassObj(obj, class_obj) => {
                 self.verify_expr(f, obj)?;
