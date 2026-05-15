@@ -173,6 +173,7 @@ impl<'a> Compiler<'a> {
             .current_ret_ty
             .replace(convert_ty(signature.ret_ty.clone()));
         let body_stmts = self.convert_method_body(method.body, &signature);
+        let body_stmts = prepend_default_param_shadows(body_stmts, &signature);
         self.lambda.current_ret_ty = saved_ret_ty;
         self.current_method_sig = saved_sig;
         mir::Function {
@@ -897,10 +898,11 @@ impl<'a> Compiler<'a> {
                 mir::Expr::exprs(mir_exprs)
             }
             HirExpressionBase::HirDefaultExpr => {
-                todo!("Handle default expr")
+                mir::Expr::cast(mir::CastType::Force(result_ty), mir::Expr::null_ptr())
             }
-            HirExpressionBase::HirIsOmittedValue { .. } => {
-                todo!("Handle is omitted value")
+            HirExpressionBase::HirIsOmittedValue { expr: inner } => {
+                let mir_inner = self.convert_expr(*inner);
+                mir::Expr::is_null(mir_inner)
             }
         }
     }
@@ -1065,6 +1067,37 @@ fn convert_param(param: MethodParam) -> mir::Param {
         ty: convert_ty(param.ty),
         name: param.name,
     }
+}
+
+/// For each parameter with a default value, prepend an `LVarDecl(name, arg, true)`
+/// to the method body. This declares a shadow local variable (which the HIR layer
+/// already references via `lvar_assign`), giving `insert_allocs` a node to find
+/// and ensuring the body's default-handling if-expression has a writable target.
+fn prepend_default_param_shadows(
+    body: mir::TypedExpr,
+    signature: &MethodSignature,
+) -> mir::TypedExpr {
+    let default_params: Vec<_> = signature
+        .params
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.has_default)
+        .collect();
+    if default_params.is_empty() {
+        return body;
+    }
+    let mut new_exprs: Vec<mir::TypedExpr> = default_params
+        .into_iter()
+        .map(|(i, p)| {
+            let ty = convert_ty(p.ty.clone());
+            let arg = mir::Expr::arg_ref(i + 1, p.name.clone(), ty.clone());
+            mir::Expr::lvar_decl(p.name.clone(), arg, true)
+        })
+        .collect();
+    for e in mir::expr::into_exprs(body) {
+        new_exprs.push(e);
+    }
+    mir::Expr::exprs(new_exprs)
 }
 
 fn convert_ty(ty: TermTy) -> mir::Ty {

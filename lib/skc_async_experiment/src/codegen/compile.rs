@@ -149,6 +149,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
             mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
+            mir::Expr::IsNull(inner) => self.compile_is_null(ctx, inner),
             mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
@@ -600,6 +601,17 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let e = self.compile_value_expr(ctx, expr);
         let sk_int = SkObj::from_basic_value_enum(e);
         Some(intrinsics::unbox_int(self, sk_int).into())
+    }
+
+    fn compile_is_null(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, expr);
+        let ptr = v.into_pointer_value();
+        let i1 = self.builder.build_is_null(ptr, "omitted").unwrap();
+        Some(intrinsics::box_bool_value(self, i1).0.into())
     }
 
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {

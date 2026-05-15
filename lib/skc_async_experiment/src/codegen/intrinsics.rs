@@ -110,10 +110,17 @@ pub fn box_float<'run>(gen: &mut CodeGen<'run, '_>, n: f64) -> SkObj<'run> {
 
 pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {
     let llvm_b = gen.context.bool_type().const_int(b as u64, false);
+    box_bool_value(gen, llvm_b)
+}
+
+pub fn box_bool_value<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    b: inkwell::values::IntValue<'run>,
+) -> SkObj<'run> {
     SkObj(
         gen.call_llvm_func(
             "shiika_intrinsic_box_bool",
-            &[llvm_b.as_basic_value_enum().into()],
+            &[b.as_basic_value_enum().into()],
             "sk_bool",
         )
         .unwrap()
