@@ -84,6 +84,11 @@
   ["MutableString", "to_s -> String", false],
   ["MutableString", "write_byte(nth: Int, byte: Int)", false],
   ["MutableString", "_unsafe_to_s -> String", false],
+  ["Meta:File", "read(path: String) -> Result<String>", false],
+  ["Meta:File", "write(path: String, content: String) -> Result<Void>", false],
+  ["Meta:File", "_open(path: String) -> Result<File>", false],
+  ["File", "_fill_buf -> Result<String>", false],
+  ["File", "_consume(n_bytes: Int)", false],
   ["Meta:Time::Instant", "now -> Time::Instant", false],
   ["Time", "to_plain -> Time::PlainDateTime", false],
 ]
