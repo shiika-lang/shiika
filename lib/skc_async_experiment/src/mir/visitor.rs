@@ -122,6 +122,9 @@ pub trait MirVisitor {
             mir::Expr::WTableKey(_) => {}
             mir::Expr::WTableRow(_, _) => {}
             mir::Expr::NullPtr => {}
+            mir::Expr::IsNull(e) => {
+                self.walk_expr(e)?;
+            }
             mir::Expr::ClassVTable(_) => {}
             mir::Expr::SetClassObj(obj, class_obj) => {
                 self.walk_expr(obj)?;

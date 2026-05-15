@@ -62,6 +62,8 @@ pub enum Expr {
     Nop,
     /// Null pointer constant (lowered from NullPtr to LLVM null)
     NullPtr,
+    /// Check whether the inner pointer-valued expression is null. Returns Bool.
+    IsNull(Box<Typed<Expr>>),
     /// Reference to the global vtable constant for instances of the given class
     /// (e.g., `@shiika_vtable_Int`). Used as the `vtable` argument in `Meta:Class#_new`.
     ClassVTable(Erasure),
@@ -342,6 +344,10 @@ impl Expr {
         (Expr::NullPtr, Ty::Ptr)
     }
 
+    pub fn is_null(e: TypedExpr) -> TypedExpr {
+        (Expr::IsNull(Box::new(e)), Ty::raw("Bool"))
+    }
+
     pub fn class_vtable(erasure: Erasure) -> TypedExpr {
         (Expr::ClassVTable(erasure), Ty::Ptr)
     }
@@ -426,6 +432,7 @@ impl Expr {
             Expr::RawI64(_) => false,
             Expr::Nop => false,
             Expr::NullPtr => false,
+            Expr::IsNull(e) => e.0.contains_async_call(),
             Expr::ClassVTable(_) => false,
             Expr::SetClassObj(obj, class_obj) => {
                 obj.0.contains_async_call() || class_obj.0.contains_async_call()
@@ -599,6 +606,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
             format!("%WTableRow({}, {})", classname.0, module.0)
         }
         Expr::NullPtr => "%NullPtr".to_string(),
+        Expr::IsNull(e) => format!("%IsNull({})", pretty_print(&e.0, 0, false)),
         Expr::ClassVTable(erasure) => {
             let meta = if erasure.is_meta { "Meta:" } else { "" };
             format!("%ClassVTable({}{})", meta, erasure.base_name)

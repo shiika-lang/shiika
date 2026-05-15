@@ -167,6 +167,10 @@ fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::Typ
         mir::Expr::RawI64(_) => expr,
         mir::Expr::Nop => expr,
         mir::Expr::NullPtr => expr,
+        mir::Expr::IsNull(inner) => {
+            let new_inner = splice(*inner, new_exprs);
+            mir::Expr::is_null(new_inner)
+        }
         mir::Expr::ClassVTable(_) => expr,
     }
 }
