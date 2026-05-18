@@ -1,5 +1,6 @@
 mod array;
 mod class;
+mod file;
 mod float;
 mod int;
 mod mutable_string;
