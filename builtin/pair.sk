@@ -1,6 +1,0 @@
-class Pair<A, B>
-  def initialize(@fst: A, @snd: B); end
-  def inspect -> String
-    "Pair(#{@fst.inspect}, #{@snd.inspect})"
-  end
-end
