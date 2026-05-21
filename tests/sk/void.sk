@@ -1,3 +1,0 @@
-unless Void.to_s == "Void"; puts "ng #to_s"; end
-
-puts "ok"
