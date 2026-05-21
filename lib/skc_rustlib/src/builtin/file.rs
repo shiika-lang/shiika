@@ -62,7 +62,7 @@ impl SkFile {
 
 extern "C" fn file_finalizer(obj: *mut c_void, _data: *mut c_void) {
     let shiika_file = obj as *mut ShiikaFile;
-    std::mem::drop(SkFile(shiika_file).file_mut());
+    SkFile(shiika_file).file_mut();
 }
 
 #[allow(non_snake_case)]
