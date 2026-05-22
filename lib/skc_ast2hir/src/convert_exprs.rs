@@ -1011,20 +1011,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .map(|expr| self.convert_expr(expr))
             .collect::<Result<Vec<_>, _>>()?;
 
-        #[cfg(feature = "new-runtime")]
-        {
-            let item_ty = self.array_item_ty(&item_exprs);
-            Ok(Hir::array_literal(
-                ty::spe("Array", vec![item_ty]),
-                item_exprs,
-                locs.clone(),
-            ))
-        }
-
-        #[cfg(not(feature = "new-runtime"))]
-        {
-            Ok(self.create_array_instance(item_exprs, locs.clone()))
-        }
+        let item_ty = self.array_item_ty(&item_exprs);
+        Ok(Hir::array_literal(
+            ty::spe("Array", vec![item_ty]),
+            item_exprs,
+            locs.clone(),
+        ))
     }
 
     pub fn create_array_instance(

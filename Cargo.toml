@@ -2,42 +2,13 @@
 edition = "2021"
 name = "shiika"
 version = "0.9.1"
-authors = [ "Yutaka HARA <yutaka.hara.gmail.com>" ]
-default-run = "shiika"
+authors = ["Yutaka HARA <yutaka.hara.gmail.com>"]
 
 [workspace]
 members = [
   "lib/*", "packages/core/ext",
 ]
 
-[features]
-mac = []
-new-runtime = ["skc_ast2hir/new-runtime"]
-
 [dependencies]
-shiika_parser = { path = "lib/shiika_parser/" }
-shiika_ast = { path = "lib/shiika_ast/" }
-shiika_core = { path = "lib/shiika_core/" }
-skc_corelib = { path = "lib/skc_corelib/" }
-skc_ast2hir = { path = "lib/skc_ast2hir/" }
-skc_mir = { path = "lib/skc_mir/" }
-skc_codegen = { path = "lib/skc_codegen/" }
-skc_async_experiment = { path = "lib/skc_async_experiment/" }
-
 anyhow = "1.0"
-inkwell = { version = "0.7.0", features = ["llvm18-1"] }
-clap = { version = "4.5.35", features = ["derive"] }
-env_logger = "0.11.7"
-log = "0.4.11"
-serde = { version = "1.0.125", features = ["derive"] }
-serde_json = "1.0"
-os_info = "3.7.0"
-concolor = { version = "0.1.1", features = ["api"] }
-
-chrono = "0.4"
-chrono-tz = "0.8"
-
-ariadne = "0.3.0"
-
-[dev-dependencies]
-insta = { version = "1.32.0", features = ["glob"] }
+skc_async_experiment = { path = "lib/skc_async_experiment/" }

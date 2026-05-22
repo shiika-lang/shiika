@@ -4,7 +4,7 @@ use crate::convert_exprs::params;
 use crate::error;
 use crate::parse_typarams;
 use anyhow::Result;
-use shiika_ast::{self, LocationSpan, UnresolvedTypeName};
+use shiika_ast::{self, AstMethodSignature, LocationSpan, UnresolvedTypeName};
 use shiika_core::{names::*, ty, ty::*};
 use skc_error::{self, Label};
 use skc_hir::method_signature::{signature_of_new, MethodSignature};
