@@ -1,6 +1,6 @@
 # CodeGen
 
-Directory: `lib/skc_codegen`
+Directory: `lib/skc_async_experiment/src/codegen`
 
 CodeGen generates LLVM IR from Shiika HIR.
 
