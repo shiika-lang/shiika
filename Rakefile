@@ -100,6 +100,27 @@ task :async_integration_test do
     end
   end
 end
+task :examples_test do
+  bin = File.join(CARGO_TARGET, "debug/shiika")
+  sh "cargo build"
+  sh "#{bin} build packages/core"
+  Dir["examples/*.sk"].sort.each do |path|
+    next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
+    name = path.sub(".sk", "")
+    expected = Dir["#{name}.expected_out.*"].first
+    unless expected
+      puts "skip (no expected output): #{path}"
+      next
+    end
+    ext = File.extname(expected)
+    actual = "#{name}.actual#{ext}"
+    sh "#{bin} compile #{name}.sk"
+    Timeout.timeout(30) do
+      sh "#{name}.out > #{actual}"
+    end
+    sh "diff #{actual} #{expected}"
+  end
+end
 task :compat do
   bin = File.join(CARGO_TARGET, "debug/shiika")
   sh "cargo build"
