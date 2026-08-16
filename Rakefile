@@ -73,11 +73,11 @@ end
 task async_test: :async do
   sh "./a.out"
 end
-task :async_integration_test do
+task :test do
   bin = File.join(CARGO_TARGET, "debug/shiika")
   sh "cargo build"
   sh "#{bin} build packages/core"
-  Dir["tests/new_runtime/*.sk"].each do |path|
+  Dir["tests/sk/*.sk"].each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
     sh "#{bin} compile #{name}.sk"
