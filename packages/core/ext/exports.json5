@@ -52,7 +52,7 @@
   ["Object", "==(other: Object) -> Bool", true],
   ["Object", "panic(msg: String) -> Never", true],
   ["Object", "sleep_sec(sec: Int)", true],
-  ["Object", "print(n: Int)", true],
+  ["Object", "print(s: String)", true],
   ["Object", "puts(s: String)", true],
   ["Object", "class() -> Class", true],
   ["Object", "object_id() -> Int", true],

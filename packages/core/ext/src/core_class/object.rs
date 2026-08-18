@@ -14,10 +14,9 @@ async fn object_class(receiver: SkObject) -> SkClass {
     receiver.class()
 }
 #[async_shiika_method("Object#print")]
-async fn object_print(_receiver: SkObject, n: SkInt) {
+async fn object_print(_receiver: SkObject, s: SkString) {
     let mut stdout = stdout();
-    let output = format!("{}\n", n.val());
-    stdout.write_all(output.as_bytes()).await.unwrap();
+    stdout.write_all(s.value()).await.unwrap();
     stdout.flush().await.unwrap();
 }
 
