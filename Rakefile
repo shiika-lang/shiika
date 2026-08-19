@@ -176,7 +176,7 @@ task :lldb do
 end
 
 task :lldb_mcp do
-  sh "lldb", "-o", "protocol-server start MCP listen://localhost:59999"
+  sh "/opt/homebrew/Cellar/llvm/21.1.8/bin/lldb", "-o", "protocol-server start MCP listen://localhost:59999"
 end
 
 task :tmp do
