@@ -446,14 +446,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             return Err(error::ivar_decl_outside_initializer(name, locs));
         }
         let expr = self.convert_expr(rhs)?;
-        let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
+        let receiver = self.convert_self_expr(locs);
         Ok(Hir::ivar_assign(
             name,
             idx,
             expr,
             !*readonly,
-            base_ty,
+            receiver,
             locs.clone(),
         ))
     }
@@ -468,10 +468,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let expr = self.convert_expr(rhs)?;
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
 
-        if let Some(ivar) = self
+        let ivar = self
             .class_dict
             .find_ivar(&base_ty.fullname.to_class_fullname(), name)
-        {
+            .cloned();
+        if let Some(ivar) = ivar {
             if ivar.readonly {
                 return Err(error::program_error(&format!(
                     "instance variable `{}' is readonly",
@@ -485,12 +486,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     name, ivar.ty, expr.ty
                 )));
             }
+            // Obtain `self` via `convert_self_expr` so that inside a lambda it
+            // resolves to the captured self (arg 0 is `$fn`, not `self`).
+            let receiver = self.convert_self_expr(locs);
             Ok(Hir::ivar_assign(
                 name,
                 ivar.idx,
                 expr,
                 false,
-                base_ty,
+                receiver,
                 locs.clone(),
             ))
         } else {
@@ -820,7 +824,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
     }
 
-    fn convert_ivar_ref(&self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
+    fn convert_ivar_ref(&mut self, name: &str, locs: &LocationSpan) -> Result<HirExpression> {
         let base_ty = self.ctx_stack.self_ty().erasure_ty();
         let found = self
             .class_dict
@@ -832,15 +836,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     .unwrap()
                     .iivars
                     .get(name)
-            });
+            })
+            .cloned();
         match found {
-            Some(ivar) => Ok(Hir::ivar_ref(
-                ivar.ty.clone(),
-                name.to_string(),
-                ivar.idx,
-                base_ty,
-                locs.clone(),
-            )),
+            Some(ivar) => {
+                // `@ivar` reads from `self`; obtain it via `convert_self_expr`
+                // so that inside a lambda it resolves to the captured self
+                // (the lambda's arg 0 is `$fn`, not `self`).
+                let receiver = self.convert_self_expr(locs);
+                Ok(Hir::ivar_ref(
+                    ivar.ty.clone(),
+                    name.to_string(),
+                    ivar.idx,
+                    receiver,
+                    locs.clone(),
+                ))
+            }
             None => {
                 let main_msg = format!("ivar `{}' was not found in {}", name, base_ty);
                 let report = skc_error::build_report(main_msg, locs, |r, locs_span| {

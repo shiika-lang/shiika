@@ -565,12 +565,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .enumerate()
             .map(|(idx, param)| {
                 let argref = Hir::arg_ref(param.ty.clone(), idx, false, LocationSpan::todo());
+                let receiver = Hir::self_expression(self_ty.clone(), LocationSpan::todo());
                 Hir::ivar_assign(
                     &param.name,
                     idx,
                     argref,
                     false,
-                    self_ty.clone(),
+                    receiver,
                     LocationSpan::todo(),
                 )
             })

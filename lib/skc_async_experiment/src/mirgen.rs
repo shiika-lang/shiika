@@ -442,8 +442,13 @@ impl<'a> Compiler<'a> {
                 // +1 for the receiver (self) in methods, or +1 for $fn in lambdas
                 mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
             }
-            HirExpressionBase::HirIVarRef { name, idx, self_ty } => {
-                mir::Expr::ivar_ref(self.compile_self_expr(self_ty), idx, name, expr.ty.into())
+            HirExpressionBase::HirIVarRef {
+                name,
+                idx,
+                receiver_expr,
+            } => {
+                let receiver = self.convert_expr(*receiver_expr);
+                mir::Expr::ivar_ref(receiver, idx, name, expr.ty.into())
             }
             HirExpressionBase::HirConstRef { fullname } => {
                 mir::Expr::const_ref(fullname, convert_ty(expr.ty))
@@ -531,10 +536,10 @@ impl<'a> Compiler<'a> {
                 name,
                 idx,
                 rhs,
-                self_ty,
+                receiver_expr,
                 ..
             } => {
-                let self_expr = self.compile_self_expr(self_ty);
+                let self_expr = self.convert_expr(*receiver_expr);
                 let mir_rhs = self.convert_expr(*rhs);
                 mir::Expr::ivar_set(self_expr, idx, mir_rhs, name)
             }
