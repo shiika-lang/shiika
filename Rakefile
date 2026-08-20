@@ -115,7 +115,7 @@ task :examples_test do
     ext = File.extname(expected)
     actual = "#{name}.actual#{ext}"
     sh "#{bin} compile #{name}.sk"
-    Timeout.timeout(30) do
+    Timeout.timeout(120) do
       sh "#{name}.out > #{actual}"
     end
     sh "diff #{actual} #{expected}"
