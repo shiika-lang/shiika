@@ -1,5 +1,5 @@
 use shiika_ffi::core_class::{SkBool, SkInt, SkMutableString, SkString};
-use shiika_ffi_macro::shiika_method;
+use shiika_ffi_macro::{async_shiika_method, shiika_method};
 
 #[shiika_method("MutableString#initialize")]
 pub extern "C" fn mutable_string_initialize(receiver: SkMutableString) {
@@ -34,8 +34,10 @@ pub extern "C" fn mutable_string_is_empty(receiver: SkMutableString) -> SkBool {
     receiver.value().is_empty().into()
 }
 
-#[shiika_method("MutableString#to_s")]
-pub extern "C" fn mutable_string_to_s(receiver: SkMutableString) -> SkString {
+// `to_s` overrides `Object#to_s`, which is async, so it must also be async
+// (a vtable slot's asyncness is fixed by the base method).
+#[async_shiika_method("MutableString#to_s")]
+async fn mutable_string_to_s(receiver: SkMutableString) -> SkString {
     SkString::from_vec(receiver.value().to_vec())
 }
 
