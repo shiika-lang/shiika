@@ -74,7 +74,7 @@
   ["Meta:Math", "sin(x: Float) -> Float", false],
   ["Meta:Math", "cos(x: Float) -> Float", false],
   ["Meta:Math", "sqrt(x: Float) -> Float", false],
-  ["Meta:Shiika::Internal", "p(value: Object, len: Int)", false],
+  ["Meta:Shiika::Internal", "d(value: Object, len: Int)", false],
   ["Random", "_initialize_rustlib(seed: Int)", false],
   ["Meta:Random", "_without_seed -> Random", false],
   ["Random", "int(from: Int, to: Int) -> Int", false],
