@@ -1,2 +1,5 @@
 module Math
+  # def self.sin(x: Float) -> Float
+  # def self.cos(x: Float) -> Float
+  # def self.sqrt(x: Float) -> Float
 end
