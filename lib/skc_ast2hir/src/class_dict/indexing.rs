@@ -100,7 +100,52 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
+        self.check_virtual_asyncness()?;
         Ok(())
+    }
+
+    /// Raise error if a (Rust-implemented) sync method overrides an async method.
+    fn check_virtual_asyncness(&self) -> Result<()> {
+        for sk_type in self.sk_types.types.values() {
+            let SkType::Class(sk_class) = sk_type else {
+                continue;
+            };
+            for (sig, _) in sk_type.base().method_sigs.to_ordered() {
+                // Only sync methods can violate the invariant
+                if sig.asyncness != Asyncness::Sync {
+                    continue;
+                }
+                let Some(found) = self.lookup_ancestor_method(sk_class, &sig.fullname.first_name)
+                else {
+                    continue;
+                };
+                if found.sig.asyncness == Asyncness::Async {
+                    return Err(error::program_error(&format!(
+                        "method {} must be async because it overrides async method {}",
+                        sig.fullname, found.sig.fullname
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Look up `method_name` in the ancestors (included modules and superclass
+    /// chain) of `sk_class`, skipping `sk_class` itself.
+    fn lookup_ancestor_method(
+        &self,
+        sk_class: &SkClass,
+        method_name: &MethodFirstname,
+    ) -> Option<FoundMethod> {
+        for modinfo in &sk_class.includes {
+            if let Some(found) =
+                self.find_method(&modinfo.erasure().to_type_fullname(), method_name)
+            {
+                return Some(found);
+            }
+        }
+        let super_ty = sk_class.superclass.as_ref()?.to_term_ty();
+        self.try_lookup_method(&super_ty, method_name)
     }
 
     fn index_class(
@@ -896,9 +941,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     true,
                 )?;
-                if !is_async && hir_sig.is_virtual {
+                // A method of an extendable type (an inheritable class or a
+                // module) is virtual because a subclass/includer may override
+                // it, so it must be async. See also: `check_virtual_asyncness`
+                if !is_async && extendable {
                     return Err(error::program_error(&format!(
-                        "method {} must be async because it is virtual",
+                        "method {} must be async because it belongs to an extendable type",
                         hir_sig.fullname
                     )));
                 }
