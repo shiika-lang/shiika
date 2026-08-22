@@ -12,3 +12,6 @@ members = [
 [dependencies]
 anyhow = "1.0"
 skc_async_experiment = { path = "lib/skc_async_experiment/" }
+
+[dev-dependencies]
+insta = { version = "1.32.0", features = ["glob"] }

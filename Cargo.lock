@@ -1463,6 +1463,7 @@ name = "shiika"
 version = "0.9.1"
 dependencies = [
  "anyhow",
+ "insta",
  "skc_async_experiment",
 ]
 
