@@ -35,19 +35,16 @@ export LLC=llc-18
 export CLANG=clang-18
 ```
 
-### Compiling core library
+### Building the core package
 
-You need to compile corelib before running any Shiika programs. 
+You need to build the `core` package before running any Shiika programs.
 
 ```
 $ git clone https://github.com/shiika-lang/shiika
 $ cd shiika
 $ cargo build
-$ cd lib/skc_rustlib; cargo build; cd ../../
-$ cargo run -- build-corelib
+$ cargo run -- build packages/core
 ```
-
-The `build-corelib` subcommand compiles core classes (builtin/\*.sk) into ./builtin/builtin.bc and ./builtin/exports.json. 
 
 ### Running a program
 
@@ -72,10 +69,10 @@ However you may see errors something like
 
 ```
 $ shiika run main.sk 
-Error: ./builtin/exports.json not found
+Error: core package not found
 ```
 
-because `shiika` looks for corelib in the current directory by default. You can configure this by setting `SHIIKA_ROOT` to point the cloned repository.
+because `shiika` looks for the `core` package in the current directory by default. You can configure this by setting `SHIIKA_ROOT` to point the cloned repository.
 
 ```
 export SHIIKA_ROOT=/path/to/repo/of/shiika
@@ -99,3 +96,11 @@ This may happen when you install llvm from https://apt.llvm.org/ .
 ```
 
 => `brew install libtool`
+
+> cc not found
+
+Install `gcc`.
+
+>   = note: /usr/bin/ld: cannot find -lz
+
+Install `zlib1g-dev`.

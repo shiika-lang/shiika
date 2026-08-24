@@ -1,6 +1,13 @@
 use crate::cli;
 use anyhow::Result;
 use clap::Parser;
+use std::path::Path;
+
+/// Compile a single `.sk` file. Used by the `erroneous` integration test.
+pub fn compile(path: &Path) -> Result<()> {
+    let mut cli = cli::Cli::init()?;
+    cli.compile(&path.to_path_buf())
+}
 
 pub fn main() -> Result<()> {
     env_logger::init();

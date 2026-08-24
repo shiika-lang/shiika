@@ -7,7 +7,7 @@ pub mod type_index;
 use anyhow::Result;
 pub use found_method::{CallType, FoundMethod};
 pub use indexing::RustMethods;
-use shiika_ast::{self, AstMethodSignature};
+use shiika_ast::{self};
 use shiika_core::names::*;
 use skc_hir::*;
 use type_index::TypeIndex;
@@ -49,47 +49,12 @@ pub fn create<'hir_maker>(
     Ok(dict)
 }
 
-pub fn create_for_corelib<'hir_maker>(
-    defs: &[&shiika_ast::Definition],
-    imported_classes: &'hir_maker SkTypes,
-    sk_types: SkTypes,
-    type_index: TypeIndex,
-) -> Result<ClassDict<'hir_maker>> {
-    let mut dict = ClassDict {
-        type_index,
-        sk_types,
-        imported_classes,
-    };
-    dict.index_program(defs, index_rust_method_sigs())?;
-    Ok(dict)
-}
-
-fn index_rust_method_sigs() -> indexing::RustMethods {
-    let mut rust_methods = HashMap::new();
-    let ast_sigs = skc_corelib::rustlib_methods::provided_methods();
-    for (classname, ast_sig) in ast_sigs {
-        let v: &mut Vec<(AstMethodSignature, bool)> =
-            rust_methods.entry(classname.into()).or_default();
-        v.push((ast_sig.clone(), true));
-    }
-    rust_methods
-}
-
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let superclass = &self.get_class(classname).superclass.clone();
         let mut ivars = self.superclass_ivars(superclass).unwrap_or_default();
         let class = self.get_class_mut(classname);
-        // Disabled consistency check (does not work with the new runtime)
-        //if !classname.is_meta() && !class.ivars.is_empty() {
-        //    // The ivars are defined in skc_corelib. Just check that
-        //    // all the ivars are included
-        //    for (k, v) in ivars.iter().chain(own_ivars.iter()) {
-        //        debug_assert!(class.ivars.get(k).unwrap() == v);
-        //    }
-        //    return;
-        //}
         // Preserve ivars set by bootstrap that aren't from the superclass
         for (k, v) in &class.ivars {
             ivars.entry(k.clone()).or_insert(v.clone());

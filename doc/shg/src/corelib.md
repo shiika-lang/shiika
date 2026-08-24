@@ -1,19 +1,25 @@
 # Corelib
 
-Directory: `lib/skc_corelib`, `lib/skc_rustlib`, `builtin`
+Directory: `packages/core`
 
-## corelib
+## core package
 
-`skc_corelib` defines the core classes like `Object`, `Bool`, `Int` together with its methods.
+The `core` package contains the core classes like `Object`, `Bool`, `Int` together with their methods.
 
-`skc_rustlib` also defines core methods but written Rust. 
-
-`builtin/*.sk` are Shiika code to define core library.
+- `packages/core/lib/*.sk` are Shiika code defining the core library.
+- `packages/core/ext/` contains Rust implementations exposed to Shiika via FFI. The Rust-side method signatures are listed in `packages/core/ext/exports.json5`.
 
 ### Compilation
 
-`builtin/*.sk` and `skc_corelib` are compiled into `builtin/builtin.bc` by `shiika build_corelib`.
+The package is compiled by `shiika build packages/core` and the artifacts go under `$SHIIKA_WORK/packages/core-x.x.x/`.
 
-`skc_rustlib` is compiled by running `cargo build` (as usual).
+`shiika run` invokes `clang` to link these with the user program.
 
-`shiika run` executes `clang` to link these with user program.
+## Package layout
+
+- `packages/core`: defines core classes.
+- `packages/core/ext`: defines core methods in Rust.
+  - `packages/core/ext/exports.json5`: list of core methods defined in Rust.
+- `packages/core/lib`: defines core methods in Shiika.
+- `$SHIIKA_WORK/packages/core-x.x.x/lib/index.bc`: compiled core package (LLVM bitcode).
+- `$SHIIKA_WORK/packages/core-x.x.x/lib/exports.json`: interface information of the core package.

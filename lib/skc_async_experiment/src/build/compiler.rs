@@ -105,7 +105,7 @@ fn generate_hir(
     let imports = {
         let mut imports = LibraryExports::empty();
         for package in target.deps {
-            let exp = load_exports_json(&cli.lib_exports_path(&package.spec))?;
+            let exp = load_exports_json(&package.spec.name, &cli.lib_exports_path(&package.spec))?;
             imports.sk_types.merge(&exp.sk_types);
             imports.constants.extend(exp.constants);
             imports.vtables.merge(exp.vtables);
@@ -145,8 +145,15 @@ fn generate_hir(
 }
 
 /// Deserialize exports.json into LibraryExports
-fn load_exports_json(path: &Path) -> Result<LibraryExports> {
-    let mut f = fs::File::open(&path).context(format!("{} not found", path.display()))?;
+fn load_exports_json(package_name: &str, path: &Path) -> Result<LibraryExports> {
+    let mut f = fs::File::open(&path).with_context(|| {
+        format!(
+            "package `{}` is not built yet. Run `shiika build packages/{}` first.\n  (missing: {})",
+            package_name,
+            package_name,
+            path.display()
+        )
+    })?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .context(format!("failed to read {}", path.display()))?;

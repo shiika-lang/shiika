@@ -505,10 +505,10 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             SkObj::from_basic_value_enum(obj),
             &llvm_struct::of_ty(self, &obj_expr.1),
             idx,
-            value,
+            value.clone(),
             name,
         )?;
-        Ok(None)
+        Ok(Some(value))
     }
 
     fn compile_const_set(

@@ -2,7 +2,7 @@
 
 ## `tests/sk`
 
-This directory contains various Shiika programs and run by `tests/integration_test.rs`.
+This directory contains various Shiika programs and run by `rake test`.
 
 ### Conventions
 

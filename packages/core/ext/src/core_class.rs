@@ -3,6 +3,7 @@ mod class;
 mod file;
 mod float;
 mod int;
+mod math;
 mod mutable_string;
 mod object;
 mod random;

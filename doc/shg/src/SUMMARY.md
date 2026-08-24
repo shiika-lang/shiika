@@ -1,6 +1,7 @@
 # Shiika Hacking Guide
 
 * [Introduction](README.md)
+* [Architecture](architecture.md)
 * Source code
   * [Parser](parser.md)
   * [AST](ast.md)

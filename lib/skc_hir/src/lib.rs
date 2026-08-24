@@ -168,7 +168,7 @@ pub enum HirExpressionBase {
         idx: usize,
         rhs: Box<HirExpression>,
         writable: bool,
-        self_ty: TermTy,
+        receiver_expr: Box<HirExpression>,
     },
     HirConstAssign {
         fullname: ConstFullname,
@@ -204,7 +204,7 @@ pub enum HirExpressionBase {
     HirIVarRef {
         name: String,
         idx: usize,
-        self_ty: TermTy,
+        receiver_expr: Box<HirExpression>,
     },
     /// Reference of class-wise type variable
     HirClassTVarRef {
@@ -486,7 +486,7 @@ impl Hir {
         idx: usize,
         rhs: HirExpression,
         writable: bool,
-        self_ty: TermTy,
+        receiver_expr: HirExpression,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
@@ -496,7 +496,7 @@ impl Hir {
                 idx,
                 rhs: Box::new(rhs),
                 writable,
-                self_ty,
+                receiver_expr: Box::new(receiver_expr),
             },
             locs,
         }
@@ -613,12 +613,16 @@ impl Hir {
         ty: TermTy,
         name: String,
         idx: usize,
-        self_ty: TermTy,
+        receiver_expr: HirExpression,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirIVarRef { name, idx, self_ty },
+            node: HirExpressionBase::HirIVarRef {
+                name,
+                idx,
+                receiver_expr: Box::new(receiver_expr),
+            },
             locs,
         }
     }
