@@ -68,7 +68,7 @@ jobs:
           export SHIIKA_ROOT=.
           export RUST_BACKTRACE=1
           env -- cargo run -- build packages/core
-          env -- rake async_integration_test
+          env -- rake test
           env -- rake examples_test
 
   # Run cargo fmt --all -- --check
