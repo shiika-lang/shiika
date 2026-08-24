@@ -2,25 +2,9 @@
 
 Directory: `tests/`
 
-## Unit tests
+- `tests/sk/*.sk`: Shiika-level integration tests. A passing test prints `ok`.
+- `tests/erroneous/`: programs that are expected to fail compilation.
+- `tests/snapshots/`: snapshot outputs used by the tests above.
 
-File: `tests/*_test.rs`
-
-## Integration tests
-
-File: `tests/integration_test.rs`, `tests/sk/*.sk`
-
-These are Shiika-level tests. If the test passes, it should print just `ok`; otherwise, it prints message like `ng foo`.
-
-You can select which .sk to run by `FILTER=` envvar.
-
-```
-# Run tests/sk/*block*.sk
-$ FILTER=block cargo test --test integration_test -- --nocapture
-```
-
-With `--nocapture`, path of the .sk file is printed.
-
-## Doc tests
-
-Some of `src/*.rs` has doc tests.
+For how to run the tests (`rake test`, the `FILTER=` environment variable,
+etc.), see the [Development Guide](../../../DEVELOPMENT.md#testing).

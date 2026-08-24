@@ -1,6 +1,8 @@
 # Debugging
 
-Some hints to debug the Shiika compiler.
+Some hints to debug the Shiika compiler. For the MIR pass debug logs under
+`$SHIIKA_WORK/debug_logs/` and their notations, see the
+[Development Guide](../../../DEVELOPMENT.md#debugging).
 
 ## Debug parser
 

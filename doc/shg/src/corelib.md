@@ -14,3 +14,12 @@ The `core` package contains the core classes like `Object`, `Bool`, `Int` togeth
 The package is compiled by `shiika build packages/core` and the artifacts go under `$SHIIKA_WORK/packages/core-x.x.x/`.
 
 `shiika run` invokes `clang` to link these with the user program.
+
+## Package layout
+
+- `packages/core`: defines core classes.
+- `packages/core/ext`: defines core methods in Rust.
+  - `packages/core/ext/exports.json5`: list of core methods defined in Rust.
+- `packages/core/lib`: defines core methods in Shiika.
+- `$SHIIKA_WORK/packages/core-x.x.x/lib/index.bc`: compiled core package (LLVM bitcode).
+- `$SHIIKA_WORK/packages/core-x.x.x/lib/exports.json`: interface information of the core package.

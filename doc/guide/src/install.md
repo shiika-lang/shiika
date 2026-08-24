@@ -96,3 +96,11 @@ This may happen when you install llvm from https://apt.llvm.org/ .
 ```
 
 => `brew install libtool`
+
+> cc not found
+
+Install `gcc`.
+
+>   = note: /usr/bin/ld: cannot find -lz
+
+Install `zlib1g-dev`.

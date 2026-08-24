@@ -98,31 +98,9 @@ See [Issues](https://github.com/shiika-lang/shiika/issues) for more.
 
 ## Hacking
 
-See [install.md](./doc/guide/src/install.md)
-
-### Run tests
-
-```
-$ cargo test
-```
-
-Only integration tests (test/sk/\*.sk):
-
-```
-$ cargo test --test integration_test
-```
-
-Specific file under test/sk/ (eg. string.sk):
-
-```
-$ FILTER=string cargo test --test integration_test
-```
-
-With logging enabled
-
-```
-$ RUST_LOG='trace' cargo test
-```
+For building, testing, and debugging the compiler, see the
+[Development Guide](./DEVELOPMENT.md). For the internals of the compiler, see
+the [Shiika Hacking Guide](./doc/shg/src/SUMMARY.md).
 
 ## License
 
