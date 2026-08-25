@@ -1,5 +1,5 @@
 [package]
-name = "skc_async_experiment"
+name = "skc_main"
 version = "0.1.0"
 edition = "2021"
 

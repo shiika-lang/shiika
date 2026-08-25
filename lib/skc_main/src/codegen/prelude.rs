@@ -58,7 +58,7 @@ pub fn core_externs() -> Vec<mir::Extern> {
     .collect()
 }
 
-/// Functions defined in skc_async_experiment::codegen
+/// Functions defined in skc_main::codegen
 pub fn intrinsic_externs() -> Vec<(FunctionName, FunTy)> {
     vec![
         (

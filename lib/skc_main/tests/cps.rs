@@ -1,7 +1,7 @@
 use anyhow::Result;
 use insta::{assert_snapshot, glob};
 use shiika_parser::{Parser, SourceFile};
-use skc_async_experiment::{hir, hir_lowering, prelude};
+use skc_main::{hir, hir_lowering, prelude};
 use std::path::Path;
 
 #[test]

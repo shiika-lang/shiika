@@ -15,15 +15,15 @@ Shiika is a compiler written in Rust that compiles to LLVM IR.
   - `lib/shiika_parser`: hand-written parser converting source to AST
   - `lib/shiika_ast`: AST structures, tokens, and visitor patterns
 - HIR generation
-  - `lib/skc_async_experiment/hir/`
+  - `lib/skc_main/hir/`
   - `lib/skc_ast2hir/`: `ClassDict` and related helpers shared by HIR generation
   - `lib/skc_hir/`: HIR structures (`SkMethod`, `SkType`, `SkClass`)
 - MIR generation
-  - `lib/skc_async_experiment/hir_to_mir.rs`
+  - `lib/skc_main/hir_to_mir.rs`
   - `lib/skc_mir/`: vtable building and library export structures
     (This crate is made for the old runtime. Should be renamed)
 - Code generation
-  - `lib/skc_async_experiment/codegen/`
+  - `lib/skc_main/codegen/`
 - Runtime and stdlib
   - `packages/core`
 - FFI
@@ -52,7 +52,7 @@ VTables implements inheritance.
 
 - **Structure built**: MIR stage (`lib/skc_mir/src/vtables.rs`, `VTables::build()`).
   Inherits the superclass vtable and adds/overrides methods.
-- **LLVM insertion**: codegen stage (`lib/skc_async_experiment/src/codegen/`).
+- **LLVM insertion**: codegen stage (`lib/skc_main/src/codegen/`).
   Creates global constants like `@shiika_vtable_<ClassName>`.
 
 ### WTable (Witness Table)
