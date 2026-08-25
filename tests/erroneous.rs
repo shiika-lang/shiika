@@ -1,6 +1,6 @@
 use anyhow::Result;
 use insta::{assert_snapshot, glob};
-use skc_async_experiment::run;
+use skc_main::run;
 use std::path::Path;
 
 #[test]

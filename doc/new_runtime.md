@@ -7,7 +7,7 @@ Tracking issue: https://github.com/shiika-lang/shiika/issues/545
 ## Files
 
 - src/bin/exp_shiika.rs
-- lib/skc_async_experiment/
+- lib/skc_main/
 - packages/core
 
 ## How to try

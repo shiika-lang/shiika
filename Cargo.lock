@@ -1464,7 +1464,7 @@ version = "0.9.1"
 dependencies = [
  "anyhow",
  "insta",
- "skc_async_experiment",
+ "skc_main",
 ]
 
 [[package]]
@@ -1552,35 +1552,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "skc_async_experiment"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ariadne",
- "clap",
- "either",
- "env_logger",
- "inkwell",
- "insta",
- "json5",
- "log",
- "nom",
- "nom_locate",
- "os_info",
- "peg",
- "serde",
- "serde_json",
- "shiika_ast",
- "shiika_core",
- "shiika_ffi",
- "shiika_ffi_mangle",
- "shiika_parser",
- "skc_ast2hir",
- "skc_hir",
- "skc_mir",
-]
-
-[[package]]
 name = "skc_error"
 version = "0.1.0"
 dependencies = [
@@ -1609,6 +1580,35 @@ dependencies = [
  "async-channel",
  "tokio",
  "tower-lsp",
+]
+
+[[package]]
+name = "skc_main"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ariadne",
+ "clap",
+ "either",
+ "env_logger",
+ "inkwell",
+ "insta",
+ "json5",
+ "log",
+ "nom",
+ "nom_locate",
+ "os_info",
+ "peg",
+ "serde",
+ "serde_json",
+ "shiika_ast",
+ "shiika_core",
+ "shiika_ffi",
+ "shiika_ffi_mangle",
+ "shiika_parser",
+ "skc_ast2hir",
+ "skc_hir",
+ "skc_mir",
 ]
 
 [[package]]
