@@ -79,3 +79,20 @@ Uncomment the body of `debug_log` in `src/parser/base.rs`:
         //println!("{}{} {}", self.lv_space(), _msg, self.lexer.debug_info());
     }
 ```
+
+## Release
+
+Releases are made by [tagpr](https://github.com/Songmu/tagpr). Once something
+is merged into `main`, tagpr opens (or updates) a pull request titled
+`Release for vX.Y.Z`, which bumps the version in `Cargo.toml` and `Cargo.lock`.
+
+To make a release:
+
+1. Add a section for the new version to `CHANGELOG.md` and push it to the
+   release pull request's branch (tagpr keeps such commits). CHANGELOG.md is
+   written by hand, not generated.
+2. If the release is not a patch release, put the `minor` or `major` label on
+   the pull request. tagpr recalculates the version accordingly.
+3. Merge the pull request. tagpr tags the merge commit and creates a draft
+   GitHub Release; publish it when the notes look good.
+
