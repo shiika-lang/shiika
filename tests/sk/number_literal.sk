@@ -1,0 +1,6 @@
+unless 9223372036854775807 - 1 == 9223372036854775806; puts "ng max"; end
+unless 0 - 9223372036854775807 == -9223372036854775807; puts "ng min"; end
+unless 1.abs == 1; puts "ng int method"; end
+unless 1.5.floor == 1.0; puts "ng float method"; end
+
+puts "ok"
