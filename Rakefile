@@ -18,20 +18,6 @@ task :doc do
   end
 end
 
-desc "git ci, git tag and git push"
-task :release do
-  ver = File.read('CHANGELOG.md')[/v([\d\.]+) /, 1]
-  v = "v" + ver
-  raise "Cargo.toml not updated" unless File.readlines("Cargo.toml").include?("version = \"#{ver}\"\n")
-  sh "git diff --cached"
-  puts "release as #{v}? [y/N]"
-  break unless $stdin.gets.chomp == "y"
-
-  sh "git ci -m '#{v}'"
-  sh "git tag '#{v}'"
-  sh "git push origin main --tags"
-end
-
 CARGO_TARGET = ENV["SHIIKA_CARGO_TARGET"] || "./target"
 
 task :fmt do
