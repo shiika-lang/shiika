@@ -1,3 +1,96 @@
+## [v0.9.2](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.9.2) - 2026-08-26
+
+- Empty args compiler crash  by @EruEri in https://github.com/shiika-lang/shiika/pull/516
+- Rewrite type inference by @yhara in https://github.com/shiika-lang/shiika/pull/517
+- Add tests for erroneous Shiika programs by @yhara in https://github.com/shiika-lang/shiika/pull/518
+- impl. Result#try! by @yhara in https://github.com/shiika-lang/shiika/pull/520
+- fix command name by @yhara in https://github.com/shiika-lang/shiika/pull/525
+- treat '\r' as space in lexer by @aisk in https://github.com/shiika-lang/shiika/pull/526
+- Specify in install.md to use the latest version of rust by @yamakoud in https://github.com/shiika-lang/shiika/pull/528
+- Fix String#chars by @yhara in https://github.com/shiika-lang/shiika/pull/522
+- [NITS] remove trailing spaces by @yamakoud in https://github.com/shiika-lang/shiika/pull/529
+- Issue 519 method arg check by @yamakoud in https://github.com/shiika-lang/shiika/pull/527
+- define Math as a module instead of class by @aisk in https://github.com/shiika-lang/shiika/pull/524
+- add basic support to run ci on mac by @aisk in https://github.com/shiika-lang/shiika/pull/533
+- Update .gitignore path /tests/data/hello.txt -> /tests/tmp/hello.txt by @yamakoud in https://github.com/shiika-lang/shiika/pull/535
+- Handle semicolon properly by @yamakoud in https://github.com/shiika-lang/shiika/pull/534
+- Bump mio from 0.8.8 to 0.8.11 by @dependabot[bot] in https://github.com/shiika-lang/shiika/pull/536
+- Bump rustix from 0.38.13 to 0.38.31 by @dependabot[bot] in https://github.com/shiika-lang/shiika/pull/539
+- Remove CharType::Separator and add CharType::Newline, CharType::Semicolon by @yamakoud in https://github.com/shiika-lang/shiika/pull/537
+- Develop environment in Docker container by @yamakoud in https://github.com/shiika-lang/shiika/pull/541
+- Allow a line starts with dot for test case 1 by @yamakoud in https://github.com/shiika-lang/shiika/pull/542
+- Update develop-in-docker-container.md by @yamakoud in https://github.com/shiika-lang/shiika/pull/543
+- Ban semicolon after binary op by @yamakoud in https://github.com/shiika-lang/shiika/pull/546
+- Add lib/skc_async_experiment by @yhara in https://github.com/shiika-lang/shiika/pull/544
+- new_runtime: Use lib/shiika_parser by @yhara in https://github.com/shiika-lang/shiika/pull/547
+- new_runtime: Rename Null to Void by @yhara in https://github.com/shiika-lang/shiika/pull/548
+- Refactor: implementation for starts with dot by @yamakoud in https://github.com/shiika-lang/shiika/pull/549
+- Add test case 4 by @yamakoud in https://github.com/shiika-lang/shiika/pull/550
+- new_runtime: Box int and bool by @yhara in https://github.com/shiika-lang/shiika/pull/551
+- new_runtime: impl. if by @yhara in https://github.com/shiika-lang/shiika/pull/552
+- new_runtime: Add tests by @yhara in https://github.com/shiika-lang/shiika/pull/553
+- new_runtime: Support `Int#<`, etc. by @yhara in https://github.com/shiika-lang/shiika/pull/554
+- new_runtime: Fix failing tests by @yhara in https://github.com/shiika-lang/shiika/pull/555
+- Move verifier.rs by @yhara in https://github.com/shiika-lang/shiika/pull/556
+- Add name to Expr::ArgRef by @yhara in https://github.com/shiika-lang/shiika/pull/557
+- Add pass_async_env.rs by @yhara in https://github.com/shiika-lang/shiika/pull/558
+- new_runtime: impl. while by @yhara in https://github.com/shiika-lang/shiika/pull/559
+- Parse unary plus by @yamakoud in https://github.com/shiika-lang/shiika/pull/560
+- new_runtime: Split hir and mir by @yhara in https://github.com/shiika-lang/shiika/pull/562
+- new_runtime: Remove hir::Ty by @yhara in https://github.com/shiika-lang/shiika/pull/563
+- new_runtime: impl. direct method calls by @yhara in https://github.com/shiika-lang/shiika/pull/564
+- new_runtime: impl. constants by @yhara in https://github.com/shiika-lang/shiika/pull/565
+- new_runtime: impl. Constant name resolution by @yhara in https://github.com/shiika-lang/shiika/pull/566
+- ci: update old actions by @yhara in https://github.com/shiika-lang/shiika/pull/568
+- new_runtime: build vtable by @yhara in https://github.com/shiika-lang/shiika/pull/567
+- new_runtime: Move skc_runtime to packages/core by @yhara in https://github.com/shiika-lang/shiika/pull/570
+- build(deps): bump tokio from 1.43.0 to 1.43.1 by @dependabot[bot] in https://github.com/shiika-lang/shiika/pull/569
+- new_runtime: Accessing package const by @yhara in https://github.com/shiika-lang/shiika/pull/572
+- Build .sk in a package by @yhara in https://github.com/shiika-lang/shiika/pull/571
+- fix type of `self` by @yhara in https://github.com/shiika-lang/shiika/pull/573
+- new_runtime: Insert vtable by @yhara in https://github.com/shiika-lang/shiika/pull/575
+- refactor: Convert hir_to_mir functions to HirToMir struct methods by @yhara in https://github.com/shiika-lang/shiika/pull/576
+- Make classes `final` by default  by @yhara in https://github.com/shiika-lang/shiika/pull/577
+- Extract sk_types.rs by @yhara in https://github.com/shiika-lang/shiika/pull/578
+- new_runtime: impl. virtual functoin call by @yhara in https://github.com/shiika-lang/shiika/pull/579
+- Remove atty crate from dependency (unmaintained) by @yhara in https://github.com/shiika-lang/shiika/pull/580
+- new_runtime: Cleanup by @yhara in https://github.com/shiika-lang/shiika/pull/581
+- Chores by @yhara in https://github.com/shiika-lang/shiika/pull/582
+- new_runtime: String by @yhara in https://github.com/shiika-lang/shiika/pull/584
+- new_runtime: refactor FunctionName by @yhara in https://github.com/shiika-lang/shiika/pull/585
+- Convert old HIR to new MIR by @yhara in https://github.com/shiika-lang/shiika/pull/586
+- new_runtime: impl. ivars by @yhara in https://github.com/shiika-lang/shiika/pull/588
+- new_runtime: impl. Class object by @yhara in https://github.com/shiika-lang/shiika/pull/589
+- Module calls by @yhara in https://github.com/shiika-lang/shiika/pull/590
+- Llvm 18 by @yhara in https://github.com/shiika-lang/shiika/pull/591
+- new_runtime: Apply TCO where possible by @yhara in https://github.com/shiika-lang/shiika/pull/593
+- new_runtime: Type objects by @yhara in https://github.com/shiika-lang/shiika/pull/595
+- new_runtime: Refactor wtable inserter by @yhara in https://github.com/shiika-lang/shiika/pull/596
+- new_runtime: fix for nested async call by @yhara in https://github.com/shiika-lang/shiika/pull/597
+- build(deps): bump bytes from 1.9.0 to 1.11.1 by @dependabot[bot] in https://github.com/shiika-lang/shiika/pull/598
+- new_runtime: Dump debug MIR to separate files by @yhara in https://github.com/shiika-lang/shiika/pull/600
+- new_runtime: fix redundant Alloc by @yhara in https://github.com/shiika-lang/shiika/pull/599
+- new_runtime: Type related refactoring by @yhara in https://github.com/shiika-lang/shiika/pull/601
+- new_runtime: codegen: Use Erasure for CreateObject by @yhara in https://github.com/shiika-lang/shiika/pull/602
+- fix: Call register_current_thread by @yhara in https://github.com/shiika-lang/shiika/pull/603
+- new_runtime: impl. lambda captures by @yhara in https://github.com/shiika-lang/shiika/pull/604
+- new_runtime: Change test format by @yhara in https://github.com/shiika-lang/shiika/pull/605
+- Update rand crate by @yhara in https://github.com/shiika-lang/shiika/pull/607
+- impl. break from a block by @yhara in https://github.com/shiika-lang/shiika/pull/608
+- Break in while by @yhara in https://github.com/shiika-lang/shiika/pull/609
+- impl. class tvar ref by @yhara in https://github.com/shiika-lang/shiika/pull/610
+- Match expr by @yhara in https://github.com/shiika-lang/shiika/pull/611
+- impl. method tvars by @yhara in https://github.com/shiika-lang/shiika/pull/612
+- Capture method tyarg by @yhara in https://github.com/shiika-lang/shiika/pull/613
+- Builtin to core by @yhara in https://github.com/shiika-lang/shiika/pull/614
+- Fix unclear compile error when clang not exist by @aisk in https://github.com/shiika-lang/shiika/pull/615
+- new_runtime: Compatibility fixes by @yhara in https://github.com/shiika-lang/shiika/pull/616
+- new_runtime: impl. default argument by @yhara in https://github.com/shiika-lang/shiika/pull/617
+- new_runtime: File class by @yhara in https://github.com/shiika-lang/shiika/pull/619
+- Cleanup old runtime by @yhara in https://github.com/shiika-lang/shiika/pull/621
+- Rename skc_async_experiment to skc_main by @yhara in https://github.com/shiika-lang/shiika/pull/622
+- Install tagpr by @yhara in https://github.com/shiika-lang/shiika/pull/623
+
 ## v0.9.1 (2023-09-15)
 
 - Setup
