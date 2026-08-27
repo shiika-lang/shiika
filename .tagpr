@@ -81,3 +81,6 @@
 	vPrefix = true
 	releaseBranch = main
 	versionFile = Cargo.toml
+	# Sync the version of the workspace packages in Cargo.lock with Cargo.toml,
+	# so that `cargo --locked` on CI does not fail.
+	postVersionCommand = "cargo update --workspace"
