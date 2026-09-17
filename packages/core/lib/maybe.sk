@@ -1,4 +1,4 @@
-enum Maybe<V>
+enum Maybe<out V>
   case Some(value: V)
   case None
 

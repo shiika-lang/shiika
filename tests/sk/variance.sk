@@ -1,0 +1,52 @@
+# Tests for variance (in/out) of type parameters
+
+class VarianceTest
+  # Maybe is covariant
+  def self.is_some(m: Maybe<Object>) -> Bool
+    m.some?
+  end
+
+  # Result is covariant
+  def self.is_ok(r: Result<Object>) -> Bool
+    r.ok?
+  end
+
+  # Fn1 is contravariant in its parameter
+  def self.call_with_1(f: Fn1<Int, Int>) -> Int
+    f(1)
+  end
+
+  # Fn1 is covariant in its return type
+  def self.call_obj(f: Fn1<Int, Object>) -> Object
+    f(1)
+  end
+end
+
+# Covariance of Maybe: Maybe<Int> conforms to Maybe<Object>
+unless VarianceTest.is_some(Some<Int>.new(1)); puts "ng maybe covariance"; end
+if VarianceTest.is_some(None); puts "ng maybe covariance (None)"; end
+
+# Covariance of Result: Result<Int> conforms to Result<Object>
+unless VarianceTest.is_ok(Ok<Int>.new(1)); puts "ng result covariance"; end
+
+# Contravariance of Fn1 parameter: Fn1<Object, Int> conforms to Fn1<Int, Int>
+let g = fn(x: Object) { 42 }
+unless VarianceTest.call_with_1(g) == 42; puts "ng fn1 param contravariance"; end
+
+# Covariance of Fn1 return type: Fn1<Int, Int> conforms to Fn1<Int, Object>
+let h = fn(x: Int) { x + 1 }
+VarianceTest.call_obj(h)
+
+# User-defined covariant class
+class Wrapper<out T>
+  def initialize(@value: T)
+  end
+end
+class WrapperTest
+  def self.get(w: Wrapper<Object>) -> Object
+    w.value
+  end
+end
+unless WrapperTest.get(Wrapper<Int>.new(3)) == 3; puts "ng user-defined covariance"; end
+
+puts "ok"

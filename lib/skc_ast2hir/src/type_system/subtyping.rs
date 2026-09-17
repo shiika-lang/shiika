@@ -53,7 +53,14 @@ fn includes(c: &ClassDict, class: &TermTy, module: &LitTy) -> bool {
     sk_class.includes.iter().any(|m| {
         // eg. Make `Enumerable<Int>` from `Enumerable<T>` and `Array<Int>`
         let ms = m.ty().substitute(class.tyargs(), Default::default());
-        ms == *module
+        if ms == *module {
+            true
+        } else if ms.base_name == module.base_name && ms.is_meta == module.is_meta {
+            // Compare type arguments according to the variance of the module's typarams
+            tyargs_conform(c, &ms.to_term_ty(), &module.to_term_ty())
+        } else {
+            false
+        }
     })
 }
 

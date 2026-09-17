@@ -7,32 +7,32 @@ base class Fn
   end
 end
 
-class Fn0<T> : Fn
+class Fn0<out T> : Fn
 end
 
-class Fn1<S1, T> : Fn
+class Fn1<in S1, out T> : Fn
 end
 
-class Fn2<S1, S2, T> : Fn
+class Fn2<in S1, in S2, out T> : Fn
 end
 
-class Fn3<S1, S2, S3, T> : Fn
+class Fn3<in S1, in S2, in S3, out T> : Fn
 end
 
-class Fn4<S1, S2, S3, S4, T> : Fn
+class Fn4<in S1, in S2, in S3, in S4, out T> : Fn
 end
 
-class Fn5<S1, S2, S3, S4, S5, T> : Fn
+class Fn5<in S1, in S2, in S3, in S4, in S5, out T> : Fn
 end
 
-class Fn6<S1, S2, S3, S4, S5, S6, T> : Fn
+class Fn6<in S1, in S2, in S3, in S4, in S5, in S6, out T> : Fn
 end
 
-class Fn7<S1, S2, S3, S4, S5, S6, S7, T> : Fn
+class Fn7<in S1, in S2, in S3, in S4, in S5, in S6, in S7, out T> : Fn
 end
 
-class Fn8<S1, S2, S3, S4, S5, S6, S7, S8, T> : Fn
+class Fn8<in S1, in S2, in S3, in S4, in S5, in S6, in S7, in S8, out T> : Fn
 end
 
-class Fn9<S1, S2, S3, S4, S5, S6, S7, S8, S9, T> : Fn
+class Fn9<in S1, in S2, in S3, in S4, in S5, in S6, in S7, in S8, in S9, out T> : Fn
 end

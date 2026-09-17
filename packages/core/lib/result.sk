@@ -1,4 +1,4 @@
-enum Result<V>
+enum Result<out V>
   case Ok(value: V)
   case Fail(err: Error)
 
