@@ -57,7 +57,6 @@ fn includes(c: &ClassDict, class: &TermTy, module: &LitTy) -> bool {
     })
 }
 
-// TODO: implement variance
 #[allow(clippy::if_same_then_else)]
 fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
     let ancestors = ancestor_types(c, ty1);
@@ -69,6 +68,8 @@ fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
             true
         } else if t1.tyargs().iter().all(|t| t.is_never_type()) {
             true
+        } else if tyargs_conform(c, t1, ty2) {
+            true
         } else {
             // Special care for void funcs
             is_void_fn(ty2)
@@ -76,6 +77,21 @@ fn class_conforms_to_class(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
     } else {
         false
     }
+}
+
+/// Compare the type arguments of `t1` and `t2` (which have the same base type)
+/// according to the variance of each type parameter.
+fn tyargs_conform(c: &ClassDict, t1: &TermTy, t2: &TermTy) -> bool {
+    let typarams = &c.get_type(&t1.erasure().to_type_fullname()).base().typarams;
+    debug_assert_eq!(typarams.len(), t1.tyargs().len());
+    typarams
+        .iter()
+        .zip(t1.tyargs().iter().zip(t2.tyargs().iter()))
+        .all(|(tp, (a1, a2))| match tp.variance {
+            Variance::Invariant => a1.equals_to(a2),
+            Variance::Covariant => conforms(c, a1, a2),
+            Variance::Contravariant => conforms(c, a2, a1),
+        })
 }
 
 /// Returns if `ty` is a void-returning function (eg. `Fn1<Int, Void>`)

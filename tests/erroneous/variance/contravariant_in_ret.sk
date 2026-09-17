@@ -1,0 +1,5 @@
+class Foo<in T>
+  def foo(x: T) -> T
+    x
+  end
+end

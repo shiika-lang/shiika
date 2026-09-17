@@ -271,7 +271,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         let meta_name = fullname.meta_name();
         let inner_namespace = namespace.add(firstname.to_string());
         self.ctx_stack
-            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
+            .push(HirMakerContext::class(inner_namespace.clone(), typarams.clone()));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(&inner_namespace, defs)?;
@@ -279,6 +279,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize and ivars
         let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
         self.class_dict.define_ivars(&fullname, own_ivars.clone());
+        crate::type_system::variance::check_ivars(&self.class_dict, &typarams, &own_ivars)?;
         self.define_accessors(&fullname, own_ivars, defs);
 
         // Register .new

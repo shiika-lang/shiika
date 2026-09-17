@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/variance/covariant_in_param.sk
+---
+Error: covariant type parameter `T' appears in contravariant position
+   ╭─[tests/erroneous/variance/covariant_in_param.sk:2:14]
+   │
+ 2 │   def foo(x: T)
+   │              ┬  
+   │              ╰── covariant type parameter `T' appears in contravariant position
+───╯

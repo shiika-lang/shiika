@@ -208,6 +208,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut superclass = None;
         for name in supers {
             let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
@@ -407,6 +408,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut ivars = vec![];
         for (idx, param) in case.params.iter().enumerate() {
             let ty = self.resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
+            crate::type_system::variance::check_enum_case_ivar(self, typarams, &ty, &param.typ.locs)?;
             let ivar = SkIVar {
                 idx,
                 name: param.name.clone(),
@@ -490,6 +492,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         superclass,
                         false,
                     )?;
+                    crate::type_system::variance::check_method_signature(
+                        self, typarams, sig, &hir_sig,
+                    )?;
                     if sig.name.0 == "initialize" {
                         self._index_accessors(&mut instance_methods, sig, &hir_sig);
                     }
@@ -565,6 +570,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             typarams,
                             false,
                             false,
+                        )?;
+                        crate::type_system::variance::check_method_signature(
+                            self, typarams, sig, &hir_sig,
                         )?;
                         requirements.push(hir_sig);
                     } else {
@@ -832,6 +840,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         is_rust: bool,
     ) -> Result<MethodSignature> {
         let method_typarams = parse_typarams(&sig.typarams);
+        if let Some(tp) = method_typarams
+            .iter()
+            .find(|t| t.variance != ty::Variance::Invariant)
+        {
+            return Err(error::program_error(format!(
+                "method type parameter `{}' cannot have variance (`in'/`out')",
+                &tp.name
+            )));
+        }
         let fullname = method_fullname(type_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
             self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?

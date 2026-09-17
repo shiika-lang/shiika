@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/variance/covariant_in_supertype.sk
+---
+Error: covariant type parameter `T' appears in invariant position
+   ╭─[tests/erroneous/variance/covariant_in_supertype.sk:3:20]
+   │
+ 3 │ class Foo<out T> : Base<T>
+   │                    ───┬───  
+   │                       ╰───── covariant type parameter `T' appears in invariant position
+───╯
