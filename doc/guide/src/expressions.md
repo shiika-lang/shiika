@@ -1,10 +1,21 @@
 # Expressions
 
+## Comments
+
+A comment starts with `#` and continues to the end of the line.
+
+```sk
+# This is a comment
+p 1  # This is a comment too
+```
+
 ## Literals
 
 - `1` evaluates to an instance of `Int`
 - `1.0` evaluates to an instance of `Float`
 - `"foo"` evaluates to an instance of `String`
+  (`#{}` embeds the value of an expression; see
+  [Basic Types](./basic_types.md#interpolation))
 - `true` and `false` evaluates to an instance of `Bool`
 
 ### Array literal
@@ -167,6 +178,20 @@ if a
   b
 else
   c
+end
+```
+
+## Match expression
+
+`match` compares a value against patterns. See
+[Pattern Matching](./pattern_matching.md).
+
+```sk
+match a
+when Some(n)
+  p n
+when None
+  p "none."
 end
 ```
 

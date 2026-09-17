@@ -25,6 +25,17 @@ false
 puts "Hello, world!"
 ```
 
+### Interpolation
+
+The value of an expression can be embedded in a string literal with
+`#{}` (converted with `to_s`) or `\{}` (converted with `inspect`).
+
+```
+let name = "world"
+puts "Hello, #{name}!"  #=> Hello, world!
+puts "Hello, \{name}!"  #=> Hello, "world"!
+```
+
 ## Array
 
 ```
