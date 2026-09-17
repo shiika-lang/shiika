@@ -1,3 +1,35 @@
+## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-08-26
+
+This is the first release with the new runtime for concurrency (#545, #587). v0.10.x will have features to use it (spawning new tasks, etc.)
+
+- Breaking changes
+  - Classes are now `final` by default (#577). Use `base class` for inheritable classes.
+- Setup
+  - Upgrade LLVM to 18 (#591)
+- Feat
+    - impl. Result#try! by @yhara in https://github.com/shiika-lang/shiika/pull/520
+
+And many contributions:
+
+- Empty args compiler crash  by @EruEri in https://github.com/shiika-lang/shiika/pull/516
+- treat '\r' as space in lexer by @aisk in https://github.com/shiika-lang/shiika/pull/526
+- Specify in install.md to use the latest version of rust by @yamakoud in https://github.com/shiika-lang/shiika/pull/528
+- [NITS] remove trailing spaces by @yamakoud in https://github.com/shiika-lang/shiika/pull/529
+- Issue 519 method arg check by @yamakoud in https://github.com/shiika-lang/shiika/pull/527
+- define Math as a module instead of class by @aisk in https://github.com/shiika-lang/shiika/pull/524
+- add basic support to run ci on mac by @aisk in https://github.com/shiika-lang/shiika/pull/533
+- Update .gitignore path /tests/data/hello.txt -> /tests/tmp/hello.txt by @yamakoud in https://github.com/shiika-lang/shiika/pull/535
+- Handle semicolon properly by @yamakoud in https://github.com/shiika-lang/shiika/pull/534
+- Remove CharType::Separator and add CharType::Newline, CharType::Semicolon by @yamakoud in https://github.com/shiika-lang/shiika/pull/537
+- Develop environment in Docker container by @yamakoud in https://github.com/shiika-lang/shiika/pull/541
+- Allow a line starts with dot for test case 1 by @yamakoud in https://github.com/shiika-lang/shiika/pull/542
+- Update develop-in-docker-container.md by @yamakoud in https://github.com/shiika-lang/shiika/pull/543
+- Ban semicolon after binary op by @yamakoud in https://github.com/shiika-lang/shiika/pull/546
+- Refactor: implementation for starts with dot by @yamakoud in https://github.com/shiika-lang/shiika/pull/549
+- Add test case 4 by @yamakoud in https://github.com/shiika-lang/shiika/pull/550
+- Parse unary plus by @yamakoud in https://github.com/shiika-lang/shiika/pull/560
+- Fix unclear compile error when clang not exist by @aisk in https://github.com/shiika-lang/shiika/pull/615
+
 ## v0.9.1 (2023-09-15)
 
 - Setup
