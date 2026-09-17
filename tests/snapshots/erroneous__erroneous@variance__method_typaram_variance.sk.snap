@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/variance/method_typaram_variance.sk
+---
+method type parameter `T' cannot have variance (`in'/`out')

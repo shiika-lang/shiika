@@ -14,8 +14,8 @@ pub struct TyParam {
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Variance {
     Invariant,
-    Covariant,     // eg. `in T`
-    Contravariant, // eg. `out T`
+    Covariant,     // eg. `out T`
+    Contravariant, // eg. `in T`
 }
 
 impl TyParam {

@@ -1,0 +1,5 @@
+class Foo<out T>
+  def initialize(v: T)
+    var @v = v
+  end
+end

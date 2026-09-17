@@ -138,6 +138,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .or_else(|| self.imported_classes.types.get(fullname))
     }
 
+    /// Return the type parameters of the specified type.
+    /// Unlike `find_type`, this also works for types not indexed yet
+    /// (by looking up `self.type_index`).
+    pub fn typarams_of(&self, fullname: &TypeFullname) -> &[TyParam] {
+        if let Some(typarams) = self.type_index.get(fullname) {
+            return typarams;
+        }
+        if let Some(sk_type) = self.find_type(fullname) {
+            return &sk_type.base().typarams;
+        }
+        &[]
+    }
+
     /// Return the class of the specified name, if any
     pub fn lookup_class(&self, class_fullname: &ClassFullname) -> Option<&SkClass> {
         self.sk_types

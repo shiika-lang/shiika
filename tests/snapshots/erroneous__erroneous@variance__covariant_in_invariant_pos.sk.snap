@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/variance/covariant_in_invariant_pos.sk
+---
+Error: covariant type parameter `T' appears in invariant position
+   ╭─[tests/erroneous/variance/covariant_in_invariant_pos.sk:2:14]
+   │
+ 2 │   def foo -> Array<T>
+   │              ────┬───  
+   │                  ╰───── covariant type parameter `T' appears in invariant position
+───╯
