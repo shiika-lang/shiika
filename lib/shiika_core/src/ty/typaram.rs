@@ -35,7 +35,17 @@ impl TyParam {
             Variance::Covariant => "+",
             Variance::Contravariant => "-",
         };
-        format!("{}{}", flag, &self.name)
+        let bound =
+            if self.upper_bound.base_name == "Object" && self.lower_bound.base_name == "Never" {
+                "".to_string()
+            } else {
+                format!(
+                    ":{}~{}",
+                    self.upper_bound.serialize(),
+                    self.lower_bound.serialize()
+                )
+            };
+        format!("{}{}{}", flag, &self.name, bound)
     }
 
     /// nom parser for TyParam
@@ -48,6 +58,27 @@ impl TyParam {
         };
 
         let (s, name) = nom::character::complete::alphanumeric1(s)?;
-        Ok((s, TyParam::new(name.to_string(), variance)))
+        let mut typaram = TyParam::new(name.to_string(), variance);
+
+        let (s, opt_bounds) = nom::combinator::opt(super::typaram_ref::parse_bounds)(s)?;
+        if let Some((upper_bound, lower_bound)) = opt_bounds {
+            typaram.upper_bound = upper_bound;
+            typaram.lower_bound = lower_bound;
+        }
+        Ok((s, typaram))
     }
+}
+
+#[test]
+fn serialize_typaram_test() {
+    let mut tp = TyParam::new("T", Variance::Covariant);
+    tp.upper_bound = LitTy::raw("Ord");
+    let s = tp.serialize();
+    assert_eq!(s, "+T:Ord~Never");
+    assert_eq!(TyParam::deserialize(&s), Ok(("", tp)));
+
+    // Default bounds are omitted (and can be parsed back)
+    let tp2 = TyParam::new("U", Variance::Invariant);
+    assert_eq!(tp2.serialize(), "U");
+    assert_eq!(TyParam::deserialize("U"), Ok(("", tp2)));
 }

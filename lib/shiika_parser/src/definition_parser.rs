@@ -545,13 +545,25 @@ impl<'a> Parser<'a> {
                         Some(Token::KwIn) => AstVariance::Contravariant,
                         _ => panic!("[BUG] unexpected variance token"),
                     };
-                    typarams.push(AstTyParam {
-                        name: s.to_string(),
-                        variance: v,
-                    });
+                    let name = s.to_string();
                     variance = None;
                     self.consume_token()?;
                     self.skip_wsn()?;
+                    // Upper bound (eg. `class Foo<T: Ord>`)
+                    let upper_bound = if self.current_token_is(Token::Colon) {
+                        self.consume_token()?;
+                        self.skip_wsn()?;
+                        let typ = self.parse_typ()?;
+                        self.skip_wsn()?;
+                        Some(typ)
+                    } else {
+                        None
+                    };
+                    typarams.push(AstTyParam {
+                        name,
+                        variance: v,
+                        upper_bound,
+                    });
                 }
                 Token::Comma => {
                     self.consume_token()?;
