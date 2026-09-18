@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/typaram_as_bound.sk
+---
+Error: a type parameter cannot appear in the bound of a type parameter (in the bound of `A'; F-bounded polymorphism is not supported)
+   ╭─[tests/erroneous/bounds/typaram_as_bound.sk:1:14]
+   │
+ 1 │ class Foo<A: B, B: A>
+   │              ┬  
+   │              ╰── a type parameter cannot appear in the bound of a type parameter (in the bound of `A'; F-bounded polymorphism is not supported)
+───╯

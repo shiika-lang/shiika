@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/unsatisfied_in_new.sk
+---
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Meta:Cage#new'
+   ╭─[tests/erroneous/bounds/unsatisfied_in_new.sk:7:5]
+   │
+ 7 │ Cage.new(1)
+   │     ───┬───  
+   │        ╰───── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Meta:Cage#new'
+───╯

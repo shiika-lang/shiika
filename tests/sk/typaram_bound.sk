@@ -1,0 +1,59 @@
+# Upper bound of a type parameter (class bound)
+base class Animal
+  def cry -> String
+    "..."
+  end
+end
+class Dog : Animal
+  def cry -> String
+    "woof"
+  end
+end
+class Cage<T: Animal>
+  def initialize(@pet: T)
+  end
+
+  def sound -> String
+    # `cry` is found via the upper bound `Animal`
+    @pet.cry
+  end
+end
+
+let cage = Cage.new(Dog.new)
+unless cage.sound == "woof" then puts "ng 1" end
+
+# Explicit specialization
+let cage2 = Cage<Dog>.new(Dog.new)
+unless cage2.sound == "woof" then puts "ng 2" end
+
+# Upper bound of a type parameter (module bound)
+module Greeting
+  requirement greet -> String
+end
+class Alice : Greeting
+  def greet -> String
+    "hi"
+  end
+end
+class Greeter<T: Greeting>
+  def initialize(@x: T)
+  end
+
+  def greet_twice -> String
+    # `greet` is found via the upper bound `Greeting` (wtable dispatch)
+    @x.greet + @x.greet
+  end
+end
+
+let greeter = Greeter.new(Alice.new)
+unless greeter.greet_twice == "hihi" then puts "ng 3" end
+
+# Method-wise typaram with an upper bound
+class Util
+  def self.sound_of<T: Animal>(x: T) -> String
+    x.cry
+  end
+end
+unless Util.sound_of(Dog.new) == "woof" then puts "ng 4" end
+
+puts "ok"

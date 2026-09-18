@@ -1,0 +1,4 @@
+class Cmp<T>
+end
+class Foo<T: Cmp<T>>
+end
