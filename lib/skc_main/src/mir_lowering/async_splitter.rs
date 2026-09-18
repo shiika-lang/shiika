@@ -1,5 +1,5 @@
 //! Example
-//! ```
+//! ```text
 //! // Before
 //! fun foo($env) -> Int {
 //!   print(sleep_sec(1));

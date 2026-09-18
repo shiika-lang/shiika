@@ -2,11 +2,12 @@
 //!
 //! ## Example
 //!
-//! ```
+//! ```text
 //! // Before
 //! Exprs([f(), Exprs[g(), h()]]));
 //! // After
 //! Exprs([f(), g(), h()]);
+//! ```
 use crate::mir;
 
 pub fn run(mir: mir::Program) -> mir::Program {
