@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/unsatisfied_method_tyarg.sk
+---
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Foo#foo'
+   ╭─[tests/erroneous/bounds/unsatisfied_method_tyarg.sk:8:8]
+   │
+ 8 │ Foo.new.foo(1)
+   │        ───┬───  
+   │           ╰───── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Foo#foo'
+───╯

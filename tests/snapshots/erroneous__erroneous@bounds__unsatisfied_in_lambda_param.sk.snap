@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/unsatisfied_in_lambda_param.sk
+---
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+   ╭─[tests/erroneous/bounds/unsatisfied_in_lambda_param.sk:5:15]
+   │
+ 5 │ let f = fn(x: Cage<Int>){ 1 }
+   │               ────┬────  
+   │                   ╰────── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+───╯
