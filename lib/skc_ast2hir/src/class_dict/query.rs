@@ -82,11 +82,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
+        let upper_bound; // Extends the lifetime beyond the `match`
         let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
                 (current_type.erasure(), type_args.as_slice())
             }
-            TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
+            TyBody::TyPara(_) => {
+                // Methods on a typaram-typed value are looked up via its upper bound
+                upper_bound = current_type.upper_bound();
+                (upper_bound.erasure(), upper_bound.type_args.as_slice())
+            }
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {

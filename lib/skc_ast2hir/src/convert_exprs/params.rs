@@ -55,6 +55,7 @@ pub fn convert_block_params(
             // Has type annotation `typ`
             let ty =
                 class_dict.resolve_typename(namespace, class_typarams, method_typarams, typ)?;
+            crate::type_system::bounds::check_annotation(class_dict, &ty, &typ.locs)?;
             MethodParam {
                 name: param.name.to_string(),
                 ty: ty.clone(),
