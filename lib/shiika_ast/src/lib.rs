@@ -124,6 +124,8 @@ pub struct AstMethodSignature {
 pub struct AstTyParam {
     pub name: String,
     pub variance: AstVariance,
+    /// eg. `Ord` of `class Foo<T: Ord>`
+    pub upper_bound: Option<UnresolvedTypeName>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

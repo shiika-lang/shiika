@@ -83,14 +83,17 @@ pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])
 }
 
-// Note: this should eventually removed when upper/lower bound is fully implemented
-pub fn typaram_ref(name: impl Into<String>, kind: TyParamKind, idx: usize) -> TyParamRef {
+/// Create a `TyParamRef` that refers to the type parameter `tp`.
+/// Note: the bounds of a `TyParamRef` must always be those of the
+/// declaration (`TyParam`); otherwise two refs of the same typaram
+/// may not compare equal.
+pub fn typaram_ref(tp: &TyParam, kind: TyParamKind, idx: usize) -> TyParamRef {
     TyParamRef {
         kind,
-        name: name.into(),
+        name: tp.name.clone(),
         idx,
-        upper_bound: LitTy::raw("Object"),
-        lower_bound: LitTy::raw("Never"),
+        upper_bound: tp.upper_bound.clone(),
+        lower_bound: tp.lower_bound.clone(),
         as_class: false,
     }
 }
