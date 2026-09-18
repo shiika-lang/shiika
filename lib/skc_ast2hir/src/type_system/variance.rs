@@ -162,11 +162,14 @@ pub fn check_ivars(
             Position::Invariant
         };
         // No source location available for inferred ivars
-        check_type(dict, class_typarams, &ivar.ty, pos, &LocationSpan::internal()).map_err(
-            |e| {
-                error::program_error(format!("{} (instance variable `{}')", e, &ivar.name))
-            },
-        )?;
+        check_type(
+            dict,
+            class_typarams,
+            &ivar.ty,
+            pos,
+            &LocationSpan::internal(),
+        )
+        .map_err(|e| error::program_error(format!("{} (instance variable `{}')", e, &ivar.name)))?;
     }
     Ok(())
 }

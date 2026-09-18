@@ -967,6 +967,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .class_dict
             .get_type(&base_expr.ty.instance_ty().base_type_name());
         type_checking::check_class_specialization(sk_type, &arg_exprs, locs)?;
+        crate::type_system::bounds::check_specialization_tyargs(
+            &self.class_dict,
+            sk_type,
+            &type_args,
+            locs,
+        )?;
 
         let meta_spe_ty = base_expr.ty.specialized_ty(type_args);
         Ok(Hir::method_call(
