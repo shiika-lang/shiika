@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/parsing/number_with_two_decimal_points.sk
+---
+a number cannot have two decimal points

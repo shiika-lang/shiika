@@ -1182,25 +1182,39 @@ impl<'a> Parser<'a> {
         self.lv += 1;
         self.debug_log("parse_decimal_literal");
         let begin = self.lexer.location();
-        let expr = match self.consume_token()? {
-            Token::Number(s) => {
-                if s.contains('.') {
-                    let end = self.lexer.location();
-                    let value = s.parse().unwrap();
-                    self.ast.float_literal(value, begin, end)
-                } else {
-                    let end = self.lexer.location();
-                    let value = s.parse().unwrap();
-                    self.ast.decimal_literal(value, begin, end)
-                }
-            }
+        let s = match self.current_token() {
+            Token::Number(s) => s.clone(),
             _ => {
                 self.lv -= 1;
                 return Err(self.parseerror("expected decimal literal"));
             }
         };
+        // Parse the value before consuming, so that an error points at the literal
+        let expr = if s.contains('.') {
+            let value = self.float_literal_value(&s)?;
+            self.consume_token()?;
+            let end = self.lexer.location();
+            self.ast.float_literal(value, begin, end)
+        } else {
+            let value = self.int_literal_value(&s)?;
+            self.consume_token()?;
+            let end = self.lexer.location();
+            self.ast.decimal_literal(value, begin, end)
+        };
         self.lv -= 1;
         Ok(expr)
+    }
+
+    /// Convert the content of a `Token::Number` into a `Float` value.
+    fn float_literal_value(&self, s: &str) -> Result<f64, Error> {
+        s.parse::<f64>()
+            .map_err(|_| parse_error!(self, "invalid float literal `{}\'", s))
+    }
+
+    /// Convert the content of a `Token::Number` into an `Int` value.
+    fn int_literal_value(&self, s: &str) -> Result<i64, Error> {
+        s.parse::<i64>()
+            .map_err(|_| parse_error!(self, "integer literal `{}\' does not fit in Int", s))
     }
 
     fn parse_string_literal(&mut self) -> Result<AstExpression, Error> {
@@ -1477,12 +1491,13 @@ impl<'a> Parser<'a> {
                 shiika_ast::AstPattern::BooleanLiteralPattern(b)
             }
             Token::Number(s) => {
+                let s = s.clone();
                 if s.contains('.') {
-                    let value = s.parse().unwrap();
+                    let value = self.float_literal_value(&s)?;
                     self.consume_token()?;
                     shiika_ast::AstPattern::FloatLiteralPattern(value)
                 } else {
-                    let value = s.parse().unwrap();
+                    let value = self.int_literal_value(&s)?;
                     self.consume_token()?;
                     shiika_ast::AstPattern::IntegerLiteralPattern(value)
                 }
