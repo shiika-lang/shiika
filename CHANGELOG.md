@@ -1,4 +1,4 @@
-## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-08-26
+## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-10-24
 
 This is the first release with the new runtime for concurrency (#545, #587). v0.10.x will have features to use it (spawning new tasks, etc.)
 
