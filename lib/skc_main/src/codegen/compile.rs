@@ -562,12 +562,50 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v1 = self.compile_value_expr(ctx, expr);
         let v2 = match cast_type {
-            mir::CastType::Force(_) => v1,
-            mir::CastType::Upcast(_) => v1,
+            // `Force`/`Upcast` between a raw immediate (I1/Int64/F64) and a
+            // boxed-object (pointer) position perform the actual box/unbox.
+            // The HIR already inserts these casts at the Object/T boundaries
+            // (if/case merges, array literals, pattern match, ...), so making
+            // the cast representation-aware is the least leaky place to box
+            // (see .claude/plans/unboxing.md §C-2).
+            mir::CastType::Force(to) | mir::CastType::Upcast(to) => {
+                self.coerce_repr(v1, &expr.1, to)
+            }
             mir::CastType::ToAny => self.cast_to_any(v1, &expr.1),
             mir::CastType::Recover(ty) => self.cast_from_any(v1, ty),
         };
         Some(v2)
+    }
+
+    /// Bridge the raw-immediate <-> boxed-object representation gap implied by
+    /// a `Force`/`Upcast` cast: box when a raw immediate moves into a pointer
+    /// position, unbox when a boxed immediate moves back to a raw one. A
+    /// pointer->pointer (or immediate->immediate) cast is a no-op here.
+    fn coerce_repr(
+        &mut self,
+        v: inkwell::values::BasicValueEnum<'run>,
+        from: &mir::Ty,
+        to: &mir::Ty,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        if from.is_immediate() && !to.is_immediate() {
+            let sk = match from {
+                mir::Ty::I1 => intrinsics::box_bool_value(self, v.into_int_value()),
+                mir::Ty::Int64 => intrinsics::box_int_value(self, v.into_int_value()),
+                mir::Ty::F64 => intrinsics::box_float_value(self, v.into_float_value()),
+                _ => unreachable!(),
+            };
+            sk.0.into()
+        } else if !from.is_immediate() && to.is_immediate() {
+            let sk = SkObj::from_basic_value_enum(v);
+            match to {
+                mir::Ty::I1 => intrinsics::unbox_bool(self, sk).into(),
+                mir::Ty::Int64 => intrinsics::unbox_int(self, sk).into(),
+                mir::Ty::F64 => intrinsics::unbox_float(self, sk).into(),
+                _ => unreachable!(),
+            }
+        } else {
+            v
+        }
     }
 
     fn compile_create_object(
@@ -684,8 +722,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         from_ty: &mir::Ty,
     ) -> BasicValueEnum<'run> {
         match from_ty {
-            mir::Ty::I1 => todo!("cast_to_any for I1"),
+            mir::Ty::I1 => self
+                .builder
+                .build_int_z_extend(value.into_int_value(), self.context.i64_type(), "i1_as_i64")
+                .unwrap()
+                .into(),
             mir::Ty::Int64 => value,
+            mir::Ty::F64 => self
+                .builder
+                .build_bit_cast(value.into_float_value(), self.context.i64_type(), "f64_as_i64")
+                .unwrap(),
             _ => self
                 .builder
                 .build_ptr_to_int(
@@ -705,8 +751,16 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         to_ty: &mir::Ty,
     ) -> BasicValueEnum<'run> {
         match to_ty {
-            mir::Ty::I1 => todo!("cast_from_any for I1"),
+            mir::Ty::I1 => self
+                .builder
+                .build_int_truncate(value.into_int_value(), self.context.bool_type(), "i64_as_i1")
+                .unwrap()
+                .into(),
             mir::Ty::Int64 => value,
+            mir::Ty::F64 => self
+                .builder
+                .build_bit_cast(value.into_int_value(), self.context.f64_type(), "i64_as_f64")
+                .unwrap(),
             _ => self
                 .builder
                 .build_int_to_ptr(

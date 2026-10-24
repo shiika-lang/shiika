@@ -80,6 +80,13 @@ impl Ty {
         matches!(self, Ty::Sk(term_ty) if term_ty.is_never_type())
     }
 
+    /// Returns true for the raw (unboxed) immediate representations
+    /// (I1/Int64/F64). These are the types that are `Box`ed when they cross
+    /// into a boxed-object (pointer) position and `Unbox`ed on the way back.
+    pub fn is_immediate(&self) -> bool {
+        matches!(self, Ty::I1 | Ty::Int64 | Ty::F64)
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         match (self, other) {
