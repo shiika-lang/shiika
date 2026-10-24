@@ -165,8 +165,7 @@ dependencies = [
 [[package]]
 name = "bdwgc-alloc"
 version = "0.6.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fe169fe91487461eae38c6df81ac2a172bd1f9ee48c64b85c46178493b440b1"
+source = "git+https://github.com/bdwgc/bdwgc-rust?rev=ae021364ceb4670591445f021b11c31d9e5f7347#ae021364ceb4670591445f021b11c31d9e5f7347"
 dependencies = [
  "bdwgc-alloc-sys",
 ]
@@ -174,8 +173,7 @@ dependencies = [
 [[package]]
 name = "bdwgc-alloc-sys"
 version = "0.6.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "879005e9c4b847ee8301da7df2f3db740fead2b2c35f86b006d564c2f4a0e9a2"
+source = "git+https://github.com/bdwgc/bdwgc-rust?rev=ae021364ceb4670591445f021b11c31d9e5f7347#ae021364ceb4670591445f021b11c31d9e5f7347"
 dependencies = [
  "bindgen",
  "cmake",
