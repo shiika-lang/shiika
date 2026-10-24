@@ -68,10 +68,26 @@ jobs:
       - name: Verify Cargo.lock is up to date
         run: cargo metadata --locked --format-version=1 > /dev/null
 
+      # Diagnostic: try to reproduce the intermittent bdwgc
+      # "Duplicate large block deallocation" abort (macOS only) and capture a
+      # backtrace. Placed before "Build and test" so it is not skipped when
+      # examples_test aborts. Always exits 0; read its logs, don't gate on it.
+      - name: GC crash repro (macOS diagnostics)
+        if: runner.os == 'macOS'
+        run: |
+          set -eux
+          mkdir -p ~/.shiika
+          export SHIIKA_WORK=~/.shiika
+          export SHIIKA_ROOT=.
+          export RUST_BACKTRACE=1
+          cargo build --locked
+          ./target/debug/shiika build packages/core
+          bash tools/gc_stress.sh ./target/debug/shiika
+
       - name: Build and test
         run: |
           set -eux
-          mkdir ~/.shiika
+          mkdir -p ~/.shiika
           export SHIIKA_WORK=~/.shiika
           export SHIIKA_ROOT=.
           export RUST_BACKTRACE=1
