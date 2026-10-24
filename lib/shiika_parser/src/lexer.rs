@@ -645,6 +645,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_number(&mut self, next_cur: &mut Cursor, cur: Option<&Cursor>) -> Result<Token, Error> {
+        let mut dot_seen = false;
         loop {
             match self.char_type(next_cur.peek(self.src)) {
                 CharType::Number => {
@@ -656,12 +657,16 @@ impl<'a> Lexer<'a> {
                 }
                 CharType::Symbol => {
                     if next_cur.peek(self.src) == Some('.') {
-                        if self.char_type(next_cur.peek2(self.src)) == CharType::Number {
-                            next_cur.proceed(self.src);
-                            next_cur.proceed(self.src);
-                        } else {
+                        // A `.` not followed by a digit is a method call (eg. `1.abs`)
+                        if self.char_type(next_cur.peek2(self.src)) != CharType::Number {
                             break;
                         }
+                        if dot_seen {
+                            return Err(self.lex_error("a number cannot have two decimal points"));
+                        }
+                        dot_seen = true;
+                        next_cur.proceed(self.src);
+                        next_cur.proceed(self.src);
                     } else {
                         break;
                     }

@@ -37,7 +37,7 @@ pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
 pub extern "C" fn chiika_start_tokio() {
     unsafe { GC_allow_register_threads() };
     let poller = make_poller(chiika_start_user);
-    tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .on_thread_start(|| {
             unsafe { Allocator::register_current_thread() }.expect("Failed to register GC thread");
@@ -46,8 +46,15 @@ pub extern "C" fn chiika_start_tokio() {
             unsafe { Allocator::unregister_current_thread() };
         })
         .build()
-        .unwrap()
-        .block_on(poller);
+        .unwrap();
+    runtime.block_on(poller);
+    // Leak the tokio runtime instead of dropping it. Dropping it shuts down the
+    // blocking pool, which joins its worker threads and frees each thread's name
+    // CString through GC_free. Since bdwgc is the global allocator and may have
+    // already reclaimed that block, the explicit free is a double free and
+    // aborts with "Duplicate large block deallocation" (intermittent, macOS
+    // only). The process is exiting here, so leaking the runtime is harmless.
+    std::mem::forget(runtime);
 }
 
 fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {
