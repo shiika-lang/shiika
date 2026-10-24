@@ -1,10 +1,8 @@
-extern "C" {
-    fn shiika_intrinsic_box_bool(b: bool) -> SkBool;
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct SkBool(pub *const ShiikaBool);
+/// Shiika's `Bool` is an unboxed immediate (llvm `i1`, C ABI `bool`/i8).
+/// `SkBool` is therefore a plain value, not a pointer to a boxed object.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy)]
+pub struct SkBool(bool);
 
 unsafe impl Send for SkBool {}
 
@@ -14,22 +12,14 @@ impl crate::SkValue for SkBool {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct ShiikaBool {
-    vtable: *const u8,
-    class_obj: *const u8,
-    value: bool,
-}
-
 impl From<SkBool> for bool {
     fn from(sk_bool: SkBool) -> Self {
-        unsafe { (*sk_bool.0).value }
+        sk_bool.0
     }
 }
 
 impl From<bool> for SkBool {
     fn from(b: bool) -> Self {
-        unsafe { shiika_intrinsic_box_bool(b) }
+        SkBool(b)
     }
 }

@@ -66,8 +66,10 @@ pub fn intrinsic_externs() -> Vec<(FunctionName, FunTy)> {
             FunTy::lowered(vec![Ty::Int64], Ty::raw("Int")),
         ),
         (
+            // Returns a boxed Bool object, i.e. a pointer (Bool itself is now
+            // the raw `i1`, so `Ty::raw("Bool")` would wrongly be `i1`).
             "shiika_intrinsic_box_bool",
-            FunTy::lowered(vec![Ty::I1], Ty::raw("Bool")),
+            FunTy::lowered(vec![Ty::I1], Ty::Ptr),
         ),
     ]
     .into_iter()

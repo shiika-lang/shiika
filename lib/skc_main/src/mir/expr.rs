@@ -72,8 +72,9 @@ pub enum Expr {
     CellGet(Box<Typed<Expr>>),
     /// Write to cell: shiika_cell_set(cell, value) -> Void
     CellSet(Box<Typed<Expr>>, Box<Typed<Expr>>),
-    /// Box a raw immediate (I1/Int64/F64) into a boxed Shiika object
-    /// (Bool/Int/Float). The result type carries the boxed Sk type.
+    /// Box a raw immediate (I1/Int64/F64) into a heap object. The result is an
+    /// opaque pointer (`Ty::Ptr`): an unboxed immediate has no distinct `Sk`
+    /// type to recover.
     Box(Box<Typed<Expr>>),
     /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
     /// (I1/Int64/F64). The result type carries the raw Ty.
@@ -312,10 +313,11 @@ impl Expr {
     }
 
     pub fn create_object(instance_ty: TermTy) -> TypedExpr {
-        (
-            Expr::CreateObject(instance_ty.erasure()),
-            instance_ty.into(),
-        )
+        // A freshly allocated object is always a boxed heap value (a pointer),
+        // even for immediate types (e.g. the boxed form of a Bool).
+        let ty: Ty = instance_ty.clone().into();
+        let result_ty = if ty.is_immediate() { Ty::Ptr } else { ty };
+        (Expr::CreateObject(instance_ty.erasure()), result_ty)
     }
 
     pub fn create_type_object(ty: TermTy) -> TypedExpr {
@@ -345,23 +347,21 @@ impl Expr {
         )
     }
 
-    /// Box a raw immediate (I1/Int64/F64) into its boxed Shiika object
-    /// (Bool/Int/Float).
+    /// Box a raw immediate (I1/Int64/F64) into a heap object. The boxed form
+    /// is an opaque pointer: an immediate type no longer has a distinct `Sk`
+    /// type once it is unboxed (e.g. Bool is `I1`, not `Sk(Bool)`).
     pub fn box_(e: TypedExpr) -> TypedExpr {
-        let sk_ty = match &e.1 {
-            Ty::I1 => Ty::raw("Bool"),
-            Ty::Int64 => Ty::raw("Int"),
-            Ty::F64 => Ty::raw("Float"),
-            _ => panic!("[BUG] box non-immediate: {:?}", e),
-        };
-        (Expr::Box(Box::new(e)), sk_ty)
+        if !e.1.is_immediate() {
+            panic!("[BUG] box non-immediate: {:?}", e);
+        }
+        (Expr::Box(Box::new(e)), Ty::Ptr)
     }
 
     /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
     /// (I1/Int64/F64).
     pub fn unbox(e: TypedExpr) -> TypedExpr {
-        let raw_ty = raw_repr_of(&e.1)
-            .unwrap_or_else(|| panic!("[BUG] unbox non-boxable: {:?}", e));
+        let raw_ty =
+            raw_repr_of(&e.1).unwrap_or_else(|| panic!("[BUG] unbox non-boxable: {:?}", e));
         (Expr::Unbox(Box::new(e)), raw_ty)
     }
 

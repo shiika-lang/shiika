@@ -262,8 +262,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         pseudo_var: &mir::PseudoVar,
     ) -> inkwell::values::BasicValueEnum<'run> {
         match pseudo_var {
-            mir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
-            mir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
+            // Bool is now a raw `i1`; `true`/`false` are plain constants.
+            mir::PseudoVar::True => self.context.bool_type().const_int(1, false).into(),
+            mir::PseudoVar::False => self.context.bool_type().const_int(0, false).into(),
             mir::PseudoVar::Void => return self.compile_void(),
         }
     }
@@ -420,7 +421,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             (None, else_value) => else_value,
             (then_value, None) => then_value,
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.ptr_type(), "ifResult").unwrap();
+                // Use the branch value's own type (e.g. `i1` for a Bool-valued
+                // `if`), not a hardcoded pointer type.
+                let phi_node = self
+                    .builder
+                    .build_phi(then_val.get_type(), "ifResult")
+                    .unwrap();
                 phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Some(phi_node.as_basic_value())
             }
@@ -567,7 +573,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             // The HIR already inserts these casts at the Object/T boundaries
             // (if/case merges, array literals, pattern match, ...), so making
             // the cast representation-aware is the least leaky place to box
-            // (see .claude/plans/unboxing.md §C-2).
+            // (see .claude/plans/unboxing.md).
             mir::CastType::Force(to) | mir::CastType::Upcast(to) => {
                 self.coerce_repr(v1, &expr.1, to)
             }
@@ -675,8 +681,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = self.compile_value_expr(ctx, expr);
         let ptr = v.into_pointer_value();
+        // Returns a raw `i1` (Bool is unboxed).
         let i1 = self.builder.build_is_null(ptr, "omitted").unwrap();
-        Some(intrinsics::box_bool_value(self, i1).0.into())
+        Some(i1.into())
     }
 
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
@@ -730,7 +737,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Ty::Int64 => value,
             mir::Ty::F64 => self
                 .builder
-                .build_bit_cast(value.into_float_value(), self.context.i64_type(), "f64_as_i64")
+                .build_bit_cast(
+                    value.into_float_value(),
+                    self.context.i64_type(),
+                    "f64_as_i64",
+                )
                 .unwrap(),
             _ => self
                 .builder
@@ -753,13 +764,21 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         match to_ty {
             mir::Ty::I1 => self
                 .builder
-                .build_int_truncate(value.into_int_value(), self.context.bool_type(), "i64_as_i1")
+                .build_int_truncate(
+                    value.into_int_value(),
+                    self.context.bool_type(),
+                    "i64_as_i1",
+                )
                 .unwrap()
                 .into(),
             mir::Ty::Int64 => value,
             mir::Ty::F64 => self
                 .builder
-                .build_bit_cast(value.into_int_value(), self.context.f64_type(), "i64_as_f64")
+                .build_bit_cast(
+                    value.into_int_value(),
+                    self.context.f64_type(),
+                    "i64_as_f64",
+                )
                 .unwrap(),
             _ => self
                 .builder
@@ -780,12 +799,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         then_block: inkwell::basic_block::BasicBlock,
         else_block: inkwell::basic_block::BasicBlock,
     ) {
-        let i = intrinsics::unbox_bool(self, SkObj::from_basic_value_enum(cond));
-        let one = self.context.bool_type().const_int(1, false);
-        let istrue = self
-            .builder
-            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
-            .unwrap();
+        // The condition is now a raw `i1` (Bool is unboxed).
+        let istrue = cond.into_int_value();
         let _ = self
             .builder
             .build_conditional_branch(istrue, then_block, else_block);

@@ -226,10 +226,10 @@ impl<'a> Verifier<'a> {
             mir::Expr::CreateTypeObject(..) => (),
             mir::Expr::Box(val) => {
                 self.verify_expr(f, val)?;
-                let Some(raw_ty) = mir::expr::raw_repr_of(&e.1) else {
-                    bail!("Box: result type is not a boxable type: {:?}", e.1);
-                };
-                assert(&val, "boxee", &raw_ty)?;
+                if !val.1.is_immediate() {
+                    bail!("Box: operand is not an immediate: {:?}", val.1);
+                }
+                assert(&e, "result", &mir::Ty::Ptr)?;
             }
             mir::Expr::Unbox(val) => {
                 self.verify_expr(f, val)?;
