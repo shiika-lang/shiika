@@ -161,6 +161,10 @@ fn splice(expr: mir::TypedExpr, new_exprs: &mut Vec<mir::TypedExpr>) -> mir::Typ
             let new_value = splice(*value, new_exprs);
             mir::Expr::cell_set(new_cell, new_value)
         }
+        mir::Expr::Box(inner) => {
+            let new_inner = splice(*inner, new_exprs);
+            mir::Expr::box_(new_inner)
+        }
         mir::Expr::Unbox(inner) => {
             let new_inner = splice(*inner, new_exprs);
             mir::Expr::unbox(new_inner)

@@ -145,6 +145,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::CellSet(cell_expr, value_expr) => {
                 self.compile_cell_set(ctx, cell_expr, value_expr)
             }
+            mir::Expr::Box(expr) => self.compile_box(ctx, expr),
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
@@ -593,14 +594,40 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(None)
     }
 
+    /// Box a raw immediate value (I1/Int64/F64) into a boxed Shiika object.
+    fn compile_box(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, expr);
+        let sk_obj = match &expr.1 {
+            mir::Ty::I1 => intrinsics::box_bool_value(self, v.into_int_value()),
+            mir::Ty::Int64 => intrinsics::box_int_value(self, v.into_int_value()),
+            mir::Ty::F64 => intrinsics::box_float_value(self, v.into_float_value()),
+            _ => panic!("[BUG] compile_box: non-immediate operand: {:?}", expr.1),
+        };
+        Some(sk_obj.0.into())
+    }
+
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate.
     fn compile_unbox(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
-        let sk_int = SkObj::from_basic_value_enum(e);
-        Some(intrinsics::unbox_int(self, sk_int).into())
+        let sk_obj = SkObj::from_basic_value_enum(e);
+        let raw = match &expr.1 {
+            mir::Ty::Sk(t) => match &t.fullname.0[..] {
+                "Bool" => intrinsics::unbox_bool(self, sk_obj).into(),
+                "Int" => intrinsics::unbox_int(self, sk_obj).into(),
+                "Float" => intrinsics::unbox_float(self, sk_obj).into(),
+                _ => panic!("[BUG] compile_unbox: non-boxable operand: {:?}", expr.1),
+            },
+            _ => panic!("[BUG] compile_unbox: non-boxable operand: {:?}", expr.1),
+        };
+        Some(raw)
     }
 
     fn compile_is_null(

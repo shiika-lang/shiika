@@ -7,6 +7,22 @@ use shiika_core::ty::{Erasure, TermTy};
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
 
+/// If `ty` is a boxed immediate Shiika type (Bool/Int/Float), returns its
+/// raw (unboxed) MIR representation. Returns None otherwise.
+/// This is the single source of truth for the boxed<->raw correspondence
+/// used by the unboxing coercions (`Expr::Box`/`Expr::Unbox`).
+pub fn raw_repr_of(ty: &Ty) -> Option<Ty> {
+    let Ty::Sk(term_ty) = ty else {
+        return None;
+    };
+    match &term_ty.fullname.0[..] {
+        "Bool" => Some(Ty::I1),
+        "Int" => Some(Ty::Int64),
+        "Float" => Some(Ty::F64),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Number(i64),
@@ -56,7 +72,11 @@ pub enum Expr {
     CellGet(Box<Typed<Expr>>),
     /// Write to cell: shiika_cell_set(cell, value) -> Void
     CellSet(Box<Typed<Expr>>, Box<Typed<Expr>>),
-    // Unbox Shiika's Int to Rust's i64. Only used in `main()`
+    /// Box a raw immediate (I1/Int64/F64) into a boxed Shiika object
+    /// (Bool/Int/Float). The result type carries the boxed Sk type.
+    Box(Box<Typed<Expr>>),
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
+    /// (I1/Int64/F64). The result type carries the raw Ty.
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
@@ -325,11 +345,24 @@ impl Expr {
         )
     }
 
+    /// Box a raw immediate (I1/Int64/F64) into its boxed Shiika object
+    /// (Bool/Int/Float).
+    pub fn box_(e: TypedExpr) -> TypedExpr {
+        let sk_ty = match &e.1 {
+            Ty::I1 => Ty::raw("Bool"),
+            Ty::Int64 => Ty::raw("Int"),
+            Ty::F64 => Ty::raw("Float"),
+            _ => panic!("[BUG] box non-immediate: {:?}", e),
+        };
+        (Expr::Box(Box::new(e)), sk_ty)
+    }
+
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
+    /// (I1/Int64/F64).
     pub fn unbox(e: TypedExpr) -> TypedExpr {
-        if e.1 != Ty::raw("Int") {
-            panic!("[BUG] unbox non-Int: {:?}", e);
-        }
-        (Expr::Unbox(Box::new(e)), Ty::Int64)
+        let raw_ty = raw_repr_of(&e.1)
+            .unwrap_or_else(|| panic!("[BUG] unbox non-boxable: {:?}", e));
+        (Expr::Unbox(Box::new(e)), raw_ty)
     }
 
     pub fn raw_i64(n: i64) -> TypedExpr {
@@ -428,6 +461,7 @@ impl Expr {
             Expr::CellSet(cell, value) => {
                 cell.0.contains_async_call() || value.0.contains_async_call()
             }
+            Expr::Box(e) => e.0.contains_async_call(),
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
@@ -570,6 +604,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::CreateTypeObject(ty) => {
             format!("%CreateTypeObject({})", ty.fullname.0)
         }
+        Expr::Box(e) => format!("%Box({})", pretty_print(&e.0, lv, false)),
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),

@@ -85,6 +85,21 @@ pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkObj<'run> {
     )
 }
 
+pub fn box_int_value<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    n: inkwell::values::IntValue<'run>,
+) -> SkObj<'run> {
+    SkObj(
+        gen.call_llvm_func(
+            "shiika_intrinsic_box_int",
+            &[n.as_basic_value_enum().into()],
+            "sk_int",
+        )
+        .unwrap()
+        .into_pointer_value(),
+    )
+}
+
 pub fn unbox_int<'run>(
     gen: &mut CodeGen<'run, '_>,
     sk_obj: SkObj<'run>,
@@ -106,6 +121,31 @@ pub fn box_float<'run>(gen: &mut CodeGen<'run, '_>, n: f64) -> SkObj<'run> {
         .unwrap()
         .into_pointer_value(),
     )
+}
+
+pub fn box_float_value<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    n: inkwell::values::FloatValue<'run>,
+) -> SkObj<'run> {
+    SkObj(
+        gen.call_llvm_func(
+            "shiika_intrinsic_box_float",
+            &[n.as_basic_value_enum().into()],
+            "sk_float",
+        )
+        .unwrap()
+        .into_pointer_value(),
+    )
+}
+
+pub fn unbox_float<'run>(
+    gen: &mut CodeGen<'run, '_>,
+    sk_obj: SkObj<'run>,
+) -> inkwell::values::FloatValue<'run> {
+    let struct_type = llvm_struct::get(gen, &Erasure::nonmeta("Float"));
+    let item_type = gen.context.f64_type().into();
+    let x = instance::build_ivar_load_raw(gen, sk_obj, struct_type, item_type, 0, "llvm_float");
+    x.into_float_value()
 }
 
 pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {

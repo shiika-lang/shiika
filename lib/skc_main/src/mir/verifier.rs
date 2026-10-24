@@ -224,9 +224,19 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::CreateObject(_) => (),
             mir::Expr::CreateTypeObject(..) => (),
+            mir::Expr::Box(val) => {
+                self.verify_expr(f, val)?;
+                let Some(raw_ty) = mir::expr::raw_repr_of(&e.1) else {
+                    bail!("Box: result type is not a boxable type: {:?}", e.1);
+                };
+                assert(&val, "boxee", &raw_ty)?;
+            }
             mir::Expr::Unbox(val) => {
-                assert(&val, "unboxee", &mir::Ty::raw("Int"))?;
-                assert(&e, "result", &mir::Ty::Int64)?;
+                self.verify_expr(f, val)?;
+                let Some(raw_ty) = mir::expr::raw_repr_of(&val.1) else {
+                    bail!("Unbox: operand type is not a boxable type: {:?}", val.1);
+                };
+                assert(&e, "result", &raw_ty)?;
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),

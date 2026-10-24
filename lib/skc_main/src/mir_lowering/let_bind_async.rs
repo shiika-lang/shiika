@@ -176,6 +176,10 @@ impl Compiler {
                 let new_value = self.let_bind_if_needed(new_body_stmts, *value_expr);
                 mir::Expr::cell_set(new_cell, new_value)
             }
+            mir::Expr::Box(e) => {
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
+                mir::Expr::box_(new_e)
+            }
             mir::Expr::Unbox(e) => {
                 let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::unbox(new_e)
