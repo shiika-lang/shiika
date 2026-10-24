@@ -8,6 +8,9 @@ authors = ["Yutaka HARA <yutaka.hara.gmail.com>"]
 members = [
   "lib/*", "packages/core/ext",
 ]
+# Vendored bdwgc-alloc is its own workspace; keep it out of ours and pull it in
+# only through the [patch] below.
+exclude = ["vendor/bdwgc-rust"]
 
 [dependencies]
 anyhow = "1.0"
@@ -15,3 +18,8 @@ skc_main = { path = "lib/skc_main/" }
 
 [dev-dependencies]
 insta = { version = "1.32.0", features = ["glob"] }
+
+# Build against the vendored bdwgc-alloc submodule (vendor/bdwgc-rust) instead
+# of the crates.io release, so we can patch its allocator.
+[patch.crates-io]
+bdwgc-alloc = { path = "vendor/bdwgc-rust/bdwgc-alloc" }
