@@ -106,6 +106,3 @@ a presence bitmask to detect omitted arguments; see [MIR](../mir.md).
   `F64` (Phase 3).
 - The boxed `Bool` is not yet a singleton, so each boxing allocates and
   `equal?` on boxed `Bool`s is not reliable.
-- Class-level instance variables do not yet work: a class object is a
-  fixed-layout corelib struct with no storage for user ivars (independent of
-  unboxing, but exposed by it).

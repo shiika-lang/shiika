@@ -64,6 +64,15 @@ Note that there are constants that holds a class object. For example the constan
 @"::String" = internal global %"Meta:String"* null
 ```
 
+### Class-level instance variables
+
+An `@ivar` declared in a class's `self.initialize` belongs to the class object.
+A class object is the runtime's fixed-layout `ShiikaClass`, which has no room
+for user ivars, so these are stored in dedicated globals (one per metaclass and
+ivar index) rather than inside the class object. The class's own
+`self.initialize` is run when its class object is created, which initializes
+those globals.
+
 ## Methods
 
 For each method, a LLVM function is defined. For example:
