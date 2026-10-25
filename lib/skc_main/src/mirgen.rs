@@ -180,6 +180,13 @@ impl<'a> Compiler<'a> {
                 name: typaram.name.clone(),
             });
         }
+        // Trailing presence bitmask for default parameters (see build_fun_ty).
+        if signature.has_default_expr() {
+            params.push(mir::Param {
+                ty: mir::Ty::Int64,
+                name: "$defaults".to_string(),
+            });
+        }
         // Pass 1: collect cell vars before converting body
         self.lambda.cell_vars = if let SkMethodBody::Normal { exprs } = &method.body {
             lambda::collect_cell_vars(exprs)
@@ -606,6 +613,21 @@ impl<'a> Compiler<'a> {
                 // parameter.
                 let declared_params = self.callee_param_tys(&method_fullname);
 
+                // If the callee has default parameters, it takes a trailing
+                // presence bitmask: bit `i` is set iff positional argument `i`
+                // was actually supplied (omitted ones are `HirDefaultExpr`).
+                let defaults_mask: Option<u64> = if self.callee_has_defaults(&method_fullname) {
+                    let mut mask = 0u64;
+                    for (i, a) in arg_exprs.iter().enumerate() {
+                        if !matches!(a.node, HirExpressionBase::HirDefaultExpr) {
+                            mask |= 1u64 << i;
+                        }
+                    }
+                    Some(mask)
+                } else {
+                    None
+                };
+
                 // Likewise, when the callee's declared return type is erased
                 // (a pointer) but the call's result is an immediate, the call
                 // ABI returns the boxed pointer and the result is unboxed
@@ -637,6 +659,9 @@ impl<'a> Compiler<'a> {
                     param_tys.insert(0, convert_ty(method_fullname.type_name.to_ty()));
                     for _ in &tyarg_exprs {
                         param_tys.push(mir::Ty::raw("Class"));
+                    }
+                    if defaults_mask.is_some() {
+                        param_tys.push(mir::Ty::Int64);
                     }
                     mir::FunTy::new(mir::Asyncness::Unknown, param_tys, call_ret_abi.clone())
                 };
@@ -702,6 +727,9 @@ impl<'a> Compiler<'a> {
                     let casted =
                         mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), mir_tyarg);
                     mir_args.push(casted);
+                }
+                if let Some(mask) = defaults_mask {
+                    mir_args.push(mir::Expr::raw_i64(mask as i64));
                 }
 
                 let raw_call = (
@@ -1013,11 +1041,25 @@ impl<'a> Compiler<'a> {
                 mir::Expr::exprs(mir_exprs)
             }
             HirExpressionBase::HirDefaultExpr => {
-                mir::Expr::cast(mir::CastType::Force(result_ty), mir::Expr::null_ptr())
+                // Placeholder for an omitted argument slot. The callee reads
+                // the presence bitmask (see HirIsOmittedValue) and never uses
+                // this value, so any value of the right type will do.
+                zero_value(&result_ty)
             }
             HirExpressionBase::HirIsOmittedValue { expr: inner } => {
-                let mir_inner = self.convert_expr(*inner);
-                mir::Expr::is_null(mir_inner)
+                // `inner` is the default parameter's `arg_ref`. Whether it was
+                // omitted is encoded in the method's trailing presence-bitmask
+                // parameter: bit `i` is clear when parameter `i` was omitted.
+                let HirExpressionBase::HirArgRef { idx, .. } = inner.node else {
+                    panic!("[BUG] HirIsOmittedValue inner is not an arg_ref");
+                };
+                let sig = self
+                    .current_method_sig
+                    .as_ref()
+                    .expect("[BUG] HirIsOmittedValue outside a method");
+                let mask_idx = 1 + sig.params.len() + sig.typarams.len();
+                let mask = mir::Expr::arg_ref(mask_idx, "$defaults", mir::Ty::Int64);
+                mir::Expr::bit_is_zero(mask, 1u64 << idx)
             }
         }
     }
@@ -1184,6 +1226,14 @@ impl<'a> Compiler<'a> {
             .or_else(|| self.imported_sk_types.get_sig(method_fullname))?;
         Some(convert_ty(sig.ret_ty.clone()))
     }
+
+    /// Whether the callee takes a trailing default-parameter presence bitmask.
+    fn callee_has_defaults(&self, method_fullname: &shiika_core::names::MethodFullname) -> bool {
+        self.sk_types
+            .get_sig(method_fullname)
+            .or_else(|| self.imported_sk_types.get_sig(method_fullname))
+            .map_or(false, |sig| sig.has_default_expr())
+    }
 }
 
 fn convert_classes(uni: &build::CompilationUnit) -> Vec<mir::MirClass> {
@@ -1257,6 +1307,21 @@ fn prepend_default_param_shadows(
 
 fn convert_ty(ty: TermTy) -> mir::Ty {
     ty.into()
+}
+
+/// A placeholder zero value of the given MIR type (used for omitted default
+/// argument slots, which the callee never reads).
+fn zero_value(ty: &mir::Ty) -> mir::TypedExpr {
+    match ty {
+        mir::Ty::Int64 => mir::Expr::raw_i64(0),
+        mir::Ty::I1 => mir::Expr::pseudo_var(mir::PseudoVar::False),
+        mir::Ty::F64 => {
+            // No raw f64 literal node; reinterpret a zero i64 as f64.
+            let any = mir::Expr::cast(mir::CastType::ToAny, mir::Expr::raw_i64(0));
+            mir::Expr::cast(mir::CastType::Recover(mir::Ty::F64), any)
+        }
+        _ => mir::Expr::cast(mir::CastType::Force(ty.clone()), mir::Expr::null_ptr()),
+    }
 }
 
 fn convert_externs(imports: &SkTypes) -> Vec<mir::Extern> {
@@ -1341,6 +1406,11 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
     // Method type parameters are passed as additional Class arguments.
     for _ in &sig.typarams {
         param_tys.push(mir::Ty::raw("Class"));
+    }
+    // A method with default parameters takes a trailing i64 presence bitmask
+    // (bit `i` clear = positional argument `i` was omitted).
+    if sig.has_default_expr() {
+        param_tys.push(mir::Ty::Int64);
     }
     mir::FunTy::new(
         sig.asyncness.clone().into(),

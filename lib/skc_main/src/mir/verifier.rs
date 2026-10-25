@@ -274,6 +274,11 @@ impl<'a> Verifier<'a> {
                 self.verify_expr(f, inner)?;
                 assert(&e, "is_null result", &mir::Ty::raw("Bool"))?;
             }
+            mir::Expr::BitIsZero(inner, _) => {
+                self.verify_expr(f, inner)?;
+                assert(&inner, "bit_is_zero operand", &mir::Ty::Int64)?;
+                assert(&e, "bit_is_zero result", &mir::Ty::raw("Bool"))?;
+            }
             mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
             mir::Expr::SetClassObj(obj, class_obj) => {
                 self.verify_expr(f, obj)?;

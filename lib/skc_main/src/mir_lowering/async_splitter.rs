@@ -285,6 +285,10 @@ impl<'a> Compiler<'a> {
                 let new_inner = self.compile_value_expr(*inner, false)?;
                 mir::Expr::is_null(new_inner)
             }
+            mir::Expr::BitIsZero(inner, bits) => {
+                let new_inner = self.compile_value_expr(*inner, false)?;
+                mir::Expr::bit_is_zero(new_inner, bits)
+            }
         };
         Ok(Some(new_e))
     }

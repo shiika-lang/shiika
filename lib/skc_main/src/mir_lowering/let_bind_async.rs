@@ -191,6 +191,10 @@ impl Compiler {
                 let new_inner = self.let_bind_if_needed(new_body_stmts, *inner);
                 mir::Expr::is_null(new_inner)
             }
+            mir::Expr::BitIsZero(inner, bits) => {
+                let new_inner = self.let_bind_if_needed(new_body_stmts, *inner);
+                mir::Expr::bit_is_zero(new_inner, bits)
+            }
             mir::Expr::ClassVTable(_) => expr,
         }
     }

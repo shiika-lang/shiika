@@ -151,6 +151,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::Nop => None,
             mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
             mir::Expr::IsNull(inner) => self.compile_is_null(ctx, inner),
+            mir::Expr::BitIsZero(inner, bits) => self.compile_bit_is_zero(ctx, inner, *bits),
             mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
@@ -691,6 +692,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         let ptr = v.into_pointer_value();
         // Returns a raw `i1` (Bool is unboxed).
         let i1 = self.builder.build_is_null(ptr, "omitted").unwrap();
+        Some(i1.into())
+    }
+
+    /// `(inner & bits) == 0` on a raw i64, returning a raw `i1`.
+    fn compile_bit_is_zero(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        expr: &mir::TypedExpr,
+        bits: u64,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, expr).into_int_value();
+        let mask = self.context.i64_type().const_int(bits, false);
+        let anded = self.builder.build_and(v, mask, "bit_and").unwrap();
+        let zero = self.context.i64_type().const_zero();
+        let i1 = self
+            .builder
+            .build_int_compare(inkwell::IntPredicate::EQ, anded, zero, "bit_is_zero")
+            .unwrap();
         Some(i1.into())
     }
 

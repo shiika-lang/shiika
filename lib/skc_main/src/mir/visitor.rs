@@ -128,6 +128,9 @@ pub trait MirVisitor {
             mir::Expr::IsNull(e) => {
                 self.walk_expr(e)?;
             }
+            mir::Expr::BitIsZero(e, _) => {
+                self.walk_expr(e)?;
+            }
             mir::Expr::ClassVTable(_) => {}
             mir::Expr::SetClassObj(obj, class_obj) => {
                 self.walk_expr(obj)?;
