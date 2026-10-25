@@ -257,12 +257,25 @@ pub fn get_capture_value(
             }
         }
         HirLambdaCaptureDetail::CaptureArg { idx } => {
-            // Args are captured by value (+1 for self receiver)
-            box_if_immediate(mir::Expr::arg_ref(
-                idx + 1,
-                "captured_arg",
-                cap.ty.clone().into(),
-            ))
+            // Args are captured by value (+1 for self receiver). The captures
+            // array holds pointers, so an immediate arg must be boxed.
+            if current_fn_class.is_some() {
+                // The enclosing scope is a lambda: its params use the erased
+                // ABI, so an immediate param is already a boxed pointer. Pass
+                // it through (read as Ptr) rather than re-reading it raw.
+                let ty = if mir::Ty::from(cap.ty.clone()).is_immediate() {
+                    mir::Ty::Ptr
+                } else {
+                    cap.ty.clone().into()
+                };
+                mir::Expr::arg_ref(idx + 1, "captured_arg", ty)
+            } else {
+                box_if_immediate(mir::Expr::arg_ref(
+                    idx + 1,
+                    "captured_arg",
+                    cap.ty.clone().into(),
+                ))
+            }
         }
         HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
             // Method tyargs are passed as additional Class args after self

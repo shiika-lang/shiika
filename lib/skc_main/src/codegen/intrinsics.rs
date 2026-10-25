@@ -72,19 +72,6 @@ fn define_box_float(gen: &mut CodeGen) -> Result<()> {
     Ok(())
 }
 
-pub fn box_int<'run>(gen: &mut CodeGen<'run, '_>, n: i64) -> SkObj<'run> {
-    let llvm_n = gen.context.i64_type().const_int(n as u64, false);
-    SkObj(
-        gen.call_llvm_func(
-            "shiika_intrinsic_box_int",
-            &[llvm_n.as_basic_value_enum().into()],
-            "sk_int",
-        )
-        .unwrap()
-        .into_pointer_value(),
-    )
-}
-
 pub fn box_int_value<'run>(
     gen: &mut CodeGen<'run, '_>,
     n: inkwell::values::IntValue<'run>,

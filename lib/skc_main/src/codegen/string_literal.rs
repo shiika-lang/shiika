@@ -13,7 +13,7 @@ pub fn generate<'run>(
         let string_data = declare_global(gen, s);
         let byte_size = gen.context.i64_type().const_int(s.len() as u64, false);
         [
-            gen.compile_constref(&ConstFullname::toplevel("String"))
+            gen.compile_constref(&ConstFullname::toplevel("String"), &crate::mir::Ty::meta("String"))
                 .unwrap()
                 .into(),
             string_data.into(),

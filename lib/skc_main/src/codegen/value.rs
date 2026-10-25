@@ -23,6 +23,7 @@ pub struct SkClassObj<'run>(pub inkwell::values::PointerValue<'run>);
 
 impl<'run> SkClassObj<'run> {
     pub fn load(gen: &mut CodeGen<'run, '_>, name: &Erasure) -> Self {
-        SkClassObj(constants::load(gen, &name.to_const_fullname()).into_pointer_value())
+        let t = gen.ptr_type().into();
+        SkClassObj(constants::load(gen, &name.to_const_fullname(), t).into_pointer_value())
     }
 }

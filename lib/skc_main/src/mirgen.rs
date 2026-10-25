@@ -77,6 +77,21 @@ pub fn run(
             }
         }
 
+        // A virtual method of an immediate class (Int/Bool/Float) needs a
+        // boxed-receiver wrapper for its vtable slot (the receiver is boxed
+        // when dispatched through the vtable). This covers Rust-defined
+        // methods too, which do not appear in `sk_methods`.
+        for sk_type in uni.hir.sk_types.types.values() {
+            if !is_immediate_class(&sk_type.fullname().0) {
+                continue;
+            }
+            // Generate a wrapper for every method the class owns; the vtable
+            // slot routing in codegen uses it for any owned slot.
+            for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
+                funcs.push(build_boxed_recv_wrapper(sig));
+            }
+        }
+
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
@@ -940,7 +955,16 @@ impl<'a> Compiler<'a> {
                 skc_hir::HirBreakFrom::While => mir::Expr::break_(),
             },
             HirExpressionBase::HirReturnExpression { arg, .. } => {
-                mir::Expr::return_(self.convert_expr(*arg))
+                let v = self.convert_expr(*arg);
+                // Inside a lambda the ABI return is erased (boxed), so an
+                // immediate value from an explicit `return` must be boxed too
+                // (matching the implicit return in build_lambda_function).
+                let v = if self.lambda.current_fn_class.is_some() && v.1.is_immediate() {
+                    mir::Expr::box_(v)
+                } else {
+                    v
+                };
+                mir::Expr::return_(v)
             }
             HirExpressionBase::HirLogicalNot { expr } => mir::Expr::if_(
                 self.convert_expr(*expr),
@@ -1253,6 +1277,57 @@ fn build_extern(sig: &MethodSignature) -> mir::Extern {
     mir::Extern {
         name: FunctionName::from_sig(&sig),
         fun_ty: build_fun_ty(sig),
+    }
+}
+
+/// True if `name` is an immediate (unboxed) class: Int/Bool/Float.
+pub fn is_immediate_class(name: &str) -> bool {
+    matches!(name, "Int" | "Bool" | "Float")
+}
+
+/// The name of the boxed-receiver wrapper for a virtual method of an immediate
+/// class. The wrapper is what the class's vtable slot points to: callers reach
+/// it with a boxed (pointer) receiver, it unboxes the receiver (and any
+/// immediate args), calls the raw method, and returns.
+pub fn boxed_recv_wrapper_name(fullname: &MethodFullname) -> FunctionName {
+    FunctionName::from(fullname.clone()).suffixed("$boxed_recv")
+}
+
+/// Build the boxed-receiver wrapper described in `boxed_recv_wrapper_name`.
+fn build_boxed_recv_wrapper(sig: &MethodSignature) -> mir::Function {
+    let raw = build_fun_ty(sig);
+    let raw_self_ty = raw.param_tys[0].clone();
+    // Wrapper params: boxed self, then the erased form of each raw param.
+    let mut params = vec![mir::Param::new(mir::Ty::Ptr, "self")];
+    for (i, p) in raw.param_tys[1..].iter().enumerate() {
+        params.push(mir::Param::new(p.clone().erased(), format!("a{}", i)));
+    }
+    // Body: `return RawMethod(unbox(self), coerce(a0), ...)`.
+    let coerce = |e: mir::TypedExpr, target: &mir::Ty| -> mir::TypedExpr {
+        if &e.1 != target {
+            mir::Expr::cast(mir::CastType::Force(target.clone()), e)
+        } else {
+            e
+        }
+    };
+    let mut args = vec![coerce(
+        mir::Expr::arg_ref(0, "self", mir::Ty::Ptr),
+        &raw_self_ty,
+    )];
+    for (i, p_raw) in raw.param_tys[1..].iter().enumerate() {
+        let a = mir::Expr::arg_ref(i + 1, format!("a{}", i), p_raw.clone().erased());
+        args.push(coerce(a, p_raw));
+    }
+    let func = mir::Expr::func_ref(FunctionName::from_sig(sig), raw.clone());
+    let call = mir::Expr::fun_call(func, args);
+    mir::Function {
+        asyncness: sig.asyncness.clone().into(),
+        name: boxed_recv_wrapper_name(&sig.fullname),
+        params,
+        ret_ty: (*raw.ret_ty).clone(),
+        body_stmts: mir::Expr::return_(call),
+        sig: None,
+        lvar_count: None,
     }
 }
 

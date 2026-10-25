@@ -78,7 +78,11 @@ pub fn get_module_key<'run>(
     gen: &CodeGen<'run, '_>,
     fullname: &ModuleFullname,
 ) -> inkwell::values::IntValue<'run> {
-    let type_obj = constants::load(gen, &fullname.clone().to_const_fullname());
+    let type_obj = constants::load(
+        gen,
+        &fullname.clone().to_const_fullname(),
+        gen.ptr_type().into(),
+    );
     gen.builder
         .build_ptr_to_int(
             type_obj.into_pointer_value(),

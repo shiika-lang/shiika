@@ -62,8 +62,10 @@ pub fn core_externs() -> Vec<mir::Extern> {
 pub fn intrinsic_externs() -> Vec<(FunctionName, FunTy)> {
     vec![
         (
+            // Returns a boxed Int object, i.e. a pointer (Int itself is now
+            // the raw `i64`, so `Ty::raw("Int")` would wrongly be `i64`).
             "shiika_intrinsic_box_int",
-            FunTy::lowered(vec![Ty::Int64], Ty::raw("Int")),
+            FunTy::lowered(vec![Ty::Int64], Ty::Ptr),
         ),
         (
             // Returns a boxed Bool object, i.e. a pointer (Bool itself is now
@@ -115,7 +117,8 @@ fn main_body() -> mir::TypedExpr {
     mir::Expr::exprs(vec![
         mir::Expr::fun_call(chiika_start_tokio, vec![]),
         // TODO: pass the resulting int to the user's main
-        mir::Expr::return_(mir::Expr::unbox(mir::Expr::number(0))),
+        // Int is a raw i64 now, so the literal is already the exit code.
+        mir::Expr::return_(mir::Expr::number(0)),
     ])
 }
 

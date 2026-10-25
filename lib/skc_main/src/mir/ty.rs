@@ -39,9 +39,10 @@ impl Ty {
         match &ty.fullname.0[..] {
             "Shiika::Internal::Ptr" => Ty::Ptr,
             "Shiika::Internal::Int64" => Ty::Int64,
-            // Bool is an unboxed immediate (llvm `i1`). It is boxed only when
-            // it crosses into a boxed-object position (see unboxing.md).
+            // Bool/Int are unboxed immediates (llvm `i1`/`i64`). They are boxed
+            // only when crossing into a boxed-object position (see unboxing.md).
             "Bool" => Ty::I1,
+            "Int" => Ty::Int64,
             _ => Ty::Sk(ty),
         }
     }

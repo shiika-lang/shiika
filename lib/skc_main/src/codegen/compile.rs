@@ -98,13 +98,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
-                self.compile_ivarref(ctx, obj_expr, *idx, name)
+                self.compile_ivarref(ctx, obj_expr, *idx, name, &texpr.1)
             }
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
             mir::Expr::EnvRef(_, _) | mir::Expr::EnvSet(_, _, _) => {
                 panic!("should be lowered before codegen.rs")
             }
-            mir::Expr::ConstRef(name) => self.compile_constref(name),
+            mir::Expr::ConstRef(name) => self.compile_constref(name, &texpr.1),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::GetVTable(receiver) => self.compile_get_vtable(ctx, receiver),
@@ -156,7 +156,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(intrinsics::box_int(self, n).into())
+        // Int is now a raw `i64`; a literal is a plain constant.
+        Some(self.context.i64_type().const_int(n as u64, true).into())
     }
 
     fn compile_float(&mut self, n: f64) -> Option<inkwell::values::BasicValueEnum<'run>> {
@@ -242,8 +243,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_constref(
         &self,
         name: &shiika_core::names::ConstFullname,
+        const_ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(constants::load(self, name))
+        // Load with the constant's own llvm type (e.g. `i64` for an Int const).
+        // The global is an 8-byte slot; an immediate is stored/loaded directly.
+        Some(constants::load(self, name, self.llvm_type(const_ty)))
     }
 
     fn compile_funcref(
@@ -292,14 +296,18 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         obj_expr: &mir::TypedExpr,
         idx: usize,
         name: &str,
+        ivar_ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let struct_ty = llvm_struct::of_ty(self, &obj_expr.1);
+        // Load with the ivar's own llvm type (e.g. `i64` for an Int ivar), not
+        // a hardcoded pointer.
+        let item_type = self.llvm_type(ivar_ty);
         let obj = self.compile_value_expr(ctx, obj_expr);
         Some(instance::build_ivar_load_raw(
             self,
             SkObj::from_basic_value_enum(obj),
             struct_ty,
-            self.ptr_type().into(),
+            item_type,
             idx,
             name,
         ))
