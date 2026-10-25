@@ -30,20 +30,81 @@ fn define_box_int(gen: &mut CodeGen) -> Result<()> {
 }
 
 fn define_box_bool(gen: &mut CodeGen) -> Result<()> {
-    let fn_type = gen
-        .ptr_type()
-        .fn_type(&[gen.context.bool_type().into()], false);
+    // Boxed `true`/`false` are two global singletons (zero-alloc boxing, and
+    // `equal?` identity). They are lazily initialized on the first call, which
+    // avoids depending on constant-init ordering (allocation needs `::Bool`).
+    let ptr_ty = gen.ptr_type();
+    let g_true = gen.module.add_global(ptr_ty, None, "shiika_bool_true");
+    g_true.set_initializer(&ptr_ty.const_null());
+    g_true.set_linkage(inkwell::module::Linkage::Internal);
+    let g_false = gen.module.add_global(ptr_ty, None, "shiika_bool_false");
+    g_false.set_initializer(&ptr_ty.const_null());
+    g_false.set_linkage(inkwell::module::Linkage::Internal);
+
+    let fn_type = ptr_ty.fn_type(&[gen.context.bool_type().into()], false);
     let function = gen
         .module
         .add_function("shiika_intrinsic_box_bool", fn_type, None);
-    let basic_block = gen.context.append_basic_block(function, "");
-    gen.builder.position_at_end(basic_block);
+    let entry = gen.context.append_basic_block(function, "entry");
+    let init_bb = gen.context.append_basic_block(function, "init");
+    let done_bb = gen.context.append_basic_block(function, "done");
 
-    let bool_val = function.get_params()[0];
-    let sk_bool = instance::allocate_sk_obj(gen, &Erasure::nonmeta("Bool"))?;
+    // entry: initialize the singletons if not done yet.
+    gen.builder.position_at_end(entry);
+    let cur = gen
+        .builder
+        .build_load(ptr_ty, g_true.as_pointer_value(), "cur")
+        .unwrap();
+    let uninit = gen
+        .builder
+        .build_is_null(cur.into_pointer_value(), "uninit")
+        .unwrap();
+    gen.builder
+        .build_conditional_branch(uninit, init_bb, done_bb)?;
+
+    // init: allocate one boxed Bool for each value and store into the globals.
+    gen.builder.position_at_end(init_bb);
     let struct_type = llvm_struct::get(gen, &Erasure::nonmeta("Bool"));
-    instance::build_ivar_store_raw(gen, sk_bool.clone(), &struct_type, 0, bool_val, "llvm_bool")?;
-    gen.builder.build_return(Some(&sk_bool.0))?;
+    let t = instance::allocate_sk_obj(gen, &Erasure::nonmeta("Bool"))?;
+    let true_val = gen.context.bool_type().const_int(1, false);
+    instance::build_ivar_store_raw(
+        gen,
+        t.clone(),
+        &struct_type,
+        0,
+        true_val.into(),
+        "llvm_bool",
+    )?;
+    gen.builder.build_store(g_true.as_pointer_value(), t.0)?;
+    let f = instance::allocate_sk_obj(gen, &Erasure::nonmeta("Bool"))?;
+    let false_val = gen.context.bool_type().const_int(0, false);
+    instance::build_ivar_store_raw(
+        gen,
+        f.clone(),
+        &struct_type,
+        0,
+        false_val.into(),
+        "llvm_bool",
+    )?;
+    gen.builder.build_store(g_false.as_pointer_value(), f.0)?;
+    gen.builder.build_unconditional_branch(done_bb)?;
+
+    // done: return the singleton selected by the argument.
+    gen.builder.position_at_end(done_bb);
+    let bool_val = function.get_params()[0].into_int_value();
+    let tp = gen
+        .builder
+        .build_load(ptr_ty, g_true.as_pointer_value(), "t")
+        .unwrap();
+    let fp = gen
+        .builder
+        .build_load(ptr_ty, g_false.as_pointer_value(), "f")
+        .unwrap();
+    let r = gen
+        .builder
+        .build_select(bool_val, tp, fp, "sk_bool")
+        .unwrap();
+    gen.builder.build_return(Some(&r))?;
     Ok(())
 }
 
