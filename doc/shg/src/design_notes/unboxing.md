@@ -99,10 +99,14 @@ to LLVM `i1`), and `SkFloat` an `f64`. There is no boxed struct to dereference.
 A method with default parameters keeps its immediate parameters unboxed and uses
 a presence bitmask to detect omitted arguments; see [MIR](../mir.md).
 
+## Boxed Bool singleton
+
+The boxed `true`/`false` are two global singletons (lazily initialized on first
+boxing), so boxing a Bool is allocation-free and `Object#==` (pointer identity)
+on boxed Bools is reliable.
+
 ## Current status
 
 - `Bool` and `Int` are unboxed. `Float` representation (`F64`) exists and the
   boundary machinery handles it, but `from_term_ty` does not yet map `Float` to
   `F64` (Phase 3).
-- The boxed `Bool` is not yet a singleton, so each boxing allocates and
-  `equal?` on boxed `Bool`s is not reliable.
