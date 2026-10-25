@@ -1030,8 +1030,41 @@ impl<'a> Compiler<'a> {
                 mir::expr::CastType::Force(expr.ty.into()),
                 self.convert_expr(*e),
             ),
-            HirExpressionBase::HirClassLiteral { fullname, .. } => {
-                mir::Expr::create_type_object(fullname.to_ty())
+            HirExpressionBase::HirClassLiteral {
+                fullname,
+                initializer,
+                ..
+            } => {
+                let obj = mir::Expr::create_type_object(fullname.to_ty());
+                // If the class has its own class-level `self.initialize`, call
+                // it on the freshly created class object to initialize its
+                // class-level instance variables. (An inherited `initialize` is
+                // not ours to run here.)
+                let meta_name = format!("Meta:{}", fullname.0);
+                let own_init = initializer.filter(|sig| sig.fullname.type_name.0 == meta_name);
+                if let Some(sig) = own_init {
+                    let meta_ty = obj.1.clone();
+                    let tmp = self.gensym.new_name();
+                    let decl = mir::Expr::lvar_decl(tmp.clone(), obj, false);
+                    let recv = {
+                        let r = mir::Expr::lvar_ref(tmp.clone(), meta_ty.clone());
+                        // The initializer is declared on the metaclass; upcast
+                        // the (possibly more specific) class object to it.
+                        let owner = convert_ty(sig.fullname.type_name.to_ty());
+                        if r.1 != owner {
+                            mir::Expr::cast(mir::CastType::Force(owner), r)
+                        } else {
+                            r
+                        }
+                    };
+                    let call = mir::Expr::fun_call(
+                        mir::Expr::func_ref(sig.fullname.clone().into(), build_fun_ty(&sig)),
+                        vec![recv],
+                    );
+                    mir::Expr::exprs(vec![decl, call, mir::Expr::lvar_ref(tmp, meta_ty)])
+                } else {
+                    obj
+                }
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 let mir_exprs = exprs

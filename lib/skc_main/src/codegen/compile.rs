@@ -299,10 +299,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         name: &str,
         ivar_ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let item_type = self.llvm_type(ivar_ty);
+        // A class-level instance variable lives in a global, not in the class
+        // object (whose layout is the fixed-size runtime `ShiikaClass`).
+        if let mir::Ty::Sk(t) = &obj_expr.1 {
+            if t.is_metaclass() {
+                let key = format!("{}", t.erasure());
+                self.compile_value_expr(ctx, obj_expr); // evaluate for side effects
+                let g = self.class_ivar_global(&key, idx, item_type);
+                return Some(
+                    self.builder
+                        .build_load(item_type, g.as_pointer_value(), name)
+                        .unwrap(),
+                );
+            }
+        }
         let struct_ty = llvm_struct::of_ty(self, &obj_expr.1);
         // Load with the ivar's own llvm type (e.g. `i64` for an Int ivar), not
         // a hardcoded pointer.
-        let item_type = self.llvm_type(ivar_ty);
         let obj = self.compile_value_expr(ctx, obj_expr);
         Some(instance::build_ivar_load_raw(
             self,
@@ -312,6 +326,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             idx,
             name,
         ))
+    }
+
+    /// Get or create the global that backs a class-level instance variable
+    /// (`key` identifies the metaclass, `idx` the ivar).
+    fn class_ivar_global(
+        &self,
+        key: &str,
+        idx: usize,
+        item_type: inkwell::types::BasicTypeEnum<'ictx>,
+    ) -> inkwell::values::GlobalValue<'ictx> {
+        let name = format!("shiika_civar_{}_{}", key, idx);
+        if let Some(g) = self.module.get_global(&name) {
+            return g;
+        }
+        let g = self.module.add_global(item_type, None, &name);
+        g.set_initializer(&item_type.const_zero());
+        g.set_linkage(inkwell::module::Linkage::Internal);
+        g
     }
 
     fn compile_funcall(
@@ -514,6 +546,19 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         rhs: &mir::TypedExpr,
         name: &str,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        // Class-level instance variable: store into its backing global.
+        if let mir::Ty::Sk(t) = &obj_expr.1 {
+            if t.is_metaclass() {
+                let key = format!("{}", t.erasure());
+                self.compile_value_expr(ctx, obj_expr); // evaluate for side effects
+                let value = self.compile_value_expr(ctx, rhs);
+                let g = self.class_ivar_global(&key, idx, self.llvm_type(&rhs.1));
+                self.builder
+                    .build_store(g.as_pointer_value(), value)
+                    .unwrap();
+                return Ok(Some(value));
+            }
+        }
         let obj = self.compile_value_expr(ctx, obj_expr);
         let value = self.compile_value_expr(ctx, rhs);
         instance::build_ivar_store_raw(
