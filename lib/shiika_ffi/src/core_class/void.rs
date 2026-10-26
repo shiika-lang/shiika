@@ -1,4 +1,6 @@
-use crate::core_class::SkBool;
+extern "C" {
+    fn shiika_intrinsic_box_bool(b: bool) -> *const u8;
+}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -14,7 +16,8 @@ impl crate::SkValue for SkVoid {
 
 impl From<()> for SkVoid {
     fn from(_: ()) -> Self {
-        let b: SkBool = false.into();
-        SkVoid(b.0 as *const u8)
+        // `Void` is represented at runtime as a boxed `false` (matching the
+        // compiler's `compile_void`), i.e. a pointer to a boxed Bool object.
+        SkVoid(unsafe { shiika_intrinsic_box_bool(false) })
     }
 }

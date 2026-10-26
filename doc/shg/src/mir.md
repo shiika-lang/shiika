@@ -37,6 +37,24 @@ Converts HIR into MIR. Notable parts:
 - `lambda.rs`: lowers fns/blocks into functions.
 - `prepare_asyncness.rs`: initial asyncness bookkeeping.
 
+## Default arguments
+
+A method with default parameters takes an extra trailing `i64` parameter: a
+_presence bitmask_. Bit `i` of the mask is set iff positional argument `i` was
+actually supplied by the caller; a clear bit means the argument was omitted and
+the callee must fill in its default.
+
+At a call site, MirGen computes this mask as a constant (an omitted argument
+shows up as a default-expression placeholder in the HIR) and passes it as the
+last argument, after any type arguments. Omitted argument slots are still filled
+with a dummy value of the right type, which the callee never reads. In the
+method body, the check "was this parameter omitted?" lowers to a bit test on the
+mask parameter (`(mask & (1 << i)) == 0`).
+
+The mask is used instead of a sentinel value (e.g. a null pointer) because an
+immediate parameter (`Bool`/`Int`/`Float` are represented unboxed, as a raw
+`i1`/`i64`/`double`) has no spare value to reserve as "omitted".
+
 ## Lowering passes
 
 Directory: `lib/skc_main/src/mir_lowering/`

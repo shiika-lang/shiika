@@ -95,6 +95,9 @@ pub trait MirVisitor {
             }
             mir::Expr::CreateObject(_) => {}
             mir::Expr::CreateTypeObject(_) => {}
+            mir::Expr::Box(expr) => {
+                self.walk_expr(expr)?;
+            }
             mir::Expr::Unbox(expr) => {
                 self.walk_expr(expr)?;
             }
@@ -123,6 +126,9 @@ pub trait MirVisitor {
             mir::Expr::WTableRow(_, _) => {}
             mir::Expr::NullPtr => {}
             mir::Expr::IsNull(e) => {
+                self.walk_expr(e)?;
+            }
+            mir::Expr::BitIsZero(e, _) => {
                 self.walk_expr(e)?;
             }
             mir::Expr::ClassVTable(_) => {}

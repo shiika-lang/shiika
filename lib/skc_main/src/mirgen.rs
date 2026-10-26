@@ -53,6 +53,8 @@ pub fn run(
         let mut c = Compiler {
             vtables: &vtables,
             imported_vtables: &uni.imports.vtables,
+            sk_types: &uni.hir.sk_types,
+            imported_sk_types: &uni.imports.sk_types,
             str_literals: &uni.hir.str_literals,
             lambda: lambda::LambdaContext::new(),
             current_method_sig: None,
@@ -72,6 +74,21 @@ pub fn run(
                 let signature = uni.hir.sk_types.get_sig(&m.fullname).unwrap();
                 log::debug!("Converting method: {}", signature);
                 funcs.push(c.convert_method(m, &uni.hir.sk_types));
+            }
+        }
+
+        // A virtual method of an immediate class (Int/Bool/Float) needs a
+        // boxed-receiver wrapper for its vtable slot (the receiver is boxed
+        // when dispatched through the vtable). This covers Rust-defined
+        // methods too, which do not appear in `sk_methods`.
+        for sk_type in uni.hir.sk_types.types.values() {
+            if !is_immediate_class(&sk_type.fullname().0) {
+                continue;
+            }
+            // Generate a wrapper for every method the class owns; the vtable
+            // slot routing in codegen uses it for any owned slot.
+            for (sig, _) in sk_type.base().method_sigs.unordered_iter() {
+                funcs.push(build_boxed_recv_wrapper(sig));
             }
         }
 
@@ -124,6 +141,8 @@ fn const_init_funcs(uni: &build::CompilationUnit, c: &mut Compiler) -> Vec<mir::
 struct Compiler<'a> {
     vtables: &'a skc_mir::VTables,
     imported_vtables: &'a skc_mir::VTables,
+    sk_types: &'a SkTypes,
+    imported_sk_types: &'a SkTypes,
     str_literals: &'a Vec<String>,
     lambda: lambda::LambdaContext,
     current_method_sig: Option<MethodSignature>,
@@ -159,6 +178,13 @@ impl<'a> Compiler<'a> {
             params.push(mir::Param {
                 ty: mir::Ty::raw("Class"),
                 name: typaram.name.clone(),
+            });
+        }
+        // Trailing presence bitmask for default parameters (see build_fun_ty).
+        if signature.has_default_expr() {
+            params.push(mir::Param {
+                ty: mir::Ty::Int64,
+                name: "$defaults".to_string(),
             });
         }
         // Pass 1: collect cell vars before converting body
@@ -397,9 +423,18 @@ impl<'a> Compiler<'a> {
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
             HirExpressionBase::HirFloatLiteral { value } => mir::Expr::float(value),
             HirExpressionBase::HirArrayLiteral { elem_exprs } => {
+                // Array elements are stored as boxed objects (pointers), so an
+                // immediate element (e.g. a Bool) must be boxed first.
                 let mir_elements: Vec<mir::TypedExpr> = elem_exprs
                     .into_iter()
-                    .map(|e| self.convert_expr(e))
+                    .map(|e| {
+                        let m = self.convert_expr(e);
+                        if m.1.is_immediate() {
+                            mir::Expr::box_(m)
+                        } else {
+                            m
+                        }
+                    })
                     .collect();
                 let native_array_expr = (
                     mir::Expr::CreateNativeArray(mir_elements.clone()),
@@ -438,9 +473,17 @@ impl<'a> Compiler<'a> {
                     mir::Expr::lvar_ref(name, convert_ty(expr.ty))
                 }
             }
-            HirExpressionBase::HirArgRef { idx, is_lambda: _ } => {
+            HirExpressionBase::HirArgRef { idx, is_lambda } => {
                 // +1 for the receiver (self) in methods, or +1 for $fn in lambdas
-                mir::Expr::arg_ref(idx + 1, "?", convert_ty(expr.ty))
+                let ty = convert_ty(expr.ty);
+                if is_lambda && ty.is_immediate() {
+                    // A lambda's params use the erased ABI: an immediate param
+                    // is received boxed, so unbox it here.
+                    let boxed = mir::Expr::arg_ref(idx + 1, "?", mir::Ty::Ptr);
+                    mir::Expr::cast(mir::CastType::Force(ty), boxed)
+                } else {
+                    mir::Expr::arg_ref(idx + 1, "?", ty)
+                }
             }
             HirExpressionBase::HirIVarRef {
                 name,
@@ -558,16 +601,69 @@ impl<'a> Compiler<'a> {
                 let mir_receiver = self.convert_expr(*receiver_expr);
                 let method_name = &method_fullname.first_name;
 
+                // Bool/Int/Float are final: a call with a raw immediate
+                // receiver is always a direct call. Routing it through the
+                // vtable would require boxing the receiver (the vtable lookup
+                // reads an object header from what is really an `i1`/`i64`).
+                let is_virtual = is_virtual && !convert_ty(receiver_ty.clone()).is_immediate();
+
+                // Declared parameter types of the callee (erased). Used to box
+                // an immediate argument where it crosses into an erased
+                // (pointer) parameter, e.g. passing `true` to a `T`-typed
+                // parameter.
+                let declared_params = self.callee_param_tys(&method_fullname);
+
+                // If the callee has default parameters, it takes a trailing
+                // presence bitmask: bit `i` is set iff positional argument `i`
+                // was actually supplied (omitted ones are `HirDefaultExpr`).
+                let defaults_mask: Option<u64> = if self.callee_has_defaults(&method_fullname) {
+                    let mut mask = 0u64;
+                    for (i, a) in arg_exprs.iter().enumerate() {
+                        if !matches!(a.node, HirExpressionBase::HirDefaultExpr) {
+                            mask |= 1u64 << i;
+                        }
+                    }
+                    Some(mask)
+                } else {
+                    None
+                };
+
+                // Likewise, when the callee's declared return type is erased
+                // (a pointer) but the call's result is an immediate, the call
+                // ABI returns the boxed pointer and the result is unboxed
+                // below.
+                let declared_ret = self.callee_ret_ty(&method_fullname);
+                let call_ret_abi = match &declared_ret {
+                    Some(d) if result_ty.is_immediate() && !d.is_immediate() => d.clone(),
+                    _ => result_ty.clone(),
+                };
+
                 let fun_ty = {
                     let mut param_tys = arg_exprs
                         .iter()
-                        .map(|e| e.ty.clone().into())
+                        .enumerate()
+                        .map(|(i, e)| {
+                            let actual: mir::Ty = e.ty.clone().into();
+                            // Where a raw immediate flows into an erased
+                            // parameter, the call ABI uses the boxed (declared)
+                            // type and the argument is boxed below.
+                            if let Some(declared) = declared_params.as_ref().and_then(|d| d.get(i))
+                            {
+                                if actual.is_immediate() && !declared.is_immediate() {
+                                    return declared.clone();
+                                }
+                            }
+                            actual
+                        })
                         .collect::<Vec<_>>();
                     param_tys.insert(0, convert_ty(method_fullname.type_name.to_ty()));
                     for _ in &tyarg_exprs {
                         param_tys.push(mir::Ty::raw("Class"));
                     }
-                    mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
+                    if defaults_mask.is_some() {
+                        param_tys.push(mir::Ty::Int64);
+                    }
+                    mir::FunTy::new(mir::Asyncness::Unknown, param_tys, call_ret_abi.clone())
                 };
 
                 // Bind the receiver to a temp lvar when virtual; virtual
@@ -600,7 +696,19 @@ impl<'a> Compiler<'a> {
                 };
                 let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
                     .into_iter()
-                    .map(|arg| self.convert_expr(arg))
+                    .enumerate()
+                    .map(|(i, arg)| {
+                        let a = self.convert_expr(arg);
+                        let expected = &fun_ty.param_tys[i + 1];
+                        // Box an immediate argument crossing into an erased
+                        // parameter (the representation-aware cast does the
+                        // actual boxing).
+                        if a.1.is_immediate() && !expected.is_immediate() {
+                            mir::Expr::cast(mir::CastType::Force(expected.clone()), a)
+                        } else {
+                            a
+                        }
+                    })
                     .collect();
                 // Upcast receiver to the method's declared owner type if they differ
                 // (the actual receiver may be a more specific generic type).
@@ -620,8 +728,21 @@ impl<'a> Compiler<'a> {
                         mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), mir_tyarg);
                     mir_args.push(casted);
                 }
+                if let Some(mask) = defaults_mask {
+                    mir_args.push(mir::Expr::raw_i64(mask as i64));
+                }
 
-                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                let raw_call = (
+                    mir::Expr::FunCall(Box::new(func_ref), mir_args),
+                    call_ret_abi,
+                );
+                // Unbox the result when the callee returned an erased pointer
+                // but this call site expects an immediate.
+                let call = if raw_call.1 != result_ty {
+                    mir::Expr::cast(mir::CastType::Force(result_ty), raw_call)
+                } else {
+                    raw_call
+                };
                 if let Some(decl) = recv_decl {
                     mir::Expr::exprs(vec![decl, call])
                 } else {
@@ -694,6 +815,14 @@ impl<'a> Compiler<'a> {
                     .map(|a| self.convert_expr(a))
                     .collect();
                 let call_result = lambda::compile_lambda_invocation(&lambda_ty, fn_obj, mir_args);
+                // The lambda ABI returns erased (boxed); unbox when this call
+                // site expects an immediate.
+                let concrete_ret = convert_ty(expr.ty.clone());
+                let call_result = if concrete_ret.is_immediate() && !call_result.1.is_immediate() {
+                    mir::Expr::cast(mir::CastType::Force(concrete_ret), call_result)
+                } else {
+                    call_result
+                };
                 // After lambda call, check @exit_status for break support.
                 // The check emits `return ::Void`, so only emit it when the
                 // surrounding function's return type is Void; otherwise the
@@ -854,7 +983,16 @@ impl<'a> Compiler<'a> {
                 skc_hir::HirBreakFrom::While => mir::Expr::break_(),
             },
             HirExpressionBase::HirReturnExpression { arg, .. } => {
-                mir::Expr::return_(self.convert_expr(*arg))
+                let v = self.convert_expr(*arg);
+                // Inside a lambda the ABI return is erased (boxed), so an
+                // immediate value from an explicit `return` must be boxed too
+                // (matching the implicit return in build_lambda_function).
+                let v = if self.lambda.current_fn_class.is_some() && v.1.is_immediate() {
+                    mir::Expr::box_(v)
+                } else {
+                    v
+                };
+                mir::Expr::return_(v)
             }
             HirExpressionBase::HirLogicalNot { expr } => mir::Expr::if_(
                 self.convert_expr(*expr),
@@ -892,8 +1030,41 @@ impl<'a> Compiler<'a> {
                 mir::expr::CastType::Force(expr.ty.into()),
                 self.convert_expr(*e),
             ),
-            HirExpressionBase::HirClassLiteral { fullname, .. } => {
-                mir::Expr::create_type_object(fullname.to_ty())
+            HirExpressionBase::HirClassLiteral {
+                fullname,
+                initializer,
+                ..
+            } => {
+                let obj = mir::Expr::create_type_object(fullname.to_ty());
+                // If the class has its own class-level `self.initialize`, call
+                // it on the freshly created class object to initialize its
+                // class-level instance variables. (An inherited `initialize` is
+                // not ours to run here.)
+                let meta_name = format!("Meta:{}", fullname.0);
+                let own_init = initializer.filter(|sig| sig.fullname.type_name.0 == meta_name);
+                if let Some(sig) = own_init {
+                    let meta_ty = obj.1.clone();
+                    let tmp = self.gensym.new_name();
+                    let decl = mir::Expr::lvar_decl(tmp.clone(), obj, false);
+                    let recv = {
+                        let r = mir::Expr::lvar_ref(tmp.clone(), meta_ty.clone());
+                        // The initializer is declared on the metaclass; upcast
+                        // the (possibly more specific) class object to it.
+                        let owner = convert_ty(sig.fullname.type_name.to_ty());
+                        if r.1 != owner {
+                            mir::Expr::cast(mir::CastType::Force(owner), r)
+                        } else {
+                            r
+                        }
+                    };
+                    let call = mir::Expr::fun_call(
+                        mir::Expr::func_ref(sig.fullname.clone().into(), build_fun_ty(&sig)),
+                        vec![recv],
+                    );
+                    mir::Expr::exprs(vec![decl, call, mir::Expr::lvar_ref(tmp, meta_ty)])
+                } else {
+                    obj
+                }
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
                 let mir_exprs = exprs
@@ -903,11 +1074,25 @@ impl<'a> Compiler<'a> {
                 mir::Expr::exprs(mir_exprs)
             }
             HirExpressionBase::HirDefaultExpr => {
-                mir::Expr::cast(mir::CastType::Force(result_ty), mir::Expr::null_ptr())
+                // Placeholder for an omitted argument slot. The callee reads
+                // the presence bitmask (see HirIsOmittedValue) and never uses
+                // this value, so any value of the right type will do.
+                zero_value(&result_ty)
             }
             HirExpressionBase::HirIsOmittedValue { expr: inner } => {
-                let mir_inner = self.convert_expr(*inner);
-                mir::Expr::is_null(mir_inner)
+                // `inner` is the default parameter's `arg_ref`. Whether it was
+                // omitted is encoded in the method's trailing presence-bitmask
+                // parameter: bit `i` is clear when parameter `i` was omitted.
+                let HirExpressionBase::HirArgRef { idx, .. } = inner.node else {
+                    panic!("[BUG] HirIsOmittedValue inner is not an arg_ref");
+                };
+                let sig = self
+                    .current_method_sig
+                    .as_ref()
+                    .expect("[BUG] HirIsOmittedValue outside a method");
+                let mask_idx = 1 + sig.params.len() + sig.typarams.len();
+                let mask = mir::Expr::arg_ref(mask_idx, "$defaults", mir::Ty::Int64);
+                mir::Expr::bit_is_zero(mask, 1u64 << idx)
             }
         }
     }
@@ -925,13 +1110,14 @@ impl<'a> Compiler<'a> {
     ) -> mir::TypedExpr {
         let mut exprs = vec![];
         let tmp_name = "tmp";
-        exprs.push(mir::Expr::lvar_decl(
-            tmp_name,
-            mir::Expr::create_object(instance_ty.clone()),
-            false,
-        ));
+        // The allocated object is the boxed representation (a pointer), which
+        // differs from `instance_ty`'s MIR type when the class is an immediate
+        // (e.g. Bool). Keep `tmp` at the boxed type throughout.
+        let create = mir::Expr::create_object(instance_ty.clone());
+        let obj_ty = create.1.clone();
+        exprs.push(mir::Expr::lvar_decl(tmp_name, create, false));
         exprs.push(mir::Expr::set_class_obj(
-            mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into()),
+            mir::Expr::lvar_ref(tmp_name.to_string(), obj_ty.clone()),
             mir::Expr::arg_ref(0, "self", convert_ty(receiver_ty)),
         ));
         if let Some(ini_sig) = initializer {
@@ -944,8 +1130,7 @@ impl<'a> Compiler<'a> {
                     .map(|(i, param)| mir::Expr::arg_ref(i + 1, param.name, param.ty.into()))
                     .collect();
                 let receiver = {
-                    let mut r =
-                        mir::Expr::lvar_ref(tmp_name.to_string(), instance_ty.clone().into());
+                    let mut r = mir::Expr::lvar_ref(tmp_name.to_string(), obj_ty.clone());
                     let defined_type = ini_sig.fullname.type_name.clone();
                     if instance_ty.fullname != defined_type {
                         r = mir::Expr::cast(mir::CastType::Upcast(defined_type.to_ty().into()), r);
@@ -959,10 +1144,14 @@ impl<'a> Compiler<'a> {
             };
             exprs.push(call_initialize);
         }
-        exprs.push(mir::Expr::return_(mir::Expr::lvar_ref(
-            tmp_name.to_string(),
-            instance_ty.into(),
-        )));
+        // Return the object at the method's declared return type. For an
+        // immediate class this unboxes the boxed `tmp` (ptr -> i1 etc.).
+        let ret_ty: mir::Ty = instance_ty.into();
+        let mut ret_val = mir::Expr::lvar_ref(tmp_name.to_string(), obj_ty.clone());
+        if obj_ty != ret_ty {
+            ret_val = mir::Expr::cast(mir::CastType::Force(ret_ty), ret_val);
+        }
+        exprs.push(mir::Expr::return_(ret_val));
 
         mir::Expr::exprs(exprs)
     }
@@ -1033,6 +1222,50 @@ impl<'a> Compiler<'a> {
         self.vtables
             .find(ty, method_name)
             .or_else(|| self.imported_vtables.find(ty, method_name))
+    }
+
+    /// Declared parameter types of a method (excluding the receiver), in MIR
+    /// form. Used to decide where an immediate argument must be boxed as it
+    /// crosses into an erased (pointer) parameter. Parameter
+    /// representations (immediate vs pointer) are preserved across overrides,
+    /// so the statically resolved `method_fullname` is sufficient here even
+    /// for virtual calls.
+    fn callee_param_tys(
+        &self,
+        method_fullname: &shiika_core::names::MethodFullname,
+    ) -> Option<Vec<mir::Ty>> {
+        let sig = self
+            .sk_types
+            .get_sig(method_fullname)
+            .or_else(|| self.imported_sk_types.get_sig(method_fullname))?;
+        Some(
+            sig.params
+                .iter()
+                .map(|p| convert_ty(p.ty.clone()))
+                .collect(),
+        )
+    }
+
+    /// Declared return type of a method, in MIR form. Used to unbox a call
+    /// result where the callee returns an erased (pointer) value but this
+    /// call site expects an immediate.
+    fn callee_ret_ty(
+        &self,
+        method_fullname: &shiika_core::names::MethodFullname,
+    ) -> Option<mir::Ty> {
+        let sig = self
+            .sk_types
+            .get_sig(method_fullname)
+            .or_else(|| self.imported_sk_types.get_sig(method_fullname))?;
+        Some(convert_ty(sig.ret_ty.clone()))
+    }
+
+    /// Whether the callee takes a trailing default-parameter presence bitmask.
+    fn callee_has_defaults(&self, method_fullname: &shiika_core::names::MethodFullname) -> bool {
+        self.sk_types
+            .get_sig(method_fullname)
+            .or_else(|| self.imported_sk_types.get_sig(method_fullname))
+            .map_or(false, |sig| sig.has_default_expr())
     }
 }
 
@@ -1109,6 +1342,21 @@ fn convert_ty(ty: TermTy) -> mir::Ty {
     ty.into()
 }
 
+/// A placeholder zero value of the given MIR type (used for omitted default
+/// argument slots, which the callee never reads).
+fn zero_value(ty: &mir::Ty) -> mir::TypedExpr {
+    match ty {
+        mir::Ty::Int64 => mir::Expr::raw_i64(0),
+        mir::Ty::I1 => mir::Expr::pseudo_var(mir::PseudoVar::False),
+        mir::Ty::F64 => {
+            // No raw f64 literal node; reinterpret a zero i64 as f64.
+            let any = mir::Expr::cast(mir::CastType::ToAny, mir::Expr::raw_i64(0));
+            mir::Expr::cast(mir::CastType::Recover(mir::Ty::F64), any)
+        }
+        _ => mir::Expr::cast(mir::CastType::Force(ty.clone()), mir::Expr::null_ptr()),
+    }
+}
+
 fn convert_externs(imports: &SkTypes) -> Vec<mir::Extern> {
     imports
         .types
@@ -1130,6 +1378,57 @@ fn build_extern(sig: &MethodSignature) -> mir::Extern {
     }
 }
 
+/// True if `name` is an immediate (unboxed) class: Int/Bool/Float.
+pub fn is_immediate_class(name: &str) -> bool {
+    matches!(name, "Int" | "Bool" | "Float")
+}
+
+/// The name of the boxed-receiver wrapper for a virtual method of an immediate
+/// class. The wrapper is what the class's vtable slot points to: callers reach
+/// it with a boxed (pointer) receiver, it unboxes the receiver (and any
+/// immediate args), calls the raw method, and returns.
+pub fn boxed_recv_wrapper_name(fullname: &MethodFullname) -> FunctionName {
+    FunctionName::from(fullname.clone()).suffixed("$boxed_recv")
+}
+
+/// Build the boxed-receiver wrapper described in `boxed_recv_wrapper_name`.
+fn build_boxed_recv_wrapper(sig: &MethodSignature) -> mir::Function {
+    let raw = build_fun_ty(sig);
+    let raw_self_ty = raw.param_tys[0].clone();
+    // Wrapper params: boxed self, then the erased form of each raw param.
+    let mut params = vec![mir::Param::new(mir::Ty::Ptr, "self")];
+    for (i, p) in raw.param_tys[1..].iter().enumerate() {
+        params.push(mir::Param::new(p.clone().erased(), format!("a{}", i)));
+    }
+    // Body: `return RawMethod(unbox(self), coerce(a0), ...)`.
+    let coerce = |e: mir::TypedExpr, target: &mir::Ty| -> mir::TypedExpr {
+        if &e.1 != target {
+            mir::Expr::cast(mir::CastType::Force(target.clone()), e)
+        } else {
+            e
+        }
+    };
+    let mut args = vec![coerce(
+        mir::Expr::arg_ref(0, "self", mir::Ty::Ptr),
+        &raw_self_ty,
+    )];
+    for (i, p_raw) in raw.param_tys[1..].iter().enumerate() {
+        let a = mir::Expr::arg_ref(i + 1, format!("a{}", i), p_raw.clone().erased());
+        args.push(coerce(a, p_raw));
+    }
+    let func = mir::Expr::func_ref(FunctionName::from_sig(sig), raw.clone());
+    let call = mir::Expr::fun_call(func, args);
+    mir::Function {
+        asyncness: sig.asyncness.clone().into(),
+        name: boxed_recv_wrapper_name(&sig.fullname),
+        params,
+        ret_ty: (*raw.ret_ty).clone(),
+        body_stmts: mir::Expr::return_(call),
+        sig: None,
+        lvar_count: None,
+    }
+}
+
 fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
     let mut param_tys = sig
         .params
@@ -1140,6 +1439,11 @@ fn build_fun_ty(sig: &MethodSignature) -> mir::FunTy {
     // Method type parameters are passed as additional Class arguments.
     for _ in &sig.typarams {
         param_tys.push(mir::Ty::raw("Class"));
+    }
+    // A method with default parameters takes a trailing i64 presence bitmask
+    // (bit `i` clear = positional argument `i` was omitted).
+    if sig.has_default_expr() {
+        param_tys.push(mir::Ty::Int64);
     }
     mir::FunTy::new(
         sig.asyncness.clone().into(),
