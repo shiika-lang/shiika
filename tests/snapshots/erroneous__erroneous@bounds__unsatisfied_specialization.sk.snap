@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/unsatisfied_specialization.sk
+---
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+   ╭─[tests/erroneous/bounds/unsatisfied_specialization.sk:5:3]
+   │
+ 5 │ p Cage<Int>
+   │   ────┬────  
+   │       ╰────── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+───╯

@@ -1,0 +1,4 @@
+class Foo<out T>
+  def foo(x: T)
+  end
+end

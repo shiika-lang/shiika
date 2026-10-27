@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/variance/contravariant_enum_case.sk
+---
+Error: contravariant type parameter `T' appears in covariant position
+   ╭─[tests/erroneous/variance/contravariant_enum_case.sk:2:19]
+   │
+ 2 │   case Bar(value: T)
+   │                   ┬  
+   │                   ╰── contravariant type parameter `T' appears in covariant position
+───╯

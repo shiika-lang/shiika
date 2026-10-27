@@ -1,0 +1,5 @@
+class Foo<out T>
+  def foo -> Array<T>
+    []
+  end
+end

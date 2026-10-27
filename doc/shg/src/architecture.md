@@ -15,11 +15,11 @@ Shiika is a compiler written in Rust that compiles to LLVM IR.
   - `lib/shiika_parser`: hand-written parser converting source to AST
   - `lib/shiika_ast`: AST structures, tokens, and visitor patterns
 - HIR generation
-  - `lib/skc_main/hir/`
-  - `lib/skc_ast2hir/`: `ClassDict` and related helpers shared by HIR generation
+  - `lib/skc_ast2hir/`: converts AST into HIR. `ClassDict` and related helpers
   - `lib/skc_hir/`: HIR structures (`SkMethod`, `SkType`, `SkClass`)
-- MIR generation
-  - `lib/skc_main/hir_to_mir.rs`
+- MIR generation (see [MIR](mir.md))
+  - `lib/skc_main/src/mirgen/`: converts HIR into MIR
+  - `lib/skc_main/src/mir_lowering/`: MIR-to-MIR lowering passes
   - `lib/skc_mir/`: vtable building and library export structures
     (This crate is made for the old runtime. Should be renamed)
 - Code generation

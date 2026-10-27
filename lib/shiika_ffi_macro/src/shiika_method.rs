@@ -7,7 +7,7 @@ use syn::parse_macro_input;
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```text
 /// #[shiika_method("Class#_initialize_rustlib")]
 /// #[allow(non_snake_case)]
 /// pub extern "C" fn class__initialize_rustlib(

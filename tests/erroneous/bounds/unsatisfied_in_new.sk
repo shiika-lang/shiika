@@ -1,0 +1,7 @@
+class Animal
+end
+class Cage<T: Animal>
+  def initialize(@pet: T)
+  end
+end
+Cage.new(1)

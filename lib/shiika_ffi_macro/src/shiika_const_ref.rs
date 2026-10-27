@@ -9,7 +9,7 @@ use syn::{Result, Token};
 /// Define a reference to a Shiika constant.
 ///
 /// ## Example
-/// ```rust
+/// ```text
 /// shiika_const_ref!(
 ///     "::Time::Zone", // Shiika const name
 ///     SkClass,        // Type of the constant

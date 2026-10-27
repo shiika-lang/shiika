@@ -1,0 +1,8 @@
+class Animal
+end
+class Cage<T: Animal>
+end
+class Foo
+  def foo(x: Cage<Int>)
+  end
+end

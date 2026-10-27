@@ -1,0 +1,4 @@
+enum Foo<in T>
+  case Bar(value: T)
+  case Baz
+end

@@ -84,6 +84,7 @@ pub fn convert_method_call(
     let tyargs = inf
         .method_tyargs()
         .with_context(|| error(&block_taker, locs))?;
+    crate::type_system::bounds::check_method_tyargs(&mk.class_dict, &found.sig, &tyargs, locs)?;
     let updated_param_types = inf.param_tys().with_context(|| error(&block_taker, locs))?;
 
     check_argument_types(

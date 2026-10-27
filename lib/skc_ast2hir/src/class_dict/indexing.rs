@@ -62,7 +62,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     *inheritable,
                     &namespace,
                     name,
-                    parse_typarams(typarams),
+                    self.resolve_typarams(&namespace, typarams, Default::default())?,
                     supers,
                     defs,
                     &mut rust_methods,
@@ -74,7 +74,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } => self.index_module(
                     &namespace,
                     name,
-                    parse_typarams(typarams),
+                    self.resolve_typarams(&namespace, typarams, Default::default())?,
                     defs,
                     &mut rust_methods,
                 )?,
@@ -86,7 +86,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 } => self.index_enum(
                     &namespace,
                     name,
-                    parse_typarams(typarams),
+                    self.resolve_typarams(&namespace, typarams, Default::default())?,
                     cases,
                     defs,
                     &mut rust_methods,
@@ -101,7 +101,49 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         self.check_virtual_asyncness()?;
+        crate::type_system::bounds::check_sk_types(self)?;
         Ok(())
+    }
+
+    /// Convert `AstTyParam`s to `TyParam`s, resolving the upper bound
+    /// (eg. `Ord` of `class Foo<T: Ord>`) with `resolve_typename`.
+    /// `outer_typarams` is the class typarams when resolving method typarams
+    /// (used only to detect a typaram used as a bound, which is an error).
+    fn resolve_typarams(
+        &self,
+        namespace: &Namespace,
+        ast_typarams: &[shiika_ast::AstTyParam],
+        outer_typarams: &[ty::TyParam],
+    ) -> Result<Vec<ty::TyParam>> {
+        let plain = parse_typarams(ast_typarams);
+        ast_typarams
+            .iter()
+            .zip(plain.iter())
+            .map(|(ast_tp, tp)| {
+                let mut tp = tp.clone();
+                if let Some(bound_name) = &ast_tp.upper_bound {
+                    let bound_ty =
+                        self.resolve_typename(namespace, outer_typarams, &plain, bound_name)?;
+                    if bound_ty.contains_typaram_ref() {
+                        let msg = format!(
+                            "a type parameter cannot appear in the bound of a type parameter \
+                             (in the bound of `{}'; F-bounded polymorphism is not supported)",
+                            &tp.name
+                        );
+                        let report =
+                            skc_error::build_report(msg.clone(), &bound_name.locs, |r, span| {
+                                r.with_label(Label::new(span).with_message(msg.clone()))
+                            });
+                        return Err(error::program_error(&report));
+                    }
+                    match &bound_ty.body {
+                        TyBody::TyRaw(lit_ty) => tp.upper_bound = lit_ty.clone(),
+                        TyBody::TyPara(_) => unreachable!(), // excluded above
+                    }
+                }
+                Ok(tp)
+            })
+            .collect()
     }
 
     /// Raise error if a (Rust-implemented) sync method overrides an async method.
@@ -208,6 +250,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut superclass = None;
         for name in supers {
             let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
                     if !modules.is_empty() {
@@ -407,6 +450,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut ivars = vec![];
         for (idx, param) in case.params.iter().enumerate() {
             let ty = self.resolve_typename(namespace, typarams, Default::default(), &param.typ)?;
+            crate::type_system::variance::check_enum_case_ivar(
+                self,
+                typarams,
+                &ty,
+                &param.typ.locs,
+            )?;
             let ivar = SkIVar {
                 idx,
                 name: param.name.clone(),
@@ -490,6 +539,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         superclass,
                         false,
                     )?;
+                    crate::type_system::variance::check_method_signature(
+                        self, typarams, sig, &hir_sig,
+                    )?;
                     if sig.name.0 == "initialize" {
                         self._index_accessors(&mut instance_methods, sig, &hir_sig);
                     }
@@ -537,7 +589,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         *inheritable,
                         namespace,
                         name,
-                        parse_typarams(typarams),
+                        self.resolve_typarams(namespace, typarams, Default::default())?,
                         supers,
                         defs,
                         rust_methods,
@@ -551,7 +603,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     self.index_module(
                         namespace,
                         name,
-                        parse_typarams(typarams),
+                        self.resolve_typarams(namespace, typarams, Default::default())?,
                         defs,
                         rust_methods,
                     )?;
@@ -565,6 +617,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             typarams,
                             false,
                             false,
+                        )?;
+                        crate::type_system::variance::check_method_signature(
+                            self, typarams, sig, &hir_sig,
                         )?;
                         requirements.push(hir_sig);
                     } else {
@@ -583,7 +638,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     self.index_enum(
                         namespace,
                         name,
-                        parse_typarams(typarams),
+                        self.resolve_typarams(namespace, typarams, Default::default())?,
                         cases,
                         defs,
                         rust_methods,
@@ -831,7 +886,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         is_virtual: bool,
         is_rust: bool,
     ) -> Result<MethodSignature> {
-        let method_typarams = parse_typarams(&sig.typarams);
+        let method_typarams = self.resolve_typarams(namespace, &sig.typarams, class_typarams)?;
+        if let Some(tp) = method_typarams
+            .iter()
+            .find(|t| t.variance != ty::Variance::Invariant)
+        {
+            return Err(error::program_error(format!(
+                "method type parameter `{}' cannot have variance (`in'/`out')",
+                &tp.name
+            )));
+        }
         let fullname = method_fullname(type_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
             self.resolve_typename(namespace, class_typarams, &method_typarams, typ)?
@@ -872,9 +936,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
             if let Some(idx) = class_typarams.iter().position(|t| *s == t.name) {
-                return Ok(ty::typaram_ref(s, TyParamKind::Class, idx).into_term_ty());
+                return Ok(
+                    ty::typaram_ref(&class_typarams[idx], TyParamKind::Class, idx).into_term_ty(),
+                );
             } else if let Some(idx) = method_typarams.iter().position(|t| *s == t.name) {
-                return Ok(ty::typaram_ref(s, TyParamKind::Method, idx).into_term_ty());
+                return Ok(
+                    ty::typaram_ref(&method_typarams[idx], TyParamKind::Method, idx).into_term_ty(),
+                );
             }
         }
         // Otherwise:
@@ -978,7 +1046,7 @@ fn enum_case_superclass(
         .map(|(i, t)| {
             if case.appears(&t.name) {
                 case_typarams.push(t.clone());
-                ty::typaram_ref(&t.name, TyParamKind::Class, i).into_term_ty()
+                ty::typaram_ref(t, TyParamKind::Class, i).into_term_ty()
             } else {
                 ty::raw("Never")
             }

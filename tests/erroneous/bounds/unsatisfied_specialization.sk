@@ -1,0 +1,5 @@
+class Animal
+end
+class Cage<T: Animal>
+end
+p Cage<Int>

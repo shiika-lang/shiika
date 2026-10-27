@@ -1615,8 +1615,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "log",
+ "serde_json",
  "shiika_ast",
  "shiika_core",
+ "shiika_parser",
  "skc_error",
  "skc_hir",
  "skc_mir",

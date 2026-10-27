@@ -1,0 +1,2 @@
+class Foo<A: B, B: A>
+end

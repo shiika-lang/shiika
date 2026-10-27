@@ -2,15 +2,17 @@
 
 * [Introduction](README.md)
 * [Architecture](architecture.md)
-* Source code
+* [Source code]()
   * [Parser](parser.md)
   * [AST](ast.md)
   * [HIR](hir.md)
+  * [MIR](mir.md)
   * [CodeGen](code_gen.md)
   * [Corelib](corelib.md)
   * [Tests](tests.md)
-* Design Notes
+* [Design Notes]()
   * [Enum](design_notes/enum.md)
-* Other
+  * [Unboxing](design_notes/unboxing.md)
+* [Other]()
   * [Performance](perf.md)
   * [Debugging](debug.md)

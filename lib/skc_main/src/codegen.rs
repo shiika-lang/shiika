@@ -77,6 +77,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Ty::Any => self.context.i64_type().into(),
             mir::Ty::I1 => self.context.bool_type().into(),
             mir::Ty::Int64 => self.context.i64_type().into(),
+            mir::Ty::F64 => self.context.f64_type().into(),
             mir::Ty::CVoid => panic!("CVoid is not a BasicTypeEnum"),
             mir::Ty::ChiikaEnv | mir::Ty::RustFuture => self.ptr_type().into(),
             mir::Ty::Sk(s) => match s.fullname.0.as_str() {

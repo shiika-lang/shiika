@@ -6,6 +6,39 @@ class A
 end
 if A.a != 0; puts "A.a returned \{A.a}"; end
 
+# Initialized to a non-zero value and read back. (Regression: class ivars used
+# to have no real storage and self.initialize was never called, so this read
+# uninitialized memory which happened to look like 0 for the case above.)
+class NonZero
+  def self.initialize
+    let @a = 5
+  end
+end
+unless NonZero.a == 5; puts "ng: NonZero.a is \{NonZero.a}"; end
+
+# Multiple class ivars of different types
+class Multi
+  def self.initialize
+    let @n = 42
+    let @s = "hello"
+  end
+end
+unless Multi.n == 42; puts "ng: Multi.n"; end
+unless Multi.s == "hello"; puts "ng: Multi.s"; end
+
+# Mutable class ivar updated by a class method
+class Counter
+  def self.initialize
+    var @count = 0
+  end
+  def self.incr
+    @count = @count + 1
+  end
+end
+Counter.incr
+Counter.incr
+unless Counter.count == 2; puts "ng: Counter.count"; end
+
 # Generics
 #
 #CT = [0]   # https://github.com/shiika-lang/shiika/issues/390
@@ -19,4 +52,3 @@ if A.a != 0; puts "A.a returned \{A.a}"; end
 #if CT[0] > 1; puts "B.initialize called more than once"; end
 
 puts "ok"
-
