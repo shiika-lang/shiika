@@ -275,8 +275,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_void(&mut self) -> inkwell::values::BasicValueEnum<'run> {
-        // TODO: should be instance of Void
-        intrinsics::box_bool(self, false).into()
+        // `Void` is a singleton: every Void value is the `::Void` instance
+        // (initialized right after `Metaclass`, before any other constant that
+        // could observe it). This global is loaded rather than allocating a
+        // fresh object on each use.
+        let name = shiika_core::names::ConstFullname::toplevel("Void");
+        self.compile_constref(&name, &mir::Ty::raw("Void"))
+            .expect("[BUG] ::Void const ref produced no value")
     }
 
     fn compile_lvarref(

@@ -1,6 +1,6 @@
-extern "C" {
-    fn shiika_intrinsic_box_bool(b: bool) -> *const u8;
-}
+use shiika_ffi_macro::shiika_const_ref;
+
+shiika_const_ref!("::Void", SkVoid, "sk_Void");
 
 #[repr(C)]
 #[derive(Debug)]
@@ -14,10 +14,16 @@ impl crate::SkValue for SkVoid {
     }
 }
 
+impl SkVoid {
+    pub fn dup(&self) -> SkVoid {
+        SkVoid(self.0)
+    }
+}
+
 impl From<()> for SkVoid {
     fn from(_: ()) -> Self {
-        // `Void` is represented at runtime as a boxed `false` (matching the
-        // compiler's `compile_void`), i.e. a pointer to a boxed Bool object.
-        SkVoid(unsafe { shiika_intrinsic_box_bool(false) })
+        // `Void` is a singleton: return the `::Void` instance (matching the
+        // compiler's `compile_void`) rather than fabricating a new object.
+        sk_Void()
     }
 }
