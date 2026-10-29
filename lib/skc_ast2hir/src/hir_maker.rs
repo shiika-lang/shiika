@@ -96,16 +96,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 (name.clone(), const_is_obj, includes_modules)
             })
             .collect::<Vec<_>>();
-        // Metaclass must be initialized before all other classes because each class
-        // initialization loads @shiika_const_Metaclass to use as the metaclass_obj.
-        v.sort_by(|(a, _, _), (b, _, _)| {
-            if a.0 == "Metaclass" {
-                std::cmp::Ordering::Less
-            } else if b.0 == "Metaclass" {
-                std::cmp::Ordering::Greater
-            } else {
-                std::cmp::Ordering::Equal
-            }
+        // `Metaclass` must be initialized before all other classes because each
+        // class initialization loads @shiika_const_Metaclass to use as the
+        // metaclass_obj. `Void` comes next because it is the singleton loaded
+        // for every Void value (see codegen's `compile_void`), so its constant
+        // must be ready before any other constant initializer can observe it.
+        v.sort_by_key(|(name, _, _)| match name.0.as_str() {
+            "Metaclass" => 0,
+            "Void" => 1,
+            _ => 2,
         });
         for (name, const_is_obj, includes_modules) in v {
             let expr = if const_is_obj {

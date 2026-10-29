@@ -7,3 +7,4 @@ pub mod lower_vtable_ref;
 pub mod pass_async_env;
 pub mod resolve_env_op;
 pub mod splice_exprs;
+pub mod void_ret;

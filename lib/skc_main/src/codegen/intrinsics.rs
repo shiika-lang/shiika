@@ -196,11 +196,6 @@ pub fn unbox_float<'run>(
     x.into_float_value()
 }
 
-pub fn box_bool<'run>(gen: &mut CodeGen<'run, '_>, b: bool) -> SkObj<'run> {
-    let llvm_b = gen.context.bool_type().const_int(b as u64, false);
-    box_bool_value(gen, llvm_b)
-}
-
 pub fn box_bool_value<'run>(
     gen: &mut CodeGen<'run, '_>,
     b: inkwell::values::IntValue<'run>,

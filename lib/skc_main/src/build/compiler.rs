@@ -65,6 +65,10 @@ fn generate_mir(
     mir.program = mir_lowering::asyncness_check::run(mir.program, &mut mir.sk_types);
     cli.write_debug_log("03-asyncness_check.mirdump", &mir.program);
 
+    // Lower sync Void-returning functions to `ret void` (CVoid)
+    mir.program = mir_lowering::void_ret::run(mir.program);
+    cli.write_debug_log("03b-void_ret.mirdump", &mir.program);
+
     // Splice nested Exprs
     mir.program = mir_lowering::splice_exprs::run(mir.program);
     cli.write_debug_log("04-splice_exprs.mirdump", &mir.program);
