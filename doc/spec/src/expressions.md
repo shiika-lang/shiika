@@ -251,9 +251,9 @@ Type of a while expressions is `Void`.
 ### Break
 
 1. Find the nearest `while`/fn/block
-1. If the found one is `while`, escape from the `while`
-1. If the found one is fn, compile-time error
-1. If the found one is block, escape from the method that given the block
+1. If the found one is `while`, escape from the `while` (cannot take a value)
+1. If the found one is fn, escape from the fn with the given value (`break x`)
+1. If the found one is block, escape from the method that given the block (cannot take a value)
 1. If none found, compile-time error
 
 Example
@@ -263,6 +263,8 @@ Example
   p i
   break if i == 2  #=> escapes from `each`
 end
+
+let f = fn(){ break 1; 2 }  #=> `f()` returns 1
 ```
 
 Type of a break expressions is `Never`.
@@ -270,7 +272,7 @@ Type of a break expressions is `Never`.
 ### Return
 
 1. Find the nearest fn/method
-1. If the found one is fn, escape from the fn
+1. If the found one is fn, compile-time error (use `break` to escape from the fn)
 1. If the found one is method, escape from the method
 1. If none found, compile-time error
 

@@ -142,8 +142,19 @@ impl AstBuilder {
         )
     }
 
-    pub fn break_expr(&self, begin: Location, end: Location) -> AstExpression {
-        self.non_primary_expression(begin, end, AstExpressionBody::Break {})
+    pub fn break_expr(
+        &self,
+        arg: Option<AstExpression>,
+        begin: Location,
+        end: Location,
+    ) -> AstExpression {
+        self.non_primary_expression(
+            begin,
+            end,
+            AstExpressionBody::Break {
+                arg: arg.map(Box::new),
+            },
+        )
     }
 
     pub fn return_expr(

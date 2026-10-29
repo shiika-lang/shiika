@@ -86,9 +86,30 @@ class A
 #    return 0    # jumps to the end of the method
 #  end
 
-  def self.return_from_fn -> Int
-    let f = fn(){ return 1; 2 } # Jumps to the end of this fn
+  def self.break_from_fn -> Int
+    let f = fn(){ break 1; 2 } # Jumps to the end of this fn
     f()
+  end
+
+  # conditional `break x` from a fn
+  def self.cond_break_from_fn(cond: Bool) -> Int
+    let f = fn(){
+      break 1 if cond
+      2
+    }
+    f()
+  end
+
+  # `break` from a fn nested inside a `while` escapes only the fn
+  def self.break_from_fn_in_while -> Int
+    var sum = 0
+    var i = 0
+    while i < 3
+      let f = fn(){ break i * 10; 0 }
+      sum += f()
+      i += 1
+    end
+    sum
   end
 end
 A.wo_arg
@@ -96,7 +117,10 @@ A.wo_arg_end
 unless A.w_arg == 2; puts "ng w_arg" end
 unless A.w_arg_end == 1; puts "ng w_arg_end" end
 #unless A.return_from_block == 99; puts "ng return_from_block" end
-unless A.return_from_fn == 1; puts "ng return_from_fn" end
+unless A.break_from_fn == 1; puts "ng break_from_fn" end
+unless A.cond_break_from_fn(true) == 1; puts "ng cond_break_from_fn true" end
+unless A.cond_break_from_fn(false) == 2; puts "ng cond_break_from_fn false" end
+unless A.break_from_fn_in_while == 30; puts "ng break_from_fn_in_while" end
 
 # #484 break from lambda in lambda
 class Issue484

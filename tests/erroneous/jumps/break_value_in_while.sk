@@ -1,0 +1,9 @@
+class Main
+  def self.run
+    var i = 0
+    while i < 3
+      break 1
+    end
+  end
+end
+Main.run

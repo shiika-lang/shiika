@@ -58,7 +58,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 body_exprs,
             } => self.convert_while_expr(cond_expr, body_exprs, &expr.locs),
 
-            AstExpressionBody::Break => self.convert_break_expr(&expr.locs),
+            AstExpressionBody::Break { arg } => self.convert_break_expr(arg, &expr.locs),
 
             AstExpressionBody::Return { arg } => self.convert_return_expr(arg, &expr.locs),
 
@@ -294,13 +294,24 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ))
     }
 
-    fn convert_break_expr(&mut self, locs: &LocationSpan) -> Result<HirExpression> {
+    fn convert_break_expr(
+        &mut self,
+        arg: &Option<Box<AstExpression>>,
+        locs: &LocationSpan,
+    ) -> Result<HirExpression> {
         let from;
         match self.ctx_stack.loop_ctx_mut() {
             Some(HirMakerContext::Lambda(lambda_ctx)) => {
                 if lambda_ctx.is_fn {
-                    return Err(error::program_error("`break' inside a fn"));
+                    // `break x` escapes from the enclosing `fn(){ }` with the
+                    // value `x` (or `Void` when omitted).
+                    from = HirBreakFrom::Fn;
                 } else {
+                    if arg.is_some() {
+                        return Err(error::program_error(
+                            "`break' in a block cannot take a value",
+                        ));
+                    }
                     // OK for now. This `break` still may be invalid
                     // (eg. `ary.map{ break }`) but it cannot be checked here
                     lambda_ctx.has_break = true;
@@ -308,13 +319,33 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
             }
             Some(HirMakerContext::While(_)) => {
+                if arg.is_some() {
+                    return Err(error::program_error(
+                        "`break' in a while loop cannot take a value",
+                    ));
+                }
                 from = HirBreakFrom::While;
             }
             _ => {
                 return Err(error::program_error("`break' outside a loop"));
             }
         }
-        Ok(Hir::break_expression(from, locs.clone()))
+        let arg_expr = if matches!(from, HirBreakFrom::Fn) {
+            // TODO: check the value's type matches the fn's return type (#266)
+            let hir = if let Some(x) = arg {
+                self.convert_expr(x)?
+            } else {
+                Hir::const_ref(
+                    ty::raw("Void"),
+                    toplevel_const("Void"),
+                    LocationSpan::todo(),
+                )
+            };
+            Some(hir)
+        } else {
+            None
+        };
+        Ok(Hir::break_expression(from, arg_expr, locs.clone()))
     }
 
     fn convert_return_expr(
@@ -341,7 +372,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     fn _validate_return(&self) -> Result<HirReturnFrom> {
         if let Some(lambda_ctx) = self.ctx_stack.lambda_ctx() {
             if lambda_ctx.is_fn {
-                Ok(HirReturnFrom::Fn)
+                Err(error::program_error(
+                    "`return' inside a fn is not allowed; use `break' to escape from the fn",
+                ))
             } else if self.ctx_stack.method_ctx().is_some() {
                 Err(error::program_error(
                     "`return' in a block is not supported (#266)",

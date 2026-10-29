@@ -963,7 +963,19 @@ impl<'a> Compiler<'a> {
                 self.convert_expr(*cond_expr),
                 self.convert_expr(*body_exprs),
             ),
-            HirExpressionBase::HirBreakExpression { from } => match from {
+            HirExpressionBase::HirBreakExpression { from, arg } => match from {
+                skc_hir::HirBreakFrom::Fn => {
+                    // `break x` escapes the enclosing `fn`, which at the MIR
+                    // level is a plain function return. Box immediate values to
+                    // match the erased (boxed) lambda ABI, like `return` does.
+                    let v = self.convert_expr(*arg.expect("[BUG] break from fn without arg"));
+                    let v = if self.lambda.current_fn_class.is_some() && v.1.is_immediate() {
+                        mir::Expr::box_(v)
+                    } else {
+                        v
+                    };
+                    mir::Expr::return_(v)
+                }
                 skc_hir::HirBreakFrom::Block => {
                     let fn_class = self
                         .lambda
