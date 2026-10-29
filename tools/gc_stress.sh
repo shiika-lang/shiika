@@ -11,8 +11,8 @@
 #                     threads so we can see which GC phase aborts.
 #
 # Iteration counts are env-tunable so we can adjust after seeing CI frequency.
-# The script always exits 0: it is a diagnostic, we read its logs rather than
-# relying on the step's pass/fail.
+# All phases always run so the logs are complete; the script then exits 1 if
+# any run crashed, so the CI step fails.
 #
 # Usage: tools/gc_stress.sh <shiika-bin>
 
@@ -23,6 +23,7 @@ PLAIN_ITERS="${PLAIN_ITERS:-500}"
 LLDB_ITERS="${LLDB_ITERS:-60}"
 RAY_PLAIN_ITERS="${RAY_PLAIN_ITERS:-3}"
 RAY_LLDB_ITERS="${RAY_LLDB_ITERS:-3}"
+TOTAL_CRASHES=0
 
 compile() {
   echo "=== compiling examples/$1.sk ==="
@@ -42,6 +43,7 @@ plain_stress() {
     fi
   done
   echo "=== plain stress: $ex -> $fails/$iters crashed ==="
+  TOTAL_CRASHES=$((TOTAL_CRASHES + fails))
 }
 
 # lldb loop: stop at the first crash and dump a full backtrace.
@@ -58,6 +60,7 @@ lldb_stress() {
       -- ./examples/"$ex".out >/tmp/gc_lldb_out.txt 2>/tmp/gc_lldb_err.txt
     if [ $? -ne 0 ]; then
       echo "!!! $ex crashed under lldb on iter $i"
+      TOTAL_CRASHES=$((TOTAL_CRASHES + 1))
       echo "----- lldb stdout -----"
       cat /tmp/gc_lldb_out.txt
       echo "----- lldb stderr -----"
@@ -77,5 +80,5 @@ lldb_stress  lifegame "$LLDB_ITERS"
 plain_stress ray "$RAY_PLAIN_ITERS"
 lldb_stress  ray "$RAY_LLDB_ITERS"
 
-echo "=== gc_stress done ==="
-exit 0
+echo "=== gc_stress done: $TOTAL_CRASHES crash(es) ==="
+[ "$TOTAL_CRASHES" -eq 0 ]

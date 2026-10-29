@@ -75,7 +75,7 @@ jobs:
       # Diagnostic: try to reproduce the intermittent bdwgc
       # "Duplicate large block deallocation" abort (macOS only) and capture a
       # backtrace. Placed before "Build and test" so it is not skipped when
-      # examples_test aborts. Always exits 0; read its logs, don't gate on it.
+      # examples_test aborts. Fails if any stress run crashed.
       - name: GC crash repro (macOS diagnostics)
         if: runner.os == 'macOS'
         run: |
