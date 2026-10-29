@@ -171,15 +171,15 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// use shiika::parser::lexer::Lexer;
-    /// use shiika::parser::token::Token;
+    /// use shiika_parser::lexer::Lexer;
+    /// use shiika_ast::Token;
     ///
     /// let src = "  1";
     /// let mut lexer = Lexer::new(src);
     ///
     /// assert_eq!(lexer.current_token, Token::Space);
-    /// lexer.consume_token();
-    /// assert_eq!(lexer.current_token, Token::number("1"));
+    /// lexer.consume_token().unwrap();
+    /// assert_eq!(lexer.current_token, Token::Number("1".to_string()));
     /// ```
     pub fn consume_token(&mut self) -> Result<Token, Error> {
         self.cur = self.next_cur.take().unwrap();
@@ -193,16 +193,16 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// use shiika::parser::lexer::Lexer;
-    /// use shiika::parser::token::Token;
+    /// use shiika_parser::lexer::Lexer;
+    /// use shiika_ast::Token;
     ///
     /// let src = "1+2";
     /// let mut lexer = Lexer::new(src);
     ///
-    /// lexer.consume_token();
+    /// lexer.consume_token().unwrap();
     /// let cur = lexer.cur.clone();
-    /// lexer.consume_token();
-    /// lexer.set_position(cur);
+    /// lexer.consume_token().unwrap();
+    /// lexer.set_position(cur).unwrap();
     /// assert_eq!(lexer.current_token, Token::BinaryPlus);
     /// ```
     pub fn set_position(&mut self, cur: Cursor) -> Result<(), Error> {
@@ -215,14 +215,14 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// use shiika::parser::lexer::Lexer;
-    /// use shiika::parser::token::Token;
+    /// use shiika_parser::lexer::Lexer;
+    /// use shiika_ast::Token;
     ///
     /// let src = "+1";
     /// let mut lexer = Lexer::new(src);
     ///
     /// // Return the next token but does not move the position
-    /// assert_eq!(lexer.peek_next().unwrap(), Token::number("1"));
+    /// assert_eq!(lexer.peek_next().unwrap(), Token::Number("1".to_string()));
     /// assert_eq!(lexer.current_token, Token::UnaryPlus);
     ///
     /// // Return Eof when called on the end

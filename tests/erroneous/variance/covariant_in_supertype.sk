@@ -1,0 +1,4 @@
+base class Base<T>
+end
+class Foo<out T> : Base<T>
+end

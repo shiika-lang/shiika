@@ -1,0 +1,5 @@
+class Animal
+end
+class Cage<T: Animal>
+end
+let f = fn(x: Cage<Int>){ 1 }

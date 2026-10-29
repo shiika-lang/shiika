@@ -82,9 +82,10 @@ pub fn build_lambda_function(
 ) -> mir::Function {
     // First param is the Fn object
     let mut mir_params: Vec<mir::Param> = vec![mir::Param::new(mir::Ty::raw(fn_class), "$fn")];
-    // Then explicit params
+    // Then explicit params. The lambda ABI is erased (an immediate param is
+    // received boxed); the body unboxes it when referenced (see HirArgRef).
     mir_params.extend(params.iter().map(|p| mir::Param {
-        ty: p.ty.clone().into(),
+        ty: mir::Ty::from(p.ty.clone()).erased(),
         name: p.name.clone(),
     }));
 
@@ -94,8 +95,13 @@ pub fn build_lambda_function(
         .map(|lvar| mir::Expr::alloc(lvar.name.clone(), lvar.ty.clone().into()))
         .collect();
 
+    // The ABI return is erased too: box an immediate body result. (When the
+    // body diverges its type is Never, not an immediate, so no box is added.)
+    let mir_ret_ty: mir::Ty = mir::Ty::from(ret_ty.clone());
     let body_with_return = if ret_ty.is_void_type() {
         mir::Expr::exprs(vec![body, mir::Expr::return_(mir::Expr::void_const_ref())])
+    } else if body.1.is_immediate() {
+        mir::Expr::return_(mir::Expr::box_(body))
     } else {
         mir::Expr::return_(body)
     };
@@ -108,7 +114,7 @@ pub fn build_lambda_function(
         asyncness: mir::Asyncness::Async,
         name: FunctionName::Generated(name.to_string()),
         params: mir_params,
-        ret_ty: ret_ty.clone().into(),
+        ret_ty: mir_ret_ty.erased(),
         body_stmts: final_body,
         sig: None,
         lvar_count: None,
@@ -130,10 +136,15 @@ pub fn build_fn_object(
 ) -> mir::TypedExpr {
     let captures_ptr = mir::Expr::create_native_array(capture_values);
 
-    // Build function type for the lambda (fn_obj + explicit params)
+    // Build function type for the lambda (fn_obj + explicit params). The ABI
+    // is erased (immediate params/return are passed/returned boxed).
     let mut lambda_param_tys: Vec<mir::Ty> = vec![fn_ty.clone().into()];
-    lambda_param_tys.extend(params.iter().map(|p| p.ty.clone().into()));
-    let lambda_fun_ty = mir::FunTy::new(mir::Asyncness::Async, lambda_param_tys, ret_ty.into());
+    lambda_param_tys.extend(params.iter().map(|p| mir::Ty::from(p.ty.clone()).erased()));
+    let lambda_fun_ty = mir::FunTy::new(
+        mir::Asyncness::Async,
+        lambda_param_tys,
+        mir::Ty::from(ret_ty).erased(),
+    );
 
     // Call Meta:FnN#new(Meta:FnN, Ptr, Ptr, Int, [Class...]) -> FnN
     //
@@ -191,8 +202,15 @@ pub fn compile_lambda_capture_ref(
         let cell = mir::Expr::native_array_ref(captures, idx, mir::Ty::Ptr);
         mir::Expr::cell_get(cell, ty.into())
     } else {
-        // let capture: direct value
-        mir::Expr::native_array_ref(captures, idx, ty.into())
+        // let capture: direct value. The captures array holds pointers, so an
+        // immediate was stored boxed; load it as a pointer and unbox.
+        let ty_mir: mir::Ty = ty.into();
+        if ty_mir.is_immediate() {
+            let raw = mir::Expr::native_array_ref(captures, idx, mir::Ty::Ptr);
+            mir::Expr::cast(mir::CastType::Force(ty_mir), raw)
+        } else {
+            mir::Expr::native_array_ref(captures, idx, ty_mir)
+        }
     }
 }
 
@@ -233,13 +251,31 @@ pub fn get_capture_value(
                 // var lvar: pass cell pointer (lvar already holds a cell due to cell_vars)
                 mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr)
             } else {
-                // let lvar: pass value directly
-                mir::Expr::lvar_ref(name.clone(), cap.ty.clone().into())
+                // let lvar: pass value directly (boxed if immediate, since the
+                // captures array holds pointers)
+                box_if_immediate(mir::Expr::lvar_ref(name.clone(), cap.ty.clone().into()))
             }
         }
         HirLambdaCaptureDetail::CaptureArg { idx } => {
-            // Args are captured by value (+1 for self receiver)
-            mir::Expr::arg_ref(idx + 1, "captured_arg", cap.ty.clone().into())
+            // Args are captured by value (+1 for self receiver). The captures
+            // array holds pointers, so an immediate arg must be boxed.
+            if current_fn_class.is_some() {
+                // The enclosing scope is a lambda: its params use the erased
+                // ABI, so an immediate param is already a boxed pointer. Pass
+                // it through (read as Ptr) rather than re-reading it raw.
+                let ty = if mir::Ty::from(cap.ty.clone()).is_immediate() {
+                    mir::Ty::Ptr
+                } else {
+                    cap.ty.clone().into()
+                };
+                mir::Expr::arg_ref(idx + 1, "captured_arg", ty)
+            } else {
+                box_if_immediate(mir::Expr::arg_ref(
+                    idx + 1,
+                    "captured_arg",
+                    cap.ty.clone().into(),
+                ))
+            }
         }
         HirLambdaCaptureDetail::CaptureMethodTyArg { idx, n_params } => {
             // Method tyargs are passed as additional Class args after self
@@ -263,13 +299,20 @@ pub fn get_capture_value(
                 .expect("[BUG] CaptureFwd outside lambda");
             let fn_obj = mir::Expr::arg_ref(0, "$fn", mir::Ty::raw(fn_class));
             let captures = mir::Expr::ivar_ref(fn_obj, 1, "@captures".to_string(), mir::Ty::Ptr);
-            let elem_ty: mir::Ty = if cap.readonly {
-                cap.ty.clone().into()
-            } else {
-                mir::Ty::Ptr
-            };
-            mir::Expr::native_array_ref(captures, *cidx, elem_ty)
+            // The captures array holds pointers; a readonly immediate is stored
+            // boxed, so load it as a pointer and unbox.
+            mir::Expr::native_array_ref(captures, *cidx, mir::Ty::Ptr)
         }
+    }
+}
+
+/// Box the value if it is a raw immediate (the captures native array, like all
+/// native arrays, holds pointers).
+fn box_if_immediate(e: mir::TypedExpr) -> mir::TypedExpr {
+    if e.1.is_immediate() {
+        mir::Expr::box_(e)
+    } else {
+        e
     }
 }
 

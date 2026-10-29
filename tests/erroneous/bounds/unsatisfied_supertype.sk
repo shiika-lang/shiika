@@ -1,0 +1,6 @@
+class Animal
+end
+base class Cage<T: Animal>
+end
+class IntCage : Cage<Int>
+end

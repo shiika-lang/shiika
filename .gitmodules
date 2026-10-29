@@ -1,0 +1,3 @@
+[submodule "vendor/bdwgc-rust"]
+	path = vendor/bdwgc-rust
+	url = https://github.com/bdwgc/bdwgc-rust.git

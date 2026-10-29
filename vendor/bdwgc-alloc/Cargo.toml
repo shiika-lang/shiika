@@ -1,0 +1,17 @@
+# Copy of vendor/bdwgc-rust/bdwgc-alloc (0.6.16) with `dealloc` turned into a
+# no-op, to see whether the macOS crash comes from explicit GC_free calls.
+# Kept outside the submodule so it can be modified in this repo.
+[package]
+name = "bdwgc-alloc"
+version = "0.6.16"
+edition = "2024"
+description = "impl GlobalAlloc for bdwgc"
+license = "MIT"
+
+[dependencies]
+bdwgc-alloc-sys = { version = "0.6.16", path = "../bdwgc-rust/bdwgc-alloc-sys", default-features = false }
+
+[features]
+default = ["autotools"]
+autotools = ["bdwgc-alloc-sys/autotools"]
+cmake = ["bdwgc-alloc-sys/cmake"]

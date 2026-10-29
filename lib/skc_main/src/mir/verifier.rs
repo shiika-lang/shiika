@@ -224,9 +224,19 @@ impl<'a> Verifier<'a> {
             }
             mir::Expr::CreateObject(_) => (),
             mir::Expr::CreateTypeObject(..) => (),
+            mir::Expr::Box(val) => {
+                self.verify_expr(f, val)?;
+                if !val.1.is_immediate() {
+                    bail!("Box: operand is not an immediate: {:?}", val.1);
+                }
+                assert(&e, "result", &mir::Ty::Ptr)?;
+            }
             mir::Expr::Unbox(val) => {
-                assert(&val, "unboxee", &mir::Ty::raw("Int"))?;
-                assert(&e, "result", &mir::Ty::Int64)?;
+                self.verify_expr(f, val)?;
+                let Some(raw_ty) = mir::expr::raw_repr_of(&val.1) else {
+                    bail!("Unbox: operand type is not a boxable type: {:?}", val.1);
+                };
+                assert(&e, "result", &raw_ty)?;
             }
             mir::Expr::RawI64(_) => assert(&e, "raw i64", &mir::Ty::Int64)?,
             mir::Expr::Nop => (),
@@ -263,6 +273,11 @@ impl<'a> Verifier<'a> {
             mir::Expr::IsNull(inner) => {
                 self.verify_expr(f, inner)?;
                 assert(&e, "is_null result", &mir::Ty::raw("Bool"))?;
+            }
+            mir::Expr::BitIsZero(inner, _) => {
+                self.verify_expr(f, inner)?;
+                assert(&inner, "bit_is_zero operand", &mir::Ty::Int64)?;
+                assert(&e, "bit_is_zero result", &mir::Ty::raw("Bool"))?;
             }
             mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
             mir::Expr::SetClassObj(obj, class_obj) => {

@@ -86,6 +86,59 @@ In this case `Person.new._secret_count` is valid but normally you should avoid t
 
 Shiika allows this for in case you _really_ need it.
 
+## Inheritance
+
+Classes are _not_ inheritable by default. To allow inheritance, declare
+the class with `base`.
+
+```sk
+base class Animal
+  def initialize(@name: String); end
+
+  def greet
+    puts "I am #{@name}"
+  end
+end
+
+class Dog : Animal
+end
+
+Dog.new("Pochi").greet  #=> I am Pochi
+```
+
+- A class can have only one superclass.
+- The subclass inherits the methods, `initialize` and instance
+  variables of the superclass.
+- A method can be overridden by defining a method of the same name in
+  the subclass.
+
+You can also list [modules](./modules.md) after `:`. In that case the
+superclass must come first.
+
+```sk
+class Sub : SuperClass, Module1, Module2
+```
+
+## Constants
+
+A name starting with an uppercase letter is a constant. Constants
+cannot be reassigned.
+
+```sk
+FOO = 1
+p FOO  #=> 1
+```
+
+Constants defined in a class body belong to that class and are
+referred to with `::` from outside.
+
+```sk
+class A
+  BAR = 2
+end
+p A::BAR  #=> 2
+```
+
 ## Classes and metaclasses
 
 (Usually you don't need to care about this topic. This section is written in case you are curious)

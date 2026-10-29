@@ -98,13 +98,13 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::PseudoVar(pvar) => Some(self.compile_pseudo_var(pvar)),
             mir::Expr::LVarRef(name) => self.compile_lvarref(ctx, name, &texpr.1),
             mir::Expr::IVarRef(obj_expr, idx, name) => {
-                self.compile_ivarref(ctx, obj_expr, *idx, name)
+                self.compile_ivarref(ctx, obj_expr, *idx, name, &texpr.1)
             }
             mir::Expr::ArgRef(idx, _) => self.compile_argref(ctx, idx),
             mir::Expr::EnvRef(_, _) | mir::Expr::EnvSet(_, _, _) => {
                 panic!("should be lowered before codegen.rs")
             }
-            mir::Expr::ConstRef(name) => self.compile_constref(name),
+            mir::Expr::ConstRef(name) => self.compile_constref(name, &texpr.1),
             mir::Expr::FuncRef(name) => self.compile_funcref(name),
             mir::Expr::FunCall(fexpr, arg_exprs) => self.compile_funcall(ctx, fexpr, arg_exprs),
             mir::Expr::GetVTable(receiver) => self.compile_get_vtable(ctx, receiver),
@@ -145,17 +145,20 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::CellSet(cell_expr, value_expr) => {
                 self.compile_cell_set(ctx, cell_expr, value_expr)
             }
+            mir::Expr::Box(expr) => self.compile_box(ctx, expr),
             mir::Expr::Unbox(expr) => self.compile_unbox(ctx, expr),
             mir::Expr::RawI64(n) => self.compile_raw_i64(*n),
             mir::Expr::Nop => None,
             mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
             mir::Expr::IsNull(inner) => self.compile_is_null(ctx, inner),
+            mir::Expr::BitIsZero(inner, bits) => self.compile_bit_is_zero(ctx, inner, *bits),
             mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
 
     fn compile_number(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(intrinsics::box_int(self, n).into())
+        // Int is now a raw `i64`; a literal is a plain constant.
+        Some(self.context.i64_type().const_int(n as u64, true).into())
     }
 
     fn compile_float(&mut self, n: f64) -> Option<inkwell::values::BasicValueEnum<'run>> {
@@ -241,8 +244,11 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     pub fn compile_constref(
         &self,
         name: &shiika_core::names::ConstFullname,
+        const_ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(constants::load(self, name))
+        // Load with the constant's own llvm type (e.g. `i64` for an Int const).
+        // The global is an 8-byte slot; an immediate is stored/loaded directly.
+        Some(constants::load(self, name, self.llvm_type(const_ty)))
     }
 
     fn compile_funcref(
@@ -261,8 +267,9 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         pseudo_var: &mir::PseudoVar,
     ) -> inkwell::values::BasicValueEnum<'run> {
         match pseudo_var {
-            mir::PseudoVar::True => intrinsics::box_bool(self, true).into(),
-            mir::PseudoVar::False => intrinsics::box_bool(self, false).into(),
+            // Bool is now a raw `i1`; `true`/`false` are plain constants.
+            mir::PseudoVar::True => self.context.bool_type().const_int(1, false).into(),
+            mir::PseudoVar::False => self.context.bool_type().const_int(0, false).into(),
             mir::PseudoVar::Void => return self.compile_void(),
         }
     }
@@ -290,17 +297,53 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         obj_expr: &mir::TypedExpr,
         idx: usize,
         name: &str,
+        ivar_ty: &mir::Ty,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let item_type = self.llvm_type(ivar_ty);
+        // A class-level instance variable lives in a global, not in the class
+        // object (whose layout is the fixed-size runtime `ShiikaClass`).
+        if let mir::Ty::Sk(t) = &obj_expr.1 {
+            if t.is_metaclass() {
+                let key = format!("{}", t.erasure());
+                self.compile_value_expr(ctx, obj_expr); // evaluate for side effects
+                let g = self.class_ivar_global(&key, idx, item_type);
+                return Some(
+                    self.builder
+                        .build_load(item_type, g.as_pointer_value(), name)
+                        .unwrap(),
+                );
+            }
+        }
         let struct_ty = llvm_struct::of_ty(self, &obj_expr.1);
+        // Load with the ivar's own llvm type (e.g. `i64` for an Int ivar), not
+        // a hardcoded pointer.
         let obj = self.compile_value_expr(ctx, obj_expr);
         Some(instance::build_ivar_load_raw(
             self,
             SkObj::from_basic_value_enum(obj),
             struct_ty,
-            self.ptr_type().into(),
+            item_type,
             idx,
             name,
         ))
+    }
+
+    /// Get or create the global that backs a class-level instance variable
+    /// (`key` identifies the metaclass, `idx` the ivar).
+    fn class_ivar_global(
+        &self,
+        key: &str,
+        idx: usize,
+        item_type: inkwell::types::BasicTypeEnum<'ictx>,
+    ) -> inkwell::values::GlobalValue<'ictx> {
+        let name = format!("shiika_civar_{}_{}", key, idx);
+        if let Some(g) = self.module.get_global(&name) {
+            return g;
+        }
+        let g = self.module.add_global(item_type, None, &name);
+        g.set_initializer(&item_type.const_zero());
+        g.set_linkage(inkwell::module::Linkage::Internal);
+        g
     }
 
     fn compile_funcall(
@@ -419,7 +462,12 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             (None, else_value) => else_value,
             (then_value, None) => then_value,
             (Some(then_val), Some(else_val)) => {
-                let phi_node = self.builder.build_phi(self.ptr_type(), "ifResult").unwrap();
+                // Use the branch value's own type (e.g. `i1` for a Bool-valued
+                // `if`), not a hardcoded pointer type.
+                let phi_node = self
+                    .builder
+                    .build_phi(then_val.get_type(), "ifResult")
+                    .unwrap();
                 phi_node.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Some(phi_node.as_basic_value())
             }
@@ -498,6 +546,19 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         rhs: &mir::TypedExpr,
         name: &str,
     ) -> Result<Option<inkwell::values::BasicValueEnum<'run>>> {
+        // Class-level instance variable: store into its backing global.
+        if let mir::Ty::Sk(t) = &obj_expr.1 {
+            if t.is_metaclass() {
+                let key = format!("{}", t.erasure());
+                self.compile_value_expr(ctx, obj_expr); // evaluate for side effects
+                let value = self.compile_value_expr(ctx, rhs);
+                let g = self.class_ivar_global(&key, idx, self.llvm_type(&rhs.1));
+                self.builder
+                    .build_store(g.as_pointer_value(), value)
+                    .unwrap();
+                return Ok(Some(value));
+            }
+        }
         let obj = self.compile_value_expr(ctx, obj_expr);
         let value = self.compile_value_expr(ctx, rhs);
         instance::build_ivar_store_raw(
@@ -561,12 +622,50 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v1 = self.compile_value_expr(ctx, expr);
         let v2 = match cast_type {
-            mir::CastType::Force(_) => v1,
-            mir::CastType::Upcast(_) => v1,
+            // `Force`/`Upcast` between a raw immediate (I1/Int64/F64) and a
+            // boxed-object (pointer) position perform the actual box/unbox.
+            // The HIR already inserts these casts at the Object/T boundaries
+            // (if/case merges, array literals, pattern match, ...), so making
+            // the cast representation-aware is the least leaky place to box
+            // (see .claude/plans/unboxing.md).
+            mir::CastType::Force(to) | mir::CastType::Upcast(to) => {
+                self.coerce_repr(v1, &expr.1, to)
+            }
             mir::CastType::ToAny => self.cast_to_any(v1, &expr.1),
             mir::CastType::Recover(ty) => self.cast_from_any(v1, ty),
         };
         Some(v2)
+    }
+
+    /// Bridge the raw-immediate <-> boxed-object representation gap implied by
+    /// a `Force`/`Upcast` cast: box when a raw immediate moves into a pointer
+    /// position, unbox when a boxed immediate moves back to a raw one. A
+    /// pointer->pointer (or immediate->immediate) cast is a no-op here.
+    fn coerce_repr(
+        &mut self,
+        v: inkwell::values::BasicValueEnum<'run>,
+        from: &mir::Ty,
+        to: &mir::Ty,
+    ) -> inkwell::values::BasicValueEnum<'run> {
+        if from.is_immediate() && !to.is_immediate() {
+            let sk = match from {
+                mir::Ty::I1 => intrinsics::box_bool_value(self, v.into_int_value()),
+                mir::Ty::Int64 => intrinsics::box_int_value(self, v.into_int_value()),
+                mir::Ty::F64 => intrinsics::box_float_value(self, v.into_float_value()),
+                _ => unreachable!(),
+            };
+            sk.0.into()
+        } else if !from.is_immediate() && to.is_immediate() {
+            let sk = SkObj::from_basic_value_enum(v);
+            match to {
+                mir::Ty::I1 => intrinsics::unbox_bool(self, sk).into(),
+                mir::Ty::Int64 => intrinsics::unbox_int(self, sk).into(),
+                mir::Ty::F64 => intrinsics::unbox_float(self, sk).into(),
+                _ => unreachable!(),
+            }
+        } else {
+            v
+        }
     }
 
     fn compile_create_object(
@@ -593,14 +692,40 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         Ok(None)
     }
 
+    /// Box a raw immediate value (I1/Int64/F64) into a boxed Shiika object.
+    fn compile_box(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        expr: &mir::TypedExpr,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, expr);
+        let sk_obj = match &expr.1 {
+            mir::Ty::I1 => intrinsics::box_bool_value(self, v.into_int_value()),
+            mir::Ty::Int64 => intrinsics::box_int_value(self, v.into_int_value()),
+            mir::Ty::F64 => intrinsics::box_float_value(self, v.into_float_value()),
+            _ => panic!("[BUG] compile_box: non-immediate operand: {:?}", expr.1),
+        };
+        Some(sk_obj.0.into())
+    }
+
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate.
     fn compile_unbox(
         &mut self,
         ctx: &mut CodeGenContext<'run>,
         expr: &mir::TypedExpr,
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let e = self.compile_value_expr(ctx, expr);
-        let sk_int = SkObj::from_basic_value_enum(e);
-        Some(intrinsics::unbox_int(self, sk_int).into())
+        let sk_obj = SkObj::from_basic_value_enum(e);
+        let raw = match &expr.1 {
+            mir::Ty::Sk(t) => match &t.fullname.0[..] {
+                "Bool" => intrinsics::unbox_bool(self, sk_obj).into(),
+                "Int" => intrinsics::unbox_int(self, sk_obj).into(),
+                "Float" => intrinsics::unbox_float(self, sk_obj).into(),
+                _ => panic!("[BUG] compile_unbox: non-boxable operand: {:?}", expr.1),
+            },
+            _ => panic!("[BUG] compile_unbox: non-boxable operand: {:?}", expr.1),
+        };
+        Some(raw)
     }
 
     fn compile_is_null(
@@ -610,8 +735,27 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     ) -> Option<inkwell::values::BasicValueEnum<'run>> {
         let v = self.compile_value_expr(ctx, expr);
         let ptr = v.into_pointer_value();
+        // Returns a raw `i1` (Bool is unboxed).
         let i1 = self.builder.build_is_null(ptr, "omitted").unwrap();
-        Some(intrinsics::box_bool_value(self, i1).0.into())
+        Some(i1.into())
+    }
+
+    /// `(inner & bits) == 0` on a raw i64, returning a raw `i1`.
+    fn compile_bit_is_zero(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        expr: &mir::TypedExpr,
+        bits: u64,
+    ) -> Option<inkwell::values::BasicValueEnum<'run>> {
+        let v = self.compile_value_expr(ctx, expr).into_int_value();
+        let mask = self.context.i64_type().const_int(bits, false);
+        let anded = self.builder.build_and(v, mask, "bit_and").unwrap();
+        let zero = self.context.i64_type().const_zero();
+        let i1 = self
+            .builder
+            .build_int_compare(inkwell::IntPredicate::EQ, anded, zero, "bit_is_zero")
+            .unwrap();
+        Some(i1.into())
     }
 
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {
@@ -657,8 +801,20 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         from_ty: &mir::Ty,
     ) -> BasicValueEnum<'run> {
         match from_ty {
-            mir::Ty::I1 => todo!("cast_to_any for I1"),
+            mir::Ty::I1 => self
+                .builder
+                .build_int_z_extend(value.into_int_value(), self.context.i64_type(), "i1_as_i64")
+                .unwrap()
+                .into(),
             mir::Ty::Int64 => value,
+            mir::Ty::F64 => self
+                .builder
+                .build_bit_cast(
+                    value.into_float_value(),
+                    self.context.i64_type(),
+                    "f64_as_i64",
+                )
+                .unwrap(),
             _ => self
                 .builder
                 .build_ptr_to_int(
@@ -678,8 +834,24 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         to_ty: &mir::Ty,
     ) -> BasicValueEnum<'run> {
         match to_ty {
-            mir::Ty::I1 => todo!("cast_from_any for I1"),
+            mir::Ty::I1 => self
+                .builder
+                .build_int_truncate(
+                    value.into_int_value(),
+                    self.context.bool_type(),
+                    "i64_as_i1",
+                )
+                .unwrap()
+                .into(),
             mir::Ty::Int64 => value,
+            mir::Ty::F64 => self
+                .builder
+                .build_bit_cast(
+                    value.into_int_value(),
+                    self.context.f64_type(),
+                    "i64_as_f64",
+                )
+                .unwrap(),
             _ => self
                 .builder
                 .build_int_to_ptr(
@@ -699,12 +871,8 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
         then_block: inkwell::basic_block::BasicBlock,
         else_block: inkwell::basic_block::BasicBlock,
     ) {
-        let i = intrinsics::unbox_bool(self, SkObj::from_basic_value_enum(cond));
-        let one = self.context.bool_type().const_int(1, false);
-        let istrue = self
-            .builder
-            .build_int_compare(inkwell::IntPredicate::EQ, i, one, "istrue")
-            .unwrap();
+        // The condition is now a raw `i1` (Bool is unboxed).
+        let istrue = cond.into_int_value();
         let _ = self
             .builder
             .build_conditional_branch(istrue, then_block, else_block);

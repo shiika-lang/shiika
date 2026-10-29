@@ -90,6 +90,7 @@ task :examples_test do
   bin = File.join(CARGO_TARGET, "debug/shiika")
   sh "cargo build"
   sh "#{bin} build packages/core"
+  timings = {}
   Dir["examples/*.sk"].sort.each do |path|
     next if ENV["FILTER"] && !path.include?(ENV["FILTER"])
     name = path.sub(".sk", "")
@@ -102,9 +103,16 @@ task :examples_test do
     actual = "#{name}.actual#{ext}"
     sh "#{bin} compile #{name}.sk"
     Timeout.timeout(120) do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       sh "#{name}.out > #{actual}"
+      timings[File.basename(name)] = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
     end
     sh "diff #{actual} #{expected}"
+  end
+  puts
+  puts "=== Execution time ==="
+  timings.sort_by { |_, t| -t }.each do |name, t|
+    puts format("  %-12s %8.3f s", name, t)
   end
 end
 task :compat do

@@ -3,7 +3,6 @@ use crate::ctx_stack::CtxStack;
 use crate::error;
 use crate::hir_maker_context::*;
 use crate::method_dict::MethodDict;
-use crate::parse_typarams;
 use crate::type_system::type_checking;
 use anyhow::Result;
 use shiika_ast::*;
@@ -229,28 +228,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                         self.register_toplevel_const(name, expr)?;
                     }
                 }
-                shiika_ast::Definition::ClassDefinition {
-                    name,
-                    defs,
-                    typarams,
-                    ..
-                } => self.process_class_def(namespace, name, parse_typarams(typarams), defs)?,
-                shiika_ast::Definition::ModuleDefinition {
-                    name,
-                    typarams,
-                    defs,
-                    ..
-                } => {
-                    self.process_module_def(namespace, name, parse_typarams(typarams), defs)?;
+                shiika_ast::Definition::ClassDefinition { name, defs, .. } => {
+                    self.process_class_def(namespace, name, defs)?
+                }
+                shiika_ast::Definition::ModuleDefinition { name, defs, .. } => {
+                    self.process_module_def(namespace, name, defs)?;
                 }
                 shiika_ast::Definition::EnumDefinition {
-                    name,
-                    typarams,
-                    cases,
-                    defs,
-                } => {
-                    self.process_enum_def(namespace, name, parse_typarams(typarams), cases, defs)?
-                }
+                    name, cases, defs, ..
+                } => self.process_enum_def(namespace, name, cases, defs)?,
                 shiika_ast::Definition::MethodRequirementDefinition { .. } => {
                     // Already processed in class_dict/indexing.rs
                 }
@@ -264,14 +250,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: Vec<TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let meta_name = fullname.meta_name();
         let inner_namespace = namespace.add(firstname.to_string());
-        self.ctx_stack
-            .push(HirMakerContext::class(inner_namespace.clone(), typarams));
+        // Take the typarams from class_dict (their bounds are resolved there)
+        let typarams = self
+            .class_dict
+            .get_type(&fullname.to_type_fullname())
+            .base()
+            .typarams
+            .clone();
+        self.ctx_stack.push(HirMakerContext::class(
+            inner_namespace.clone(),
+            typarams.clone(),
+        ));
 
         // Register constants before processing #initialize
         self._process_const_defs_in_class(&inner_namespace, defs)?;
@@ -279,6 +273,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         // Register #initialize and ivars
         let own_ivars = self._process_initialize(&fullname, shiika_ast::find_initializer(defs))?;
         self.class_dict.define_ivars(&fullname, own_ivars.clone());
+        crate::type_system::variance::check_ivars(&self.class_dict, &typarams, &own_ivars)?;
         self.define_accessors(&fullname, own_ivars, defs);
 
         // Register .new
@@ -309,11 +304,17 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ModuleFirstname,
-        typarams: Vec<TyParam>,
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
+        // Take the typarams from class_dict (their bounds are resolved there)
+        let typarams = self
+            .class_dict
+            .get_type(&fullname.to_type_fullname())
+            .base()
+            .typarams
+            .clone();
         self.ctx_stack
             .push(HirMakerContext::class(inner_namespace.clone(), typarams));
 
@@ -529,12 +530,18 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         &mut self,
         namespace: &Namespace,
         firstname: &ClassFirstname,
-        typarams: Vec<TyParam>,
         cases: &[shiika_ast::EnumCase],
         defs: &[shiika_ast::Definition],
     ) -> Result<()> {
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
+        // Take the typarams from class_dict (their bounds are resolved there)
+        let typarams = self
+            .class_dict
+            .get_type(&fullname.to_type_fullname())
+            .base()
+            .typarams
+            .clone();
         for case in cases {
             self._register_enum_case_class(&inner_namespace, case)?;
         }

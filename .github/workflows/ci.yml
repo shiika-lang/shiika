@@ -21,6 +21,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Needed for the vendored bdwgc-alloc patch (vendor/bdwgc-rust and its
+          # nested bdwgc C sources).
+          submodules: recursive
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
@@ -68,10 +72,26 @@ jobs:
       - name: Verify Cargo.lock is up to date
         run: cargo metadata --locked --format-version=1 > /dev/null
 
+      # Diagnostic: try to reproduce the intermittent bdwgc
+      # "Duplicate large block deallocation" abort (macOS only) and capture a
+      # backtrace. Placed before "Build and test" so it is not skipped when
+      # examples_test aborts. Fails if any stress run crashed.
+      - name: GC crash repro (macOS diagnostics)
+        if: runner.os == 'macOS'
+        run: |
+          set -eux
+          mkdir -p ~/.shiika
+          export SHIIKA_WORK=~/.shiika
+          export SHIIKA_ROOT=.
+          export RUST_BACKTRACE=1
+          cargo build --locked
+          ./target/debug/shiika build packages/core
+          bash tools/gc_stress.sh ./target/debug/shiika
+
       - name: Build and test
         run: |
           set -eux
-          mkdir ~/.shiika
+          mkdir -p ~/.shiika
           export SHIIKA_WORK=~/.shiika
           export SHIIKA_ROOT=.
           export RUST_BACKTRACE=1
