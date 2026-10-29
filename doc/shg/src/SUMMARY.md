@@ -13,6 +13,7 @@
 * [Design Notes]()
   * [Enum](design_notes/enum.md)
   * [Unboxing](design_notes/unboxing.md)
+  * [Void](design_notes/void.md)
 * [Other]()
   * [Performance](perf.md)
   * [Debugging](debug.md)

@@ -44,6 +44,16 @@ Methods and functions has no "color" in Shiika level. However, internally
 - those defined in Rust is marked async or sync (in `exports.json5`), and
 - those calling async methods are inferred transitively as async.
 
+A method that can be dispatched through a vtable is forced to be async
+regardless of its own body, because a virtual call site cannot know which
+implementation it will reach and must use the async (CPS) calling convention
+uniformly. Concretely, a method is forced async when it belongs to an
+inheritable class or a module, or when it overrides an inherited method (see
+`mirgen/prepare_asyncness.rs`; the invariant is re-checked in
+`class_dict/indexing.rs::check_virtual_asyncness`). The corollary relied on
+elsewhere: **a sync method is always non-virtual** (final, never in a vtable),
+so it is only ever reached by direct calls.
+
 ## Virtual methods
 
 ### VTable (Virtual Method Table)
