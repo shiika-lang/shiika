@@ -331,7 +331,6 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
         }
         let arg_expr = if matches!(from, HirBreakFrom::Fn) {
-            // TODO: check the value's type matches the fn's return type (#266)
             let hir = if let Some(x) = arg {
                 self.convert_expr(x)?
             } else {
@@ -341,6 +340,11 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     LocationSpan::todo(),
                 )
             };
+            // Record the value's type so that `convert_lambda_expr` can fold it
+            // into the fn's return type (and reject incompatible `break`s).
+            if let Some(HirMakerContext::Lambda(lambda_ctx)) = self.ctx_stack.loop_ctx_mut() {
+                lambda_ctx.break_tys.push((hir.ty.clone(), locs.clone()));
+            }
             Some(hir)
         } else {
             None
@@ -606,17 +610,64 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .push(HirMakerContext::lambda(*is_fn, hir_params.clone()));
         let hir_exprs = self.convert_exprs(exprs)?;
         let mut lambda_ctx = self.ctx_stack.pop_lambda_ctx();
+
+        // The fn's return type is the common type of the body's tail and every
+        // `break x` value. Casting the body to it keeps the erased lambda ABI
+        // consistent, so the caller unboxes the result at the right type. A
+        // diverging body (`Never`, e.g. it ends in `break`) is left as-is: it
+        // transfers control and produces no value to cast.
+        let ret_ty = self.merge_fn_ret_ty(&hir_exprs.ty, &lambda_ctx.break_tys)?;
+        let hir_exprs = if hir_exprs.ty.is_never_type() || hir_exprs.ty.equals_to(&ret_ty) {
+            hir_exprs
+        } else {
+            Hir::bit_cast(ret_ty.clone(), hir_exprs)
+        };
+
         let captures = self._resolve_lambda_captures(lambda_ctx.captures);
         Ok(Hir::lambda_expr(
-            block::lambda_ty(&hir_params, &hir_exprs.ty),
+            block::lambda_ty(&hir_params, &ret_ty),
             self.create_lambda_name(),
             hir_params,
             hir_exprs,
             captures,
             extract_lvars(&mut lambda_ctx.lvars),
             lambda_ctx.has_break,
+            ret_ty,
             locs.clone(),
         ))
+    }
+
+    /// Compute a `fn`'s return type as the common type of the body's tail
+    /// value (`body_ty`) and every `break x` value (`break_tys`). `Never`
+    /// operands (a diverging tail or `break`) are skipped. Returns an error if
+    /// two of them have no common type (which would make the erased return
+    /// value be reinterpreted at the wrong type by the caller).
+    fn merge_fn_ret_ty(
+        &self,
+        body_ty: &TermTy,
+        break_tys: &[(TermTy, LocationSpan)],
+    ) -> Result<TermTy> {
+        let mut acc = body_ty.clone();
+        for (break_ty, break_locs) in break_tys {
+            if acc.is_never_type() {
+                acc = break_ty.clone();
+            } else if break_ty.is_never_type() {
+                // keep acc
+            } else if let Some(t) = self.class_dict.nearest_common_ancestor(&acc, break_ty) {
+                acc = t;
+            } else {
+                let main_msg = format!(
+                    "`break' value type {} does not match the fn's return type {}",
+                    break_ty, acc
+                );
+                let sub_msg = format!("this `break' returns {}", break_ty);
+                let report = skc_error::build_report(main_msg, break_locs, |r, locs_span| {
+                    r.with_label(skc_error::Label::new(locs_span).with_message(sub_msg))
+                });
+                return Err(error::type_error(report));
+            }
+        }
+        Ok(acc)
     }
 
     /// Returns a newly created name for a lambda

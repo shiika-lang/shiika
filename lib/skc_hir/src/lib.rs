@@ -691,9 +691,9 @@ impl Hir {
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
         has_break: bool,
+        ret_ty: TermTy,
         locs: LocationSpan,
     ) -> HirExpression {
-        let ret_ty = exprs.ty.clone();
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {

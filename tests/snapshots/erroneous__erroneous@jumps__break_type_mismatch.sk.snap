@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/jumps/break_type_mismatch.sk
+---
+Error: `break' value type Int does not match the fn's return type Bool
+   ╭─[tests/erroneous/jumps/break_type_mismatch.sk:5:7]
+   │
+ 5 │       break 1 if c
+   │       ────┬───  
+   │           ╰───── this `break' returns Int
+───╯
