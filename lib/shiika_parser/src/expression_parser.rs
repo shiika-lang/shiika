@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
 
         // If `LowerWord + Space`, see if the rest is an argument list
         match &self.current_token() {
-            Token::LowerWord(_) | Token::KwReturn => {
+            Token::LowerWord(_) | Token::KwReturn | Token::KwBreak => {
                 if self.peek_next_token()? == Token::Space {
                     if let Some(expr) = self._try_parse_call_wo_paren()? {
                         self.lv -= 1;
@@ -181,8 +181,12 @@ impl<'a> Parser<'a> {
                     )));
                 }
                 Token::KwReturn => {
-                    let arg = self.validate_arg_for_return(args)?;
+                    let arg = self.validate_arg_for_jump(args, "return")?;
                     return Ok(Some(self.ast.return_expr(Some(arg), begin, end)));
+                }
+                Token::KwBreak => {
+                    let arg = self.validate_arg_for_jump(args, "break")?;
+                    return Ok(Some(self.ast.break_expr(Some(arg), begin, end)));
                 }
                 _ => panic!("must not happen: {:?}", self.current_token()),
             }
@@ -193,17 +197,22 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn validate_arg_for_return(&self, mut args: AstCallArgs) -> Result<AstExpression, Error> {
+    fn validate_arg_for_jump(
+        &self,
+        mut args: AstCallArgs,
+        kw: &str,
+    ) -> Result<AstExpression, Error> {
         if args.block.is_some() {
-            return Err(parse_error!(self, "`return' cannot take a block"));
+            return Err(parse_error!(self, "`{}' cannot take a block", kw));
         }
         if !args.named.is_empty() {
-            return Err(parse_error!(self, "`return' cannot have named arguments"));
+            return Err(parse_error!(self, "`{}' cannot have named arguments", kw));
         }
         if args.unnamed.len() >= 2 {
             return Err(parse_error!(
                 self,
-                "`return' cannot have more than one arguments"
+                "`{}' cannot have more than one arguments",
+                kw
             ));
         }
         Ok(args.unnamed.pop().unwrap())
@@ -529,7 +538,7 @@ impl<'a> Parser<'a> {
         assert!(self.consume(Token::KwBreak)?);
         self.lv -= 1;
         let end = self.lexer.location();
-        Ok(self.ast.break_expr(begin, end))
+        Ok(self.ast.break_expr(None, begin, end))
     }
 
     fn parse_if_expr(&mut self) -> Result<AstExpression, Error> {

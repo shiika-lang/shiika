@@ -129,14 +129,16 @@ fn _convert_block(
         .push(HirMakerContext::lambda(false, hir_params.clone()));
     let hir_exprs = mk.convert_exprs(body_exprs)?;
     let mut lambda_ctx = mk.ctx_stack.pop_lambda_ctx();
+    let ret_ty = hir_exprs.ty.clone();
     Ok(Hir::lambda_expr(
-        lambda_ty(&hir_params, &hir_exprs.ty),
+        lambda_ty(&hir_params, &ret_ty),
         mk.create_lambda_name(),
         hir_params,
         hir_exprs,
         mk._resolve_lambda_captures(lambda_ctx.captures), // hir_captures
         extract_lvars(&mut lambda_ctx.lvars),             // lvars
         lambda_ctx.has_break,
+        ret_ty,
         locs,
     ))
 }

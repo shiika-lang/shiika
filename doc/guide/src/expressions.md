@@ -211,36 +211,40 @@ Type of a while expressions is `Void`.
 
 ### Break
 
-`break` escapes from the current loop, i.e. a `while` or a block.
+`break` escapes from the current loop (a `while` or a block), or from the
+current fn with a value (`break x`).
 
 ```sk
 var a = 1
 while a < 10
   p a
-  break if a == 5
+  break if a == 5   #=> cannot take a value
   a += 1
 end
 
 [1, 2, 3].each do |i: Int|
   p i
-  break if i == 2
+  break if i == 2   #=> cannot take a value
 end
-```
 
-You cannot use `break` inside a fn. Use `return` to escape from a fn.
-
-```sk
-f = fn(){ break }  #=> error
-g = fn(){
-  if foo
-    return   #=> ok
-  end
-  bar
+let f = fn(){
+  break 1 if foo    #=> escapes from the fn, returning 1
+  2
 }
 ```
 
 ### Return
 
-`return` escapes from the current method or fn.
+`return` escapes from the current method.
+
+You cannot use `return` inside a fn; use `break` to escape from a fn instead.
+
+```sk
+f = fn(){ return }  #=> error
+g = fn(){
+  break 1 if foo    #=> ok
+  2
+}
+```
 
 (NOTE: non-local return is not yet implemented - see #242)

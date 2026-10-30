@@ -149,6 +149,9 @@ pub enum HirExpressionBase {
     },
     HirBreakExpression {
         from: HirBreakFrom,
+        /// The value to escape with. Only `HirBreakFrom::Fn` carries one;
+        /// `While`/`Block` breaks have no value.
+        arg: Option<Box<HirExpression>>,
     },
     HirReturnExpression {
         from: HirReturnFrom,
@@ -316,6 +319,8 @@ pub enum HirLambdaCaptureDetail {
 pub enum HirBreakFrom {
     While,
     Block,
+    /// `break x` escaping from the enclosing `fn(){ }`
+    Fn,
 }
 
 /// Denotes what a `return` escapes from
@@ -430,10 +435,17 @@ impl Hir {
         }
     }
 
-    pub fn break_expression(from: HirBreakFrom, locs: LocationSpan) -> HirExpression {
+    pub fn break_expression(
+        from: HirBreakFrom,
+        arg: Option<HirExpression>,
+        locs: LocationSpan,
+    ) -> HirExpression {
         HirExpression {
             ty: ty::raw("Never"),
-            node: HirExpressionBase::HirBreakExpression { from },
+            node: HirExpressionBase::HirBreakExpression {
+                from,
+                arg: arg.map(Box::new),
+            },
             locs,
         }
     }
@@ -679,9 +691,9 @@ impl Hir {
         captures: Vec<HirLambdaCapture>,
         lvars: HirLVars,
         has_break: bool,
+        ret_ty: TermTy,
         locs: LocationSpan,
     ) -> HirExpression {
-        let ret_ty = exprs.ty.clone();
         HirExpression {
             ty,
             node: HirExpressionBase::HirLambdaExpr {

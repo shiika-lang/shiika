@@ -198,7 +198,9 @@ pub enum AstExpressionBody {
         cond_expr: Box<AstExpression>,
         body_exprs: Vec<AstExpression>,
     },
-    Break,
+    Break {
+        arg: Option<Box<AstExpression>>,
+    },
     Return {
         arg: Option<Box<AstExpression>>,
     },

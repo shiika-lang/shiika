@@ -1,0 +1,11 @@
+class Main
+  def self.run
+    let c = true
+    let f = fn(){
+      break 1 if c
+      true
+    }
+    f
+  end
+end
+Main.run

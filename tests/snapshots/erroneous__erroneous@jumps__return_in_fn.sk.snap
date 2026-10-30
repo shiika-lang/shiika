@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/jumps/return_in_fn.sk
+---
+`return' inside a fn is not allowed; use `break' to escape from the fn

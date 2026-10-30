@@ -98,7 +98,12 @@ pub fn build_lambda_function(
     // The ABI return is erased too: box an immediate body result. (When the
     // body diverges its type is Never, not an immediate, so no box is added.)
     let mir_ret_ty: mir::Ty = mir::Ty::from(ret_ty.clone());
-    let body_with_return = if ret_ty.is_void_type() {
+    let body_with_return = if body.1.is_never_type() {
+        // The body always diverges (e.g. it ends in `break`/`return`), so it
+        // already transfers control; wrapping it in another `return` would
+        // demand a value from a valueless expression.
+        body
+    } else if ret_ty.is_void_type() {
         mir::Expr::exprs(vec![body, mir::Expr::return_(mir::Expr::void_const_ref())])
     } else if body.1.is_immediate() {
         mir::Expr::return_(mir::Expr::box_(body))
