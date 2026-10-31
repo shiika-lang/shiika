@@ -1,3 +1,7 @@
+## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.10.0...v0.10.1) - 2026-10-31
+
+- Add variance checking and type parameter upper bounds by @yhara in https://github.com/shiika-lang/shiika/pull/632
+
 ## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-10-24
 
 This is the first release with the new runtime for concurrency (#545, #587). v0.10.x will have features to use it (spawning new tasks, etc.)
