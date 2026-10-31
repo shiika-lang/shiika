@@ -49,6 +49,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         toplevel_defs: &[&shiika_ast::Definition],
         mut rust_methods: RustMethods,
     ) -> Result<()> {
+        *self.pending_bound_checks.borrow_mut() = Some(vec![]);
         let namespace = Namespace::root();
         for def in toplevel_defs {
             match def {
@@ -101,6 +102,10 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         self.check_virtual_asyncness()?;
+        let annotations = self.pending_bound_checks.borrow_mut().take().unwrap();
+        for (ty, locs) in annotations {
+            crate::type_system::bounds::check_annotation(self, &ty, &locs)?;
+        }
         crate::type_system::bounds::check_sk_types(self)?;
         Ok(())
     }
@@ -887,14 +892,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         is_rust: bool,
     ) -> Result<MethodSignature> {
         let method_typarams = self.resolve_typarams(namespace, &sig.typarams, class_typarams)?;
-        if let Some(tp) = method_typarams
+        if let Some(tp) = sig
+            .typarams
             .iter()
-            .find(|t| t.variance != ty::Variance::Invariant)
+            .find(|t| t.variance != shiika_ast::AstVariance::Invariant)
         {
-            return Err(error::program_error(format!(
+            let msg = format!(
                 "method type parameter `{}' cannot have variance (`in'/`out')",
                 &tp.name
-            )));
+            );
+            let report = skc_error::build_report(msg.clone(), &tp.locs, |r, span| {
+                r.with_label(Label::new(span).with_message(msg))
+            });
+            return Err(error::program_error(report));
         }
         let fullname = method_fullname(type_fullname, &sig.name.0);
         let ret_ty = if let Some(typ) = &sig.ret_typ {
@@ -958,7 +968,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 name
             )));
         }
-        Ok(ty::nonmeta(&resolved_base.join("::"), tyargs))
+        let ty = ty::nonmeta(&resolved_base.join("::"), tyargs);
+        if let Some(checks) = self.pending_bound_checks.borrow_mut().as_mut() {
+            checks.push((ty.clone(), name.locs.clone()));
+        }
+        Ok(ty)
     }
 
     /// Resolve the given type name (without type arguments) to fullname

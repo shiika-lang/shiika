@@ -1,6 +1,13 @@
 ---
 source: tests/erroneous.rs
+assertion_line: 22
 expression: compiler_output
 input_file: tests/erroneous/variance/method_typaram_variance.sk
 ---
-method type parameter `T' cannot have variance (`in'/`out')
+Error: method type parameter `T' cannot have variance (`in'/`out')
+   ╭─[tests/erroneous/variance/method_typaram_variance.sk:2:14]
+   │
+ 2 │   def foo<in T>(x: T)
+   │              ┬  
+   │              ╰── method type parameter `T' cannot have variance (`in'/`out')
+───╯

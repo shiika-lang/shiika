@@ -484,6 +484,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let expr = self.convert_expr(rhs)?;
         let idx = self.declare_ivar(name, &expr.ty, *readonly)?;
+        crate::type_system::variance::check_ivar(
+            &self.class_dict,
+            &self.ctx_stack.current_class_typarams(),
+            &expr.ty,
+            *readonly,
+            locs,
+        )?;
         let receiver = self.convert_self_expr(locs);
         Ok(Hir::ivar_assign(
             name,

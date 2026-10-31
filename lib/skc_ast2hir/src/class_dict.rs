@@ -14,6 +14,10 @@ use type_index::TypeIndex;
 
 #[derive(Debug)]
 pub struct ClassDict<'hir_maker> {
+    /// Type annotations to check after indexing, while retaining source locations.
+    /// Disabled once indexing finishes; expression annotations are checked separately.
+    pending_bound_checks:
+        std::cell::RefCell<Option<Vec<(shiika_core::ty::TermTy, shiika_ast::LocationSpan)>>>,
     /// List of classes (without method) collected prior to sk_types
     type_index: type_index::TypeIndex,
     /// Indexed classes.
@@ -29,6 +33,7 @@ pub fn new<'hir_maker>(
     imported_classes: &'hir_maker SkTypes,
 ) -> ClassDict<'hir_maker> {
     ClassDict {
+        pending_bound_checks: Default::default(),
         type_index,
         sk_types: Default::default(),
         imported_classes,
@@ -41,6 +46,7 @@ pub fn create<'hir_maker>(
     imported_classes: &'hir_maker SkTypes,
 ) -> Result<ClassDict<'hir_maker>> {
     let mut dict = ClassDict {
+        pending_bound_checks: Default::default(),
         type_index,
         sk_types: Default::default(),
         imported_classes,

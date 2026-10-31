@@ -1,6 +1,13 @@
 ---
 source: tests/erroneous.rs
+assertion_line: 22
 expression: compiler_output
 input_file: tests/erroneous/parsing/number_with_two_decimal_points.sk
 ---
-a number cannot have two decimal points
+Error: a number cannot have two decimal points
+   ╭─[tests/erroneous/parsing/number_with_two_decimal_points.sk:1:3]
+   │
+ 1 │ p 1.2.3
+   │   ┬  
+   │   ╰── a number cannot have two decimal points
+───╯
