@@ -278,7 +278,7 @@ impl CtxStack {
         if let Some(method_ctx) = self.method_ctx() {
             let typarams = &method_ctx.signature.typarams;
             if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
-                return Some(ty::typaram_ref(name, ty::TyParamKind::Method, i));
+                return Some(ty::typaram_ref(&typarams[i], ty::TyParamKind::Method, i));
             }
             if let Some(class_ctx) = self.class_ctx() {
                 if method_ctx.signature.fullname.is_class_method() {
@@ -286,7 +286,7 @@ impl CtxStack {
                 }
                 let typarams = &class_ctx.typarams;
                 if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
-                    return Some(ty::typaram_ref(name, ty::TyParamKind::Class, i));
+                    return Some(ty::typaram_ref(&typarams[i], ty::TyParamKind::Class, i));
                 }
             }
         }

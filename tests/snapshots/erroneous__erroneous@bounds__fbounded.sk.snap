@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/fbounded.sk
+---
+Error: a type parameter cannot appear in the bound of a type parameter (in the bound of `T'; F-bounded polymorphism is not supported)
+   ╭─[tests/erroneous/bounds/fbounded.sk:3:14]
+   │
+ 3 │ class Foo<T: Cmp<T>>
+   │              ───┬──  
+   │                 ╰──── a type parameter cannot appear in the bound of a type parameter (in the bound of `T'; F-bounded polymorphism is not supported)
+───╯

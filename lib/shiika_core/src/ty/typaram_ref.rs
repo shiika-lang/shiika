@@ -134,7 +134,7 @@ pub fn parse_bounds(s: &str) -> IResult<&str, (LitTy, LitTy)> {
 #[test]
 fn parse_typaram_ref_test() {
     assert_eq!(
-        parse_typaram_ref("^V:0C"),
+        TyParamRef::deserialize("^V:0C"),
         Ok((
             "",
             TyParamRef {

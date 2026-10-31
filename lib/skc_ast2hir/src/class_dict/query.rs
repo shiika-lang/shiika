@@ -82,11 +82,16 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_name: &MethodFirstname,
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
+        let upper_bound; // Extends the lifetime beyond the `match`
         let (erasure, class_tyargs) = match &current_type.body {
             TyBody::TyRaw(LitTy { type_args, .. }) => {
                 (current_type.erasure(), type_args.as_slice())
             }
-            TyBody::TyPara(_) => (Erasure::nonmeta("Object"), Default::default()),
+            TyBody::TyPara(_) => {
+                // Methods on a typaram-typed value are looked up via its upper bound
+                upper_bound = current_type.upper_bound();
+                (upper_bound.erasure(), upper_bound.type_args.as_slice())
+            }
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
         if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
@@ -136,6 +141,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             .types
             .get(fullname)
             .or_else(|| self.imported_classes.types.get(fullname))
+    }
+
+    /// Return the type parameters of the specified type.
+    /// Unlike `find_type`, this also works for types not indexed yet
+    /// (by looking up `self.type_index`).
+    pub fn typarams_of(&self, fullname: &TypeFullname) -> &[TyParam] {
+        if let Some(typarams) = self.type_index.get(fullname) {
+            return typarams;
+        }
+        if let Some(sk_type) = self.find_type(fullname) {
+            return &sk_type.base().typarams;
+        }
+        &[]
     }
 
     /// Return the class of the specified name, if any
