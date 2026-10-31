@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/bounds/unsatisfied_in_return_type.sk
+---
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+   ╭─[tests/erroneous/bounds/unsatisfied_in_return_type.sk:2:14]
+   │
+ 2 │   def foo -> Cage<Int>
+   │              ────┬────  
+   │                  ╰────── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+───╯

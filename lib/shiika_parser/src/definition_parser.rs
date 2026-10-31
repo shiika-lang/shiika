@@ -539,6 +539,8 @@ impl<'a> Parser<'a> {
                     break;
                 }
                 Token::UpperWord(s) => {
+                    let (begin, end) = self.lexer.location_span();
+                    let locs = LocationSpan::new(&self.ast.filepath, begin, end);
                     let v = match variance {
                         None => AstVariance::Invariant,
                         Some(Token::KwOut) => AstVariance::Covariant,
@@ -561,6 +563,7 @@ impl<'a> Parser<'a> {
                     };
                     typarams.push(AstTyParam {
                         name,
+                        locs,
                         variance: v,
                         upper_bound,
                     });

@@ -123,6 +123,7 @@ pub struct AstMethodSignature {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AstTyParam {
     pub name: String,
+    pub locs: LocationSpan,
     pub variance: AstVariance,
     /// eg. `Ord` of `class Foo<T: Ord>`
     pub upper_bound: Option<UnresolvedTypeName>,

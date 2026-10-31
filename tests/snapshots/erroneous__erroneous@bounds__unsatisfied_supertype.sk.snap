@@ -1,6 +1,13 @@
 ---
 source: tests/erroneous.rs
+assertion_line: 22
 expression: compiler_output
 input_file: tests/erroneous/bounds/unsatisfied_supertype.sk
 ---
-the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage' (in type `IntCage')
+Error: the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+   ╭─[tests/erroneous/bounds/unsatisfied_supertype.sk:5:17]
+   │
+ 5 │ class IntCage : Cage<Int>
+   │                 ────┬────  
+   │                     ╰────── the type argument `Int' does not satisfy the bound `Animal' of the type parameter `T' of `Cage'
+───╯

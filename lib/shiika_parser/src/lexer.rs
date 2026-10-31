@@ -58,6 +58,10 @@ pub struct Cursor {
 }
 
 impl Cursor {
+    pub fn location(&self) -> Location {
+        Location::new(self.line, self.col, self.pos)
+    }
+
     pub fn new() -> Cursor {
         Cursor {
             line: 0,

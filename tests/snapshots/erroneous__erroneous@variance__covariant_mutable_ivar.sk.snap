@@ -1,6 +1,13 @@
 ---
 source: tests/erroneous.rs
+assertion_line: 22
 expression: compiler_output
 input_file: tests/erroneous/variance/covariant_mutable_ivar.sk
 ---
-covariant type parameter `T' appears in invariant position (instance variable `@v')
+Error: covariant type parameter `T' appears in invariant position
+   ╭─[tests/erroneous/variance/covariant_mutable_ivar.sk:3:5]
+   │
+ 3 │     var @v = v
+   │     ─────┬────  
+   │          ╰────── covariant type parameter `T' appears in invariant position
+───╯
