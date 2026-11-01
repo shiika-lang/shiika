@@ -8,6 +8,25 @@ unless a.i == 1 then puts "ng 1" end
 a.i = 2
 unless a.i == 2 then puts "ng 2" end
 
+class ReadonlyIvar
+  def initialize
+    let @i = 3
+  end
+end
+unless ReadonlyIvar.new.i == 3 then puts "ng readonly getter" end
+
+class IparamIvar
+  def initialize(@i: Int)
+  end
+end
+unless IparamIvar.new(4).i == 4 then puts "ng iparam getter" end
+
+let pair = Pair.new(1, 2)
+pair.fst = 3
+pair.snd = 4
+unless pair.fst == 3 then puts "ng pair fst setter" end
+unless pair.snd == 4 then puts "ng pair snd setter" end
+
 # Store function to ivar and call it
 class IvarFn
   def initialize

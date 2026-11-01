@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/ivar/readonly_setter.sk
+---
+Error: method MethodFirstname("i=") not found on TypeFullname("A")
+   ╭─[tests/erroneous/ivar/readonly_setter.sk:7:6]
+   │
+ 7 │ A.new.i = 2
+   │      ───┬──  
+   │         ╰──── method MethodFirstname("i=") not found on TypeFullname("A")
+───╯

@@ -1,0 +1,7 @@
+class A
+  def initialize
+    let @i = 1
+  end
+end
+
+A.new.i = 2
