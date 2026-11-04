@@ -15,3 +15,7 @@ skc_main = { path = "lib/skc_main/" }
 
 [dev-dependencies]
 insta = { version = "1.32.0", features = ["glob"] }
+
+# TODO: remove this patch when bdwgc-alloc 0.6.17 is released.
+[patch.crates-io]
+bdwgc-alloc = { git = "https://github.com/bdwgc/bdwgc-rust", rev = "ae021364ceb4670591445f021b11c31d9e5f7347" }
