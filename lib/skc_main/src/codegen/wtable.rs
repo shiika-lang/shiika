@@ -1,5 +1,6 @@
 //! WTable (Witness Table) code generation for module method dispatch.
 use crate::codegen::{self, constants, CodeGen};
+use crate::mirgen::wtables;
 use crate::names::FunctionName;
 use shiika_core::names::*;
 use skc_hir::SkClass;
@@ -24,24 +25,35 @@ fn declare_constant(gen: &mut CodeGen, sk_class: &SkClass) {
 }
 
 /// Set value of llvm constants like `@shiika_wtable_Array_Enumerable`
-pub fn init_constants(gen: &mut CodeGen, sk_types: &SkTypes, _: codegen::item::MethodFuncs) {
+pub fn init_constants(
+    gen: &mut CodeGen,
+    sk_types: &SkTypes,
+    imported_sk_types: &SkTypes,
+    _: codegen::item::MethodFuncs,
+) {
     for sk_class in sk_types.sk_classes() {
         if !sk_class.wtable.is_empty() {
-            init_constant(gen, sk_class);
+            init_constant(gen, sk_types, imported_sk_types, sk_class);
         }
     }
 }
 
-pub fn init_constant(gen: &mut CodeGen, sk_class: &SkClass) {
+pub fn init_constant(
+    gen: &mut CodeGen,
+    sk_types: &SkTypes,
+    imported_sk_types: &SkTypes,
+    sk_class: &SkClass,
+) {
     for (mod_name, method_names) in &sk_class.wtable.0 {
         let global = gen
             .module
             .get_global(&llvm_wtable_const_name(&sk_class.fullname(), mod_name))
             .unwrap();
-        let func_ptrs = method_names
-            .iter()
-            .map(|name| {
-                let func_name: FunctionName = name.into();
+        let func_ptrs = (0..method_names.len())
+            .map(|idx| {
+                // The slot may point to an adapter instead of the implementation
+                let func_name: FunctionName =
+                    wtables::slot_func_name(sk_types, imported_sk_types, sk_class, mod_name, idx);
                 gen.get_llvm_func(&func_name)
                     .as_global_value()
                     .as_pointer_value()
