@@ -22,9 +22,7 @@ These forms of types exist:
 
 ### Void
 
-`Void` is the type of expressions which have no meaningful value, such
-as `while` or a call of a method without return type. A value of type
-`Void` cannot be used as an argument or a receiver.
+`Void` is the unit type and has only one instance which is accessible with `::Void`.
 
 ### Never
 

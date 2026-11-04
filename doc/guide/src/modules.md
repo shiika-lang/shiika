@@ -49,12 +49,12 @@ includes the module conforms to it.
 ```sk
 class A : Greetable
   ...
-  def self.make -> Greetable
+  def self.make -> Greetable   # Read it as "returns something Greetable"
     A.new
   end
 end
 
-A.make.greet  # Calls `A#greet` (inherited from Greetable)
+A.make.greet
 ```
 
 ## Example: Enumerable

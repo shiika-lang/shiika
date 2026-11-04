@@ -88,8 +88,8 @@ Shiika allows this for in case you _really_ need it.
 
 ## Inheritance
 
-Classes are _not_ inheritable by default. To allow inheritance, declare
-the class with `base`.
+Unlike Ruby, classes are _not_ inheritable by default (because Shiika has Enums.)
+To allow inheritance, declare the class with `base`.
 
 ```sk
 base class Animal
@@ -109,7 +109,7 @@ Dog.new("Pochi").greet  #=> I am Pochi
 - A class can have only one superclass.
 - The subclass inherits the methods, `initialize` and instance
   variables of the superclass.
-- A method can be overridden by defining a method of the same name in
+- A method can be overridden by defining a method of the same name and signature in
   the subclass.
 
 You can also list [modules](./modules.md) after `:`. In that case the

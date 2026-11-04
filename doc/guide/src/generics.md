@@ -61,8 +61,11 @@ method name.
 [1, 2, 3].map<String>{|i: Int| i.to_s}
 ```
 
-Currently the type arguments are mandatory in most cases, but they
-should be inferred in future versions of Shiika.
+You can omit type arguments where they can be inferred.
+
+```sk
+[1, 2, 3].map{|i| i.to_s}
+```
 
 ## Generic modules
 
