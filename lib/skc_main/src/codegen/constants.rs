@@ -27,10 +27,12 @@ pub fn declare_const_globals(
 pub fn load<'run>(
     gen: &CodeGen<'run, '_>,
     name: &ConstFullname,
+    item_type: inkwell::types::BasicTypeEnum<'run>,
 ) -> inkwell::values::BasicValueEnum<'run> {
     let obj_addr = get_global(gen, name).as_pointer_value();
-    let t = gen.ptr_type();
-    gen.builder.build_load(t, obj_addr, "const_value").unwrap()
+    gen.builder
+        .build_load(item_type, obj_addr, "const_value")
+        .unwrap()
 }
 
 pub fn get_global<'run>(

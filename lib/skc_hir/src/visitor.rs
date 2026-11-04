@@ -65,7 +65,11 @@ pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &mut V, expr: &'hir HirExpression
             walk_expr(v, cond_expr)?;
             walk_expr(v, body_exprs)?;
         }
-        HirBreakExpression { .. } => (),
+        HirBreakExpression { arg, .. } => {
+            if let Some(arg) = arg {
+                walk_expr(v, arg)?;
+            }
+        }
         HirReturnExpression { arg, .. } => walk_expr(v, arg)?,
         HirLVarDecl { rhs, .. } | HirLVarAssign { rhs, .. } => walk_expr(v, rhs)?,
         HirIVarAssign {

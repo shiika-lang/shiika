@@ -80,28 +80,12 @@ impl SkClass {
     /// Returns supertype of `self` with given `type_args`.
     /// eg. given `class B<Y, X> : A<X>` and `self` is `B` and `type_args` is `[Int, Bool]`,
     /// returns `A<Bool>`.
+    /// When `type_args` is empty (i.e. the receiver is erased), typaram refs
+    /// in the superclass are left unsubstituted.
     pub fn specialized_superclass(&self, type_args: &[TermTy]) -> Option<LitTy> {
-        self.superclass.as_ref().map(|sup| {
-            let tyargs = sup
-                .type_args()
-                .iter()
-                .map(|t| match &t.body {
-                    TyBody::TyRaw(x) => x.to_term_ty(),
-                    TyBody::TyPara(tpref) => {
-                        match self
-                            .base
-                            .typarams
-                            .iter()
-                            .position(|tp| tp.name == tpref.name)
-                        {
-                            Some(idx) => type_args[idx].clone(),
-                            _ => panic!("broken superclass."),
-                        }
-                    }
-                })
-                .collect::<Vec<_>>();
-            sup.ty().substitute(&tyargs, Default::default())
-        })
+        self.superclass
+            .as_ref()
+            .map(|sup| sup.ty().substitute(type_args, Default::default()))
     }
 
     /// Returns type args to specialize included module.
@@ -120,7 +104,9 @@ impl SkClass {
                         .iter()
                         .position(|tp| tp.name == tpref.name)
                     {
-                        Some(idx) => type_args[idx].clone(),
+                        // `type_args` may be empty when the receiver is erased;
+                        // leave the typaram ref unsubstituted then.
+                        Some(idx) => type_args.get(idx).cloned().unwrap_or_else(|| t.clone()),
                         _ => panic!("broken superclass."),
                     }
                 }

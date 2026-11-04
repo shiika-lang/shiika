@@ -7,7 +7,7 @@
 //!   - local variables (lvars)
 //!
 //! Example
-//! ```
+//! ```text
 //! // Before
 //! fun foo(x) -> Int {
 //!   sleep_sec(1);

@@ -1,5 +1,8 @@
 class Pair<A, B>
-  def initialize(@fst: A, @snd: B); end
+  def initialize(fst: A, snd: B)
+    var @fst = fst
+    var @snd = snd
+  end
   def inspect -> String
     "Pair(#{@fst.inspect}, #{@snd.inspect})"
   end

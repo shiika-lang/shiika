@@ -22,11 +22,20 @@ pub fn define_body(gen: &mut CodeGen, vtables: &skc_mir::VTables, _: item::Metho
             .get_global(&const_name)
             .unwrap_or_else(|| panic!("global `{}' not found", &const_name));
         global.set_constant(true);
+        let class_is_immediate = crate::mirgen::is_immediate_class(&class_fullname.0);
         let func_ptrs = method_names
             .iter()
             .map(|name| {
+                // A virtual method defined on an immediate class is reached
+                // through the vtable with a boxed receiver, so the slot points
+                // to the boxed-receiver wrapper rather than the raw method.
+                let func_name = if class_is_immediate && name.type_name.0 == class_fullname.0 {
+                    crate::mirgen::boxed_recv_wrapper_name(name)
+                } else {
+                    name.into()
+                };
                 let func = gen
-                    .get_llvm_func(&name.into())
+                    .get_llvm_func(&func_name)
                     .as_global_value()
                     .as_pointer_value();
                 gen.builder

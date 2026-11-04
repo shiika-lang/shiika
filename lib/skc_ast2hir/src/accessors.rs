@@ -3,7 +3,7 @@ use shiika_core::names::*;
 use skc_hir::*;
 
 impl<'hir_maker> HirMaker<'hir_maker> {
-    /// Define getters and setters (unless there is a method of the same name)
+    /// Define getters and mutable ivar setters (unless a method has the same name)
     pub(super) fn define_accessors(
         &mut self,
         clsname: &ClassFullname,
@@ -31,7 +31,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             }
 
             let setter_name = format!("{}=", accessor_name);
-            if !method_names.iter().any(|x| ***x == setter_name) {
+            if !ivar.readonly && !method_names.iter().any(|x| ***x == setter_name) {
                 let setter = create_setter(clsname, ivar);
                 let setter_sig = create_setter_signature(clsname, ivar);
                 self.method_dict

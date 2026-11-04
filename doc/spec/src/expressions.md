@@ -7,6 +7,14 @@
 - `"foo"` evaluates to an instance of `String`
 - `true` and `false` evaluates to an instance of `Bool`
 
+### String interpolation
+
+`#{expr}` and `\{expr}` in a string literal embed the value of
+`expr`.
+
+- `"x=#{x}"` is equivalent to `"x=" + x.to_s`
+- `"x=\{x}"` is equivalent to `"x=" + x.inspect`
+
 ### Array literal
 
 - `[1, 2]` evaluates to an instance of `Array<Int>`
@@ -135,8 +143,8 @@ end
 `x if y` is equivalent to
 
 ```sk
-if x
-  y
+if y
+  x
 end
 ```
 
@@ -163,8 +171,8 @@ Note: `unless` cannot take `elsif` or `else` clause.
 `x unless y` is equivalent to
 
 ```sk
-if !x
-  y
+if !y
+  x
 end
 ```
 
@@ -179,6 +187,52 @@ else
   c
 end
 ```
+
+## Match expression
+
+```sk
+match expr
+when pattern1
+  exprs1
+when pattern2 then exprs2
+else
+  exprs3
+end
+```
+
+Evaluates `expr` and tries the patterns in order. The body of the
+first clause whose pattern matches is evaluated; its value is the
+value of the `match` expression. `then` may be used to write the body
+on the same line.
+
+The `else` clause, if any, matches any value. If no clause matched at
+runtime, the program aborts.
+
+The type of a `match` expression is calculated from the types of the
+clause bodies by the same rule as `if` branches.
+
+### Patterns
+
+- **Extractor pattern** (`Some(x)`, `Tree::Node(l, r)`,
+  `Pair(a, b)`, ...): matches when the value is an instance of the
+  class. The name is resolved like a constant and must refer to a
+  class (typically an enum case class, but any class works).
+  Subpatterns are matched against the instance variables of the class
+  in the order of their declaration (via their accessor methods), and
+  may be nested. The static type of the matched value is used to
+  infer the types of bound variables. It is a compile-time error if
+  the class can never match the static type of the value, or if the
+  number of subpatterns differs from the number of instance
+  variables.
+- **Literal pattern** (`1`, `1.0`, `"foo"`, `true`, `false`):
+  matches when the value equals the literal (compared with `==`).
+  It is a compile-time error if the type of the value is not the
+  type of the literal.
+- **Variable pattern** (a lowercase identifier): always matches, and
+  binds the value to a new local variable of that name, which is
+  visible in the clause body. The variable shadows an outer local
+  variable or method parameter of the same name. The name `_` is
+  special; it matches any value but binds nothing.
 
 ## Loop and jump expressions
 
@@ -197,9 +251,9 @@ Type of a while expressions is `Void`.
 ### Break
 
 1. Find the nearest `while`/fn/block
-1. If the found one is `while`, escape from the `while`
-1. If the found one is fn, compile-time error
-1. If the found one is block, escape from the method that given the block
+1. If the found one is `while`, escape from the `while` (cannot take a value)
+1. If the found one is fn, escape from the fn with the given value (`break x`)
+1. If the found one is block, escape from the method that given the block (cannot take a value)
 1. If none found, compile-time error
 
 Example
@@ -209,6 +263,8 @@ Example
   p i
   break if i == 2  #=> escapes from `each`
 end
+
+let f = fn(){ break 1; 2 }  #=> `f()` returns 1
 ```
 
 Type of a break expressions is `Never`.
@@ -216,7 +272,7 @@ Type of a break expressions is `Never`.
 ### Return
 
 1. Find the nearest fn/method
-1. If the found one is fn, escape from the fn
+1. If the found one is fn, compile-time error (use `break` to escape from the fn)
 1. If the found one is method, escape from the method
 1. If none found, compile-time error
 

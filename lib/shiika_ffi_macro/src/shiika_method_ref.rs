@@ -9,7 +9,7 @@ use syn::{parenthesized, parse_macro_input, Field, Result, Token};
 /// Define a wrapper function to call Shiika method.
 ///
 /// ## Example
-/// ```rust
+/// ```text
 /// shiika_method_ref!(
 ///     "Meta:Class#new", // Shiika method name
 ///     fn(receiver: *const u8) -> SkAry<SkObj>, // Type of the function

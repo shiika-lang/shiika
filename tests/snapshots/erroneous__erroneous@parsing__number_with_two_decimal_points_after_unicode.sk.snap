@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/parsing/number_with_two_decimal_points_after_unicode.sk
+---
+Error: a number cannot have two decimal points
+   ╭─[tests/erroneous/parsing/number_with_two_decimal_points_after_unicode.sk:2:3]
+   │
+ 2 │ p 1.2.3
+   │   ┬  
+   │   ╰── a number cannot have two decimal points
+───╯

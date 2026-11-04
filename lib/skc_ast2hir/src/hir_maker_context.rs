@@ -62,6 +62,7 @@ impl HirMakerContext {
             lvars: Default::default(),
             captures: Default::default(),
             has_break: false,
+            break_tys: Default::default(),
         })
     }
 
@@ -127,6 +128,9 @@ pub struct LambdaCtx {
     pub captures: Vec<LambdaCapture>,
     /// true if this lambda has `break`
     pub has_break: bool,
+    /// Types (and locations) of the values of `break x` found in a `fn`.
+    /// Used to compute the fn's return type together with the body's tail.
+    pub break_tys: Vec<(TermTy, shiika_ast::LocationSpan)>,
 }
 
 impl LambdaCtx {

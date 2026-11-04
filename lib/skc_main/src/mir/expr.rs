@@ -7,6 +7,22 @@ use shiika_core::ty::{Erasure, TermTy};
 pub type Typed<T> = (T, Ty);
 pub type TypedExpr = Typed<Expr>;
 
+/// If `ty` is a boxed immediate Shiika type (Bool/Int/Float), returns its
+/// raw (unboxed) MIR representation. Returns None otherwise.
+/// This is the single source of truth for the boxed<->raw correspondence
+/// used by the unboxing coercions (`Expr::Box`/`Expr::Unbox`).
+pub fn raw_repr_of(ty: &Ty) -> Option<Ty> {
+    let Ty::Sk(term_ty) = ty else {
+        return None;
+    };
+    match &term_ty.fullname.0[..] {
+        "Bool" => Some(Ty::I1),
+        "Int" => Some(Ty::Int64),
+        "Float" => Some(Ty::F64),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Number(i64),
@@ -56,7 +72,12 @@ pub enum Expr {
     CellGet(Box<Typed<Expr>>),
     /// Write to cell: shiika_cell_set(cell, value) -> Void
     CellSet(Box<Typed<Expr>>, Box<Typed<Expr>>),
-    // Unbox Shiika's Int to Rust's i64. Only used in `main()`
+    /// Box a raw immediate (I1/Int64/F64) into a heap object. The result is an
+    /// opaque pointer (`Ty::Ptr`): an unboxed immediate has no distinct `Sk`
+    /// type to recover.
+    Box(Box<Typed<Expr>>),
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
+    /// (I1/Int64/F64). The result type carries the raw Ty.
     Unbox(Box<Typed<Expr>>),
     RawI64(i64),
     Nop,
@@ -64,6 +85,9 @@ pub enum Expr {
     NullPtr,
     /// Check whether the inner pointer-valued expression is null. Returns Bool.
     IsNull(Box<Typed<Expr>>),
+    /// `(inner & bits) == 0` on a raw i64. Returns Bool. Used to test a
+    /// default-argument presence bitmask (bit clear = argument omitted).
+    BitIsZero(Box<Typed<Expr>>, u64),
     /// Reference to the global vtable constant for instances of the given class
     /// (e.g., `@shiika_vtable_Int`). Used as the `vtable` argument in `Meta:Class#_new`.
     ClassVTable(Erasure),
@@ -292,10 +316,11 @@ impl Expr {
     }
 
     pub fn create_object(instance_ty: TermTy) -> TypedExpr {
-        (
-            Expr::CreateObject(instance_ty.erasure()),
-            instance_ty.into(),
-        )
+        // A freshly allocated object is always a boxed heap value (a pointer),
+        // even for immediate types (e.g. the boxed form of a Bool).
+        let ty: Ty = instance_ty.clone().into();
+        let result_ty = if ty.is_immediate() { Ty::Ptr } else { ty };
+        (Expr::CreateObject(instance_ty.erasure()), result_ty)
     }
 
     pub fn create_type_object(ty: TermTy) -> TypedExpr {
@@ -325,11 +350,22 @@ impl Expr {
         )
     }
 
-    pub fn unbox(e: TypedExpr) -> TypedExpr {
-        if e.1 != Ty::raw("Int") {
-            panic!("[BUG] unbox non-Int: {:?}", e);
+    /// Box a raw immediate (I1/Int64/F64) into a heap object. The boxed form
+    /// is an opaque pointer: an immediate type no longer has a distinct `Sk`
+    /// type once it is unboxed (e.g. Bool is `I1`, not `Sk(Bool)`).
+    pub fn box_(e: TypedExpr) -> TypedExpr {
+        if !e.1.is_immediate() {
+            panic!("[BUG] box non-immediate: {:?}", e);
         }
-        (Expr::Unbox(Box::new(e)), Ty::Int64)
+        (Expr::Box(Box::new(e)), Ty::Ptr)
+    }
+
+    /// Unbox a boxed Shiika object (Bool/Int/Float) into its raw immediate
+    /// (I1/Int64/F64).
+    pub fn unbox(e: TypedExpr) -> TypedExpr {
+        let raw_ty =
+            raw_repr_of(&e.1).unwrap_or_else(|| panic!("[BUG] unbox non-boxable: {:?}", e));
+        (Expr::Unbox(Box::new(e)), raw_ty)
     }
 
     pub fn raw_i64(n: i64) -> TypedExpr {
@@ -346,6 +382,10 @@ impl Expr {
 
     pub fn is_null(e: TypedExpr) -> TypedExpr {
         (Expr::IsNull(Box::new(e)), Ty::raw("Bool"))
+    }
+
+    pub fn bit_is_zero(e: TypedExpr, bits: u64) -> TypedExpr {
+        (Expr::BitIsZero(Box::new(e), bits), Ty::raw("Bool"))
     }
 
     pub fn class_vtable(erasure: Erasure) -> TypedExpr {
@@ -428,11 +468,13 @@ impl Expr {
             Expr::CellSet(cell, value) => {
                 cell.0.contains_async_call() || value.0.contains_async_call()
             }
+            Expr::Box(e) => e.0.contains_async_call(),
             Expr::Unbox(e) => e.0.contains_async_call(),
             Expr::RawI64(_) => false,
             Expr::Nop => false,
             Expr::NullPtr => false,
             Expr::IsNull(e) => e.0.contains_async_call(),
+            Expr::BitIsZero(e, _) => e.0.contains_async_call(),
             Expr::ClassVTable(_) => false,
             Expr::SetClassObj(obj, class_obj) => {
                 obj.0.contains_async_call() || class_obj.0.contains_async_call()
@@ -570,6 +612,7 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         Expr::CreateTypeObject(ty) => {
             format!("%CreateTypeObject({})", ty.fullname.0)
         }
+        Expr::Box(e) => format!("%Box({})", pretty_print(&e.0, lv, false)),
         Expr::Unbox(e) => format!("%Unbox({})", pretty_print(&e.0, lv, false)),
         Expr::RawI64(n) => format!("{}", n),
         Expr::Nop => "%Nop".to_string(),
@@ -607,6 +650,9 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::NullPtr => "%NullPtr".to_string(),
         Expr::IsNull(e) => format!("%IsNull({})", pretty_print(&e.0, 0, false)),
+        Expr::BitIsZero(e, bits) => {
+            format!("%BitIsZero({}, {})", pretty_print(&e.0, 0, false), bits)
+        }
         Expr::ClassVTable(erasure) => {
             let meta = if erasure.is_meta { "Meta:" } else { "" };
             format!("%ClassVTable({}{})", meta, erasure.base_name)

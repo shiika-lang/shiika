@@ -176,6 +176,10 @@ impl Compiler {
                 let new_value = self.let_bind_if_needed(new_body_stmts, *value_expr);
                 mir::Expr::cell_set(new_cell, new_value)
             }
+            mir::Expr::Box(e) => {
+                let new_e = self.let_bind_if_needed(new_body_stmts, *e);
+                mir::Expr::box_(new_e)
+            }
             mir::Expr::Unbox(e) => {
                 let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::unbox(new_e)
@@ -186,6 +190,10 @@ impl Compiler {
             mir::Expr::IsNull(inner) => {
                 let new_inner = self.let_bind_if_needed(new_body_stmts, *inner);
                 mir::Expr::is_null(new_inner)
+            }
+            mir::Expr::BitIsZero(inner, bits) => {
+                let new_inner = self.let_bind_if_needed(new_body_stmts, *inner);
+                mir::Expr::bit_is_zero(new_inner, bits)
             }
             mir::Expr::ClassVTable(_) => expr,
         }

@@ -1,10 +1,8 @@
-extern "C" {
-    fn shiika_intrinsic_box_int(i: i64) -> SkInt;
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct SkInt(*const ShiikaInt);
+/// Shiika's `Int` is an unboxed immediate (llvm `i64`). `SkInt` is therefore a
+/// plain value, not a pointer to a boxed object.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy)]
+pub struct SkInt(i64);
 
 unsafe impl Send for SkInt {}
 
@@ -20,28 +18,20 @@ impl std::fmt::Display for SkInt {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-struct ShiikaInt {
-    vtable: *const u8,
-    class_obj: *const u8,
-    value: i64,
-}
-
 impl From<SkInt> for i64 {
     fn from(sk_int: SkInt) -> Self {
-        unsafe { (*sk_int.0).value }
+        sk_int.0
     }
 }
 
 impl From<i64> for SkInt {
     fn from(i: i64) -> Self {
-        unsafe { shiika_intrinsic_box_int(i) }
+        SkInt(i)
     }
 }
 
 impl SkInt {
     pub fn val(&self) -> i64 {
-        unsafe { (*self.0).value }
+        self.0
     }
 }

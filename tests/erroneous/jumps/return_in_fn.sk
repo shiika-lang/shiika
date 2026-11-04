@@ -1,0 +1,7 @@
+class Main
+  def self.run -> Int
+    let f = fn(){ return 1 }
+    f()
+  end
+end
+Main.run

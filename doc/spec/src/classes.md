@@ -66,6 +66,73 @@ p taro.age  #=> 20
 taro.age += 1
 ```
 
+## Inheritance
+
+```sk
+base class Base1
+  def foo -> Int
+    1
+  end
+end
+
+class Sub1 : Base1
+end
+
+p Sub1.new.foo  #=> 1
+```
+
+The supertypes of a class are listed after `:` in the class
+definition.
+
+```sk
+class Sub : SuperClass, Module1, Module2
+```
+
+- At most one superclass is allowed, and it must be the first item of
+  the list. The other items must be [modules](./modules.md).
+- The superclass must be declared with the `base` keyword
+  (`base class`). Inheriting a class not declared as `base` is a
+  compile-time error.
+- A type parameter cannot be a supertype.
+- The subclass inherits the methods, `initialize` and instance
+  variables of the superclass. Defining a method of the same name
+  overrides it.
+- When no superclass is given, the superclass is `Object`.
+
+## Constants
+
+An assignment to a name starting with an uppercase letter defines a
+constant. Reassigning to a constant is a compile-time error.
+
+```sk
+FOO = 1
+```
+
+A constant defined in a class body belongs to the class. Constants are
+resolved from the innermost namespace outward, and can be referred to
+with a qualified name using `::`.
+
+```sk
+class A
+  BAR = 2
+
+  class B
+    def self.baz -> Int
+      BAR  # resolved to ::A::BAR
+    end
+  end
+end
+
+p A::BAR  #=> 2
+```
+
+(In this document, the notation `::A::BAR` is used to denote the full
+name of a constant, though the leading `::` cannot be written in
+programs currently.)
+
+Note that a class definition `class A ... end` also defines the
+constant `::A`, which holds the class object of `A`.
+
 ## Class hierarchy
 
 ```

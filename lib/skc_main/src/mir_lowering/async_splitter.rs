@@ -1,5 +1,5 @@
 //! Example
-//! ```
+//! ```text
 //! // Before
 //! fun foo($env) -> Int {
 //!   print(sleep_sec(1));
@@ -274,12 +274,20 @@ impl<'a> Compiler<'a> {
                 let new_value = self.compile_value_expr(*value_expr, false)?;
                 mir::Expr::cell_set(new_cell, new_value)
             }
+            mir::Expr::Box(inner) => {
+                let new_inner = self.compile_value_expr(*inner, false)?;
+                mir::Expr::box_(new_inner)
+            }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
             mir::Expr::NullPtr | mir::Expr::ClassVTable(_) => e,
             mir::Expr::IsNull(inner) => {
                 let new_inner = self.compile_value_expr(*inner, false)?;
                 mir::Expr::is_null(new_inner)
+            }
+            mir::Expr::BitIsZero(inner, bits) => {
+                let new_inner = self.compile_value_expr(*inner, false)?;
+                mir::Expr::bit_is_zero(new_inner, bits)
             }
         };
         Ok(Some(new_e))

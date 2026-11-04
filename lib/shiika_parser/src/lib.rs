@@ -60,7 +60,29 @@ impl<'a> Parser<'a> {
         let mut program = ast::Program::default();
         for file in files {
             let mut parser = Parser::new(file);
-            program.append(&mut parser.parse_program()?);
+            let mut parsed = parser.parse_program().map_err(|e| match e {
+                Error::LexError { msg, location } => {
+                    use ariadne::{Label, Report, ReportKind, Source};
+                    let path = file.path.display().to_string();
+                    let pos = location.location().pos;
+                    // Ariadne uses character offsets; the lexer cursor uses bytes.
+                    let begin = file.content[..pos].chars().count();
+                    let end = begin + usize::from(pos < file.content.len());
+                    let mut rendered = vec![];
+                    Report::build(ReportKind::Error, &path, begin)
+                        .with_message(&msg)
+                        .with_label(Label::new((&path, begin..end)).with_message(&msg))
+                        .finish()
+                        .write((&path, Source::from(&file.content)), &mut rendered)
+                        .unwrap();
+                    Error::LexError {
+                        msg: String::from_utf8_lossy(&rendered).into_owned(),
+                        location,
+                    }
+                }
+                e => e,
+            })?;
+            program.append(&mut parsed);
         }
         Ok(program)
     }

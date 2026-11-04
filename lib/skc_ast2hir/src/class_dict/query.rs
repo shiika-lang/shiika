@@ -289,17 +289,45 @@ impl<'hir_maker> ClassDict<'hir_maker> {
 #[cfg(test)]
 mod tests {
     use crate::class_dict::*;
-    use crate::error;
-    use crate::ty;
-    use anyhow::Result;
+    use anyhow::{Context, Result};
+    use shiika_core::ty;
+    use shiika_parser::{Parser, SourceFile};
+    use skc_mir::LibraryExports;
+    use std::path::PathBuf;
+
+    /// Load exports.json of the core package.
+    /// Requires the core package built (`shiika build packages/core`),
+    /// like tests/erroneous.rs does.
+    fn load_core_exports() -> Result<LibraryExports> {
+        let shiika_work = std::env::var("SHIIKA_WORK")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".shiika"));
+        let packages_dir = shiika_work.join("packages");
+        let core_dir = std::fs::read_dir(&packages_dir)
+            .with_context(|| format!("could not read {}", packages_dir.display()))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .find(|p| {
+                p.file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.starts_with("core-"))
+                    .unwrap_or(false)
+            })
+            .context("core package is not built yet; run `shiika build packages/core` first")?;
+        let json = std::fs::read_to_string(core_dir.join("lib/exports.json"))?;
+        Ok(serde_json::from_str(&json)?)
+    }
 
     fn test_class_dict<F>(s: &str, f: F) -> Result<()>
     where
         F: FnOnce(ClassDict),
     {
-        let core = crate::runner::load_builtin_exports()?;
-        let ast = crate::parser::Parser::parse(s)?;
-        let class_dict = crate::hir::class_dict::create(&ast, Default::default(), &core.sk_types)?;
+        let core = load_core_exports()?;
+        let src = SourceFile::new(PathBuf::from("(test)"), s.to_string());
+        let ast = Parser::parse_files(&[src])?;
+        let defs = ast.defs();
+        let type_index = crate::type_index::create(&defs, &Default::default(), &core.sk_types);
+        let class_dict = crate::class_dict::create(&defs, type_index, &core.sk_types)?;
         f(class_dict);
         Ok(())
     }
@@ -309,7 +337,9 @@ mod tests {
         let src = "";
         test_class_dict(src, |class_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::ary(ty::raw("Int"))),
+                class_dict
+                    .supertype(&ty::ary(ty::raw("Int")))
+                    .map(|lit_ty| lit_ty.to_term_ty()),
                 Some(ty::raw("Object"))
             )
         })
@@ -318,13 +348,17 @@ mod tests {
     #[test]
     fn test_supertype_gen() -> Result<()> {
         let src = "
-          class A<S, T> : Array<T>
+          base class MyList<X>
+          end
+          class A<S, T> : MyList<T>
           end
         ";
         test_class_dict(src, |class_dict| {
             assert_eq!(
-                class_dict.supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")])),
-                Some(ty::ary(ty::raw("Bool")))
+                class_dict
+                    .supertype(&ty::spe("A", vec![ty::raw("Int"), ty::raw("Bool")]))
+                    .map(|lit_ty| lit_ty.to_term_ty()),
+                Some(ty::spe("MyList", vec![ty::raw("Bool")]))
             )
         })
     }
@@ -332,7 +366,7 @@ mod tests {
     #[test]
     fn test_conforms_some() -> Result<()> {
         let src = "
-            class MyMaybe<T>; end
+            base class MyMaybe<T>; end
             class MySome<T> : MyMaybe<T>; end
         ";
         test_class_dict(src, |class_dict| {
@@ -345,7 +379,7 @@ mod tests {
     #[test]
     fn test_conforms_none() -> Result<()> {
         let src = "
-            class MyMaybe<T>; end
+            base class MyMaybe<T>; end
             class MyNone : MyMaybe<Never>; end
         ";
         test_class_dict(src, |class_dict| {
@@ -378,8 +412,9 @@ mod tests {
     #[test]
     fn test_conforms_not() -> Result<()> {
         let src = "
-            class A : Array<Int>; end
-            class B : Array<Bool>; end
+            base class MyList<X>; end
+            class A : MyList<Int>; end
+            class B : MyList<Bool>; end
         ";
         test_class_dict(src, |class_dict| {
             let a = ty::raw("A");

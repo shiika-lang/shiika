@@ -26,7 +26,13 @@ The first `i8*` points to the vtable of the object. In the case of `Array`, it p
 
 ### Primitives
 
-In the case of `Array`, the three instance variables are all Shiika object. However some of the core classes contains LLVM value instead of a Shiika value. Here is the list:
+`Int`, `Bool` and `Float` values are **unboxed**: they are represented directly
+as the raw LLVM values `i64`, `i1` and `double`, not as pointers. See
+[Unboxing](design_notes/unboxing.md).
+
+A boxed form is still used where such a value crosses into a pointer position
+(a container element, a capture, an `Object`/type-parameter argument). The
+boxed form is a heap object whose single instance variable holds the raw value:
 
 ```llvm
 %Int = type { i8*, i64 }
@@ -57,6 +63,15 @@ Note that there are constants that holds a class object. For example the constan
 ```llvm
 @"::String" = internal global %"Meta:String"* null
 ```
+
+### Class-level instance variables
+
+An `@ivar` declared in a class's `self.initialize` belongs to the class object.
+A class object is the runtime's fixed-layout `ShiikaClass`, which has no room
+for user ivars, so these are stored in dedicated globals (one per metaclass and
+ivar index) rather than inside the class object. The class's own
+`self.initialize` is run when its class object is created, which initializes
+those globals.
 
 ## Methods
 

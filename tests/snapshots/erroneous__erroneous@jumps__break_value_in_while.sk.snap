@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/jumps/break_value_in_while.sk
+---
+`break' in a while loop cannot take a value

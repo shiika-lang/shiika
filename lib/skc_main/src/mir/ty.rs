@@ -10,6 +10,7 @@ pub enum Ty {
     Any,   // Opaque value converted to `i64` (to store it in ChiikaEnv)
     I1,    // Corresponds to `i1` in llvm
     Int64, // Corresponds to `i64` in llvm
+    F64,   // Corresponds to `double` in llvm
     CVoid, // Corresponds to `void` in llvm
     ChiikaEnv,
     RustFuture,
@@ -38,6 +39,10 @@ impl Ty {
         match &ty.fullname.0[..] {
             "Shiika::Internal::Ptr" => Ty::Ptr,
             "Shiika::Internal::Int64" => Ty::Int64,
+            // Bool/Int are unboxed immediates (llvm `i1`/`i64`). They are boxed
+            // only when crossing into a boxed-object position (see unboxing.md).
+            "Bool" => Ty::I1,
+            "Int" => Ty::Int64,
             _ => Ty::Sk(ty),
         }
     }
@@ -79,6 +84,25 @@ impl Ty {
         matches!(self, Ty::Sk(term_ty) if term_ty.is_never_type())
     }
 
+    /// Returns true for the raw (unboxed) immediate representations
+    /// (I1/Int64/F64). These are the types that are `Box`ed when they cross
+    /// into a boxed-object (pointer) position and `Unbox`ed on the way back.
+    pub fn is_immediate(&self) -> bool {
+        matches!(self, Ty::I1 | Ty::Int64 | Ty::F64)
+    }
+
+    /// The boxed (erased) representation of this type: an immediate becomes an
+    /// opaque pointer, everything else is unchanged. Used at boundaries that
+    /// always operate on boxed values regardless of the concrete type, such as
+    /// the generic `FnN#call` ABI.
+    pub fn erased(self) -> Ty {
+        if self.is_immediate() {
+            Ty::Ptr
+        } else {
+            self
+        }
+    }
+
     /// Returns true if the two function types are the same except for asyncness.
     pub fn same(&self, other: &Self) -> bool {
         match (self, other) {
@@ -93,6 +117,7 @@ impl Ty {
             Ty::Any => 1,
             Ty::I1 => 2,
             Ty::Int64 => 3,
+            Ty::F64 => 8,
             Ty::CVoid => panic!("CVoid has no value"),
             Ty::ChiikaEnv => 4,
             Ty::RustFuture => 5,
@@ -174,10 +199,14 @@ impl FunTy {
             panic!("not a function type: {}", lambda_ty);
         };
         let mut tys = tys_.to_vec();
-        let ret_ty = tys.pop().unwrap().into();
+        // The lambda's params and return are FnN type-parameter positions, so
+        // the function ABI is always erased (an immediate is passed/returned
+        // boxed). Invocation sites box immediate args and unbox immediate
+        // results accordingly.
+        let ret_ty: Ty = Ty::from(tys.pop().unwrap()).erased();
         // Add the fn obj as first parameter
         tys.insert(0, lambda_ty.clone().into());
-        let param_tys = tys.into_iter().map(|x| x.into()).collect();
+        let param_tys = tys.into_iter().map(|x| Ty::from(x).erased()).collect();
         Self::new(Asyncness::Async, param_tys, ret_ty)
     }
 

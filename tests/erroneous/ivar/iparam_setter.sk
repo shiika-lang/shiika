@@ -1,0 +1,6 @@
+class A
+  def initialize(@i: Int)
+  end
+end
+
+A.new(1).i = 2

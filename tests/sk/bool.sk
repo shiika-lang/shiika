@@ -1,0 +1,21 @@
+# Basic
+unless true; puts "ng: true"; end
+if false; puts "ng: false"; end
+unless true and true; puts "ng: and"; end
+if true and false; puts "ng: and2"; end
+unless true or false; puts "ng: or"; end
+unless not false; puts "ng: not"; end
+unless (1 < 2) == true; puts "ng: comparison result"; end
+
+# Boxed Bool is a singleton: two separately-boxed `true`s are the same object
+# (Object#== is identity). Regression test for the singleton boxing.
+class Ident
+  def self.same(x: Object, y: Object) -> Bool
+    x == y
+  end
+end
+unless Ident.same(true, true); puts "ng: true identity"; end
+unless Ident.same(false, false); puts "ng: false identity"; end
+if Ident.same(true, false); puts "ng: true/false distinct"; end
+
+puts "ok"

@@ -156,22 +156,33 @@ pub fn check_ivars(
         return Ok(());
     }
     for ivar in ivars.values() {
-        let pos = if ivar.readonly {
-            Position::Covariant
-        } else {
-            Position::Invariant
-        };
-        // No source location available for inferred ivars
-        check_type(
+        // Fallback for generated ivars; source declarations are checked during conversion.
+        check_ivar(
             dict,
             class_typarams,
             &ivar.ty,
-            pos,
+            ivar.readonly,
             &LocationSpan::internal(),
         )
         .map_err(|e| error::program_error(format!("{} (instance variable `{}')", e, &ivar.name)))?;
     }
     Ok(())
+}
+
+/// Check an inferred instance variable at its declaration site.
+pub fn check_ivar(
+    dict: &ClassDict,
+    class_typarams: &[TyParam],
+    ty: &TermTy,
+    readonly: bool,
+    locs: &LocationSpan,
+) -> Result<()> {
+    let pos = if readonly {
+        Position::Covariant
+    } else {
+        Position::Invariant
+    };
+    check_type(dict, class_typarams, ty, pos, locs)
 }
 
 /// Check that co/contravariant typarams in `class_typarams` appear only in
