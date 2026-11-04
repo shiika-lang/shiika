@@ -690,7 +690,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &c.superclass,
             rust_methods,
         )?);
-        let wtable = build_wtable(self, &c.instance_methods, &c.includes)?;
+        let wtable = build_wtable(self, &c.instance_methods, &c.superclass, &c.includes)?;
 
         let sk_type = {
             if self.known(&fullname_) {

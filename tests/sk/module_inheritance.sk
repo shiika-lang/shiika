@@ -1,0 +1,74 @@
+module M
+  requirement foo -> Int
+  def bar -> Int
+    foo + 1
+  end
+end
+
+# A subclass inherits the modules included by its superclass
+base class A : M
+  def foo -> Int
+    1
+  end
+end
+class B : A
+end
+
+# Overriding a module method in a subclass
+class C : A
+  def foo -> Int
+    10
+  end
+end
+
+# Requirement satisfied by a method inherited from the superclass
+base class P
+  def foo -> Int
+    100
+  end
+end
+class Q : P, M
+end
+
+# Generic superclass
+module N<X>
+  requirement get -> X
+  def get_again -> X
+    get
+  end
+end
+base class G<T> : N<T>
+  def initialize(@v: T); end
+  def get -> T
+    @v
+  end
+end
+class H : G<String>
+end
+
+class Main
+  def self.call_bar(x: M) -> Int
+    x.bar
+  end
+
+  def self.call_get_again(x: N<String>) -> String
+    x.get_again
+  end
+
+  def self.run
+    unless Main.call_bar(B.new) == 2
+      puts "ng: inherited wtable"
+    end
+    unless Main.call_bar(C.new) == 11
+      puts "ng: overridden in subclass"
+    end
+    unless Main.call_bar(Q.new) == 101
+      puts "ng: requirement from superclass"
+    end
+    unless Main.call_get_again(H.new("a")) == "a"
+      puts "ng: generic superclass"
+    end
+  end
+end
+Main.run
+puts "ok"
