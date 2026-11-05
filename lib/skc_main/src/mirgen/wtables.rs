@@ -1,7 +1,151 @@
 use crate::mir;
 use crate::names::FunctionName;
-use shiika_core::names::ClassFullname;
-use skc_hir::SkTypes;
+use shiika_core::names::{ClassFullname, MethodFirstname, MethodFullname, ModuleFullname};
+use skc_hir::{MethodSignature, SkClass, SkTypes};
+
+/// Returns the signature of a module method, as declared in the module.
+pub fn module_method_sig<'a>(
+    sk_types: &'a SkTypes,
+    imported_sk_types: &'a SkTypes,
+    module: &ModuleFullname,
+    method_name: &MethodFirstname,
+) -> &'a MethodSignature {
+    let fullname = module.to_type_fullname().method_fullname(method_name);
+    find_sig(sk_types, imported_sk_types, &fullname)
+}
+
+fn find_sig<'a>(
+    sk_types: &'a SkTypes,
+    imported_sk_types: &'a SkTypes,
+    fullname: &MethodFullname,
+) -> &'a MethodSignature {
+    sk_types
+        .get_sig(fullname)
+        .or_else(|| imported_sk_types.get_sig(fullname))
+        .unwrap_or_else(|| panic!("[BUG] method not found: {}", fullname))
+}
+
+/// The ABI of calling a wtable slot. It is determined by the module's declared
+/// signature, so the module's type parameters are erased (eg. `N<X>#get -> X`
+/// returns a pointer even when called on `N<Int>`).
+pub fn wtable_fun_ty(module_sig: &MethodSignature) -> mir::FunTy {
+    super::build_fun_ty(module_sig)
+}
+
+/// Resolve local wtable slots and generate their ABI adapters together.
+/// Codegen consumes these function names without repeating ABI decisions.
+pub fn build(
+    sk_types: &SkTypes,
+    imported_sk_types: &SkTypes,
+) -> (Vec<mir::WTable>, Vec<mir::Function>) {
+    let mut tables = vec![];
+    let mut adapters = vec![];
+    for sk_class in sk_types.sk_classes() {
+        for (module, methods) in &sk_class.wtable.0 {
+            let mut funcs = Vec::with_capacity(methods.len());
+            for idx in 0..methods.len() {
+                let (module_sig, impl_sig) =
+                    slot_sigs(sk_types, imported_sk_types, sk_class, module, idx);
+                let name = if needs_adapter(module_sig, impl_sig) {
+                    let name = adapter_name(&sk_class.fullname(), module, idx);
+                    adapters.push(build_adapter(name.clone(), module_sig, impl_sig));
+                    name
+                } else {
+                    FunctionName::from_sig(impl_sig)
+                };
+                funcs.push(name);
+            }
+            tables.push(mir::WTable {
+                class: sk_class.fullname(),
+                module: module.clone(),
+                funcs,
+            });
+        }
+    }
+    (tables, adapters)
+}
+
+/// Returns the signature of the module method and that of its implementation
+/// for a wtable slot.
+fn slot_sigs<'a>(
+    sk_types: &'a SkTypes,
+    imported_sk_types: &'a SkTypes,
+    sk_class: &SkClass,
+    module: &ModuleFullname,
+    idx: usize,
+) -> (&'a MethodSignature, &'a MethodSignature) {
+    let module_type = sk_types
+        .types
+        .get(&module.to_type_fullname())
+        .or_else(|| imported_sk_types.types.get(&module.to_type_fullname()))
+        .unwrap_or_else(|| panic!("[BUG] module not found: {}", module));
+    let (module_sig, _) = module_type.base().method_sigs.to_ordered()[idx];
+    let impl_name = &sk_class.wtable.0[module][idx];
+    (module_sig, find_sig(sk_types, imported_sk_types, impl_name))
+}
+
+/// True if the implementation uses a raw immediate where the slot uses a
+/// boxed value, or vice versa.
+fn needs_adapter(module_sig: &MethodSignature, impl_sig: &MethodSignature) -> bool {
+    let slot = wtable_fun_ty(module_sig);
+    let imp = super::build_fun_ty(impl_sig);
+    slot.param_tys
+        .iter()
+        .zip(imp.param_tys.iter())
+        .any(|(a, b)| a.is_immediate() != b.is_immediate())
+        || slot.ret_ty.is_immediate() != imp.ret_ty.is_immediate()
+}
+
+fn adapter_name(cls: &ClassFullname, module: &ModuleFullname, idx: usize) -> FunctionName {
+    FunctionName::mangled(format!("shiika_wtable_adapter_{}_{}_{}", cls, module, idx))
+}
+
+/// Build a function which takes the arguments in the slot's ABI, converts them
+/// to the implementation's ABI, calls it and converts the result back.
+fn build_adapter(
+    name: FunctionName,
+    module_sig: &MethodSignature,
+    impl_sig: &MethodSignature,
+) -> mir::Function {
+    let slot = wtable_fun_ty(module_sig);
+    let imp = super::build_fun_ty(impl_sig);
+    let coerce = |e: mir::TypedExpr, target: &mir::Ty| -> mir::TypedExpr {
+        if &e.1 != target {
+            mir::Expr::cast(mir::CastType::Force(target.clone()), e)
+        } else {
+            e
+        }
+    };
+    let params = slot
+        .param_tys
+        .iter()
+        .enumerate()
+        .map(|(i, ty)| mir::Param::new(ty.clone(), format!("a{}", i)))
+        .collect::<Vec<_>>();
+    let args = slot
+        .param_tys
+        .iter()
+        .zip(imp.param_tys.iter())
+        .enumerate()
+        .map(|(i, (slot_ty, imp_ty))| {
+            coerce(
+                mir::Expr::arg_ref(i, format!("a{}", i), slot_ty.clone()),
+                imp_ty,
+            )
+        })
+        .collect();
+    let func = mir::Expr::func_ref(FunctionName::from_sig(impl_sig), imp.clone());
+    let call = coerce(mir::Expr::fun_call(func, args), &slot.ret_ty);
+    mir::Function {
+        asyncness: impl_sig.asyncness.clone().into(),
+        name,
+        params,
+        ret_ty: (*slot.ret_ty).clone(),
+        body_stmts: mir::Expr::return_(call),
+        sig: None,
+        lvar_count: None,
+    }
+}
 
 pub fn inserter_funcs(sk_types: &SkTypes, imported_sk_types: &SkTypes) -> Vec<mir::Function> {
     let mut funcs = vec![];

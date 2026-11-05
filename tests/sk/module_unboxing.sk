@@ -1,0 +1,73 @@
+module N<X>
+  requirement get -> X
+  requirement put(x: X) -> X
+  def get_again -> X
+    get
+  end
+  def put_again(x: X) -> X
+    put(x)
+  end
+end
+
+# The implementation uses the erased type parameter
+class G<T> : N<T>
+  def initialize(@v: T); end
+  def get -> T
+    @v
+  end
+  def put(x: T) -> T
+    x
+  end
+end
+
+# The implementation uses raw immediates
+class F : N<Int>
+  def get -> Int
+    8
+  end
+  def put(x: Int) -> Int
+    x + 1
+  end
+end
+
+class FB : N<Bool>
+  def get -> Bool
+    true
+  end
+  def put(x: Bool) -> Bool
+    not x
+  end
+end
+
+class Main
+  def self.via_int(n: N<Int>) -> Array<Int>
+    [n.get, n.get_again, n.put(3), n.put_again(3)]
+  end
+
+  def self.via_bool(n: N<Bool>) -> Array<Bool>
+    [n.get, n.get_again, n.put(true), n.put_again(true)]
+  end
+
+  def self.run
+    unless Main.via_int(G<Int>.new(7)) == [7, 7, 3, 3]
+      puts "ng: generic impl via module"
+    end
+    unless Main.via_int(F.new) == [8, 8, 4, 4]
+      puts "ng: raw impl via module"
+    end
+    unless Main.via_bool(G<Bool>.new(false)) == [false, false, true, true]
+      puts "ng: generic impl via module (Bool)"
+    end
+    unless Main.via_bool(FB.new) == [true, true, false, false]
+      puts "ng: raw impl via module (Bool)"
+    end
+    unless G<Int>.new(7).get_again == 7
+      puts "ng: module method on generic class"
+    end
+    unless F.new.put_again(5) == 6
+      puts "ng: module method on raw class"
+    end
+  end
+end
+Main.run
+puts "ok"

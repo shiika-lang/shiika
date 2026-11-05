@@ -30,6 +30,8 @@ pub fn run(
     log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&uni.hir.sk_types, &uni.imports);
 
+    let (wtables, adapters) = wtables::build(&uni.hir.sk_types, &uni.imports.sk_types);
+
     let classes = convert_classes(&uni);
 
     let externs = {
@@ -92,6 +94,8 @@ pub fn run(
             }
         }
 
+        funcs.extend(adapters);
+
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
         if let build::CompileTargetDetail::Bin { total_deps, .. } = &target.detail {
@@ -121,6 +125,7 @@ pub fn run(
         program,
         sk_types: uni.hir.sk_types,
         vtables,
+        wtables,
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
         imported_sk_types: uni.imports.sk_types,
@@ -758,38 +763,76 @@ impl<'a> Compiler<'a> {
                 tyarg_exprs,
                 ..
             } => {
-                let receiver_ty = receiver_expr.ty.clone();
-                let mir_receiver = self.convert_expr(*receiver_expr);
+                // A wtable slot is called with the ABI of the module's declared
+                // signature (see `wtables::wtable_fun_ty`). Like `HirMethodCall`,
+                // box/unbox where an immediate crosses into an erased position.
+                let declared = wtables::wtable_fun_ty(wtables::module_method_sig(
+                    self.sk_types,
+                    self.imported_sk_types,
+                    &module_fullname,
+                    &method_name,
+                ));
+                let mut mir_receiver = self.convert_expr(*receiver_expr);
+                // The wtable is looked up from the object header, so an
+                // immediate receiver must be boxed.
+                if mir_receiver.1.is_immediate() {
+                    mir_receiver = mir::Expr::cast(
+                        mir::CastType::Force(declared.param_tys[0].clone()),
+                        mir_receiver,
+                    );
+                }
+                let receiver_ty = mir_receiver.1.clone();
+                let result_ty = convert_ty(expr.ty.clone());
+                let call_ret_abi = if result_ty.is_immediate() && !declared.ret_ty.is_immediate() {
+                    (*declared.ret_ty).clone()
+                } else {
+                    result_ty.clone()
+                };
 
                 // Same as virtual dispatch above: avoid evaluating the
                 // receiver twice when looking up via the wtable.
                 let (recv_decl, recv_for_wtable, recv_for_call) = self.bind_receiver(mir_receiver);
 
-                let func_ref = {
-                    let fun_ty = {
-                        let mut param_tys = arg_exprs
-                            .iter()
-                            .map(|e| e.ty.clone().into())
-                            .collect::<Vec<_>>();
-                        param_tys.insert(0, convert_ty(receiver_ty));
-                        for _ in &tyarg_exprs {
-                            param_tys.push(mir::Ty::raw("Class"));
-                        }
-                        mir::FunTy::new(mir::Asyncness::Unknown, param_tys, expr.ty.clone().into())
-                    };
-
-                    mir::Expr::wtable_ref(
-                        recv_for_wtable,
-                        module_fullname.clone(),
-                        method_idx,
-                        method_name.0.clone(),
-                        fun_ty,
-                    )
+                let fun_ty = {
+                    let mut param_tys = arg_exprs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, e)| {
+                            let actual: mir::Ty = e.ty.clone().into();
+                            let d = &declared.param_tys[i + 1];
+                            if actual.is_immediate() && !d.is_immediate() {
+                                d.clone()
+                            } else {
+                                actual
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    param_tys.insert(0, receiver_ty);
+                    for _ in &tyarg_exprs {
+                        param_tys.push(mir::Ty::raw("Class"));
+                    }
+                    mir::FunTy::new(mir::Asyncness::Unknown, param_tys, call_ret_abi.clone())
                 };
+                let func_ref = mir::Expr::wtable_ref(
+                    recv_for_wtable,
+                    module_fullname.clone(),
+                    method_idx,
+                    method_name.0.clone(),
+                    fun_ty.clone(),
+                );
 
                 let mut mir_args: Vec<mir::TypedExpr> = arg_exprs
                     .into_iter()
-                    .map(|arg| self.convert_expr(arg))
+                    .enumerate()
+                    .map(|(i, arg)| {
+                        let a = self.convert_expr(arg);
+                        let expected = &fun_ty.param_tys[i + 1];
+                        if a.1.is_immediate() && !expected.is_immediate() {
+                            mir::Expr::cast(mir::CastType::Force(expected.clone()), a)
+                        } else {
+                            a
+                        }
+                    })
                     .collect();
                 mir_args.insert(0, recv_for_call);
                 for tyarg in tyarg_exprs {
@@ -799,8 +842,17 @@ impl<'a> Compiler<'a> {
                     mir_args.push(casted);
                 }
 
-                let result_ty = convert_ty(expr.ty.clone());
-                let call = (mir::Expr::FunCall(Box::new(func_ref), mir_args), result_ty);
+                let raw_call = (
+                    mir::Expr::FunCall(Box::new(func_ref), mir_args),
+                    call_ret_abi,
+                );
+                // Unbox the result when the slot returns an erased pointer but
+                // this call site expects an immediate.
+                let call = if raw_call.1 != result_ty {
+                    mir::Expr::cast(mir::CastType::Force(result_ty), raw_call)
+                } else {
+                    raw_call
+                };
                 mir::Expr::exprs(vec![recv_decl, call])
             }
             HirExpressionBase::HirLambdaInvocation {
