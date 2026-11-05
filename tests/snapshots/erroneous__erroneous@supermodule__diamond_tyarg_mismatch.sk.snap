@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/diamond_tyarg_mismatch.sk
+---
+module `M1' requires both `M0<Int>' and `M0<String>'

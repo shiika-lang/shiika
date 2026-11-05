@@ -1,0 +1,185 @@
+module Eq<in X>
+  requirement eq(other: X) -> Bool
+end
+
+# Prerequisite module
+module Cmp<in X> : Eq<X>
+  requirement lt(other: X) -> Bool
+
+  # Calls a method of the prerequisite module (implicit and explicit self)
+  def le(other: X) -> Bool
+    eq(other) or self.lt(other)
+  end
+end
+
+class Num : Cmp<Num>, Eq<Num>
+  def initialize(@n: Int); end
+
+  def eq(other: Num) -> Bool
+    @n == other.n
+  end
+
+  def lt(other: Num) -> Bool
+    @n < other.n
+  end
+end
+
+# The prerequisite is satisfied by the superclass (and contravariance)
+base class Animal : Eq<Animal>
+  def initialize(@age: Int); end
+
+  def eq(other: Animal) -> Bool
+    @age == other.age
+  end
+end
+class Dog : Animal, Cmp<Dog>
+  def lt(other: Dog) -> Bool
+    age < other.age
+  end
+end
+
+# Transitive prerequisite
+module Named
+  requirement name -> String
+end
+module Greeter : Named
+  def greet -> String
+    "hello, " + name
+  end
+end
+module LoudGreeter : Greeter
+  def shout -> String
+    greet + "!"
+  end
+end
+class Person : LoudGreeter, Greeter, Named
+  def name -> String
+    "taro"
+  end
+end
+
+# Type arguments of the prerequisite module
+module Getter<X>
+  requirement get -> X
+end
+module ArrayGetter<X> : Getter<Array<X>>
+  def count -> Int
+    get.length
+  end
+end
+class Items<T> : ArrayGetter<T>, Getter<Array<T>>
+  def initialize(@items: Array<T>); end
+  def get -> Array<T>
+    @items
+  end
+end
+
+# Diamond: both M2 and M3 require M0
+module M0
+  requirement zero -> Int
+end
+module M2 : M0
+  def two -> Int
+    zero + 2
+  end
+end
+module M3 : M0
+  def three -> Int
+    zero + 3
+  end
+end
+module M1 : M2, M3
+  def five -> Int
+    two + three - zero
+  end
+end
+class Diamond : M1, M2, M3, M0
+  def zero -> Int
+    0
+  end
+end
+
+class Main
+  # Call a method of the prerequisite module on a module-typed value
+  def self.call_eq(a: Cmp<Num>, b: Num) -> Bool
+    a.eq(b)
+  end
+
+  # Upcast to the prerequisite module
+  def self.as_eq(a: Cmp<Num>) -> Eq<Num>
+    a
+  end
+
+  # Call via a type parameter bound
+  def self.name_of<T: Greeter>(x: T) -> String
+    x.name
+  end
+
+  def self.call_shout(x: LoudGreeter) -> String
+    x.shout
+  end
+
+  def self.call_name(x: LoudGreeter) -> String
+    x.name
+  end
+
+  def self.first_item(x: ArrayGetter<Int>) -> Int
+    x.get[0]
+  end
+
+  def self.dog_le(a: Cmp<Dog>, b: Dog) -> Bool
+    a.le(b)
+  end
+
+  def self.run
+    let one = Num.new(1)
+    let two = Num.new(2)
+    unless Main.call_eq(one, Num.new(1))
+      puts "ng: call_eq"
+    end
+    if Main.call_eq(one, two)
+      puts "ng: call_eq 2"
+    end
+    unless Main.as_eq(one).eq(Num.new(1))
+      puts "ng: as_eq"
+    end
+    unless one.le(two) and one.le(one)
+      puts "ng: le"
+    end
+    if two.le(one)
+      puts "ng: le 2"
+    end
+
+    unless Main.dog_le(Dog.new(3), Dog.new(3)) and Main.dog_le(Dog.new(3), Dog.new(4))
+      puts "ng: dog_le"
+    end
+    if Main.dog_le(Dog.new(5), Dog.new(4))
+      puts "ng: dog_le 2"
+    end
+
+    let p = Person.new
+    unless Main.name_of(p) == "taro"
+      puts "ng: name_of"
+    end
+    unless Main.call_shout(p) == "hello, taro!"
+      puts "ng: call_shout"
+    end
+    unless Main.call_name(p) == "taro"
+      puts "ng: call_name"
+    end
+
+    let items = Items<Int>.new([10, 20, 30])
+    unless items.count == 3
+      puts "ng: count"
+    end
+    unless Main.first_item(items) == 10
+      puts "ng: first_item"
+    end
+
+    unless Diamond.new.five == 5
+      puts "ng: diamond"
+    end
+  end
+end
+Main.run
+puts "ok"

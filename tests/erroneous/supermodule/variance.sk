@@ -1,0 +1,5 @@
+module Eq<in X>
+  requirement eq(other: X) -> Bool
+end
+module M<out X> : Eq<X>
+end

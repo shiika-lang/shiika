@@ -1,0 +1,8 @@
+module M0
+  requirement foo -> Int
+end
+module M1 : M0
+  def foo -> Int
+    1
+  end
+end

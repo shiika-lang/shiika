@@ -71,11 +71,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
+                    supers,
                     defs,
                 } => self.index_module(
                     &namespace,
                     name,
                     self.resolve_typarams(&namespace, typarams, Default::default())?,
+                    supers,
                     defs,
                     &mut rust_methods,
                 )?,
@@ -107,6 +109,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             crate::type_system::bounds::check_annotation(self, &ty, &locs)?;
         }
         crate::type_system::bounds::check_sk_types(self)?;
+        crate::type_system::supermodules::check_sk_types(self)?;
         Ok(())
     }
 
@@ -315,11 +318,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         firstname: &ModuleFirstname,
         typarams: Vec<ty::TyParam>,
+        supers: &[UnresolvedTypeName],
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<()> {
         let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
+        let supers = self._resolve_module_supers(namespace, &fullname, &typarams, supers)?;
         let (instance_methods, class_methods, requirements) =
             self.index_defs_in_module(&inner_namespace, &fullname, &typarams, defs, rust_methods)?;
 
@@ -327,11 +332,145 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             namespace,
             &fullname,
             &typarams,
+            supers,
             instance_methods,
             class_methods,
             requirements,
             rust_methods,
         )?;
+        Ok(())
+    }
+
+    /// Resolve prerequisite module names of a module definition
+    /// (eg. `Equatable<X>` of `module Comparable<X> : Equatable<X>`)
+    fn _resolve_module_supers(
+        &self,
+        namespace: &Namespace,
+        fullname: &ModuleFullname,
+        module_typarams: &[ty::TyParam],
+        supers: &[UnresolvedTypeName],
+    ) -> Result<Vec<Supertype>> {
+        let mut modules: Vec<Supertype> = vec![];
+        for name in supers {
+            let ty = self.resolve_typename(namespace, module_typarams, Default::default(), name)?;
+            let lit_ty = match &ty.body {
+                TyBody::TyPara(_) => {
+                    return Err(located_error(
+                        format!("type parameter `{}' cannot be a prerequisite module", ty),
+                        &name.locs,
+                    ));
+                }
+                TyBody::TyRaw(lit_ty) => lit_ty.clone(),
+            };
+            if lit_ty.erasure().to_type_fullname() == fullname.to_type_fullname() {
+                return Err(located_error(
+                    format!("module `{}' cannot require itself", fullname),
+                    &name.locs,
+                ));
+            }
+            match self.find_type(&lit_ty.erasure().to_type_fullname()) {
+                Some(SkType::Class(_)) => {
+                    return Err(located_error(
+                        format!(
+                            "module cannot have a superclass: `{}' is a class",
+                            lit_ty.erasure().to_type_fullname()
+                        ),
+                        &name.locs,
+                    ));
+                }
+                Some(SkType::Module(_)) => {}
+                None => {
+                    return Err(located_error(
+                        format!("unknown class or module {}", ty),
+                        &name.locs,
+                    ));
+                }
+            }
+            crate::type_system::variance::check_supertype(self, module_typarams, &ty, &name.locs)?;
+            if modules.iter().any(|m| m.erasure() == lit_ty.erasure()) {
+                return Err(located_error(
+                    format!("module `{}' is required twice", lit_ty.erasure()),
+                    &name.locs,
+                ));
+            }
+            modules.push(Supertype::from_ty(lit_ty));
+        }
+        Ok(modules)
+    }
+
+    /// Returns `supers` and their prerequisite modules (transitively), each
+    /// specialized with the type parameters of the module being indexed.
+    /// Raises an error if a module appears with different type arguments
+    /// (eg. both `M0<Int>` and `M0<String>`).
+    fn _all_module_supers(
+        &self,
+        fullname: &ModuleFullname,
+        supers: &[Supertype],
+    ) -> Result<Vec<Supertype>> {
+        let mut v: Vec<Supertype> = vec![];
+        let mut stack = supers.iter().rev().cloned().collect::<Vec<_>>();
+        while let Some(sup) = stack.pop() {
+            if let Some(existing) = v.iter().find(|m| m.erasure() == sup.erasure()) {
+                if existing != &sup {
+                    return Err(error::program_error(format!(
+                        "module `{}' requires both `{}' and `{}'",
+                        fullname,
+                        existing.to_term_ty(),
+                        sup.to_term_ty()
+                    )));
+                }
+                continue;
+            }
+            let sk_module = self.get_module(&sup.erasure().to_module_fullname());
+            let subs = sk_module.specialized_supers(sup.type_args());
+            stack.extend(subs.into_iter().rev());
+            v.push(sup);
+        }
+        Ok(v)
+    }
+
+    /// Raise error if methods of a module conflict with those of its
+    /// prerequisite modules, or methods of prerequisite modules conflict
+    /// with each other.
+    fn _check_module_method_conflicts(
+        &self,
+        fullname: &ModuleFullname,
+        supers: &[Supertype],
+        instance_methods: &MethodSignatures,
+        requirements: &[MethodSignature],
+    ) -> Result<()> {
+        if supers.is_empty() {
+            return Ok(());
+        }
+        let mut owners: HashMap<MethodFirstname, Erasure> = HashMap::new();
+        for sup in self._all_module_supers(fullname, supers)? {
+            let sk_module = self.get_module(&sup.erasure().to_module_fullname());
+            for sig in sk_module.base.method_sigs.iter() {
+                let name = &sig.fullname.first_name;
+                if let Some(owner) = owners.get(name) {
+                    return Err(error::program_error(format!(
+                        "method `{}' of module `{}' conflicts with the one of `{}' \
+                         (both are required by `{}')",
+                        name,
+                        sup.erasure(),
+                        owner,
+                        fullname
+                    )));
+                }
+                owners.insert(name.clone(), sup.erasure());
+            }
+        }
+        let own_methods = instance_methods.iter().chain(requirements.iter());
+        for sig in own_methods {
+            let name = &sig.fullname.first_name;
+            if let Some(owner) = owners.get(name) {
+                return Err(error::program_error(format!(
+                    "module `{}' cannot define method `{}' because it is defined in \
+                     the prerequisite module `{}'",
+                    fullname, name, owner
+                )));
+            }
+        }
         Ok(())
     }
 
@@ -603,12 +742,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 shiika_ast::Definition::ModuleDefinition {
                     name,
                     typarams,
+                    supers,
                     defs,
                 } => {
                     self.index_module(
                         namespace,
                         name,
                         self.resolve_typarams(namespace, typarams, Default::default())?,
+                        supers,
                         defs,
                         rust_methods,
                     )?;
@@ -782,6 +923,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         namespace: &Namespace,
         fullname: &ModuleFullname,
         typarams: &[ty::TyParam],
+        supers: Vec<Supertype>,
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
         requirements: Vec<MethodSignature>,
@@ -797,6 +939,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &None,
             rust_methods,
         )?);
+        self._check_module_method_conflicts(fullname, &supers, &instance_methods, &requirements)?;
         let sk_type = {
             if self.known(&fullname_) {
                 // predefined as bootstrap
@@ -807,10 +950,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     method_sigs: Default::default(),
                     foreign: false,
                 };
-                self.add_type(SkModule::new(base, requirements));
+                self.add_type(SkModule::new(base, requirements, vec![]));
             }
             self.sk_types.types.get_mut(&fullname_).unwrap()
         };
+        // May not be a module when predefined as bootstrap
+        // (eg. `Shiika::Internal::Ptr` is a class)
+        if let SkType::Module(sk_module) = sk_type {
+            sk_module.supers = supers;
+        }
         sk_type.base_mut().method_sigs.append(instance_methods);
 
         // Register its metaclass
@@ -1102,4 +1250,12 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         is_rust: false,
     });
     MethodSignatures::from_iterator(iter)
+}
+
+/// Create a program error with a label on `locs`
+fn located_error(msg: String, locs: &LocationSpan) -> anyhow::Error {
+    let report = skc_error::build_report(msg.clone(), locs, |r, span| {
+        r.with_label(Label::new(span).with_message(msg))
+    });
+    error::program_error(report)
 }

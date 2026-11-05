@@ -51,6 +51,8 @@ pub enum Definition {
     ModuleDefinition {
         name: ModuleFirstname,
         typarams: Vec<AstTyParam>,
+        /// Prerequisite modules (eg. `Equatable<X>` of `module Comparable<X> : Equatable<X>`)
+        supers: Vec<UnresolvedTypeName>,
         defs: Vec<Definition>,
     },
     EnumDefinition {

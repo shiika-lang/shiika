@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/variance.sk
+---
+Error: covariant type parameter `X' appears in contravariant position
+   ╭─[tests/erroneous/supermodule/variance.sk:4:19]
+   │
+ 4 │ module M<out X> : Eq<X>
+   │                   ──┬──  
+   │                     ╰──── covariant type parameter `X' appears in contravariant position
+───╯

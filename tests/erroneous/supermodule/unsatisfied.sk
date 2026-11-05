@@ -1,0 +1,11 @@
+module Eq<in X>
+  requirement eq(other: X) -> Bool
+end
+module Cmp<in X> : Eq<X>
+  requirement lt(other: X) -> Bool
+end
+class Foo : Cmp<Foo>
+  def lt(other: Foo) -> Bool
+    true
+  end
+end

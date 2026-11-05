@@ -1,0 +1,8 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/unsatisfied.sk
+---
+class `Foo' includes `Cmp<Foo>' but it requires `Eq<Foo>'
+  hint: add `Eq<Foo>' to the supers of `Foo'

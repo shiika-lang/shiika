@@ -120,8 +120,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     );
                 }
             }
-            SkType::Module(_) => {
-                // TODO: Look up in supermodule, once it's implemented
+            SkType::Module(sk_module) => {
+                // Look up in prerequisite modules
+                if let Some(found) =
+                    self.lookup_in_module_supers(sk_module, class_tyargs, method_name)
+                {
+                    return Ok(found);
+                }
                 // Lookup in Object (the top type)
                 return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
             }
@@ -133,6 +138,31 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             ),
             locs,
         ))
+    }
+
+    /// Look up a method in the prerequisite modules of `sk_module`
+    /// (depth-first, in the declared order). `tyargs` are the type
+    /// arguments of `sk_module`.
+    fn lookup_in_module_supers(
+        &self,
+        sk_module: &SkModule,
+        tyargs: &[TermTy],
+        method_name: &MethodFirstname,
+    ) -> Option<FoundMethod> {
+        for sup in sk_module.specialized_supers(tyargs) {
+            let fullname = sup.erasure().to_type_fullname();
+            if let Some(mut found) = self.find_method(&fullname, method_name) {
+                found.specialize(sup.type_args(), Default::default());
+                return Some(found);
+            }
+            let sup_module = self.get_module(&sup.erasure().to_module_fullname());
+            if let Some(found) =
+                self.lookup_in_module_supers(sup_module, sup.type_args(), method_name)
+            {
+                return Some(found);
+            }
+        }
+        None
     }
 
     /// Return the class/module of the specified name, if any

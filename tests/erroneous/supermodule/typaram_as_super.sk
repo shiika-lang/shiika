@@ -1,0 +1,2 @@
+module M<X> : X
+end

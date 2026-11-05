@@ -41,7 +41,8 @@ _conforms to_ `T`. `S` conforms to `T` if:
 - `S` is `Never`, or
 - `T` is an ancestor of `S`, i.e. one of:
   - the superclass of `S` (transitively),
-  - a module included by `S` or its ancestors.
+  - a module included by `S` or its ancestors,
+  - a prerequisite module of `S` (transitively) when `S` is a module.
 
 Note that generic types are invariant by default: `Array<Int>` does
 not conform to `Array<Object>`.

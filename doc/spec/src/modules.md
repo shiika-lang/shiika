@@ -78,3 +78,54 @@ class Array<T> : Enumerable<T>
   ...
 end
 ```
+
+## Prerequisite modules
+
+A module may list other modules after `:` in its definition. They are
+_prerequisite modules_ of the module.
+
+```sk
+module Equatable<in X>
+  requirement ==(other: X) -> Bool
+end
+
+module Comparable<in X> : Equatable<X>
+  requirement <(other: X) -> Bool
+
+  def <=(other: X) -> Bool
+    self == other or self < other   # ok; `==` of Equatable
+  end
+end
+```
+
+`module M1 : M2` means "a class which includes `M1` must also conform to
+`M2`".
+
+- Including `M1` does **not** include `M2` automatically. The including
+  class (or one of its ancestors) must include `M2` by itself; otherwise
+  it is a compile-time error.
+
+  ```sk
+  class Int : Comparable<Int>, Equatable<Int>  # ok
+  class Foo : Comparable<Foo>                  # error: Comparable<Foo> requires Equatable<Foo>
+  ```
+
+  This is checked with conformance, so the prerequisite may be satisfied
+  by a superclass or via variance (eg. `Dog` conforms to
+  `Equatable<Dog>` if its superclass `Animal` includes
+  `Equatable<Animal>` and the type parameter of `Equatable` is `in`).
+- `M1<A>` conforms to the prerequisite modules of `M1` (with the type
+  arguments substituted), transitively. Therefore the methods of `M2`
+  can be called on a value of type `M1` (including `self` in the method
+  definitions of `M1`, and a value of a type parameter whose upper bound
+  is `M1`).
+- Only modules can be listed. A class or a type parameter is not
+  allowed, nor is the module itself.
+- A prerequisite module must be defined before the module.
+- A module must not define a method whose name is also defined in its
+  prerequisite modules (transitively). Prerequisite modules must not
+  have methods of the same name with each other, unless they come from
+  the same module (eg. `M1 : M2, M3` where both `M2` and `M3` require
+  `M0`).
+- The same module must not be required with different type arguments
+  (eg. both `M0<Int>` and `M0<String>`).
