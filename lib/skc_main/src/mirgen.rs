@@ -2,7 +2,7 @@ mod constants;
 mod lambda;
 mod pattern_match;
 mod prepare_asyncness;
-pub mod wtables;
+mod wtables;
 use crate::build;
 use crate::codegen;
 use crate::gensym;
@@ -29,6 +29,8 @@ pub fn run(
 
     log::debug!("Building VTables");
     let vtables = skc_mir::VTables::build(&uni.hir.sk_types, &uni.imports);
+
+    let (wtables, adapters) = wtables::build(&uni.hir.sk_types, &uni.imports.sk_types);
 
     let classes = convert_classes(&uni);
 
@@ -92,10 +94,7 @@ pub fn run(
             }
         }
 
-        funcs.extend(wtables::adapter_funcs(
-            &uni.hir.sk_types,
-            &uni.imports.sk_types,
-        ));
+        funcs.extend(adapters);
 
         log::debug!("Converting top exprs");
         let main_exprs = uni.hir.main_exprs;
@@ -126,6 +125,7 @@ pub fn run(
         program,
         sk_types: uni.hir.sk_types,
         vtables,
+        wtables,
         imported_constants: uni.imports.constants.into_iter().collect(),
         imported_vtables: uni.imports.vtables,
         imported_sk_types: uni.imports.sk_types,

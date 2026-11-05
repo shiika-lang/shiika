@@ -55,12 +55,7 @@ pub fn run<P: AsRef<Path>>(
     }
 
     let _method_funcs_ = gen.compile_program(mir.program.funcs);
-    wtable::init_constants(
-        &mut gen,
-        &mir.sk_types,
-        &mir.imported_sk_types,
-        _method_funcs_,
-    );
+    wtable::init_constants(&mut gen, &mir.wtables, _method_funcs_);
     vtable::define_body(&mut gen, &mir.vtables, _method_funcs_);
 
     sanity_check::run(&gen.module)?;

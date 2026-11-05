@@ -6,7 +6,10 @@ pub mod visitor;
 use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
 pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
-use shiika_core::{names::ConstFullname, ty::TermTy};
+use shiika_core::{
+    names::{ClassFullname, ConstFullname, ModuleFullname},
+    ty::TermTy,
+};
 use skc_hir::{MethodSignature, SkTypes};
 use skc_mir::VTables;
 use std::fmt;
@@ -24,9 +27,18 @@ pub struct CompilationUnit {
     pub program: Program,
     pub sk_types: SkTypes,
     pub vtables: VTables,
+    pub wtables: Vec<WTable>,
     pub imported_constants: Vec<(ConstFullname, TermTy)>,
     pub imported_vtables: VTables,
     pub imported_sk_types: SkTypes,
+}
+
+/// A local witness table whose slots have been resolved during MIR generation.
+#[derive(Debug, Clone)]
+pub struct WTable {
+    pub class: ClassFullname,
+    pub module: ModuleFullname,
+    pub funcs: Vec<FunctionName>,
 }
 
 #[derive(Debug, Clone)]

@@ -32,42 +32,37 @@ pub fn wtable_fun_ty(module_sig: &MethodSignature) -> mir::FunTy {
     super::build_fun_ty(module_sig)
 }
 
-/// Returns the function to put in the wtable slot `idx` of `module` of
-/// `sk_class`. Usually it is the implementation itself, but when the ABI of
-/// the implementation differs from that of the slot (eg. `class F : N<Int>`
-/// with `def get -> Int`, which returns a raw i64), returns the adapter which
-/// converts the representation.
-pub fn slot_func_name(
+/// Resolve local wtable slots and generate their ABI adapters together.
+/// Codegen consumes these function names without repeating ABI decisions.
+pub fn build(
     sk_types: &SkTypes,
     imported_sk_types: &SkTypes,
-    sk_class: &SkClass,
-    module: &ModuleFullname,
-    idx: usize,
-) -> FunctionName {
-    let (module_sig, impl_sig) = slot_sigs(sk_types, imported_sk_types, sk_class, module, idx);
-    if needs_adapter(module_sig, impl_sig) {
-        adapter_name(&sk_class.fullname(), module, idx)
-    } else {
-        FunctionName::from_sig(impl_sig)
-    }
-}
-
-/// Build the adapters needed for the wtables of the classes in `sk_types`.
-pub fn adapter_funcs(sk_types: &SkTypes, imported_sk_types: &SkTypes) -> Vec<mir::Function> {
-    let mut funcs = vec![];
+) -> (Vec<mir::WTable>, Vec<mir::Function>) {
+    let mut tables = vec![];
+    let mut adapters = vec![];
     for sk_class in sk_types.sk_classes() {
         for (module, methods) in &sk_class.wtable.0 {
+            let mut funcs = Vec::with_capacity(methods.len());
             for idx in 0..methods.len() {
                 let (module_sig, impl_sig) =
                     slot_sigs(sk_types, imported_sk_types, sk_class, module, idx);
-                if needs_adapter(module_sig, impl_sig) {
+                let name = if needs_adapter(module_sig, impl_sig) {
                     let name = adapter_name(&sk_class.fullname(), module, idx);
-                    funcs.push(build_adapter(name, module_sig, impl_sig));
-                }
+                    adapters.push(build_adapter(name.clone(), module_sig, impl_sig));
+                    name
+                } else {
+                    FunctionName::from_sig(impl_sig)
+                };
+                funcs.push(name);
             }
+            tables.push(mir::WTable {
+                class: sk_class.fullname(),
+                module: module.clone(),
+                funcs,
+            });
         }
     }
-    funcs
+    (tables, adapters)
 }
 
 /// Returns the signature of the module method and that of its implementation
