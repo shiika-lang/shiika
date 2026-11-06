@@ -1,0 +1,4 @@
+class Foo
+end
+module M : Foo
+end

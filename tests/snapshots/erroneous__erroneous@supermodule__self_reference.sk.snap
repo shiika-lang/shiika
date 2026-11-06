@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/self_reference.sk
+---
+Error: module `M' cannot require itself
+   ╭─[tests/erroneous/supermodule/self_reference.sk:1:12]
+   │
+ 1 │ module M : M
+   │            ┬  
+   │            ╰── module `M' cannot require itself
+───╯

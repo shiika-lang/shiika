@@ -27,7 +27,7 @@ pub fn conforms(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
                 let mod1 = c.get_type(&raw1.erasure().to_type_fullname()).is_module();
                 let mod2 = c.get_type(&raw2.erasure().to_type_fullname()).is_module();
                 match (mod1, mod2) {
-                    (true, true) => false,
+                    (true, true) => module_conforms_to_module(c, raw1, raw2),
                     (true, false) => module_conforms_to_class(c, ty1, ty2),
                     (false, true) => class_conforms_to_module(c, ty1, raw2),
                     (false, false) => class_conforms_to_class(c, ty1, ty2),
@@ -170,4 +170,17 @@ fn ancestor_types(class_dict: &ClassDict, ty: &TermTy) -> Vec<TermTy> {
         v.push(tt);
     }
     v
+}
+
+/// Return true if the module `m1` (eg. `Comparable<Int>`) is `m2` (modulo
+/// variance) or requires `m2` (eg. `Equatable<Int>`) directly or indirectly.
+fn module_conforms_to_module(c: &ClassDict, m1: &LitTy, m2: &LitTy) -> bool {
+    if m1.base_name == m2.base_name && m1.is_meta == m2.is_meta {
+        return m1 == m2 || tyargs_conform(c, &m1.to_term_ty(), &m2.to_term_ty());
+    }
+    let sk_module = c.get_module(&m1.erasure().to_module_fullname());
+    sk_module
+        .specialized_supers(&m1.type_args)
+        .iter()
+        .any(|sup| module_conforms_to_module(c, sup.ty(), m2))
 }

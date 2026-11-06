@@ -131,11 +131,15 @@ impl<'a> Parser<'a> {
         // Type parameters (optional)
         let typarams = self.parse_opt_typarams()?;
 
-        // Module does not have a superclass
+        // Prerequisite modules (optional)
         self.skip_ws()?;
-        if self.current_token_is(Token::Colon) {
-            return Err(parse_error!(self, "modules does not have superclass"));
-        }
+        let supers = if self.current_token_is(Token::Colon) {
+            self.consume_token()?;
+            self.skip_ws()?;
+            self.parse_superclass_and_modules()?
+        } else {
+            vec![]
+        };
         self.expect_sep()?;
 
         // Internal definitions
@@ -160,6 +164,7 @@ impl<'a> Parser<'a> {
         Ok(shiika_ast::Definition::ModuleDefinition {
             name,
             typarams,
+            supers,
             defs,
         })
     }

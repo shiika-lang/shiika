@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/supers_method_conflict.sk
+---
+method `foo' of module `M3' conflicts with the one of `M2' (both are required by `M1')

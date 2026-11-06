@@ -1,0 +1,9 @@
+module M0<X>
+  requirement get -> X
+end
+module M2 : M0<Int>
+end
+module M3 : M0<String>
+end
+module M1 : M2, M3
+end

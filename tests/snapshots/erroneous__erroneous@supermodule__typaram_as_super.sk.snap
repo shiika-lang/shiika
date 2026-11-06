@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/typaram_as_super.sk
+---
+Error: type parameter `X' cannot be a prerequisite module
+   ╭─[tests/erroneous/supermodule/typaram_as_super.sk:1:15]
+   │
+ 1 │ module M<X> : X
+   │               ┬  
+   │               ╰── type parameter `X' cannot be a prerequisite module
+───╯

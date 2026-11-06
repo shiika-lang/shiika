@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/method_conflict.sk
+---
+module `M1' cannot define method `foo' because it is defined in the prerequisite module `M0'

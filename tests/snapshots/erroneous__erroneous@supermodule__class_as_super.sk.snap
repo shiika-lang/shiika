@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/supermodule/class_as_super.sk
+---
+Error: module cannot have a superclass: `Foo' is a class
+   ╭─[tests/erroneous/supermodule/class_as_super.sk:3:12]
+   │
+ 3 │ module M : Foo
+   │            ─┬─  
+   │             ╰─── module cannot have a superclass: `Foo' is a class
+───╯

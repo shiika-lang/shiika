@@ -57,6 +57,38 @@ end
 A.make.greet
 ```
 
+## Prerequisite modules
+
+A module can declare that it builds on other modules by listing them
+after `:`. The methods of those modules can then be used in the module.
+
+```sk
+module Named
+  requirement name -> String
+end
+
+module Greetable : Named
+  def greet
+    puts "Hello, #{name}!"   # `name` comes from Named
+  end
+end
+```
+
+Note that a prerequisite module is not included automatically. A class
+including `Greetable` must include `Named` too (or inherit it from its
+superclass):
+
+```sk
+class Person : Greetable, Named
+  def initialize(@name: String); end
+end
+```
+
+Forgetting `Named` is a compile error. A value of type `Greetable` can
+also be passed where `Named` is expected.
+
+See the [language spec](../../spec/src/modules.md) for the details.
+
 ## Example: Enumerable
 
 The core library module `Enumerable<E>` is a good example. It requires

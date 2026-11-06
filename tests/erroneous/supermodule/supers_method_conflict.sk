@@ -1,0 +1,8 @@
+module M2
+  requirement foo -> Int
+end
+module M3
+  requirement foo -> Int
+end
+module M1 : M2, M3
+end
