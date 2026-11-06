@@ -4,6 +4,7 @@
 *.bc
 *.s
 *.dSYM
+/.envrc
 /builtin/exports.json
 /coverage
 /examples/*.actual.*
