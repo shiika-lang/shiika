@@ -24,6 +24,9 @@ base class Object
   # Reads a line form stdin.
   # def gets -> Result<String>
 
+  # Returns true if `other` is the same object as `self`.
+  # def identical?(other: Object) -> Bool
+
   def hash -> Int
     0 # TODO: Use the pointer address
   end

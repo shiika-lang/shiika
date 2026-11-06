@@ -1,0 +1,36 @@
+class Foo
+  def initialize; end
+end
+
+class Main
+  def self.none -> Maybe<Int>
+    None
+  end
+
+  def self.run()
+    let a = Foo.new
+    let b = Foo.new
+    unless a.identical?(a)
+      puts "ng: identical? self"
+    end
+    if a.identical?(b)
+      puts "ng: identical? other object"
+    end
+
+    let s = "x"
+    unless s.identical?(s)
+      puts "ng: identical? string"
+    end
+
+    # Constant enum case match uses Object#identical?
+    let m = match Main.none
+            when Some(v) then 1
+            when None then 2
+            end
+    unless m == 2
+      puts "ng: match None"
+    end
+  end
+end
+Main.run
+puts "ok"
