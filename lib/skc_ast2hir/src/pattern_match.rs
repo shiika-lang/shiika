@@ -380,7 +380,7 @@ fn extract_props(
 
 /// Create `expr.class == cls`
 /// If the pattern is a constant enum case (eg. `Maybe::None`), create
-/// `Object#==(expr, None)` instead.
+/// `Object#identical?(None, expr)` instead.
 fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirExpression {
     let pat_erasure = pat_ty.erasure();
     let t = mk.class_dict.get_class(&pat_erasure.to_class_fullname());
@@ -393,7 +393,7 @@ fn test_class(mk: &mut HirMaker, value: &HirExpression, pat_ty: &TermTy) -> HirE
         Hir::method_call(
             ty::raw("Bool"),
             const_ref,
-            method_fullname_raw("Object", "=="),
+            method_fullname_raw("Object", "identical?"),
             vec![value.clone()],
             Default::default(),
             true,

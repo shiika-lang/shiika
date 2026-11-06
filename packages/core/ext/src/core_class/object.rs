@@ -9,6 +9,12 @@ async fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
     (receiver.as_raw_u64() == other.as_raw_u64()).into()
 }
 
+/// Returns true if `other` is the same object as the receiver.
+#[async_shiika_method("Object#identical?")]
+async fn object_identical(receiver: SkObject, other: SkObject) -> SkBool {
+    (receiver.as_raw_u64() == other.as_raw_u64()).into()
+}
+
 #[async_shiika_method("Object#class")]
 async fn object_class(receiver: SkObject) -> SkClass {
     receiver.class()
