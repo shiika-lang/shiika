@@ -1,0 +1,3 @@
+module M
+  requirement foo(others: Array<Self>)
+end

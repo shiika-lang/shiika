@@ -1,0 +1,8 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+class A : Eq
+  def eq?(other: Int) -> Bool
+    true
+  end
+end

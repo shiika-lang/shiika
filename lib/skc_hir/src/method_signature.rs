@@ -80,6 +80,22 @@ impl MethodSignature {
         }
     }
 
+    /// Replace `Self` (of a module) in the signature with `self_ty`
+    pub fn replace_self(&self, self_ty: &TermTy) -> MethodSignature {
+        MethodSignature {
+            ret_ty: self.ret_ty.replace_self(self_ty),
+            params: self
+                .params
+                .iter()
+                .map(|param| MethodParam {
+                    ty: param.ty.replace_self(self_ty),
+                    ..param.clone()
+                })
+                .collect(),
+            ..self.clone()
+        }
+    }
+
     /// Returns true if `self` is the same as `other` except the
     /// parameter names.
     pub fn equivalent_to(&self, other: &MethodSignature) -> bool {

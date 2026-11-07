@@ -1,0 +1,8 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/narrowed_in_subclass.sk
+---
+signature does not match:
+  class': Square#eq?(other: Square) -> Bool
+  module's: Eq#eq?(other: Shape) -> Bool

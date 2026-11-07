@@ -986,6 +986,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
         let cls_ty = typaram_ref.to_term_ty();
         match typaram_ref.kind {
+            TyParamKind::SelfType => {
+                // `lookup_typaram` never returns `Self`
+                panic!("[BUG] tvar_ref for `Self' is not supported")
+            }
             TyParamKind::Class => {
                 let base_ty = self.ctx_stack.self_ty().erasure_ty();
                 Hir::class_tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone())
