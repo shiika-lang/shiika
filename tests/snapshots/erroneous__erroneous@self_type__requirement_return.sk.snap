@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/requirement_return.sk
+---
+Error: `Self' appears in covariant position of a method requirement (it may only appear in contravariant positions, eg. parameter types)
+   ╭─[tests/erroneous/self_type/requirement_return.sk:2:22]
+   │
+ 2 │   requirement dup -> Self
+   │                      ──┬─  
+   │                        ╰─── `Self' appears in covariant position of a method requirement (it may only appear in contravariant positions, eg. parameter types)
+───╯

@@ -1,0 +1,3 @@
+module M
+  requirement foo(other: Self<Int>)
+end

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/with_type_args.sk
+---
+Error: `Self' does not take type arguments
+   ╭─[tests/erroneous/self_type/with_type_args.sk:2:26]
+   │
+ 2 │   requirement foo(other: Self<Int>)
+   │                          ────┬────  
+   │                              ╰────── `Self' does not take type arguments
+───╯

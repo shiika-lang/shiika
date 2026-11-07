@@ -1,0 +1,8 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/unsatisfied.sk
+---
+signature does not match:
+  class': A#eq?(other: Int) -> Bool
+  module's: Eq#eq?(other: A) -> Bool

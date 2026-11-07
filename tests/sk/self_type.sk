@@ -1,0 +1,94 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+
+  # A default implementation can call a requirement with `Self`
+  def neq?(other: Self) -> Bool
+    not eq?(other)
+  end
+end
+
+class Point : Eq
+  def initialize(@x: Int, @y: Int); end
+  def eq?(other: Point) -> Bool
+    @x == other.x and @y == other.y
+  end
+end
+
+# The requirement is satisfied by the method of the superclass
+base class Animal
+  def initialize(@name: String); end
+  def eq?(other: Animal) -> Bool
+    @name == other.name
+  end
+end
+class Dog : Animal, Eq
+end
+
+# A subclass of the includer overrides the method (it must accept the includer)
+base class Shape : Eq
+  def initialize(@n: Int); end
+  def eq?(other: Shape) -> Bool
+    @n == other.n
+  end
+end
+class Square : Shape
+  def eq?(other: Shape) -> Bool
+    true
+  end
+end
+
+# Generic class
+class Box<T> : Eq
+  def initialize(@v: T); end
+  def eq?(other: Box<T>) -> Bool
+    true
+  end
+end
+
+# A module with type parameters
+module Holder<X>
+  requirement hold(x: X, other: Self) -> X
+end
+class IntHolder : Holder<Int>
+  def hold(x: Int, other: IntHolder) -> Int
+    x + 1
+  end
+end
+
+class Main
+  def self.run()
+    unless Point.new(1, 2).eq?(Point.new(1, 2))
+      puts "ng: Point#eq?"
+    end
+    unless Point.new(1, 2).neq?(Point.new(1, 3))
+      puts "ng: Point#neq?"
+    end
+    if Point.new(1, 2).neq?(Point.new(1, 2))
+      puts "ng: Point#neq? (equal)"
+    end
+
+    if Dog.new("a").neq?(Dog.new("a"))
+      puts "ng: Dog#neq?"
+    end
+    unless Dog.new("a").neq?(Dog.new("b"))
+      puts "ng: Dog#neq? (different)"
+    end
+
+    if Square.new(1).neq?(Square.new(2))
+      puts "ng: Square#neq?"
+    end
+    unless Shape.new(1).neq?(Shape.new(2))
+      puts "ng: Shape#neq?"
+    end
+
+    if Box<Int>.new(1).neq?(Box<Int>.new(2))
+      puts "ng: Box#neq?"
+    end
+
+    unless IntHolder.new.hold(1, IntHolder.new) == 2
+      puts "ng: IntHolder#hold"
+    end
+  end
+end
+Main.run
+puts "ok"

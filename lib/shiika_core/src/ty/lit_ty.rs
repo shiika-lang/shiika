@@ -70,6 +70,16 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), args, self.is_meta)
     }
 
+    /// Replace `Self` (of a module) in the type arguments with `self_ty`
+    pub fn replace_self(&self, self_ty: &TermTy) -> LitTy {
+        let args = self
+            .type_args
+            .iter()
+            .map(|t| t.replace_self(self_ty))
+            .collect();
+        LitTy::new(self.base_name.clone(), args, self.is_meta)
+    }
+
     /// Returns a serialized string which can be parsed by `parse_lit_ty`
     pub fn serialize(&self) -> String {
         let meta = if self.is_meta && self.base_name != "Metaclass" {

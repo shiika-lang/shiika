@@ -208,6 +208,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<()> {
+        check_reserved_type_name(&firstname.0)?;
         let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
         let (superclass, includes) = if fullname.0 == "Object" {
@@ -322,6 +323,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<()> {
+        check_reserved_type_name(&firstname.0)?;
         let fullname = namespace.module_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let supers = self._resolve_module_supers(namespace, &fullname, &typarams, supers)?;
@@ -516,6 +518,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<()> {
+        check_reserved_type_name(&firstname.0)?;
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
         let (instance_methods, class_methods) = self.index_defs_in_class(
@@ -674,6 +677,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 | shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
+                    let prev = self.set_self_ty(
+                        is_module.then(|| ClassDict::module_self_ty(&fullname, typarams)),
+                    );
                     let hir_sig = self.create_maybe_virtual_signature(
                         inheritable || is_module,
                         namespace,
@@ -682,7 +688,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         typarams,
                         superclass,
                         false,
-                    )?;
+                    );
+                    self.set_self_ty(prev);
+                    let hir_sig = hir_sig?;
                     crate::type_system::variance::check_method_signature(
                         self, typarams, sig, &hir_sig,
                     )?;
@@ -756,6 +764,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
                 shiika_ast::Definition::MethodRequirementDefinition { sig } => {
                     if is_module {
+                        let prev =
+                            self.set_self_ty(Some(ClassDict::module_self_ty(&fullname, typarams)));
                         let hir_sig = self.create_signature(
                             namespace,
                             fullname.clone(),
@@ -763,9 +773,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                             typarams,
                             false,
                             false,
-                        )?;
+                        );
+                        self.set_self_ty(prev);
+                        let hir_sig = hir_sig?;
                         crate::type_system::variance::check_method_signature(
                             self, typarams, sig, &hir_sig,
+                        )?;
+                        crate::type_system::variance::check_self_in_requirement(
+                            self, sig, &hir_sig,
                         )?;
                         requirements.push(hir_sig);
                     } else {
@@ -831,7 +846,20 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &c.superclass,
             rust_methods,
         )?);
-        let wtable = build_wtable(self, &c.instance_methods, &c.superclass, &c.includes)?;
+        let class_ty = ty::nonmeta(
+            &c.fullname.0,
+            ty::typarams_to_typaram_refs(&c.typarams, TyParamKind::Class, false)
+                .into_iter()
+                .map(|t| t.into_term_ty())
+                .collect(),
+        );
+        let wtable = build_wtable(
+            self,
+            &class_ty,
+            &c.instance_methods,
+            &c.superclass,
+            &c.includes,
+        )?;
 
         let sk_type = {
             if self.known(&fullname_) {
@@ -1090,6 +1118,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         method_typarams: &[ty::TyParam],
         name: &UnresolvedTypeName,
     ) -> Result<TermTy> {
+        if name.names.len() == 1 && name.names[0] == "Self" {
+            return self.resolve_self_type(name);
+        }
         // Check it is a typaram
         if name.args.is_empty() && name.names.len() == 1 {
             let s = name.names.first().unwrap();
@@ -1121,6 +1152,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             checks.push((ty.clone(), name.locs.clone()));
         }
         Ok(ty)
+    }
+
+    /// Resolve `Self`
+    fn resolve_self_type(&self, name: &UnresolvedTypeName) -> Result<TermTy> {
+        let msg = if !name.args.is_empty() {
+            "`Self' does not take type arguments"
+        } else if let Some(t) = self.self_ty.borrow().as_ref() {
+            return Ok(t.clone());
+        } else {
+            "`Self' can only be used in the instance methods of a module"
+        };
+        Err(located_error(msg.to_string(), &name.locs))
     }
 
     /// Resolve the given type name (without type arguments) to fullname
@@ -1250,6 +1293,16 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         is_rust: false,
     });
     MethodSignatures::from_iterator(iter)
+}
+
+/// `Self` is reserved for the type of a module's includer
+fn check_reserved_type_name(name: &str) -> Result<()> {
+    if name == "Self" {
+        return Err(error::program_error(
+            "`Self' is reserved and cannot be used as a class, module or enum name",
+        ));
+    }
+    Ok(())
 }
 
 /// Create a program error with a label on `locs`
