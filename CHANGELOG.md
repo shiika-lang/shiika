@@ -1,3 +1,18 @@
+## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.10.0...v0.10.1) - 2026-11-07
+
+- Fix class-level instance variables by @yhara in https://github.com/shiika-lang/shiika/pull/628
+- Unbox Int and Bool by @yhara in https://github.com/shiika-lang/shiika/pull/629
+- Lower sync Void methods to `ret void` by @yhara in https://github.com/shiika-lang/shiika/pull/630
+- change: Use `break` to escapes from a fn by @yhara in https://github.com/shiika-lang/shiika/pull/631
+- Add variance checking and type parameter upper bounds by @yhara in https://github.com/shiika-lang/shiika/pull/632
+- chore: Add more source locations to compiler diagnostics by @yhara in https://github.com/shiika-lang/shiika/pull/634
+- fix: Do not generate setters for readonly instance variables by @yhara in https://github.com/shiika-lang/shiika/pull/635
+- fix: Inherit wtable columns from superclasses by @yhara in https://github.com/shiika-lang/shiika/pull/637
+- Merge v0.10 into main by @yhara in https://github.com/shiika-lang/shiika/pull/639
+- fix: Use declared ABI for module method calls by @yhara in https://github.com/shiika-lang/shiika/pull/640
+- feat(lang): Prerequisite modules (module M1 : M2) by @yhara in https://github.com/shiika-lang/shiika/pull/641
+- chore: use direnv for git worktree by @yhara in https://github.com/shiika-lang/shiika/pull/642
+
 ## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-10-24
 
 This is the first release with the new runtime for concurrency (#545, #587). v0.10.x will have features to use it (spawning new tasks, etc.)
