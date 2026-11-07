@@ -57,7 +57,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // For error messages
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
-        self.lookup_method_(receiver_type, receiver_type, method_name, locs)
+        self.lookup_method_(receiver_type, receiver_type, false, method_name, locs)
     }
 
     pub fn try_lookup_method(
@@ -68,6 +68,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.lookup_method_(
             receiver_type,
             receiver_type,
+            false,
             method_name,
             &LocationSpan::todo(),
         )
@@ -75,10 +76,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     // `receiver_type` is for error message.
+    // `in_superclass` is true if `current_type` is a superclass of the receiver.
+    //
+    // `Self` in the signature of a module method is replaced as follows:
+    // - Found via a class: `Self` is the class which includes the module
+    //   (eg. `Animal` for `dog.neq?(...)` where `Animal : Eq`)
+    // - Found via a typaram whose upper bound is the module (including `Self`
+    //   itself): `Self` is the typaram
+    // - Found via a module-typed value: not replaced (TODO)
     fn lookup_method_(
         &self,
         receiver_type: &TermTy,
         current_type: &TermTy,
+        in_superclass: bool,
         method_name: &MethodFirstname,
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
@@ -94,9 +104,22 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
-        if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
+        // What `Self` of the module methods found below is replaced with
+        let module_self = if current_type.is_typaram_ref() {
+            Some(current_type.clone())
+        } else {
+            None
+        };
+        if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            if in_superclass {
+                // Found in a superclass (eg. `G<String>` of `class H : G<String>`).
+                // Its type arguments are already expressed in terms of the receiver.
+                found.specialize(class_tyargs, Default::default());
+            }
+            if let Some(t) = &module_self {
+                found.replace_self(t);
+            }
             return Ok(found);
-            //return Ok(specialized_version(found, receiver_type, class_tyargs));
         }
         match sk_type {
             SkType::Class(sk_class) => {
@@ -107,6 +130,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     {
                         let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
                         found.specialize(&mod_tyargs, Default::default());
+                        // `Self` is this class (the includer)
+                        let includer = ty::new(&erasure.base_name, class_tyargs.to_vec(), false);
+                        found.replace_self(&includer);
                         return Ok(found);
                     }
                 }
@@ -115,6 +141,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     return self.lookup_method_(
                         receiver_type,
                         &super_ty.to_term_ty(),
+                        true,
                         method_name,
                         locs,
                     );
@@ -122,13 +149,23 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             SkType::Module(sk_module) => {
                 // Look up in prerequisite modules
-                if let Some(found) =
+                if let Some(mut found) =
                     self.lookup_in_module_supers(sk_module, class_tyargs, method_name)
                 {
+                    // `Self` of a prerequisite module is the same as that of `sk_module`
+                    if let Some(t) = &module_self {
+                        found.replace_self(t);
+                    }
                     return Ok(found);
                 }
                 // Lookup in Object (the top type)
-                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
+                return self.lookup_method_(
+                    receiver_type,
+                    &ty::raw("Object"),
+                    false,
+                    method_name,
+                    locs,
+                );
             }
         }
         Err(error::method_not_found(

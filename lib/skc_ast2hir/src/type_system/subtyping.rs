@@ -13,15 +13,28 @@ pub fn conforms(c: &ClassDict, ty1: &TermTy, ty2: &TermTy) -> bool {
     } else {
         match (&ty1.body, &ty2.body) {
             (TyBody::TyPara(ref1), TyBody::TyPara(ref2)) => {
-                ref1.upper_bound == ref2.upper_bound && ref1.lower_bound == ref2.lower_bound
+                if ref1.kind == ref2.kind && ref1.idx == ref2.idx && ref1.name == ref2.name {
+                    // Same typaram (bounds may differ in how they are written)
+                    true
+                } else {
+                    // A value of `ref1` conforms to `ref2` only if it is
+                    // known to be a subtype of the lower bound of `ref2`
+                    conforms(
+                        c,
+                        &ref1.upper_bound.to_term_ty(),
+                        &ref2.lower_bound.to_term_ty(),
+                    )
+                }
             }
             (TyBody::TyPara(ref1), _) => {
                 let u1 = ref1.upper_bound.to_term_ty();
                 conforms(c, &u1, ty2)
             }
             (_, TyBody::TyPara(ref2)) => {
-                let u2 = ref2.upper_bound.to_term_ty();
-                conforms(c, ty1, &u2)
+                // The actual type of `ref2` may be any type between its
+                // bounds, so `ty1` must conform to the lower bound
+                let l2 = ref2.lower_bound.to_term_ty();
+                conforms(c, ty1, &l2)
             }
             (TyBody::TyRaw(raw1), TyBody::TyRaw(raw2)) => {
                 let mod1 = c.get_type(&raw1.erasure().to_type_fullname()).is_module();

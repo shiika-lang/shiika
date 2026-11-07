@@ -2,6 +2,7 @@ pub mod block;
 mod lvar;
 mod method_call;
 pub mod params;
+use crate::class_dict::ClassDict;
 use crate::error;
 use crate::hir_maker::extract_lvars;
 use crate::hir_maker::HirMaker;
@@ -982,6 +983,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Err(error::program_error(report))
     }
 
+    /// Returns the type of `self`. In an instance method of a module, it is
+    /// `Self` of the module.
+    fn self_expr_ty(&self) -> TermTy {
+        let self_ty = self.ctx_stack.self_ty();
+        if self_ty.is_typaram_ref() || self_ty.is_metaclass() {
+            return self_ty;
+        }
+        let fullname = self_ty.erasure().to_type_fullname();
+        match self.class_dict.find_type(&fullname) {
+            Some(sk_type) if sk_type.is_module() => {
+                ClassDict::module_self_ty(&fullname, &sk_type.base().typarams)
+            }
+            _ => self_ty,
+        }
+    }
+
     /// Get the value of a class-wise or method-wise type argument.
     pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
         let cls_ty = typaram_ref.to_term_ty();
@@ -1205,7 +1222,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     fn convert_self_expr(&mut self, locs: &LocationSpan) -> HirExpression {
-        let self_ty = self.ctx_stack.self_ty();
+        let self_ty = self.self_expr_ty();
         if self.ctx_stack.lambda_ctx().is_none() {
             return Hir::self_expression(self_ty, locs.clone());
         }

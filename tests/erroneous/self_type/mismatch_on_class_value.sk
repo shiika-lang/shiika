@@ -1,0 +1,13 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+  def neq?(other: Self) -> Bool
+    not eq?(other)
+  end
+end
+class A : Eq
+  def eq?(other: A) -> Bool; true; end
+end
+class B : Eq
+  def eq?(other: B) -> Bool; true; end
+end
+A.new.neq?(B.new)

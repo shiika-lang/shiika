@@ -181,5 +181,16 @@ end
     def eq?(other: Square) -> Bool; ...; end   # error; must accept `Shape`
   end
   ```
+- When calling a method of a module, `Self` in its signature is replaced
+  as follows.
+  - On a value of a class: `Self` is the class which includes the module
+    (eg. for `x: Dog` where `Animal : Eq`, `x.neq?(y)` requires `y: Animal`).
+  - On a value of a type parameter whose upper bound is the module
+    (`x: T` where `T: Eq`): `Self` is the type parameter, so `x.neq?(y)`
+    requires `y: T`.
+  - In the instance methods of a module, `self` is of type `Self`.
+    Therefore `self` can be passed where `Self` is expected, but a value of
+    the module type cannot (it may be of a different class than `self`).
+  - The same applies to the methods of the prerequisite modules.
 - `Self` is reserved; it cannot be used as the name of a class, a module
   or an enum.

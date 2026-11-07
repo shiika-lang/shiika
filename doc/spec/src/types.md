@@ -42,7 +42,13 @@ _conforms to_ `T`. `S` conforms to `T` if:
 - `T` is an ancestor of `S`, i.e. one of:
   - the superclass of `S` (transitively),
   - a module included by `S` or its ancestors,
-  - a prerequisite module of `S` (transitively) when `S` is a module.
+  - a prerequisite module of `S` (transitively) when `S` is a module, or
+- `S` is a type parameter and its upper bound conforms to `T`.
+
+When `T` is a type parameter, `S` conforms to `T` only if `S` is `T`
+itself or `Never` (the actual type of `T` may be any type within its
+bounds), eg. a `String` cannot be passed to a parameter of type `T`
+even if the upper bound of `T` is `Object`.
 
 Note that generic types are invariant by default: `Array<Int>` does
 not conform to `Array<Object>`.

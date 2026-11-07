@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/mismatch_in_module_body.sk
+---
+Error: the argument `other' of `Eq#eq?' should be Self but got Eq
+   ╭─[tests/erroneous/self_type/mismatch_in_module_body.sk:5:9]
+   │
+ 5 │     eq?(other)
+   │         ──┬──  
+   │           ╰──── Eq
+───╯

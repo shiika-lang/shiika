@@ -55,7 +55,42 @@ class IntHolder : Holder<Int>
   end
 end
 
+# Prerequisite module
+module Ord : Eq
+  requirement lt?(other: Self) -> Bool
+
+  # `self` is `Self`, so it can be passed where `Self` is expected
+  def le?(other: Self) -> Bool
+    eq?(other) or lt?(other)
+  end
+  def gt?(other: Self) -> Bool
+    other.lt?(self)
+  end
+end
+class Num : Ord, Eq
+  def initialize(@n: Int); end
+  def eq?(other: Num) -> Bool
+    @n == other.n
+  end
+  def lt?(other: Num) -> Bool
+    @n < other.n
+  end
+end
+
 class Main
+  # Via a typaram: `Self` is `T`
+  def self.neq_t<T: Eq>(a: T, b: T) -> Bool
+    a.neq?(b)
+  end
+  # Methods of a prerequisite module via a typaram
+  def self.max_t<T: Ord>(a: T, b: T) -> T
+    if a.gt?(b) or a.eq?(b) then a else b end
+  end
+  # Via a typaram whose upper bound is a class: `Self` is the includer
+  def self.neq_shape<T: Shape>(a: T, b: Shape) -> Bool
+    a.neq?(b)
+  end
+
   def self.run()
     unless Point.new(1, 2).eq?(Point.new(1, 2))
       puts "ng: Point#eq?"
@@ -87,6 +122,25 @@ class Main
 
     unless IntHolder.new.hold(1, IntHolder.new) == 2
       puts "ng: IntHolder#hold"
+    end
+
+    unless Main.neq_t(Point.new(1, 2), Point.new(1, 3))
+      puts "ng: neq_t"
+    end
+    if Main.neq_t(Dog.new("a"), Dog.new("a"))
+      puts "ng: neq_t (Dog)"
+    end
+    unless Main.max_t(Num.new(1), Num.new(2)).n == 2
+      puts "ng: max_t"
+    end
+    unless Main.max_t(Num.new(3), Num.new(2)).n == 3
+      puts "ng: max_t (2)"
+    end
+    unless Num.new(1).le?(Num.new(1))
+      puts "ng: Num#le?"
+    end
+    if Main.neq_shape(Square.new(1), Shape.new(2))
+      puts "ng: neq_shape"
     end
   end
 end
