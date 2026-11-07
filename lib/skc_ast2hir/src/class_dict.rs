@@ -18,6 +18,9 @@ pub struct ClassDict<'hir_maker> {
     /// Disabled once indexing finishes; expression annotations are checked separately.
     pending_bound_checks:
         std::cell::RefCell<Option<Vec<(shiika_core::ty::TermTy, shiika_ast::LocationSpan)>>>,
+    /// The type `Self` refers to while resolving type names in a module's
+    /// instance method (or method requirement). `None` elsewhere.
+    self_ty: std::cell::RefCell<Option<shiika_core::ty::TermTy>>,
     /// List of classes (without method) collected prior to sk_types
     type_index: type_index::TypeIndex,
     /// Indexed classes.
@@ -34,6 +37,7 @@ pub fn new<'hir_maker>(
 ) -> ClassDict<'hir_maker> {
     ClassDict {
         pending_bound_checks: Default::default(),
+        self_ty: Default::default(),
         type_index,
         sk_types: Default::default(),
         imported_classes,
@@ -47,6 +51,7 @@ pub fn create<'hir_maker>(
 ) -> Result<ClassDict<'hir_maker>> {
     let mut dict = ClassDict {
         pending_bound_checks: Default::default(),
+        self_ty: Default::default(),
         type_index,
         sk_types: Default::default(),
         imported_classes,
@@ -56,6 +61,37 @@ pub fn create<'hir_maker>(
 }
 
 impl<'hir_maker> ClassDict<'hir_maker> {
+    /// Set the type which `Self` refers to while resolving type names.
+    /// Returns the previous one (to be restored by the caller).
+    pub fn set_self_ty(
+        &self,
+        ty: Option<shiika_core::ty::TermTy>,
+    ) -> Option<shiika_core::ty::TermTy> {
+        self.self_ty.replace(ty)
+    }
+
+    /// Returns `Self` of the module `fullname` (eg. `Self` whose upper bound
+    /// is `Foo<X>` for `module Foo<X>`). `typarams` are the (bound-resolved)
+    /// typarams of the module.
+    pub fn module_self_ty(
+        fullname: &TypeFullname,
+        typarams: &[shiika_core::ty::TyParam],
+    ) -> shiika_core::ty::TermTy {
+        let tyargs = shiika_core::ty::typarams_to_typaram_refs(
+            typarams,
+            shiika_core::ty::TyParamKind::Class,
+            false,
+        )
+        .into_iter()
+        .map(|t| t.into_term_ty())
+        .collect();
+        shiika_core::ty::self_type(shiika_core::ty::LitTy::new(
+            fullname.0.clone(),
+            tyargs,
+            false,
+        ))
+    }
+
     /// Define ivars of a class
     pub fn define_ivars(&mut self, classname: &ClassFullname, own_ivars: HashMap<String, SkIVar>) {
         let superclass = &self.get_class(classname).superclass.clone();

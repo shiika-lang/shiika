@@ -78,6 +78,20 @@ pub fn typarams_to_typaram_refs(
         .collect()
 }
 
+/// Create the type `Self` of the module `module_ty` (eg. `Comparable`).
+/// `module_ty` should have the module's own typarams as type arguments.
+pub fn self_type(module_ty: LitTy) -> TermTy {
+    TyParamRef {
+        kind: TyParamKind::SelfType,
+        name: "Self".to_string(),
+        idx: 0,
+        upper_bound: module_ty,
+        lower_bound: LitTy::raw("Never"),
+        as_class: false,
+    }
+    .into_term_ty()
+}
+
 /// Shortcut for Array<T>
 pub fn ary(type_arg: TermTy) -> TermTy {
     spe("Array", vec![type_arg])

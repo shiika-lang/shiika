@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/reserved_name.sk
+---
+`Self' is reserved and cannot be used as a class, module or enum name

@@ -129,3 +129,57 @@ end
   `M0`).
 - The same module must not be required with different type arguments
   (eg. both `M0<Int>` and `M0<String>`).
+
+## `Self`
+
+In the instance methods and the method requirements of a module, `Self`
+refers to the type which includes the module.
+
+```sk
+module Eq
+  requirement eq?(other: Self) -> Bool
+
+  def neq?(other: Self) -> Bool
+    not eq?(other)
+  end
+end
+
+class Point : Eq
+  def eq?(other: Point) -> Bool   # `Self` is `Point` here
+    ...
+  end
+end
+```
+
+- `Self` cannot be used outside the instance methods and the method
+  requirements of a module (eg. in a class, or in a class method of a
+  module). It does not take type arguments.
+- In a method requirement, `Self` may only appear in contravariant
+  positions (eg. parameter types, but not return types nor `Array<Self>`).
+- When checking that a class satisfies the requirements of a module,
+  `Self` is the type of the class which includes the module. The
+  requirement may also be satisfied by a method of a superclass; in this
+  case `Self` is that superclass.
+
+  ```sk
+  base class Animal
+    def eq?(other: Animal) -> Bool; ...; end
+  end
+  class Dog : Animal, Eq   # ok; satisfied by `Animal#eq?`
+  end
+  ```
+
+  On the other hand, a subclass of the includer which overrides the method
+  must accept the includer, because the method may be called via the
+  includer.
+
+  ```sk
+  base class Shape : Eq
+    def eq?(other: Shape) -> Bool; ...; end
+  end
+  class Square : Shape
+    def eq?(other: Square) -> Bool; ...; end   # error; must accept `Shape`
+  end
+  ```
+- `Self` is reserved; it cannot be used as the name of a class, a module
+  or an enum.

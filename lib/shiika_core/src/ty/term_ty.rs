@@ -293,9 +293,34 @@ impl TermTy {
                         method_tyargs[*idx].clone()
                     }
                 }
+                // Replaced by `replace_self`
+                TyParamKind::SelfType => self.clone(),
             },
             TyRaw(lit_ty) => lit_ty.substitute(class_tyargs, method_tyargs).into(),
         }
+    }
+
+    /// Replace `Self` (of a module) in this type with `self_ty`
+    pub fn replace_self(&self, self_ty: &TermTy) -> TermTy {
+        match &self.body {
+            TyPara(TyParamRef {
+                kind: TyParamKind::SelfType,
+                ..
+            }) => self_ty.clone(),
+            TyPara(_) => self.clone(),
+            TyRaw(lit_ty) => lit_ty.replace_self(self_ty).into(),
+        }
+    }
+
+    /// Returns true if this type is `Self` of a module
+    pub fn is_self_type(&self) -> bool {
+        matches!(
+            &self.body,
+            TyPara(TyParamRef {
+                kind: TyParamKind::SelfType,
+                ..
+            })
+        )
     }
 
     /// Name for vtable when invoking a method on an object of this type

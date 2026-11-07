@@ -126,6 +126,7 @@ impl Infer {
                 let wise = match tpref.kind {
                     TyParamKind::Class => "class-wise",
                     TyParamKind::Method => "method-wise",
+                    TyParamKind::SelfType => "module-wise",
                 };
                 format!("'{} be {} type parameter {}", i, wise, tpref.name)
             })

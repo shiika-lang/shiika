@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/requirement_invariant.sk
+---
+Error: `Self' appears in invariant position of a method requirement (it may only appear in contravariant positions, eg. parameter types)
+   ╭─[tests/erroneous/self_type/requirement_invariant.sk:2:27]
+   │
+ 2 │   requirement foo(others: Array<Self>)
+   │                           ─────┬─────  
+   │                                ╰─────── `Self' appears in invariant position of a method requirement (it may only appear in contravariant positions, eg. parameter types)
+───╯

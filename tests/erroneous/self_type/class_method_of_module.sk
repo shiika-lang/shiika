@@ -1,0 +1,4 @@
+module M
+  def self.foo(other: Self)
+  end
+end

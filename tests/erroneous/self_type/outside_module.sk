@@ -1,0 +1,4 @@
+class A
+  def foo(other: Self)
+  end
+end

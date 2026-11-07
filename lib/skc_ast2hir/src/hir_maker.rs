@@ -187,7 +187,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(fullname, sig, body_exprs)?;
+                        // `Self` is available in the instance methods of a module
+                        let sk_type = self.class_dict.get_type(fullname);
+                        let self_ty = sk_type
+                            .is_module()
+                            .then(|| ClassDict::module_self_ty(fullname, &sk_type.base().typarams));
+                        let prev = self.class_dict.set_self_ty(self_ty);
+                        let method = self.convert_method_def(fullname, sig, body_exprs);
+                        self.class_dict.set_self_ty(prev);
+                        let method = method?;
                         self.method_dict.add_method(fullname.clone(), method);
                     } else {
                         return Err(error::program_error(
