@@ -1,0 +1,2 @@
+export SHIIKA_ROOT="$PWD"
+export SHIIKA_WORK="${XDG_CACHE_HOME:-$HOME/.cache}/shiika/worktrees/$(basename "$PWD")"
