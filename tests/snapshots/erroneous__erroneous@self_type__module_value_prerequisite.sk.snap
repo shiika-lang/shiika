@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/module_value_prerequisite.sk
+---
+Error: cannot call `Eq#eq?' on a value of type Ord because it takes `Self' as a parameter type
+   ╭─[tests/erroneous/self_type/module_value_prerequisite.sk:9:6]
+   │
+ 9 │     x.eq?(y)
+   │      ───┬───  
+   │         ╰───── the receiver may be of any class which includes Ord; use a type parameter (eg. `T: Ord') to call it
+───╯

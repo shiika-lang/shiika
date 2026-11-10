@@ -191,6 +191,22 @@ end
   - In the instance methods of a module, `self` is of type `Self`.
     Therefore `self` can be passed where `Self` is expected, but a value of
     the module type cannot (it may be of a different class than `self`).
+  - On a value of the module type (`x: Eq`): the actual class of `x` is
+    unknown. `Self` in the return type is the module type. A method which
+    takes `Self` as a parameter type cannot be called (only `Never` could
+    be passed safely); use a type parameter (`T: Eq`) instead. A method
+    which has `Self` in other positions (eg. returns `Array<Self>`) cannot
+    be called either.
+
+    ```sk
+    def f(x: Named) -> String
+      x.greeting      # ok; no `Self` in the signature
+      x.me.name       # ok; `me -> Self` returns `Named`
+    end
+    def g(x: Eq, y: Eq) -> Bool
+      x.eq?(y)        # error; `x` and `y` may be of different classes
+    end
+    ```
   - The same applies to the methods of the prerequisite modules.
 - `Self` is reserved; it cannot be used as the name of a class, a module
   or an enum.

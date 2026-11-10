@@ -1,0 +1,9 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+class Main
+  # `x` and `y` may be of different classes
+  def self.f(x: Eq, y: Eq) -> Bool
+    x.eq?(y)
+  end
+end

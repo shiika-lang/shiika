@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/module_value_self_param.sk
+---
+Error: cannot call `Eq#eq?' on a value of type Eq because it takes `Self' as a parameter type
+   ╭─[tests/erroneous/self_type/module_value_self_param.sk:7:6]
+   │
+ 7 │     x.eq?(y)
+   │      ───┬───  
+   │         ╰───── the receiver may be of any class which includes Eq; use a type parameter (eg. `T: Eq') to call it
+───╯

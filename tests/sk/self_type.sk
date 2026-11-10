@@ -77,7 +77,44 @@ class Num : Ord, Eq
   end
 end
 
+# Module-typed values
+module Named
+  requirement name -> String
+  requirement same_name?(other: Self) -> Bool
+  def me -> Self
+    self
+  end
+  def greeting -> String
+    "hello, " + name
+  end
+end
+module Titled : Named
+  requirement title -> String
+end
+class Person : Titled, Named
+  def initialize(@name: String); end
+  def same_name?(other: Person) -> Bool
+    @name == other.name
+  end
+  def title -> String
+    "Dr."
+  end
+end
+
 class Main
+  # Methods without `Self` can be called on a module-typed value
+  def self.greet(x: Named) -> String
+    x.greeting
+  end
+  # `Self` in the return type is the module type
+  def self.me_name(x: Named) -> String
+    x.me.name
+  end
+  # Via a prerequisite module
+  def self.titled_greet(x: Titled) -> String
+    x.title + " " + x.me.name
+  end
+
   # Via a typaram: `Self` is `T`
   def self.neq_t<T: Eq>(a: T, b: T) -> Bool
     a.neq?(b)
@@ -141,6 +178,16 @@ class Main
     end
     if Main.neq_shape(Square.new(1), Shape.new(2))
       puts "ng: neq_shape"
+    end
+
+    unless Main.greet(Person.new("a")) == "hello, a"
+      puts "ng: greet"
+    end
+    unless Main.me_name(Person.new("b")) == "b"
+      puts "ng: me_name"
+    end
+    unless Main.titled_greet(Person.new("c")) == "Dr. c"
+      puts "ng: titled_greet"
     end
   end
 end

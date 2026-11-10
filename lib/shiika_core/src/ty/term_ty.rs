@@ -347,6 +347,14 @@ impl TermTy {
         }
     }
 
+    /// Returns true if `Self` (of a module) appears in this type
+    pub fn contains_self_type(&self) -> bool {
+        match &self.body {
+            TyPara(_) => self.is_self_type(),
+            TyRaw(LitTy { type_args, .. }) => type_args.iter().any(|t| t.contains_self_type()),
+        }
+    }
+
     /// Returns a serialized string which can be parsed by `deserialize`
     pub fn serialize(&self) -> String {
         match &self.body {

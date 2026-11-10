@@ -4,7 +4,50 @@ use crate::type_system;
 use anyhow::Result;
 use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
+use skc_error::Label;
 use skc_hir::*;
+
+/// Replace `Self` of a module method called on a module-typed value
+/// (eg. `x.eq?(y)` where `x: Eq`).
+///
+/// The actual class of the receiver is unknown, so:
+/// - `Self` in the return type is the module type (the receiver's class
+///   includes the module, whatever it is).
+/// - `Self` in a parameter type could be satisfied only by `Never`, so the
+///   method cannot be called practically. This is reported as an error.
+/// - `Self` in other positions (eg. `Array<Self>` in the return type) is not
+///   supported yet.
+fn for_module_value(
+    mut found: FoundMethod,
+    module_ty: &TermTy,
+    locs: &LocationSpan,
+) -> Result<FoundMethod> {
+    let sig = &found.sig;
+    let in_params = sig.params.iter().any(|p| p.ty.contains_self_type());
+    let nested_in_ret = sig.ret_ty.contains_self_type() && !sig.ret_ty.is_self_type();
+    if in_params || nested_in_ret {
+        let reason = if in_params {
+            "it takes `Self' as a parameter type"
+        } else {
+            "`Self' appears in its return type (other than the return type itself)"
+        };
+        let msg = format!(
+            "cannot call `{}' on a value of type {} because {}",
+            &sig.fullname, module_ty, reason
+        );
+        let hint = format!(
+            "the receiver may be of any class which includes {}; use a type parameter \
+             (eg. `T: {}') to call it",
+            module_ty, module_ty
+        );
+        let report = skc_error::build_report(msg, locs, |r, locs_span| {
+            r.with_label(Label::new(locs_span).with_message(hint))
+        });
+        return Err(error::type_error(report));
+    }
+    found.replace_self(module_ty);
+    Ok(found)
+}
 
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method in a class or module. Unlike `lookup_method`, does not lookup into superclass.
@@ -83,7 +126,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     //   (eg. `Animal` for `dog.neq?(...)` where `Animal : Eq`)
     // - Found via a typaram whose upper bound is the module (including `Self`
     //   itself): `Self` is the typaram
-    // - Found via a module-typed value: not replaced (TODO)
+    // - Found via a module-typed value: see `for_module_value`
     fn lookup_method_(
         &self,
         receiver_type: &TermTy,
@@ -110,7 +153,12 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         } else {
             None
         };
+        // True if the receiver is a module-typed value (eg. `x: Eq`)
+        let module_value = !current_type.is_typaram_ref() && sk_type.is_module();
         if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            if module_value {
+                return for_module_value(found, current_type, locs);
+            }
             if in_superclass {
                 // Found in a superclass (eg. `G<String>` of `class H : G<String>`).
                 // Its type arguments are already expressed in terms of the receiver.
@@ -153,6 +201,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     self.lookup_in_module_supers(sk_module, class_tyargs, method_name)
                 {
                     // `Self` of a prerequisite module is the same as that of `sk_module`
+                    if module_value {
+                        return for_module_value(found, current_type, locs);
+                    }
                     if let Some(t) = &module_self {
                         found.replace_self(t);
                     }
