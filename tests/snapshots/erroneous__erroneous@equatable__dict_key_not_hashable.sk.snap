@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/equatable/dict_key_not_hashable.sk
+---
+Error: the type argument `Foo' does not satisfy the bound `Hashable' of the type parameter `K' of `Dict'
+   ╭─[tests/erroneous/equatable/dict_key_not_hashable.sk:3:1]
+   │
+ 3 │ Dict<Foo, Int>.new
+   │ ───────┬──────  
+   │        ╰──────── the type argument `Foo' does not satisfy the bound `Hashable' of the type parameter `K' of `Dict'
+───╯

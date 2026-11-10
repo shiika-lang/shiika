@@ -1,0 +1,5 @@
+class Foo : Comparable
+  def <(other: Foo) -> Bool
+    true
+  end
+end

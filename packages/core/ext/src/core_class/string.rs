@@ -32,6 +32,23 @@ async fn string_eq(receiver: SkString, other: SkString) -> SkBool {
     (receiver.value() == other.value()).into()
 }
 
+/// Compare the strings bytewise (lexicographical order of the bytes)
+#[async_shiika_method("String#<")]
+async fn string_lt(receiver: SkString, other: SkString) -> SkBool {
+    (receiver.value() < other.value()).into()
+}
+
+/// FNV-1a hash of the bytes
+#[async_shiika_method("String#hash")]
+async fn string_hash(receiver: SkString) -> SkInt {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in receiver.value() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    (h as i64).into()
+}
+
 #[shiika_method("String#bytesize")]
 pub extern "C" fn string_bytesize(receiver: SkString) -> SkInt {
     (receiver.value().len() as i64).into()

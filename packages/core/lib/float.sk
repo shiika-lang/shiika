@@ -1,4 +1,4 @@
-class Float
+class Float : Comparable, Equatable, Hashable
   def %(other: Int) -> Float
     self - other.to_f * (self / other.to_f).floor
   end

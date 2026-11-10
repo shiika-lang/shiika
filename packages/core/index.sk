@@ -1,3 +1,7 @@
+# Modules included by the classes below must come first
+require "./lib/equatable.sk"
+require "./lib/comparable.sk"
+require "./lib/hashable.sk"
 require "./lib/array.sk"
 require "./lib/bool.sk"
 require "./lib/class.sk"

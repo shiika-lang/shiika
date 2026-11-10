@@ -1,4 +1,4 @@
-base class Class
+base class Class : Equatable
   def name -> String
     # Accessors does not defined automatically for classes defined skc_corelib
     @name

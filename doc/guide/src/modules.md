@@ -89,6 +89,65 @@ also be passed where `Named` is expected.
 
 See the [language spec](../../spec/src/modules.md) for the details.
 
+## `Self`
+
+In a module, `Self` means "the class which includes this module". It is
+useful for methods which take another value of the same class:
+
+```sk
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+
+class Point : Eq
+  def initialize(@x: Int, @y: Int); end
+  def eq?(other: Point) -> Bool      # `Self` is `Point` here
+    @x == other.x and @y == other.y
+  end
+end
+```
+
+To call such a method generically, use a type parameter. `a` and `b`
+are guaranteed to be of the same class:
+
+```sk
+class Util
+  def self.same?<T: Eq>(a: T, b: T) -> Bool
+    a.eq?(b)
+  end
+end
+```
+
+On a value of the module type (`x: Eq`), methods which take `Self` cannot
+be called because the class of the argument may differ from that of `x`.
+
+## Equatable, Comparable and Hashable
+
+The core library has these modules:
+
+- `Equatable`: `==` (and `!=`)
+- `Comparable : Equatable`: `<`, and `>`, `<=`, `>=` defined by `<` and `==`
+- `Hashable : Equatable`: `hash`
+
+`Int`, `Float` and `String` include all of them; `Bool` includes
+`Equatable` and `Hashable`; `Class` includes `Equatable`. The keys of
+`Dict` must be `Hashable`.
+
+```sk
+class Version : Comparable, Equatable
+  def initialize(@n: Int); end
+  def ==(other: Version) -> Bool; @n == other.n; end
+  def <(other: Version) -> Bool; @n < other.n; end
+end
+
+class Util
+  def self.max<T: Comparable>(a: T, b: T) -> T
+    if a < b then b else a end
+  end
+end
+Util.max(Version.new(1), Version.new(2))
+```
+
 ## Example: Enumerable
 
 The core library module `Enumerable<E>` is a good example. It requires

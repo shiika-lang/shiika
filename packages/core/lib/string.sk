@@ -1,6 +1,6 @@
 require "./mutable_string.sk"
 
-class String
+class String : Comparable, Equatable, Hashable
   # TODO: I thought these are not necessary anymore but test fails without these
   #def ptr -> Shiika::Internal::Ptr; @ptr; end
 

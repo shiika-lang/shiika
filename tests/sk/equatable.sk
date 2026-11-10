@@ -1,0 +1,127 @@
+# Equatable / Comparable / Hashable of the builtin types.
+# Calls via a typaram go through the wtable; for Int/Float/Bool the
+# immediate receiver is boxed and the Rust implementations (eg. `Int#==`)
+# are called via adapters.
+# A user-defined class
+class Key : Hashable, Equatable
+  def initialize(@n: Int); end
+  def ==(other: Key) -> Bool
+    @n == other.n
+  end
+  def hash -> Int
+    @n
+  end
+end
+
+class Main
+  def self.eq<T: Equatable>(a: T, b: T) -> Bool
+    a == b
+  end
+  def self.ne<T: Equatable>(a: T, b: T) -> Bool
+    a != b
+  end
+  def self.max<T: Comparable>(a: T, b: T) -> T
+    if a < b then b else a end
+  end
+  def self.cmp<T: Comparable>(a: T, b: T) -> String
+    var s = ""
+    s += if a < b then "<" else "-" end
+    s += if a <= b then "<=" else "-" end
+    s += if a > b then ">" else "-" end
+    s += if a >= b then ">=" else "-" end
+    s
+  end
+  # `==` of Equatable via Comparable (prerequisite module)
+  def self.same_cmp<T: Comparable>(a: T, b: T) -> Bool
+    a == b
+  end
+  def self.hash_of<T: Hashable>(a: T) -> Int
+    a.hash
+  end
+  def self.hash_eq<T: Hashable>(a: T, b: T) -> Bool
+    a == b and a.hash == b.hash
+  end
+
+  def self.cls(c: Class) -> Class
+    c
+  end
+
+  def self.run()
+    # Int
+    unless Main.eq(1, 1) and not Main.eq(1, 2) and Main.ne(1, 2)
+      puts "ng: Int Equatable"
+    end
+    unless Main.max(1, 2) == 2 and Main.max(3, 2) == 3
+      puts "ng: Int Comparable"
+    end
+    unless Main.cmp(1, 2) == "<<=--" and Main.cmp(2, 2) == "-<=->=" and Main.cmp(3, 2) == "-->>="
+      puts "ng: Int cmp #{Main.cmp(1, 2)} #{Main.cmp(2, 2)} #{Main.cmp(3, 2)}"
+    end
+    unless Main.same_cmp(5, 5)
+      puts "ng: Int same_cmp"
+    end
+    unless Main.hash_of(42) == 42 and Main.hash_eq(7, 7)
+      puts "ng: Int Hashable"
+    end
+
+    # Float
+    unless Main.eq(1.5, 1.5) and not Main.eq(1.5, 2.5)
+      puts "ng: Float Equatable"
+    end
+    unless Main.max(1.5, 2.5) == 2.5
+      puts "ng: Float Comparable"
+    end
+    unless Main.cmp(1.0, 2.0) == "<<=--"
+      puts "ng: Float cmp"
+    end
+    unless Main.hash_eq(0.0, -0.0)
+      puts "ng: Float hash of 0.0 and -0.0"
+    end
+    if Main.hash_of(1.0) == Main.hash_of(2.0)
+      puts "ng: Float hash"
+    end
+
+    # String
+    unless Main.eq("a", "a") and not Main.eq("a", "b")
+      puts "ng: String Equatable"
+    end
+    unless "a" < "b" and not ("b" < "a") and "ab" < "b" and "a" < "ab"
+      puts "ng: String#<"
+    end
+    unless Main.max("apple", "banana") == "banana"
+      puts "ng: String Comparable"
+    end
+    unless "a" <= "a" and "b" > "a" and "b" >= "a"
+      puts "ng: String default methods of Comparable"
+    end
+    unless Main.cmp("a", "b") == "<<=--" and Main.cmp("b", "b") == "-<=->="
+      puts "ng: String cmp"
+    end
+    unless Main.hash_eq("abc", "ab" + "c")
+      puts "ng: String hash"
+    end
+    if Main.hash_of("abc") == Main.hash_of("abd")
+      puts "ng: String hash (different)"
+    end
+
+    # Bool
+    unless Main.eq(true, true) and not Main.eq(true, false)
+      puts "ng: Bool Equatable"
+    end
+    unless Main.hash_of(true) != Main.hash_of(false) and Main.hash_eq(false, false)
+      puts "ng: Bool Hashable"
+    end
+
+    # User-defined class
+    unless Main.hash_eq(Key.new(1), Key.new(1)) and not Main.eq(Key.new(1), Key.new(2))
+      puts "ng: Key"
+    end
+
+    # Class (Metaclass inherits Equatable from Class)
+    unless Main.eq(Int, Int) and not Main.eq(Main.cls(Int), Main.cls(String))
+      puts "ng: Class Equatable"
+    end
+  end
+end
+Main.run
+puts "ok"

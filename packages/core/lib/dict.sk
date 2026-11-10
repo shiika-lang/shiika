@@ -1,10 +1,10 @@
 require "./pair.sk"
 
 # TODO: Make this behave as ordered hash (like Ruby's)
-class Dict<K, V> : Enumerable<Pair<K, V>>
+class Dict<K: Hashable, V> : Enumerable<Pair<K, V>>
   N_TABLES = 1000
 
-  class Table<KK, VV>
+  class Table<KK: Hashable, VV>
     def initialize
       let @pairs = Array<Pair<KK, VV>>.new
     end

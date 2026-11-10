@@ -1,0 +1,3 @@
+class Foo
+end
+Dict<Foo, Int>.new

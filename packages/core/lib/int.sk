@@ -1,4 +1,4 @@
-class Int
+class Int : Comparable, Equatable, Hashable
   # Returns the absolute value of `self`.
   def abs -> Int
     if self >= 0

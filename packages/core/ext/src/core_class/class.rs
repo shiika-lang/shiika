@@ -45,6 +45,11 @@ pub extern "C" fn metaclass__new(
     metaclass_obj: SkClass,
     erasure_cls: SkClass,
 ) -> SkClass {
+    let witness_table = if witness_table.is_null() {
+        crate::runtime::wtable::metaclass_wtable()
+    } else {
+        witness_table
+    };
     meta_class__new(
         _receiver,
         name,
