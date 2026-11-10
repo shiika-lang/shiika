@@ -208,5 +208,13 @@ end
     end
     ```
   - The same applies to the methods of the prerequisite modules.
+- A module type cannot be a type argument of a type parameter whose upper
+  bound is a module which uses `Self` (in its own methods or its
+  prerequisite modules), even though the module type conforms to the
+  bound. For example, given `def max<T: Comparable>(a: T, b: T) -> T`,
+  `max<Comparable>(x, y)` is an error because `a < b` in `max` assumes
+  `a` and `b` are of the same class. This applies to explicit, inferred
+  and class type arguments (eg. `Box<Comparable>` for `class Box<T: Comparable>`).
+  A type parameter (`U: Comparable`) or `Never` can be passed.
 - `Self` is reserved; it cannot be used as the name of a class, a module
   or an enum.

@@ -8,6 +8,11 @@
 //! - `check_method_tyargs` / `check_specialization_tyargs`: at expression
 //!   conversion, checks method-wise type arguments (explicit or inferred)
 //!   and class specialization expressions (eg. `Foo<Int>.new`).
+//!
+//! In addition, a module type cannot be passed to a type parameter whose
+//! upper bound is a module which uses `Self` (eg. `Comparable` for
+//! `T: Comparable`). Otherwise `a < b` (`a, b: T`) would be type-checked
+//! while `a` and `b` may be of different classes at runtime.
 use crate::class_dict::ClassDict;
 use crate::error;
 use anyhow::Result;
@@ -138,17 +143,60 @@ fn check_tyarg(
         return Ok(());
     }
     let bound = tp.upper_bound.to_term_ty();
-    if dict.conforms(tyarg, &bound) {
+    let msg = if !dict.conforms(tyarg, &bound) {
+        format!(
+            "the type argument `{}' does not satisfy the bound `{}' of the type parameter `{}' {}",
+            tyarg, &bound, &tp.name, owner
+        )
+    } else if is_module_type(dict, tyarg) && module_uses_self(dict, &bound) {
+        format!(
+            "the type argument `{}' cannot be used for the type parameter `{}' {} \
+             because its bound `{}' uses `Self' (a value of `{}' may be of any class \
+             which includes it; use a class or a type parameter instead)",
+            tyarg, &tp.name, owner, &bound, tyarg
+        )
+    } else {
         return Ok(());
-    }
-    let msg = format!(
-        "the type argument `{}' does not satisfy the bound `{}' of the type parameter `{}' {}",
-        tyarg, &bound, &tp.name, owner
-    );
+    };
     let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(msg.clone()))
     });
     Err(error::type_error(&report))
+}
+
+/// Returns true if `ty` is a module type (eg. `Comparable`)
+fn is_module_type(dict: &ClassDict, ty: &TermTy) -> bool {
+    match &ty.body {
+        TyBody::TyPara(_) => false,
+        TyBody::TyRaw(lit_ty) => dict
+            .find_type(&lit_ty.erasure().to_type_fullname())
+            .is_some_and(|t| t.is_module()),
+    }
+}
+
+/// Returns true if `ty` is a module which (or one of whose prerequisite
+/// modules) has `Self` in a method signature
+fn module_uses_self(dict: &ClassDict, ty: &TermTy) -> bool {
+    let TyBody::TyRaw(lit_ty) = &ty.body else {
+        return false;
+    };
+    let Some(SkType::Module(sk_module)) = dict.find_type(&lit_ty.erasure().to_type_fullname())
+    else {
+        return false;
+    };
+    let uses_self = sk_module
+        .base
+        .method_sigs
+        .to_ordered()
+        .iter()
+        .any(|(sig, _)| {
+            sig.ret_ty.contains_self_type() || sig.params.iter().any(|p| p.ty.contains_self_type())
+        });
+    uses_self
+        || sk_module
+            .supers
+            .iter()
+            .any(|sup| module_uses_self(dict, &sup.ty().to_term_ty()))
 }
 
 fn in_context(e: anyhow::Error, ctx: &str) -> anyhow::Error {

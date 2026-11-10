@@ -101,7 +101,28 @@ class Person : Titled, Named
   end
 end
 
+# A module without `Self` can be used as a type argument of its bound
+module Show
+  requirement show -> String
+end
+class Pt : Show
+  def show -> String
+    "pt"
+  end
+end
+
 class Main
+  def self.show_t<T: Show>(x: T) -> String
+    x.show
+  end
+  def self.show_module_value(x: Show) -> String
+    Main.show_t(x)
+  end
+  # A typaram can be passed to `T: Eq` (its actual type is a class)
+  def self.neq_u<U: Eq>(a: U, b: U) -> Bool
+    Main.neq_t<U>(a, b) and Main.neq_t(a, b)
+  end
+
   # Methods without `Self` can be called on a module-typed value
   def self.greet(x: Named) -> String
     x.greeting
@@ -178,6 +199,13 @@ class Main
     end
     if Main.neq_shape(Square.new(1), Shape.new(2))
       puts "ng: neq_shape"
+    end
+
+    unless Main.show_module_value(Pt.new) == "pt"
+      puts "ng: show_t"
+    end
+    unless Main.neq_u(Point.new(1, 2), Point.new(1, 3))
+      puts "ng: neq_u"
     end
 
     unless Main.greet(Person.new("a")) == "hello, a"
