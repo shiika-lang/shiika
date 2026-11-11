@@ -106,7 +106,7 @@ impl Compiler {
             mir::Expr::While(cond, body) => {
                 // Don't hoist the cond out of the loop; async_splitter
                 // re-evaluates it on each iteration via the beginwhile chapter.
-                let new_cond = self.compile_expr(new_body_stmts, *cond);
+                let new_cond = self.run(*cond);
                 let new_body = self.run(*body);
                 mir::Expr::while_(new_cond, new_body)
             }
@@ -138,9 +138,7 @@ impl Compiler {
             }
             mir::Expr::Return(None) => mir::Expr::return_cvoid(),
             mir::Expr::Break => mir::Expr::break_(),
-            mir::Expr::Exprs(exprs) => {
-                panic!("unexpected nested Exprs: {:?}", exprs);
-            }
+            mir::Expr::Exprs(_) => self.run(expr),
             mir::Expr::Cast(cast_type, e) => {
                 let new_e = self.let_bind_if_needed(new_body_stmts, *e);
                 mir::Expr::cast(cast_type, new_e)
@@ -194,6 +192,12 @@ impl Compiler {
             mir::Expr::BitIsZero(inner, bits) => {
                 let new_inner = self.let_bind_if_needed(new_body_stmts, *inner);
                 mir::Expr::bit_is_zero(new_inner, bits)
+            }
+            mir::Expr::PrimBinOp(op, left, right) => {
+                // splice_exprs has saved the left value if the right can suspend.
+                let left = self.let_bind_if_needed(new_body_stmts, *left);
+                let right = self.let_bind_if_needed(new_body_stmts, *right);
+                mir::Expr::prim_binop(op, left, right)
             }
             mir::Expr::ClassVTable(_) => expr,
         }

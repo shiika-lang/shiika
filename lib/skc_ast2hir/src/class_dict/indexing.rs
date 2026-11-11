@@ -677,6 +677,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 | shiika_ast::Definition::InitializerDefinition(
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
+                    let intrinsic = match fullname.0.as_str() {
+                        "Int" => matches!(sig.name.0.as_str(), "<" | "<=" | ">" | ">=" | "=="),
+                        "Bool" => sig.name.0 == "==",
+                        _ => false,
+                    };
+                    if intrinsic && self.imported_classes.get_type(&fullname).is_some() {
+                        return Err(error::program_error(&format!(
+                            "cannot redefine intrinsic method {}#{}",
+                            fullname, sig.name
+                        )));
+                    }
                     let prev = self.set_self_ty(
                         is_module.then(|| ClassDict::module_self_ty(&fullname, typarams)),
                     );

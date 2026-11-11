@@ -152,6 +152,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
             mir::Expr::IsNull(inner) => self.compile_is_null(ctx, inner),
             mir::Expr::BitIsZero(inner, bits) => self.compile_bit_is_zero(ctx, inner, *bits),
+            mir::Expr::PrimBinOp(op, left, right) => self.compile_prim_binop(ctx, *op, left, right),
             mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
@@ -761,6 +762,31 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_int_compare(inkwell::IntPredicate::EQ, anded, zero, "bit_is_zero")
             .unwrap();
         Some(i1.into())
+    }
+
+    fn compile_prim_binop(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        op: mir::PrimBinOp,
+        left: &mir::TypedExpr,
+        right: &mir::TypedExpr,
+    ) -> Option<BasicValueEnum<'run>> {
+        // Keep source evaluation order even when either operand has side effects.
+        let left = self.compile_value_expr(ctx, left).into_int_value();
+        let right = self.compile_value_expr(ctx, right).into_int_value();
+        let predicate = match op {
+            mir::PrimBinOp::IntLt => inkwell::IntPredicate::SLT,
+            mir::PrimBinOp::IntLe => inkwell::IntPredicate::SLE,
+            mir::PrimBinOp::IntGt => inkwell::IntPredicate::SGT,
+            mir::PrimBinOp::IntGe => inkwell::IntPredicate::SGE,
+            mir::PrimBinOp::IntEq | mir::PrimBinOp::BoolEq => inkwell::IntPredicate::EQ,
+        };
+        Some(
+            self.builder
+                .build_int_compare(predicate, left, right, "prim_cmp")
+                .unwrap()
+                .into(),
+        )
     }
 
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {

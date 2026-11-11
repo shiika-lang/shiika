@@ -231,8 +231,10 @@ impl<'a> Compiler<'a> {
                 self.chapters.add_stmt(self.while_jump(&endwhile));
                 return Ok(None);
             }
-            mir::Expr::Exprs(_) => {
-                panic!("Exprs must be handled by its parent: {:?}", e.0);
+            mir::Expr::Exprs(mut exprs) => {
+                let last = exprs.pop().expect("empty Exprs");
+                self.compile_stmts(exprs)?;
+                return self.compile_expr(last, on_return);
             }
             mir::Expr::Cast(cast_type, expr) => {
                 let new_expr = self.compile_value_expr(*expr, on_return)?;
@@ -280,6 +282,11 @@ impl<'a> Compiler<'a> {
             }
             mir::Expr::Unbox(_) | mir::Expr::RawI64(_) | mir::Expr::Nop => e,
             mir::Expr::WTableKey(_) | mir::Expr::WTableRow(_, _) => e,
+            mir::Expr::PrimBinOp(op, left, right) => {
+                let left = self.compile_value_expr(*left, false)?;
+                let right = self.compile_value_expr(*right, false)?;
+                mir::Expr::prim_binop(op, left, right)
+            }
             mir::Expr::NullPtr | mir::Expr::ClassVTable(_) => e,
             mir::Expr::IsNull(inner) => {
                 let new_inner = self.compile_value_expr(*inner, false)?;

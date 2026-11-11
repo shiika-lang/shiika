@@ -267,3 +267,72 @@ impl MirVisitor for Assert {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primitive_comparison_only_inherits_asyncness_from_its_operands() {
+        for op in [mir::PrimBinOp::IntLt, mir::PrimBinOp::BoolEq] {
+            for async_side in [None, Some(0), Some(1)] {
+                let ty = op.operand_ty();
+                let async_fun_ty = mir::FunTy::async_(vec![], ty.clone());
+                let async_name = FunctionName::mangled("async_operand");
+                let operand = |side| {
+                    if async_side == Some(side) {
+                        mir::Expr::fun_call(
+                            mir::Expr::func_ref(async_name.clone(), async_fun_ty.clone()),
+                            vec![],
+                        )
+                    } else {
+                        mir::Expr::arg_ref(side, "value", ty.clone())
+                    }
+                };
+                let comparison = mir::Expr::prim_binop(op, operand(0), operand(1));
+                assert_eq!(comparison.0.contains_async_call(), async_side.is_some());
+                let name = FunctionName::mangled("compare");
+                let caller = FunctionName::mangled("caller");
+                let func = |name, body| mir::Function {
+                    name,
+                    asyncness: mir::Asyncness::Unknown,
+                    params: vec![
+                        mir::Param::new(ty.clone(), "left"),
+                        mir::Param::new(ty.clone(), "right"),
+                    ],
+                    ret_ty: mir::Ty::I1,
+                    body_stmts: mir::Expr::return_(body),
+                    sig: None,
+                    lvar_count: None,
+                };
+                let call = mir::Expr::fun_call(
+                    mir::Expr::func_ref(
+                        name.clone(),
+                        mir::FunTy::new(
+                            mir::Asyncness::Unknown,
+                            vec![ty.clone(), ty.clone()],
+                            mir::Ty::I1,
+                        ),
+                    ),
+                    vec![
+                        mir::Expr::arg_ref(0, "left", ty.clone()),
+                        mir::Expr::arg_ref(1, "right", ty.clone()),
+                    ],
+                );
+                let program = mir::Program::new(
+                    vec![],
+                    vec![mir::Extern {
+                        name: async_name,
+                        fun_ty: async_fun_ty,
+                    }],
+                    vec![func(name, comparison), func(caller, call)],
+                    vec![],
+                );
+                let result = run(program, &mut SkTypes::default());
+                for f in &result.funcs {
+                    assert_eq!(f.is_async(), async_side.is_some(), "{}", f.name);
+                }
+            }
+        }
+    }
+}

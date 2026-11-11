@@ -1,0 +1,5 @@
+class Int
+  def <(other: Int) -> Bool
+    false
+  end
+end

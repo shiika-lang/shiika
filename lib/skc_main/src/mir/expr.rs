@@ -23,6 +23,26 @@ pub fn raw_repr_of(ty: &Ty) -> Option<Ty> {
     }
 }
 
+/// Comparisons on raw immediates. The operation never calls, but its operands may.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimBinOp {
+    IntLt,
+    IntLe,
+    IntGt,
+    IntGe,
+    IntEq,
+    BoolEq,
+}
+
+impl PrimBinOp {
+    pub fn operand_ty(self) -> Ty {
+        match self {
+            Self::BoolEq => Ty::I1,
+            _ => Ty::Int64,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Number(i64),
@@ -88,6 +108,7 @@ pub enum Expr {
     /// `(inner & bits) == 0` on a raw i64. Returns Bool. Used to test a
     /// default-argument presence bitmask (bit clear = argument omitted).
     BitIsZero(Box<Typed<Expr>>, u64),
+    PrimBinOp(PrimBinOp, Box<TypedExpr>, Box<TypedExpr>),
     /// Reference to the global vtable constant for instances of the given class
     /// (e.g., `@shiika_vtable_Int`). Used as the `vtable` argument in `Meta:Class#_new`.
     ClassVTable(Erasure),
@@ -388,6 +409,10 @@ impl Expr {
         (Expr::BitIsZero(Box::new(e), bits), Ty::raw("Bool"))
     }
 
+    pub fn prim_binop(op: PrimBinOp, left: TypedExpr, right: TypedExpr) -> TypedExpr {
+        (Expr::PrimBinOp(op, Box::new(left), Box::new(right)), Ty::I1)
+    }
+
     pub fn class_vtable(erasure: Erasure) -> TypedExpr {
         (Expr::ClassVTable(erasure), Ty::Ptr)
     }
@@ -475,6 +500,9 @@ impl Expr {
             Expr::NullPtr => false,
             Expr::IsNull(e) => e.0.contains_async_call(),
             Expr::BitIsZero(e, _) => e.0.contains_async_call(),
+            Expr::PrimBinOp(_, left, right) => {
+                left.0.contains_async_call() || right.0.contains_async_call()
+            }
             Expr::ClassVTable(_) => false,
             Expr::SetClassObj(obj, class_obj) => {
                 obj.0.contains_async_call() || class_obj.0.contains_async_call()
@@ -650,6 +678,12 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
         }
         Expr::NullPtr => "%NullPtr".to_string(),
         Expr::IsNull(e) => format!("%IsNull({})", pretty_print(&e.0, 0, false)),
+        Expr::PrimBinOp(op, left, right) => format!(
+            "%{:?}({}, {})",
+            op,
+            pretty_print(&left.0, 0, false),
+            pretty_print(&right.0, 0, false)
+        ),
         Expr::BitIsZero(e, bits) => {
             format!("%BitIsZero({}, {})", pretty_print(&e.0, 0, false), bits)
         }

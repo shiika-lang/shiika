@@ -279,6 +279,17 @@ impl<'a> Verifier<'a> {
                 assert(&inner, "bit_is_zero operand", &mir::Ty::Int64)?;
                 assert(&e, "bit_is_zero result", &mir::Ty::raw("Bool"))?;
             }
+            mir::Expr::PrimBinOp(op, left, right) => {
+                self.verify_expr(f, left)?;
+                self.verify_expr(f, right)?;
+                assert(left, "primitive comparison left operand", &op.operand_ty())?;
+                assert(
+                    right,
+                    "primitive comparison right operand",
+                    &op.operand_ty(),
+                )?;
+                assert(e, "primitive comparison result", &mir::Ty::I1)?;
+            }
             mir::Expr::ClassVTable(_) => assert(&e, "class_vtable", &mir::Ty::Ptr)?,
             mir::Expr::SetClassObj(obj, class_obj) => {
                 self.verify_expr(f, obj)?;
