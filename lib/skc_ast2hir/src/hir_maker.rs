@@ -244,7 +244,8 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::EnumDefinition {
                     name, cases, defs, ..
                 } => self.process_enum_def(namespace, name, cases, defs)?,
-                shiika_ast::Definition::MethodRequirementDefinition { .. } => {
+                shiika_ast::Definition::MethodRequirementDefinition { .. }
+                | shiika_ast::Definition::NativeMethodDefinition { .. } => {
                     // Already processed in class_dict/indexing.rs
                 }
             }

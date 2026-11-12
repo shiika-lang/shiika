@@ -29,6 +29,9 @@ impl<'a> Parser<'a> {
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
+            Token::KwNative | Token::KwNativeAsync => {
+                Ok(Some(self.parse_native_method_definition()?))
+            }
             Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
             _ => Ok(None),
         }
@@ -378,6 +381,50 @@ impl<'a> Parser<'a> {
                 Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
             }
         }
+    }
+
+    /// Parse `native def foo(bar) -> Baz` (a method implemented in Rust; has no body)
+    fn parse_native_method_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_native_method_definition");
+        self.lv += 1;
+        // `native' or `native_async'
+        let is_async = match self.current_token() {
+            Token::KwNative => false,
+            Token::KwNativeAsync => true,
+            _ => unreachable!(),
+        };
+        self.consume_token()?;
+        self.skip_ws()?;
+
+        // `def'
+        self.set_lexer_state(LexerState::MethodName);
+        if !self.consume(Token::KwDef)? {
+            return Err(parse_error!(
+                self,
+                "expected `def' after `native'; got {:?}",
+                self.current_token()
+            ));
+        }
+        self.skip_ws()?;
+
+        // `foo(bar) -> Baz`
+        let (sig, is_class_method) = self.parse_method_signature()?;
+        if let Some(param) = sig.params.iter().find(|p| p.is_iparam) {
+            return Err(parse_error!(
+                self,
+                "native method cannot take an instance variable parameter ({})",
+                param.name
+            ));
+        }
+        self.skip_ws()?;
+        self.expect_sep()?;
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::NativeMethodDefinition {
+            sig,
+            is_class_method,
+            is_async,
+        })
     }
 
     /// `def initialize(@a: Int)` is equivalent to

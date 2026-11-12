@@ -162,3 +162,23 @@ p Int.class             #=> #<class Meta:Int>
 p Int.class.class       #=> #<class Metaclass>
 p Int.class.class.class #=> #<class Metaclass>
 ```
+
+## Native methods
+
+A package which has `rust_libs` in its `package.json5` can declare methods
+implemented in Rust with `native def`. A native method has only a signature
+(no body and no `end`).
+
+```sk
+class Int
+  # Returns `self` + `other`
+  native def +(other: Int) -> Int
+end
+```
+
+- Use `native_async def` when the Rust function is async.
+- A native method can be an instance method or a class method (`native def self.foo`).
+- Parameters of a native method cannot be instance variables (eg. `native def initialize(@a: Int)` is an error).
+- A class cannot have a `def` and a `native def` with the same name.
+- `native def` in a package without `rust_libs` (including a program compiled
+  by `shiika compile`) is an error.

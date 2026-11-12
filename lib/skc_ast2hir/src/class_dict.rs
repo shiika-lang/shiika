@@ -6,7 +6,6 @@ mod query;
 pub mod type_index;
 use anyhow::Result;
 pub use found_method::{CallType, FoundMethod};
-pub use indexing::RustMethods;
 use shiika_ast::{self};
 use shiika_core::names::*;
 use skc_hir::*;
@@ -56,7 +55,7 @@ pub fn create<'hir_maker>(
         sk_types: Default::default(),
         imported_classes,
     };
-    dict.index_program(defs, HashMap::new())?;
+    dict.index_program(defs, true)?;
     Ok(dict)
 }
 

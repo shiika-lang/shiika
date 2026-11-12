@@ -1,11 +1,13 @@
 class Random
+  native def _initialize_rustlib(seed: Int)
+
   def self.initialize
     # Cannot do this yet (#455)
     # let @rand = Random._without_seed
   end
 
   # Create an instance of `Random` without explicit seed.
-  # def self._without_seed
+  native def self._without_seed -> Random
 
   def self.int(from: Int, to: Int) -> Int
     Random._without_seed.int(from, to)
@@ -20,8 +22,8 @@ class Random
   end
 
   # Returns a random integer (end-exclusive).
-  # def int(from: Int, to: Int) -> Int
+  native def int(from: Int, to: Int) -> Int
 
   # Returns a random float between 0.0 and 1.0 (end-exclusive).
-  # def float -> Float
+  native def float -> Float
 end

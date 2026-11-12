@@ -74,6 +74,12 @@ pub enum Definition {
     MethodRequirementDefinition {
         sig: AstMethodSignature,
     },
+    /// `native def` / `native_async def`: a method implemented in Rust
+    NativeMethodDefinition {
+        sig: AstMethodSignature,
+        is_class_method: bool,
+        is_async: bool,
+    },
     ConstDefinition {
         name: String,
         expr: AstExpression,

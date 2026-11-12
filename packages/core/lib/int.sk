@@ -1,4 +1,22 @@
 class Int : Comparable, Equatable, Hashable
+  native def -@ -> Int
+  native def +(other: Int) -> Int
+  native def -(other: Int) -> Int
+  native def *(other: Int) -> Int
+  native def /(other: Int) -> Float
+  native def %(other: Int) -> Int
+  native def and(other: Int) -> Int
+  native def or(other: Int) -> Int
+  native def xor(other: Int) -> Int
+  native def lshift(n_bits: Int) -> Int
+  native def rshift(n_bits: Int) -> Int
+  native_async def <(other: Int) -> Bool
+  native_async def <=(other: Int) -> Bool
+  native_async def >(other: Int) -> Bool
+  native_async def >=(other: Int) -> Bool
+  native_async def ==(other: Int) -> Bool
+  native def to_f -> Float
+
   # Returns the absolute value of `self`.
   def abs -> Int
     if self >= 0

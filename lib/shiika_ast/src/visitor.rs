@@ -96,6 +96,7 @@ pub trait AstVisitor {
             }
 
             Definition::MethodRequirementDefinition { .. } => {}
+            Definition::NativeMethodDefinition { .. } => {}
         }
         Ok(())
     }

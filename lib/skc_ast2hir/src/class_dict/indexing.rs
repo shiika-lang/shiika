@@ -11,10 +11,11 @@ use skc_hir::method_signature::{signature_of_new, MethodSignature};
 use skc_hir::*;
 use std::collections::HashMap;
 
-/// Used during indexing.
-/// To register Rust methods, the class must be already indexed, but for #initialize, we want
-/// to index it along with the class.
-pub type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool)>>;
+/// Used during indexing: signatures of `native def`s (and whether it is
+/// `native_async`) collected from the class body, keyed by the type name
+/// (`Meta:Foo` for class methods). They are converted to `MethodSignature`s
+/// when the type is registered (see `transfer_rust_methods`).
+type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool)>>;
 
 struct ClassSpec {
     namespace: Namespace,
@@ -47,8 +48,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn index_program(
         &mut self,
         toplevel_defs: &[&shiika_ast::Definition],
-        mut rust_methods: RustMethods,
+        allow_native: bool,
     ) -> Result<()> {
+        let mut rust_methods = RustMethods::new();
         *self.pending_bound_checks.borrow_mut() = Some(vec![]);
         let namespace = Namespace::root();
         for def in toplevel_defs {
@@ -104,6 +106,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         self.check_virtual_asyncness()?;
+        if !allow_native {
+            if let Some(sig) = find_native_def(toplevel_defs.iter().copied()) {
+                return Err(error::program_error(&format!(
+                    "`native def {}' is only allowed in a package which has rust_libs",
+                    sig.name
+                )));
+            }
+        }
         let annotations = self.pending_bound_checks.borrow_mut().take().unwrap();
         for (ty, locs) in annotations {
             crate::type_system::bounds::check_annotation(self, &ty, &locs)?;
@@ -671,6 +681,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut instance_methods = MethodSignatures::new();
         let mut class_methods = MethodSignatures::new();
         let mut requirements = vec![];
+        let mut natives = vec![];
         for def in defs {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
@@ -805,7 +816,34 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         rust_methods,
                     )?;
                 }
+                shiika_ast::Definition::NativeMethodDefinition {
+                    sig,
+                    is_class_method,
+                    is_async,
+                } => {
+                    let type_name = if *is_class_method {
+                        fullname.meta_name().to_type_fullname()
+                    } else {
+                        fullname.clone()
+                    };
+                    natives.push((type_name, sig.clone(), *is_async));
+                }
             }
+        }
+        for (type_name, sig, is_async) in natives {
+            let defined = if type_name == fullname {
+                &instance_methods
+            } else {
+                &class_methods
+            };
+            let entry = rust_methods.entry(type_name.clone()).or_default();
+            if defined.contains_key(&sig.name) || entry.iter().any(|(s, _)| s.name == sig.name) {
+                return Err(error::program_error(&format!(
+                    "method `{}' of `{}' is defined twice (`def' and `native def' cannot share a name)",
+                    sig.name, type_name
+                )));
+            }
+            entry.push((sig, is_async));
         }
         Ok((instance_methods, class_methods, requirements))
     }
@@ -1236,6 +1274,25 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn known(&self, fullname: &TypeFullname) -> bool {
         self.sk_types.types.contains_key(fullname)
     }
+}
+
+/// Returns the signature of a `native def` in `defs` (recursively), if any
+fn find_native_def<'a>(
+    defs: impl Iterator<Item = &'a shiika_ast::Definition>,
+) -> Option<&'a AstMethodSignature> {
+    for def in defs {
+        let found = match def {
+            shiika_ast::Definition::NativeMethodDefinition { sig, .. } => Some(sig),
+            shiika_ast::Definition::ClassDefinition { defs, .. }
+            | shiika_ast::Definition::ModuleDefinition { defs, .. }
+            | shiika_ast::Definition::EnumDefinition { defs, .. } => find_native_def(defs.iter()),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
 }
 
 /// Returns superclass of a enum case

@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/native/without_def.sk
+---
+Error: expected `def' after `native'; got LowerWord("foo")
+   ╭─[tests/erroneous/native/without_def.sk:2:10]
+   │
+ 2 │   native foo -> Int
+   │          ───  
+   │                
+───╯
+)

@@ -2,6 +2,11 @@ require "./enumerable.sk"
 require "./maybe.sk"
 
 class Array<T> : Enumerable<T>
+  native def [](idx: Int) -> T
+  native def clear
+  native def self._from_raw(llvm_ary: Shiika::Internal::Ptr, len: Shiika::Internal::Int64) -> Array<T>
+  native def initialize
+
   # Build an array of length `len` by passing index to `f`
   def self.build<U>(len: Int, f: Fn1<Int, U>) -> Array<U>
     let ret = Array<U>.new
@@ -51,7 +56,7 @@ class Array<T> : Enumerable<T>
   # Replace the `i`th item with `obj`
   # Count from the last if `i` is less than zero
   # Panics if the index is out of range
-  #def []=(i: Int, obj: T)
+  native def []=(idx: Int, obj: T)
 
   # Add elements of `other` to the end of `self`
   def append(other: Array<T>)
@@ -137,13 +142,13 @@ class Array<T> : Enumerable<T>
   end
 
   # Return the number of items
-  #def length -> Int
+  native def length -> Int
 
   # Remove the last element and return it
-  #def pop -> T
+  native def pop -> T
 
   # Push an object to the end of `self`
-  #def push(value: T)
+  native def push(item: T)
 
   # Create an array which contains items of `self` for which `f` does not return true
   def reject(f: Fn1<T, Bool>) -> Array<T>
@@ -156,7 +161,7 @@ class Array<T> : Enumerable<T>
 
   # Reserves capacity for at least `additional` elements to be inserted
   # without reallocation. Does nothing if capacity is already sufficient.
-  #def reserve(additional: Int)
+  native def reserve(additional: Int)
 
   # Create a new array which has reversed elements of `self`
   def reverse -> Array<T>
@@ -182,7 +187,7 @@ class Array<T> : Enumerable<T>
 
   # Removes the first element and returns it.
   # Panics if `self` is empty
-  #def shift -> Maybe<T>
+  native def shift -> Maybe<T>
 
   # Create sorted version of `self`
   # Panics if `T` does not implement `==` and `<` (TODO: `T: Comparable`)

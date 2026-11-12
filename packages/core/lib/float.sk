@@ -1,4 +1,20 @@
 class Float : Comparable, Equatable, Hashable
+  native def -@ -> Float
+  native def +(other: Float) -> Float
+  native def -(other: Float) -> Float
+  native def *(other: Float) -> Float
+  native def /(other: Float) -> Float
+  native_async def <(other: Float) -> Bool
+  native_async def <=(other: Float) -> Bool
+  native_async def >(other: Float) -> Bool
+  native_async def >=(other: Float) -> Bool
+  native_async def ==(other: Float) -> Bool
+  native_async def hash -> Int
+  native def abs -> Float
+  native def floor -> Float
+  native def to_i -> Int
+  native_async def to_s -> String
+
   def %(other: Int) -> Float
     self - other.to_f * (self / other.to_f).floor
   end

@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/native/same_name_as_def.sk
+---
+method `foo' of `A' is defined twice (`def' and `native def' cannot share a name)

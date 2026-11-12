@@ -29,7 +29,7 @@ lowers a **sync** function whose return type is `Void` to return `CVoid` (LLVM
 The decision is a pure function of `(ret == Void) && sync`, so every
 compilation unit — and every call site, local or imported — agrees, keeping the
 cross-package ABI consistent (asyncness is part of the exported signature, see
-`exports.json5`).
+`native_async def`).
 
 Only **sync** functions are lowered. A method reachable through a vtable is
 always async (see "Async runtime" in the architecture chapter), so a sync

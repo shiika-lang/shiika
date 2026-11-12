@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/native/ivar_param.sk
+---
+Error: native method cannot take an instance variable parameter (@a)
+   ╭─[tests/erroneous/native/ivar_param.sk:2:33]
+   │
+ 2 │   native def initialize(@a: Int)
+   │                                 ─  
+   │                                     
+───╯
+)
