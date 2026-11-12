@@ -1,0 +1,5 @@
+module M; end
+module N
+  implement M
+  end
+end

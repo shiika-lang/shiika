@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/module_in_header.sk
+---
+Error: `M' is a module; use `implement M' in the class body to include it
+   ╭─[tests/erroneous/implement/module_in_header.sk:2:11]
+   │
+ 2 │ class A : M
+   │           ┬  
+   │           ╰── `M' is a module; use `implement M' in the class body to include it
+───╯

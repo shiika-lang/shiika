@@ -22,8 +22,11 @@ class C : B; end
 
 # Modules
 module M; end
-class D : M
+class D
   def self.foo(x: Object); end
+
+  implement M
+  end
 end
 (fn(x: M){ D.foo(x) })(D.new)
 

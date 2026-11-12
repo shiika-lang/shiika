@@ -97,6 +97,11 @@ pub trait AstVisitor {
 
             Definition::MethodRequirementDefinition { .. } => {}
             Definition::NativeMethodDefinition { .. } => {}
+            Definition::ImplementDefinition { defs, .. } => {
+                for def in defs {
+                    self.walk_definition(namespace, def)?;
+                }
+            }
         }
         Ok(())
     }

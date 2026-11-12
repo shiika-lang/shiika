@@ -408,6 +408,7 @@ impl<'a> Lexer<'a> {
             "module" => (Token::KwModule, LexerState::ExprBegin),
             "requirement" => (Token::KwRequirement, LexerState::ExprBegin),
             "native" => (Token::KwNative, LexerState::ExprBegin),
+            "implement" => (Token::KwImplement, LexerState::ExprBegin),
             "native_async" => (Token::KwNativeAsync, LexerState::ExprBegin),
             "enum" => (Token::KwEnum, LexerState::ExprBegin),
             "case" => (Token::KwCase, LexerState::ExprBegin),

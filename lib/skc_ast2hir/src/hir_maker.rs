@@ -244,6 +244,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::EnumDefinition {
                     name, cases, defs, ..
                 } => self.process_enum_def(namespace, name, cases, defs)?,
+                shiika_ast::Definition::ImplementDefinition { defs, .. } => {
+                    // Methods in `implement` are instance methods of the class
+                    self.process_defs(namespace, opt_fullname, defs)?;
+                }
                 shiika_ast::Definition::MethodRequirementDefinition { .. }
                 | shiika_ast::Definition::NativeMethodDefinition { .. } => {
                     // Already processed in class_dict/indexing.rs

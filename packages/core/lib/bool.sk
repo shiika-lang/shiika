@@ -1,10 +1,14 @@
-class Bool : Equatable, Hashable
-  def ==(other: Bool) -> Bool
-    (self and other) or (not self and not other)
+class Bool
+  implement Equatable
+    def ==(other: Bool) -> Bool
+      (self and other) or (not self and not other)
+    end
   end
 
-  def hash -> Int
-    if self then 1 else 0 end
+  implement Hashable
+    def hash -> Int
+      if self then 1 else 0 end
+    end
   end
 
   def inspect -> String

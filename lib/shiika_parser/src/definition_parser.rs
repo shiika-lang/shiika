@@ -29,6 +29,7 @@ impl<'a> Parser<'a> {
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
+            Token::KwImplement => Ok(Some(self.parse_implement_definition()?)),
             Token::KwNative | Token::KwNativeAsync => {
                 Ok(Some(self.parse_native_method_definition()?))
             }
@@ -298,6 +299,41 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(typs)
+    }
+
+    /// Parse `implement M ... end` (must appear only in class definitions)
+    fn parse_implement_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_implement_definition");
+        self.lv += 1;
+        // `implement'
+        assert!(self.consume(Token::KwImplement)?);
+        self.skip_ws()?;
+
+        // Module name
+        let module = self.parse_typ()?;
+        self.skip_ws()?;
+        self.expect_sep()?;
+
+        // Methods
+        let defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for `implement {}'; got {:?}",
+                    module,
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::ImplementDefinition { module, defs })
     }
 
     /// Parse a method requirement. (must appear only in module definitions)

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/requirement_outside.sk
+---
+Error: `foo' is a requirement of `M'; define it in `implement M'
+   ╭─[tests/erroneous/implement/requirement_outside.sk:8:13]
+   │
+ 8 │   implement M
+   │             ┬  
+   │             ╰── `foo' is a requirement of `M'; define it in `implement M'
+───╯

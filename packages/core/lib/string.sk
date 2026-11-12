@@ -1,12 +1,22 @@
 require "./mutable_string.sk"
 
-class String : Comparable, Equatable, Hashable
+class String
   native def initialize(bytes: Shiika::Internal::Ptr, n_bytes: Shiika::Internal::Int64)
   native def +(other: String) -> String
   native def *(n: Int) -> String
-  native_async def ==(other: String) -> Bool
-  native_async def <(other: String) -> Bool
-  native_async def hash -> Int
+
+  implement Comparable
+    native_async def <(other: String) -> Bool
+  end
+
+  implement Equatable
+    native_async def ==(other: String) -> Bool
+  end
+
+  implement Hashable
+    native_async def hash -> Int
+  end
+
   native def bytesize -> Int
   native def empty? -> Bool
   native def starts_with?(s: String) -> Bool

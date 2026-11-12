@@ -1,7 +1,7 @@
 require "./enumerable.sk"
 require "./maybe.sk"
 
-class Array<T> : Enumerable<T>
+class Array<T>
   native def [](idx: Int) -> T
   native def clear
   native def self._from_raw(llvm_ary: Shiika::Internal::Ptr, len: Shiika::Internal::Int64) -> Array<T>
@@ -83,11 +83,13 @@ class Array<T> : Enumerable<T>
     ret
   end
 
-  # Call `f` with each element of `self`
-  def each(f: Fn1<T, Void>)
-    var i = 0; while i < length
-      f(self[i])
-      i += 1
+  implement Enumerable<T>
+    # Call `f` with each element of `self`
+    def each(f: Fn1<T, Void>)
+      var i = 0; while i < length
+        f(self[i])
+        i += 1
+      end
     end
   end
 

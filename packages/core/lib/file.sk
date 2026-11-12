@@ -1,6 +1,6 @@
 require "./readable.sk"
 
-class File : Readable
+class File
   native def self._open(path: String) -> Result<File>
   native def _fill_buf -> Result<String>
   native def _consume(n_bytes: Int)
@@ -19,11 +19,13 @@ class File : Readable
   # TODO: will we need this?
   # def close
 
-  def fill_buf -> Result<String>
-    _fill_buf
-  end
+  implement Readable
+    def fill_buf -> Result<String>
+      _fill_buf
+    end
 
-  def consume(n_bytes: Int)
-    _consume(n_bytes)
+    def consume(n_bytes: Int)
+      _consume(n_bytes)
+    end
   end
 end

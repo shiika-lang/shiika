@@ -1,0 +1,9 @@
+module M; end
+base class A
+  implement M
+  end
+end
+class B : A
+  implement M
+  end
+end

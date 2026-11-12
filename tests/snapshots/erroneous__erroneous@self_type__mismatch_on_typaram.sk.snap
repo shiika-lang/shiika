@@ -4,9 +4,9 @@ expression: compiler_output
 input_file: tests/erroneous/self_type/mismatch_on_typaram.sk
 ---
 Error: the argument `other' of `Eq#eq?' should be T but got A
-   ╭─[tests/erroneous/self_type/mismatch_on_typaram.sk:9:11]
-   │
- 9 │     a.eq?(b)
-   │           ┬  
-   │           ╰── A
-───╯
+    ╭─[tests/erroneous/self_type/mismatch_on_typaram.sk:11:11]
+    │
+ 11 │     a.eq?(b)
+    │           ┬  
+    │           ╰── A
+────╯

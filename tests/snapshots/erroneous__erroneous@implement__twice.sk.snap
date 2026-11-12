@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/twice.sk
+---
+Error: `implement M' appears twice in `A'
+   ╭─[tests/erroneous/implement/twice.sk:5:13]
+   │
+ 5 │   implement M
+   │             ┬  
+   │             ╰── `implement M' appears twice in `A'
+───╯

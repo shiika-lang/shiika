@@ -6,9 +6,11 @@ module M
 end
 
 # A subclass inherits the modules included by its superclass
-base class A : M
-  def foo -> Int
-    1
+base class A
+  implement M
+    def foo -> Int
+      1
+    end
   end
 end
 class B : A
@@ -21,15 +23,6 @@ class C : A
   end
 end
 
-# Requirement satisfied by a method inherited from the superclass
-base class P
-  def foo -> Int
-    100
-  end
-end
-class Q : P, M
-end
-
 # Generic superclass
 module N<X>
   requirement get -> X
@@ -37,10 +30,13 @@ module N<X>
     get
   end
 end
-base class G<T> : N<T>
+base class G<T>
   def initialize(@v: T); end
-  def get -> T
-    @v
+
+  implement N<T>
+    def get -> T
+      @v
+    end
   end
 end
 class H : G<String>
@@ -61,9 +57,6 @@ class Main
     end
     unless Main.call_bar(C.new) == 11
       puts "ng: overridden in subclass"
-    end
-    unless Main.call_bar(Q.new) == 101
-      puts "ng: requirement from superclass"
     end
     unless Main.call_get_again(H.new("a")) == "a"
       puts "ng: generic superclass"

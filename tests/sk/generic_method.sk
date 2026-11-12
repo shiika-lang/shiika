@@ -42,7 +42,9 @@ module ModuleWithGenericMethod
     unless X == Int; puts "failed GenericModuleMethodTest"; end
   end
 end
-class GenericModuleMethodTest : ModuleWithGenericMethod
+class GenericModuleMethodTest
+  implement ModuleWithGenericMethod
+  end
 end
 GenericModuleMethodTest.new.run<Int>
 

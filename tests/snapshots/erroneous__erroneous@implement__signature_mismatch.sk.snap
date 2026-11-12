@@ -1,0 +1,8 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/signature_mismatch.sk
+---
+signature does not match:
+  class': A#foo(x: String) -> Int
+  module's: M#foo(x: Int) -> Int

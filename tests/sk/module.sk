@@ -1,9 +1,11 @@
 module M
   requirement foo -> Int
 end
-class A : M
-  def foo -> Int
-    42
+class A
+  implement M
+    def foo -> Int
+      42
+    end
   end
 
   def self.bar -> M

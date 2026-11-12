@@ -10,8 +10,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ivars: SkIVars,
         defs: &[shiika_ast::Definition],
     ) {
-        let method_names = defs
-            .iter()
+        let method_names = shiika_ast::flatten_implements(defs)
             .filter_map(|def| {
                 if let shiika_ast::Definition::InstanceMethodDefinition { sig, .. } = def {
                     Some(&sig.name.0)

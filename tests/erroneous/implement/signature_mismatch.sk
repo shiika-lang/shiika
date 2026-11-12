@@ -1,0 +1,10 @@
+module M
+  requirement foo(x: Int) -> Int
+end
+class A
+  implement M
+    def foo(x: String) -> Int
+      1
+    end
+  end
+end

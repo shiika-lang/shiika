@@ -4,9 +4,9 @@ expression: compiler_output
 input_file: tests/erroneous/self_type/mismatch_on_class_value.sk
 ---
 Error: the argument `other' of `Eq#neq?' should be A but got B
-    ╭─[tests/erroneous/self_type/mismatch_on_class_value.sk:13:12]
+    ╭─[tests/erroneous/self_type/mismatch_on_class_value.sk:17:12]
     │
- 13 │ A.new.neq?(B.new)
+ 17 │ A.new.neq?(B.new)
     │            ┬  
     │            ╰── B
 ────╯

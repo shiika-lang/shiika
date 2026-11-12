@@ -1,0 +1,13 @@
+# A requirement cannot be satisfied by a method inherited from the superclass
+module M
+  requirement foo -> Int
+end
+base class P
+  def foo -> Int
+    1
+  end
+end
+class Q : P
+  implement M
+  end
+end

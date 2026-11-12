@@ -112,12 +112,8 @@ Dog.new("Pochi").greet  #=> I am Pochi
 - A method can be overridden by defining a method of the same name and signature in
   the subclass.
 
-You can also list [modules](./modules.md) after `:`. In that case the
-superclass must come first.
-
-```sk
-class Sub : SuperClass, Module1, Module2
-```
+A class can also implement [modules](./modules.md) with `implement`
+blocks.
 
 ## Constants
 

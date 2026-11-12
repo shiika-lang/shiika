@@ -1,9 +1,13 @@
-base class Class : Equatable
+base class Class
   native_async def <>(tyargs: Array<Class>) -> Class
   native_async def _specialize1(tyargs: Array<Class>) -> Class
   native_async def _type_argument(nth: Int) -> Class
   native_async def erasure_class -> Class
-  native_async def ==(other: Class) -> Bool
+
+  implement Equatable
+    native_async def ==(other: Class) -> Bool
+  end
+
   native def self._new(name: String, vtable: Object, wtable: Object, meta_cls: Metaclass, erasure_cls: Class) -> Class
 
   def name -> String

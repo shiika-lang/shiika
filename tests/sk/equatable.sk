@@ -3,13 +3,19 @@
 # immediate receiver is boxed and the Rust implementations (eg. `Int#==`)
 # are called via adapters.
 # A user-defined class
-class Key : Hashable, Equatable
+class Key
   def initialize(@n: Int); end
-  def ==(other: Key) -> Bool
-    @n == other.n
+
+  implement Hashable
+    def hash -> Int
+      @n
+    end
   end
-  def hash -> Int
-    @n
+
+  implement Equatable
+    def ==(other: Key) -> Bool
+      @n == other.n
+    end
   end
 end
 

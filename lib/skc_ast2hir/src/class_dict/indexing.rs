@@ -17,6 +17,13 @@ use std::collections::HashMap;
 /// when the type is registered (see `transfer_rust_methods`).
 type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool)>>;
 
+/// An `implement M ... end` block in a class body
+struct ImplementBlock<'a> {
+    module: &'a UnresolvedTypeName,
+    /// Names of the methods defined in the block
+    method_names: Vec<MethodFirstname>,
+}
+
 struct ClassSpec {
     namespace: Namespace,
     fullname: ClassFullname,
@@ -221,14 +228,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         check_reserved_type_name(&firstname.0)?;
         let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
-        let (superclass, includes) = if fullname.0 == "Object" {
-            (None, vec![])
+        let superclass = if fullname.0 == "Object" {
+            None
         } else {
-            let (supercls, includes) = self._resolve_supers(namespace, &typarams, supers)?;
-            (Some(supercls), includes)
+            Some(self._resolve_superclass(namespace, &typarams, supers)?)
         };
 
-        let (instance_methods, class_methods) = self.index_defs_in_class(
+        let (instance_methods, class_methods, implements) = self.index_defs_in_class(
             inheritable,
             &inner_namespace,
             &fullname,
@@ -236,6 +242,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &superclass,
             defs,
             rust_methods,
+        )?;
+        let includes = self._resolve_implements(
+            &inner_namespace,
+            &fullname,
+            &typarams,
+            &superclass,
+            &instance_methods,
+            &accessor_names(defs),
+            &implements,
         )?;
 
         self.add_new_class(
@@ -258,26 +273,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(())
     }
 
-    /// Resolve superclass and included module names of a class definition
-    fn _resolve_supers(
+    /// Resolve the superclass of a class definition
+    fn _resolve_superclass(
         &self,
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
         supers: &[UnresolvedTypeName],
-    ) -> Result<(Supertype, Vec<Supertype>)> {
-        let mut modules = vec![];
+    ) -> Result<Supertype> {
         let mut superclass = None;
         for name in supers {
             let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
             crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
-                    if !modules.is_empty() {
-                        return Err(error::program_error(&format!(
-                            "superclass {} must be the first",
-                            ty
-                        )));
-                    }
                     if superclass.is_some() {
                         return Err(error::program_error(&format!(
                             "only one superclass is allowed but got {}",
@@ -302,17 +310,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         }
                     }
                 }
-                Some(SkType::Module(_)) => match &ty.body {
-                    TyBody::TyPara(_) => {
-                        return Err(error::program_error(&format!(
-                            "type parameter {} cannot be a supertype",
-                            ty
-                        )));
-                    }
-                    TyBody::TyRaw(lit_ty) => {
-                        modules.push(Supertype::from_ty(lit_ty.clone()));
-                    }
-                },
+                Some(SkType::Module(_)) => {
+                    return Err(located_error(
+                        format!(
+                            "`{}' is a module; use `implement {}' in the class body to include it",
+                            name, name
+                        ),
+                        &name.locs,
+                    ));
+                }
                 None => {
                     return Err(error::program_error(&format!(
                         "unknown class or module {}",
@@ -321,7 +327,129 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((superclass.unwrap_or_else(Supertype::default), modules))
+        Ok(superclass.unwrap_or_else(Supertype::default))
+    }
+
+    /// Resolve the modules of the `implement` blocks of a class and check
+    /// that each block defines exactly the methods of the module.
+    fn _resolve_implements(
+        &self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        class_typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
+        instance_methods: &MethodSignatures,
+        accessor_names: &[MethodFirstname],
+        implements: &[ImplementBlock],
+    ) -> Result<Vec<Supertype>> {
+        let mut modules: Vec<Supertype> = vec![];
+        for blk in implements {
+            let name = blk.module;
+            let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
+            let sk_module = match self.find_type(&ty.erasure().to_type_fullname()) {
+                Some(SkType::Module(m)) => m,
+                Some(SkType::Class(_)) => {
+                    return Err(located_error(
+                        format!("`{}' is a class; only a module can be implemented", name),
+                        &name.locs,
+                    ));
+                }
+                None => {
+                    return Err(located_error(
+                        format!("unknown module `{}'", name),
+                        &name.locs,
+                    ));
+                }
+            };
+            let lit_ty = match &ty.body {
+                TyBody::TyPara(_) => {
+                    return Err(located_error(
+                        format!("type parameter `{}' cannot be implemented", name),
+                        &name.locs,
+                    ));
+                }
+                TyBody::TyRaw(lit_ty) => lit_ty.clone(),
+            };
+            let module_name = sk_module.fullname().to_type_fullname();
+            if modules
+                .iter()
+                .any(|m| m.erasure().to_type_fullname() == module_name)
+            {
+                return Err(located_error(
+                    format!("`implement {}' appears twice in `{}'", name, fullname),
+                    &name.locs,
+                ));
+            }
+            if let Some(owner) = self._ancestor_implementing(superclass, &module_name) {
+                return Err(located_error(
+                    format!(
+                        "`{}' is already implemented by `{}', the superclass of `{}'\n  \
+                         hint: override its methods outside of `implement'",
+                        name, owner, fullname
+                    ),
+                    &name.locs,
+                ));
+            }
+            for method_name in &blk.method_names {
+                if !sk_module.base.method_sigs.contains_key(method_name) {
+                    return Err(located_error(
+                        format!(
+                            "`{}' is not a method of `{}'\n  \
+                             hint: define it outside of `implement {}'",
+                            method_name, name, name
+                        ),
+                        &name.locs,
+                    ));
+                }
+            }
+            for req in &sk_module.requirements {
+                let req_name = &req.fullname.first_name;
+                // An accessor cannot be written in the block, so it is
+                // allowed to satisfy a requirement
+                if blk.method_names.contains(req_name) || accessor_names.contains(req_name) {
+                    continue;
+                }
+                let msg = if instance_methods.contains_key(req_name) {
+                    format!(
+                        "`{}' is a requirement of `{}'; define it in `implement {}'",
+                        req_name, name, name
+                    )
+                } else {
+                    format!(
+                        "`implement {}' in `{}' does not define the required method `{}'",
+                        name, fullname, req_name
+                    )
+                };
+                return Err(located_error(msg, &name.locs));
+            }
+            modules.push(Supertype::from_ty(lit_ty));
+        }
+        Ok(modules)
+    }
+
+    /// Returns the nearest ancestor class which implements `module_name`
+    fn _ancestor_implementing(
+        &self,
+        superclass: &Option<Supertype>,
+        module_name: &TypeFullname,
+    ) -> Option<ClassFullname> {
+        let mut sup = superclass.as_ref().map(|s| s.erasure().to_class_fullname());
+        while let Some(name) = sup {
+            let sk_class = self.get_class(&name);
+            if sk_class
+                .includes
+                .iter()
+                .any(|m| &m.erasure().to_type_fullname() == module_name)
+            {
+                return Some(name);
+            }
+            sup = sk_class
+                .superclass
+                .as_ref()
+                .map(|s| s.erasure().to_class_fullname());
+        }
+        None
     }
 
     fn index_module(
@@ -531,7 +659,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         check_reserved_type_name(&firstname.0)?;
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
-        let (instance_methods, class_methods) = self.index_defs_in_class(
+        let (instance_methods, class_methods, implements) = self.index_defs_in_class(
             false,
             &inner_namespace,
             &fullname,
@@ -540,6 +668,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs,
             rust_methods,
         )?;
+        if let Some(blk) = implements.first() {
+            return Err(located_error(
+                format!(
+                    "enum `{}' cannot implement a module (not supported yet)",
+                    fullname
+                ),
+                &blk.module.locs,
+            ));
+        }
         self.add_new_class(
             ClassSpec {
                 namespace: namespace.clone(),
@@ -624,17 +761,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(ivars)
     }
 
-    fn index_defs_in_class(
+    fn index_defs_in_class<'a>(
         &mut self,
         inheritable: bool,
         namespace: &Namespace,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
-        defs: &[shiika_ast::Definition],
+        defs: &'a [shiika_ast::Definition],
         rust_methods: &mut RustMethods,
-    ) -> Result<(MethodSignatures, MethodSignatures)> {
-        let (instance_methods, class_methods, _) = self._index_inner_defs(
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<ImplementBlock<'a>>)> {
+        let (instance_methods, class_methods, _, implements) = self._index_inner_defs(
             inheritable,
             namespace,
             fullname.to_type_fullname(),
@@ -644,7 +781,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             false,
             rust_methods,
         )?;
-        Ok((instance_methods, class_methods))
+        Ok((instance_methods, class_methods, implements))
     }
 
     fn index_defs_in_module(
@@ -655,7 +792,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
-        self._index_inner_defs(
+        let (instance_methods, class_methods, requirements, implements) = self._index_inner_defs(
             false,
             namespace,
             fullname.to_type_fullname(),
@@ -664,25 +801,42 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs,
             true,
             rust_methods,
-        )
+        )?;
+        if let Some(blk) = implements.first() {
+            return Err(located_error(
+                format!(
+                    "module `{}' cannot implement a module; use `module {} : {}' to require it",
+                    fullname, fullname, blk.module
+                ),
+                &blk.module.locs,
+            ));
+        }
+        Ok((instance_methods, class_methods, requirements))
     }
 
-    fn _index_inner_defs(
+    #[allow(clippy::type_complexity)]
+    fn _index_inner_defs<'a>(
         &mut self,
         inheritable: bool,
         namespace: &Namespace,
         fullname: TypeFullname,
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
-        defs: &[shiika_ast::Definition],
+        defs: &'a [shiika_ast::Definition],
         is_module: bool,
         rust_methods: &mut RustMethods,
-    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
+    ) -> Result<(
+        MethodSignatures,
+        MethodSignatures,
+        Vec<MethodSignature>,
+        Vec<ImplementBlock<'a>>,
+    )> {
         let mut instance_methods = MethodSignatures::new();
         let mut class_methods = MethodSignatures::new();
         let mut requirements = vec![];
         let mut natives = vec![];
-        for def in defs {
+        let implements = collect_implement_blocks(defs)?;
+        for def in shiika_ast::flatten_implements(defs) {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
                 | shiika_ast::Definition::InitializerDefinition(
@@ -816,6 +970,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         rust_methods,
                     )?;
                 }
+                shiika_ast::Definition::ImplementDefinition { .. } => {
+                    unreachable!("flattened by flatten_implements")
+                }
                 shiika_ast::Definition::NativeMethodDefinition {
                     sig,
                     is_class_method,
@@ -845,7 +1002,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             entry.push((sig, is_async));
         }
-        Ok((instance_methods, class_methods, requirements))
+        Ok((instance_methods, class_methods, requirements, implements))
     }
 
     /// Register getters/setters from signature of `#initialize`
@@ -1274,6 +1431,54 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn known(&self, fullname: &TypeFullname) -> bool {
         self.sk_types.types.contains_key(fullname)
     }
+}
+
+/// Returns the names of the getters defined by `def initialize(@a: Int)`
+fn accessor_names(defs: &[shiika_ast::Definition]) -> Vec<MethodFirstname> {
+    let Some(init) = shiika_ast::find_initializer(defs) else {
+        return vec![];
+    };
+    init.sig
+        .params
+        .iter()
+        .filter(|p| p.is_iparam)
+        .map(|p| method_firstname(p.name.trim_start_matches('@')))
+        .collect()
+}
+
+/// Collect the `implement` blocks in `defs` and check their contents
+fn collect_implement_blocks(defs: &[shiika_ast::Definition]) -> Result<Vec<ImplementBlock<'_>>> {
+    let mut blocks = vec![];
+    for def in defs {
+        let shiika_ast::Definition::ImplementDefinition { module, defs } = def else {
+            continue;
+        };
+        let mut method_names = vec![];
+        for inner in defs {
+            match inner {
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+                | shiika_ast::Definition::NativeMethodDefinition {
+                    sig,
+                    is_class_method: false,
+                    ..
+                } => method_names.push(sig.name.clone()),
+                _ => {
+                    return Err(located_error(
+                        format!(
+                            "only instance methods can be defined in `implement {}'",
+                            module
+                        ),
+                        &module.locs,
+                    ));
+                }
+            }
+        }
+        blocks.push(ImplementBlock {
+            module,
+            method_names,
+        });
+    }
+    Ok(blocks)
 }
 
 /// Returns the signature of a `native def` in `defs` (recursively), if any

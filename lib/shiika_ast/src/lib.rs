@@ -74,6 +74,12 @@ pub enum Definition {
     MethodRequirementDefinition {
         sig: AstMethodSignature,
     },
+    /// `implement M ... end` in a class body: the class includes the module
+    /// `M` and `defs` are its methods which implement `M`.
+    ImplementDefinition {
+        module: UnresolvedTypeName,
+        defs: Vec<Definition>,
+    },
     /// `native def` / `native_async def`: a method implemented in Rust
     NativeMethodDefinition {
         sig: AstMethodSignature,
@@ -90,6 +96,14 @@ pub enum Definition {
 pub struct InitializerDefinition {
     pub sig: AstMethodSignature,
     pub body_exprs: Vec<AstExpression>,
+}
+
+/// Iterate over `defs`, replacing each `implement` block with its inner defs.
+pub fn flatten_implements(defs: &[Definition]) -> impl Iterator<Item = &Definition> {
+    defs.iter().flat_map(|def| match def {
+        Definition::ImplementDefinition { defs, .. } => defs.iter().collect::<Vec<_>>(),
+        _ => vec![def],
+    })
 }
 
 pub fn find_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
@@ -165,6 +179,17 @@ pub struct UnresolvedTypeName {
     pub names: Vec<String>,
     pub args: Vec<UnresolvedTypeName>,
     pub locs: LocationSpan,
+}
+
+impl std::fmt::Display for UnresolvedTypeName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.names.join("::"))?;
+        if !self.args.is_empty() {
+            let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
+            write!(f, "<{}>", args.join(", "))?;
+        }
+        Ok(())
+    }
 }
 
 impl UnresolvedTypeName {

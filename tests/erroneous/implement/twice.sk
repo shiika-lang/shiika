@@ -1,0 +1,7 @@
+module M; end
+class A
+  implement M
+  end
+  implement M
+  end
+end
