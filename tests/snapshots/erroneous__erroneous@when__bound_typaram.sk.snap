@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/bound_typaram.sk
+---
+Error: `Box<U>#describe_all' requires `U: Describe'
+    ╭─[tests/erroneous/when/bound_typaram.sk:19:6]
+    │
+ 19 │     b.describe_all
+    │      ──────┬──────  
+    │            ╰──────── `Box<U>#describe_all' requires `U: Describe'
+────╯

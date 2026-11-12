@@ -1,0 +1,7 @@
+class Box<T>
+  when U == Int
+    def foo -> Int
+      1
+    end
+  end
+end

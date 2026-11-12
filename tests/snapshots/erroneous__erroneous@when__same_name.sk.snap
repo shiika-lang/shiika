@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/same_name.sk
+---
+method `foo' of `Box' is defined in a `when' block and elsewhere (overloading by the conditions is not supported)

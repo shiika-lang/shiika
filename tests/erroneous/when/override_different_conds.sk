@@ -1,0 +1,12 @@
+base class Base<T>
+  when T == Int
+    def foo -> Int
+      1
+    end
+  end
+end
+class Sub<U> : Base<U>
+  def foo -> Int
+    2
+  end
+end

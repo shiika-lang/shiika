@@ -80,6 +80,12 @@ pub enum Definition {
         module: UnresolvedTypeName,
         defs: Vec<Definition>,
     },
+    /// `when T: X ... end` in a class or module body: methods which are
+    /// available only when the conditions are satisfied
+    WhenDefinition {
+        conds: Vec<AstWhenCond>,
+        defs: Vec<Definition>,
+    },
     /// `native def` / `native_async def`: a method implemented in Rust
     NativeMethodDefinition {
         sig: AstMethodSignature,
@@ -98,10 +104,24 @@ pub struct InitializerDefinition {
     pub body_exprs: Vec<AstExpression>,
 }
 
-/// Iterate over `defs`, replacing each `implement` block with its inner defs.
-pub fn flatten_implements(defs: &[Definition]) -> impl Iterator<Item = &Definition> {
+/// A condition of a `when` block
+#[derive(Debug, PartialEq)]
+pub struct AstWhenCond {
+    /// Name of the type parameter (eg. `T`)
+    pub typaram: String,
+    /// true for `T == X`, false for `T: X`
+    pub is_eq: bool,
+    pub ty: UnresolvedTypeName,
+    pub locs: LocationSpan,
+}
+
+/// Iterate over `defs`, replacing each `implement` or `when` block with its
+/// inner defs.
+pub fn flatten_blocks(defs: &[Definition]) -> impl Iterator<Item = &Definition> {
     defs.iter().flat_map(|def| match def {
-        Definition::ImplementDefinition { defs, .. } => defs.iter().collect::<Vec<_>>(),
+        Definition::ImplementDefinition { defs, .. } | Definition::WhenDefinition { defs, .. } => {
+            defs.iter().collect::<Vec<_>>()
+        }
         _ => vec![def],
     })
 }

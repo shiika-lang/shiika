@@ -1,0 +1,5 @@
+class Box<T>
+  when T == Int
+    def initialize; end
+  end
+end

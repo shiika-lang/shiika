@@ -300,6 +300,24 @@ impl TermTy {
         }
     }
 
+    /// Substitute class type parameters like `substitute`, but also in the
+    /// upper bound of `Self` (eg. `Enumerable<E>` of `Self` in `Enumerable`).
+    /// A typaram used as a class object (`as_class`) is left as is.
+    pub fn substitute_with_self(&self, class_tyargs: &[TermTy]) -> TermTy {
+        match &self.body {
+            TyPara(r) => match r.kind {
+                TyParamKind::Class if !r.as_class => class_tyargs[r.idx].clone(),
+                TyParamKind::SelfType => {
+                    let mut r2 = r.clone();
+                    r2.upper_bound = r.upper_bound.substitute_with_self(class_tyargs);
+                    r2.into_term_ty()
+                }
+                _ => self.clone(),
+            },
+            TyRaw(lit_ty) => lit_ty.substitute_with_self(class_tyargs).into(),
+        }
+    }
+
     /// Replace `Self` (of a module) in this type with `self_ty`
     pub fn replace_self(&self, self_ty: &TermTy) -> TermTy {
         match &self.body {

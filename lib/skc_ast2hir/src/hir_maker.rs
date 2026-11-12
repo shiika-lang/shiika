@@ -244,8 +244,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::EnumDefinition {
                     name, cases, defs, ..
                 } => self.process_enum_def(namespace, name, cases, defs)?,
-                shiika_ast::Definition::ImplementDefinition { defs, .. } => {
-                    // Methods in `implement` are instance methods of the class
+                shiika_ast::Definition::ImplementDefinition { defs, .. }
+                | shiika_ast::Definition::WhenDefinition { defs, .. } => {
+                    // Methods in `implement`/`when` are instance methods of the class
                     self.process_defs(namespace, opt_fullname, defs)?;
                 }
                 shiika_ast::Definition::MethodRequirementDefinition { .. }
@@ -476,8 +477,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 )
             });
 
-        self.ctx_stack
-            .push(HirMakerContext::method(signature.clone(), super_ivars));
+        // In a `when` block, the class type parameters are substituted in the body
+        let when_tyargs = (!signature.when_conds.is_empty()).then(|| {
+            let typarams = &self.class_dict.get_type(type_fullname).base().typarams;
+            crate::class_dict::when_body_tyargs(typarams, &signature.when_conds, false)
+        });
+        let signature = match &when_tyargs {
+            Some(tyargs) => signature.substitute_with_self(tyargs),
+            None => signature,
+        };
+        self.ctx_stack.push(HirMakerContext::method(
+            signature.clone(),
+            super_ivars,
+            when_tyargs,
+        ));
         for param in &signature.params {
             if param.has_default {
                 let readonly = true;

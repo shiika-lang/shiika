@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/eq_typaram.sk
+---
+Error: `Box<U>#join_all' requires `U == String'
+    ╭─[tests/erroneous/when/eq_typaram.sk:19:6]
+    │
+ 19 │     b.join_all
+    │      ────┬────  
+    │          ╰────── `Box<U>#join_all' requires `U == String'
+────╯

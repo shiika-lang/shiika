@@ -159,8 +159,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             if module_value {
                 return for_module_value(found, current_type, locs);
             }
-            if in_superclass {
-                // Found in a superclass (eg. `G<String>` of `class H : G<String>`).
+            if in_superclass || current_type.is_typaram_ref() {
+                // Found in a superclass (eg. `G<String>` of `class H : G<String>`)
+                // or the upper bound of a typaram (eg. `Enumerable<E>` of `Self`).
                 // Its type arguments are already expressed in terms of the receiver.
                 found.specialize(class_tyargs, Default::default());
             }

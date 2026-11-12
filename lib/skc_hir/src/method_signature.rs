@@ -20,6 +20,68 @@ pub struct MethodSignature {
     /// True if this method is written in Rust and thus requires
     /// `declare` in LLVM IR.
     pub is_rust: bool,
+    /// Conditions of the `when` block which this method is defined in
+    /// (empty if not in a `when` block)
+    pub when_conds: Vec<WhenCond>,
+}
+
+/// A condition of a `when` block (eg. `T: Comparable`, `T == String`)
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WhenCond {
+    /// The type parameter (eg. `T`). Becomes the actual type argument when
+    /// the signature is specialized.
+    pub typaram: TermTy,
+    pub kind: WhenCondKind,
+    pub ty: TermTy,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum WhenCondKind {
+    /// `T: X`
+    Bound,
+    /// `T == X`
+    Eq,
+}
+
+impl fmt::Display for WhenCond {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.kind {
+            WhenCondKind::Bound => write!(f, "{}: {}", self.typaram, self.ty),
+            WhenCondKind::Eq => write!(f, "{} == {}", self.typaram, self.ty),
+        }
+    }
+}
+
+impl WhenCond {
+    pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> WhenCond {
+        WhenCond {
+            typaram: self.typaram.substitute(class_tyargs, method_tyargs),
+            kind: self.kind.clone(),
+            ty: self.ty.substitute(class_tyargs, method_tyargs),
+        }
+    }
+
+    /// Returns a serialized string which can be parsed by `deserialize`
+    pub fn serialize(&self) -> String {
+        let k = match self.kind {
+            WhenCondKind::Bound => "<",
+            WhenCondKind::Eq => "=",
+        };
+        format!("{}{}{}", self.typaram.serialize(), k, self.ty.serialize())
+    }
+
+    /// nom parser for WhenCond
+    pub fn deserialize(s: &str) -> IResult<&str, WhenCond> {
+        let (s, typaram) = TermTy::deserialize(s)?;
+        let (s, k) = nom::branch::alt((tag("<"), tag("=")))(s)?;
+        let (s, ty) = TermTy::deserialize(s)?;
+        let kind = if k == "<" {
+            WhenCondKind::Bound
+        } else {
+            WhenCondKind::Eq
+        };
+        Ok((s, WhenCond { typaram, kind, ty }))
+    }
 }
 
 impl fmt::Display for MethodSignature {
@@ -77,6 +139,28 @@ impl MethodSignature {
             asyncness: self.asyncness.clone(),
             is_virtual: self.is_virtual,
             is_rust: self.is_rust,
+            when_conds: self
+                .when_conds
+                .iter()
+                .map(|c| c.substitute(class_tyargs, method_tyargs))
+                .collect(),
+        }
+    }
+
+    /// Substitute class type parameters with `class_tyargs`, also in the
+    /// upper bound of `Self`. Used for the body of a `when` block.
+    pub fn substitute_with_self(&self, class_tyargs: &[TermTy]) -> MethodSignature {
+        MethodSignature {
+            ret_ty: self.ret_ty.substitute_with_self(class_tyargs),
+            params: self
+                .params
+                .iter()
+                .map(|param| MethodParam {
+                    ty: param.ty.substitute_with_self(class_tyargs),
+                    ..param.clone()
+                })
+                .collect(),
+            ..self.clone()
         }
     }
 
@@ -138,9 +222,19 @@ impl MethodSignature {
             .map(|x| format!("{}: {}", &x.name, &x.ty))
             .collect::<Vec<_>>()
             .join(", ");
+        let when = if self.when_conds.is_empty() {
+            "".to_string()
+        } else {
+            let conds = self
+                .when_conds
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>();
+            format!(" (when {})", conds.join(", "))
+        };
         format!(
-            "{}{}({}) -> {}",
-            &self.fullname, typarams, params, &self.ret_ty
+            "{}{}({}) -> {}{}",
+            &self.fullname, typarams, params, &self.ret_ty, when
         )
     }
 
@@ -160,15 +254,26 @@ impl MethodSignature {
             .map(MethodParam::serialize)
             .collect::<Vec<_>>()
             .join(",");
+        let when = if self.when_conds.is_empty() {
+            "".to_string()
+        } else {
+            let conds = self
+                .when_conds
+                .iter()
+                .map(WhenCond::serialize)
+                .collect::<Vec<_>>();
+            format!("?{}", conds.join(";"))
+        };
         format!(
-            "{}{}{}<{}>{}({}){}",
+            "{}{}{}<{}>{}({}){}{}",
             is_virtual,
             is_rust,
             self.asyncness,
             typarams,
             &self.fullname,
             params,
-            &self.ret_ty.serialize()
+            &self.ret_ty.serialize(),
+            when
         )
     }
 
@@ -186,6 +291,9 @@ impl MethodSignature {
         let parse_params = nom::multi::separated_list0(tag(","), MethodParam::deserialize);
         let (s, params) = nom::sequence::delimited(tag("("), parse_params, tag(")"))(s)?;
         let (s, ret_ty) = TermTy::deserialize(s)?;
+        let parse_conds = nom::multi::separated_list1(tag(";"), WhenCond::deserialize);
+        let (s, when_conds) =
+            nom::combinator::opt(nom::sequence::preceded(tag("?"), parse_conds))(s)?;
         Ok((
             s,
             MethodSignature {
@@ -196,6 +304,7 @@ impl MethodSignature {
                 asyncness,
                 is_virtual: is_virtual.is_some(),
                 is_rust: is_rust.is_some(),
+                when_conds: when_conds.unwrap_or_default(),
             },
         ))
     }
@@ -330,6 +439,7 @@ pub fn signature_of_new(
         asyncness: Asyncness::Unknown,
         is_virtual: false,
         is_rust: false,
+        when_conds: vec![],
     }
 }
 
@@ -346,6 +456,7 @@ pub fn signature_of_enum_initialize(
         asyncness: Asyncness::Unknown,
         is_virtual: false,
         is_rust: false,
+        when_conds: vec![],
     }
 }
 

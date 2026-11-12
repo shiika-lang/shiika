@@ -123,6 +123,7 @@ fn _convert_block(
         &mk.ctx_stack.current_method_typarams(),
         inferred_block_param_tys,
     )?;
+    let hir_params = mk.ctx_stack.apply_when_params(hir_params);
 
     // Convert lambda body
     mk.ctx_stack

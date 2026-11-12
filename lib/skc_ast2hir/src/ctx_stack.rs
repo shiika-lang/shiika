@@ -210,6 +210,26 @@ impl CtxStack {
         }
     }
 
+    /// Substitute the class type parameters in `ty` if we're in a method of
+    /// a `when` block
+    pub fn apply_when(&self, ty: &TermTy) -> TermTy {
+        match self.method_ctx().and_then(|c| c.when_tyargs.as_ref()) {
+            Some(tyargs) => ty.substitute_with_self(tyargs),
+            None => ty.clone(),
+        }
+    }
+
+    /// `apply_when` for the types of `params`
+    pub fn apply_when_params(&self, params: Vec<MethodParam>) -> Vec<MethodParam> {
+        params
+            .into_iter()
+            .map(|p| MethodParam {
+                ty: self.apply_when(&p.ty),
+                ..p
+            })
+            .collect()
+    }
+
     /// The type of `self` in the current scope
     pub fn self_ty(&self) -> TermTy {
         if let Some(class_ctx) = self.class_ctx() {
@@ -219,7 +239,7 @@ impl CtxStack {
                 } else {
                     let classname = &method_ctx.signature.fullname.type_name;
                     let args = ty::typarams_to_tyargs(&class_ctx.typarams);
-                    ty::nonmeta(&classname.0, args)
+                    self.apply_when(&ty::nonmeta(&classname.0, args))
                 }
             } else {
                 ty::meta(&class_ctx.namespace.string())
@@ -286,6 +306,16 @@ impl CtxStack {
                 }
                 let typarams = &class_ctx.typarams;
                 if let Some(i) = typarams.iter().position(|t| *name == *t.name) {
+                    // In a `when` block, the bound of the typaram may be narrowed
+                    // (`T: X`). `T == X` is not reflected here (`T` as a class
+                    // object is obtained at runtime anyway).
+                    if let Some(TyBody::TyPara(r)) = method_ctx
+                        .when_tyargs
+                        .as_ref()
+                        .map(|tyargs| &tyargs[i].body)
+                    {
+                        return Some(r.clone());
+                    }
                     return Some(ty::typaram_ref(&typarams[i], ty::TyParamKind::Class, i));
                 }
             }

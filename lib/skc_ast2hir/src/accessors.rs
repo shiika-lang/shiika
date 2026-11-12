@@ -10,7 +10,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         ivars: SkIVars,
         defs: &[shiika_ast::Definition],
     ) {
-        let method_names = shiika_ast::flatten_implements(defs)
+        let method_names = shiika_ast::flatten_blocks(defs)
             .filter_map(|def| {
                 if let shiika_ast::Definition::InstanceMethodDefinition { sig, .. } = def {
                     Some(&sig.name.0)
@@ -50,6 +50,7 @@ fn create_getter_signature(clsname: &ClassFullname, ivar: &SkIVar) -> MethodSign
         asyncness: Asyncness::Sync,
         is_virtual: false,
         is_rust: false,
+        when_conds: vec![],
     }
 }
 
@@ -81,6 +82,7 @@ fn create_setter_signature(clsname: &ClassFullname, ivar: &SkIVar) -> MethodSign
         asyncness: Asyncness::Sync,
         is_virtual: false,
         is_rust: false,
+        when_conds: vec![],
     }
 }
 

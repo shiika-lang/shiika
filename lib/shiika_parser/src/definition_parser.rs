@@ -30,6 +30,7 @@ impl<'a> Parser<'a> {
             Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
             Token::KwImplement => Ok(Some(self.parse_implement_definition()?)),
+            Token::KwWhen => Ok(Some(self.parse_when_definition()?)),
             Token::KwNative | Token::KwNativeAsync => {
                 Ok(Some(self.parse_native_method_definition()?))
             }
@@ -334,6 +335,92 @@ impl<'a> Parser<'a> {
 
         self.lv -= 1;
         Ok(shiika_ast::Definition::ImplementDefinition { module, defs })
+    }
+
+    /// Parse `when T: X, U == Y ... end` (must appear only in class or module
+    /// definitions)
+    fn parse_when_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_when_definition");
+        self.lv += 1;
+        // `when'
+        assert!(self.consume(Token::KwWhen)?);
+        self.skip_ws()?;
+
+        // Conditions
+        let mut conds = vec![];
+        loop {
+            let begin = self.lexer.location();
+            let (typaram, is_eq) = match self.current_token() {
+                // `T:` is lexed as a key name
+                Token::KeyName(s) => {
+                    let s = s.to_string();
+                    self.consume_token()?;
+                    (s, false)
+                }
+                Token::UpperWord(s) => {
+                    let s = s.to_string();
+                    self.consume_token()?;
+                    if self.consume(Token::Colon)? {
+                        (s, false)
+                    } else {
+                        self.skip_ws()?;
+                        if !self.consume(Token::EqEq)? {
+                            return Err(parse_error!(
+                                self,
+                                "expected `:' or `==' after `{}' in `when'; got {:?}",
+                                s,
+                                self.current_token()
+                            ));
+                        }
+                        (s, true)
+                    }
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "expected a type parameter after `when'; got {:?}",
+                        token
+                    ))
+                }
+            };
+            self.skip_ws()?;
+            let ty = self.parse_typ()?;
+            let end = self.lexer.location();
+            conds.push(shiika_ast::AstWhenCond {
+                typaram,
+                is_eq,
+                ty,
+                locs: self.ast.locs(begin, end),
+            });
+            self.skip_ws()?;
+            if self.current_token_is(Token::Comma) {
+                self.consume_token()?;
+                self.skip_ws()?;
+            } else {
+                break;
+            }
+        }
+        self.expect_sep()?;
+
+        // Methods
+        let defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for `when'; got {:?}",
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::WhenDefinition { conds, defs })
     }
 
     /// Parse a method requirement. (must appear only in module definitions)

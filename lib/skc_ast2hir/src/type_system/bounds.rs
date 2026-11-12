@@ -19,6 +19,7 @@ use anyhow::Result;
 use shiika_ast::LocationSpan;
 use shiika_core::ty::{TermTy, TyBody, TyParam};
 use skc_error::Label;
+use skc_hir::WhenCondKind;
 use skc_hir::{MethodSignature, SkType};
 
 /// Check all the types in the definitions. Called after indexing so that
@@ -72,6 +73,56 @@ pub fn check_method_tyargs(
 ) -> Result<()> {
     for (tp, tyarg) in sig.typarams.iter().zip(tyargs.iter()) {
         check_tyarg(dict, tp, tyarg, &format!("of `{}'", sig.fullname), locs)?;
+    }
+    Ok(())
+}
+
+/// Check the conditions of the `when` block of the method `sig` called on a
+/// value of `receiver_ty`.
+pub fn check_when_conds(
+    dict: &ClassDict,
+    sig: &MethodSignature,
+    receiver_ty: &TermTy,
+    method_tyargs: &[TermTy],
+    locs: &LocationSpan,
+) -> Result<()> {
+    for cond in &sig.when_conds {
+        // Same as how the parameter types are specialized (see `Infer`)
+        let c = cond.substitute(receiver_ty.type_args(), method_tyargs);
+        let msg = match c.kind {
+            WhenCondKind::Bound => {
+                if !dict.conforms(&c.typaram, &c.ty) {
+                    Some(format!(
+                        "`{}#{}' requires `{}'",
+                        receiver_ty, sig.fullname.first_name, c
+                    ))
+                } else if is_module_type(dict, &c.typaram) && module_uses_self(dict, &c.ty) {
+                    Some(format!(
+                        "`{}#{}' requires `{}' but `{}' cannot be a module type because \
+                         `{}' uses `Self' (use a class or a type parameter instead)",
+                        receiver_ty, sig.fullname.first_name, c, c.typaram, c.ty
+                    ))
+                } else {
+                    None
+                }
+            }
+            WhenCondKind::Eq => {
+                if !c.typaram.equals_to(&c.ty) {
+                    Some(format!(
+                        "`{}#{}' requires `{}'",
+                        receiver_ty, sig.fullname.first_name, c
+                    ))
+                } else {
+                    None
+                }
+            }
+        };
+        if let Some(msg) = msg {
+            let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+                r.with_label(Label::new(locs_span).with_message(msg.clone()))
+            });
+            return Err(error::type_error(&report));
+        }
     }
     Ok(())
 }

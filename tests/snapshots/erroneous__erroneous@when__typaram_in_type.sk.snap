@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/typaram_in_type.sk
+---
+Error: the type `Array<T>' in `when' cannot contain type parameters (not supported yet)
+   ╭─[tests/erroneous/when/typaram_in_type.sk:2:8]
+   │
+ 2 │   when T == Array<T>
+   │        ──────┬──────  
+   │              ╰──────── the type `Array<T>' in `when' cannot contain type parameters (not supported yet)
+───╯

@@ -163,6 +163,43 @@ p Int.class.class       #=> #<class Metaclass>
 p Int.class.class.class #=> #<class Metaclass>
 ```
 
+## Conditional methods (`when`)
+
+A `when` block in a class or module body defines methods which are
+available only when the type arguments satisfy the conditions.
+
+```sk
+class Box<T>
+  when T: Comparable
+    def max_item -> T ...      # `T` is bounded by `Comparable` here
+  end
+  when T == String
+    def join_all -> String ...  # `T` is `String` here
+  end
+end
+```
+
+- A condition is either `T: X` (the type argument of `T` conforms to `X`)
+  or `T == X` (the type argument of `T` is exactly `X`). Multiple
+  conditions are separated by `,` (all of them must be satisfied).
+  `T` must be a type parameter of the class or module. `X` cannot contain
+  type parameters (not supported yet).
+- In the block, `T: X` makes `X` the upper bound of `T`, and `T == X`
+  makes `T` an alias of `X` (eg. `self` is `Box<String>`).
+- Calling a method of a `when` block is an error unless the conditions are
+  satisfied by the type arguments of the receiver.
+  - For `T: X`, `Never` satisfies it. A module type cannot be used for a
+    condition whose `X` uses `Self` (same as the bound of a type parameter).
+  - For `T == X`, the type argument must be `X` itself (`Never` does not
+    satisfy it). A type parameter `U` does not satisfy it either, unless
+    the caller is also in a `when U == X` block.
+- Only instance methods (`def`, `native def`) can be defined in a `when`
+  block (not `initialize`, class methods, `implement`, etc.).
+- A method in a `when` block cannot have the same name as another method
+  of the class or module.
+- A method which overrides a method of a `when` block must be in a `when`
+  block of the same conditions.
+
 ## Native methods
 
 A package which has `rust_libs` in its `package.json5` can declare methods

@@ -17,7 +17,7 @@ impl AstBuilder {
         }
     }
 
-    fn locs(&self, begin: Location, end: Location) -> LocationSpan {
+    pub fn locs(&self, begin: Location, end: Location) -> LocationSpan {
         LocationSpan::new(&self.filepath, begin, end)
     }
 

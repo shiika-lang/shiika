@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/bound_unsatisfied.sk
+---
+Error: `Box<Int>#describe_all' requires `Int: Describe'
+    ╭─[tests/erroneous/when/bound_unsatisfied.sk:17:13]
+    │
+ 17 │ Box.new([1]).describe_all
+    │             ──────┬──────  
+    │                   ╰──────── `Box<Int>#describe_all' requires `Int: Describe'
+────╯
