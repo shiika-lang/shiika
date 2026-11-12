@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/accessor_as_requirement.sk
+---
+Error: `name' is a requirement of `Named'; define it in `implement Named'
+   ╭─[tests/erroneous/implement/accessor_as_requirement.sk:7:13]
+   │
+ 7 │   implement Named; end
+   │             ──┬──  
+   │               ╰──── `name' is a requirement of `Named'; define it in `implement Named'
+───╯

@@ -6,7 +6,7 @@ input_file: tests/erroneous/implement/missing_requirement.sk
 Error: `implement M' in `A' does not define the required method `foo'
    ╭─[tests/erroneous/implement/missing_requirement.sk:5:13]
    │
- 5 │   implement M
+ 5 │   implement M; end
    │             ┬  
    │             ╰── `implement M' in `A' does not define the required method `foo'
 ───╯

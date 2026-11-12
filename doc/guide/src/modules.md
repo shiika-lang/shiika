@@ -42,8 +42,7 @@ Person.new("Alice", "Liddell").greet  #=> Hello, Alice Liddell!
 ```
 
 This makes clear which methods are there for the module. A class can
-implement multiple modules with multiple `implement` blocks. An accessor
-made by `initialize(@name: String)` can also satisfy a requirement.
+implement multiple modules with multiple `implement` blocks.
 
 ```sk
 class Sub : SuperClass
@@ -101,10 +100,12 @@ superclass):
 class Person
   def initialize(@name: String); end
 
-  implement Greetable
-  end
+  implement Greetable; end
 
   implement Named
+    def name -> String
+      @name
+    end
   end
 end
 ```

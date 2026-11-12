@@ -8,6 +8,5 @@ base class P
   end
 end
 class Q : P
-  implement M
-  end
+  implement M; end
 end

@@ -43,8 +43,7 @@ module ModuleWithGenericMethod
   end
 end
 class GenericModuleMethodTest
-  implement ModuleWithGenericMethod
-  end
+  implement ModuleWithGenericMethod; end
 end
 GenericModuleMethodTest.new.run<Int>
 

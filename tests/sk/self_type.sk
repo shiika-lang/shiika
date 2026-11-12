@@ -121,6 +121,10 @@ class Person
   end
 
   implement Named
+    def name -> String
+      @name
+    end
+
     def same_name?(other: Person) -> Bool
       @name == other.name
     end

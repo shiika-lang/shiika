@@ -249,7 +249,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &typarams,
             &superclass,
             &instance_methods,
-            &accessor_names(defs),
             &implements,
         )?;
 
@@ -339,7 +338,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         class_typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
         instance_methods: &MethodSignatures,
-        accessor_names: &[MethodFirstname],
         implements: &[ImplementBlock],
     ) -> Result<Vec<Supertype>> {
         let mut modules: Vec<Supertype> = vec![];
@@ -405,9 +403,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             for req in &sk_module.requirements {
                 let req_name = &req.fullname.first_name;
-                // An accessor cannot be written in the block, so it is
-                // allowed to satisfy a requirement
-                if blk.method_names.contains(req_name) || accessor_names.contains(req_name) {
+                if blk.method_names.contains(req_name) {
                     continue;
                 }
                 let msg = if instance_methods.contains_key(req_name) {
@@ -1431,19 +1427,6 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn known(&self, fullname: &TypeFullname) -> bool {
         self.sk_types.types.contains_key(fullname)
     }
-}
-
-/// Returns the names of the getters defined by `def initialize(@a: Int)`
-fn accessor_names(defs: &[shiika_ast::Definition]) -> Vec<MethodFirstname> {
-    let Some(init) = shiika_ast::find_initializer(defs) else {
-        return vec![];
-    };
-    init.sig
-        .params
-        .iter()
-        .filter(|p| p.is_iparam)
-        .map(|p| method_firstname(p.name.trim_start_matches('@')))
-        .collect()
 }
 
 /// Collect the `implement` blocks in `defs` and check their contents

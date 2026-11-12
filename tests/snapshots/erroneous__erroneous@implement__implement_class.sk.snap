@@ -6,7 +6,7 @@ input_file: tests/erroneous/implement/implement_class.sk
 Error: `C' is a class; only a module can be implemented
    ╭─[tests/erroneous/implement/implement_class.sk:3:13]
    │
- 3 │   implement C
+ 3 │   implement C; end
    │             ┬  
    │             ╰── `C' is a class; only a module can be implemented
 ───╯

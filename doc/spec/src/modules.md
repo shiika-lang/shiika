@@ -43,9 +43,11 @@ end
   error.
 - Every requirement of the module must be defined in its `implement`
   block. It cannot be satisfied by a method defined outside the block,
-  nor by a method inherited from the superclass. The only exception is an
-  accessor defined by `def initialize(@foo: ...)`, which cannot be
-  written in the block.
+  nor by a method inherited from the superclass. An accessor defined by
+  `def initialize(@foo: ...)` does not satisfy it either; define the
+  method in the block (eg. `def foo -> Int; @foo; end`).
+- An `implement` block without methods can be written in one line:
+  `implement M; end`.
 - An `implement` block may contain only instance methods (`def` and
   `native def`) which are requirements of the module or override its
   methods. Other methods must be defined outside the block.

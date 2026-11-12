@@ -1,0 +1,8 @@
+# An accessor made by `initialize(@name: ...)` does not satisfy a requirement
+module Named
+  requirement name -> String
+end
+class Person
+  def initialize(@name: String); end
+  implement Named; end
+end

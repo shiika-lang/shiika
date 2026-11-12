@@ -4,9 +4,9 @@ expression: compiler_output
 input_file: tests/erroneous/implement/twice.sk
 ---
 Error: `implement M' appears twice in `A'
-   ╭─[tests/erroneous/implement/twice.sk:5:13]
+   ╭─[tests/erroneous/implement/twice.sk:4:13]
    │
- 5 │   implement M
+ 4 │   implement M; end
    │             ┬  
    │             ╰── `implement M' appears twice in `A'
 ───╯

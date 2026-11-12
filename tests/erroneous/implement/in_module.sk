@@ -1,5 +1,4 @@
 module M; end
 module N
-  implement M
-  end
+  implement M; end
 end

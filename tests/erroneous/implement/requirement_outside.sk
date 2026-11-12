@@ -5,6 +5,5 @@ class A
   def foo -> Int
     1
   end
-  implement M
-  end
+  implement M; end
 end
