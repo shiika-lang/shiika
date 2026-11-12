@@ -20,6 +20,11 @@ These forms of types exist:
 
 `Object` is the top type; every class is a descendant of `Object`.
 
+`Object` does not have `==`; only the types which implement the
+`Equatable` module do (likewise, `<` etc. are of `Comparable` and `hash`
+is of `Hashable`). `Object#identical?` returns true if the two values are
+the same object.
+
 ### Void
 
 `Void` is the unit type and has only one instance which is accessible with `::Void`.
@@ -70,3 +75,7 @@ Classes, modules and methods can take type parameters (see
 body, a type parameter can be used like a type. The upper bound of a
 type parameter is `Object`; only the methods of `Object` can be called
 on a value of a type parameter type.
+
+As an expression, a type parameter `T` evaluates to the class object of
+its type argument (eg. `Int` for `T := Int`), so the methods of `Class`
+can be called on it (eg. `T.name`, `T == Int`).

@@ -220,13 +220,48 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 );
             }
         }
-        Err(error::method_not_found(
+        Err(error::method_not_found_with_hint(
             format!(
                 "method {:?} not found on {:?}",
                 method_name, receiver_type.fullname
             ),
+            &self.hint_for_core_module_method(receiver_type, method_name),
             locs,
         ))
+    }
+
+    /// Returns a hint for the error that a method of `Equatable`,
+    /// `Comparable` or `Hashable` (eg. `==`) is not found.
+    fn hint_for_core_module_method(
+        &self,
+        receiver_type: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> String {
+        for module_name in ["Equatable", "Comparable", "Hashable"] {
+            let fullname = type_fullname(module_name);
+            if self.find_type(&fullname).is_none()
+                || self.find_method(&fullname, method_name).is_none()
+            {
+                continue;
+            }
+            return if receiver_type.is_typaram_ref() {
+                format!(
+                    "\n  hint: `{}' is a method of `{}'; add a bound (eg. `{}: {}')",
+                    method_name, module_name, receiver_type, module_name
+                )
+            } else {
+                let identity = if module_name == "Equatable" {
+                    " (or use `identical?' to compare the object identity)"
+                } else {
+                    ""
+                };
+                format!(
+                    "\n  hint: `{}' is a method of `{}'; the class needs `implement {}'{}",
+                    method_name, module_name, module_name, identity
+                )
+            };
+        }
+        String::new()
     }
 
     /// Look up a method in the prerequisite modules of `sk_module`

@@ -1,24 +1,8 @@
 base class Object
-  native_async def ==(other: Object) -> Bool
   native_async def panic(msg: String) -> Never
   native_async def sleep_sec(sec: Int)
   native_async def print(s: String)
   native_async def puts(s: String)
-
-  # TODO: These will be removed when `Comparable` is implemented
-  def <(other: Object) -> Bool
-    panic "[`<` is not implemented for class #{self.class}]"
-    false
-  end
-  def >(other: Object) -> Bool
-    other < self
-  end
-  def <=(other: Object) -> Bool
-    self < other or self == other
-  end
-  def >=(other: Object) -> Bool
-    self > other or self == other
-  end
 
   # Returns the class which this object belongs to.
   native_async def class -> Class
@@ -32,10 +16,6 @@ base class Object
 
   # Returns true if `other` is the same object as `self`.
   native_async def identical?(other: Object) -> Bool
-
-  def hash -> Int
-    0 # TODO: Use the pointer address
-  end
 
   def inspect -> String
     self.to_s

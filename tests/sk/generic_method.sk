@@ -1,6 +1,8 @@
 class GenericMethodTest
   def self.run<X>
     unless X == Int; puts "failed GenericMethodTest"; end
+    # Methods of `Class` can be called on `X`
+    unless X.name == "Int"; puts "failed GenericMethodTest X.name"; end
   end
 end
 GenericMethodTest.run<Int>

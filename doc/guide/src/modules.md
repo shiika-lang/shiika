@@ -160,7 +160,19 @@ The core library has these modules:
 
 `Int`, `Float` and `String` implement all of them; `Bool` implements
 `Equatable` and `Hashable`; `Class` implements `Equatable`. The keys of
-`Dict` must be `Hashable`.
+`Dict` must be `Hashable`. `Array<T>` has `==` when `T` is `Equatable`,
+and `sort` when `T` is `Comparable` (see `when` in
+[Classes](classes.md)).
+
+Only the types which implement `Equatable` have `==`. To check if two
+values are the same object, use `identical?` (defined on all objects).
+
+```sk
+class Foo; end
+let a = Foo.new
+a == a            # error; Foo does not implement Equatable
+a.identical?(a)   #=> true
+```
 
 ```sk
 class Version

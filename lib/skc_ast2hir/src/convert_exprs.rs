@@ -1001,8 +1001,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
     }
 
     /// Get the value of a class-wise or method-wise type argument.
+    /// `typaram_ref` may or may not be `as_class`.
     pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
-        let cls_ty = typaram_ref.to_term_ty();
+        let typaram_ref = if typaram_ref.as_class {
+            typaram_ref.as_type()
+        } else {
+            typaram_ref
+        };
+        // The value of `T` is the class object (eg. `Meta:Int` for `T := Int`)
+        let cls_ty = typaram_ref.as_class().into_term_ty();
         match typaram_ref.kind {
             TyParamKind::SelfType => {
                 // `lookup_typaram` never returns `Self`

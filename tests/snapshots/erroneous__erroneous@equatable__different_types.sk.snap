@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/equatable/different_types.sk
+---
+Error: the argument `other' of `Int#==' should be Int but got String
+   ╭─[tests/erroneous/equatable/different_types.sk:2:6]
+   │
+ 2 │ 1 == "a"
+   │      ─┬─  
+   │       ╰─── String
+───╯

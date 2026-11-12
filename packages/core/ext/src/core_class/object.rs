@@ -4,11 +4,6 @@ use shiika_ffi_macro::async_shiika_method;
 use std::time::Duration;
 use tokio::io::{stdout, AsyncWriteExt};
 
-#[async_shiika_method("Object#==")]
-async fn object_eq(receiver: SkObject, other: SkObject) -> SkBool {
-    (receiver.as_raw_u64() == other.as_raw_u64()).into()
-}
-
 /// Returns true if `other` is the same object as the receiver.
 #[async_shiika_method("Object#identical?")]
 async fn object_identical(receiver: SkObject, other: SkObject) -> SkBool {
