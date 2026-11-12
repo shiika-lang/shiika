@@ -69,10 +69,16 @@ immediate arguments and unbox an immediate result accordingly.
 ## Method dispatch
 
 `Int`/`Bool`/`Float` are final, so a call whose *static receiver type* is an
-immediate is always a **direct call** with the raw receiver — it is never routed
-through the vtable (a vtable lookup would read an object header from what is
-really an `i1`/`i64`). This keeps arithmetic and comparisons as plain machine
-instructions.
+immediate uses the raw receiver and bypasses the vtable (a vtable lookup would
+read an object header from what is really an `i1`/`i64`). Most such calls are
+direct calls to the method implementation.
+
+Concrete calls to `Int#<`, `<=`, `>`, `>=`, `==` and `Bool#==` are instead
+converted to `PrimBinOp` during MirGen, before asyncness inference. They produce
+LLVM `icmp` instructions on `i64` (signed ordering) or `i1` and do not create an
+async dependency on the comparison method. `!=` benefits from this too, since
+the parser expands it to a negated `==`. Operands are evaluated once, left to
+right; an async operand still makes the containing function async.
 
 A boxed immediate (one that has escaped into an `Object`-typed variable) can
 still receive a *virtual* call. For that case each virtual method of an
@@ -81,6 +87,12 @@ vtable slot: the wrapper unboxes the receiver (and any immediate arguments),
 calls the raw method, and returns. So an immediate method has two entry points —
 the raw one for direct calls (fast path) and the wrapper for vtable dispatch
 (cold path).
+
+Calls through `Comparable`/`Equatable` and type-parameter bounds use wtables.
+These keep their erased ABI adapters and async method implementations, just as
+vtable calls keep their wrappers. The Rust comparison exports and `Bool#==`
+therefore remain async. Float comparisons still call their implementations;
+their intrinsics will follow Float unboxing.
 
 ## Async / CPS
 

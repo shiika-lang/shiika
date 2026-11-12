@@ -21,6 +21,14 @@ p A.foo #=> 1
 p A.new.bar #=> 2
 ```
 
+### Builtin comparison methods
+
+`Int#<`, `Int#<=`, `Int#>`, `Int#>=`, `Int#==` and `Bool#==` are compiler
+intrinsics. A package importing their core definitions cannot redefine these
+methods. Calls with concrete Int/Bool operands may compile directly to primitive
+comparisons; calls through `Object`, modules or type parameters retain method
+dispatch. In either case operands are evaluated once, from left to right.
+
 ## Instance variables
 
 Name of an instance variable starts with `@`. All instance variables of a class must be initialized in the method `initialize`.
