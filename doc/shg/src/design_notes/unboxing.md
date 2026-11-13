@@ -102,7 +102,7 @@ a presence bitmask to detect omitted arguments; see [MIR](../mir.md).
 ## Boxed Bool singleton
 
 The boxed `true`/`false` are two global singletons (lazily initialized on first
-boxing), so boxing a Bool is allocation-free and `Object#==` (pointer identity)
+boxing), so boxing a Bool is allocation-free and `Object#identical?` (pointer identity)
 on boxed Bools is reliable.
 
 ## Current status

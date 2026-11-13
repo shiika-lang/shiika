@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/eq_unsatisfied.sk
+---
+Error: `Box<Int>#join_all' requires `Int == String'
+    ╭─[tests/erroneous/when/eq_unsatisfied.sk:17:13]
+    │
+ 17 │ Box.new([1]).join_all
+    │             ────┬────  
+    │                 ╰────── `Box<Int>#join_all' requires `Int == String'
+────╯

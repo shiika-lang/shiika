@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/module_value_nested_return.sk
+---
+Error: cannot call `M#twice' on a value of type M because `Self' appears in its return type (other than the return type itself)
+   ╭─[tests/erroneous/self_type/module_value_nested_return.sk:8:6]
+   │
+ 8 │     x.twice
+   │      ───┬──  
+   │         ╰──── the receiver may be of any class which includes M; use a type parameter (eg. `T: M') to call it
+───╯

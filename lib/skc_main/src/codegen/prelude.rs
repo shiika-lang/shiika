@@ -26,6 +26,10 @@ pub fn core_externs() -> Vec<mir::Extern> {
             FunTy::sync(vec![Ty::Ptr, Ty::Int64, Ty::Ptr, Ty::Int64], Ty::Ptr),
         ),
         (
+            "shiika_insert_metaclass_wtable",
+            FunTy::sync(vec![Ty::Int64, Ty::Ptr, Ty::Int64], Ty::Ptr),
+        ),
+        (
             "chiika_env_push_frame",
             FunTy::sync(vec![Ty::ChiikaEnv, Ty::Int64], Ty::CVoid),
         ),

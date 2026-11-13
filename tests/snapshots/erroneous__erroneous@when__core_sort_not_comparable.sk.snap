@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/core_sort_not_comparable.sk
+---
+Error: `Array<Object>#sort' requires `Object: Comparable'
+   ╭─[tests/erroneous/when/core_sort_not_comparable.sk:1:13]
+   │
+ 1 │ [Object.new].sort
+   │             ──┬──  
+   │               ╰──── `Array<Object>#sort' requires `Object: Comparable'
+───╯

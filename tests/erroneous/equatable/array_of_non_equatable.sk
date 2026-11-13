@@ -1,0 +1,3 @@
+# `Array#==` requires the elements to be `Equatable`
+class Foo; end
+[Foo.new] == [Foo.new]

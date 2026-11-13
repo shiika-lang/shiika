@@ -1,0 +1,11 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+class Box<T: Eq>
+  def initialize(@v: T); end
+end
+class Main
+  def self.f(x: Eq)
+    Box.new(x)
+  end
+end

@@ -1,0 +1,17 @@
+# Types whose values are ordered.
+# A class which includes `Comparable` must also include `Equatable`.
+module Comparable : Equatable
+  requirement <(other: Self) -> Bool
+
+  def >(other: Self) -> Bool
+    other < self
+  end
+
+  def <=(other: Self) -> Bool
+    self < other or self == other
+  end
+
+  def >=(other: Self) -> Bool
+    other < self or self == other
+  end
+end

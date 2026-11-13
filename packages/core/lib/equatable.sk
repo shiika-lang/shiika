@@ -1,0 +1,5 @@
+# Types whose values can be compared with `==`.
+# (`!=` is available too because `a != b` means `!(a == b)`.)
+module Equatable
+  requirement ==(other: Self) -> Bool
+end

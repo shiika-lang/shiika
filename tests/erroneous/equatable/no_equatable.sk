@@ -1,0 +1,3 @@
+# `==` is only defined on classes which implement `Equatable`
+class Foo; end
+Foo.new == Foo.new

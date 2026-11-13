@@ -1,0 +1,6 @@
+# Types whose values can be used as keys of hash tables.
+# A class which includes `Hashable` must also include `Equatable`.
+# `a == b` must imply `a.hash == b.hash`.
+module Hashable : Equatable
+  requirement hash -> Int
+end

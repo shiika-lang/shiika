@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/equatable/comparable_without_equatable.sk
+---
+class `Foo' implements `Comparable' but it requires `Equatable'
+  hint: add `implement Equatable' to `Foo'

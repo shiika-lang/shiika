@@ -1,0 +1,16 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+base class Shape
+  implement Eq
+    def eq?(other: Shape) -> Bool
+      true
+    end
+  end
+end
+# Must accept `Shape` because it may be called via `Shape`
+class Square : Shape
+  def eq?(other: Square) -> Bool
+    true
+  end
+end

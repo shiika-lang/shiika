@@ -48,6 +48,11 @@ impl FoundMethod {
         self.sig = self.sig.specialize(class_tyargs, method_tyargs);
     }
 
+    /// Replace `Self` (of a module) in the signature with `self_ty`
+    pub fn replace_self(&mut self, self_ty: &TermTy) {
+        self.sig = self.sig.replace_self(self_ty);
+    }
+
     pub fn set_class(&self, owner: &SkType) -> FoundMethod {
         debug_assert!(owner.is_class());
         FoundMethod {

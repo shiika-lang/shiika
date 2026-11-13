@@ -1,0 +1,4 @@
+class C; end
+class A
+  implement C; end
+end

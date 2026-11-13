@@ -266,6 +266,8 @@ impl<'a> Compiler<'a> {
                     TyParamKind::Class => {
                         self.class_tvar_class_obj(sig.receiver_ty(), typaram_ref.idx)
                     }
+                    // `Self` of a module is the class of the receiver
+                    TyParamKind::SelfType => self.self_class_obj(sig.receiver_ty()),
                 }
             }
         }
@@ -329,6 +331,23 @@ impl<'a> Compiler<'a> {
     /// Build the runtime `Class` object for the i-th class typaram of `self_ty`
     /// (matches the codegen done for `HirClassTVarRef`).
     fn class_tvar_class_obj(&self, self_ty: TermTy, idx: usize) -> mir::TypedExpr {
+        let class_obj = self.self_class_obj(self_ty);
+        let class_ty = mir::Ty::raw("Class");
+        let type_arg_fun_ty = mir::FunTy::new(
+            mir::Asyncness::Unknown,
+            vec![class_ty.clone(), mir::Ty::raw("Int")],
+            class_ty.clone(),
+        );
+        let type_arg_ref = mir::Expr::func_ref(
+            FunctionName::method("Class", "_type_argument"),
+            type_arg_fun_ty.into(),
+        );
+        let idx_expr = mir::Expr::number(idx as i64);
+        mir::Expr::fun_call(type_arg_ref, vec![class_obj, idx_expr])
+    }
+
+    /// Build `self.class`
+    fn self_class_obj(&self, self_ty: TermTy) -> mir::TypedExpr {
         let self_expr = self.compile_self_expr(self_ty);
 
         let object_ty = mir::Ty::raw("Object");
@@ -345,19 +364,7 @@ impl<'a> Compiler<'a> {
             FunctionName::method("Object", "class"),
             object_class_fun_ty.into(),
         );
-        let class_obj = mir::Expr::fun_call(object_class_ref, vec![self_as_object]);
-
-        let type_arg_fun_ty = mir::FunTy::new(
-            mir::Asyncness::Unknown,
-            vec![class_ty.clone(), mir::Ty::raw("Int")],
-            class_ty.clone(),
-        );
-        let type_arg_ref = mir::Expr::func_ref(
-            FunctionName::method("Class", "_type_argument"),
-            type_arg_fun_ty.into(),
-        );
-        let idx_expr = mir::Expr::number(idx as i64);
-        mir::Expr::fun_call(type_arg_ref, vec![class_obj, idx_expr])
+        mir::Expr::fun_call(object_class_ref, vec![self_as_object])
     }
 
     fn convert_method_body(

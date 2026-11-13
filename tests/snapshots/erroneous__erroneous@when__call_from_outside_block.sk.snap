@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/call_from_outside_block.sk
+---
+Error: `Box<T>#describe_all' requires `T: Describe'
+    ╭─[tests/erroneous/when/call_from_outside_block.sk:11:5]
+    │
+ 11 │     describe_all
+    │     ──────┬─────  
+    │           ╰─────── `Box<T>#describe_all' requires `T: Describe'
+────╯

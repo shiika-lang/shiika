@@ -1,0 +1,14 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/already_implemented_by_superclass.sk
+---
+Error: `M' is already implemented by `A', the superclass of `B'
+  hint: override its methods outside of `implement'
+   ╭─[tests/erroneous/implement/already_implemented_by_superclass.sk:6:13]
+   │
+ 6 │   implement M; end
+   │             ┬  
+   │             ╰── `M' is already implemented by `A', the superclass of `B'
+  hint: override its methods outside of `implement'
+───╯

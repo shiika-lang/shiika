@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/outside_module.sk
+---
+Error: `Self' can only be used in the instance methods of a module
+   ╭─[tests/erroneous/self_type/outside_module.sk:2:18]
+   │
+ 2 │   def foo(other: Self)
+   │                  ──┬─  
+   │                    ╰─── `Self' can only be used in the instance methods of a module
+───╯

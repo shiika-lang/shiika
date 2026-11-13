@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/equatable/typaram_without_bound.sk
+---
+Error: method MethodFirstname("==") not found on TypeFullname("T")
+  hint: `==' is a method of `Equatable'; add a bound (eg. `T: Equatable')
+   ╭─[tests/erroneous/equatable/typaram_without_bound.sk:4:5]
+   │
+ 4 │     a == b
+   │     ───┬──  
+   │        ╰──── method MethodFirstname("==") not found on TypeFullname("T")
+───╯

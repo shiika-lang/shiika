@@ -29,6 +29,11 @@ impl<'a> Parser<'a> {
             Token::KwEnum => Ok(Some(self.parse_enum_definition()?)),
             Token::KwRequirement => Ok(Some(self.parse_requirement_definition()?)),
             Token::KwDef => Ok(Some(self.parse_method_definition()?)),
+            Token::KwImplement => Ok(Some(self.parse_implement_definition()?)),
+            Token::KwWhen => Ok(Some(self.parse_when_definition()?)),
+            Token::KwNative | Token::KwNativeAsync => {
+                Ok(Some(self.parse_native_method_definition()?))
+            }
             Token::UpperWord(_) => Ok(Some(self.parse_const_definition()?)),
             _ => Ok(None),
         }
@@ -297,6 +302,127 @@ impl<'a> Parser<'a> {
         Ok(typs)
     }
 
+    /// Parse `implement M ... end` (must appear only in class definitions)
+    fn parse_implement_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_implement_definition");
+        self.lv += 1;
+        // `implement'
+        assert!(self.consume(Token::KwImplement)?);
+        self.skip_ws()?;
+
+        // Module name
+        let module = self.parse_typ()?;
+        self.skip_ws()?;
+        self.expect_sep()?;
+
+        // Methods
+        let defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for `implement {}'; got {:?}",
+                    module,
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::ImplementDefinition { module, defs })
+    }
+
+    /// Parse `when T: X, U == Y ... end` (must appear only in class or module
+    /// definitions)
+    fn parse_when_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_when_definition");
+        self.lv += 1;
+        // `when'
+        assert!(self.consume(Token::KwWhen)?);
+        self.skip_ws()?;
+
+        // Conditions
+        let mut conds = vec![];
+        loop {
+            let begin = self.lexer.location();
+            let (typaram, is_eq) = match self.current_token() {
+                // `T:` is lexed as a key name
+                Token::KeyName(s) => {
+                    let s = s.to_string();
+                    self.consume_token()?;
+                    (s, false)
+                }
+                Token::UpperWord(s) => {
+                    let s = s.to_string();
+                    self.consume_token()?;
+                    if self.consume(Token::Colon)? {
+                        (s, false)
+                    } else {
+                        self.skip_ws()?;
+                        if !self.consume(Token::EqEq)? {
+                            return Err(parse_error!(
+                                self,
+                                "expected `:' or `==' after `{}' in `when'; got {:?}",
+                                s,
+                                self.current_token()
+                            ));
+                        }
+                        (s, true)
+                    }
+                }
+                token => {
+                    return Err(parse_error!(
+                        self,
+                        "expected a type parameter after `when'; got {:?}",
+                        token
+                    ))
+                }
+            };
+            self.skip_ws()?;
+            let ty = self.parse_typ()?;
+            let end = self.lexer.location();
+            conds.push(shiika_ast::AstWhenCond {
+                typaram,
+                is_eq,
+                ty,
+                locs: self.ast.locs(begin, end),
+            });
+            self.skip_ws()?;
+            if self.current_token_is(Token::Comma) {
+                self.consume_token()?;
+                self.skip_ws()?;
+            } else {
+                break;
+            }
+        }
+        self.expect_sep()?;
+
+        // Methods
+        let defs = self.parse_definitions()?;
+
+        // `end'
+        match self.current_token() {
+            Token::KwEnd => {
+                self.consume_token()?;
+            }
+            token => {
+                return Err(parse_error!(
+                    self,
+                    "missing `end' for `when'; got {:?}",
+                    token
+                ))
+            }
+        }
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::WhenDefinition { conds, defs })
+    }
+
     /// Parse a method requirement. (must appear only in module definitions)
     fn parse_requirement_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
         self.debug_log("parse_requirement_definition");
@@ -378,6 +504,50 @@ impl<'a> Parser<'a> {
                 Ok(shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs })
             }
         }
+    }
+
+    /// Parse `native def foo(bar) -> Baz` (a method implemented in Rust; has no body)
+    fn parse_native_method_definition(&mut self) -> Result<shiika_ast::Definition, Error> {
+        self.debug_log("parse_native_method_definition");
+        self.lv += 1;
+        // `native' or `native_async'
+        let is_async = match self.current_token() {
+            Token::KwNative => false,
+            Token::KwNativeAsync => true,
+            _ => unreachable!(),
+        };
+        self.consume_token()?;
+        self.skip_ws()?;
+
+        // `def'
+        self.set_lexer_state(LexerState::MethodName);
+        if !self.consume(Token::KwDef)? {
+            return Err(parse_error!(
+                self,
+                "expected `def' after `native'; got {:?}",
+                self.current_token()
+            ));
+        }
+        self.skip_ws()?;
+
+        // `foo(bar) -> Baz`
+        let (sig, is_class_method) = self.parse_method_signature()?;
+        if let Some(param) = sig.params.iter().find(|p| p.is_iparam) {
+            return Err(parse_error!(
+                self,
+                "native method cannot take an instance variable parameter ({})",
+                param.name
+            ));
+        }
+        self.skip_ws()?;
+        self.expect_sep()?;
+
+        self.lv -= 1;
+        Ok(shiika_ast::Definition::NativeMethodDefinition {
+            sig,
+            is_class_method,
+            is_async,
+        })
     }
 
     /// `def initialize(@a: Int)` is equivalent to

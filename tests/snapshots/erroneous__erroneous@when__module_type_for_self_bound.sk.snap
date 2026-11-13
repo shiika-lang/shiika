@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/module_type_for_self_bound.sk
+---
+Error: `Array<Comparable>#sort' requires `Comparable: Comparable' but `Comparable' cannot be a module type because `Comparable' uses `Self' (use a class or a type parameter instead)
+   ╭─[tests/erroneous/when/module_type_for_self_bound.sk:3:8]
+   │
+ 3 │     [x].sort
+   │        ──┬──  
+   │          ╰──── `Array<Comparable>#sort' requires `Comparable: Comparable' but `Comparable' cannot be a module type because `Comparable' uses `Self' (use a class or a type parameter instead)
+───╯

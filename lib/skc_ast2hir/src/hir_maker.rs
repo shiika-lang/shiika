@@ -187,7 +187,15 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, body_exprs } => {
                     if let Some(fullname) = opt_fullname {
                         log::trace!("method {}#{}", &fullname, &sig.name);
-                        let method = self.convert_method_def(fullname, sig, body_exprs)?;
+                        // `Self` is available in the instance methods of a module
+                        let sk_type = self.class_dict.get_type(fullname);
+                        let self_ty = sk_type
+                            .is_module()
+                            .then(|| ClassDict::module_self_ty(fullname, &sk_type.base().typarams));
+                        let prev = self.class_dict.set_self_ty(self_ty);
+                        let method = self.convert_method_def(fullname, sig, body_exprs);
+                        self.class_dict.set_self_ty(prev);
+                        let method = method?;
                         self.method_dict.add_method(fullname.clone(), method);
                     } else {
                         return Err(error::program_error(
@@ -236,7 +244,13 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 shiika_ast::Definition::EnumDefinition {
                     name, cases, defs, ..
                 } => self.process_enum_def(namespace, name, cases, defs)?,
-                shiika_ast::Definition::MethodRequirementDefinition { .. } => {
+                shiika_ast::Definition::ImplementDefinition { defs, .. }
+                | shiika_ast::Definition::WhenDefinition { defs, .. } => {
+                    // Methods in `implement`/`when` are instance methods of the class
+                    self.process_defs(namespace, opt_fullname, defs)?;
+                }
+                shiika_ast::Definition::MethodRequirementDefinition { .. }
+                | shiika_ast::Definition::NativeMethodDefinition { .. } => {
                     // Already processed in class_dict/indexing.rs
                 }
             }
@@ -463,8 +477,20 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 )
             });
 
-        self.ctx_stack
-            .push(HirMakerContext::method(signature.clone(), super_ivars));
+        // In a `when` block, the class type parameters are substituted in the body
+        let when_tyargs = (!signature.when_conds.is_empty()).then(|| {
+            let typarams = &self.class_dict.get_type(type_fullname).base().typarams;
+            crate::class_dict::when_body_tyargs(typarams, &signature.when_conds, false)
+        });
+        let signature = match &when_tyargs {
+            Some(tyargs) => signature.substitute_with_self(tyargs),
+            None => signature,
+        };
+        self.ctx_stack.push(HirMakerContext::method(
+            signature.clone(),
+            super_ivars,
+            when_tyargs,
+        ));
         for param in &signature.params {
             if param.has_default {
                 let readonly = true;

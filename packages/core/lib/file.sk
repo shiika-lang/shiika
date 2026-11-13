@@ -1,9 +1,13 @@
 require "./readable.sk"
 
-class File : Readable
-  # def self.read(path: String) -> Result<String>
+class File
+  native def self._open(path: String) -> Result<File>
+  native def _fill_buf -> Result<String>
+  native def _consume(n_bytes: Int)
 
-  # def self.write(path: String, content: String) -> Result<Void>
+  native def self.read(path: String) -> Result<String>
+
+  native def self.write(path: String, content: String) -> Result<Void>
 
   def self.open<V>(path: String, f: Fn1<File,V>) -> Result<V>
     let file = File._open(path).try!
@@ -15,11 +19,13 @@ class File : Readable
   # TODO: will we need this?
   # def close
 
-  def fill_buf -> Result<String>
-    _fill_buf
-  end
+  implement Readable
+    def fill_buf -> Result<String>
+      _fill_buf
+    end
 
-  def consume(n_bytes: Int)
-    _consume(n_bytes)
+    def consume(n_bytes: Int)
+      _consume(n_bytes)
+    end
   end
 end

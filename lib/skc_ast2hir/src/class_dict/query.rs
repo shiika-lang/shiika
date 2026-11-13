@@ -4,7 +4,50 @@ use crate::type_system;
 use anyhow::Result;
 use shiika_ast::LocationSpan;
 use shiika_core::{names::*, ty, ty::*};
+use skc_error::Label;
 use skc_hir::*;
+
+/// Replace `Self` of a module method called on a module-typed value
+/// (eg. `x.eq?(y)` where `x: Eq`).
+///
+/// The actual class of the receiver is unknown, so:
+/// - `Self` in the return type is the module type (the receiver's class
+///   includes the module, whatever it is).
+/// - `Self` in a parameter type could be satisfied only by `Never`, so the
+///   method cannot be called practically. This is reported as an error.
+/// - `Self` in other positions (eg. `Array<Self>` in the return type) is not
+///   supported yet.
+fn for_module_value(
+    mut found: FoundMethod,
+    module_ty: &TermTy,
+    locs: &LocationSpan,
+) -> Result<FoundMethod> {
+    let sig = &found.sig;
+    let in_params = sig.params.iter().any(|p| p.ty.contains_self_type());
+    let nested_in_ret = sig.ret_ty.contains_self_type() && !sig.ret_ty.is_self_type();
+    if in_params || nested_in_ret {
+        let reason = if in_params {
+            "it takes `Self' as a parameter type"
+        } else {
+            "`Self' appears in its return type (other than the return type itself)"
+        };
+        let msg = format!(
+            "cannot call `{}' on a value of type {} because {}",
+            &sig.fullname, module_ty, reason
+        );
+        let hint = format!(
+            "the receiver may be of any class which includes {}; use a type parameter \
+             (eg. `T: {}') to call it",
+            module_ty, module_ty
+        );
+        let report = skc_error::build_report(msg, locs, |r, locs_span| {
+            r.with_label(Label::new(locs_span).with_message(hint))
+        });
+        return Err(error::type_error(report));
+    }
+    found.replace_self(module_ty);
+    Ok(found)
+}
 
 impl<'hir_maker> ClassDict<'hir_maker> {
     /// Find a method in a class or module. Unlike `lookup_method`, does not lookup into superclass.
@@ -57,7 +100,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         // For error messages
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
-        self.lookup_method_(receiver_type, receiver_type, method_name, locs)
+        self.lookup_method_(receiver_type, receiver_type, false, method_name, locs)
     }
 
     pub fn try_lookup_method(
@@ -68,6 +111,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         self.lookup_method_(
             receiver_type,
             receiver_type,
+            false,
             method_name,
             &LocationSpan::todo(),
         )
@@ -75,10 +119,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     }
 
     // `receiver_type` is for error message.
+    // `in_superclass` is true if `current_type` is a superclass of the receiver.
+    //
+    // `Self` in the signature of a module method is replaced as follows:
+    // - Found via a class: `Self` is the class which includes the module
+    //   (eg. `Animal` for `dog.neq?(...)` where `Animal : Eq`)
+    // - Found via a typaram whose upper bound is the module (including `Self`
+    //   itself): `Self` is the typaram
+    // - Found via a module-typed value: see `for_module_value`
     fn lookup_method_(
         &self,
         receiver_type: &TermTy,
         current_type: &TermTy,
+        in_superclass: bool,
         method_name: &MethodFirstname,
         locs: &LocationSpan,
     ) -> Result<FoundMethod> {
@@ -94,9 +147,28 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         };
         let sk_type = self.get_type(&erasure.to_type_fullname());
-        if let Some(found) = self.find_method(&sk_type.base().fullname(), method_name) {
+        // What `Self` of the module methods found below is replaced with
+        let module_self = if current_type.is_typaram_ref() {
+            Some(current_type.clone())
+        } else {
+            None
+        };
+        // True if the receiver is a module-typed value (eg. `x: Eq`)
+        let module_value = !current_type.is_typaram_ref() && sk_type.is_module();
+        if let Some(mut found) = self.find_method(&sk_type.base().fullname(), method_name) {
+            if module_value {
+                return for_module_value(found, current_type, locs);
+            }
+            if in_superclass || current_type.is_typaram_ref() {
+                // Found in a superclass (eg. `G<String>` of `class H : G<String>`)
+                // or the upper bound of a typaram (eg. `Enumerable<E>` of `Self`).
+                // Its type arguments are already expressed in terms of the receiver.
+                found.specialize(class_tyargs, Default::default());
+            }
+            if let Some(t) = &module_self {
+                found.replace_self(t);
+            }
             return Ok(found);
-            //return Ok(specialized_version(found, receiver_type, class_tyargs));
         }
         match sk_type {
             SkType::Class(sk_class) => {
@@ -107,6 +179,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     {
                         let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
                         found.specialize(&mod_tyargs, Default::default());
+                        // `Self` is this class (the includer)
+                        let includer = ty::new(&erasure.base_name, class_tyargs.to_vec(), false);
+                        found.replace_self(&includer);
                         return Ok(found);
                     }
                 }
@@ -115,6 +190,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     return self.lookup_method_(
                         receiver_type,
                         &super_ty.to_term_ty(),
+                        true,
                         method_name,
                         locs,
                     );
@@ -122,22 +198,70 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             SkType::Module(sk_module) => {
                 // Look up in prerequisite modules
-                if let Some(found) =
+                if let Some(mut found) =
                     self.lookup_in_module_supers(sk_module, class_tyargs, method_name)
                 {
+                    // `Self` of a prerequisite module is the same as that of `sk_module`
+                    if module_value {
+                        return for_module_value(found, current_type, locs);
+                    }
+                    if let Some(t) = &module_self {
+                        found.replace_self(t);
+                    }
                     return Ok(found);
                 }
                 // Lookup in Object (the top type)
-                return self.lookup_method_(receiver_type, &ty::raw("Object"), method_name, locs);
+                return self.lookup_method_(
+                    receiver_type,
+                    &ty::raw("Object"),
+                    false,
+                    method_name,
+                    locs,
+                );
             }
         }
-        Err(error::method_not_found(
+        Err(error::method_not_found_with_hint(
             format!(
                 "method {:?} not found on {:?}",
                 method_name, receiver_type.fullname
             ),
+            &self.hint_for_core_module_method(receiver_type, method_name),
             locs,
         ))
+    }
+
+    /// Returns a hint for the error that a method of `Equatable`,
+    /// `Comparable` or `Hashable` (eg. `==`) is not found.
+    fn hint_for_core_module_method(
+        &self,
+        receiver_type: &TermTy,
+        method_name: &MethodFirstname,
+    ) -> String {
+        for module_name in ["Equatable", "Comparable", "Hashable"] {
+            let fullname = type_fullname(module_name);
+            if self.find_type(&fullname).is_none()
+                || self.find_method(&fullname, method_name).is_none()
+            {
+                continue;
+            }
+            return if receiver_type.is_typaram_ref() {
+                format!(
+                    "\n  hint: `{}' is a method of `{}'; add a bound (eg. `{}: {}')",
+                    method_name, module_name, receiver_type, module_name
+                )
+            } else {
+                let identity = if module_name == "Equatable" {
+                    " (or use `identical?' to compare the object identity)"
+                } else {
+                    ""
+                };
+                format!(
+                    "\n  hint: `{}' is a method of `{}'; the class needs `implement {}'{}",
+                    method_name, module_name, module_name, identity
+                )
+            };
+        }
+        String::new()
     }
 
     /// Look up a method in the prerequisite modules of `sk_module`

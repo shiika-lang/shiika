@@ -47,6 +47,6 @@ class WrapperTest
     w.value
   end
 end
-unless WrapperTest.get(Wrapper<Int>.new(3)) == 3; puts "ng user-defined covariance"; end
+unless WrapperTest.get(Wrapper<Int>.new(3)).to_s == "3"; puts "ng user-defined covariance"; end
 
 puts "ok"

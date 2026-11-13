@@ -177,6 +177,23 @@ fn inserter_func(sk_class: &skc_hir::SkClass) -> mir::Function {
                 mir::Expr::raw_i64(len as i64),
             ],
         ));
+        // The metaclass objects (eg. `Meta:Int`) share the wtable of `Class`
+        if sk_class.fullname().0 == "Class" {
+            body_stmts.push(mir::Expr::fun_call(
+                mir::Expr::func_ref(
+                    FunctionName::mangled("shiika_insert_metaclass_wtable"),
+                    mir::FunTy::sync(
+                        vec![mir::Ty::Int64, mir::Ty::Ptr, mir::Ty::Int64],
+                        mir::Ty::Ptr,
+                    ),
+                ),
+                vec![
+                    mir::Expr::wtable_key(mod_name.clone()),
+                    mir::Expr::wtable_row(sk_class.fullname(), mod_name.clone()),
+                    mir::Expr::raw_i64(len as i64),
+                ],
+            ));
+        }
     }
     body_stmts.push(mir::Expr::return_cvoid());
     let func_name = insert_wtable_func_name(&sk_class.fullname());

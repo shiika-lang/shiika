@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/not_a_typaram.sk
+---
+Error: `U' is not a type parameter of `Box'
+   ╭─[tests/erroneous/when/not_a_typaram.sk:2:8]
+   │
+ 2 │   when U == Int
+   │        ────┬───  
+   │            ╰───── `U' is not a type parameter of `Box'
+───╯

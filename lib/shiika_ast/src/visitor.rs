@@ -96,6 +96,13 @@ pub trait AstVisitor {
             }
 
             Definition::MethodRequirementDefinition { .. } => {}
+            Definition::NativeMethodDefinition { .. } => {}
+            Definition::ImplementDefinition { defs, .. }
+            | Definition::WhenDefinition { defs, .. } => {
+                for def in defs {
+                    self.walk_definition(namespace, def)?;
+                }
+            }
         }
         Ok(())
     }

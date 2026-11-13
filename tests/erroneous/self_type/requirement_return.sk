@@ -1,0 +1,3 @@
+module M
+  requirement dup -> Self
+end

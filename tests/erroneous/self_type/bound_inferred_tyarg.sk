@@ -1,0 +1,18 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+class A
+  implement Eq
+    def eq?(other: A) -> Bool; true; end
+  end
+end
+class Main
+  def self.f<T: Eq>(a: T, b: T) -> Bool
+    a.eq?(b)
+  end
+end
+class B
+  def self.g(x: Eq, y: Eq) -> Bool
+    Main.f(x, y)
+  end
+end

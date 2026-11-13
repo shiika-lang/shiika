@@ -63,24 +63,6 @@ impl Package {
     pub fn entry_point(&self) -> PathBuf {
         self.dir.join("index.sk")
     }
-
-    /// Returns the paths of exports.json5 files of Rust libraries in this package.
-    pub fn export_files(&self) -> Vec<PathBuf> {
-        let mut v: Vec<PathBuf> = vec![];
-        if let Some(libs) = self.spec.rust_libs.as_ref() {
-            v.append(
-                &mut libs
-                    .iter()
-                    .map(|s| self.rust_exports_json5_path(s))
-                    .collect(),
-            );
-        }
-        v
-    }
-
-    fn rust_exports_json5_path(&self, rust_lib: &str) -> PathBuf {
-        self.dir.join(rust_lib).join("exports.json5")
-    }
 }
 
 /// Returns the path of the package.json5 file and the parsed PackageSpec.
@@ -102,13 +84,4 @@ fn load_package_json5(path: &PathBuf) -> Result<PackageSpec> {
     let spec: PackageSpec =
         json5::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
     Ok(spec)
-}
-
-pub fn load_exports_json5(json_path: &std::path::Path) -> Result<Vec<(String, String, bool)>> {
-    let mut f =
-        std::fs::File::open(json_path).context(format!("{} not found", json_path.display()))?;
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)
-        .context(format!("failed to read {}", json_path.display()))?;
-    json5::from_str(&contents).context(format!("{} is broken", json_path.display()))
 }

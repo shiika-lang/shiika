@@ -21,7 +21,6 @@ mod source_file;
 use crate::ast_builder::AstBuilder;
 pub use crate::error::Error;
 use crate::lexer::Lexer;
-use crate::lexer::LexerState;
 pub use crate::source_file::SourceFile;
 use shiika_ast as ast;
 use shiika_ast::Token;
@@ -40,20 +39,6 @@ impl<'a> Parser<'a> {
             ast: AstBuilder::new(&file.path),
             lv: 0,
         }
-    }
-
-    /// Parse a method signature
-    pub fn parse_signature(sig_str: &str) -> Result<ast::AstMethodSignature, Error> {
-        let lexer = Lexer::new_with_state(sig_str, LexerState::MethodName);
-        let mut parser = Parser {
-            lexer,
-            ast: AstBuilder::empty(),
-            lv: 0,
-        };
-        let (ast_sig, _) = parser.parse_method_signature()?;
-        // Check if entire string is consumed
-        parser.expect_eof()?;
-        Ok(ast_sig)
     }
 
     pub fn parse_files(files: &[SourceFile]) -> Result<ast::Program, Error> {

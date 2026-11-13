@@ -26,6 +26,15 @@ pub extern "C" fn float_div(receiver: SkFloat, other: SkFloat) -> SkFloat {
     (receiver.val() / other.val()).into()
 }
 
+/// Returns the hash value. `0.0` and `-0.0` have the same hash value
+/// because they are `==`.
+#[async_shiika_method("Float#hash")]
+async fn float_hash(receiver: SkFloat) -> SkInt {
+    let v = receiver.val();
+    let v = if v == 0.0 { 0.0 } else { v };
+    (v.to_bits() as i64).into()
+}
+
 #[async_shiika_method("Float#<")]
 async fn float_lt(receiver: SkFloat, other: SkFloat) -> SkBool {
     (receiver.val() < other.val()).into()

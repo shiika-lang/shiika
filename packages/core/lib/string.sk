@@ -1,6 +1,34 @@
 require "./mutable_string.sk"
 
 class String
+  native def initialize(bytes: Shiika::Internal::Ptr, n_bytes: Shiika::Internal::Int64)
+  native def +(other: String) -> String
+  native def *(n: Int) -> String
+
+  implement Comparable
+    native_async def <(other: String) -> Bool
+  end
+
+  implement Equatable
+    native_async def ==(other: String) -> Bool
+  end
+
+  implement Hashable
+    native_async def hash -> Int
+  end
+
+  native def bytesize -> Int
+  native def empty? -> Bool
+  native def starts_with?(s: String) -> Bool
+  native def ends_with?(s: String) -> Bool
+  native def nth_byte(n: Int) -> Int
+  native def slice_bytes(from: Int, bytes: Int) -> String
+  native def to_i -> Int
+  native_async def to_s -> String
+  native_async def inspect -> String
+  native def ljust(width: Int, padding: String) -> String
+  native def rjust(width: Int, padding: String) -> String
+
   # TODO: I thought these are not necessary anymore but test fails without these
   #def ptr -> Shiika::Internal::Ptr; @ptr; end
 

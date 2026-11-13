@@ -1,0 +1,10 @@
+module M
+  def twice -> Array<Self>
+    [self, self]
+  end
+end
+class Main
+  def self.f(x: M)
+    x.twice
+  end
+end

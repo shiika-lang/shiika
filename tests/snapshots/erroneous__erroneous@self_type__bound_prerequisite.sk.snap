@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/bound_prerequisite.sk
+---
+Error: the type argument `Ord' cannot be used for the type parameter `T' of `Meta:Main#f' because its bound `Eq' uses `Self' (a value of `Ord' may be of any class which includes it; use a class or a type parameter instead)
+    ╭─[tests/erroneous/self_type/bound_prerequisite.sk:12:9]
+    │
+ 12 │     Main.f<Ord>(x)
+    │         ─────┬────  
+    │              ╰────── the type argument `Ord' cannot be used for the type parameter `T' of `Meta:Main#f' because its bound `Eq' uses `Self' (a value of `Ord' may be of any class which includes it; use a class or a type parameter instead)
+────╯

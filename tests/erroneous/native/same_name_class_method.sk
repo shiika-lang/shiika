@@ -1,0 +1,6 @@
+class A
+  def self.foo -> Int
+    1
+  end
+  native_async def self.foo -> Int
+end

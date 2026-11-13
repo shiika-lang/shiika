@@ -21,38 +21,57 @@ A module definition consists of _requirements_ and method definitions.
 
 A module itself cannot be instantiated.
 
-## Including modules
+## Implementing modules
 
-A class includes modules by listing them after `:` in the class
-definition.
+A class includes a module with an `implement` block in the class body.
+The block contains the methods which implement the module.
 
 ```sk
-class A : M
-  def foo -> Int
-    42
+class A
+  implement M
+    def foo -> Int
+      42
+    end
   end
 end
 ```
 
-- Multiple modules can be included:
-  `class A : M1, M2`.
-- When the class has a superclass, it must come before the modules:
-  `class A : SuperClass, M1, M2`. Listing a class anywhere else is a
-  compile-time error.
-- The including class must define all the requirements of the modules
-  (either directly or via its superclass).
+- A class can have multiple `implement` blocks (one for each module).
+  Implementing the same module twice is a compile-time error.
+- Only the superclass can be listed after `:` in the class definition
+  (`class A : SuperClass`). Writing a module there is a compile-time
+  error.
+- Every requirement of the module must be defined in its `implement`
+  block. It cannot be satisfied by a method defined outside the block,
+  nor by a method inherited from the superclass. An accessor defined by
+  `def initialize(@foo: ...)` does not satisfy it either; define the
+  method in the block (eg. `def foo -> Int; @foo; end`).
+- An `implement` block without methods can be written in one line:
+  `implement M; end`.
+- An `implement` block may contain only instance methods (`def` and
+  `native def`) which are requirements of the module or override its
+  methods. Other methods must be defined outside the block.
+- A method in an `implement` block is an ordinary instance method of the
+  class. The block only affects the checks above.
+- A subclass inherits the modules implemented by its superclass. It
+  cannot `implement` the same module again; to change the behavior,
+  override the methods outside of `implement`.
+- `implement` cannot be used in a module (use prerequisite modules
+  instead) or in an enum (not supported yet).
 
-The including class gets all the methods defined in the module as its
+The implementing class gets all the methods defined in the module as its
 instance methods.
 
 ## Modules as types
 
-A module name denotes a type. An instance of a class that includes
+A module name denotes a type. An instance of a class that implements
 module `M` conforms to `M`.
 
 ```sk
-class A : M
-  ...
+class A
+  implement M
+    ...
+  end
   def self.bar -> M
     A.new  # ok; A conforms to M
   end
@@ -74,8 +93,10 @@ module Enumerable<E>
   ...
 end
 
-class Array<T> : Enumerable<T>
-  ...
+class Array<T>
+  implement Enumerable<T>
+    def each(f: Fn1<T, Void>) ...
+  end
 end
 ```
 
@@ -98,21 +119,26 @@ module Comparable<in X> : Equatable<X>
 end
 ```
 
-`module M1 : M2` means "a class which includes `M1` must also conform to
+`module M1 : M2` means "a class which implements `M1` must also conform to
 `M2`".
 
-- Including `M1` does **not** include `M2` automatically. The including
-  class (or one of its ancestors) must include `M2` by itself; otherwise
-  it is a compile-time error.
+- Implementing `M1` does **not** implement `M2` automatically. The
+  class (or one of its ancestors) must have `implement M2` by itself;
+  otherwise it is a compile-time error.
 
   ```sk
-  class Int : Comparable<Int>, Equatable<Int>  # ok
-  class Foo : Comparable<Foo>                  # error: Comparable<Foo> requires Equatable<Foo>
+  class Int                 # ok
+    implement Comparable<Int> ... end
+    implement Equatable<Int> ... end
+  end
+  class Foo                 # error: Comparable<Foo> requires Equatable<Foo>
+    implement Comparable<Foo> ... end
+  end
   ```
 
   This is checked with conformance, so the prerequisite may be satisfied
   by a superclass or via variance (eg. `Dog` conforms to
-  `Equatable<Dog>` if its superclass `Animal` includes
+  `Equatable<Dog>` if its superclass `Animal` implements
   `Equatable<Animal>` and the type parameter of `Equatable` is `in`).
 - `M1<A>` conforms to the prerequisite modules of `M1` (with the type
   arguments substituted), transitively. Therefore the methods of `M2`
@@ -129,3 +155,84 @@ end
   `M0`).
 - The same module must not be required with different type arguments
   (eg. both `M0<Int>` and `M0<String>`).
+
+## `Self`
+
+In the instance methods and the method requirements of a module, `Self`
+refers to the type which implements the module.
+
+```sk
+module Eq
+  requirement eq?(other: Self) -> Bool
+
+  def neq?(other: Self) -> Bool
+    not eq?(other)
+  end
+end
+
+class Point
+  implement Eq
+    def eq?(other: Point) -> Bool   # `Self` is `Point` here
+      ...
+    end
+  end
+end
+```
+
+- `Self` cannot be used outside the instance methods and the method
+  requirements of a module (eg. in a class, or in a class method of a
+  module). It does not take type arguments.
+- In a method requirement, `Self` may only appear in contravariant
+  positions (eg. parameter types, but not return types nor `Array<Self>`).
+- When checking that a class satisfies the requirements of a module,
+  `Self` is the type of the class which has the `implement` block.
+  A subclass of it which overrides the method must accept that class,
+  because the method may be called via that class.
+
+  ```sk
+  base class Shape
+    implement Eq
+      def eq?(other: Shape) -> Bool; ...; end
+    end
+  end
+  class Square : Shape
+    def eq?(other: Square) -> Bool; ...; end   # error; must accept `Shape`
+  end
+  ```
+- When calling a method of a module, `Self` in its signature is replaced
+  as follows.
+  - On a value of a class: `Self` is the class which implements the module
+    (eg. for `x: Dog` where `Animal` implements `Eq`, `x.neq?(y)` requires `y: Animal`).
+  - On a value of a type parameter whose upper bound is the module
+    (`x: T` where `T: Eq`): `Self` is the type parameter, so `x.neq?(y)`
+    requires `y: T`.
+  - In the instance methods of a module, `self` is of type `Self`.
+    Therefore `self` can be passed where `Self` is expected, but a value of
+    the module type cannot (it may be of a different class than `self`).
+  - On a value of the module type (`x: Eq`): the actual class of `x` is
+    unknown. `Self` in the return type is the module type. A method which
+    takes `Self` as a parameter type cannot be called (only `Never` could
+    be passed safely); use a type parameter (`T: Eq`) instead. A method
+    which has `Self` in other positions (eg. returns `Array<Self>`) cannot
+    be called either.
+
+    ```sk
+    def f(x: Named) -> String
+      x.greeting      # ok; no `Self` in the signature
+      x.me.name       # ok; `me -> Self` returns `Named`
+    end
+    def g(x: Eq, y: Eq) -> Bool
+      x.eq?(y)        # error; `x` and `y` may be of different classes
+    end
+    ```
+  - The same applies to the methods of the prerequisite modules.
+- A module type cannot be a type argument of a type parameter whose upper
+  bound is a module which uses `Self` (in its own methods or its
+  prerequisite modules), even though the module type conforms to the
+  bound. For example, given `def max<T: Comparable>(a: T, b: T) -> T`,
+  `max<Comparable>(x, y)` is an error because `a < b` in `max` assumes
+  `a` and `b` are of the same class. This applies to explicit, inferred
+  and class type arguments (eg. `Box<Comparable>` for `class Box<T: Comparable>`).
+  A type parameter (`U: Comparable`) or `Never` can be passed.
+- `Self` is reserved; it cannot be used as the name of a class, a module
+  or an enum.

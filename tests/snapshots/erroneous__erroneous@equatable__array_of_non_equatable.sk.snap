@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/equatable/array_of_non_equatable.sk
+---
+Error: `Array<Foo>#==' requires `Foo: Equatable'
+   ╭─[tests/erroneous/equatable/array_of_non_equatable.sk:3:1]
+   │
+ 3 │ [Foo.new] == [Foo.new]
+   │ ───────────┬──────────  
+   │            ╰──────────── `Array<Foo>#==' requires `Foo: Equatable'
+───╯

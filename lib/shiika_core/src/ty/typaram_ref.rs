@@ -4,7 +4,7 @@ use crate::ty::term_ty::{TermTy, TyBody};
 use nom::{bytes::complete::tag, IResult};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, Clone, Serialize, Deserialize)]
 pub struct TyParamRef {
     pub kind: TyParamKind,
     pub name: String,
@@ -21,6 +21,20 @@ pub enum TyParamKind {
     Class,
     /// eg. `def foo<X>(...)`
     Method,
+    /// `Self` in a module (the type which includes the module).
+    /// Its upper bound is the module.
+    SelfType,
+}
+
+/// Two refs to the same type parameter are equal even if their bounds differ
+/// (eg. the bound is narrowed in a `when` block).
+impl PartialEq for TyParamRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.name == other.name
+            && self.idx == other.idx
+            && self.as_class == other.as_class
+    }
 }
 
 impl From<TyParamRef> for TermTy {
@@ -34,6 +48,7 @@ impl TyParamRef {
         let k = match &self.kind {
             TyParamKind::Class => "C",
             TyParamKind::Method => "M",
+            TyParamKind::SelfType => "S",
         };
         let c = if self.as_class { "!" } else { " " };
         format!("TyParamRef({}{}{}{})", &self.name, c, &self.idx, k)
@@ -73,6 +88,7 @@ impl TyParamRef {
         let k = match &self.kind {
             TyParamKind::Class => "C",
             TyParamKind::Method => "M",
+            TyParamKind::SelfType => "S",
         };
         let bound =
             if self.upper_bound.base_name == "Object" && self.lower_bound.base_name == "Never" {
@@ -100,11 +116,11 @@ impl TyParamRef {
         let (s, idx) =
             nom::combinator::map_res(nom::combinator::recognize(get_nums), str::parse)(s)?;
 
-        let (s, c) = nom::branch::alt((tag("C"), tag("M")))(s)?;
-        let kind = if c == "C" {
-            TyParamKind::Class
-        } else {
-            TyParamKind::Method
+        let (s, c) = nom::branch::alt((tag("C"), tag("M"), tag("S")))(s)?;
+        let kind = match c {
+            "C" => TyParamKind::Class,
+            "M" => TyParamKind::Method,
+            _ => TyParamKind::SelfType,
         };
 
         let (s, opt_bounds) = nom::combinator::opt(parse_bounds)(s)?;
@@ -129,6 +145,21 @@ pub fn parse_bounds(s: &str) -> IResult<&str, (LitTy, LitTy)> {
     let (s, _) = tag("~")(s)?;
     let (s, lower_bound) = LitTy::deserialize(s)?;
     Ok((s, (upper_bound, lower_bound)))
+}
+
+#[test]
+fn serialize_self_type_test() {
+    let t = TyParamRef {
+        kind: TyParamKind::SelfType,
+        name: "Self".to_string(),
+        idx: 0,
+        upper_bound: LitTy::raw("Equatable"),
+        lower_bound: LitTy::raw("Never"),
+        as_class: false,
+    };
+    let s = t.serialize();
+    assert_eq!(s, "^Self:0S:Equatable~Never");
+    assert_eq!(TyParamRef::deserialize(&s), Ok(("", t)));
 }
 
 #[test]

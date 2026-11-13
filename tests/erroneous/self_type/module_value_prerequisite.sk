@@ -1,0 +1,11 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+end
+module Ord : Eq
+  requirement lt?(other: Self) -> Bool
+end
+class Main
+  def self.f(x: Ord, y: Ord) -> Bool
+    x.eq?(y)
+  end
+end

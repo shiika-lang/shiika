@@ -115,6 +115,57 @@ pub fn check_method_signature(
     Ok(())
 }
 
+/// Check that `Self` appears only in contravariant positions (eg. parameter
+/// types) of a method requirement.
+///
+/// A requirement may be satisfied by a method of a superclass of the includer
+/// (eg. `Animal#==(other: Animal)` for `Dog`). This is sound only if `Self`
+/// is an input, just like a contravariant typaram (`in X`).
+pub fn check_self_in_requirement(
+    dict: &ClassDict,
+    ast_sig: &shiika_ast::AstMethodSignature,
+    hir_sig: &MethodSignature,
+) -> Result<()> {
+    for (ast_param, hir_param) in ast_sig.params.iter().zip(hir_sig.params.iter()) {
+        check_self(
+            dict,
+            &hir_param.ty,
+            Position::Contravariant,
+            &ast_param.typ.locs,
+        )?;
+    }
+    if let Some(ret_typ) = &ast_sig.ret_typ {
+        check_self(dict, &hir_sig.ret_ty, Position::Covariant, &ret_typ.locs)?;
+    }
+    Ok(())
+}
+
+fn check_self(dict: &ClassDict, ty: &TermTy, pos: Position, locs: &LocationSpan) -> Result<()> {
+    match &ty.body {
+        TyBody::TyPara(tpref) => {
+            if tpref.kind == TyParamKind::SelfType && pos != Position::Contravariant {
+                let msg = format!(
+                    "`Self' appears in {} position of a method requirement \
+                     (it may only appear in contravariant positions, eg. parameter types)",
+                    pos.describe()
+                );
+                let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+                    r.with_label(Label::new(locs_span).with_message(msg.clone()))
+                });
+                return Err(error::program_error(report));
+            }
+            Ok(())
+        }
+        TyBody::TyRaw(lit) => {
+            let typarams = dict.typarams_of(&lit.erasure().to_type_fullname());
+            for (arg, tp) in lit.type_args.iter().zip(typarams.iter()) {
+                check_self(dict, arg, pos.compose(&tp.variance), locs)?;
+            }
+            Ok(())
+        }
+    }
+}
+
 /// Check a superclass or included module clause (eg. `Bar<T>` of
 /// `class Foo<out T> : Bar<T>`), which is an output position.
 pub fn check_supertype(

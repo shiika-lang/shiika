@@ -1,0 +1,9 @@
+module M
+  requirement foo -> Int
+end
+class A
+  def foo -> Int
+    1
+  end
+  implement M; end
+end

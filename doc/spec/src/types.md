@@ -20,6 +20,11 @@ These forms of types exist:
 
 `Object` is the top type; every class is a descendant of `Object`.
 
+`Object` does not have `==`; only the types which implement the
+`Equatable` module do (likewise, `<` etc. are of `Comparable` and `hash`
+is of `Hashable`). `Object#identical?` returns true if the two values are
+the same object.
+
 ### Void
 
 `Void` is the unit type and has only one instance which is accessible with `::Void`.
@@ -42,7 +47,13 @@ _conforms to_ `T`. `S` conforms to `T` if:
 - `T` is an ancestor of `S`, i.e. one of:
   - the superclass of `S` (transitively),
   - a module included by `S` or its ancestors,
-  - a prerequisite module of `S` (transitively) when `S` is a module.
+  - a prerequisite module of `S` (transitively) when `S` is a module, or
+- `S` is a type parameter and its upper bound conforms to `T`.
+
+When `T` is a type parameter, `S` conforms to `T` only if `S` is `T`
+itself or `Never` (the actual type of `T` may be any type within its
+bounds), eg. a `String` cannot be passed to a parameter of type `T`
+even if the upper bound of `T` is `Object`.
 
 Note that generic types are invariant by default: `Array<Int>` does
 not conform to `Array<Object>`.
@@ -64,3 +75,7 @@ Classes, modules and methods can take type parameters (see
 body, a type parameter can be used like a type. The upper bound of a
 type parameter is `Object`; only the methods of `Object` can be called
 on a value of a type parameter type.
+
+As an expression, a type parameter `T` evaluates to the class object of
+its type argument (eg. `Int` for `T := Int`), so the methods of `Class`
+can be called on it (eg. `T.name`, `T == Int`).

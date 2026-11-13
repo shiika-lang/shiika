@@ -1,0 +1,3 @@
+class A
+  native def initialize(@a: Int)
+end

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/self_type/bound_inferred_tyarg.sk
+---
+Error: the type argument `Eq' cannot be used for the type parameter `T' of `Meta:Main#f' because its bound `Eq' uses `Self' (a value of `Eq' may be of any class which includes it; use a class or a type parameter instead)
+    ╭─[tests/erroneous/self_type/bound_inferred_tyarg.sk:16:9]
+    │
+ 16 │     Main.f(x, y)
+    │         ────┬───  
+    │             ╰───── the type argument `Eq' cannot be used for the type parameter `T' of `Meta:Main#f' because its bound `Eq' uses `Self' (a value of `Eq' may be of any class which includes it; use a class or a type parameter instead)
+────╯

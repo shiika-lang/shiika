@@ -1,0 +1,7 @@
+module Eq
+  requirement eq?(other: Self) -> Bool
+  # `other` may be of a different class than `self`
+  def eq_any?(other: Eq) -> Bool
+    eq?(other)
+  end
+end

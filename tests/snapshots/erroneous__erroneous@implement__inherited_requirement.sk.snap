@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/inherited_requirement.sk
+---
+Error: `implement M' in `Q' does not define the required method `foo'
+    ╭─[tests/erroneous/implement/inherited_requirement.sk:11:13]
+    │
+ 11 │   implement M; end
+    │             ┬  
+    │             ╰── `implement M' in `Q' does not define the required method `foo'
+────╯

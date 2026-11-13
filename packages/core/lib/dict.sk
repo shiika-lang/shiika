@@ -1,10 +1,10 @@
 require "./pair.sk"
 
 # TODO: Make this behave as ordered hash (like Ruby's)
-class Dict<K, V> : Enumerable<Pair<K, V>>
+class Dict<K: Hashable, V>
   N_TABLES = 1000
 
-  class Table<KK, VV>
+  class Table<KK: Hashable, VV>
     def initialize
       let @pairs = Array<Pair<KK, VV>>.new
     end
@@ -88,10 +88,12 @@ class Dict<K, V> : Enumerable<Pair<K, V>>
     _table(key)[key]
   end
 
-  # Call `f` with each pair of `self`
-  def each(f: Fn1<Pair<K, V>, Void>)
-    @tables.each do |table|
-      table.each(f)
+  implement Enumerable<Pair<K, V>>
+    # Call `f` with each pair of `self`
+    def each(f: Fn1<Pair<K, V>, Void>)
+      @tables.each do |table|
+        table.each(f)
+      end
     end
   end
 

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/eq_never.sk
+---
+Error: `Box<Never>#join_all' requires `Never == String'
+    ╭─[tests/erroneous/when/eq_never.sk:17:26]
+    │
+ 17 │ Box.new(Array<Never>.new).join_all
+    │                          ────┬────  
+    │                              ╰────── `Box<Never>#join_all' requires `Never == String'
+────╯

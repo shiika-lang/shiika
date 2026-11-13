@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/when/override_different_conds.sk
+---
+`Sub#foo() -> Int' overrides `Base#foo() -> Int (when U == Int)' but the conditions of `when' differ
