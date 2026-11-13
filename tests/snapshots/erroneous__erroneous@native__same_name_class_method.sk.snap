@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/native/same_name_class_method.sk
+---
+method `foo' of `Meta:A' is defined twice (`def' and `native def' cannot share a name)

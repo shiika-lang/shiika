@@ -12,29 +12,37 @@ module Cmp<in X> : Eq<X>
   end
 end
 
-class Num : Cmp<Num>, Eq<Num>
+class Num
   def initialize(@n: Int); end
 
-  def eq(other: Num) -> Bool
-    @n == other.n
+  implement Cmp<Num>
+    def lt(other: Num) -> Bool
+      @n < other.n
+    end
   end
 
-  def lt(other: Num) -> Bool
-    @n < other.n
+  implement Eq<Num>
+    def eq(other: Num) -> Bool
+      @n == other.n
+    end
   end
 end
 
 # The prerequisite is satisfied by the superclass (and contravariance)
-base class Animal : Eq<Animal>
+base class Animal
   def initialize(@age: Int); end
 
-  def eq(other: Animal) -> Bool
-    @age == other.age
+  implement Eq<Animal>
+    def eq(other: Animal) -> Bool
+      @age == other.age
+    end
   end
 end
-class Dog : Animal, Cmp<Dog>
-  def lt(other: Dog) -> Bool
-    age < other.age
+class Dog : Animal
+  implement Cmp<Dog>
+    def lt(other: Dog) -> Bool
+      age < other.age
+    end
   end
 end
 
@@ -52,9 +60,15 @@ module LoudGreeter : Greeter
     greet + "!"
   end
 end
-class Person : LoudGreeter, Greeter, Named
-  def name -> String
-    "taro"
+class Person
+  implement LoudGreeter; end
+
+  implement Greeter; end
+
+  implement Named
+    def name -> String
+      "taro"
+    end
   end
 end
 
@@ -67,10 +81,15 @@ module ArrayGetter<X> : Getter<Array<X>>
     get.length
   end
 end
-class Items<T> : ArrayGetter<T>, Getter<Array<T>>
+class Items<T>
   def initialize(@items: Array<T>); end
-  def get -> Array<T>
-    @items
+
+  implement ArrayGetter<T>; end
+
+  implement Getter<Array<T>>
+    def get -> Array<T>
+      @items
+    end
   end
 end
 
@@ -93,9 +112,17 @@ module M1 : M2, M3
     two + three - zero
   end
 end
-class Diamond : M1, M2, M3, M0
-  def zero -> Int
-    0
+class Diamond
+  implement M1; end
+
+  implement M2; end
+
+  implement M3; end
+
+  implement M0
+    def zero -> Int
+      0
+    end
   end
 end
 

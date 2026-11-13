@@ -524,7 +524,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     name
                 )));
             }
-            if !ivar.ty.equals_to(&expr.ty) {
+            if !self.ctx_stack.apply_when(&ivar.ty).equals_to(&expr.ty) {
                 // TODO: Subtype (@obj = 1, etc.)
                 return Err(error::type_error(&format!(
                     "instance variable `{}' has type {:?} but tried to assign a {:?}",
@@ -612,6 +612,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             &self.ctx_stack.current_method_typarams(),
             Default::default(),
         )?;
+        let hir_params = self.ctx_stack.apply_when_params(hir_params);
 
         // Convert lambda body
         self.ctx_stack
@@ -937,7 +938,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 // (the lambda's arg 0 is `$fn`, not `self`).
                 let receiver = self.convert_self_expr(locs);
                 Ok(Hir::ivar_ref(
-                    ivar.ty.clone(),
+                    self.ctx_stack.apply_when(&ivar.ty),
                     name.to_string(),
                     ivar.idx,
                     receiver,
@@ -992,16 +993,23 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         }
         let fullname = self_ty.erasure().to_type_fullname();
         match self.class_dict.find_type(&fullname) {
-            Some(sk_type) if sk_type.is_module() => {
-                ClassDict::module_self_ty(&fullname, &sk_type.base().typarams)
-            }
+            Some(sk_type) if sk_type.is_module() => self.ctx_stack.apply_when(
+                &ClassDict::module_self_ty(&fullname, &sk_type.base().typarams),
+            ),
             _ => self_ty,
         }
     }
 
     /// Get the value of a class-wise or method-wise type argument.
+    /// `typaram_ref` may or may not be `as_class`.
     pub fn tvar_ref(&mut self, typaram_ref: TyParamRef, locs: &LocationSpan) -> HirExpression {
-        let cls_ty = typaram_ref.to_term_ty();
+        let typaram_ref = if typaram_ref.as_class {
+            typaram_ref.as_type()
+        } else {
+            typaram_ref
+        };
+        // The value of `T` is the class object (eg. `Meta:Int` for `T := Int`)
+        let cls_ty = typaram_ref.as_class().into_term_ty();
         match typaram_ref.kind {
             TyParamKind::SelfType => {
                 // `lookup_typaram` never returns `Self`

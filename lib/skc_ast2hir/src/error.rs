@@ -97,8 +97,9 @@ pub fn assign_to_undeclared_ivar(name: &str, locs: &LocationSpan) -> anyhow::Err
     program_error(report)
 }
 
-pub fn method_not_found(msg: String, locs: &LocationSpan) -> anyhow::Error {
-    let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
+/// `hint` is appended to the main message (not to the label)
+pub fn method_not_found_with_hint(msg: String, hint: &str, locs: &LocationSpan) -> anyhow::Error {
+    let report = skc_error::build_report(format!("{}{}", msg, hint), locs, |r, locs_span| {
         r.with_label(Label::new(locs_span).with_message(msg))
     });
     program_error(report)

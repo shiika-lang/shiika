@@ -1,0 +1,110 @@
+# Conditional methods (`when` blocks)
+
+module Describe
+  requirement describe -> String
+end
+
+class Item
+  def initialize(@n: Int); end
+
+  implement Describe
+    def describe -> String
+      "item#{@n}"
+    end
+  end
+end
+
+class Box<T>
+  def initialize(@items: Array<T>); end
+
+  # `T: X`: the bound of `T` is `X` in the block
+  when T: Describe
+    def describe_all -> String
+      var s = ""
+      @items.each do |x|
+        s = s + x.describe
+      end
+      s
+    end
+
+    # Can call another method of the same conditions
+    def describe_first -> String
+      describe_all.slice_bytes(0, 5)
+    end
+  end
+
+  # `T == X`: `T` is `X` in the block
+  when T == String
+    def join_all -> String
+      var s = ""
+      @items.each do |x|
+        s = s + x
+      end
+      s
+    end
+
+    def add_str(s: String)
+      @items.push(s)
+    end
+  end
+end
+
+module Container<E>
+  requirement items -> Array<E>
+
+  when E: Describe
+    # Note: not using a block here; creating a lambda in a module method
+    # crashes when the class is not generic (a known bug)
+    def describe_items -> String
+      var s = ""
+      let a = items
+      var i = 0; while i < a.length
+        s = s + a[i].describe
+        i += 1
+      end
+      s
+    end
+  end
+end
+
+class Bag
+  def initialize(@a: Array<Item>); end
+
+  implement Container<Item>
+    def items -> Array<Item>
+      @a
+    end
+  end
+end
+
+class Main
+  # Pass a typaram whose bound satisfies the condition
+  def self.describe_generic<U: Describe>(b: Box<U>) -> String
+    b.describe_all
+  end
+
+  def self.run
+    let b = Box.new([Item.new(1), Item.new(2)])
+    unless b.describe_all == "item1item2"
+      puts "ng: describe_all"
+    end
+    unless b.describe_first == "item1"
+      puts "ng: describe_first"
+    end
+    unless Main.describe_generic(b) == "item1item2"
+      puts "ng: describe_generic"
+    end
+
+    let s = Box.new(["a", "b"])
+    s.add_str("c")
+    unless s.join_all == "abc"
+      puts "ng: join_all"
+    end
+
+    unless Bag.new([Item.new(3)]).describe_items == "item3"
+      puts "ng: describe_items"
+    end
+  end
+end
+Main.run
+puts "ok"

@@ -1,8 +1,8 @@
-//! Check that a class which includes a module also conforms to the
+//! Check that a class which implements a module also conforms to the
 //! prerequisite modules of it.
 //! eg. given `module Comparable<X> : Equatable<X>`,
-//! `class Foo : Comparable<Foo>` is an error unless `Foo` (or its ancestor)
-//! includes `Equatable<Foo>`.
+//! `implement Comparable<Foo>` in `class Foo` is an error unless `Foo` (or its
+//! ancestor) implements `Equatable<Foo>`.
 use crate::class_dict::ClassDict;
 use crate::error;
 use anyhow::Result;
@@ -35,8 +35,8 @@ pub fn check_sk_types(dict: &ClassDict) -> Result<()> {
             for req in sk_module.specialized_supers(inc.type_args()) {
                 if !dict.conforms(&class_ty, &req.to_term_ty()) {
                     return Err(error::program_error(format!(
-                        "class `{}' includes `{}' but it requires `{}'\n  \
-                         hint: add `{}' to the supers of `{}'",
+                        "class `{}' implements `{}' but it requires `{}'\n  \
+                         hint: add `implement {}' to `{}'",
                         sk_class.fullname(),
                         inc.to_term_ty(),
                         req.to_term_ty(),

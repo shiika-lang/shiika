@@ -4,10 +4,14 @@ module Eq
     not eq?(other)
   end
 end
-class A : Eq
-  def eq?(other: A) -> Bool; true; end
+class A
+  implement Eq
+    def eq?(other: A) -> Bool; true; end
+  end
 end
-class B : Eq
-  def eq?(other: B) -> Bool; true; end
+class B
+  implement Eq
+    def eq?(other: B) -> Bool; true; end
+  end
 end
 A.new.neq?(B.new)

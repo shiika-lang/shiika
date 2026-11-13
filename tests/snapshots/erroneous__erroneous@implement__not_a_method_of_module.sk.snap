@@ -1,0 +1,14 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/not_a_method_of_module.sk
+---
+Error: `bar' is not a method of `M'
+  hint: define it outside of `implement M'
+   ╭─[tests/erroneous/implement/not_a_method_of_module.sk:3:13]
+   │
+ 3 │   implement M
+   │             ┬  
+   │             ╰── `bar' is not a method of `M'
+  hint: define it outside of `implement M'
+───╯

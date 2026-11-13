@@ -92,7 +92,7 @@ Calls through `Comparable`/`Equatable` and type-parameter bounds use wtables.
 These keep their erased ABI adapters and async method implementations, just as
 vtable calls keep their wrappers. The Rust comparison exports and `Bool#==`
 therefore remain async. Float comparisons still call their implementations;
-their intrinsics will follow Float unboxing.
+their intrinsics remain a separate follow-up.
 
 ## Async / CPS
 
@@ -114,11 +114,10 @@ a presence bitmask to detect omitted arguments; see [MIR](../mir.md).
 ## Boxed Bool singleton
 
 The boxed `true`/`false` are two global singletons (lazily initialized on first
-boxing), so boxing a Bool is allocation-free and `Object#==` (pointer identity)
+boxing), so boxing a Bool is allocation-free and `Object#identical?` (pointer identity)
 on boxed Bools is reliable.
 
 ## Current status
 
-- `Bool` and `Int` are unboxed. `Float` representation (`F64`) exists and the
-  boundary machinery handles it, but `from_term_ty` does not yet map `Float` to
-  `F64` (Phase 3).
+- `Bool`, `Int` and `Float` are unboxed. Concrete Int/Bool comparisons use
+  intrinsics; Float comparisons still call their async implementations.

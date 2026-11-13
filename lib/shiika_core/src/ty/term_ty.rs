@@ -162,8 +162,12 @@ impl TermTy {
                 }
             }
             TyPara(typaram_ref) => {
-                debug_assert!(!typaram_ref.as_class);
-                typaram_ref.as_class().into()
+                if typaram_ref.as_class {
+                    // The class of a class object
+                    ty::raw("Metaclass")
+                } else {
+                    typaram_ref.as_class().into()
+                }
             }
         }
     }
@@ -178,6 +182,7 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
+            TyPara(r) if r.as_class => r.as_type().into_term_ty(),
             TyPara(_) => self.clone(),
         }
     }
@@ -206,8 +211,9 @@ impl TermTy {
                 debug_assert!(is_meta);
                 ty::spe(base_name, type_args.to_vec())
             }
+            // The class object `T` denotes the type `T`
+            TyPara(r) if r.as_class => r.as_type().into_term_ty(),
             TyPara(_) => self.clone(),
-            //TyPara(typaram_ref) => typaram_ref.as_class().into_term_ty(),
         }
     }
 
@@ -278,25 +284,46 @@ impl TermTy {
     ///   `Array<Int>` from `Array<T>`)
     pub fn substitute(&self, class_tyargs: &[TermTy], method_tyargs: &[TermTy]) -> TermTy {
         match &self.body {
-            TyPara(TyParamRef { kind, idx, .. }) => match kind {
-                TyParamKind::Class => {
-                    if class_tyargs.is_empty() {
-                        self.clone()
-                    } else {
-                        class_tyargs[*idx].clone()
-                    }
+            TyPara(TyParamRef {
+                kind,
+                idx,
+                as_class,
+                ..
+            }) => {
+                let tyargs = match kind {
+                    TyParamKind::Class => class_tyargs,
+                    TyParamKind::Method => method_tyargs,
+                    // Replaced by `replace_self`
+                    TyParamKind::SelfType => return self.clone(),
+                };
+                if tyargs.is_empty() {
+                    self.clone()
+                } else if *as_class {
+                    // eg. `Meta:Int` for the class object `T` where `T := Int`
+                    tyargs[*idx].meta_ty()
+                } else {
+                    tyargs[*idx].clone()
                 }
-                TyParamKind::Method => {
-                    if method_tyargs.is_empty() {
-                        self.clone()
-                    } else {
-                        method_tyargs[*idx].clone()
-                    }
-                }
-                // Replaced by `replace_self`
-                TyParamKind::SelfType => self.clone(),
-            },
+            }
             TyRaw(lit_ty) => lit_ty.substitute(class_tyargs, method_tyargs).into(),
+        }
+    }
+
+    /// Substitute class type parameters like `substitute`, but also in the
+    /// upper bound of `Self` (eg. `Enumerable<E>` of `Self` in `Enumerable`).
+    pub fn substitute_with_self(&self, class_tyargs: &[TermTy]) -> TermTy {
+        match &self.body {
+            TyPara(r) => match r.kind {
+                TyParamKind::Class if r.as_class => class_tyargs[r.idx].meta_ty(),
+                TyParamKind::Class => class_tyargs[r.idx].clone(),
+                TyParamKind::SelfType => {
+                    let mut r2 = r.clone();
+                    r2.upper_bound = r.upper_bound.substitute_with_self(class_tyargs);
+                    r2.into_term_ty()
+                }
+                _ => self.clone(),
+            },
+            TyRaw(lit_ty) => lit_ty.substitute_with_self(class_tyargs).into(),
         }
     }
 

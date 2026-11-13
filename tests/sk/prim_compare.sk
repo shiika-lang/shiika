@@ -9,7 +9,6 @@ class PrimitiveCompare
 
   def self.generic_lt<T: Comparable>(a: T, b: T) -> Bool; a < b; end
   def self.generic_eq<T: Equatable>(a: T, b: T) -> Bool; a == b; end
-  def self.object_eq(a: Object, b: Object) -> Bool; a == b; end
 
   def self.async_compare(c: CompareCounter) -> Bool
     c.next < c.next_async
@@ -47,15 +46,12 @@ unless PrimitiveCompare.bool_eq(true, true) and PrimitiveCompare.bool_eq(false, 
   puts "ng: Bool == and !="
 end
 
-# Calls through wtables and vtables must retain their implementations.
+# Calls through wtables must retain their implementations.
 unless PrimitiveCompare.generic_lt(-2, -1) and PrimitiveCompare.generic_eq(7, 7) and not PrimitiveCompare.generic_eq(7, 8)
   puts "ng: Int wtable"
 end
 unless PrimitiveCompare.generic_eq(true, true) and not PrimitiveCompare.generic_eq(true, false)
   puts "ng: Bool wtable"
-end
-unless PrimitiveCompare.object_eq(7, 7) and not PrimitiveCompare.object_eq(7, 8)
-  puts "ng: Int vtable"
 end
 unless [3, 1, 2].sort == [1, 2, 3]
   puts "ng: collections"

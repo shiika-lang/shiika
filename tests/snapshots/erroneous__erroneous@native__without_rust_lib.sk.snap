@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/native/without_rust_lib.sk
+---
+`native def foo' is only allowed in a package which has rust_libs

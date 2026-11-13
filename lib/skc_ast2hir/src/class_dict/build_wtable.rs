@@ -113,14 +113,12 @@ fn resolve_module_methods(
 /// in the module. A required method has no default implementation, so it may
 /// also be implemented by the superclasses of the includer.
 ///
-/// `Self` in the module's signature is replaced with the type of the class
-/// where the implementation is found, or the includer if the implementation
-/// is in a subclass of the includer. Since `Self` appears only in input
-/// positions of requirements, an implementation in an ancestor of the includer
-/// (eg. `Animal#==(other: Animal)` for `class Dog : Animal, Equatable`) is
-/// sound. On the other hand, an override in a subclass must accept the
-/// includer (eg. `Dog#==(other: Animal)` for `class Animal : Equatable`)
-/// because it may be called via the includer.
+/// `Self` in the module's signature is replaced with the includer (the class
+/// which has the `implement` block). The requirements are always defined in
+/// the `implement` block (checked in indexing), so an implementation is never
+/// found in an ancestor of the includer. An override in a subclass must accept
+/// the includer (eg. `Dog#==(other: Animal)` for `Animal` which implements
+/// `Equatable`) because it may be called via the includer.
 fn resolve_module_method(
     instance_methods: &MethodSignatures,
     ancestors: &[(&SkClass, Supertype)],
@@ -147,7 +145,8 @@ fn resolve_module_method(
                 })
         };
     if let Some((sig, found_level)) = found {
-        let self_ty = &level_tys[found_level.max(level)];
+        debug_assert!(found_level <= level);
+        let self_ty = &level_tys[level];
         check_signature_matches(&sig, mod_sig, sup, self_ty)?;
         Ok(sig.fullname)
     } else {

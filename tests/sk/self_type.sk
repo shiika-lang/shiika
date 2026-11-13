@@ -7,28 +7,37 @@ module Eq
   end
 end
 
-class Point : Eq
+class Point
   def initialize(@x: Int, @y: Int); end
-  def eq?(other: Point) -> Bool
-    @x == other.x and @y == other.y
+
+  implement Eq
+    def eq?(other: Point) -> Bool
+      @x == other.x and @y == other.y
+    end
   end
 end
 
-# The requirement is satisfied by the method of the superclass
+# A subclass inherits the module implemented by the superclass
 base class Animal
   def initialize(@name: String); end
-  def eq?(other: Animal) -> Bool
-    @name == other.name
+
+  implement Eq
+    def eq?(other: Animal) -> Bool
+      @name == other.name
+    end
   end
 end
-class Dog : Animal, Eq
+class Dog : Animal
 end
 
 # A subclass of the includer overrides the method (it must accept the includer)
-base class Shape : Eq
+base class Shape
   def initialize(@n: Int); end
-  def eq?(other: Shape) -> Bool
-    @n == other.n
+
+  implement Eq
+    def eq?(other: Shape) -> Bool
+      @n == other.n
+    end
   end
 end
 class Square : Shape
@@ -38,10 +47,13 @@ class Square : Shape
 end
 
 # Generic class
-class Box<T> : Eq
+class Box<T>
   def initialize(@v: T); end
-  def eq?(other: Box<T>) -> Bool
-    true
+
+  implement Eq
+    def eq?(other: Box<T>) -> Bool
+      true
+    end
   end
 end
 
@@ -49,9 +61,11 @@ end
 module Holder<X>
   requirement hold(x: X, other: Self) -> X
 end
-class IntHolder : Holder<Int>
-  def hold(x: Int, other: IntHolder) -> Int
-    x + 1
+class IntHolder
+  implement Holder<Int>
+    def hold(x: Int, other: IntHolder) -> Int
+      x + 1
+    end
   end
 end
 
@@ -67,13 +81,19 @@ module Ord : Eq
     other.lt?(self)
   end
 end
-class Num : Ord, Eq
+class Num
   def initialize(@n: Int); end
-  def eq?(other: Num) -> Bool
-    @n == other.n
+
+  implement Ord
+    def lt?(other: Num) -> Bool
+      @n < other.n
+    end
   end
-  def lt?(other: Num) -> Bool
-    @n < other.n
+
+  implement Eq
+    def eq?(other: Num) -> Bool
+      @n == other.n
+    end
   end
 end
 
@@ -91,13 +111,23 @@ end
 module Titled : Named
   requirement title -> String
 end
-class Person : Titled, Named
+class Person
   def initialize(@name: String); end
-  def same_name?(other: Person) -> Bool
-    @name == other.name
+
+  implement Titled
+    def title -> String
+      "Dr."
+    end
   end
-  def title -> String
-    "Dr."
+
+  implement Named
+    def name -> String
+      @name
+    end
+
+    def same_name?(other: Person) -> Bool
+      @name == other.name
+    end
   end
 end
 
@@ -105,9 +135,11 @@ end
 module Show
   requirement show -> String
 end
-class Pt : Show
-  def show -> String
-    "pt"
+class Pt
+  implement Show
+    def show -> String
+      "pt"
+    end
   end
 end
 

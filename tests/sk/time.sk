@@ -1,8 +1,8 @@
 let l = Time.local
-unless l.zone == Time::Zone::Local; puts "failed l.zone"; end
+unless l.zone.identical?(Time::Zone::Local); puts "failed l.zone"; end
 
 let u = Time.utc
-unless u.zone == Time::Zone::Utc; puts "failed u.zone"; end
+unless u.zone.identical?(Time::Zone::Utc); puts "failed u.zone"; end
 
 unless u.inspect.class == String; puts "failed inspect"; end
 

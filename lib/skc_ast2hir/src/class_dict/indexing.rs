@@ -11,10 +11,18 @@ use skc_hir::method_signature::{signature_of_new, MethodSignature};
 use skc_hir::*;
 use std::collections::HashMap;
 
-/// Used during indexing.
-/// To register Rust methods, the class must be already indexed, but for #initialize, we want
-/// to index it along with the class.
-pub type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool)>>;
+/// Used during indexing: signatures of `native def`s (and whether it is
+/// `native_async`) collected from the class body, keyed by the type name
+/// (`Meta:Foo` for class methods). They are converted to `MethodSignature`s
+/// when the type is registered (see `transfer_rust_methods`).
+type RustMethods = HashMap<TypeFullname, Vec<(AstMethodSignature, bool, Vec<WhenCond>)>>;
+
+/// An `implement M ... end` block in a class body
+struct ImplementBlock<'a> {
+    module: &'a UnresolvedTypeName,
+    /// Names of the methods defined in the block
+    method_names: Vec<MethodFirstname>,
+}
 
 struct ClassSpec {
     namespace: Namespace,
@@ -47,8 +55,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     pub fn index_program(
         &mut self,
         toplevel_defs: &[&shiika_ast::Definition],
-        mut rust_methods: RustMethods,
+        allow_native: bool,
     ) -> Result<()> {
+        let mut rust_methods = RustMethods::new();
         *self.pending_bound_checks.borrow_mut() = Some(vec![]);
         let namespace = Namespace::root();
         for def in toplevel_defs {
@@ -104,6 +113,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
         }
         self.check_virtual_asyncness()?;
+        if !allow_native {
+            if let Some(sig) = find_native_def(toplevel_defs.iter().copied()) {
+                return Err(error::program_error(&format!(
+                    "`native def {}' is only allowed in a package which has rust_libs",
+                    sig.name
+                )));
+            }
+        }
         let annotations = self.pending_bound_checks.borrow_mut().take().unwrap();
         for (ty, locs) in annotations {
             crate::type_system::bounds::check_annotation(self, &ty, &locs)?;
@@ -211,14 +228,13 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         check_reserved_type_name(&firstname.0)?;
         let inner_namespace = namespace.add(firstname.to_string());
         let fullname = namespace.class_fullname(firstname);
-        let (superclass, includes) = if fullname.0 == "Object" {
-            (None, vec![])
+        let superclass = if fullname.0 == "Object" {
+            None
         } else {
-            let (supercls, includes) = self._resolve_supers(namespace, &typarams, supers)?;
-            (Some(supercls), includes)
+            Some(self._resolve_superclass(namespace, &typarams, supers)?)
         };
 
-        let (instance_methods, class_methods) = self.index_defs_in_class(
+        let (instance_methods, class_methods, implements) = self.index_defs_in_class(
             inheritable,
             &inner_namespace,
             &fullname,
@@ -226,6 +242,14 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &superclass,
             defs,
             rust_methods,
+        )?;
+        let includes = self._resolve_implements(
+            &inner_namespace,
+            &fullname,
+            &typarams,
+            &superclass,
+            &instance_methods,
+            &implements,
         )?;
 
         self.add_new_class(
@@ -248,26 +272,19 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(())
     }
 
-    /// Resolve superclass and included module names of a class definition
-    fn _resolve_supers(
+    /// Resolve the superclass of a class definition
+    fn _resolve_superclass(
         &self,
         namespace: &Namespace,
         class_typarams: &[ty::TyParam],
         supers: &[UnresolvedTypeName],
-    ) -> Result<(Supertype, Vec<Supertype>)> {
-        let mut modules = vec![];
+    ) -> Result<Supertype> {
         let mut superclass = None;
         for name in supers {
             let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
             crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
             match self.find_type(&ty.erasure().to_type_fullname()) {
                 Some(SkType::Class(c)) => {
-                    if !modules.is_empty() {
-                        return Err(error::program_error(&format!(
-                            "superclass {} must be the first",
-                            ty
-                        )));
-                    }
                     if superclass.is_some() {
                         return Err(error::program_error(&format!(
                             "only one superclass is allowed but got {}",
@@ -292,17 +309,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         }
                     }
                 }
-                Some(SkType::Module(_)) => match &ty.body {
-                    TyBody::TyPara(_) => {
-                        return Err(error::program_error(&format!(
-                            "type parameter {} cannot be a supertype",
-                            ty
-                        )));
-                    }
-                    TyBody::TyRaw(lit_ty) => {
-                        modules.push(Supertype::from_ty(lit_ty.clone()));
-                    }
-                },
+                Some(SkType::Module(_)) => {
+                    return Err(located_error(
+                        format!(
+                            "`{}' is a module; use `implement {}' in the class body to include it",
+                            name, name
+                        ),
+                        &name.locs,
+                    ));
+                }
                 None => {
                     return Err(error::program_error(&format!(
                         "unknown class or module {}",
@@ -311,7 +326,196 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 }
             }
         }
-        Ok((superclass.unwrap_or_else(Supertype::default), modules))
+        Ok(superclass.unwrap_or_else(Supertype::default))
+    }
+
+    /// Resolve the modules of the `implement` blocks of a class and check
+    /// that each block defines exactly the methods of the module.
+    fn _resolve_implements(
+        &self,
+        namespace: &Namespace,
+        fullname: &ClassFullname,
+        class_typarams: &[ty::TyParam],
+        superclass: &Option<Supertype>,
+        instance_methods: &MethodSignatures,
+        implements: &[ImplementBlock],
+    ) -> Result<Vec<Supertype>> {
+        let mut modules: Vec<Supertype> = vec![];
+        for blk in implements {
+            let name = blk.module;
+            let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
+            crate::type_system::variance::check_supertype(self, class_typarams, &ty, &name.locs)?;
+            let sk_module = match self.find_type(&ty.erasure().to_type_fullname()) {
+                Some(SkType::Module(m)) => m,
+                Some(SkType::Class(_)) => {
+                    return Err(located_error(
+                        format!("`{}' is a class; only a module can be implemented", name),
+                        &name.locs,
+                    ));
+                }
+                None => {
+                    return Err(located_error(
+                        format!("unknown module `{}'", name),
+                        &name.locs,
+                    ));
+                }
+            };
+            let lit_ty = match &ty.body {
+                TyBody::TyPara(_) => {
+                    return Err(located_error(
+                        format!("type parameter `{}' cannot be implemented", name),
+                        &name.locs,
+                    ));
+                }
+                TyBody::TyRaw(lit_ty) => lit_ty.clone(),
+            };
+            let module_name = sk_module.fullname().to_type_fullname();
+            if modules
+                .iter()
+                .any(|m| m.erasure().to_type_fullname() == module_name)
+            {
+                return Err(located_error(
+                    format!("`implement {}' appears twice in `{}'", name, fullname),
+                    &name.locs,
+                ));
+            }
+            if let Some(owner) = self._ancestor_implementing(superclass, &module_name) {
+                return Err(located_error(
+                    format!(
+                        "`{}' is already implemented by `{}', the superclass of `{}'\n  \
+                         hint: override its methods outside of `implement'",
+                        name, owner, fullname
+                    ),
+                    &name.locs,
+                ));
+            }
+            for method_name in &blk.method_names {
+                if !sk_module.base.method_sigs.contains_key(method_name) {
+                    return Err(located_error(
+                        format!(
+                            "`{}' is not a method of `{}'\n  \
+                             hint: define it outside of `implement {}'",
+                            method_name, name, name
+                        ),
+                        &name.locs,
+                    ));
+                }
+            }
+            for req in &sk_module.requirements {
+                let req_name = &req.fullname.first_name;
+                if blk.method_names.contains(req_name) {
+                    continue;
+                }
+                let msg = if instance_methods.contains_key(req_name) {
+                    format!(
+                        "`{}' is a requirement of `{}'; define it in `implement {}'",
+                        req_name, name, name
+                    )
+                } else {
+                    format!(
+                        "`implement {}' in `{}' does not define the required method `{}'",
+                        name, fullname, req_name
+                    )
+                };
+                return Err(located_error(msg, &name.locs));
+            }
+            modules.push(Supertype::from_ty(lit_ty));
+        }
+        Ok(modules)
+    }
+
+    /// Resolve the conditions of a `when` block
+    fn _resolve_when_conds(
+        &self,
+        namespace: &Namespace,
+        owner: &TypeFullname,
+        typarams: &[ty::TyParam],
+        conds: &[shiika_ast::AstWhenCond],
+    ) -> Result<Vec<WhenCond>> {
+        let mut v: Vec<WhenCond> = vec![];
+        for cond in conds {
+            let Some(idx) = typarams.iter().position(|tp| tp.name == cond.typaram) else {
+                return Err(located_error(
+                    format!("`{}' is not a type parameter of `{}'", cond.typaram, owner),
+                    &cond.locs,
+                ));
+            };
+            let typaram = ty::typaram_ref(&typarams[idx], TyParamKind::Class, idx).into_term_ty();
+            if v.iter().any(|c| c.typaram == typaram) {
+                return Err(located_error(
+                    format!(
+                        "type parameter `{}' appears more than once in `when'",
+                        cond.typaram
+                    ),
+                    &cond.locs,
+                ));
+            }
+            let ty = self.resolve_typename(namespace, typarams, Default::default(), &cond.ty)?;
+            if ty.contains_typaram_ref() {
+                return Err(located_error(
+                    format!(
+                        "the type `{}' in `when' cannot contain type parameters (not supported yet)",
+                        ty
+                    ),
+                    &cond.locs,
+                ));
+            }
+            let kind = if cond.is_eq {
+                WhenCondKind::Eq
+            } else {
+                WhenCondKind::Bound
+            };
+            v.push(WhenCond { typaram, kind, ty });
+        }
+        Ok(v)
+    }
+
+    /// A method which overrides a method in a `when` block must be in a `when`
+    /// block of the same conditions (and vice versa)
+    fn _check_when_override(
+        &self,
+        superclass: &Option<Supertype>,
+        sig: &MethodSignature,
+    ) -> Result<()> {
+        let Some(sup) = superclass else {
+            return Ok(());
+        };
+        let Some(found) = self.try_lookup_method(&sup.to_term_ty(), &sig.fullname.first_name)
+        else {
+            return Ok(());
+        };
+        let parent = found.sig.specialize(sup.type_args(), Default::default());
+        if parent.when_conds != sig.when_conds {
+            return Err(error::program_error(&format!(
+                "`{}' overrides `{}' but the conditions of `when' differ",
+                sig, parent
+            )));
+        }
+        Ok(())
+    }
+
+    /// Returns the nearest ancestor class which implements `module_name`
+    fn _ancestor_implementing(
+        &self,
+        superclass: &Option<Supertype>,
+        module_name: &TypeFullname,
+    ) -> Option<ClassFullname> {
+        let mut sup = superclass.as_ref().map(|s| s.erasure().to_class_fullname());
+        while let Some(name) = sup {
+            let sk_class = self.get_class(&name);
+            if sk_class
+                .includes
+                .iter()
+                .any(|m| &m.erasure().to_type_fullname() == module_name)
+            {
+                return Some(name);
+            }
+            sup = sk_class
+                .superclass
+                .as_ref()
+                .map(|s| s.erasure().to_class_fullname());
+        }
+        None
     }
 
     fn index_module(
@@ -521,7 +725,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         check_reserved_type_name(&firstname.0)?;
         let fullname = namespace.class_fullname(firstname);
         let inner_namespace = namespace.add(firstname.to_string());
-        let (instance_methods, class_methods) = self.index_defs_in_class(
+        let (instance_methods, class_methods, implements) = self.index_defs_in_class(
             false,
             &inner_namespace,
             &fullname,
@@ -530,6 +734,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs,
             rust_methods,
         )?;
+        if let Some(blk) = implements.first() {
+            return Err(located_error(
+                format!(
+                    "enum `{}' cannot implement a module (not supported yet)",
+                    fullname
+                ),
+                &blk.module.locs,
+            ));
+        }
         self.add_new_class(
             ClassSpec {
                 namespace: namespace.clone(),
@@ -614,17 +827,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         Ok(ivars)
     }
 
-    fn index_defs_in_class(
+    fn index_defs_in_class<'a>(
         &mut self,
         inheritable: bool,
         namespace: &Namespace,
         fullname: &ClassFullname,
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
-        defs: &[shiika_ast::Definition],
+        defs: &'a [shiika_ast::Definition],
         rust_methods: &mut RustMethods,
-    ) -> Result<(MethodSignatures, MethodSignatures)> {
-        let (instance_methods, class_methods, _) = self._index_inner_defs(
+    ) -> Result<(MethodSignatures, MethodSignatures, Vec<ImplementBlock<'a>>)> {
+        let (instance_methods, class_methods, _, implements) = self._index_inner_defs(
             inheritable,
             namespace,
             fullname.to_type_fullname(),
@@ -634,7 +847,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             false,
             rust_methods,
         )?;
-        Ok((instance_methods, class_methods))
+        Ok((instance_methods, class_methods, implements))
     }
 
     fn index_defs_in_module(
@@ -645,7 +858,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         defs: &[shiika_ast::Definition],
         rust_methods: &mut RustMethods,
     ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
-        self._index_inner_defs(
+        let (instance_methods, class_methods, requirements, implements) = self._index_inner_defs(
             false,
             namespace,
             fullname.to_type_fullname(),
@@ -654,24 +867,59 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs,
             true,
             rust_methods,
-        )
+        )?;
+        if let Some(blk) = implements.first() {
+            return Err(located_error(
+                format!(
+                    "module `{}' cannot implement a module; use `module {} : {}' to require it",
+                    fullname, fullname, blk.module
+                ),
+                &blk.module.locs,
+            ));
+        }
+        Ok((instance_methods, class_methods, requirements))
     }
 
-    fn _index_inner_defs(
+    #[allow(clippy::type_complexity)]
+    fn _index_inner_defs<'a>(
         &mut self,
         inheritable: bool,
         namespace: &Namespace,
         fullname: TypeFullname,
         typarams: &[ty::TyParam],
         superclass: &Option<Supertype>,
-        defs: &[shiika_ast::Definition],
+        defs: &'a [shiika_ast::Definition],
         is_module: bool,
         rust_methods: &mut RustMethods,
-    ) -> Result<(MethodSignatures, MethodSignatures, Vec<MethodSignature>)> {
+    ) -> Result<(
+        MethodSignatures,
+        MethodSignatures,
+        Vec<MethodSignature>,
+        Vec<ImplementBlock<'a>>,
+    )> {
         let mut instance_methods = MethodSignatures::new();
         let mut class_methods = MethodSignatures::new();
         let mut requirements = vec![];
+        let mut natives = vec![];
+        let implements = collect_implement_blocks(defs)?;
+        // Flatten the blocks, keeping the `when` conditions of each def
+        let mut items: Vec<(&shiika_ast::Definition, Vec<WhenCond>)> = vec![];
         for def in defs {
+            match def {
+                shiika_ast::Definition::ImplementDefinition { defs: inner, .. } => {
+                    items.extend(inner.iter().map(|d| (d, vec![])));
+                }
+                shiika_ast::Definition::WhenDefinition { conds, defs: inner } => {
+                    let when_conds =
+                        self._resolve_when_conds(namespace, &fullname, typarams, conds)?;
+                    check_when_block(conds, inner)?;
+                    items.extend(inner.iter().map(|d| (d, when_conds.clone())));
+                }
+                _ => items.push((def, vec![])),
+            }
+        }
+        check_when_method_names(&fullname, &items)?;
+        for (def, when_conds) in items {
             match def {
                 shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
                 | shiika_ast::Definition::InitializerDefinition(
@@ -701,10 +949,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         false,
                     );
                     self.set_self_ty(prev);
-                    let hir_sig = hir_sig?;
+                    let hir_sig = apply_when_conds(hir_sig?, typarams, when_conds);
                     crate::type_system::variance::check_method_signature(
                         self, typarams, sig, &hir_sig,
                     )?;
+                    self._check_when_override(superclass, &hir_sig)?;
                     if sig.name.0 == "initialize" {
                         self._index_accessors(&mut instance_methods, sig, &hir_sig);
                     }
@@ -816,9 +1065,40 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                         rust_methods,
                     )?;
                 }
+                shiika_ast::Definition::ImplementDefinition { .. }
+                | shiika_ast::Definition::WhenDefinition { .. } => {
+                    unreachable!("flattened above")
+                }
+                shiika_ast::Definition::NativeMethodDefinition {
+                    sig,
+                    is_class_method,
+                    is_async,
+                } => {
+                    let type_name = if *is_class_method {
+                        fullname.meta_name().to_type_fullname()
+                    } else {
+                        fullname.clone()
+                    };
+                    natives.push((type_name, sig.clone(), *is_async, when_conds));
+                }
             }
         }
-        Ok((instance_methods, class_methods, requirements))
+        for (type_name, sig, is_async, when_conds) in natives {
+            let defined = if type_name == fullname {
+                &instance_methods
+            } else {
+                &class_methods
+            };
+            let entry = rust_methods.entry(type_name.clone()).or_default();
+            if defined.contains_key(&sig.name) || entry.iter().any(|(s, _, _)| s.name == sig.name) {
+                return Err(error::program_error(&format!(
+                    "method `{}' of `{}' is defined twice (`def' and `native def' cannot share a name)",
+                    sig.name, type_name
+                )));
+            }
+            entry.push((sig, is_async, when_conds));
+        }
+        Ok((instance_methods, class_methods, requirements, implements))
     }
 
     /// Register getters/setters from signature of `#initialize`
@@ -841,6 +1121,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 asyncness: Asyncness::Sync,
                 is_virtual: false,
                 is_rust: false,
+                when_conds: vec![],
             };
             instance_methods.insert(sig);
         }
@@ -1118,6 +1399,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             asyncness,
             is_virtual,
             is_rust,
+            when_conds: vec![],
         })
     }
 
@@ -1215,8 +1497,8 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     ) -> Result<Vec<MethodSignature>> {
         let v = rust_methods.remove(typename).unwrap_or_default();
         v.into_iter()
-            .map(|(sig, is_async)| {
-                let mut hir_sig = self.create_maybe_virtual_signature(
+            .map(|(sig, is_async, when_conds)| {
+                let hir_sig = self.create_maybe_virtual_signature(
                     extendable,
                     namespace,
                     typename.clone(),
@@ -1225,6 +1507,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     superclass,
                     true,
                 )?;
+                let mut hir_sig = apply_when_conds(hir_sig, typarams, when_conds);
                 // A method of an extendable type (an inheritable class or a
                 // module) is virtual because a subclass/includer may override
                 // it, so it must be async. See also: `check_virtual_asyncness`
@@ -1247,6 +1530,166 @@ impl<'hir_maker> ClassDict<'hir_maker> {
     fn known(&self, fullname: &TypeFullname) -> bool {
         self.sk_types.types.contains_key(fullname)
     }
+}
+
+/// Attach the conditions of the `when` block to `sig`. For `T == X`, `T` in
+/// the signature is replaced with `X`.
+fn apply_when_conds(
+    mut sig: MethodSignature,
+    typarams: &[ty::TyParam],
+    when_conds: Vec<WhenCond>,
+) -> MethodSignature {
+    if when_conds.iter().any(|c| c.kind == WhenCondKind::Eq) {
+        let tyargs = when_body_tyargs(typarams, &when_conds, true);
+        sig = sig.substitute_with_self(&tyargs);
+    }
+    sig.when_conds = when_conds;
+    sig
+}
+
+/// Returns the type arguments to substitute the class type parameters in a
+/// `when` block. `T == X` replaces `T` with `X`. `T: X` replaces `T` with
+/// `T` whose upper bound is `X` (unless `eq_only`).
+pub fn when_body_tyargs(
+    typarams: &[ty::TyParam],
+    when_conds: &[WhenCond],
+    eq_only: bool,
+) -> Vec<TermTy> {
+    typarams
+        .iter()
+        .enumerate()
+        .map(|(i, tp)| {
+            let orig = ty::typaram_ref(tp, TyParamKind::Class, i);
+            let cond = when_conds.iter().find(|c| match &c.typaram.body {
+                TyBody::TyPara(r) => r.kind == TyParamKind::Class && r.idx == i,
+                _ => false,
+            });
+            match cond {
+                Some(c) if c.kind == WhenCondKind::Eq => c.ty.clone(),
+                Some(c) if !eq_only => match &c.ty.body {
+                    TyBody::TyRaw(lit_ty) => {
+                        let mut r = orig;
+                        r.upper_bound = lit_ty.clone();
+                        r.into_term_ty()
+                    }
+                    TyBody::TyPara(_) => orig.into_term_ty(),
+                },
+                _ => orig.into_term_ty(),
+            }
+        })
+        .collect()
+}
+
+/// Check the contents of a `when` block
+fn check_when_block(
+    conds: &[shiika_ast::AstWhenCond],
+    defs: &[shiika_ast::Definition],
+) -> Result<()> {
+    for def in defs {
+        match def {
+            shiika_ast::Definition::InstanceMethodDefinition { .. }
+            | shiika_ast::Definition::NativeMethodDefinition {
+                is_class_method: false,
+                ..
+            } => {}
+            _ => {
+                return Err(located_error(
+                    "only instance methods can be defined in `when' (`initialize', class methods, \
+                     `implement', etc. are not allowed)"
+                        .to_string(),
+                    &conds[0].locs,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// A method in a `when` block cannot have the same name as another method
+/// (methods are looked up by name; overloading by conditions is not supported)
+fn check_when_method_names(
+    owner: &TypeFullname,
+    items: &[(&shiika_ast::Definition, Vec<WhenCond>)],
+) -> Result<()> {
+    let name_of = |def: &shiika_ast::Definition| match def {
+        shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+        | shiika_ast::Definition::NativeMethodDefinition {
+            sig,
+            is_class_method: false,
+            ..
+        } => Some(sig.name.clone()),
+        _ => None,
+    };
+    for (i, (def, conds)) in items.iter().enumerate() {
+        if conds.is_empty() {
+            continue;
+        }
+        let Some(name) = name_of(def) else { continue };
+        for (j, (other, _)) in items.iter().enumerate() {
+            if i != j && name_of(other).as_ref() == Some(&name) {
+                return Err(error::program_error(&format!(
+                    "method `{}' of `{}' is defined in a `when' block and elsewhere \
+                     (overloading by the conditions is not supported)",
+                    name, owner
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Collect the `implement` blocks in `defs` and check their contents
+fn collect_implement_blocks(defs: &[shiika_ast::Definition]) -> Result<Vec<ImplementBlock<'_>>> {
+    let mut blocks = vec![];
+    for def in defs {
+        let shiika_ast::Definition::ImplementDefinition { module, defs } = def else {
+            continue;
+        };
+        let mut method_names = vec![];
+        for inner in defs {
+            match inner {
+                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+                | shiika_ast::Definition::NativeMethodDefinition {
+                    sig,
+                    is_class_method: false,
+                    ..
+                } => method_names.push(sig.name.clone()),
+                _ => {
+                    return Err(located_error(
+                        format!(
+                            "only instance methods can be defined in `implement {}'",
+                            module
+                        ),
+                        &module.locs,
+                    ));
+                }
+            }
+        }
+        blocks.push(ImplementBlock {
+            module,
+            method_names,
+        });
+    }
+    Ok(blocks)
+}
+
+/// Returns the signature of a `native def` in `defs` (recursively), if any
+fn find_native_def<'a>(
+    defs: impl Iterator<Item = &'a shiika_ast::Definition>,
+) -> Option<&'a AstMethodSignature> {
+    for def in defs {
+        let found = match def {
+            shiika_ast::Definition::NativeMethodDefinition { sig, .. } => Some(sig),
+            shiika_ast::Definition::ClassDefinition { defs, .. }
+            | shiika_ast::Definition::ModuleDefinition { defs, .. }
+            | shiika_ast::Definition::EnumDefinition { defs, .. } => find_native_def(defs.iter()),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
 }
 
 /// Returns superclass of a enum case
@@ -1302,6 +1745,7 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
         asyncness: Asyncness::Unknown,
         is_virtual: false,
         is_rust: false,
+        when_conds: vec![],
     });
     MethodSignatures::from_iterator(iter)
 }

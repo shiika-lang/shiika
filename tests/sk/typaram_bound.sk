@@ -30,9 +30,11 @@ unless cage2.sound == "woof" then puts "ng 2" end
 module Greeting
   requirement greet -> String
 end
-class Alice : Greeting
-  def greet -> String
-    "hi"
+class Alice
+  implement Greeting
+    def greet -> String
+      "hi"
+    end
   end
 end
 class Greeter<T: Greeting>

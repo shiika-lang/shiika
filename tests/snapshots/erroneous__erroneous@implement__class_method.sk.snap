@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/class_method.sk
+---
+Error: only instance methods can be defined in `implement M'
+   ╭─[tests/erroneous/implement/class_method.sk:3:13]
+   │
+ 3 │   implement M
+   │             ┬  
+   │             ╰── only instance methods can be defined in `implement M'
+───╯

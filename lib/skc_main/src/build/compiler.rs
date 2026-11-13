@@ -1,12 +1,9 @@
 use crate::build::{self, bootstrap_classes, loader, CompileTarget};
 use crate::codegen::prelude;
-use crate::{cli, codegen, mir, mir_lowering, mirgen, package};
+use crate::{cli, codegen, mir, mir_lowering, mirgen};
 use anyhow::{Context, Result};
-use shiika_core::names::type_fullname;
 use shiika_parser::SourceFile;
-use skc_ast2hir::class_dict::RustMethods;
 use skc_mir::LibraryExports;
-use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -125,12 +122,10 @@ fn generate_hir(
         if target.is_core_package() {
             bootstrap_classes::add_to(&mut class_dict);
         }
-        let rustlib_methods = if let Some(pkg) = target.package() {
-            list_rustlib_methods(pkg)?
-        } else {
-            Default::default()
-        };
-        class_dict.index_program(&defs, rustlib_methods)?;
+        let allow_native = target
+            .package()
+            .is_some_and(|pkg| pkg.spec.rust_libs.is_some());
+        class_dict.index_program(&defs, allow_native)?;
         class_dict
     };
 
@@ -164,19 +159,4 @@ fn load_exports_json(package_name: &str, path: &Path) -> Result<LibraryExports> 
     let exports: LibraryExports =
         serde_json::from_str(&contents).context(format!("failed to parse {}", path.display()))?;
     Ok(exports)
-}
-
-fn list_rustlib_methods(p: &package::Package) -> Result<RustMethods> {
-    let mut methods = HashMap::new();
-    for exp in p.export_files() {
-        for (type_name, sig_str, is_async) in package::load_exports_json5(&exp)? {
-            let tname = type_fullname(&type_name);
-            let sig = shiika_parser::Parser::parse_signature(&sig_str)?;
-            if !methods.contains_key(&tname) {
-                methods.insert(tname.clone(), vec![]);
-            }
-            methods.get_mut(&tname).unwrap().push((sig, is_async));
-        }
-    }
-    Ok(methods)
 }

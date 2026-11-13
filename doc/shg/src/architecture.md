@@ -41,7 +41,7 @@ Concurrency is implemented with a Continuation-Passing Style (CPS)
 transformation on top of a Tokio-based async runtime.
 
 Methods and functions has no "color" in Shiika level. However, internally
-- those defined in Rust is marked async or sync (in `exports.json5`), and
+- those defined in Rust is marked async or sync (`native_async def` or `native def`), and
 - those calling async methods are inferred transitively as async.
 
 A method that can be dispatched through a vtable is forced to be async

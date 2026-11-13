@@ -112,11 +112,29 @@ Dog.new("Pochi").greet  #=> I am Pochi
 - A method can be overridden by defining a method of the same name and signature in
   the subclass.
 
-You can also list [modules](./modules.md) after `:`. In that case the
-superclass must come first.
+A class can also implement [modules](./modules.md) with `implement`
+blocks.
+
+## Conditional methods
+
+Methods in a `when` block are available only when the type arguments
+satisfy the conditions. For example, `Array#sort` is defined in
+`when T: Comparable`, so `[3, 1, 2].sort` is ok but `[Object.new].sort`
+is a compile error.
 
 ```sk
-class Sub : SuperClass, Module1, Module2
+class Box<T>
+  def initialize(@items: Array<T>); end
+
+  when T == String
+    def join_all -> String
+      var s = ""
+      @items.each{|x| s = s + x }
+      s
+    end
+  end
+end
+p Box.new(["a", "b"]).join_all  #=> "ab"
 ```
 
 ## Constants

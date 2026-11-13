@@ -1,0 +1,8 @@
+module M; end
+class A
+  implement M
+    def self.foo -> Int
+      1
+    end
+  end
+end

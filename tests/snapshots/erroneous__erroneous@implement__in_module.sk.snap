@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/implement/in_module.sk
+---
+Error: module `N' cannot implement a module; use `module N : M' to require it
+   ╭─[tests/erroneous/implement/in_module.sk:3:13]
+   │
+ 3 │   implement M; end
+   │             ┬  
+   │             ╰── module `N' cannot implement a module; use `module N : M' to require it
+───╯

@@ -2,7 +2,7 @@
 
 ## Unbox Int/Float/Bool
 
-`Int` and `Bool` are now represented as unboxed immediates (`Float` is planned);
+`Int`, `Bool` and `Float` are now represented as unboxed immediates;
 see [Unboxing](design_notes/unboxing.md). Arithmetic, comparisons and
 conditionals no longer allocate. Values are boxed only where they cross into a
 pointer position (containers, captures, `Object`/type-parameter arguments),
@@ -13,7 +13,7 @@ which keeps heterogeneous arrays and lambda captures working as before.
 Concrete Int comparisons (`<`, `<=`, `>`, `>=`, `==`) and Bool equality now
 become MIR `PrimBinOp` nodes and LLVM `icmp` instructions. Removing the method
 call before asyncness inference also removes the comparison's CPS dependency.
-Indirect calls through vtables/wtables retain their async implementations.
+Comparison calls through wtables retain their async implementations.
 See [Method dispatch](design_notes/unboxing.md#method-dispatch).
 
 For `examples/fib.sk` (`fib(30)`), the generated `A#fib` changes from async to
@@ -27,8 +27,8 @@ build, unchanged linker options and three executions of each binary gave:
 
 These are whole-process times, including runtime startup and output. Both
 binaries print `832040`; the generated IR also confirms the direct comparison
-call has been replaced by `icmp slt`. Float comparisons are deferred until Float
-unboxing.
+call has been replaced by `icmp slt`. Float comparison intrinsics remain a
+separate follow-up.
 
 With the same build settings, `examples/lifegame.sk` took a median 0.353 s
 before and 0.316 s after (three runs each; ranges 0.346–0.355 s and

@@ -1,2 +1,10 @@
 class MutableString
+  native def initialize
+  native def nth_byte(n: Int) -> Int
+  native def append(other: String)
+  native def append_byte(b: Int)
+  native def empty? -> Bool
+  native_async def to_s -> String
+  native def write_byte(nth: Int, byte: Int)
+  native def _unsafe_to_s -> String
 end

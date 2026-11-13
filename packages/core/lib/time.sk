@@ -15,7 +15,7 @@ class Time
   end
 
   # Convert `self` to PlainDateTime.
-  #def to_plain -> PlainDateTime
+  native def to_plain -> Time::PlainDateTime
 
   class Date
     def initialize(@plain_date: PlainDate, @zone: Zone)
@@ -42,7 +42,7 @@ class Time
   # Represents absolute time from the unix epoch.
   class Instant
     # Returns current time.
-    #def self.now -> Instant
+    native def self.now -> Time::Instant
 
     def initialize(@nano_timestamp: Int)
     end

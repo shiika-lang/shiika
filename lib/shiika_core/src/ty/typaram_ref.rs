@@ -4,7 +4,7 @@ use crate::ty::term_ty::{TermTy, TyBody};
 use nom::{bytes::complete::tag, IResult};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, Clone, Serialize, Deserialize)]
 pub struct TyParamRef {
     pub kind: TyParamKind,
     pub name: String,
@@ -24,6 +24,17 @@ pub enum TyParamKind {
     /// `Self` in a module (the type which includes the module).
     /// Its upper bound is the module.
     SelfType,
+}
+
+/// Two refs to the same type parameter are equal even if their bounds differ
+/// (eg. the bound is narrowed in a `when` block).
+impl PartialEq for TyParamRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.name == other.name
+            && self.idx == other.idx
+            && self.as_class == other.as_class
+    }
 }
 
 impl From<TyParamRef> for TermTy {

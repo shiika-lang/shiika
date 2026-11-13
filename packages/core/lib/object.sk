@@ -1,21 +1,11 @@
 base class Object
-  # TODO: These will be removed when `Comparable` is implemented
-  def <(other: Object) -> Bool
-    panic "[`<` is not implemented for class #{self.class}]"
-    false
-  end
-  def >(other: Object) -> Bool
-    other < self
-  end
-  def <=(other: Object) -> Bool
-    self < other or self == other
-  end
-  def >=(other: Object) -> Bool
-    self > other or self == other
-  end
+  native_async def panic(msg: String) -> Never
+  native_async def sleep_sec(sec: Int)
+  native_async def print(s: String)
+  native_async def puts(s: String)
 
   # Returns the class which this object belongs to.
-  # def class -> Class
+  native_async def class -> Class
 
   # Terminates the process.
   # Note: this may be moved to `Process.exit` or somewhere in the future
@@ -25,18 +15,14 @@ base class Object
   # def gets -> Result<String>
 
   # Returns true if `other` is the same object as `self`.
-  # def identical?(other: Object) -> Bool
-
-  def hash -> Int
-    0 # TODO: Use the pointer address
-  end
+  native_async def identical?(other: Object) -> Bool
 
   def inspect -> String
     self.to_s
   end
 
   # Returns the unique id of this object.
-  # def object_id -> Int
+  native_async def object_id -> Int
 
   def loop(f: Fn0<Void>)
     while true

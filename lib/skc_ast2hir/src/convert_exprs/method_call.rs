@@ -85,6 +85,13 @@ pub fn convert_method_call(
         .method_tyargs()
         .with_context(|| error(&block_taker, locs))?;
     crate::type_system::bounds::check_method_tyargs(&mk.class_dict, &found.sig, &tyargs, locs)?;
+    crate::type_system::bounds::check_when_conds(
+        &mk.class_dict,
+        &found.sig,
+        receiver_ty,
+        &tyargs,
+        locs,
+    )?;
     let updated_param_types = inf.param_tys().with_context(|| error(&block_taker, locs))?;
 
     check_argument_types(

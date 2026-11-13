@@ -1,0 +1,6 @@
+class A
+  def foo -> Int
+    1
+  end
+  native def foo -> Int
+end

@@ -1,4 +1,36 @@
-class Int : Comparable, Equatable, Hashable
+class Int
+  native def -@ -> Int
+  native def +(other: Int) -> Int
+  native def -(other: Int) -> Int
+  native def *(other: Int) -> Int
+  native def /(other: Int) -> Float
+  native def %(other: Int) -> Int
+  native def and(other: Int) -> Int
+  native def or(other: Int) -> Int
+  native def xor(other: Int) -> Int
+  native def lshift(n_bits: Int) -> Int
+  native def rshift(n_bits: Int) -> Int
+
+  implement Comparable
+    native_async def <(other: Int) -> Bool
+    native_async def <=(other: Int) -> Bool
+    native_async def >(other: Int) -> Bool
+    native_async def >=(other: Int) -> Bool
+  end
+
+  implement Equatable
+    native_async def ==(other: Int) -> Bool
+  end
+
+  implement Hashable
+    # Return the hash value of `self`.
+    def hash -> Int
+      self
+    end
+  end
+
+  native def to_f -> Float
+
   # Returns the absolute value of `self`.
   def abs -> Int
     if self >= 0
@@ -24,11 +56,6 @@ class Int : Comparable, Equatable, Hashable
   # Returns true if `self` is odd.
   def odd? -> Bool
     self % 2 != 0
-  end
-
-  # Return the hash value of `self`.
-  def hash -> Int
-    self
   end
 
   # Calls `f` for `self` times, passing numbers from zero to `self - 1`.

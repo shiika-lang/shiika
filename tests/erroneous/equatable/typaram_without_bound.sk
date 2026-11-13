@@ -1,0 +1,6 @@
+# `==` cannot be called on a typaram without the bound
+class A
+  def self.eq<T>(a: T, b: T) -> Bool
+    a == b
+  end
+end

@@ -163,7 +163,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
     }
 
     fn compile_float(&mut self, n: f64) -> Option<inkwell::values::BasicValueEnum<'run>> {
-        Some(intrinsics::box_float(self, n).into())
+        Some(self.context.f64_type().const_float(n).into())
     }
 
     fn compile_string_literal(&mut self, s: &str) -> Option<inkwell::values::BasicValueEnum<'run>> {

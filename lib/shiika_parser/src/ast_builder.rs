@@ -3,7 +3,7 @@ use shiika_ast::{
     Location, LocationSpan, Token, UnresolvedTypeName,
 };
 use shiika_core::names::{method_firstname, UnresolvedConstName};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 pub struct AstBuilder {
@@ -17,13 +17,7 @@ impl AstBuilder {
         }
     }
 
-    pub fn empty() -> AstBuilder {
-        AstBuilder {
-            filepath: Rc::new(Path::new("").to_path_buf()),
-        }
-    }
-
-    fn locs(&self, begin: Location, end: Location) -> LocationSpan {
+    pub fn locs(&self, begin: Location, end: Location) -> LocationSpan {
         LocationSpan::new(&self.filepath, begin, end)
     }
 

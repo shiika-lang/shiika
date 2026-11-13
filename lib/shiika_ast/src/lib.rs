@@ -74,6 +74,24 @@ pub enum Definition {
     MethodRequirementDefinition {
         sig: AstMethodSignature,
     },
+    /// `implement M ... end` in a class body: the class includes the module
+    /// `M` and `defs` are its methods which implement `M`.
+    ImplementDefinition {
+        module: UnresolvedTypeName,
+        defs: Vec<Definition>,
+    },
+    /// `when T: X ... end` in a class or module body: methods which are
+    /// available only when the conditions are satisfied
+    WhenDefinition {
+        conds: Vec<AstWhenCond>,
+        defs: Vec<Definition>,
+    },
+    /// `native def` / `native_async def`: a method implemented in Rust
+    NativeMethodDefinition {
+        sig: AstMethodSignature,
+        is_class_method: bool,
+        is_async: bool,
+    },
     ConstDefinition {
         name: String,
         expr: AstExpression,
@@ -84,6 +102,28 @@ pub enum Definition {
 pub struct InitializerDefinition {
     pub sig: AstMethodSignature,
     pub body_exprs: Vec<AstExpression>,
+}
+
+/// A condition of a `when` block
+#[derive(Debug, PartialEq)]
+pub struct AstWhenCond {
+    /// Name of the type parameter (eg. `T`)
+    pub typaram: String,
+    /// true for `T == X`, false for `T: X`
+    pub is_eq: bool,
+    pub ty: UnresolvedTypeName,
+    pub locs: LocationSpan,
+}
+
+/// Iterate over `defs`, replacing each `implement` or `when` block with its
+/// inner defs.
+pub fn flatten_blocks(defs: &[Definition]) -> impl Iterator<Item = &Definition> {
+    defs.iter().flat_map(|def| match def {
+        Definition::ImplementDefinition { defs, .. } | Definition::WhenDefinition { defs, .. } => {
+            defs.iter().collect::<Vec<_>>()
+        }
+        _ => vec![def],
+    })
 }
 
 pub fn find_initializer(defs: &[Definition]) -> Option<&InitializerDefinition> {
@@ -159,6 +199,17 @@ pub struct UnresolvedTypeName {
     pub names: Vec<String>,
     pub args: Vec<UnresolvedTypeName>,
     pub locs: LocationSpan,
+}
+
+impl std::fmt::Display for UnresolvedTypeName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.names.join("::"))?;
+        if !self.args.is_empty() {
+            let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
+            write!(f, "<{}>", args.join(", "))?;
+        }
+        Ok(())
+    }
 }
 
 impl UnresolvedTypeName {

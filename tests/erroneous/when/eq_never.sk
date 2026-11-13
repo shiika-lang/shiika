@@ -1,0 +1,17 @@
+module Describe
+  requirement describe -> String
+end
+class Box<T>
+  def initialize(@items: Array<T>); end
+  when T: Describe
+    def describe_all -> String
+      ""
+    end
+  end
+  when T == String
+    def join_all -> String
+      ""
+    end
+  end
+end
+Box.new(Array<Never>.new).join_all

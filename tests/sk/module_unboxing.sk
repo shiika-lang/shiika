@@ -10,32 +10,42 @@ module N<X>
 end
 
 # The implementation uses the erased type parameter
-class G<T> : N<T>
+class G<T>
   def initialize(@v: T); end
-  def get -> T
-    @v
-  end
-  def put(x: T) -> T
-    x
+
+  implement N<T>
+    def get -> T
+      @v
+    end
+
+    def put(x: T) -> T
+      x
+    end
   end
 end
 
 # The implementation uses raw immediates
-class F : N<Int>
-  def get -> Int
-    8
-  end
-  def put(x: Int) -> Int
-    x + 1
+class F
+  implement N<Int>
+    def get -> Int
+      8
+    end
+
+    def put(x: Int) -> Int
+      x + 1
+    end
   end
 end
 
-class FB : N<Bool>
-  def get -> Bool
-    true
-  end
-  def put(x: Bool) -> Bool
-    not x
+class FB
+  implement N<Bool>
+    def get -> Bool
+      true
+    end
+
+    def put(x: Bool) -> Bool
+      not x
+    end
   end
 end
 

@@ -46,12 +46,17 @@ impl HirMakerContext {
         })
     }
 
-    pub fn method(signature: MethodSignature, super_ivars: Option<SkIVars>) -> HirMakerContext {
+    pub fn method(
+        signature: MethodSignature,
+        super_ivars: Option<SkIVars>,
+        when_tyargs: Option<Vec<TermTy>>,
+    ) -> HirMakerContext {
         HirMakerContext::Method(MethodCtx {
             signature,
             lvars: Default::default(),
             iivars: Default::default(),
             super_ivars: super_ivars.unwrap_or_default(),
+            when_tyargs,
         })
     }
 
@@ -114,6 +119,9 @@ pub struct MethodCtx {
     /// List of inherited ivars
     /// Empty if the method is not `#initialize`
     pub super_ivars: SkIVars, // TODO: this can be just &'a SkIVars
+    /// If the method is in a `when` block, the types to substitute the class
+    /// type parameters with in the method body (see `when_body_tyargs`)
+    pub when_tyargs: Option<Vec<TermTy>>,
 }
 
 #[derive(Debug)]

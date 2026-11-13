@@ -55,13 +55,15 @@ module Enumerable<E>
     sum
   end
 
-  # Return true if `self` contains `item` (compared by `==`)
-  def includes?(item: E) -> Bool
-    var ret = false
-    each do |x|
-      if x == item; ret = true; end
+  when E: Equatable
+    # Return true if `self` contains `item` (compared by `==`)
+    def includes?(item: E) -> Bool
+      var ret = false
+      each do |x|
+        if x == item; ret = true; end
+      end
+      ret
     end
-    ret
   end
 
   # Returns the first position where `pred` returns true.
@@ -129,29 +131,33 @@ module Enumerable<E>
     ret
   end
 
-  # TODO: these methods should only available when `E: Comparable`
-  def min -> Maybe<E>
-    var ret = Maybe::None.unsafe_cast(Maybe<E>)
-    each do |item|
-      match ret
-      when Maybe::None
-        ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
-      when Maybe::Some(prev)
-        ret = Maybe::Some<E>.new(if prev < item then prev else item end).unsafe_cast(Maybe<E>)
+  when E: Comparable
+    # Returns the smallest element (compared by `<`)
+    def min -> Maybe<E>
+      var ret = Maybe::None.unsafe_cast(Maybe<E>)
+      each do |item|
+        match ret
+        when Maybe::None
+          ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
+        when Maybe::Some(prev)
+          ret = Maybe::Some<E>.new(if prev < item then prev else item end).unsafe_cast(Maybe<E>)
+        end
       end
+      ret
     end
-    ret
-  end
-  def max -> Maybe<E>
-    var ret = Maybe::None.unsafe_cast(Maybe<E>)
-    each do |item|
-      match ret
-      when Maybe::None
-        ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
-      when Maybe::Some(prev)
-        ret = Maybe::Some<E>.new(if prev < item then item else prev end).unsafe_cast(Maybe<E>)
+
+    # Returns the largest element (compared by `<`)
+    def max -> Maybe<E>
+      var ret = Maybe::None.unsafe_cast(Maybe<E>)
+      each do |item|
+        match ret
+        when Maybe::None
+          ret = Maybe::Some<E>.new(item).unsafe_cast(Maybe<E>)
+        when Maybe::Some(prev)
+          ret = Maybe::Some<E>.new(if prev < item then item else prev end).unsafe_cast(Maybe<E>)
+        end
       end
+      ret
     end
-    ret
   end
 end

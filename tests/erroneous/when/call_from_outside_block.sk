@@ -1,0 +1,13 @@
+module Describe
+  requirement describe -> String
+end
+class Box<T>
+  when T: Describe
+    def describe_all -> String
+      ""
+    end
+  end
+  def bad -> String
+    describe_all
+  end
+end

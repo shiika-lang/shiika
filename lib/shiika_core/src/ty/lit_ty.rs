@@ -70,6 +70,16 @@ impl LitTy {
         LitTy::new(self.base_name.clone(), args, self.is_meta)
     }
 
+    /// See `TermTy::substitute_with_self`
+    pub fn substitute_with_self(&self, class_tyargs: &[TermTy]) -> LitTy {
+        let args = self
+            .type_args
+            .iter()
+            .map(|t| t.substitute_with_self(class_tyargs))
+            .collect();
+        LitTy::new(self.base_name.clone(), args, self.is_meta)
+    }
+
     /// Replace `Self` (of a module) in the type arguments with `self_ty`
     pub fn replace_self(&self, self_ty: &TermTy) -> LitTy {
         let args = self
