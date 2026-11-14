@@ -1,3 +1,32 @@
+## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.10.0...v0.10.1) - 2026-11-14
+
+- Fix class-level instance variables by @yhara in https://github.com/shiika-lang/shiika/pull/628
+- Unbox Int and Bool by @yhara in https://github.com/shiika-lang/shiika/pull/629
+- Lower sync Void methods to `ret void` by @yhara in https://github.com/shiika-lang/shiika/pull/630
+- change: Use `break` to escapes from a fn by @yhara in https://github.com/shiika-lang/shiika/pull/631
+- Add variance checking and type parameter upper bounds by @yhara in https://github.com/shiika-lang/shiika/pull/632
+- chore: Add more source locations to compiler diagnostics by @yhara in https://github.com/shiika-lang/shiika/pull/634
+- fix: Do not generate setters for readonly instance variables by @yhara in https://github.com/shiika-lang/shiika/pull/635
+- fix: Inherit wtable columns from superclasses by @yhara in https://github.com/shiika-lang/shiika/pull/637
+- Merge v0.10 into main by @yhara in https://github.com/shiika-lang/shiika/pull/639
+- fix: Use declared ABI for module method calls by @yhara in https://github.com/shiika-lang/shiika/pull/640
+- feat(lang): Prerequisite modules (module M1 : M2) by @yhara in https://github.com/shiika-lang/shiika/pull/641
+- chore: use direnv for git worktree by @yhara in https://github.com/shiika-lang/shiika/pull/642
+- Unbox Float values in compiler and Rust FFI by @yhara in https://github.com/shiika-lang/shiika/pull/646
+- feat: Add `Object#identical?` by @yhara in https://github.com/shiika-lang/shiika/pull/643
+- feat(type): Add `Self` type in modules by @yhara in https://github.com/shiika-lang/shiika/pull/644
+- feat: Replace `Self` in method lookup by @yhara in https://github.com/shiika-lang/shiika/pull/647
+- feat: Handle `Self` of methods called on module-typed values by @yhara in https://github.com/shiika-lang/shiika/pull/648
+- feat: Disallow module types for typarams bounded by a module using `Self` by @yhara in https://github.com/shiika-lang/shiika/pull/649
+- feat(core): Add Equatable, Comparable and Hashable modules by @yhara in https://github.com/shiika-lang/shiika/pull/650
+- change(lang): Declare Rust-implemented methods with `native def` by @yhara in https://github.com/shiika-lang/shiika/pull/651
+- change(lang): Implement modules with `implement` blocks by @yhara in https://github.com/shiika-lang/shiika/pull/652
+- feat(lang): Add conditional methods with `when` blocks by @yhara in https://github.com/shiika-lang/shiika/pull/653
+- change(core): Remove `Object#==`, `Object#<` etc. and `Object#hash` by @yhara in https://github.com/shiika-lang/shiika/pull/654
+- feat(lang): Add conditional conformance (`implement` in `when`) by @yhara in https://github.com/shiika-lang/shiika/pull/656
+- fix: Box immediate args when calling inherited generic initializer by @yhara in https://github.com/shiika-lang/shiika/pull/657
+- perf: Lower Int, Float, and Bool comparisons to MIR intrinsics by @yhara in https://github.com/shiika-lang/shiika/pull/655
+
 ## [v0.10.1](https://github.com/shiika-lang/shiika/compare/v0.9.1...v0.10.1) - 2026-10-24
 
 This is the first release with the new runtime for concurrency (#545, #587). v0.10.x will have features to use it (spawning new tasks, etc.)
