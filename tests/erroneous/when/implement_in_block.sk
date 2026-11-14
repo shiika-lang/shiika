@@ -1,6 +1,0 @@
-module M; end
-class Box<T>
-  when T == Int
-    implement M; end
-  end
-end

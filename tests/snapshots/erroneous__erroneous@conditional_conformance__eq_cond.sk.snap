@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/eq_cond.sk
+---
+Error: the argument `x' of `Meta:Util#name_of' should be Named but got Tagged<Int>
+    ╭─[tests/erroneous/conditional_conformance/eq_cond.sk:16:20]
+    │
+ 16 │ Util.name_of(Tagged.new(1))
+    │                    ───┬──  
+    │                       ╰──── Tagged<Int>
+────╯

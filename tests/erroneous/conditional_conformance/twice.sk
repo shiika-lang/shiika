@@ -1,0 +1,13 @@
+# A module cannot be implemented twice (even with different conditions)
+module M
+  def foo -> Int; 1; end
+end
+class Box<T>
+  def initialize(@v: T); end
+  when T == Int
+    implement M; end
+  end
+  when T == String
+    implement M; end
+  end
+end

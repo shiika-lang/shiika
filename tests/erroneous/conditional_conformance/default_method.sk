@@ -1,0 +1,14 @@
+# The methods of a module implemented in `when` require the conditions
+class Foo; end
+class Box<T>
+  def initialize(@v: T); end
+  when T: Comparable
+    implement Equatable
+      def ==(other: Box<T>) -> Bool; @v == other.v; end
+    end
+    implement Comparable
+      def <(other: Box<T>) -> Bool; @v < other.v; end
+    end
+  end
+end
+Box.new(Foo.new) <= Box.new(Foo.new)

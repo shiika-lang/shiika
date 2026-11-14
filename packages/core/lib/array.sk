@@ -39,18 +39,20 @@ class Array<T>
 
   # Return true if `other` has the same elements as `self` (compared by `==`.)
   when T: Equatable
-    def ==(other: Array<T>) -> Bool
-      if self.length != other.length
-        false
-      else
-        var ret = true
-        0.upto(self.length - 1) do |i|
-          if self[i] != other[i]
-            ret = false
-            break
+    implement Equatable
+      def ==(other: Array<T>) -> Bool
+        if self.length != other.length
+          false
+        else
+          var ret = true
+          0.upto(self.length - 1) do |i|
+            if self[i] != other[i]
+              ret = false
+              break
+            end
           end
+          ret
         end
-        ret
       end
     end
   end

@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/prerequisite_weaker_cond.sk
+---
+class `Box' implements `Hashable' (when T: Hashable) but it requires `Equatable'
+  hint: add `implement Equatable' to `Box'

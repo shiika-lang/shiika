@@ -1,0 +1,8 @@
+# The requirement must be in the `implement` block
+class Box<T>
+  def initialize(@v: T); end
+  when T: Equatable
+    implement Equatable; end
+    def ==(other: Box<T>) -> Bool; @v == other.v; end
+  end
+end

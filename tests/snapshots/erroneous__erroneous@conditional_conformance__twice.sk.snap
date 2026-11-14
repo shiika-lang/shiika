@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/twice.sk
+---
+Error: `implement M' appears twice in `Box'
+    ╭─[tests/erroneous/conditional_conformance/twice.sk:11:15]
+    │
+ 11 │     implement M; end
+    │               ┬  
+    │               ╰── `implement M' appears twice in `Box'
+────╯

@@ -1,0 +1,5 @@
+# `Array<Equatable>` is not Equatable; the elements may be of different classes
+class Holder<T: Equatable>
+  def initialize; end
+end
+Holder<Array<Equatable>>.new

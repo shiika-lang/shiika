@@ -1,0 +1,7 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/prerequisite.sk
+---
+class `Box' implements `Comparable' (when T: Comparable) but it requires `Equatable'
+  hint: add `implement Equatable' to `Box'

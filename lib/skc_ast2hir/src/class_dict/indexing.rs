@@ -22,6 +22,9 @@ struct ImplementBlock<'a> {
     module: &'a UnresolvedTypeName,
     /// Names of the methods defined in the block
     method_names: Vec<MethodFirstname>,
+    /// Conditions of the `when` block which this block is in (conditional
+    /// conformance; empty if not in a `when` block)
+    when_conds: Vec<WhenCond>,
 }
 
 struct ClassSpec {
@@ -30,6 +33,7 @@ struct ClassSpec {
     typarams: Vec<ty::TyParam>,
     superclass: Option<Supertype>,
     includes: Vec<Supertype>,
+    include_conds: HashMap<String, Vec<WhenCond>>,
     instance_methods: MethodSignatures,
     class_methods: MethodSignatures,
     inheritable: bool,
@@ -243,7 +247,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             defs,
             rust_methods,
         )?;
-        let includes = self._resolve_implements(
+        let (includes, include_conds) = self._resolve_implements(
             &inner_namespace,
             &fullname,
             &typarams,
@@ -259,6 +263,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 typarams,
                 superclass,
                 includes,
+                include_conds,
                 instance_methods,
                 class_methods,
                 inheritable,
@@ -339,8 +344,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         superclass: &Option<Supertype>,
         instance_methods: &MethodSignatures,
         implements: &[ImplementBlock],
-    ) -> Result<Vec<Supertype>> {
+    ) -> Result<(Vec<Supertype>, HashMap<String, Vec<WhenCond>>)> {
         let mut modules: Vec<Supertype> = vec![];
+        let mut include_conds = HashMap::new();
         for blk in implements {
             let name = blk.module;
             let ty = self.resolve_typename(namespace, class_typarams, Default::default(), name)?;
@@ -419,9 +425,17 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 };
                 return Err(located_error(msg, &name.locs));
             }
-            modules.push(Supertype::from_ty(lit_ty));
+            if blk.when_conds.is_empty() {
+                modules.push(Supertype::from_ty(lit_ty));
+            } else {
+                // `T == X` replaces `T` with `X` (eg. `Foo<String>` for
+                // `implement Foo<T>` in `when T == String`)
+                let eq_tyargs = when_body_tyargs(class_typarams, &blk.when_conds, true);
+                modules.push(Supertype::from_ty(lit_ty.substitute_with_self(&eq_tyargs)));
+                include_conds.insert(module_name.0.clone(), blk.when_conds.clone());
+            }
         }
-        Ok(modules)
+        Ok((modules, include_conds))
     }
 
     /// Resolve the conditions of a `when` block
@@ -750,6 +764,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 typarams: typarams.clone(),
                 superclass: Some(Supertype::simple("Object")),
                 includes: Default::default(),
+                include_conds: Default::default(),
                 instance_methods,
                 class_methods,
                 inheritable: false,
@@ -787,6 +802,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                 typarams: case_typarams,
                 superclass: Some(superclass),
                 includes: Default::default(),
+                include_conds: Default::default(),
                 instance_methods,
                 class_methods: Default::default(),
                 inheritable: false,
@@ -901,19 +917,35 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let mut class_methods = MethodSignatures::new();
         let mut requirements = vec![];
         let mut natives = vec![];
-        let implements = collect_implement_blocks(defs)?;
+        let mut implements = vec![];
         // Flatten the blocks, keeping the `when` conditions of each def
         let mut items: Vec<(&shiika_ast::Definition, Vec<WhenCond>)> = vec![];
         for def in defs {
             match def {
-                shiika_ast::Definition::ImplementDefinition { defs: inner, .. } => {
+                shiika_ast::Definition::ImplementDefinition {
+                    module,
+                    defs: inner,
+                } => {
+                    implements.push(implement_block(module, inner, vec![])?);
                     items.extend(inner.iter().map(|d| (d, vec![])));
                 }
                 shiika_ast::Definition::WhenDefinition { conds, defs: inner } => {
                     let when_conds =
                         self._resolve_when_conds(namespace, &fullname, typarams, conds)?;
                     check_when_block(conds, inner)?;
-                    items.extend(inner.iter().map(|d| (d, when_conds.clone())));
+                    for d in inner {
+                        if let shiika_ast::Definition::ImplementDefinition {
+                            module,
+                            defs: inner2,
+                        } = d
+                        {
+                            // Conditional conformance
+                            implements.push(implement_block(module, inner2, when_conds.clone())?);
+                            items.extend(inner2.iter().map(|d2| (d2, when_conds.clone())));
+                        } else {
+                            items.push((d, when_conds.clone()));
+                        }
+                    }
                 }
                 _ => items.push((def, vec![])),
             }
@@ -1137,9 +1169,11 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         let wtable = build_wtable(
             self,
             &class_ty,
+            &c.typarams,
             &c.instance_methods,
             &c.superclass,
             &c.includes,
+            &c.include_conds,
         )?;
 
         let sk_type = {
@@ -1157,6 +1191,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     base,
                     superclass: c.superclass.clone(),
                     includes: Default::default(),
+                    include_conds: Default::default(),
                     ivars, // may be overridden when processing `#initialize`
                     inheritable: Default::default(),
                     const_is_obj: c.const_is_obj,
@@ -1170,6 +1205,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         };
         sk_class.wtable = wtable;
         sk_class.includes = c.includes;
+        sk_class.include_conds = c.include_conds;
         sk_class.inheritable = c.inheritable;
         sk_type.base_mut().method_sigs.append(c.instance_methods);
 
@@ -1200,6 +1236,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     base,
                     superclass: Some(Supertype::simple("Class")),
                     includes: Default::default(),
+                    include_conds: Default::default(),
                     ivars: meta_ivars,
                     inheritable: false,
                     const_is_obj: false,
@@ -1296,6 +1333,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     base,
                     superclass: Some(Supertype::simple("Class")),
                     includes: Default::default(),
+                    include_conds: Default::default(),
                     ivars: meta_ivars,
                     inheritable: false,
                     const_is_obj: false,
@@ -1580,11 +1618,12 @@ fn check_when_block(
             | shiika_ast::Definition::NativeMethodDefinition {
                 is_class_method: false,
                 ..
-            } => {}
+            }
+            | shiika_ast::Definition::ImplementDefinition { .. } => {}
             _ => {
                 return Err(located_error(
-                    "only instance methods can be defined in `when' (`initialize', class methods, \
-                     `implement', etc. are not allowed)"
+                    "only instance methods and `implement' can be defined in `when' \
+                     (`initialize', class methods, etc. are not allowed)"
                         .to_string(),
                     &conds[0].locs,
                 ));
@@ -1627,39 +1666,38 @@ fn check_when_method_names(
     Ok(())
 }
 
-/// Collect the `implement` blocks in `defs` and check their contents
-fn collect_implement_blocks(defs: &[shiika_ast::Definition]) -> Result<Vec<ImplementBlock<'_>>> {
-    let mut blocks = vec![];
-    for def in defs {
-        let shiika_ast::Definition::ImplementDefinition { module, defs } = def else {
-            continue;
-        };
-        let mut method_names = vec![];
-        for inner in defs {
-            match inner {
-                shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
-                | shiika_ast::Definition::NativeMethodDefinition {
-                    sig,
-                    is_class_method: false,
-                    ..
-                } => method_names.push(sig.name.clone()),
-                _ => {
-                    return Err(located_error(
-                        format!(
-                            "only instance methods can be defined in `implement {}'",
-                            module
-                        ),
-                        &module.locs,
-                    ));
-                }
+/// Make an `ImplementBlock` from `implement module ... end` and check its
+/// contents
+fn implement_block<'a>(
+    module: &'a UnresolvedTypeName,
+    defs: &[shiika_ast::Definition],
+    when_conds: Vec<WhenCond>,
+) -> Result<ImplementBlock<'a>> {
+    let mut method_names = vec![];
+    for inner in defs {
+        match inner {
+            shiika_ast::Definition::InstanceMethodDefinition { sig, .. }
+            | shiika_ast::Definition::NativeMethodDefinition {
+                sig,
+                is_class_method: false,
+                ..
+            } => method_names.push(sig.name.clone()),
+            _ => {
+                return Err(located_error(
+                    format!(
+                        "only instance methods can be defined in `implement {}'",
+                        module
+                    ),
+                    &module.locs,
+                ));
             }
         }
-        blocks.push(ImplementBlock {
-            module,
-            method_names,
-        });
     }
-    Ok(blocks)
+    Ok(ImplementBlock {
+        module,
+        method_names,
+        when_conds,
+    })
 }
 
 /// Returns the signature of a `native def` in `defs` (recursively), if any

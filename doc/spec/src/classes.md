@@ -193,8 +193,10 @@ end
   - For `T == X`, the type argument must be `X` itself (`Never` does not
     satisfy it). A type parameter `U` does not satisfy it either, unless
     the caller is also in a `when U == X` block.
-- Only instance methods (`def`, `native def`) can be defined in a `when`
-  block (not `initialize`, class methods, `implement`, etc.).
+- Only instance methods (`def`, `native def`) and `implement` blocks can
+  be defined in a `when` block (not `initialize`, class methods, etc.).
+  `implement` in `when` is allowed only in a class (see
+  [Conditional conformance](modules.md#conditional-conformance)).
 - A method in a `when` block cannot have the same name as another method
   of the class or module.
 - A method which overrides a method of a `when` block must be in a `when`

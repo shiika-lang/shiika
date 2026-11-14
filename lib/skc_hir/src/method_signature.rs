@@ -511,3 +511,47 @@ impl<'de> de::Deserialize<'de> for MethodSignature {
         deserializer.deserialize_identifier(MethodSignatureVisitor)
     }
 }
+
+impl ser::Serialize for WhenCond {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.serialize())
+    }
+}
+
+struct WhenCondVisitor;
+impl<'de> de::Visitor<'de> for WhenCondVisitor {
+    type Value = WhenCond;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        formatter.write_str("a WhenCond")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match WhenCond::deserialize(v) {
+            Ok(("", c)) => Ok(c),
+            Ok((s, _)) => Err(serde::de::Error::custom(format!(
+                "tried to parse `{}' as WhenCond but `{}' is left after parsing",
+                v, s
+            ))),
+            Err(e) => Err(serde::de::Error::custom(format!(
+                "failed to parse WhenCond ({}): {}",
+                v, e
+            ))),
+        }
+    }
+}
+
+impl<'de> de::Deserialize<'de> for WhenCond {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as de::Deserializer<'de>>::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(WhenCondVisitor)
+    }
+}

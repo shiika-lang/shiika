@@ -118,9 +118,10 @@ pub struct AstWhenCond {
 /// Iterate over `defs`, replacing each `implement` or `when` block with its
 /// inner defs.
 pub fn flatten_blocks(defs: &[Definition]) -> impl Iterator<Item = &Definition> {
+    // `implement` may be nested in `when`
     defs.iter().flat_map(|def| match def {
         Definition::ImplementDefinition { defs, .. } | Definition::WhenDefinition { defs, .. } => {
-            defs.iter().collect::<Vec<_>>()
+            flatten_blocks(defs).collect::<Vec<_>>()
         }
         _ => vec![def],
     })

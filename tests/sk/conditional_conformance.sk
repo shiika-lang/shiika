@@ -1,0 +1,103 @@
+# Conditional conformance (`implement` in `when`)
+
+class Box<T>
+  def initialize(@v: T); end
+
+  when T: Equatable
+    implement Equatable
+      def ==(other: Box<T>) -> Bool
+        @v == other.v
+      end
+    end
+  end
+
+  when T: Comparable
+    implement Comparable
+      def <(other: Box<T>) -> Bool
+        @v < other.v
+      end
+    end
+  end
+end
+
+module Named
+  requirement name -> String
+  def greet -> String
+    "I am #{name}"
+  end
+end
+
+class Tagged<T>
+  def initialize(@v: T); end
+
+  when T == String
+    implement Named
+      def name -> String
+        @v   # `T` is `String` here
+      end
+    end
+  end
+end
+
+# Inherits the conditional conformance
+base class Base<T>
+  def initialize(@v: T); end
+  when T: Equatable
+    implement Equatable
+      def ==(other: Base<T>) -> Bool
+        @v == other.v
+      end
+    end
+  end
+end
+class Sub : Base<String>   # (`Base<Int>` crashes; a known bug)
+end
+
+class Util
+  def self.eq<T: Equatable>(a: T, b: T) -> Bool
+    a == b
+  end
+
+  def self.le<T: Comparable>(a: T, b: T) -> Bool
+    a <= b
+  end
+
+  def self.greet(x: Named) -> String
+    x.greet
+  end
+
+  # `Array<U>` is Equatable since `U: Comparable` implies `U: Equatable`
+  def self.arrays_eq<U: Comparable>(a: Array<U>, b: Array<U>) -> Bool
+    a == b and Util.eq(a, b)
+  end
+end
+
+# Array<T> is Equatable when T is Equatable
+unless [[1, 2], [3]] == [[1, 2], [3]]; puts "ng: nested array =="; end
+if [[1, 2], [3]] == [[1, 2], [4]]; puts "ng: nested array == (different)"; end
+unless [["a"]].includes?(["a"]); puts "ng: includes? on nested array"; end
+unless Util.eq([1], [1]); puts "ng: array as T: Equatable"; end
+if Util.eq([[1]], [[2]]); puts "ng: nested array as T: Equatable"; end
+unless Util.arrays_eq([1, 2], [1, 2]); puts "ng: Array<U> where U: Comparable"; end
+if Util.arrays_eq(["a"], ["b"]); puts "ng: Array<U> where U: Comparable (false)"; end
+
+# User-defined class
+unless Box.new(1) == Box.new(1); puts "ng: Box =="; end
+if Box.new(1) != Box.new(1); puts "ng: Box !="; end
+unless Util.eq(Box.new("a"), Box.new("a")); puts "ng: Box as T: Equatable"; end
+unless Box.new([1]) == Box.new([1]); puts "ng: Box of array"; end
+
+# Default methods of the module (`<=` of Comparable)
+unless Box.new(1) <= Box.new(2); puts "ng: Box <="; end
+if Box.new(3) <= Box.new(2); puts "ng: Box <= (false)"; end
+unless Util.le(Box.new(1), Box.new(1)); puts "ng: Box as T: Comparable"; end
+
+# `T == X`
+unless Tagged.new("x").greet == "I am x"; puts "ng: Tagged#greet"; end
+unless Util.greet(Tagged.new("y")) == "I am y"; puts "ng: Tagged as Named"; end
+
+# Inherited
+unless Sub.new("a") == Sub.new("a"); puts "ng: Sub =="; end
+unless Util.eq(Sub.new("b"), Sub.new("b")); puts "ng: Sub as T: Equatable"; end
+
+puts "ok"

@@ -1,0 +1,8 @@
+# `implement` cannot be used in a module, even in `when`
+module M<T>
+  when T: Equatable
+    implement Equatable
+      def ==(other: Self) -> Bool; true; end
+    end
+  end
+end

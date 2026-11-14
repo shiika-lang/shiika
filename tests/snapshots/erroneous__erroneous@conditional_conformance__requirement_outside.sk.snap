@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/requirement_outside.sk
+---
+Error: `==' is a requirement of `Equatable'; define it in `implement Equatable'
+   ╭─[tests/erroneous/conditional_conformance/requirement_outside.sk:5:15]
+   │
+ 5 │     implement Equatable; end
+   │               ────┬────  
+   │                   ╰────── `==' is a requirement of `Equatable'; define it in `implement Equatable'
+───╯

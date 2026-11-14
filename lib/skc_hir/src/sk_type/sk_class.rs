@@ -1,7 +1,7 @@
 use super::SkTypeBase;
 use crate::sk_type::wtable::WTable;
 use crate::supertype::Supertype;
-use crate::{SkIVar, SkIVars};
+use crate::{SkIVar, SkIVars, WhenCond};
 use serde::{Deserialize, Serialize};
 use shiika_core::names::ClassFullname;
 use shiika_core::ty::{LitTy, TermTy, TyBody};
@@ -13,6 +13,12 @@ pub struct SkClass {
     pub superclass: Option<Supertype>,
     /// Included modules
     pub includes: Vec<Supertype>,
+    /// Conditions of the modules implemented in `when` blocks (conditional
+    /// conformance), keyed by the module name. The class conforms to the
+    /// module only when the conditions hold. Not in this map if
+    /// unconditional.
+    #[serde(default)]
+    pub include_conds: HashMap<String, Vec<WhenCond>>,
     pub ivars: HashMap<String, SkIVar>,
     /// true if this class is declared as base class.
     pub inheritable: bool,
@@ -29,6 +35,7 @@ impl SkClass {
             base,
             superclass,
             includes: Default::default(),
+            include_conds: Default::default(),
             ivars: Default::default(),
             inheritable: Default::default(),
             const_is_obj: false,
@@ -41,6 +48,7 @@ impl SkClass {
             base,
             superclass: Some(Supertype::simple("Class")),
             includes: Default::default(),
+            include_conds: Default::default(),
             ivars: Default::default(),
             inheritable: Default::default(),
             const_is_obj: false,
@@ -86,6 +94,15 @@ impl SkClass {
         self.superclass
             .as_ref()
             .map(|sup| sup.ty().substitute(type_args, Default::default()))
+    }
+
+    /// Returns the conditions of the included module `module` (empty if
+    /// it is implemented unconditionally)
+    pub fn include_conds_of(&self, module: &Supertype) -> &[WhenCond] {
+        self.include_conds
+            .get(&module.erasure().to_type_fullname().0)
+            .map(|v| v.as_slice())
+            .unwrap_or_default()
     }
 
     /// Returns type args to specialize included module.

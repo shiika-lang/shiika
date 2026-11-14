@@ -64,6 +64,14 @@ fn class_conforms_to_module(c: &ClassDict, ty1: &TermTy, m: &LitTy) -> bool {
 fn includes(c: &ClassDict, class: &TermTy, module: &LitTy) -> bool {
     let sk_class = c.get_class(&class.erasure().to_class_fullname());
     sk_class.includes.iter().any(|m| {
+        // Conditional conformance (`implement` in `when`)
+        let conds_hold = sk_class.include_conds_of(m).iter().all(|cond| {
+            let cond = cond.substitute(class.tyargs(), Default::default());
+            crate::type_system::bounds::when_cond_holds(c, &cond)
+        });
+        if !conds_hold {
+            return false;
+        }
         // eg. Make `Enumerable<Int>` from `Enumerable<T>` and `Array<Int>`
         let ms = m.ty().substitute(class.tyargs(), Default::default());
         if ms == *module {

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/nested_array.sk
+---
+Error: `Array<Array<Foo>>#==' requires `Array<Foo>: Equatable'
+   ╭─[tests/erroneous/conditional_conformance/nested_array.sk:3:1]
+   │
+ 3 │ [[Foo.new]] == [[Foo.new]]
+   │ ─────────────┬────────────  
+   │              ╰────────────── `Array<Array<Foo>>#==' requires `Array<Foo>: Equatable'
+───╯

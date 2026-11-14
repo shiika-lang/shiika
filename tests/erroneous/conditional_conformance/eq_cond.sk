@@ -1,0 +1,16 @@
+# `Tagged<Int>` does not conform to `Named` (only `Tagged<String>` does)
+module Named
+  requirement name -> String
+end
+class Tagged<T>
+  def initialize(@v: T); end
+  when T == String
+    implement Named
+      def name -> String; @v; end
+    end
+  end
+end
+class Util
+  def self.name_of(x: Named) -> String; x.name; end
+end
+Util.name_of(Tagged.new(1))

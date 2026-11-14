@@ -160,9 +160,9 @@ The core library has these modules:
 
 `Int`, `Float` and `String` implement all of them; `Bool` implements
 `Equatable` and `Hashable`; `Class` implements `Equatable`. The keys of
-`Dict` must be `Hashable`. `Array<T>` has `==` when `T` is `Equatable`,
-and `sort` when `T` is `Comparable` (see `when` in
-[Classes](classes.md)).
+`Dict` must be `Hashable`. `Array<T>` is `Equatable` when `T` is
+`Equatable` (see below), and has `sort` when `T` is `Comparable` (see
+`when` in [Classes](classes.md)).
 
 Only the types which implement `Equatable` have `==`. To check if two
 values are the same object, use `identical?` (defined on all objects).
@@ -194,6 +194,32 @@ class Util
 end
 Util.max(Version.new(1), Version.new(2))
 ```
+
+## Conditional conformance
+
+A class can implement a module only when its type arguments satisfy some
+conditions, by writing `implement` in a `when` block:
+
+```sk
+class Box<T>
+  def initialize(@v: T); end
+
+  when T: Equatable
+    implement Equatable
+      def ==(other: Box<T>) -> Bool
+        @v == other.v
+      end
+    end
+  end
+end
+
+p Box.new(1) == Box.new(1)        #=> true
+p Box.new([1]) == Box.new([1])    #=> true
+Box.new(Object.new) == Box.new(Object.new)   # error; Object is not Equatable
+```
+
+`Array` is `Equatable` in this way, so `[[1, 2], [3]] == [[1, 2], [3]]`
+works and `Array<Int>` can be passed where `T: Equatable` is expected.
 
 ## Example: Enumerable
 
