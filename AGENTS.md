@@ -30,3 +30,18 @@ Prefer these docs; only LLM-specific or this-environment-specific notes live her
 
 - Use `jq` for JSON file investigation.
 - Use Rust LSP where possible rather than `grep`.
+
+## Git and GitHub rules
+
+- Use `Co-authored-by:` for git commit message.
+- Start PR title with `TYPE(AREA): `
+  - TYPE
+    - fix - fixes a bug
+    - feat - adds new feature
+    - change - breaking change
+    - perf - performance optimization
+    - refactor - refactoring
+  - AREA
+    - lang - the language itself
+    - core - packages/core
+  - You can omit this prefix if it does not fit in these categories.
