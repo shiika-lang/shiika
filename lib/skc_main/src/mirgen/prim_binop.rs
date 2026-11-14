@@ -18,6 +18,11 @@ pub(super) fn recognize(
         ("Int", ">=") => PrimBinOp::IntGe,
         ("Int", "==") => PrimBinOp::IntEq,
         ("Bool", "==") => PrimBinOp::BoolEq,
+        ("Float", "<") => PrimBinOp::FloatLt,
+        ("Float", "<=") => PrimBinOp::FloatLe,
+        ("Float", ">") => PrimBinOp::FloatGt,
+        ("Float", ">=") => PrimBinOp::FloatGe,
+        ("Float", "==") => PrimBinOp::FloatEq,
         _ => return None,
     };
     let [right] = args else { return None };

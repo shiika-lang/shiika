@@ -73,10 +73,12 @@ immediate uses the raw receiver and bypasses the vtable (a vtable lookup would
 read an object header from what is really an `i1`/`i64`). Most such calls are
 direct calls to the method implementation.
 
-Concrete calls to `Int#<`, `<=`, `>`, `>=`, `==` and `Bool#==` are instead
-converted to `PrimBinOp` during MirGen, before asyncness inference. They produce
-LLVM `icmp` instructions on `i64` (signed ordering) or `i1` and do not create an
-async dependency on the comparison method. `!=` benefits from this too, since
+Concrete calls to `Int#<`, `Float#<`, their `<=`, `>`, `>=`, `==` methods and
+`Bool#==` are converted to `PrimBinOp` during MirGen, before asyncness inference.
+They produce
+LLVM `icmp` instructions on `i64` (signed ordering) or `i1`, and ordered `fcmp`
+instructions on `double`. They do not create an async dependency on the
+comparison method. `!=` benefits from this too, since
 the parser expands it to a negated `==`. Operands are evaluated once, left to
 right; an async operand still makes the containing function async.
 
@@ -91,8 +93,9 @@ the raw one for direct calls (fast path) and the wrapper for vtable dispatch
 Calls through `Comparable`/`Equatable` and type-parameter bounds use wtables.
 These keep their erased ABI adapters and async method implementations, just as
 vtable calls keep their wrappers. The Rust comparison exports and `Bool#==`
-therefore remain async. Float comparisons still call their implementations;
-their intrinsics remain a separate follow-up.
+therefore remain async. Float predicates are ordered (`olt`, `ole`, `ogt`,
+`oge`, `oeq`), preserving Rust semantics: comparisons involving NaN are false,
+while `!=` (negated `==`) is true. Positive and negative zero compare equal.
 
 ## Async / CPS
 
@@ -119,5 +122,5 @@ on boxed Bools is reliable.
 
 ## Current status
 
-- `Bool`, `Int` and `Float` are unboxed. Concrete Int/Bool comparisons use
-  intrinsics; Float comparisons still call their async implementations.
+- `Bool`, `Int` and `Float` are unboxed. Concrete Int/Float/Bool comparisons
+  use intrinsics; comparisons through wtables retain async implementations.

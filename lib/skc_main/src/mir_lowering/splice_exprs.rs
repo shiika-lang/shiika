@@ -207,6 +207,7 @@ impl Splicer {
                     || !matches!(
                         right.0,
                         mir::Expr::Number(_)
+                            | mir::Expr::Float(_)
                             | mir::Expr::RawI64(_)
                             | mir::Expr::PseudoVar(_)
                             | mir::Expr::LVarRef(_)

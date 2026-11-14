@@ -32,13 +32,21 @@ pub enum PrimBinOp {
     IntGe,
     IntEq,
     BoolEq,
+    FloatLt,
+    FloatLe,
+    FloatGt,
+    FloatGe,
+    FloatEq,
 }
 
 impl PrimBinOp {
     pub fn operand_ty(self) -> Ty {
         match self {
             Self::BoolEq => Ty::I1,
-            _ => Ty::Int64,
+            Self::IntLt | Self::IntLe | Self::IntGt | Self::IntGe | Self::IntEq => Ty::Int64,
+            Self::FloatLt | Self::FloatLe | Self::FloatGt | Self::FloatGe | Self::FloatEq => {
+                Ty::F64
+            }
         }
     }
 }

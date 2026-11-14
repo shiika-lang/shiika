@@ -926,7 +926,9 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     shiika_ast::InitializerDefinition { sig, .. },
                 ) => {
                     let intrinsic = match fullname.0.as_str() {
-                        "Int" => matches!(sig.name.0.as_str(), "<" | "<=" | ">" | ">=" | "=="),
+                        "Int" | "Float" => {
+                            matches!(sig.name.0.as_str(), "<" | "<=" | ">" | ">=" | "==")
+                        }
                         "Bool" => sig.name.0 == "==",
                         _ => false,
                     };

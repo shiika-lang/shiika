@@ -274,7 +274,11 @@ mod tests {
 
     #[test]
     fn primitive_comparison_only_inherits_asyncness_from_its_operands() {
-        for op in [mir::PrimBinOp::IntLt, mir::PrimBinOp::BoolEq] {
+        for op in [
+            mir::PrimBinOp::IntLt,
+            mir::PrimBinOp::BoolEq,
+            mir::PrimBinOp::FloatLt,
+        ] {
             for async_side in [None, Some(0), Some(1)] {
                 let ty = op.operand_ty();
                 let async_fun_ty = mir::FunTy::async_(vec![], ty.clone());

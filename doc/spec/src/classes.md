@@ -23,11 +23,15 @@ p A.new.bar #=> 2
 
 ### Builtin comparison methods
 
-`Int#<`, `Int#<=`, `Int#>`, `Int#>=`, `Int#==` and `Bool#==` are compiler
-intrinsics. A package importing their core definitions cannot redefine these
-methods. Calls with concrete Int/Bool operands may compile directly to primitive
-comparisons; calls through modules or type parameters retain method
-dispatch. In either case operands are evaluated once, from left to right.
+`Int#<`, `Int#<=`, `Int#>`, `Int#>=`, `Int#==`, the corresponding Float
+methods and `Bool#==` are compiler intrinsics. A package importing their core
+definitions cannot redefine these methods. Calls with concrete Int/Float/Bool
+operands may compile directly to primitive comparisons; calls through modules or
+type parameters retain method dispatch. In either case operands are evaluated
+once, from left to right.
+
+Float ordering and equality comparisons are false if either operand is NaN;
+`!=` is true in that case. Positive and negative zero compare equal.
 
 ## Instance variables
 

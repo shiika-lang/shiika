@@ -10,8 +10,8 @@ which keeps heterogeneous arrays and lambda captures working as before.
 
 ## Primitive comparisons
 
-Concrete Int comparisons (`<`, `<=`, `>`, `>=`, `==`) and Bool equality now
-become MIR `PrimBinOp` nodes and LLVM `icmp` instructions. Removing the method
+Concrete Int/Float comparisons (`<`, `<=`, `>`, `>=`, `==`) and Bool equality
+become MIR `PrimBinOp` nodes and LLVM `icmp` / ordered `fcmp` instructions. Removing the method
 call before asyncness inference also removes the comparison's CPS dependency.
 Comparison calls through wtables retain their async implementations.
 See [Method dispatch](design_notes/unboxing.md#method-dispatch).
@@ -27,8 +27,8 @@ build, unchanged linker options and three executions of each binary gave:
 
 These are whole-process times, including runtime startup and output. Both
 binaries print `832040`; the generated IR also confirms the direct comparison
-call has been replaced by `icmp slt`. Float comparison intrinsics remain a
-separate follow-up.
+call has been replaced by `icmp slt`. These measurements preceded the addition
+of Float comparison intrinsics.
 
 With the same build settings, `examples/lifegame.sk` took a median 0.353 s
 before and 0.316 s after (three runs each; ranges 0.346–0.355 s and
