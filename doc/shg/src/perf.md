@@ -35,6 +35,11 @@ before and 0.316 s after (three runs each; ranges 0.346–0.355 s and
 0.314–0.328 s). Every run matched `lifegame.expected_out.txt` exactly. This
 example still spends time in blocks, indirect calls and output.
 
+Adding Float comparison intrinsics to the Int/Bool implementation reduced
+`examples/mandel.sk` from a median 5.999 s to 3.319 s with the same Linux
+aarch64 debug-build settings (three runs per binary; ranges 5.816–6.687 s and
+3.206–3.447 s). All six runs matched `mandel.expected_out.pbm` exactly.
+
 ## Inline non-capturing blocks
 
 Looping with `each` or `times` are slower than `while` because they involve calling lambdas. However, if the block does not capture any outer variables, it can be inlined to be as fast as `while`.
