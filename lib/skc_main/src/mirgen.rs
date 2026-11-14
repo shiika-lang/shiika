@@ -1207,12 +1207,27 @@ impl<'a> Compiler<'a> {
         ));
         if let Some(ini_sig) = initializer {
             let call_initialize = {
+                // `ini_sig` may be specialized for the subclass (e.g.
+                // `class H : G<Int>` inherits `G#initialize(v: T)` as
+                // `(v: Int)`), but the callee takes the parameter erased.
+                // Box an immediate argument crossing into an erased parameter.
+                let declared_params = self.callee_param_tys(&ini_sig.fullname);
+                let mut fun_ty = build_fun_ty(&ini_sig);
                 let mut args: Vec<_> = ini_sig
                     .clone()
                     .params
                     .into_iter()
                     .enumerate()
-                    .map(|(i, param)| mir::Expr::arg_ref(i + 1, param.name, param.ty.into()))
+                    .map(|(i, param)| {
+                        let a = mir::Expr::arg_ref(i + 1, param.name, param.ty.into());
+                        match declared_params.as_ref().and_then(|d| d.get(i)) {
+                            Some(declared) if a.1.is_immediate() && !declared.is_immediate() => {
+                                fun_ty.param_tys[i + 1] = declared.clone();
+                                mir::Expr::cast(mir::CastType::Force(declared.clone()), a)
+                            }
+                            _ => a,
+                        }
+                    })
                     .collect();
                 let receiver = {
                     let mut r = mir::Expr::lvar_ref(tmp_name.to_string(), obj_ty.clone());
@@ -1223,8 +1238,7 @@ impl<'a> Compiler<'a> {
                     r
                 };
                 args.insert(0, receiver);
-                let ini_func =
-                    mir::Expr::func_ref(ini_sig.fullname.clone().into(), build_fun_ty(&ini_sig));
+                let ini_func = mir::Expr::func_ref(ini_sig.fullname.clone().into(), fun_ty);
                 mir::Expr::fun_call(ini_func, args)
             };
             exprs.push(call_initialize);
