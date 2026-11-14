@@ -19,8 +19,8 @@ use anyhow::Result;
 use shiika_ast::LocationSpan;
 use shiika_core::ty::{TermTy, TyBody, TyParam};
 use skc_error::Label;
-use skc_hir::WhenCondKind;
 use skc_hir::{MethodSignature, SkType};
+use skc_hir::{WhenCond, WhenCondKind};
 
 /// Check all the types in the definitions. Called after indexing so that
 /// every type name is resolvable.
@@ -89,35 +89,19 @@ pub fn check_when_conds(
     for cond in &sig.when_conds {
         // Same as how the parameter types are specialized (see `Infer`)
         let c = cond.substitute(receiver_ty.type_args(), method_tyargs);
-        let msg = match c.kind {
-            WhenCondKind::Bound => {
-                if !dict.conforms(&c.typaram, &c.ty) {
-                    Some(format!(
-                        "`{}#{}' requires `{}'",
-                        receiver_ty, sig.fullname.first_name, c
-                    ))
-                } else if is_module_type(dict, &c.typaram) && module_uses_self(dict, &c.ty) {
-                    Some(format!(
-                        "`{}#{}' requires `{}' but `{}' cannot be a module type because \
-                         `{}' uses `Self' (use a class or a type parameter instead)",
-                        receiver_ty, sig.fullname.first_name, c, c.typaram, c.ty
-                    ))
-                } else {
-                    None
-                }
-            }
-            WhenCondKind::Eq => {
-                if !c.typaram.equals_to(&c.ty) {
-                    Some(format!(
-                        "`{}#{}' requires `{}'",
-                        receiver_ty, sig.fullname.first_name, c
-                    ))
-                } else {
-                    None
-                }
-            }
-        };
-        if let Some(msg) = msg {
+        if !when_cond_holds(dict, &c) {
+            let msg = if c.kind == WhenCondKind::Bound && dict.conforms(&c.typaram, &c.ty) {
+                format!(
+                    "`{}#{}' requires `{}' but `{}' cannot be a module type because \
+                     `{}' uses `Self' (use a class or a type parameter instead)",
+                    receiver_ty, sig.fullname.first_name, c, c.typaram, c.ty
+                )
+            } else {
+                format!(
+                    "`{}#{}' requires `{}'",
+                    receiver_ty, sig.fullname.first_name, c
+                )
+            };
             let report = skc_error::build_report(msg.clone(), locs, |r, locs_span| {
                 r.with_label(Label::new(locs_span).with_message(msg.clone()))
             });
@@ -125,6 +109,20 @@ pub fn check_when_conds(
         }
     }
     Ok(())
+}
+
+/// Returns true if the condition of `when` (whose type parameter is already
+/// substituted with the actual type argument) holds.
+/// For `T: X`, the same rule as the upper bounds applies: a module type
+/// cannot be `T` if `X` uses `Self`.
+pub fn when_cond_holds(dict: &ClassDict, c: &WhenCond) -> bool {
+    match c.kind {
+        WhenCondKind::Bound => {
+            dict.conforms(&c.typaram, &c.ty)
+                && !(is_module_type(dict, &c.typaram) && module_uses_self(dict, &c.ty))
+        }
+        WhenCondKind::Eq => c.typaram.equals_to(&c.ty),
+    }
 }
 
 /// Check the type arguments of a class specialization (eg. `Foo<Int>`).

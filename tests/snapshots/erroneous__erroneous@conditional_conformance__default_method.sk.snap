@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/default_method.sk
+---
+Error: `Box<Foo>#<=' requires `Foo: Comparable'
+    ╭─[tests/erroneous/conditional_conformance/default_method.sk:14:1]
+    │
+ 14 │ Box.new(Foo.new) <= Box.new(Foo.new)
+    │ ──────────────────┬─────────────────  
+    │                   ╰─────────────────── `Box<Foo>#<=' requires `Foo: Comparable'
+────╯

@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/bound_not_satisfied.sk
+---
+Error: the type argument `Array<Foo>' does not satisfy the bound `Equatable' of the type parameter `T' of `Meta:Util#eq'
+   ╭─[tests/erroneous/conditional_conformance/bound_not_satisfied.sk:8:5]
+   │
+ 8 │ Util.eq([Foo.new], [Foo.new])
+   │     ────────────┬────────────  
+   │                 ╰────────────── the type argument `Array<Foo>' does not satisfy the bound `Equatable' of the type parameter `T' of `Meta:Util#eq'
+───╯

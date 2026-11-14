@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/module_type_argument.sk
+---
+Error: the type argument `Array<Equatable>' does not satisfy the bound `Equatable' of the type parameter `T' of `Holder'
+   ╭─[tests/erroneous/conditional_conformance/module_type_argument.sk:5:1]
+   │
+ 5 │ Holder<Array<Equatable>>.new
+   │ ────────────┬───────────  
+   │             ╰───────────── the type argument `Array<Equatable>' does not satisfy the bound `Equatable' of the type parameter `T' of `Holder'
+───╯

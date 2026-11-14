@@ -1,0 +1,8 @@
+# `Array<Foo>` is not Equatable because `Foo` is not
+class Foo; end
+class Util
+  def self.eq<T: Equatable>(a: T, b: T) -> Bool
+    a == b
+  end
+end
+Util.eq([Foo.new], [Foo.new])

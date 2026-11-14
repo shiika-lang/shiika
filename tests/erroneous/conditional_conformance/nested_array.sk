@@ -1,0 +1,3 @@
+# `Array<Array<Foo>>#==` requires `Array<Foo>: Equatable`
+class Foo; end
+[[Foo.new]] == [[Foo.new]]

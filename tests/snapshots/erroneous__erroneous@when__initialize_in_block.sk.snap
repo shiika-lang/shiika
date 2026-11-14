@@ -3,10 +3,10 @@ source: tests/erroneous.rs
 expression: compiler_output
 input_file: tests/erroneous/when/initialize_in_block.sk
 ---
-Error: only instance methods can be defined in `when' (`initialize', class methods, `implement', etc. are not allowed)
+Error: only instance methods and `implement' can be defined in `when' (`initialize', class methods, etc. are not allowed)
    ╭─[tests/erroneous/when/initialize_in_block.sk:2:8]
    │
  2 │   when T == Int
    │        ────┬───  
-   │            ╰───── only instance methods can be defined in `when' (`initialize', class methods, `implement', etc. are not allowed)
+   │            ╰───── only instance methods and `implement' can be defined in `when' (`initialize', class methods, etc. are not allowed)
 ───╯

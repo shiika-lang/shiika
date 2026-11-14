@@ -1,0 +1,12 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/conditional_conformance/in_module.sk
+---
+Error: module `M' cannot implement a module; use `module M : Equatable' to require it
+   ╭─[tests/erroneous/conditional_conformance/in_module.sk:4:15]
+   │
+ 4 │     implement Equatable
+   │               ────┬────  
+   │                   ╰────── module `M' cannot implement a module; use `module M : Equatable' to require it
+───╯

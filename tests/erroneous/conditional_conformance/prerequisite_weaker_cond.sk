@@ -1,0 +1,14 @@
+# `Box<T>` is Hashable when `T: Hashable` but Equatable only when `T: Comparable`
+class Box<T>
+  def initialize(@v: T); end
+  when T: Comparable
+    implement Equatable
+      def ==(other: Box<T>) -> Bool; @v == other.v; end
+    end
+  end
+  when T: Hashable
+    implement Hashable
+      def hash -> Int; @v.hash; end
+    end
+  end
+end

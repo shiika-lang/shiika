@@ -62,6 +62,41 @@ end
 The implementing class gets all the methods defined in the module as its
 instance methods.
 
+## Conditional conformance
+
+An `implement` block may be written in a `when` block (see
+[Conditional methods](classes.md#conditional-methods-when)). The class
+conforms to the module only when the conditions are satisfied.
+
+```sk
+class Array<T>
+  when T: Equatable
+    implement Equatable
+      def ==(other: Array<T>) -> Bool ...
+    end
+  end
+end
+```
+
+- `Array<X>` conforms to `Equatable` if `X` satisfies `T: Equatable`
+  (eg. `Array<Int>`, `Array<Array<Int>>`, `Array<U>` for a type parameter
+  `U: Comparable`), but not otherwise (eg. `Array<Object>`). The rules of
+  the conditions are the same as those of the methods in `when` blocks
+  (eg. `Array<Equatable>` does not conform to `Equatable` because
+  `Equatable` uses `Self`).
+- The methods in the `implement` block are methods of the `when` block.
+  The other methods of the module (eg. `<=` of `Comparable`) can be
+  called only when the conditions are satisfied, too.
+- For `T == X`, `T` in the module type and `Self` are replaced with `X`
+  (eg. `implement Named` in `when T == String` of `class Tagged<T>` makes
+  `Tagged<String>` conform to `Named`).
+- The prerequisite modules must be implemented under the same (or weaker)
+  conditions. eg. `implement Comparable` in `when T: Comparable` requires
+  `Box<T>` to conform to `Equatable` when `T: Comparable`.
+- A module cannot be implemented twice, even with different conditions.
+- A subclass inherits the conditional conformance (eg. `class Sub : Box<String>`
+  conforms to `Equatable`).
+
 ## Modules as types
 
 A module name denotes a type. An instance of a class that implements

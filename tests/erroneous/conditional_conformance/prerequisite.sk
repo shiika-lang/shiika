@@ -1,0 +1,9 @@
+# `Comparable` requires `Equatable` under the same conditions
+class Box<T>
+  def initialize(@v: T); end
+  when T: Comparable
+    implement Comparable
+      def <(other: Box<T>) -> Bool; @v < other.v; end
+    end
+  end
+end

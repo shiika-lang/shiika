@@ -179,6 +179,15 @@ impl<'hir_maker> ClassDict<'hir_maker> {
                     {
                         let mod_tyargs = sk_class.specialize_module(modinfo, class_tyargs);
                         found.specialize(&mod_tyargs, Default::default());
+                        // A method of a module implemented in `when` can be
+                        // called only when the conditions hold (checked by
+                        // `check_when_conds` at the call site)
+                        found.sig.when_conds.extend(
+                            sk_class
+                                .include_conds_of(modinfo)
+                                .iter()
+                                .map(|c| c.substitute(class_tyargs, Default::default())),
+                        );
                         // `Self` is this class (the includer)
                         let includer = ty::new(&erasure.base_name, class_tyargs.to_vec(), false);
                         found.replace_self(&includer);
