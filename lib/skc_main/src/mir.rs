@@ -5,7 +5,7 @@ pub mod verifier;
 pub mod visitor;
 use crate::names::FunctionName;
 use anyhow::{bail, Context, Result};
-pub use expr::{CastType, Expr, PseudoVar, Typed, TypedExpr};
+pub use expr::{CastType, Expr, PrimBinOp, PseudoVar, Typed, TypedExpr};
 use shiika_core::{
     names::{ClassFullname, ConstFullname, ModuleFullname},
     ty::TermTy,

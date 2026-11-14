@@ -1,0 +1,132 @@
+# These methods must compile to sync comparisons over their raw parameters.
+class PrimitiveCompare
+  def self.lt(a: Int, b: Int) -> Bool; a < b; end
+  def self.le(a: Int, b: Int) -> Bool; a <= b; end
+  def self.gt(a: Int, b: Int) -> Bool; a > b; end
+  def self.ge(a: Int, b: Int) -> Bool; a >= b; end
+  def self.eq(a: Int, b: Int) -> Bool; a == b; end
+  def self.bool_eq(a: Bool, b: Bool) -> Bool; a == b; end
+
+  def self.generic_lt<T: Comparable>(a: T, b: T) -> Bool; a < b; end
+  def self.generic_eq<T: Equatable>(a: T, b: T) -> Bool; a == b; end
+
+  def self.async_compare(c: CompareCounter) -> Bool
+    c.next < c.next_async
+  end
+
+  def self.sync_loop(c: CompareCounter) -> Int
+    var iterations = 0
+    while c.n < (if true then c.next else 0 end)
+      iterations += 1
+      if iterations == 3; break; end
+    end
+    c.n
+  end
+end
+
+unless PrimitiveCompare.lt(-2, -1) and not PrimitiveCompare.lt(2, 1) and not PrimitiveCompare.lt(1, 1)
+  puts "ng: Int <"
+end
+unless PrimitiveCompare.le(1, 1) and PrimitiveCompare.le(-1, 0) and not PrimitiveCompare.le(2, 1)
+  puts "ng: Int <="
+end
+unless PrimitiveCompare.gt(-1, -2) and not PrimitiveCompare.gt(1, 2) and not PrimitiveCompare.gt(1, 1)
+  puts "ng: Int >"
+end
+unless PrimitiveCompare.ge(1, 1) and PrimitiveCompare.ge(2, 1) and not PrimitiveCompare.ge(1, 2)
+  puts "ng: Int >="
+end
+unless PrimitiveCompare.eq(5, 5) and not PrimitiveCompare.eq(5, 6) and 5 != 6
+  puts "ng: Int == and !="
+end
+unless PrimitiveCompare.lt((-9223372036854775807 - 1), 9223372036854775807) and PrimitiveCompare.gt(9223372036854775807, (-9223372036854775807 - 1))
+  puts "ng: signed comparison boundaries"
+end
+unless PrimitiveCompare.bool_eq(true, true) and PrimitiveCompare.bool_eq(false, false) and not PrimitiveCompare.bool_eq(true, false) and not PrimitiveCompare.bool_eq(false, true) and false != true
+  puts "ng: Bool == and !="
+end
+
+# Calls through wtables must retain their implementations.
+unless PrimitiveCompare.generic_lt(-2, -1) and PrimitiveCompare.generic_eq(7, 7) and not PrimitiveCompare.generic_eq(7, 8)
+  puts "ng: Int wtable"
+end
+unless PrimitiveCompare.generic_eq(true, true) and not PrimitiveCompare.generic_eq(true, false)
+  puts "ng: Bool wtable"
+end
+unless [3, 1, 2].sort == [1, 2, 3]
+  puts "ng: collections"
+end
+
+# `next` is sync with a side effect. `next_async` forces a CPS boundary.
+class CompareCounter
+  def initialize
+    var @n = 0
+  end
+  def n -> Int; @n; end
+  def next -> Int
+    @n += 1
+    @n
+  end
+  def next_async -> Int
+    sleep_sec 0
+    self.next
+  end
+  def flag_async -> Bool
+    sleep_sec 0
+    self.next == 1
+  end
+end
+
+unless PrimitiveCompare.async_compare(CompareCounter.new); puts "ng: async comparison in return position"; end
+
+let c = CompareCounter.new
+unless c.next < c.next_async; puts "ng: sync left before async right"; end
+unless c.n == 2; puts "ng: evaluate each operand once"; end
+unless c.n < c.next_async; puts "ng: save left read before async mutation"; end
+unless c.next_async < c.next; puts "ng: async left before sync right"; end
+unless c.next_async < c.next_async; puts "ng: both operands async"; end
+
+let sync = CompareCounter.new
+unless sync.next < sync.next; puts "ng: both operands sync"; end
+let nested = CompareCounter.new
+unless nested.next < (if true then nested.next else 0 end)
+  puts "ng: sync right expression"
+end
+unless nested.n < (if true then nested.next_async else 0 end)
+  puts "ng: async right expression"
+end
+let flags = CompareCounter.new
+unless true == flags.flag_async; puts "ng: Bool async operand"; end
+
+# Neither short-circuit branch may evaluate the right comparison's operands.
+let skipped = CompareCounter.new
+if 2 < 1 and skipped.next < skipped.next_async; puts "ng: and result"; end
+unless 1 < 2 or skipped.next < skipped.next_async; puts "ng: or result"; end
+unless skipped.n == 0; puts "ng: short-circuit side effects"; end
+
+# Saving the left value must stay inside the condition, including in a sync loop.
+unless PrimitiveCompare.sync_loop(CompareCounter.new) == 3; puts "ng: fully sync loop"; end
+
+let loop_sync = CompareCounter.new
+var sync_iterations = 0
+while loop_sync.n < (if true then loop_sync.next else 0 end)
+  sync_iterations += 1
+  if sync_iterations == 3; break; end
+end
+unless sync_iterations == 3 and loop_sync.n == 3; puts "ng: sync condition prelude"; end
+
+let loop_async = CompareCounter.new
+var async_iterations = 0
+while loop_async.n < loop_async.next_async
+  async_iterations += 1
+  if async_iterations == 3; break; end
+end
+unless async_iterations == 3 and loop_async.n == 3; puts "ng: async condition prelude"; end
+
+var i = 0
+while i < 3
+  i += 1
+end
+unless i == 3; puts "ng: sync while"; end
+
+puts "ok"

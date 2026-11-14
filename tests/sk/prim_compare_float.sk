@@ -1,0 +1,97 @@
+class FloatCompare
+  # Keep separate methods with raw parameters so LLVM cannot fold the comparisons.
+  def self.lt(a: Float, b: Float) -> Bool; a < b; end
+  def self.le(a: Float, b: Float) -> Bool; a <= b; end
+  def self.gt(a: Float, b: Float) -> Bool; a > b; end
+  def self.ge(a: Float, b: Float) -> Bool; a >= b; end
+  def self.eq(a: Float, b: Float) -> Bool; a == b; end
+  def self.ne(a: Float, b: Float) -> Bool; a != b; end
+
+  def self.direct(a: Float, b: Float) -> Array<Bool>
+    [lt(a, b), le(a, b), gt(a, b), ge(a, b), eq(a, b), ne(a, b)]
+  end
+
+  # These use the existing async implementations through wtables.
+  def self.indirect<T: Comparable>(a: T, b: T) -> Array<Bool>
+    [a < b, a <= b, a > b, a >= b, a == b, a != b]
+  end
+
+  def self.verify(a: Float, b: Float, expected: Array<Bool>)
+    unless direct(a, b) == expected; puts "ng: direct Float comparisons"; end
+    unless indirect(a, b) == expected; puts "ng: indirect Float comparisons"; end
+  end
+
+  def self.async_compare(c: FloatCounter) -> Bool
+    c.next < c.next_async
+  end
+
+  def self.sync_loop(c: FloatCounter) -> Float
+    var iterations = 0
+    while c.value < (if true then c.next else 0.0 end)
+      iterations += 1
+      if iterations == 3; break; end
+    end
+    c.value
+  end
+end
+
+let less = [true, true, false, false, false, true]
+let equal = [false, true, false, true, true, false]
+let greater = [false, false, true, true, false, true]
+let unordered = [false, false, false, false, false, true]
+FloatCompare.verify(1.0, 2.0, less)
+FloatCompare.verify(2.0, 1.0, greater)
+FloatCompare.verify(1.0, 1.0, equal)
+FloatCompare.verify(-2.0, -1.0, less)
+FloatCompare.verify(-1.0, -2.0, greater)
+FloatCompare.verify(0.0, -0.0, equal)
+FloatCompare.verify(-0.0, 0.0, equal)
+
+let infinity = 1.0 / 0.0
+let minus_infinity = -1.0 / 0.0
+let nan = 0.0 / 0.0
+FloatCompare.verify(infinity, infinity, equal)
+FloatCompare.verify(minus_infinity, minus_infinity, equal)
+FloatCompare.verify(minus_infinity, infinity, less)
+FloatCompare.verify(infinity, minus_infinity, greater)
+FloatCompare.verify(1.0, infinity, less)
+FloatCompare.verify(minus_infinity, 1.0, less)
+FloatCompare.verify(nan, 1.0, unordered)
+FloatCompare.verify(1.0, nan, unordered)
+FloatCompare.verify(nan, nan, unordered)
+
+class FloatCounter
+  def initialize
+    var @value = 0.0
+  end
+  def value -> Float; @value; end
+  def next -> Float
+    @value += 1.0
+    @value
+  end
+  def next_async -> Float
+    sleep_sec 0
+    self.next
+  end
+end
+
+unless FloatCompare.async_compare(FloatCounter.new); puts "ng: Float async return"; end
+let c = FloatCounter.new
+unless c.next < c.next_async; puts "ng: Float sync left before async right"; end
+unless c.value == 2.0; puts "ng: Float evaluation count"; end
+unless c.value < c.next_async; puts "ng: Float save left before mutation"; end
+unless c.next_async < c.next; puts "ng: Float async left before sync right"; end
+unless c.next_async < c.next_async; puts "ng: Float both operands async"; end
+unless c.next < (if true then c.next else 0.0 end); puts "ng: Float sync right branch"; end
+unless c.value < (if true then c.next_async else 0.0 end); puts "ng: Float async right branch"; end
+
+unless FloatCompare.sync_loop(FloatCounter.new) == 3.0; puts "ng: Float sync while"; end
+let loop_counter = FloatCounter.new
+var iterations = 0
+while loop_counter.value < loop_counter.next_async
+  iterations += 1
+  if iterations == 3; break; end
+end
+unless iterations == 3 and loop_counter.value == 3.0; puts "ng: Float async while"; end
+
+puts "ok"

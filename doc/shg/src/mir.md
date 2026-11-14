@@ -36,6 +36,21 @@ Converts HIR into MIR. Notable parts:
 - `pattern_match.rs`: compiles `match` clauses into nested `if`s.
 - `lambda.rs`: lowers fns/blocks into functions.
 - `prepare_asyncness.rs`: initial asyncness bookkeeping.
+- `prim_binop.rs`: recognizes concrete Int/Float/Bool comparisons and replaces their
+  calls with `PrimBinOp` before asyncness inference.
+
+## Primitive comparisons
+
+`PrimBinOp(op, left, right)` compares raw immediates and returns `I1`. The
+operation is synchronous, while either operand may contain async calls.
+Int/Bool operations emit `icmp`; Float operations emit ordered `fcmp` on `F64`. The
+visitor, rewriter and `contains_async_call` all traverse both operands.
+
+`splice_exprs` saves the left value before expanding a nontrivial right operand:
+the latter may introduce statements, suspend, or split control flow into CPS
+chapters even if its calls are synchronous. Simple comparisons such as `i < n`
+need no extra temporary. Both splicing and async binding keep condition preludes
+inside `while`, so their values are recomputed on each iteration.
 
 ## Default arguments
 

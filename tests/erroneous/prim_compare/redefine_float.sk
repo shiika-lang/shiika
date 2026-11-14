@@ -1,0 +1,5 @@
+class Float
+  def ==(other: Float) -> Bool
+    false
+  end
+end

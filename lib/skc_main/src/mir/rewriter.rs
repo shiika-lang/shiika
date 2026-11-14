@@ -111,6 +111,9 @@ pub trait MirRewriter {
             mir::Expr::BitIsZero(inner, bits) => {
                 mir::Expr::bit_is_zero(self.walk_expr(*inner)?, bits)
             }
+            mir::Expr::PrimBinOp(op, left, right) => {
+                mir::Expr::prim_binop(op, self.walk_expr(*left)?, self.walk_expr(*right)?)
+            }
             mir::Expr::ClassVTable(_) => expr,
             mir::Expr::SetClassObj(obj, class_obj) => {
                 let new_obj = self.walk_expr(*obj)?;

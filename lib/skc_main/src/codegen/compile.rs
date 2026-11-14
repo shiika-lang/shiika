@@ -152,6 +152,7 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             mir::Expr::NullPtr => Some(self.ptr_type().const_null().into()),
             mir::Expr::IsNull(inner) => self.compile_is_null(ctx, inner),
             mir::Expr::BitIsZero(inner, bits) => self.compile_bit_is_zero(ctx, inner, *bits),
+            mir::Expr::PrimBinOp(op, left, right) => self.compile_prim_binop(ctx, *op, left, right),
             mir::Expr::ClassVTable(erasure) => Some(vtable::get(self, erasure).ptr.into()),
         })
     }
@@ -761,6 +762,64 @@ impl<'run, 'ictx: 'run> CodeGen<'run, 'ictx> {
             .build_int_compare(inkwell::IntPredicate::EQ, anded, zero, "bit_is_zero")
             .unwrap();
         Some(i1.into())
+    }
+
+    fn compile_prim_binop(
+        &mut self,
+        ctx: &mut CodeGenContext<'run>,
+        op: mir::PrimBinOp,
+        left: &mir::TypedExpr,
+        right: &mir::TypedExpr,
+    ) -> Option<BasicValueEnum<'run>> {
+        // Keep source evaluation order even when either operand has side effects.
+        let left = self.compile_value_expr(ctx, left);
+        let right = self.compile_value_expr(ctx, right);
+        // Ordered predicates preserve Rust's NaN behavior: every comparison
+        // here is false for NaN. `!=` negates FloatEq, so it is true for NaN.
+        let float_predicate = match op {
+            mir::PrimBinOp::FloatLt => Some(inkwell::FloatPredicate::OLT),
+            mir::PrimBinOp::FloatLe => Some(inkwell::FloatPredicate::OLE),
+            mir::PrimBinOp::FloatGt => Some(inkwell::FloatPredicate::OGT),
+            mir::PrimBinOp::FloatGe => Some(inkwell::FloatPredicate::OGE),
+            mir::PrimBinOp::FloatEq => Some(inkwell::FloatPredicate::OEQ),
+            _ => None,
+        };
+        if let Some(predicate) = float_predicate {
+            return Some(
+                self.builder
+                    .build_float_compare(
+                        predicate,
+                        left.into_float_value(),
+                        right.into_float_value(),
+                        "prim_cmp",
+                    )
+                    .unwrap()
+                    .into(),
+            );
+        }
+        let predicate = match op {
+            mir::PrimBinOp::IntLt => inkwell::IntPredicate::SLT,
+            mir::PrimBinOp::IntLe => inkwell::IntPredicate::SLE,
+            mir::PrimBinOp::IntGt => inkwell::IntPredicate::SGT,
+            mir::PrimBinOp::IntGe => inkwell::IntPredicate::SGE,
+            mir::PrimBinOp::IntEq | mir::PrimBinOp::BoolEq => inkwell::IntPredicate::EQ,
+            mir::PrimBinOp::FloatLt
+            | mir::PrimBinOp::FloatLe
+            | mir::PrimBinOp::FloatGt
+            | mir::PrimBinOp::FloatGe
+            | mir::PrimBinOp::FloatEq => unreachable!(),
+        };
+        Some(
+            self.builder
+                .build_int_compare(
+                    predicate,
+                    left.into_int_value(),
+                    right.into_int_value(),
+                    "prim_cmp",
+                )
+                .unwrap()
+                .into(),
+        )
     }
 
     fn compile_raw_i64(&mut self, n: i64) -> Option<inkwell::values::BasicValueEnum<'run>> {

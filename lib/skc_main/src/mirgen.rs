@@ -2,6 +2,7 @@ mod constants;
 mod lambda;
 mod pattern_match;
 mod prepare_asyncness;
+mod prim_binop;
 mod wtables;
 use crate::build;
 use crate::codegen;
@@ -9,7 +10,7 @@ use crate::gensym;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
-use shiika_core::names::{ConstFullname, MethodFullname, TypeFullname};
+use shiika_core::names::{ConstFullname, MethodFullname};
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
 use skc_hir::{HirExpression, HirExpressionBase, SkMethod};
@@ -613,6 +614,18 @@ impl<'a> Compiler<'a> {
                 let mir_receiver = self.convert_expr(*receiver_expr);
                 let method_name = &method_fullname.first_name;
 
+                if let Some(op) = prim_binop::recognize(
+                    &method_fullname,
+                    &mir_receiver.1,
+                    &arg_exprs,
+                    &tyarg_exprs,
+                    &result_ty,
+                ) {
+                    let right = self.convert_expr(arg_exprs.into_iter().next().unwrap());
+                    debug_assert_eq!(right.1, op.operand_ty());
+                    return mir::Expr::prim_binop(op, mir_receiver, right);
+                }
+
                 // Bool/Int/Float are final: a call with a raw immediate
                 // receiver is always a direct call. Routing it through the
                 // vtable would require boxing the receiver (the vtable lookup
@@ -898,19 +911,10 @@ impl<'a> Compiler<'a> {
                         "@exit_status",
                         mir::Ty::raw("Int"),
                     );
-                    // Call Int#==(exit_status, EXIT_BREAK) -> Bool
-                    let eq_fun_ty = mir::FunTy::new(
-                        mir::Asyncness::Unknown,
-                        vec![mir::Ty::raw("Int"), mir::Ty::raw("Int")],
-                        mir::Ty::raw("Bool"),
-                    );
-                    let eq_func = mir::Expr::func_ref(
-                        MethodFullname::new(TypeFullname("Int".to_string()), "==").into(),
-                        eq_fun_ty,
-                    );
-                    let is_break = mir::Expr::fun_call(
-                        eq_func,
-                        vec![exit_status, mir::Expr::number(lambda::EXIT_BREAK)],
+                    let is_break = mir::Expr::prim_binop(
+                        mir::PrimBinOp::IntEq,
+                        exit_status,
+                        mir::Expr::number(lambda::EXIT_BREAK),
                     );
                     // If we are inside a lambda, propagate the break by also
                     // setting the surrounding lambda's @exit_status to EXIT_BREAK.

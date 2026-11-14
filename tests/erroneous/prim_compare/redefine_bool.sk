@@ -1,0 +1,5 @@
+class Bool
+  def ==(other: Bool) -> Bool
+    false
+  end
+end
