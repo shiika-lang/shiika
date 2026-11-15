@@ -633,8 +633,10 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         };
 
         let captures = self._resolve_lambda_captures(lambda_ctx.captures);
+        let fn_ty = block::lambda_ty(&hir_params, &ret_ty);
+        let tyarg_class_exprs = self.tyarg_class_objects(&fn_ty, locs);
         Ok(Hir::lambda_expr(
-            block::lambda_ty(&hir_params, &ret_ty),
+            fn_ty,
             self.create_lambda_name(),
             hir_params,
             hir_exprs,
@@ -642,6 +644,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             extract_lvars(&mut lambda_ctx.lvars),
             lambda_ctx.has_break,
             ret_ty,
+            tyarg_class_exprs,
             locs.clone(),
         ))
     }
@@ -1016,8 +1019,14 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 panic!("[BUG] tvar_ref for `Self' is not supported")
             }
             TyParamKind::Class => {
-                let base_ty = self.ctx_stack.self_ty().erasure_ty();
-                Hir::class_tvar_ref(cls_ty, typaram_ref, base_ty, locs.clone())
+                let self_expr = if self.ctx_stack.lambda_ctx().is_some() {
+                    // Inside a lambda, `self` must be captured
+                    self.convert_self_expr(locs)
+                } else {
+                    let base_ty = self.ctx_stack.self_ty().erasure_ty();
+                    Hir::self_expression(base_ty, locs.clone())
+                };
+                Hir::class_tvar_ref(cls_ty, typaram_ref, self_expr, locs.clone())
             }
             TyParamKind::Method => {
                 let (method_ctx, method_ctx_idx, opt_lambda_ctx) =
@@ -1149,9 +1158,12 @@ impl<'hir_maker> HirMaker<'hir_maker> {
             .collect::<Result<Vec<_>, _>>()?;
 
         let item_ty = self.array_item_ty(&item_exprs);
+        let ary_ty = ty::spe("Array", vec![item_ty]);
+        let class_expr = self.get_class_object(&ary_ty.meta_ty(), locs);
         Ok(Hir::array_literal(
-            ty::spe("Array", vec![item_ty]),
+            ary_ty,
             item_exprs,
+            class_expr,
             locs.clone(),
         ))
     }
@@ -1229,7 +1241,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         Hir::parenthesized_expression(ary_ty, exprs, locs)
     }
 
-    fn convert_self_expr(&mut self, locs: &LocationSpan) -> HirExpression {
+    pub(crate) fn convert_self_expr(&mut self, locs: &LocationSpan) -> HirExpression {
         let self_ty = self.self_expr_ty();
         if self.ctx_stack.lambda_ctx().is_none() {
             return Hir::self_expression(self_ty, locs.clone());

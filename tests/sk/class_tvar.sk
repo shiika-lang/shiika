@@ -12,4 +12,27 @@ end
 let f = Foo<Int>.new(42)
 puts "ng" unless f.first == 42
 
+# Class-wise type argument referred in a block
+class Bar<T>
+  def make_in_block -> Array<T>
+    var ret = Array<T>.new
+    [1].each do |_|
+      ret = Array<T>.new
+    end
+    ret
+  end
+
+  def make_in_nested_block -> Array<T>
+    var ret = Array<T>.new
+    [1].each do |_|
+      [2].each do |_|
+        ret = Array<T>.new
+      end
+    end
+    ret
+  end
+end
+puts "ng block" unless Bar<Int>.new.make_in_block.class.name == "Array<Int>"
+puts "ng nested block" unless Bar<Int>.new.make_in_nested_block.class.name == "Array<Int>"
+
 puts "ok"

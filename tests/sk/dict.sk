@@ -1,0 +1,24 @@
+let d = Dict<String, Int>.new
+d["a"] = 1
+d["b"] = 2
+d["a"] = 3
+match d["a"]
+when Some(v) then puts "ng 1" unless v == 3
+else puts "ng 1"
+end
+match d["b"]
+when Some(v) then puts "ng 2" unless v == 2
+else puts "ng 2"
+end
+puts "ng 3" unless d["c"].none?
+puts "ng 4" unless d.has_key?("b")
+puts "ng 5" if d.has_key?("c")
+puts "ng 6" unless d.keys.length == 2
+puts "ng 7" unless d.values.length == 2
+
+# Negative `hash`
+let e = Dict<Int, String>.new
+e[-5] = "neg"
+puts "ng 8" unless e.has_key?(-5)
+
+puts "ok"

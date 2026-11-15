@@ -3,4 +3,14 @@ let s = [1,2,3].map<String>{|i: Int|
 }.join(", ")
 unless s == "1, 2, 3"; puts "ng Array#map"; end
 
+# `E` is referred in the block in `Enumerable#min`
+match [2, 1, 3].min
+when Some(v) then puts "ng min" unless v == 1
+else puts "ng min"
+end
+match ["b", "c", "a"].max
+when Some(v) then puts "ng max" unless v == "c"
+else puts "ng max"
+end
+
 puts "ok"

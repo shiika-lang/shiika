@@ -680,8 +680,22 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                     }
                 }
             }
+            TyBody::TyPara(typaram_ref) if typaram_ref.kind == TyParamKind::SelfType => {
+                // `Self` of a module is the class of the receiver
+                let self_expr = self.convert_self_expr(locs);
+                get_class_of_obj_const(ty::raw("Class"), self_expr)
+            }
             TyBody::TyPara(typaram_ref) => self.tvar_ref(typaram_ref.clone(), locs),
         }
+    }
+
+    /// Returns HIRs that evaluate to the class objects of the type arguments
+    /// of `t` (eg. `Int` and `Void` for `Fn1<Int, Void>`).
+    pub fn tyarg_class_objects(&mut self, t: &TermTy, locs: &LocationSpan) -> Vec<HirExpression> {
+        t.type_args()
+            .iter()
+            .map(|tyarg| self.get_class_object(&tyarg.meta_ty(), locs))
+            .collect()
     }
 }
 

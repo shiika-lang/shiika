@@ -10,7 +10,7 @@ use crate::gensym;
 use crate::mir;
 use crate::names::FunctionName;
 use anyhow::Result;
-use shiika_core::names::{ConstFullname, MethodFullname};
+use shiika_core::names::MethodFullname;
 use shiika_core::ty;
 use shiika_core::ty::TermTy;
 use skc_hir::{HirExpression, HirExpressionBase, SkMethod};
@@ -235,139 +235,6 @@ impl<'a> Compiler<'a> {
         (decl, r1, r2)
     }
 
-    /// Build a runtime `Class` object expression for a type used as a tyarg
-    /// to `Meta:FnN#new` (i.e. lambda type parameters).
-    fn build_class_obj_for_tyarg(&self, t: &TermTy) -> mir::TypedExpr {
-        use shiika_core::ty::{TyBody, TyParamKind};
-        match &t.body {
-            TyBody::TyRaw(_) => {
-                // Reference the un-specialized class object via const ref.
-                let erasure_meta_ty = t.erasure_ty().meta_ty();
-                let const_name = erasure_meta_ty.erasure().to_const_fullname();
-                let cref = mir::Expr::const_ref(const_name, erasure_meta_ty.into());
-                let class_obj = mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), cref);
-
-                if t.has_type_args() {
-                    self.build_specialize_call(class_obj, t.type_args())
-                } else {
-                    class_obj
-                }
-            }
-            TyBody::TyPara(typaram_ref) => {
-                let sig = self
-                    .current_method_sig
-                    .as_ref()
-                    .expect("[BUG] lambda tyarg references typaram outside method scope");
-                match typaram_ref.kind {
-                    TyParamKind::Method => {
-                        let n_params = sig.params.len();
-                        let idx = 1 + n_params + typaram_ref.idx;
-                        mir::Expr::arg_ref(idx, typaram_ref.name.clone(), mir::Ty::raw("Class"))
-                    }
-                    TyParamKind::Class => {
-                        self.class_tvar_class_obj(sig.receiver_ty(), typaram_ref.idx)
-                    }
-                    // `Self` of a module is the class of the receiver
-                    TyParamKind::SelfType => self.self_class_obj(sig.receiver_ty()),
-                }
-            }
-        }
-    }
-
-    /// Build a call to `Class#_specialize1` (or `Class#<>` for multiple
-    /// tyargs) to produce a specialized class object (e.g. `Array<Int>`)
-    /// from an un-specialized one (e.g. `Array`).
-    fn build_specialize_call(
-        &self,
-        class_obj: mir::TypedExpr,
-        tyargs: &[TermTy],
-    ) -> mir::TypedExpr {
-        let class_ty = mir::Ty::raw("Class");
-        if tyargs.len() == 1 {
-            let arg_class_obj = self.build_class_obj_for_tyarg(&tyargs[0]);
-            let fun_ty = mir::FunTy::new(
-                mir::Asyncness::Unknown,
-                vec![class_ty.clone(), class_ty.clone()],
-                class_ty,
-            );
-            let func_ref =
-                mir::Expr::func_ref(FunctionName::method("Class", "_specialize1"), fun_ty);
-            mir::Expr::fun_call(func_ref, vec![class_obj, arg_class_obj])
-        } else {
-            let arg_class_objs: Vec<mir::TypedExpr> = tyargs
-                .iter()
-                .map(|t| self.build_class_obj_for_tyarg(t))
-                .collect();
-            let n = arg_class_objs.len();
-            let native_array_expr = (mir::Expr::CreateNativeArray(arg_class_objs), mir::Ty::Ptr);
-            let count_expr = mir::Expr::raw_i64(n as i64);
-            let array_class_ty: mir::Ty = ty::ary(ty::raw("Class")).into();
-            let from_raw_fun_ty = mir::FunTy::new(
-                mir::Asyncness::Sync,
-                vec![mir::Ty::meta("Array"), mir::Ty::Ptr, mir::Ty::Int64],
-                array_class_ty.clone(),
-            );
-            let from_raw_ref = mir::Expr::func_ref(
-                FunctionName::method("Meta:Array", "_from_raw"),
-                from_raw_fun_ty.into(),
-            );
-            let array_class_obj_expr =
-                mir::Expr::const_ref(ConstFullname::toplevel("Array"), mir::Ty::meta("Array"));
-            let tyargs_array = mir::Expr::fun_call(
-                from_raw_ref,
-                vec![array_class_obj_expr, native_array_expr, count_expr],
-            );
-
-            let specialize_fun_ty = mir::FunTy::new(
-                mir::Asyncness::Unknown,
-                vec![class_ty.clone(), array_class_ty],
-                class_ty,
-            );
-            let specialize_ref =
-                mir::Expr::func_ref(FunctionName::method("Class", "<>"), specialize_fun_ty);
-            mir::Expr::fun_call(specialize_ref, vec![class_obj, tyargs_array])
-        }
-    }
-
-    /// Build the runtime `Class` object for the i-th class typaram of `self_ty`
-    /// (matches the codegen done for `HirClassTVarRef`).
-    fn class_tvar_class_obj(&self, self_ty: TermTy, idx: usize) -> mir::TypedExpr {
-        let class_obj = self.self_class_obj(self_ty);
-        let class_ty = mir::Ty::raw("Class");
-        let type_arg_fun_ty = mir::FunTy::new(
-            mir::Asyncness::Unknown,
-            vec![class_ty.clone(), mir::Ty::raw("Int")],
-            class_ty.clone(),
-        );
-        let type_arg_ref = mir::Expr::func_ref(
-            FunctionName::method("Class", "_type_argument"),
-            type_arg_fun_ty.into(),
-        );
-        let idx_expr = mir::Expr::number(idx as i64);
-        mir::Expr::fun_call(type_arg_ref, vec![class_obj, idx_expr])
-    }
-
-    /// Build `self.class`
-    fn self_class_obj(&self, self_ty: TermTy) -> mir::TypedExpr {
-        let self_expr = self.compile_self_expr(self_ty);
-
-        let object_ty = mir::Ty::raw("Object");
-        let self_as_object = if self_expr.1 != object_ty {
-            mir::Expr::cast(mir::CastType::Upcast(object_ty.clone()), self_expr)
-        } else {
-            self_expr
-        };
-
-        let class_ty = mir::Ty::raw("Class");
-        let object_class_fun_ty =
-            mir::FunTy::new(mir::Asyncness::Unknown, vec![object_ty], class_ty.clone());
-        let object_class_ref = mir::Expr::func_ref(
-            FunctionName::method("Object", "class"),
-            object_class_fun_ty.into(),
-        );
-        mir::Expr::fun_call(object_class_ref, vec![self_as_object])
-    }
-
     fn convert_method_body(
         &mut self,
         body: SkMethodBody,
@@ -435,7 +302,10 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirDecimalLiteral { value } => mir::Expr::number(value),
             HirExpressionBase::HirFloatLiteral { value } => mir::Expr::float(value),
-            HirExpressionBase::HirArrayLiteral { elem_exprs } => {
+            HirExpressionBase::HirArrayLiteral {
+                elem_exprs,
+                class_expr,
+            } => {
                 // Array elements are stored as boxed objects (pointers), so an
                 // immediate element (e.g. a Bool) must be boxed first.
                 let mir_elements: Vec<mir::TypedExpr> = elem_exprs
@@ -459,7 +329,7 @@ impl<'a> Compiler<'a> {
                 // Build the specialized `Array<T>` class object so that the
                 // resulting instance carries a class with non-null type_args
                 // (needed for runtime `Class#_type_argument` lookups).
-                let specialized_class = self.build_class_obj_for_tyarg(&expr.ty);
+                let specialized_class = self.convert_expr(*class_expr);
                 let receiver_expr = mir::Expr::cast(
                     mir::CastType::Force(mir::Ty::meta("Array")),
                     specialized_class,
@@ -511,11 +381,11 @@ impl<'a> Compiler<'a> {
             }
             HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
-                self_ty,
+                self_expr,
             } => {
                 debug_assert!(typaram_ref.kind == shiika_core::ty::TyParamKind::Class);
 
-                let self_expr = self.compile_self_expr(self_ty);
+                let self_expr = self.convert_expr(*self_expr);
 
                 let object_ty = mir::Ty::raw("Object");
                 let self_as_object = if self_expr.1 != object_ty {
@@ -951,6 +821,7 @@ impl<'a> Compiler<'a> {
                 lvars,
                 ret_ty,
                 has_break: _,
+                tyarg_class_exprs,
             } => {
                 let fn_class = format!("Fn{}", params.len());
 
@@ -986,12 +857,15 @@ impl<'a> Compiler<'a> {
                 let func_name = lambda_func.name.clone();
                 self.lambda.lambda_funcs.push(lambda_func);
 
-                // Resolve runtime Class objects for the lambda's type args.
-                let tyarg_class_objs: Vec<_> = expr
-                    .ty
-                    .type_args()
-                    .iter()
-                    .map(|t| self.build_class_obj_for_tyarg(t))
+                // Runtime Class objects for the lambda's type args. They are
+                // evaluated in the enclosing scope (which may itself be a
+                // lambda), so this must come after restoring the state.
+                let tyarg_class_objs: Vec<_> = tyarg_class_exprs
+                    .into_iter()
+                    .map(|e| {
+                        let o = self.convert_expr(e);
+                        mir::Expr::cast(mir::CastType::Force(mir::Ty::raw("Class")), o)
+                    })
                     .collect();
 
                 // Build and return the Fn object expression

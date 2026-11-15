@@ -111,17 +111,28 @@ pub fn walk_expr<'hir, V: HirVisitor<'hir>>(v: &mut V, expr: &'hir HirExpression
         HirArgRef { .. } => (),
         HirLVarRef { .. } => (),
         HirIVarRef { receiver_expr, .. } => walk_expr(v, receiver_expr)?,
-        HirClassTVarRef { .. } => (),
+        HirClassTVarRef { self_expr, .. } => walk_expr(v, self_expr)?,
         HirMethodTVarRef { .. } => (),
         HirConstRef { .. } => (),
-        HirLambdaExpr { exprs, .. } => {
+        HirLambdaExpr {
+            exprs,
+            tyarg_class_exprs,
+            ..
+        } => {
             walk_expr(v, exprs)?;
+            for expr in tyarg_class_exprs {
+                walk_expr(v, expr)?;
+            }
         }
         HirSelfExpression => (),
-        HirArrayLiteral { elem_exprs } => {
+        HirArrayLiteral {
+            elem_exprs,
+            class_expr,
+        } => {
             for expr in elem_exprs {
                 walk_expr(v, expr)?;
             }
+            walk_expr(v, class_expr)?;
         }
         HirFloatLiteral { .. } => (),
         HirDecimalLiteral { .. } => (),
