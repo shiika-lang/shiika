@@ -56,12 +56,23 @@ impl Infer {
 
         // Note: passing `vars` to TmpTy::make because these may refer
         // class-wise or method-wise type parameters.
+        // Class-wise typarams are not subject to inference: they are fixed by
+        // the receiver type. Replace them with the class tyargs up front so
+        // that `unify` never overwrites them with argument types
+        // (eg. `["a"].push(1)` must not infer `T` = `Int`).
+        let make = |t: &TermTy| {
+            let mut tmp = TmpTy::make(t, &vars);
+            for (id, tyarg) in class_tyargs.iter().enumerate().take(n_class_typarams) {
+                tmp = tmp.substitute(&id, &TmpTy::from(tyarg));
+            }
+            tmp
+        };
         let param_tys = block_taker
             .param_tys()
             .iter()
-            .map(|t| TmpTy::make(&t, &vars))
+            .map(|t| make(t))
             .collect::<Vec<_>>();
-        let ret_ty = TmpTy::make(&block_taker.ret_ty(), &vars);
+        let ret_ty = make(&block_taker.ret_ty());
 
         Infer {
             method_tyargs,

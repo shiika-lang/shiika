@@ -1,0 +1,4 @@
+# The class type argument of the receiver must not be overwritten
+# by the argument type.
+let a = ["a"]
+a.push(1)

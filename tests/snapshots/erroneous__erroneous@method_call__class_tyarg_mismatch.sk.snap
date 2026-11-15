@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/method_call/class_tyarg_mismatch.sk
+---
+Error: the argument `item' of `Array#push' should be String but got Int
+   ╭─[tests/erroneous/method_call/class_tyarg_mismatch.sk:4:8]
+   │
+ 4 │ a.push(1)
+   │        ┬  
+   │        ╰── Int
+───╯
