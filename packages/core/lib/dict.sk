@@ -75,7 +75,8 @@ class Dict<K: Hashable, V>
 
   # Return the `Dict::Table` which contains the `key`
   def _table(key: K) -> Dict::Table<K, V>
-    @tables[key.hash % @tables.length]
+    # `hash` may be negative and `%` keeps the sign of the dividend
+    @tables[(key.hash % @tables.length).abs]
   end
 
   # Set the value of specified key.

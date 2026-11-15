@@ -212,7 +212,9 @@ pub enum HirExpressionBase {
     /// Reference of class-wise type variable
     HirClassTVarRef {
         typaram_ref: TyParamRef,
-        self_ty: TermTy,
+        /// `self` whose class holds the type argument. Inside a lambda this
+        /// is the captured `self` (the lambda's arg 0 is `$fn`).
+        self_expr: Box<HirExpression>,
     },
     /// Reference of method-wise type variable
     HirMethodTVarRef {
@@ -231,11 +233,17 @@ pub enum HirExpressionBase {
         ret_ty: TermTy,
         /// true if there is a `break` in this lambda
         has_break: bool,
+        /// Class objects of the type arguments of the lambda type
+        /// (eg. `Int` and `Void` for `Fn1<Int, Void>`). Evaluated in the
+        /// enclosing scope.
+        tyarg_class_exprs: Vec<HirExpression>,
     },
     HirSelfExpression,
     /// Array literal (not used in the old system)
     HirArrayLiteral {
         elem_exprs: Vec<HirExpression>,
+        /// The (specialized) class object of the array (eg. `Array<Int>`)
+        class_expr: Box<HirExpression>,
     },
     HirFloatLiteral {
         value: f64,
@@ -642,7 +650,7 @@ impl Hir {
     pub fn class_tvar_ref(
         ty: TermTy,
         typaram_ref: TyParamRef,
-        self_ty: TermTy,
+        self_expr: HirExpression,
         locs: LocationSpan,
     ) -> HirExpression {
         debug_assert!(typaram_ref.kind == TyParamKind::Class);
@@ -650,7 +658,7 @@ impl Hir {
             ty,
             node: HirExpressionBase::HirClassTVarRef {
                 typaram_ref,
-                self_ty,
+                self_expr: Box::new(self_expr),
             },
             locs,
         }
@@ -692,6 +700,7 @@ impl Hir {
         lvars: HirLVars,
         has_break: bool,
         ret_ty: TermTy,
+        tyarg_class_exprs: Vec<HirExpression>,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
@@ -704,6 +713,7 @@ impl Hir {
                 lvars,
                 ret_ty,
                 has_break,
+                tyarg_class_exprs,
             },
             locs,
         }
@@ -720,11 +730,15 @@ impl Hir {
     pub fn array_literal(
         ty: TermTy,
         elem_exprs: Vec<HirExpression>,
+        class_expr: HirExpression,
         locs: LocationSpan,
     ) -> HirExpression {
         HirExpression {
             ty,
-            node: HirExpressionBase::HirArrayLiteral { elem_exprs },
+            node: HirExpressionBase::HirArrayLiteral {
+                elem_exprs,
+                class_expr: Box::new(class_expr),
+            },
             locs,
         }
     }

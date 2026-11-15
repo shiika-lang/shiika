@@ -131,8 +131,10 @@ fn _convert_block(
     let hir_exprs = mk.convert_exprs(body_exprs)?;
     let mut lambda_ctx = mk.ctx_stack.pop_lambda_ctx();
     let ret_ty = hir_exprs.ty.clone();
+    let fn_ty = lambda_ty(&hir_params, &ret_ty);
+    let tyarg_class_exprs = mk.tyarg_class_objects(&fn_ty, &locs);
     Ok(Hir::lambda_expr(
-        lambda_ty(&hir_params, &ret_ty),
+        fn_ty,
         mk.create_lambda_name(),
         hir_params,
         hir_exprs,
@@ -140,6 +142,7 @@ fn _convert_block(
         extract_lvars(&mut lambda_ctx.lvars),             // lvars
         lambda_ctx.has_break,
         ret_ty,
+        tyarg_class_exprs,
         locs,
     ))
 }
