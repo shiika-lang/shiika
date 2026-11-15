@@ -1,0 +1,48 @@
+# The value of an lvar declaration/assignment is the rhs
+
+# As the last expression of a block
+[1].each do |_|
+  let x = 1
+end
+[1].each do |_|
+  let x = "a"
+end
+[1].each do |_|
+  var x = 1
+  x = 2
+end
+let a = [1, 2].map{|i| let j = i * 10 }
+puts "ng 1" unless a[0] == 10 and a[1] == 20
+var s = 0
+let r = [5].map{|i| s = i }
+puts "ng 2" unless r[0] == 5 and s == 5
+let f = fn(){ let x = 7 }
+puts "ng 3" unless f() == 7
+
+# As the last expression of a method
+class A
+  def self.decl -> Int
+    let x = 1
+  end
+
+  def self.assign -> Int
+    var x = 0
+    x = 5
+  end
+
+  def self.decl_str -> String
+    let s = "a"
+  end
+end
+puts "ng 4" unless A.decl == 1
+puts "ng 5" unless A.assign == 5
+puts "ng 6" unless A.decl_str == "a"
+
+# As an argument / rhs
+var x = 0
+puts "ng 7" unless (x = 3) == 3
+puts "ng 8" unless x == 3
+let y = (let z = 4)
+puts "ng 9" unless y == 4 and z == 4
+
+puts "ok"
