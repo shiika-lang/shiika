@@ -1,0 +1,10 @@
+# `1` is not necessarily a `T`.
+class Box<T>
+  def initialize(@items: Array<T>); end
+  def add(x: T)
+    @items.push(x)
+  end
+  def bad
+    add(1)
+  end
+end

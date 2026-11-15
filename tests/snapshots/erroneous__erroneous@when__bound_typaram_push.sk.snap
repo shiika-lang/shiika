@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/when/bound_typaram_push.sk
+---
+Error: the argument `item' of `Array#push' should be T but got String
+   ╭─[tests/erroneous/when/bound_typaram_push.sk:7:19]
+   │
+ 7 │       @items.push("x")
+   │                   ─┬─  
+   │                    ╰─── String
+───╯

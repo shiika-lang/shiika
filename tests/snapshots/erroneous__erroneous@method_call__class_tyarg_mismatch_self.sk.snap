@@ -1,0 +1,13 @@
+---
+source: tests/erroneous.rs
+assertion_line: 22
+expression: compiler_output
+input_file: tests/erroneous/method_call/class_tyarg_mismatch_self.sk
+---
+Error: the argument `x' of `Box#add' should be T but got Int
+   ╭─[tests/erroneous/method_call/class_tyarg_mismatch_self.sk:8:9]
+   │
+ 8 │     add(1)
+   │         ┬  
+   │         ╰── Int
+───╯

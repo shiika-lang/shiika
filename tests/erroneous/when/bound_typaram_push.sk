@@ -1,0 +1,10 @@
+# `T: String` does not mean `T == String`, so a String cannot be
+# pushed to `Array<T>`.
+class Box<T>
+  def initialize(@items: Array<T>); end
+  when T: String
+    def add_x
+      @items.push("x")
+    end
+  end
+end
