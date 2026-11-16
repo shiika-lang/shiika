@@ -160,7 +160,6 @@ impl<'a> Verifier<'a> {
                 self.verify_expr(f, cond)?;
                 self.verify_expr(f, body)?;
             }
-            mir::Expr::Spawn(_) => todo!(),
             mir::Expr::Alloc(_, _) => (),
             mir::Expr::LVarDecl(_, v, _) => {
                 self.verify_expr(f, v)?;

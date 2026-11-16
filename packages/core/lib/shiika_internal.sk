@@ -5,8 +5,8 @@ module Shiika
     native def self.d(value: Object, len: Int)
 
     class Memory
-      # Run GC manually.
-      # def self.force_gc
+      # Run GC manually. For testing memory-related bugs.
+      native def self.force_gc
 
       # def self.memcpy(dst: Shiika::Internal::Ptr, src: Shiika::Internal::Ptr, n_bytes: Int) -> Void
 

@@ -194,10 +194,6 @@ impl<'a> Compiler<'a> {
             mir::Expr::While(cond_expr, body_exprs) => {
                 return self.compile_while(*cond_expr, *body_exprs);
             }
-            mir::Expr::Spawn(fexpr) => {
-                let new_fexpr = self.compile_value_expr(*fexpr, false)?;
-                call_chiika_spawn(new_fexpr)
-            }
             mir::Expr::Alloc(_, _) => mir::Expr::nop(),
             mir::Expr::LVarDecl(_, _, _) | mir::Expr::LVarSet(_, _) => {
                 panic!("LVarDecl/LVarSet must be lowered to EnvSet");
@@ -640,27 +636,6 @@ fn call_chiika_env_pop_frame(n_pop: usize, popped_value_ty: mir::Ty) -> mir::Typ
         mir::CastType::Recover(popped_value_ty.clone()),
         mir::Expr::fun_call(env_pop, vec![arg_ref_env(), n_pop_native]),
     )
-}
-
-fn call_chiika_spawn(f: mir::TypedExpr) -> mir::TypedExpr {
-    let null_cont_ty = mir::FunTy {
-        asyncness: mir::Asyncness::Lowered,
-        param_tys: vec![mir::Ty::ChiikaEnv, mir::Ty::raw("Void")],
-        ret_ty: Box::new(mir::Ty::RustFuture),
-    };
-    let new_f_ty = mir::FunTy {
-        asyncness: mir::Asyncness::Lowered,
-        param_tys: vec![mir::Ty::ChiikaEnv, null_cont_ty.into()],
-        ret_ty: Box::new(mir::Ty::RustFuture),
-    };
-    let new_f = (f.0, new_f_ty.clone().into());
-    let fun_ty = mir::FunTy {
-        asyncness: mir::Asyncness::Lowered,
-        param_tys: vec![mir::Ty::Fun(new_f_ty)],
-        ret_ty: Box::new(mir::Ty::raw("Void")),
-    };
-    let fname = FunctionName::mangled("chiika_spawn");
-    mir::Expr::fun_call(mir::Expr::func_ref(fname, fun_ty), vec![new_f])
 }
 
 #[derive(Debug)]

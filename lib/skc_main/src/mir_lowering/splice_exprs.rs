@@ -108,10 +108,6 @@ impl Splicer {
                 let new_body = self.splice_exprs(*body);
                 mir::Expr::while_(new_cond, new_body)
             }
-            mir::Expr::Spawn(e) => {
-                let new_e = self.splice(*e, new_exprs);
-                mir::Expr::spawn(new_e)
-            }
             mir::Expr::Alloc(_, _) => expr,
             mir::Expr::LVarDecl(name, rhs, writable) => {
                 let new_rhs = self.splice(*rhs, new_exprs);

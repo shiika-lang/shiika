@@ -59,7 +59,6 @@ pub trait MirRewriter {
             mir::Expr::While(cond_expr, body_exprs) => {
                 mir::Expr::while_(self.walk_expr(*cond_expr)?, self.walk_expr(*body_exprs)?)
             }
-            mir::Expr::Spawn(expr) => mir::Expr::spawn(self.walk_expr(*expr)?),
             mir::Expr::Alloc(_, _) => expr,
             mir::Expr::LVarDecl(name, rhs, writable) => {
                 mir::Expr::lvar_decl(name, self.walk_expr(*rhs)?, writable)
