@@ -1,0 +1,7 @@
+class A
+  def self.run
+    Task.scope do |scope|
+      return
+    end
+  end
+end

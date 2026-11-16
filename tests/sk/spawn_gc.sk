@@ -1,0 +1,61 @@
+# Objects referred only from pending tasks must survive GC
+class Data
+  def initialize(@name: String, @items: Array<String>); end
+  def name -> String; @name; end
+  def items -> Array<String>; @items; end
+end
+
+class A
+  def self.garbage
+    var j = 0
+    while j < 2000
+      let s = "garbage\{j}"
+      let a = [s, s, s]
+      j += 1
+    end
+  end
+
+  def self.make(i: Int) -> Data
+    Data.new("data\{i}", ["a\{i}", "b\{i}"])
+  end
+
+  def self.spawn_one(scope: Task::Scope, results: Array<String>, i: Int)
+    # Captured by the task
+    let d = A.make(i)
+    scope.spawn do
+      # Held in the env of the task
+      let local = A.make(i + 100)
+      sleep_sec(0)
+      A.garbage
+      Shiika::Internal::Memory.force_gc
+      sleep_sec(0)
+      results.push(d.name + ":" + d.items[0] + ":" + d.items[1] + ":" + local.name)
+    end
+  end
+
+  def self.run -> Array<String>
+    let results = Array<String>.new
+    Task.scope do |scope|
+      var i = 0
+      while i < 20
+        A.spawn_one(scope, results, i)
+        i += 1
+      end
+      A.garbage
+      Shiika::Internal::Memory.force_gc
+    end
+    results
+  end
+end
+
+let results = A.run
+A.garbage
+Shiika::Internal::Memory.force_gc
+unless results.length == 20; puts "ng: length=\{results.length}"; end
+var i = 0
+while i < 20
+  let expected = "data\{i}:a\{i}:b\{i}:data\{i + 100}"
+  unless results[i] == expected; puts "ng: \{results[i]}"; end
+  i += 1
+end
+puts "ok"

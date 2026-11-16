@@ -1,0 +1,42 @@
+# Concurrent tasks.
+#
+# Tasks are run concurrently but not in parallel; a task is switched to
+# another only while it is waiting for something (I/O, timer, etc.)
+class Task
+  # Runs the block and then waits for all the tasks spawned in the scope.
+  # Returns the value of the block.
+  #
+  # Example:
+  #
+  #     Task.scope do |scope|
+  #       scope.spawn{ download(url1) }
+  #       scope.spawn{ download(url2) }
+  #     end
+  #     # Both downloads are done here.
+  def self.scope<T>(f: Fn1<Task::Scope, T>) -> T
+    let scope = Task::Scope.new(Task::Scope._create)
+    let v = f(scope)
+    Task::Scope._join(scope._id)
+    v
+  end
+
+  # A group of tasks. Created with `Task.scope`.
+  class Scope
+    native def self._create -> Int
+    native def self._spawn(scope_id: Int, f: Fn0<Void>) -> Bool
+    native_async def self._join(scope_id: Int)
+
+    def initialize(@_id: Int); end
+
+    # Starts a new task which runs the block.
+    #
+    # The task belongs to this scope. It is started even after the block of
+    # `Task.scope` is finished (eg. from another task of the scope), unless
+    # all the tasks of the scope are finished already.
+    def spawn(f: Fn0<Void>)
+      unless Task::Scope._spawn(@_id, f)
+        panic "Task::Scope#spawn: the scope is already closed"
+      end
+    end
+  end
+end

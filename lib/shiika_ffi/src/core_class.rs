@@ -4,6 +4,7 @@ pub mod class; // pub for WitnessTable
 mod error;
 pub mod file;
 mod float;
+mod fn_;
 mod int;
 mod mutable_string;
 pub mod object; // pub so ShiikaObject can be referenced
@@ -18,6 +19,7 @@ pub use class::SkClass;
 pub use error::SkError;
 pub use file::SkFile;
 pub use float::SkFloat;
+pub use fn_::SkFn;
 pub use int::SkInt;
 pub use mutable_string::SkMutableString;
 pub use object::SkObject;
