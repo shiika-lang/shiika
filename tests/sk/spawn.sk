@@ -1,0 +1,74 @@
+# The scope waits for the tasks
+var n = 0
+Task.scope do |scope|
+  scope.spawn do
+    sleep_sec(0)
+    n += 1
+  end
+  scope.spawn do
+    n += 10
+  end
+end
+unless n == 11; puts "ng: n=\{n}"; end
+
+# A task is not started until the parent task awaits
+var started = false
+Task.scope do |scope|
+  scope.spawn{ started = true }
+  if started; puts "ng: task started synchronously"; end
+end
+unless started; puts "ng: task not started"; end
+
+# Task.scope returns the value of the block
+let v = Task.scope<Int>{|scope| 42 }
+unless v == 42; puts "ng: v=\{v}"; end
+
+# A task can spawn another task in the same scope
+var m = 0
+Task.scope do |scope|
+  scope.spawn do
+    sleep_sec(0)
+    scope.spawn do
+      sleep_sec(0)
+      m += 1
+    end
+    m += 10
+  end
+end
+unless m == 11; puts "ng: m=\{m}"; end
+
+# Nested scopes
+var k = 0
+Task.scope do |scope|
+  scope.spawn do
+    Task.scope do |inner|
+      inner.spawn do
+        sleep_sec(0)
+        k += 1
+      end
+    end
+    unless k == 1; puts "ng: inner scope did not wait"; end
+    k += 10
+  end
+end
+unless k == 11; puts "ng: k=\{k}"; end
+
+# Called from a method
+class A
+  def self.run(xs: Array<Int>) -> Int
+    var sum = 0
+    Task.scope do |scope|
+      xs.each do |x|
+        scope.spawn do
+          sleep_sec(0)
+          sum += x
+        end
+      end
+    end
+    sum
+  end
+end
+let sum = A.run([1, 2, 3])
+unless sum == 6; puts "ng: sum=\{sum}"; end
+
+puts "ok"

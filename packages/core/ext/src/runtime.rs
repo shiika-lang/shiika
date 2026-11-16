@@ -1,5 +1,6 @@
 mod allocator;
 mod cell;
+pub(crate) mod task;
 pub(crate) mod wtable;
 
 use bdwgc_alloc::Allocator;
@@ -8,17 +9,15 @@ use std::future::{poll_fn, Future};
 use std::pin::Pin;
 use std::task::Poll;
 
-#[allow(improper_ctypes_definitions)]
-type ChiikaThunk = unsafe extern "C" fn(env: *mut ChiikaEnv, cont: ChiikaCont) -> ContFuture;
-
 #[allow(improper_ctypes)]
 extern "C" {
     fn chiika_start_user(env: *mut ChiikaEnv, cont: ChiikaCont) -> ContFuture;
     fn GC_allow_register_threads();
 }
 
+/// The last continuation of a task.
 #[allow(improper_ctypes_definitions)]
-extern "C" fn chiika_finish(env: *mut ChiikaEnv, _v: ChiikaValue) -> ContFuture {
+pub(crate) extern "C" fn chiika_finish(env: *mut ChiikaEnv, _v: ChiikaValue) -> ContFuture {
     unsafe {
         (*env).cont = None;
     }
@@ -28,7 +27,7 @@ extern "C" fn chiika_finish(env: *mut ChiikaEnv, _v: ChiikaValue) -> ContFuture 
 #[no_mangle]
 pub extern "C" fn chiika_start_tokio() {
     unsafe { GC_allow_register_threads() };
-    let poller = make_poller(chiika_start_user);
+    let poller = make_poller(|env| unsafe { chiika_start_user(env, chiika_finish) });
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .on_thread_start(|| {
@@ -49,12 +48,18 @@ pub extern "C" fn chiika_start_tokio() {
     std::mem::forget(runtime);
 }
 
-fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {
+/// Creates a future which runs a Shiika task to its end.
+///
+/// `start` is called once with the (fresh) env of the task and should invoke
+/// the entry function of the task, passing `chiika_finish` as its continuation.
+/// The future resolves to the value passed to `chiika_finish`, i.e. the return
+/// value of the entry function.
+pub(crate) fn make_poller(
+    mut start: impl FnMut(*mut ChiikaEnv) -> ContFuture,
+) -> impl Future<Output = ChiikaValue> {
     let mut env = ChiikaEnv::new();
     poll_fn(move |context| loop {
-        let future = env
-            .pop_rust_frame()
-            .unwrap_or_else(|| unsafe { f(&mut env, chiika_finish) });
+        let future = env.pop_rust_frame().unwrap_or_else(|| start(&mut env));
         let mut pinned = Pin::new(future);
         let tmp = pinned.as_mut().poll(context);
         match tmp {
@@ -63,7 +68,7 @@ fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {
                     let new_future = cont(&mut env, value);
                     env.push_rust_frame(new_future);
                 } else {
-                    return Poll::Ready(());
+                    return Poll::Ready(value);
                 }
             }
             Poll::Pending => {

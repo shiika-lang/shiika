@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/task/return_in_scope.sk
+---
+`return' in a block is not supported (#266)

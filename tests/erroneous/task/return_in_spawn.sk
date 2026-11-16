@@ -1,0 +1,9 @@
+class A
+  def self.run
+    Task.scope do |scope|
+      scope.spawn do
+        return
+      end
+    end
+  end
+end

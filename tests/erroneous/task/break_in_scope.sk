@@ -1,0 +1,3 @@
+Task.scope do |scope|
+  break
+end
