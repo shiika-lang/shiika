@@ -12,6 +12,7 @@
   * [Tests](tests.md)
 * [Design Notes]()
   * [Enum](design_notes/enum.md)
+  * [Tasks](design_notes/tasks.md)
   * [Unboxing](design_notes/unboxing.md)
   * [Void](design_notes/void.md)
 * [Other]()
