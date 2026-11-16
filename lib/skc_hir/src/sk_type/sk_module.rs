@@ -2,7 +2,7 @@ use super::SkTypeBase;
 use crate::method_signature::MethodSignature;
 use crate::supertype::Supertype;
 use serde::{Deserialize, Serialize};
-use shiika_core::names::ModuleFullname;
+use shiika_core::names::{method_firstname, MethodFirstname, ModuleFullname};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct SkModule {
@@ -43,4 +43,28 @@ impl SkModule {
         }
         self.supers.iter().map(|s| s.substitute(tyargs)).collect()
     }
+
+    /// Name of the hidden method which returns the class object of the
+    /// `idx`th type argument of this module (eg. `Int` of `Container<Int>`).
+    ///
+    /// A module method cannot get its type arguments from `self.class`,
+    /// because the type parameters of the module are not those of the class
+    /// (eg. `E` of `Enumerable<E>` is `Pair<K, V>` for `Dict<K, V>`). So every
+    /// generic module requires these methods and every class which
+    /// implements it gets them automatically.
+    pub fn tyarg_method_name(fullname: &ModuleFullname, idx: usize) -> MethodFirstname {
+        method_firstname(format!(
+            "{}{}_{}",
+            TYARG_METHOD_PREFIX,
+            fullname.0.replace("::", "_"),
+            idx
+        ))
+    }
+
+    /// Returns true if `name` is made by `tyarg_method_name`.
+    pub fn is_tyarg_method(name: &MethodFirstname) -> bool {
+        name.0.starts_with(TYARG_METHOD_PREFIX)
+    }
 }
+
+const TYARG_METHOD_PREFIX: &str = "_tyarg_";

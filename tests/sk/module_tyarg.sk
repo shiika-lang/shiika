@@ -1,0 +1,97 @@
+# Type arguments of a module referred in a module method
+module Container<E>
+  requirement items -> Array<E>
+
+  def count_items -> Int
+    var n = 0
+    items.each do |x|
+      n += 1
+    end
+    n
+  end
+
+  def new_array -> Array<E>
+    Array<E>.new
+  end
+
+  def new_array_in_block -> Array<E>
+    var ret = Array<E>.new
+    [1].each do |_|
+      [2].each do |_|
+        ret = Array<E>.new
+      end
+    end
+    ret
+  end
+end
+
+# A class without type parameters
+class Bag
+  def initialize(@a: Array<Int>); end
+  implement Container<Int>
+    def items -> Array<Int>
+      @a
+    end
+  end
+end
+puts "ng Bag#count_items" unless Bag.new([1, 2]).count_items == 2
+puts "ng Bag#new_array" unless Bag.new([1]).new_array.class.name == "Array<Int>"
+puts "ng Bag#new_array_in_block" unless Bag.new([1]).new_array_in_block.class.name == "Array<Int>"
+
+# A subclass of the class which implements the module
+base class BaseBag
+  implement Container<Int>
+    def items -> Array<Int>
+      [1, 2, 3]
+    end
+  end
+end
+class SubBag : BaseBag
+end
+puts "ng SubBag#count_items" unless SubBag.new.count_items == 3
+puts "ng SubBag#new_array" unless SubBag.new.new_array.class.name == "Array<Int>"
+
+# A generic class whose type argument for the module differs from its own
+class Box<T>
+  def initialize(@x: T); end
+  implement Container<Array<T>>
+    def items -> Array<Array<T>>
+      [[@x]]
+    end
+  end
+end
+puts "ng Box#count_items" unless Box<String>.new("a").count_items == 1
+puts "ng Box#new_array" unless Box<String>.new("a").new_array.class.name == "Array<Array<String>>"
+
+# The order of the type parameters differs
+module Two<A, B>
+  def second_array -> Array<B>
+    Array<B>.new
+  end
+end
+class Swap<X, Y>
+  implement Two<Y, X>
+  end
+end
+puts "ng Swap" unless Swap<Int, String>.new.second_array.class.name == "Array<Int>"
+
+# Namespaced module
+module Ns
+  module Holder<E>
+    def holder_array -> Array<E>
+      Array<E>.new
+    end
+  end
+end
+class Hold
+  implement Ns::Holder<Bool>
+  end
+end
+puts "ng Ns::Holder" unless Hold.new.holder_array.class.name == "Array<Bool>"
+
+# Enumerable of Dict is Enumerable<Pair<K, V>>
+let d = Dict<String, Int>.new
+d["a"] = 1
+puts "ng Dict#to_a" unless d.to_a.class.name == "Array<Pair<String, Int>>"
+
+puts "ok"
