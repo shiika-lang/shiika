@@ -285,6 +285,87 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// Convert an expression whose value is not used. Same as `convert_expr`
+    /// except that an lvar declaration/assignment does not read the variable
+    /// back (which is a runtime call in an async function).
+    fn convert_stmt(&mut self, expr: HirExpression) -> mir::TypedExpr {
+        let result_ty = convert_ty(expr.ty.clone());
+        match expr.node {
+            HirExpressionBase::HirLVarDecl {
+                name,
+                rhs,
+                readonly,
+            } => self.convert_lvar_decl(name, *rhs, readonly, result_ty, false),
+            HirExpressionBase::HirLVarAssign { name, rhs } => {
+                self.convert_lvar_assign(name, *rhs, result_ty, false)
+            }
+            HirExpressionBase::HirParenthesizedExpr { exprs } => {
+                let mir_exprs = exprs.into_iter().map(|e| self.convert_stmt(e)).collect();
+                mir::Expr::exprs(mir_exprs)
+            }
+            node => self.convert_expr(HirExpression { node, ..expr }),
+        }
+    }
+
+    /// `let x = v` / `var x = v`. In MIR, `LVarDecl` is a `Void` statement;
+    /// when `want_value`, read `x` back as the value of the expression.
+    fn convert_lvar_decl(
+        &mut self,
+        name: String,
+        rhs: HirExpression,
+        readonly: bool,
+        result_ty: mir::Ty,
+        want_value: bool,
+    ) -> mir::TypedExpr {
+        let mir_rhs = self.convert_expr(rhs);
+        let is_cell = self.lambda.cell_vars.contains(&name);
+        let decl = if is_cell {
+            // var y = 5 → var y = cell_new(5)
+            mir::Expr::lvar_decl(name.clone(), mir::Expr::cell_new(mir_rhs), true)
+        } else {
+            mir::Expr::lvar_decl(name.clone(), mir_rhs, !readonly)
+        };
+        if want_value {
+            mir::Expr::exprs(vec![decl, self.lvar_value(name, is_cell, result_ty)])
+        } else {
+            decl
+        }
+    }
+
+    /// `x = v`. Like `convert_lvar_decl`, `LVarSet` is a `Void` statement.
+    fn convert_lvar_assign(
+        &mut self,
+        name: String,
+        rhs: HirExpression,
+        result_ty: mir::Ty,
+        want_value: bool,
+    ) -> mir::TypedExpr {
+        let mir_rhs = self.convert_expr(rhs);
+        let is_cell = self.lambda.cell_vars.contains(&name);
+        let set = if is_cell {
+            // y = v → cell_set(y, v)
+            let cell = mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr);
+            mir::Expr::cell_set(cell, mir_rhs)
+        } else {
+            mir::Expr::lvar_set(name.clone(), mir_rhs)
+        };
+        if want_value {
+            mir::Expr::exprs(vec![set, self.lvar_value(name, is_cell, result_ty)])
+        } else {
+            set
+        }
+    }
+
+    /// Read the value of a local variable (through the cell if captured).
+    fn lvar_value(&self, name: String, is_cell: bool, ty: mir::Ty) -> mir::TypedExpr {
+        if is_cell {
+            let cell = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
+            mir::Expr::cell_get(cell, ty)
+        } else {
+            mir::Expr::lvar_ref(name, ty)
+        }
+    }
+
     fn convert_expr(&mut self, expr: HirExpression) -> mir::TypedExpr {
         use skc_hir::HirExpressionBase;
         let result_ty = convert_ty(expr.ty.clone());
@@ -431,32 +512,9 @@ impl<'a> Compiler<'a> {
                 name,
                 rhs,
                 readonly,
-            } => {
-                let mir_rhs = self.convert_expr(*rhs);
-                if self.lambda.cell_vars.contains(&name) {
-                    // var y = 5 → var y = cell_new(5)
-                    let cell = mir::Expr::cell_new(mir_rhs);
-                    (mir::Expr::LVarDecl(name, Box::new(cell), true), result_ty)
-                } else {
-                    (
-                        mir::Expr::LVarDecl(name, Box::new(mir_rhs), !readonly),
-                        result_ty,
-                    )
-                }
-            }
+            } => self.convert_lvar_decl(name, *rhs, readonly, result_ty, true),
             HirExpressionBase::HirLVarAssign { name, rhs } => {
-                let mir_rhs = self.convert_expr(*rhs);
-                if self.lambda.cell_vars.contains(&name) {
-                    // y = v → cell_set(y, v); cell_get(y)
-                    let cell = mir::Expr::lvar_ref(name.clone(), mir::Ty::Ptr);
-                    let cell2 = mir::Expr::lvar_ref(name, mir::Ty::Ptr);
-                    mir::Expr::exprs(vec![
-                        mir::Expr::cell_set(cell, mir_rhs),
-                        mir::Expr::cell_get(cell2, result_ty),
-                    ])
-                } else {
-                    (mir::Expr::LVarSet(name, Box::new(mir_rhs)), result_ty)
-                }
+                self.convert_lvar_assign(name, *rhs, result_ty, true)
             }
             HirExpressionBase::HirIVarAssign {
                 name,
@@ -898,7 +956,7 @@ impl<'a> Compiler<'a> {
                 ..
             } => mir::Expr::while_(
                 self.convert_expr(*cond_expr),
-                self.convert_expr(*body_exprs),
+                self.convert_stmt(*body_exprs),
             ),
             HirExpressionBase::HirBreakExpression { from, arg } => match from {
                 skc_hir::HirBreakFrom::Fn => {
@@ -1030,9 +1088,18 @@ impl<'a> Compiler<'a> {
                 }
             }
             HirExpressionBase::HirParenthesizedExpr { exprs } => {
+                // Only the last expression gives the value
+                let n = exprs.len();
                 let mir_exprs = exprs
                     .into_iter()
-                    .map(|expr| self.convert_expr(expr))
+                    .enumerate()
+                    .map(|(i, expr)| {
+                        if i + 1 == n {
+                            self.convert_expr(expr)
+                        } else {
+                            self.convert_stmt(expr)
+                        }
+                    })
                     .collect();
                 mir::Expr::exprs(mir_exprs)
             }
