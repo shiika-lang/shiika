@@ -11,3 +11,13 @@ pub extern "C" fn meta_shiika_internal_d(_receiver: SkObject, value: *const u64,
         }
     }
 }
+
+extern "C" {
+    fn GC_gcollect();
+}
+
+/// Run a full garbage collection.
+#[shiika_method("Meta:Shiika::Internal::Memory#force_gc")]
+pub extern "C" fn meta_shiika_internal_memory_force_gc(_receiver: SkObject) {
+    unsafe { GC_gcollect() };
+}

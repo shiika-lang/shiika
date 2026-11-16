@@ -3,11 +3,6 @@ use crate::names::FunctionName;
 
 /// Functions defined as Shiika runtime (in packages/core/ext)
 pub fn core_externs() -> Vec<mir::Extern> {
-    let void_cont = FunTy::lowered(vec![Ty::ChiikaEnv, Ty::CVoid], Ty::RustFuture);
-    let spawnee = FunTy::lowered(
-        vec![Ty::ChiikaEnv, void_cont.into(), Ty::RustFuture],
-        Ty::RustFuture,
-    );
     vec![
         ("GC_init", FunTy::sync(vec![], Ty::CVoid)),
         ("shiika_malloc", FunTy::sync(vec![Ty::Int64], Ty::Ptr)),
@@ -47,10 +42,6 @@ pub fn core_externs() -> Vec<mir::Extern> {
         (
             "chiika_env_ref",
             FunTy::sync(vec![Ty::ChiikaEnv, Ty::Int64, Ty::Int64], Ty::Any),
-        ),
-        (
-            "chiika_spawn",
-            FunTy::sync(vec![spawnee.into(), Ty::RustFuture], Ty::CVoid),
         ),
         ("chiika_start_tokio", FunTy::sync(vec![], Ty::CVoid)),
     ]

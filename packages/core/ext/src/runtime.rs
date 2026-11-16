@@ -26,14 +26,6 @@ extern "C" fn chiika_finish(env: *mut ChiikaEnv, _v: ChiikaValue) -> ContFuture 
 }
 
 #[no_mangle]
-#[allow(improper_ctypes_definitions)]
-pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
-    let poller = make_poller(f);
-    tokio::spawn(poller);
-    0
-}
-
-#[no_mangle]
 pub extern "C" fn chiika_start_tokio() {
     unsafe { GC_allow_register_threads() };
     let poller = make_poller(chiika_start_user);

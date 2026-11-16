@@ -1,0 +1,18 @@
+# `force_gc` must not collect live objects
+let a = Array<String>.new
+var i = 0
+while i < 100
+  a.push("item\{i}")
+  i += 1
+end
+Shiika::Internal::Memory.force_gc
+var j = 0
+while j < 100
+  # Allocate garbage so that freed memory would be reused
+  let s = "garbage\{j}"
+  j += 1
+end
+Shiika::Internal::Memory.force_gc
+unless a[0] == "item0"; puts "ng: a[0]"; end
+unless a[99] == "item99"; puts "ng: a[99]"; end
+puts "ok"

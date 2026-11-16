@@ -77,7 +77,6 @@ pub enum Expr {
     WTableRef(Box<Typed<Expr>>, ModuleFullname, usize, String), // (receiver, module, index, debug_name)
     If(Box<Typed<Expr>>, Box<Typed<Expr>>, Box<Typed<Expr>>),
     While(Box<Typed<Expr>>, Box<Typed<Expr>>),
-    Spawn(Box<Typed<Expr>>),
     Alloc(String, Ty),
     LVarDecl(String, Box<Typed<Expr>>, bool), // (name, rhs, writable)
     LVarSet(String, Box<Typed<Expr>>),
@@ -284,10 +283,6 @@ impl Expr {
         (Expr::While(Box::new(cond), Box::new(body)), Ty::raw("Void"))
     }
 
-    pub fn spawn(e: TypedExpr) -> TypedExpr {
-        (Expr::Spawn(Box::new(e)), Ty::raw("Void"))
-    }
-
     pub fn alloc(name: impl Into<String>, ty: Ty) -> TypedExpr {
         (Expr::Alloc(name.into(), ty), Ty::raw("Void"))
     }
@@ -480,7 +475,6 @@ impl Expr {
                     || else_.0.contains_async_call()
             }
             Expr::While(cond, body) => cond.0.contains_async_call() || body.0.contains_async_call(),
-            Expr::Spawn(e) => e.0.contains_async_call(),
             Expr::Alloc(_, _) => false,
             Expr::LVarDecl(_, e, _) => e.0.contains_async_call(),
             Expr::LVarSet(_, e) => e.0.contains_async_call(),
@@ -598,7 +592,6 @@ fn pretty_print(node: &Expr, lv: usize, as_stmt: bool) -> String {
                 + body.0.pretty_print(lv + 1, true).as_str()
                 + &format!("\n{}end", sp)
         }
-        Expr::Spawn(e) => format!("spawn {}", pretty_print(&e.0, lv, false)),
         Expr::Alloc(name, ty) => format!("alloc {}: {}", name, ty),
         Expr::LVarDecl(name, e, writable) => {
             let kw = if *writable { "var" } else { "let" };

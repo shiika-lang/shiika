@@ -110,10 +110,6 @@ impl Compiler {
                 let new_body = self.run(*body);
                 mir::Expr::while_(new_cond, new_body)
             }
-            mir::Expr::Spawn(e) => {
-                let new_e = self.run(*e);
-                mir::Expr::spawn(new_e)
-            }
             mir::Expr::Alloc(_, _) => expr,
             mir::Expr::LVarDecl(name, rhs, writable) => {
                 let new_rhs = self.let_bind_if_needed(new_body_stmts, *rhs);
