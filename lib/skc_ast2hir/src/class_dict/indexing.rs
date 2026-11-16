@@ -238,7 +238,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             Some(self._resolve_superclass(namespace, &typarams, supers)?)
         };
 
-        let (instance_methods, class_methods, implements) = self.index_defs_in_class(
+        let (mut instance_methods, class_methods, implements) = self.index_defs_in_class(
             inheritable,
             &inner_namespace,
             &fullname,
@@ -255,6 +255,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             &instance_methods,
             &implements,
         )?;
+        add_tyarg_methods(&fullname, inheritable, &includes, &mut instance_methods);
 
         self.add_new_class(
             ClassSpec {
@@ -409,7 +410,7 @@ impl<'hir_maker> ClassDict<'hir_maker> {
             }
             for req in &sk_module.requirements {
                 let req_name = &req.fullname.first_name;
-                if blk.method_names.contains(req_name) {
+                if blk.method_names.contains(req_name) || SkModule::is_tyarg_method(req_name) {
                     continue;
                 }
                 let msg = if instance_methods.contains_key(req_name) {
@@ -1285,11 +1286,18 @@ impl<'hir_maker> ClassDict<'hir_maker> {
         supers: Vec<Supertype>,
         mut instance_methods: MethodSignatures,
         mut class_methods: MethodSignatures,
-        requirements: Vec<MethodSignature>,
+        mut requirements: Vec<MethodSignature>,
         rust_methods: &mut RustMethods,
     ) -> Result<()> {
         // Register a module
         let fullname_ = fullname.to_type_fullname();
+        for idx in 0..typarams.len() {
+            requirements.push(tyarg_method_sig(
+                fullname_.clone(),
+                &SkModule::tyarg_method_name(fullname, idx),
+                false,
+            ));
+        }
         instance_methods.append_vec(self.transfer_rust_methods(
             true,
             namespace,
@@ -1791,6 +1799,48 @@ fn enum_case_getters(case_fullname: &ClassFullname, ivars: &[SkIVar]) -> MethodS
 }
 
 /// `Self` is reserved for the type of a module's includer
+/// Add the signatures of the methods which return the type arguments of the
+/// modules implemented by a class (see `SkModule::tyarg_method_name`.)
+fn add_tyarg_methods(
+    fullname: &ClassFullname,
+    inheritable: bool,
+    includes: &[Supertype],
+    instance_methods: &mut MethodSignatures,
+) {
+    for sup in includes {
+        let module = sup.erasure().to_module_fullname();
+        for idx in 0..sup.type_args().len() {
+            instance_methods.insert(tyarg_method_sig(
+                fullname.to_type_fullname(),
+                &SkModule::tyarg_method_name(&module, idx),
+                inheritable,
+            ));
+        }
+    }
+}
+
+/// Signature of a method made by `SkModule::tyarg_method_name`
+fn tyarg_method_sig(
+    type_fullname: TypeFullname,
+    name: &MethodFirstname,
+    is_virtual: bool,
+) -> MethodSignature {
+    MethodSignature {
+        fullname: method_fullname(type_fullname, &name.0),
+        ret_ty: ty::raw("Class"),
+        params: vec![],
+        typarams: vec![],
+        asyncness: if is_virtual {
+            Asyncness::Async
+        } else {
+            Asyncness::Unknown
+        },
+        is_virtual,
+        is_rust: false,
+        when_conds: vec![],
+    }
+}
+
 fn check_reserved_type_name(name: &str) -> Result<()> {
     if name == "Self" {
         return Err(error::program_error(

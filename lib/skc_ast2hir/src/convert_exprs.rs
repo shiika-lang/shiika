@@ -1019,6 +1019,9 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 panic!("[BUG] tvar_ref for `Self' is not supported")
             }
             TyParamKind::Class => {
+                if let Some(expr) = self.module_tvar_ref(&typaram_ref, &cls_ty, locs) {
+                    return expr;
+                }
                 let self_expr = if self.ctx_stack.lambda_ctx().is_some() {
                     // Inside a lambda, `self` must be captured
                     self.convert_self_expr(locs)
@@ -1057,6 +1060,47 @@ impl<'hir_maker> HirMaker<'hir_maker> {
                 }
             }
         }
+    }
+
+    /// Get the value of a type parameter of the module in a module method.
+    /// It cannot be taken from `self.class` (see `SkModule::tyarg_method_name`)
+    /// so call the method which returns it via the wtable.
+    /// Returns `None` if not in a module.
+    fn module_tvar_ref(
+        &mut self,
+        typaram_ref: &TyParamRef,
+        cls_ty: &TermTy,
+        locs: &LocationSpan,
+    ) -> Option<HirExpression> {
+        let self_ty = self.ctx_stack.self_ty();
+        if self_ty.is_typaram_ref() || self_ty.is_metaclass() {
+            return None;
+        }
+        let Some(SkType::Module(sk_module)) = self
+            .class_dict
+            .find_type(&self_ty.erasure().to_type_fullname())
+        else {
+            return None;
+        };
+        let module = sk_module.fullname();
+        let name = SkModule::tyarg_method_name(&module, typaram_ref.idx);
+        let (_, method_idx) = sk_module
+            .base
+            .method_sigs
+            .get(&name)
+            .unwrap_or_else(|| panic!("[BUG] {}#{} not indexed", module, name));
+        let method_idx = *method_idx;
+        let self_expr = self.convert_self_expr(locs);
+        let call = Hir::module_method_call(
+            ty::raw("Class"),
+            self_expr,
+            module,
+            name,
+            method_idx,
+            vec![],
+            vec![],
+        );
+        Some(Hir::bit_cast(cls_ty.clone(), call))
     }
 
     /// Check if a constant is registered

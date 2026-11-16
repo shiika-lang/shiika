@@ -53,14 +53,10 @@ module Container<E>
   requirement items -> Array<E>
 
   when E: Describe
-    # Note: not using a block here; creating a lambda in a module method
-    # crashes when the class is not generic (a known bug)
     def describe_items -> String
       var s = ""
-      let a = items
-      var i = 0; while i < a.length
-        s = s + a[i].describe
-        i += 1
+      items.each do |x|
+        s = s + x.describe
       end
       s
     end

@@ -288,6 +288,7 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.class_dict.define_ivars(&fullname, own_ivars.clone());
         crate::type_system::variance::check_ivars(&self.class_dict, &typarams, &own_ivars)?;
         self.define_accessors(&fullname, own_ivars, defs);
+        self.define_tyarg_methods(&fullname);
 
         // Register .new
         if fullname.0 != "Never" {
@@ -338,6 +339,40 @@ impl<'hir_maker> HirMaker<'hir_maker> {
         self.process_defs(&inner_namespace, Some(&fullname.to_type_fullname()), defs)?;
         self.ctx_stack.pop_class_ctx();
         Ok(())
+    }
+
+    /// Define the methods which return the type arguments of the modules
+    /// implemented by the class (see `SkModule::tyarg_method_name`.)
+    /// eg. `Dict<K, V>#_tyarg_Enumerable_0` returns `Pair<K, V>`.
+    fn define_tyarg_methods(&mut self, fullname: &ClassFullname) {
+        let type_fullname = fullname.to_type_fullname();
+        let includes = self.class_dict.get_class(fullname).includes.clone();
+        let locs = LocationSpan::internal();
+        for sup in includes {
+            let module = sup.erasure().to_module_fullname();
+            for (idx, tyarg) in sup.type_args().iter().enumerate() {
+                let name = SkModule::tyarg_method_name(&module, idx);
+                let signature = self
+                    .class_dict
+                    .find_method_sig(&type_fullname, &name)
+                    .unwrap_or_else(|| panic!("[BUG] {}#{} not indexed", fullname, name));
+                self.ctx_stack
+                    .push(HirMakerContext::method(signature.clone(), None, None));
+                let class_obj = self.get_class_object(&tyarg.meta_ty(), &locs);
+                let exprs = Hir::expressions(vec![Hir::return_expression(
+                    HirReturnFrom::Method,
+                    Hir::bit_cast(ty::raw("Class"), class_obj),
+                    locs.clone(),
+                )]);
+                let mut method_ctx = self.ctx_stack.pop_method_ctx();
+                let method = SkMethod {
+                    fullname: signature.fullname,
+                    body: SkMethodBody::Normal { exprs },
+                    lvars: extract_lvars(&mut method_ctx.lvars),
+                };
+                self.method_dict.add_method(type_fullname.clone(), method);
+            }
+        }
     }
 
     /// Add `#initialize` and return defined ivars

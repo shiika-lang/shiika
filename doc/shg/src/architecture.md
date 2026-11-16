@@ -74,3 +74,11 @@ maps module methods to actual implementations.
   (`lib/skc_ast2hir/src/class_dict/build_wtable.rs`, `build_wtable()`).
   For example, for `Array` including `Enumerable`, it maps
   `Enumerable#each` → `Array#each`.
+
+A module method cannot take the module's type arguments from `self.class`,
+because they are not the type arguments of the class (eg. `E` of
+`Enumerable<E>` is `Pair<K, V>` for `Dict<K, V>`). So a generic module
+requires hidden methods like `_tyarg_Enumerable_0 -> Class` and every class
+which implements the module gets them automatically
+(`SkModule::tyarg_method_name`). A reference to a module type parameter in a
+module method is compiled into a call of them via the wtable.
