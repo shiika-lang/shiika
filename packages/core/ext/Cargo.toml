@@ -12,4 +12,5 @@ shiika_ffi_macro = { path = "../../../lib/shiika_ffi_macro" }
 tokio = { version = "1.43.1", features = ["full"] }
 rand = "0.10.1"
 chrono = "0.4"
+libc = "0.2"
 bdwgc-alloc = { version = "0.6.13", default-features=false, features = ["cmake"] }

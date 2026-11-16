@@ -485,6 +485,7 @@ version = "0.1.0"
 dependencies = [
  "bdwgc-alloc",
  "chrono",
+ "libc",
  "rand",
  "shiika_ffi",
  "shiika_ffi_macro",

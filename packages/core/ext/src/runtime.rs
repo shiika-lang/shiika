@@ -1,7 +1,10 @@
 mod allocator;
 mod cell;
+#[cfg(unix)]
+mod gc_threads;
 pub(crate) mod wtable;
 
+#[cfg(not(unix))]
 use bdwgc_alloc::Allocator;
 use shiika_ffi::async_::{ChiikaCont, ChiikaEnv, ChiikaValue, ContFuture};
 use std::future::{poll_fn, Future};
@@ -37,16 +40,10 @@ pub extern "C" fn chiika_spawn(f: ChiikaThunk) -> u64 {
 pub extern "C" fn chiika_start_tokio() {
     unsafe { GC_allow_register_threads() };
     let poller = make_poller(chiika_start_user);
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .on_thread_start(|| {
-            unsafe { Allocator::register_current_thread() }.expect("Failed to register GC thread");
-        })
-        .on_thread_stop(|| {
-            unsafe { Allocator::unregister_current_thread() };
-        })
-        .build()
-        .unwrap();
+    let mut builder = tokio::runtime::Builder::new_current_thread();
+    builder.enable_all();
+    register_threads_to_gc(&mut builder);
+    let runtime = builder.build().unwrap();
     runtime.block_on(poller);
     // Leak the tokio runtime instead of dropping it. Dropping it shuts down the
     // blocking pool, which joins its worker threads and frees each thread's name
@@ -55,6 +52,25 @@ pub extern "C" fn chiika_start_tokio() {
     // aborts with "Duplicate large block deallocation" (intermittent, macOS
     // only). The process is exiting here, so leaking the runtime is harmless.
     std::mem::forget(runtime);
+}
+
+/// Make the threads tokio creates (eg. for `spawn_blocking`) known to bdwgc.
+#[cfg(unix)]
+fn register_threads_to_gc(_builder: &mut tokio::runtime::Builder) {
+    // From now on, threads are created via `GC_pthread_create`, which
+    // registers them (and unregisters them on exit).
+    gc_threads::enable();
+}
+
+#[cfg(not(unix))]
+fn register_threads_to_gc(builder: &mut tokio::runtime::Builder) {
+    builder
+        .on_thread_start(|| {
+            unsafe { Allocator::register_current_thread() }.expect("Failed to register GC thread");
+        })
+        .on_thread_stop(|| {
+            unsafe { Allocator::unregister_current_thread() };
+        });
 }
 
 fn make_poller(f: ChiikaThunk) -> impl Future<Output = ()> {
