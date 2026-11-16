@@ -1,0 +1,6 @@
+---
+source: tests/erroneous.rs
+expression: compiler_output
+input_file: tests/erroneous/task/break_in_spawn.sk
+---
+`break' not allowed because this block is expected to return a value

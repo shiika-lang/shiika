@@ -19,7 +19,7 @@ class A
     Data.new("data\{i}", ["a\{i}", "b\{i}"])
   end
 
-  def self.spawn_one(scope: Task::Scope, results: Array<String>, i: Int)
+  def self.spawn_one(scope: Task::Scope, results: Array<String>, i: Int) -> Task<String>
     # Captured by the task
     let d = A.make(i)
     scope.spawn do
@@ -29,16 +29,18 @@ class A
       A.garbage
       Shiika::Internal::Memory.force_gc
       sleep_sec(0)
-      results.push(d.name + ":" + d.items[0] + ":" + d.items[1] + ":" + local.name)
+      let result = d.name + ":" + d.items[0] + ":" + d.items[1] + ":" + local.name
+      results.push(result)
+      result
     end
   end
 
-  def self.run -> Array<String>
+  def self.run(tasks: Array<Task<String>>) -> Array<String>
     let results = Array<String>.new
     Task.scope do |scope|
       var i = 0
       while i < 20
-        A.spawn_one(scope, results, i)
+        tasks.push(A.spawn_one(scope, results, i))
         i += 1
       end
       A.garbage
@@ -48,7 +50,9 @@ class A
   end
 end
 
-let results = A.run
+# The results held by the Task objects must survive too
+let tasks = Array<Task<String>>.new
+let results = A.run(tasks)
 A.garbage
 Shiika::Internal::Memory.force_gc
 unless results.length == 20; puts "ng: length=\{results.length}"; end
@@ -56,6 +60,7 @@ var i = 0
 while i < 20
   let expected = "data\{i}:a\{i}:b\{i}:data\{i + 100}"
   unless results[i] == expected; puts "ng: \{results[i]}"; end
+  unless tasks[i].await == expected; puts "ng: await \{tasks[i].await}"; end
   i += 1
 end
 puts "ok"

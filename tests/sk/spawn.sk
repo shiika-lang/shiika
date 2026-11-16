@@ -71,4 +71,42 @@ end
 let sum = A.run([1, 2, 3])
 unless sum == 6; puts "ng: sum=\{sum}"; end
 
+# Task#await returns the value of the block
+Task.scope do |scope|
+  let t1 = scope.spawn do
+    sleep_sec(0)
+    1
+  end
+  let t2 = scope.spawn{ "two" }
+  let t3 = scope.spawn{ [3.0] }
+  unless t2.await == "two"; puts "ng: t2"; end
+  unless t1.await == 1; puts "ng: t1"; end
+  unless t3.await[0] == 3.0; puts "ng: t3"; end
+  # Can be awaited more than once
+  unless t1.await + t1.await == 2; puts "ng: t1 (again)"; end
+end
+
+# A task can be awaited after its scope is finished
+let task = Task.scope<Task<Int>> do |scope|
+  scope.spawn do
+    sleep_sec(0)
+    7
+  end
+end
+unless task.await == 7; puts "ng: task.await=\{task.await}"; end
+
+# A task can be awaited by more than one task
+var total = 0
+Task.scope do |scope|
+  let slow = scope.spawn do
+    sleep_sec(0)
+    sleep_sec(0)
+    5
+  end
+  scope.spawn{ total += slow.await }
+  scope.spawn{ total += slow.await }
+  total += slow.await
+end
+unless total == 15; puts "ng: total=\{total}"; end
+
 puts "ok"
