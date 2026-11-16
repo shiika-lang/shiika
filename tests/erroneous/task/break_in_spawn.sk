@@ -1,0 +1,6 @@
+Task.scope do |scope|
+  scope.spawn do
+    break
+  end
+  1
+end

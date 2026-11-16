@@ -1,8 +1,8 @@
-# Concurrent tasks.
+# A concurrent task. Created with `Task::Scope#spawn`.
 #
 # Tasks are run concurrently but not in parallel; a task is switched to
 # another only while it is waiting for something (I/O, timer, etc.)
-class Task
+class Task<T>
   # Runs the block and then waits for all the tasks spawned in the scope.
   # Returns the value of the block.
   #
@@ -13,30 +13,59 @@ class Task
   #       scope.spawn{ download(url2) }
   #     end
   #     # Both downloads are done here.
-  def self.scope<T>(f: Fn1<Task::Scope, T>) -> T
+  def self.scope<U>(f: Fn1<Task::Scope, U>) -> U
     let scope = Task::Scope.new(Task::Scope._create)
     let v = f(scope)
     Task::Scope._join(scope._id)
     v
   end
 
+  native_async def self._wait(task_id: Int)
+
+  def initialize(@_id: Int, result: Maybe<T>)
+    var @_result = result
+  end
+
+  # Waits for the task to finish and returns the value of its block.
+  #
+  # Can be called any number of times, even after the scope is finished.
+  def await -> T
+    Task._wait(@_id)
+    @_result.expect("[BUG] Task#await: the task has no result")
+  end
+
+  # Called when the task is finished
+  def _finish(value: T)
+    _set_result(Some<T>.new(value))
+  end
+
+  def _set_result(result: Maybe<T>)
+    @_result = result
+  end
+
   # A group of tasks. Created with `Task.scope`.
   class Scope
     native def self._create -> Int
-    native def self._spawn(scope_id: Int, f: Fn0<Void>) -> Bool
+    native def self._register_task(scope_id: Int) -> Int
+    native def self._start_task(scope_id: Int, task_id: Int, f: Fn0<Void>)
     native_async def self._join(scope_id: Int)
 
     def initialize(@_id: Int); end
 
     # Starts a new task which runs the block.
     #
-    # The task belongs to this scope. It is started even after the block of
-    # `Task.scope` is finished (eg. from another task of the scope), unless
-    # all the tasks of the scope are finished already.
-    def spawn(f: Fn0<Void>)
-      unless Task::Scope._spawn(@_id, f)
+    # The task belongs to this scope; `Task.scope` does not return until it
+    # is finished. A task can be spawned even after the block of `Task.scope`
+    # is finished (eg. from another task of the scope), unless all the tasks
+    # of the scope are finished already.
+    def spawn<T>(f: Fn0<T>) -> Task<T>
+      let task_id = Task::Scope._register_task(@_id)
+      if task_id == 0
         panic "Task::Scope#spawn: the scope is already closed"
       end
+      let task = Task<T>.new(task_id, None)
+      Task::Scope._start_task(@_id, task_id, fn(){ task._finish(f()) })
+      task
     end
   end
 end
