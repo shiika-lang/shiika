@@ -11,4 +11,5 @@
 - [Pattern Matching](./pattern_matching.md)
 - [Generics](./generics.md)
 - [Expressions](./expressions.md)
+- [Tasks](./tasks.md)
 - [Difference from Ruby](./ruby.md)

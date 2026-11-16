@@ -1,0 +1,35 @@
+# `Task.yield` lets the other tasks run
+class A
+  def self.run -> Array<String>
+    let log = Array<String>.new
+    Task.scope do |scope|
+      scope.spawn do
+        log.push("a1")
+        Task.yield
+        log.push("a2")
+      end
+      scope.spawn do
+        log.push("b1")
+        Task.yield
+        log.push("b2")
+      end
+      # Tasks are not started until the current task waits
+      unless log.length == 0; puts "ng: started too early"; end
+      Task.yield
+      unless log.length > 0; puts "ng: tasks not started by yield"; end
+    end
+    log
+  end
+end
+
+let log = A.run
+unless log.length == 4; puts "ng: log.length=\{log.length}"; end
+# The tasks must be interleaved, i.e. both are started before either of them
+# finishes. (The exact order is up to the scheduler.)
+unless log[0] == "a1" or log[0] == "b1"; puts "ng: \{log}"; end
+unless log[1] == "a1" or log[1] == "b1"; puts "ng: \{log}"; end
+
+# Can be called outside Task.scope
+Task.yield
+
+puts "ok"

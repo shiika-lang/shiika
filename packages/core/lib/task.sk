@@ -20,6 +20,13 @@ class Task<T>
     v
   end
 
+  # Lets other tasks run.
+  #
+  # A task is never interrupted unless it waits for something, so a
+  # long-running computation should call this once in a while not to starve
+  # the other tasks.
+  native_async def self.yield
+
   native_async def self._wait(task_id: Int)
 
   def initialize(@_id: Int, result: Maybe<T>)

@@ -32,3 +32,8 @@ async fn meta_task_scope_join(_receiver: SkClass, scope_id: SkInt) {
 async fn meta_task_wait(_receiver: SkClass, task_id: SkInt) {
     task::wait_task(task_id.val()).await;
 }
+
+#[async_shiika_method("Meta:Task#yield")]
+async fn meta_task_yield(_receiver: SkClass) {
+    tokio::task::yield_now().await;
+}
